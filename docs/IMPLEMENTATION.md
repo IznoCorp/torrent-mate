@@ -53,21 +53,21 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ## Avancement global
 
-| Étape                              | Status                               |
-| ---------------------------------- | ------------------------------------ |
-| A. Modélisation V0 (PROJECT SETUP) | [~] Brainstorming OK, design à faire |
-| A. Modélisation V1 (INGEST)        | [x] Brainstorming + Design + Plan    |
-| A. Modélisation V2 (SORT+CLEAN)    | [~] Brainstorming OK, design à faire |
-| A. Modélisation V3 (SCRAPE)        | [~] Brainstorming OK, design à faire |
-| A. Modélisation V4 (DISPATCH)      | [~] Brainstorming OK, design à faire |
-| A. Modélisation V5 (LOG+NOTIFY)    | [~] Brainstorming OK, design à faire |
-| A. Review globale inter-versions   | [ ] Après modélisation complète      |
-| B. Implémentation V0               | [ ] Après review globale             |
-| B. Implémentation V1               | [ ]                                  |
-| B. Implémentation V2               | [ ]                                  |
-| B. Implémentation V3               | [ ]                                  |
-| B. Implémentation V4               | [ ]                                  |
-| B. Implémentation V5               | [ ]                                  |
+| Étape                              | Status                                      |
+| ---------------------------------- | ------------------------------------------- |
+| A. Modélisation V0 (PROJECT SETUP) | [~] Brainstorming + Design OK, plan à faire |
+| A. Modélisation V1 (INGEST)        | [x] Brainstorming + Design + Plan           |
+| A. Modélisation V2 (SORT+CLEAN)    | [~] Brainstorming + Design OK, plan à faire |
+| A. Modélisation V3 (SCRAPE)        | [~] Brainstorming + Design OK, plan à faire |
+| A. Modélisation V4 (DISPATCH)      | [~] Brainstorming + Design OK, plan à faire |
+| A. Modélisation V5 (LOG+NOTIFY)    | [~] Brainstorming + Design OK, plan à faire |
+| A. Review globale inter-versions   | [ ] Après modélisation complète             |
+| B. Implémentation V0               | [ ] Après review globale                    |
+| B. Implémentation V1               | [ ]                                         |
+| B. Implémentation V2               | [ ]                                         |
+| B. Implémentation V3               | [ ]                                         |
+| B. Implémentation V4               | [ ]                                         |
+| B. Implémentation V5               | [ ]                                         |
 
 ---
 
