@@ -186,5 +186,14 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`
 - ffprobe returns ISO 639-2/B language codes (`fre`), Kodi NFO expects 639-2/T (`fra`) — always convert via `LANG_B_TO_T` mapping (20 codes differ)
 - TVDB API v4 is free for personal use (< 50k$ revenue) but requires application + attribution
+- TVDB API v4 has two key types: "Negotiated Contract" (free, no PIN needed) and "User Subscription" (requires PIN). Pipeline uses Negotiated Contract — login with `{"apikey": "..."}` only, no `pin` field.
+- TVDB uses 3-char language codes (`fra`, `eng`), TMDB uses `fr-FR`/`en-US` — always convert between the two systems
+- TMDB `year` search parameter is NOT a strict filter — it boosts relevance but returns other years too. Always validate client-side.
+- TMDB images: ALWAYS use `include_image_language=fr,en,null` — without it, 5x-31x fewer images are returned (backdrops especially)
+- TVDB artwork has no "landscape" type — use "Background" (type 3 for series, 15 for movies, 1920×1080)
+- TVDB source type IDs for TMDB cross-ref: 10=movies, 12=TV series, 15=people, 28=collections — use the right one
 - Never include API keys in documentation or brainstorming files — use `.env` references only
+- When inserting a new version between existing ones, update ALL references: H1 titles, commit prefixes (`vX.Y.Z:`), cross-version refs, sub-phase numbering, data flow diagrams
+- `git filter-repo` works on this repo but `.git/config` is read-only (macOS permissions) — remote removal error is cosmetic, re-add remote after if needed
+- Genre mapper lives in `personalscraper/verify/genre_mapper.py` (V4) and is imported by V5-dispatch — single source of truth for genre→category mapping
 - Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`
