@@ -5,7 +5,7 @@
 ## Contexte
 
 Après V4 (verify), les médias dans `001-MOVIES/` et `002-TVSHOWS/` ont leurs .nfo, artwork,
-et les épisodes sont renommés dans des dossiers `Saison XX/`. V4 doit les envoyer sur le bon
+et les épisodes sont renommés dans des dossiers `Saison XX/`. V5 doit les envoyer sur le bon
 disque de stockage.
 
 ## Décisions prises

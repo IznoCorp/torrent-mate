@@ -115,7 +115,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Design        | [v2-sort-clean/DESIGN.md](v2-sort-clean/DESIGN.md)               | [x]    |
 | Plan (index)  | [v2-sort-clean/plan/INDEX.md](v2-sort-clean/plan/INDEX.md)       | [x]    |
 
-**4 phases, 8 sous-phases** — NameCleaner regex, FileMate strategies, Sorter → list[SortResult]
+**4 phases, 8 sous-phases** — NameCleaner (guessit), FileMate strategies, Sorter → list[SortResult]
 
 ---
 
