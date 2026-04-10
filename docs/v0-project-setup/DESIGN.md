@@ -20,6 +20,7 @@ personalscraper/
 │   ├── models.py                 # Dataclasses partagées (SortResult, MediaInfo, etc.)
 │   ├── logger.py                 # Module logging JSON structuré (V5)
 │   ├── notifier.py               # Module Telegram (V5, stub en V0)
+│   ├── naming_patterns.py        # Patterns de nommage MediaElch (partagé sorter/scraper)
 │   ├── ingest/                   # V1
 │   │   ├── __init__.py
 │   │   ├── qbit_client.py
@@ -110,6 +111,7 @@ def dispatch(dry_run):
     """Move media to storage disks."""
 
 @cli.command()
+@click.option("--dry-run", is_flag=True)
 def run(dry_run):
     """Run full pipeline (ingest → sort → scrape → dispatch)."""
 ```
@@ -144,13 +146,15 @@ class Settings(BaseSettings):
 
     # Scraper
     scraper_language: str = "fr-FR"
+    scraper_fallback_language: str = "en-US"
 
     # Telegram (optional)
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
     # Thresholds
-    min_free_space_gb: int = 100
+    min_free_space_staging_gb: int = 20   # V1: SSD staging area
+    min_free_space_disk_gb: int = 100     # V4: storage disks
 ```
 
 ### Logger (JSON structuré, détail en V5 design)
