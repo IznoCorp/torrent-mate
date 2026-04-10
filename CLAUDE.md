@@ -63,8 +63,23 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 Documentation and implementation plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
-- `docs/v1-ingest/` through `docs/v5-log-notify/` — Per-version brainstorming, design, and phased plans
+- `docs/v0-project-setup/` through `docs/v7-e2e-tests/` — Per-version brainstorming, design, and phased plans
 - Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
+
+### Reference Documentation
+
+- `docs/qbittorrent-api-reference.md` — V1: TorrentState enum, exceptions, patterns pipeline
+- `docs/guessit-evaluation.md` — V2: parsing noms media, tests réels, comparaison regex
+- `docs/ffprobe-reference.md` — V3: extraction streamdetails, mapping codec/langue Kodi
+- `docs/TMDB-API.md` — V3: référence API TMDB v3 vérifiée par tests live
+- `docs/TVDB-API.md` — V3: référence API TVDB v4 vérifiée par tests live
+
+### Key Dependencies (chosen after evaluation)
+
+- `qbittorrent-api` — V1 wrapper qBit (prefer over raw requests — handles auth/CSRF/v5 compat)
+- `guessit` — V2 filename parsing (prefer over custom regex — 140+ services, edge cases)
+- `ffprobe` (subprocess) — V3 streamdetails (prefer over pymediainfo — already installed, zero dep)
+- `pydantic-settings` — V0 config (rewritten from scratch, NOT copied from TorrentMaker)
 
 ## Directory Structure
 
@@ -174,4 +189,8 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - Some scripts still reference Windows paths (`N:/A TRIER/`) — these are legacy and need updating for the macOS environment.
 - The `plex/` scripts reference disk paths as `/Volumes/DISK1/` (uppercase) but actual mounts are `/Volumes/Disk1/` (mixed case) — be aware of case sensitivity.
 - MediaElch is the external metadata scraper — Claude does not interact with it directly.
+- macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`
+- ffprobe returns ISO 639-2/B language codes (`fre`), Kodi NFO expects 639-2/T (`fra`) — always convert via `LANG_B_TO_T` mapping (20 codes differ)
+- TVDB API v4 is free for personal use (< 50k$ revenue) but requires application + attribution
+- Never include API keys in documentation or brainstorming files — use `.env` references only
 - Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`
