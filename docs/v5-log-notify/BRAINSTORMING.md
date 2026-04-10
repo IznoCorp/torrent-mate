@@ -4,43 +4,38 @@
 
 ## Contexte
 
-Le pipeline a besoin d'un système de logging pour tracer toutes les opérations
-et d'un système de notification pour informer l'utilisateur des résultats.
+Chaque version (V1→V4) produit des opérations qui doivent être tracées et notifiées.
+V5 fournit le système transversal de logging et notification.
 
-## Logging
+## Décisions prises
 
-### Besoins
+### Logging
 
-- Journal de chaque opération avec horodatage
-- Niveau de détail configurable (DEBUG, INFO, WARNING, ERROR)
-- Rotation des logs (ne pas accumuler indéfiniment)
-- Consultable facilement (fichier texte ou structured JSON)
+- **Fichier de log** structuré avec horodatage
+- Utilisé par toutes les versions (V1→V4)
+- Module Python importable par chaque composant du pipeline
 
-### Questions
+### Notifications Telegram
 
-- [ ] Format : texte lisible ou JSON structuré (parseable) ?
-- [ ] Emplacement : dans le projet ou dans un dossier système (`/var/log/`, `~/logs/`) ?
-- [ ] Rétention : combien de jours/Mo de logs garder ?
+- Bot Telegram pour les notifications
+- API simple : `POST https://api.telegram.org/bot{token}/sendMessage`
+- Config dans `.env` : `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
 
-## Notifications Telegram
+## Questions ouvertes
 
-### Besoins
+- [ ] Format log : texte lisible humainement ou JSON structuré (parseable) ?
+- [ ] Emplacement : dans le projet (`logs/`) ou dossier dédié ?
+- [ ] Rétention : combien de jours/Mo de logs garder ? Rotation automatique ?
+- [ ] Bot Telegram : déjà existant ou à créer ?
+- [ ] Notifications : résumé final uniquement ou par étape ?
+- [ ] Format message Telegram : texte simple, markdown, emojis ?
 
-- Notification à la fin d'un run du pipeline (succès/échec)
-- Résumé : nombre de fichiers ingérés, triés, scrapés, dispatchés
-- Alertes en cas d'erreur (espace disque faible, échec scraping, etc.)
+## Contraintes techniques
 
-### Setup nécessaire
-
-- Bot Telegram (token à créer via @BotFather)
-- Chat ID de l'utilisateur
-- API simple : HTTP POST vers `https://api.telegram.org/bot<token>/sendMessage`
-
-### Questions
-
-- [ ] Bot déjà existant ou à créer ?
-- [ ] Notification par étape ou uniquement le résumé final ?
-- [ ] Format du message (texte simple, markdown, avec emojis ?)
+1. Le logging doit être intégré dès V0 (module disponible pour toutes les versions)
+2. Le module doit supporter `--verbose` et `--quiet` de manière cohérente
+3. Les notifications ne doivent pas bloquer le pipeline en cas d'échec Telegram
+4. Le log doit être exploitable pour diagnostiquer les erreurs sans relancer le pipeline
 
 ## Notes de brainstorming
 
