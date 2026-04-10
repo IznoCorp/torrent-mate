@@ -43,11 +43,12 @@ personalscraper ingest --dry-run --verbose
 
 ### Cron (via la commande CLI installée)
 
-```cron
-0 3 * * * /path/to/venv/bin/personalscraper run >> /dev/null 2>&1
+```
+# Scheduling via launchd (V6) — exemple illustratif, voir V6 DESIGN pour la config réelle
+# 0 3 * * * /path/to/venv/bin/personalscraper run
 ```
 
-Note : le cron lance `run` (pipeline complet), pas `ingest` seul.
+Note : le scheduling lance `run` (pipeline complet), pas `ingest` seul.
 
 ## Modules
 
@@ -67,7 +68,7 @@ class QBitClient:
     def __init__(self, host: str, port: int, username: str, password: str):
         self._client = qbittorrentapi.Client(
             host=host, port=port, username=username, password=password,
-            REQUESTS_ARGS={"timeout": 30},   # Défaut lib = 15.1s, trop court pour le cron
+            REQUESTS_ARGS={"timeout": 30},   # Défaut lib = 15.1s, trop court pour le scheduling
             VERIFY_WEBUI_CERTIFICATE=False,   # API locale, pas de cert SSL
         )
 
@@ -216,8 +217,12 @@ def release_lock() -> None:
     """Supprimer le lock file."""
 ```
 
-Chaque commande qui modifie le filesystem (`ingest`, `sort`, `scrape`, `verify`, `dispatch`, `run`)
-appelle `acquire_lock()` au début et `release_lock()` en `try/finally`.
+Le lock est acquis au **niveau CLI** (dans la commande Typer), pas dans les `run_*()` functions.
+Cela évite un double-lock quand `run` appelle `run_ingest()` (les deux auraient pris le même lock).
+
+Commandes qui acquièrent le lock : `ingest`, `sort`, `scrape`, `verify`, `dispatch`, `run`.
+Chaque commande appelle `acquire_lock()` au début et `release_lock()` en `try/finally`.
+Les `run_*()` functions ne gèrent PAS le lock elles-mêmes.
 Le lock peut être supprimé manuellement si nécessaire (`rm ~/.personalscraper/pipeline.lock`).
 
 ## Transfert atomique (copie sûre)

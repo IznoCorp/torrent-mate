@@ -32,6 +32,10 @@ Assembler checker + fixer + genre_mapper dans l'orchestrateur, connecter au CLI.
 - [ ] Appeler `verify_all_movies()` + `verify_all_tvshows()`
 - [ ] Afficher résumé : X valid, Y fixed, Z blocked, N warnings
 - [ ] En mode verbose : détail par dossier (checks passés, corrections, erreurs)
+- [ ] Implémenter `run_verify(settings, dry_run) -> tuple[StepReport, list[VerifyResult]]`
+  - Instancier Verifier, appeler verify*all*\*, convertir en StepReport
+  - Retourner aussi la liste des VerifyResult dispatchable (pour V5 pipeline handoff)
+  - Le lock est acquis au niveau CLI, PAS dans run_verify()
 - [ ] Alimenter StepReport avec les VerifyResult
 - [ ] Tests CLI via CliRunner
 

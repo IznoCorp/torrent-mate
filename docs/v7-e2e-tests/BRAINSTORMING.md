@@ -36,7 +36,7 @@ Stratégie de protection multi-couches :
 
 2. **Registre de test** : à chaque étape, le test enregistre les paths exacts créés dans un fichier `e2e-test-registry-{uuid}.json`. Le cleanup parcourt ce registre, vérifie le marker, puis supprime.
 
-3. **Double vérification** : avant de supprimer un dossier sur un disque, vérifier :
+3. **Triple vérification** : avant de supprimer un dossier sur un disque, vérifier :
    - Le marker `.e2e-test-marker` existe
    - Le contenu du marker correspond à l'UUID de session
    - Le chemin est dans le registre

@@ -44,6 +44,9 @@ Implémenter les fonctions d'assertion pour vérifier chaque étape du pipeline 
   - Le dossier dans A TRIER/ n'existe plus (déplacé)
   - Le .e2e-test-marker existe dans le dossier sur le disque destination
     (préservé par rsync — voir DESIGN.md "Cycle de vie du marker")
+- [ ] `assert_pipeline_report(report)` :
+  - Le PipelineReport contient un StepReport pour chaque étape (ingest→dispatch)
+  - Le log file `logs/personalscraper.json` existe et contient les événements attendus
 - [ ] `assert_cleanup_complete(registry)` :
   - Aucun chemin du registre n'existe encore sur le filesystem
   - Aucun marker orphelin trouvé par `find_orphan_markers()`

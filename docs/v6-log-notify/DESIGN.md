@@ -168,18 +168,25 @@ Chaque version crée un `StepReport` et l'ajoute au `PipelineReport`. À la fin 
 > Chaque `run_*()` retourne un `StepReport`. La conversion depuis les types internes
 > (`list[SortResult]`, etc.) se fait dans l'orchestrateur de chaque version, PAS dans V6.
 
-| Version | Fonction         | Type interne           | Conversion → StepReport                                                                                                                                                                                                    |
-| ------- | ---------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V1      | `run_ingest()`   | StepReport directement | Pas de conversion (déjà StepReport)                                                                                                                                                                                        |
-| V2      | `run_sort()`     | `list[SortResult]`     | `success_count = len([r for r in results if r.status == "moved"])`, `skip_count = len([r for r in results if r.status == "skipped"])`, `details = [f"{r.title} → {r.destination}" for r]`                                  |
-| V3      | `run_scrape()`   | `list[ScrapeResult]`   | `success_count = len([r for r in results if r.match])`, `error_count = len([r for r in results if not r.match])`, `details = [f"{r.media_path.name}: {r.match.source if r.match else 'unmatched'}" for r]`                 |
-| V4      | `run_verify()`   | `list[VerifyResult]`   | `success_count = len([r for r in results if r.status in ("valid", "fixed")])`, `error_count = len([r for r in results if r.status == "blocked"])`, `warnings = [w for r in results for w in r.warnings]`                   |
-| V5      | `run_dispatch()` | `list[DispatchResult]` | `success_count = len([r for r in results if r.action in ("replaced", "merged", "moved")])`, `skip_count = len([r for r in results if r.action == "skipped"])`, `details = [f"{r.source.name} → {r.disk}" for r if r.disk]` |
+| Version | Fonction         | Type interne           | Conversion → StepReport                                                                                                                                                                                                                                                                                      |
+| ------- | ---------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| V1      | `run_ingest()`   | StepReport directement | Pas de conversion (déjà StepReport)                                                                                                                                                                                                                                                                          |
+| V2      | `run_sort()`     | `list[SortResult]`     | `success_count = len([r for r in results if r.status == "moved"])`, `skip_count = len([r for r in results if r.status == "skipped"])`, `error_count = len([r for r in results if r.status == "error"])`, `details = [f"{r.title} → {r.destination}" for r]`                                                  |
+| V3      | `run_scrape()`   | `list[ScrapeResult]`   | `success_count = len([r for r in results if r.action == "scraped"])`, `skip_count = len([r for r in results if r.action.startswith("skipped")])`, `error_count = len([r for r in results if r.action == "error"])`, `details = [f"{r.media_path.name}: {r.match.source if r.match else 'unmatched'}" for r]` |
+| V4      | `run_verify()`   | `list[VerifyResult]`   | `success_count = len([r for r in results if r.status in ("valid", "fixed")])`, `error_count = len([r for r in results if r.status == "blocked"])`, `warnings = [w for r in results for w in r.warnings]`                                                                                                     |
+| V5      | `run_dispatch()` | `list[DispatchResult]` | `success_count = len([r for r in results if r.action in ("replaced", "merged", "moved")])`, `skip_count = len([r for r in results if r.action == "skipped"])`, `error_count = len([r for r in results if r.action == "error"])`, `details = [f"{r.source.name} → {r.disk}" for r if r.disk]`                 |
 
 > **`run_*()` wrapper functions** : chaque version (V2-V5) doit définir une fonction top-level
-> `run_sort(settings, dry_run) -> StepReport`, `run_scrape(...)`, etc. dans son orchestrateur
-> ou `__init__.py`. Ces fonctions instancient la classe, appellent `process()`, et convertissent
-> les résultats internes en `StepReport`. Pattern identique à V1 `run_ingest()`.
+> dans son orchestrateur ou `__init__.py`. Pattern identique à V1 `run_ingest()`.
+> Signatures :
+>
+> - `run_sort(settings, dry_run) -> StepReport`
+> - `run_scrape(settings, dry_run, interactive=False) -> StepReport` (interactive pour CLI standalone)
+> - `run_verify(settings, dry_run) -> tuple[StepReport, list[VerifyResult]]` (retourne aussi les résultats pour V5)
+> - `run_dispatch(settings, dry_run, verified=None) -> StepReport` (verified=None → standalone mode)
+>
+> **V4→V5 handoff** : la commande `run` appelle `run_verify()` qui retourne le StepReport
+> ET la liste des `VerifyResult` dispatchable. Le `run` passe ensuite `verified` à `run_dispatch()`.
 
 La commande `run` (V6) appelle simplement `report.add_step("ingest", run_ingest(settings, dry_run))` pour chaque étape.
 Chaque `run_*()` est responsable de construire son propre StepReport — V6 ne fait que les agréger.
@@ -219,7 +226,7 @@ Le résumé console utilise `rich.panel.Panel` + `rich.table.Table` : colonnes (
 
 La commande `run` appelle `acquire_lock()` au début et `release_lock()` à la fin (via try/finally).
 Si le lock est pris, le pipeline log un WARNING et quitte sans erreur.
-Ceci empêche les collisions entre le cron quotidien et un lancement manuel simultané.
+Ceci empêche les collisions entre la tâche planifiée quotidienne et un lancement manuel simultané.
 
 ## Monitoring externe (healthchecks.io)
 

@@ -19,6 +19,7 @@ personalscraper/sorter/
 ### Dépendances
 
 - `guessit>=3.8.0` — parsing de noms media (ajouté dans V0 `pyproject.toml`)
+- `rapidfuzz>=3.14.0` — fuzzy matching dossiers existants (ajouté dans V0 `pyproject.toml`)
 - Stdlib pour le reste (`pathlib`, `shutil`, `dataclasses`)
 
 ## Interfaces

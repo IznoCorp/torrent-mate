@@ -1,22 +1,22 @@
 # V6 — LOG + NOTIFY : Plan d'implémentation
 
-> Notifications Telegram + commande pipeline `run` + cron
+> Notifications Telegram + commande pipeline `run` + scheduling
 
 ## Phases
 
-| #   | Phase                                       | Fichier                                              | Status |
-| --- | ------------------------------------------- | ---------------------------------------------------- | ------ |
-| 1   | Telegram notifier (compléter le stub V0)    | [phase-01-telegram.md](phase-01-telegram.md)         | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2_               |                                                      | [ ]    |
-| 2   | Pipeline `run` command + rapport            | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [ ]    |
-| ·   | _Contrôle de cohérence P2→P3_               |                                                      | [ ]    |
-| 3   | Cron + alias + validation finale            | [phase-03-cron-final.md](phase-03-cron-final.md)     | [ ]    |
-| ·   | _Contrôle de cohérence V6 → projet complet_ |                                                      | [ ]    |
+| #   | Phase                                            | Fichier                                              | Status |
+| --- | ------------------------------------------------ | ---------------------------------------------------- | ------ |
+| 1   | Telegram notifier (compléter le stub V0)         | [phase-01-telegram.md](phase-01-telegram.md)         | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2_                    |                                                      | [ ]    |
+| 2   | Pipeline `run` command + rapport                 | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [ ]    |
+| ·   | _Contrôle de cohérence P2→P3_                    |                                                      | [ ]    |
+| 3   | Scheduling (launchd) + alias + validation finale | [phase-03-cron-final.md](phase-03-cron-final.md)     | [ ]    |
+| ·   | _Contrôle de cohérence V6 → projet complet_      |                                                      | [ ]    |
 
 ## Dépendances entre phases
 
 ```
-Phase 1 (telegram) ──▶ Phase 2 (pipeline run) ──▶ Phase 3 (cron + final)
+Phase 1 (telegram) ──▶ Phase 2 (pipeline run) ──▶ Phase 3 (scheduling + final)
 ```
 
 Note : le module logger (structlog) est déjà implémenté en V0. V6 complète le notifier, assemble le pipeline, et utilise rich pour l'output console.

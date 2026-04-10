@@ -12,8 +12,9 @@ Implémenter `ingest.py` : l'orchestrateur appelé par la commande CLI Typer.
   - ⚠️ Pas de paramètre `verbose` — le niveau de log est configuré globalement par le callback Typer
 - [ ] Connecter au stub Typer `ingest` dans `cli.py` :
       appeler `run_ingest(get_settings(), dry_run)`
-- [ ] Appeler `acquire_lock()` en début de `run_ingest`, `release_lock()` en `try/finally`
-  - Si lock pris → log WARNING "Another instance is running (PID {pid})", retourner StepReport vide
+- [ ] ⚠️ Le lock est acquis au niveau CLI (commande Typer), PAS dans `run_ingest()` — évite le double-lock quand `run` appelle `run_ingest()`
+  - Le code lock dans `cli.py` : `acquire_lock()` au début de chaque commande, `release_lock()` en try/finally
+  - Si lock pris → log WARNING "Another instance is running (PID {pid})", exit
 - [ ] Valider que les settings requises sont présentes (qbit\_\*, staging_dir, torrent_complete_dir)
 
 **Commit** : `v1.4.1: Implement run_ingest with lock file and wire to CLI`
