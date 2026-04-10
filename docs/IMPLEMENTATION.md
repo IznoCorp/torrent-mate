@@ -26,15 +26,17 @@ Chaque version suit ce processus :
 
 ## Versions
 
-### V1 — INGEST `[ ] Non commencé`
+### V1 — INGEST `[~] En cours — planning terminé, implémentation à démarrer`
 
 > Récupération automatique des fichiers depuis `torrents/complete` vers `A TRIER/`
 
 | Document      | Fichier                                                  | Status |
 | ------------- | -------------------------------------------------------- | ------ |
-| Brainstorming | [v1-ingest/BRAINSTORMING.md](v1-ingest/BRAINSTORMING.md) | [ ]    |
-| Design        | [v1-ingest/DESIGN.md](v1-ingest/DESIGN.md)               | [ ]    |
-| Plan (index)  | [v1-ingest/plan/INDEX.md](v1-ingest/plan/INDEX.md)       | [ ]    |
+| Brainstorming | [v1-ingest/BRAINSTORMING.md](v1-ingest/BRAINSTORMING.md) | [x]    |
+| Design        | [v1-ingest/DESIGN.md](v1-ingest/DESIGN.md)               | [x]    |
+| Plan (index)  | [v1-ingest/plan/INDEX.md](v1-ingest/plan/INDEX.md)       | [x]    |
+
+**5 phases, 12 sous-phases** — Prochaine : Phase 1.1 (scaffold structure)
 
 ---
 
