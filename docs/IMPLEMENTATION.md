@@ -55,13 +55,15 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 | Étape                            | Status                            |
 | -------------------------------- | --------------------------------- |
+| A. Modélisation V0 (PROJECT SETUP) | [ ] Brainstorming à faire       |
 | A. Modélisation V1 (INGEST)      | [x] Brainstorming + Design + Plan |
-| A. Modélisation V2 (SORT+CLEAN)  | [ ] Brainstorming à faire         |
+| A. Modélisation V2 (SORT+CLEAN)  | [~] Brainstorming en cours        |
 | A. Modélisation V3 (SCRAPE)      | [ ] Brainstorming à faire         |
 | A. Modélisation V4 (DISPATCH)    | [ ] Brainstorming à faire         |
 | A. Modélisation V5 (LOG+NOTIFY)  | [ ] Brainstorming à faire         |
 | A. Review globale inter-versions | [ ] Après modélisation complète   |
-| B. Implémentation V1             | [ ] Après review globale          |
+| B. Implémentation V0             | [ ] Après review globale          |
+| B. Implémentation V1             | [ ]                               |
 | B. Implémentation V2             | [ ]                               |
 | B. Implémentation V3             | [ ]                               |
 | B. Implémentation V4             | [ ]                               |
@@ -70,6 +72,18 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 ---
 
 ## Versions
+
+### V0 — PROJECT SETUP `[ ] Modélisation à faire`
+
+> Mise en place du projet Python (pyproject.toml, Makefile, ruff, pytest, CLI Click, pydantic-settings) + intégration FileMate
+
+| Document | Fichier | Status |
+|----------|---------|--------|
+| Brainstorming | [v0-project-setup/BRAINSTORMING.md](v0-project-setup/BRAINSTORMING.md) | [ ] |
+| Design | [v0-project-setup/DESIGN.md](v0-project-setup/DESIGN.md) | [ ] |
+| Plan (index) | [v0-project-setup/plan/INDEX.md](v0-project-setup/plan/INDEX.md) | [ ] |
+
+---
 
 ### V1 — INGEST `[x] Modélisation terminée`
 
@@ -137,7 +151,8 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 | Outil                 | Emplacement                   | Rôle dans le pipeline                   |
 | --------------------- | ----------------------------- | --------------------------------------- |
-| FileMate              | `~/dev/FileMate/`             | V2 — Tri par type, nettoyage noms       |
+| TorrentMaker          | `~/dev/TorrentMaker/`         | V0 — Template projet Python (pyproject.toml, Makefile, ruff, Click) |
+| FileMate              | `~/dev/FileMate/`             | V2 — Intégré au projet, tri par type, nettoyage noms |
 | YoutubeTrailerScraper | `/opt/YoutubeTrailerScraper/` | V3 — Patterns TMDB API réutilisables    |
 | BashMate/MediaMate    | `~/BashMate/MediaMate/`       | V4 — Index/recherche media (à évaluer)  |
 | Scripts plex          | `099-SCRIPTS/plex/`           | V4/V5 — cleanFileSystem, trailerScraper |
@@ -147,7 +162,10 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Sujet           | Décision                              | Raison                                                |
 | --------------- | ------------------------------------- | ----------------------------------------------------- |
 | Déclenchement   | Cron 1x/jour à 3h + commande manuelle | Robustesse, pas de risque fichier en cours d'écriture |
-| FileMate        | Intégrer et améliorer (pas remplacer) | Code existant solide, architecture propre             |
+| FileMate        | Intégrer dans ce projet (pas fork externe) | Utilisé uniquement ici, simplifie la maintenance      |
+| Template projet | Basé sur TorrentMaker                 | pyproject.toml, Makefile, ruff, Click, pydantic-settings |
+| Nettoyage noms  | Tout virer sauf titre+année           | Seul le nécessaire au scraping doit rester            |
+| Dossiers saison | Créés par V3 (scraper), pas V2        | MediaElch le faisait avant, V3 prend le relais        |
 | Metadata        | TMDB API (clé existante)              | Gratuit, multi-langue, artwork inclus                 |
 | Notifications   | Telegram bot                          | Choix utilisateur                                     |
 | Architecture    | Modulaire (1 fichier par concern)     | Testable indépendamment, maintenable                  |
