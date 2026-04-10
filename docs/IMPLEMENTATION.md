@@ -10,23 +10,68 @@ torrents/complete → A TRIER/ → Sort+Clean → Scrape → Disk1-4
                                                    Log + Notify
 ```
 
-## Workflow d'implémentation
+## Workflow global
 
-Chaque version suit ce processus :
+Le projet suit **deux grandes étapes séquentielles** :
 
-1. **Brainstorming** — Explorer les besoins, contraintes, options. Produit `BRAINSTORMING.md`
-2. **Design** — Architecture, choix techniques, interfaces. Produit `DESIGN.md`
-3. **Plan** — Découpage en phases et sous-phases. Produit `plan/INDEX.md` + `plan/phase-XX.md`
-4. **Implémentation** — Code, tests, commit par sous-phase
-5. **Validation** — Test end-to-end de la version, mise à jour de ce fichier
+### Étape A — Modélisation complète (AVANT tout code)
 
-> **Règle : un commit par sous-phase complétée.** Le message de commit référence la version et la sous-phase (ex: `v1.1.2: Implement file stability check`).
+Toutes les versions (V1→V5) sont entièrement modélisées avant de toucher au code.
+Pour chaque version :
+
+1. **Brainstorming** — Explorer les besoins, contraintes, options → `BRAINSTORMING.md`
+2. **Design** — Architecture, modules, interfaces, flux de données → `DESIGN.md`
+3. **Plan** — Découpage en phases et sous-phases → `plan/INDEX.md` + `plan/phase-XX.md`
+
+Quand les 5 versions sont planifiées → **review globale** de cohérence inter-versions.
+
+### Étape B — Implémentation (APRÈS validation complète)
+
+Les versions sont implémentées séquentiellement (V1 → V2 → ... → V5).
+Pour chaque version :
+
+1. Implémenter phase par phase, sous-phase par sous-phase
+2. **Un commit par sous-phase** (format : `vX.Y.Z: Description`)
+3. **Contrôle de cohérence** entre chaque phase (voir ci-dessous)
+4. Test end-to-end de la version complète
+5. Mise à jour de ce fichier
+
+### Contrôles de cohérence (entre chaque phase implémentée)
+
+Avant de passer à la phase suivante, vérifier :
+
+- [ ] Le code implémenté respecte le design prévu
+- [ ] Les interfaces exposées correspondent à ce que les phases suivantes attendent
+- [ ] Les conventions de nommage/structure sont cohérentes avec les autres versions
+- [ ] Les choix techniques ne contredisent pas les décisions des versions ultérieures
+- [ ] Le `--dry-run` fonctionne correctement
+- [ ] Les erreurs sont gérées selon la stratégie définie dans le design
+
+Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
+
+---
+
+## Avancement global
+
+| Étape                            | Status                            |
+| -------------------------------- | --------------------------------- |
+| A. Modélisation V1 (INGEST)      | [x] Brainstorming + Design + Plan |
+| A. Modélisation V2 (SORT+CLEAN)  | [ ] Brainstorming à faire         |
+| A. Modélisation V3 (SCRAPE)      | [ ] Brainstorming à faire         |
+| A. Modélisation V4 (DISPATCH)    | [ ] Brainstorming à faire         |
+| A. Modélisation V5 (LOG+NOTIFY)  | [ ] Brainstorming à faire         |
+| A. Review globale inter-versions | [ ] Après modélisation complète   |
+| B. Implémentation V1             | [ ] Après review globale          |
+| B. Implémentation V2             | [ ]                               |
+| B. Implémentation V3             | [ ]                               |
+| B. Implémentation V4             | [ ]                               |
+| B. Implémentation V5             | [ ]                               |
 
 ---
 
 ## Versions
 
-### V1 — INGEST `[~] En cours — planning terminé, implémentation à démarrer`
+### V1 — INGEST `[x] Modélisation terminée`
 
 > Récupération automatique des fichiers depuis `torrents/complete` vers `A TRIER/`
 
@@ -36,11 +81,11 @@ Chaque version suit ce processus :
 | Design        | [v1-ingest/DESIGN.md](v1-ingest/DESIGN.md)               | [x]    |
 | Plan (index)  | [v1-ingest/plan/INDEX.md](v1-ingest/plan/INDEX.md)       | [x]    |
 
-**5 phases, 12 sous-phases** — Prochaine : Phase 1.1 (scaffold structure)
+**5 phases, 12 sous-phases** — Modules : `qbit_client.py`, `tracker.py`, `ingest.py`
 
 ---
 
-### V2 — SORT + CLEAN `[ ] Non commencé`
+### V2 — SORT + CLEAN `[ ] Modélisation à faire`
 
 > Tri automatique via FileMate (amélioré) + nettoyage des noms de fichiers
 
@@ -52,7 +97,7 @@ Chaque version suit ce processus :
 
 ---
 
-### V3 — SCRAPE `[ ] Non commencé`
+### V3 — SCRAPE `[ ] Modélisation à faire`
 
 > Scraping automatique des métadonnées (TMDB/TVDB), génération NFO, téléchargement artwork
 
@@ -64,7 +109,7 @@ Chaque version suit ce processus :
 
 ---
 
-### V4 — DISPATCH `[ ] Non commencé`
+### V4 — DISPATCH `[ ] Modélisation à faire`
 
 > Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
 
@@ -76,7 +121,7 @@ Chaque version suit ce processus :
 
 ---
 
-### V5 — LOG + NOTIFY `[ ] Non commencé`
+### V5 — LOG + NOTIFY `[ ] Modélisation à faire`
 
 > Logging structuré + notifications Telegram
 
@@ -99,13 +144,15 @@ Chaque version suit ce processus :
 
 ## Décisions techniques
 
-| Sujet         | Décision                              | Raison                                                |
-| ------------- | ------------------------------------- | ----------------------------------------------------- |
-| Déclenchement | Cron 1x/jour à 3h + commande manuelle | Robustesse, pas de risque fichier en cours d'écriture |
-| FileMate      | Intégrer et améliorer (pas remplacer) | Code existant solide, architecture propre             |
-| Metadata      | TMDB API (clé existante)              | Gratuit, multi-langue, artwork inclus                 |
-| Notifications | Telegram bot                          | Choix utilisateur                                     |
-| Architecture  | Modulaire (1 fichier par concern)     | Testable indépendamment, maintenable                  |
+| Sujet           | Décision                              | Raison                                                |
+| --------------- | ------------------------------------- | ----------------------------------------------------- |
+| Déclenchement   | Cron 1x/jour à 3h + commande manuelle | Robustesse, pas de risque fichier en cours d'écriture |
+| FileMate        | Intégrer et améliorer (pas remplacer) | Code existant solide, architecture propre             |
+| Metadata        | TMDB API (clé existante)              | Gratuit, multi-langue, artwork inclus                 |
+| Notifications   | Telegram bot                          | Choix utilisateur                                     |
+| Architecture    | Modulaire (1 fichier par concern)     | Testable indépendamment, maintenable                  |
+| Client torrent  | qBittorrent, API Web port 8081        | Client principal, API REST disponible                 |
+| Tracking ingest | JSON par hash torrent                 | Simple, suffisant pour le volume                      |
 
 ## Conventions
 
@@ -113,3 +160,4 @@ Chaque version suit ce processus :
 - **Langue** : Docs en français, code/comments en anglais
 - **Tests** : Chaque module critique a ses tests
 - **Dry-run** : Chaque opération destructive supporte `--dry-run`
+- **Cohérence** : Contrôle systématique entre chaque phase implémentée
