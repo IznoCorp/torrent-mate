@@ -66,6 +66,19 @@ Documentation and implementation plans live in `docs/`:
 - `docs/v0-project-setup/` through `docs/v7-e2e-tests/` — Per-version brainstorming, design, and phased plans
 - Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
 
+### Pipeline Versions
+
+| Version | Name          | Role                                                              | Phases |
+| ------- | ------------- | ----------------------------------------------------------------- | ------ |
+| V0      | PROJECT SETUP | pyproject.toml, CLI Click, pydantic-settings, logger              | 4      |
+| V1      | INGEST        | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
+| V2      | SORT+CLEAN    | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
+| V3      | SCRAPE        | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
+| V4      | VERIFY        | Quality gate: checker + fixer + genre categorization              | 4      |
+| V5      | DISPATCH      | Move to Disk1-4 (replace movies, merge series)                    | 3      |
+| V6      | LOG+NOTIFY    | JSON logging, Telegram notifications, cron setup                  | 3      |
+| V7      | E2E TESTS     | Real torrent tests with safe cleanup markers                      | 5      |
+
 ### Reference Documentation
 
 - `docs/qbittorrent-api-reference.md` — V1: TorrentState enum, exceptions, patterns pipeline
@@ -149,34 +162,15 @@ Episode files follow the pattern: `S{nn}E{nn} - {Episode Title}.{ext}`
 
 ## Scripts
 
-### torrent-sort (FileMate)
+### torrent-sort (FileMate) — current
 
 Primary sorting tool. See [torrent-sort command](#torrent-sort-command) above.
 
-### PackUnpack.py / Unpack.py (legacy)
+### 099-SCRIPTS/ — legacy, will be archived by V0 phase 4
 
-- `unpack()`: Recursively flattens nested subfolders, moving all files to the parent. Deletes `.jpg`, `.jpeg`, `.png`, `.nfo`, `.txt` files. Cleans filenames by stripping codec/release tags.
-- `pack()`: Creates one folder per file (for movie organization).
-- **Legacy** — hardcoded Windows paths (`N:/A TRIER/`), largely superseded by FileMate's cleaning.
-
-### TVDBNameToNum.py (legacy)
-
-- Interactive CLI tool using `tvdb_api` (v3) to match local episode filenames to TVDB data.
-- Dependencies: `unidecode`, `termcolor`, `colorama`, `PyInquirer`, `tvdb_api`
-- **Legacy** — hardcoded Windows paths, needs manual path updates before each use.
-- Renames episodes to `S{nn}E{nn} - {Title}.ext` format.
-
-### plex/cleanFileSystem.py
-
-```bash
-python3 099-SCRIPTS/plex/cleanFileSystem.py [--dry-run] [--debug]
-```
-
-Scans all media disks and removes folders that contain no video files.
-
-### plex/trailerScraper.py
-
-Downloads missing trailers from YouTube for movies and TV shows across all disks. Uses `youtubeScraper.py` for search/download.
+Contains legacy Python scripts (PackUnpack, TVDBNameToNum, cleanFileSystem, trailerScraper).
+All are hardcoded to Windows paths or use deprecated APIs (tvdb_api v3).
+Useful patterns have been extracted into the V1-V3 designs. Will be moved to `~/dev/099-SCRIPTS-archive/`.
 
 ## Language
 
