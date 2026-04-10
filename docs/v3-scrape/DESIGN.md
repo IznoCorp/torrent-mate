@@ -161,7 +161,7 @@ class TVDBClient:
         """GET /series/{id}/episodes/default?season={season}&page=0
         ⚠️ Pagination 0-indexed. Sans ?season=N, retourne TOUS les épisodes (spéciaux inclus)."""
 
-    def get_episode_translations(self, episode_id: int, lang: str = "fra") -> dict:
+    def get_episode_translation(self, episode_id: int, lang: str = "fra") -> dict:
         """GET /episodes/{id}/translations/{lang} — titre et synopsis traduits.
         ⚠️ Codes langue 3 chars : fra, eng, spa (pas fr, en, es)."""
 
@@ -174,8 +174,8 @@ class TVDBClient:
 
     def get_remote_ids(self, series_data: dict) -> dict:
         """Extraire IMDB/TMDB IDs depuis remoteIds[].
-        ⚠️ TMDB a 4 source type IDs : 10=films, 12=séries TV, 15=personnes, 28=collections.
-        Utiliser sourceName='TheMovieDB.com' + type=12 pour les séries."""
+        ⚠️ Source type IDs : TMDB: 10=films, 12=séries TV, 15=personnes, 28=collections.
+        IMDB: type=2. Utiliser sourceName + type pour identifier chaque ID."""
 ```
 
 ### `confidence.py` — Score de confiance
@@ -183,8 +183,7 @@ class TVDBClient:
 > Ref : [docs/rapidfuzz-reference.md](../rapidfuzz-reference.md) — scoring, media_processor, intégration
 
 ```python
-from rapidfuzz import fuzz, utils
-import unicodedata
+from rapidfuzz import fuzz
 from personalscraper.text_utils import media_processor
 
 # media_processor(s: str) -> str
@@ -344,13 +343,26 @@ class NamingPatterns:
     movie_video: str = "{Title}.{ext}"
     movie_nfo: str = "{Title}.nfo"
     movie_poster: str = "{Title}-poster.jpg"
+    movie_fanart: str = "{Title}-fanart.jpg"
+    movie_banner: str = "{Title}-banner.jpg"
+    movie_clearlogo: str = "{Title}-clearlogo.png"
+    movie_clearart: str = "{Title}-clearart.png"
+    movie_discart: str = "{Title}-discart.png"
     movie_landscape: str = "{Title}-landscape.jpg"
 
     # TV show level
     tvshow_nfo: str = "tvshow.nfo"
     tvshow_poster: str = "poster.jpg"
+    tvshow_fanart: str = "fanart.jpg"
+    tvshow_banner: str = "banner.jpg"
+    tvshow_clearlogo: str = "clearlogo.png"
+    tvshow_clearart: str = "clearart.png"
+    tvshow_characterart: str = "characterart.png"
     tvshow_landscape: str = "landscape.jpg"
     season_poster: str = "season{Season:02d}-poster.jpg"
+    season_fanart: str = "season{Season:02d}-fanart.jpg"
+    season_banner: str = "season{Season:02d}-banner.jpg"
+    season_landscape: str = "season{Season:02d}-landscape.jpg"
 
     # Episode files
     episode_video: str = "S{Season:02d}E{Episode:02d} - {EpisodeTitle}.{ext}"
@@ -399,14 +411,11 @@ class Scraper:
         """Scrape a TV show: match → tvshow.nfo → artwork →
         create Saison XX/ → rename episodes → episode NFO."""
 
-    def _match_movie(self, title: str, year: int | None) -> MatchResult | None:
-        """Search TMDB, score confidence, return best match or None."""
-
-    def _match_tvshow(self, title: str, year: int | None) -> MatchResult | None:
-        """Search TVDB first, fallback TMDB, score confidence."""
-
-    def _prompt_user(self, results: list[MatchResult]) -> MatchResult | None:
-        """Interactive mode: present results, ask user to choose."""
+    # Matching logic is in standalone functions in confidence.py:
+    # match_movie(tmdb_client, title, year) -> MatchResult | None
+    # match_tvshow(tvdb_client, tmdb_client, title, year) -> MatchResult | None
+    # prompt_user_choice(results) -> MatchResult | None
+    # Scraper calls these with the appropriate clients.
 ```
 
 ## Flux de données
@@ -456,15 +465,15 @@ class Scraper:
 
 ## Gestion d'erreurs
 
-| Situation                           | Comportement                                                  |
-| ----------------------------------- | ------------------------------------------------------------- |
-| API inaccessible (timeout)          | Retry 3x avec backoff, puis skip + WARNING                    |
-| Aucun résultat API                  | Skip + log "no match found"                                   |
-| Confiance faible (< 0.8, mode auto) | Skip + log + ajout au rapport                                 |
-| Confiance faible (mode interactif)  | Proposer les résultats à l'utilisateur                        |
-| .nfo déjà existant                  | Skip (ne pas écraser), log INFO                               |
-| Artwork déjà existant               | Skip (ne pas re-télécharger), log INFO                        |
-| ffprobe indisponible                | Générer NFO sans `<streamdetails>`, log WARNING               |
-| Épisode non trouvé dans l'API       | Garder le nom original, log WARNING                           |
-| Traduction FR épisode absente       | Fallback sur traduction anglaise (`eng`), puis titre original |
-| Rate limit API                      | Respecter les headers Retry-After, backoff                    |
+| Situation                           | Comportement                                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| API inaccessible (timeout)          | Retry avec backoff (TMDB: 4 attempts, TVDB: 3 attempts), puis skip + WARNING |
+| Aucun résultat API                  | Skip + log "no match found"                                                  |
+| Confiance faible (< 0.8, mode auto) | Skip + log + ajout au rapport                                                |
+| Confiance faible (mode interactif)  | Proposer les résultats à l'utilisateur                                       |
+| .nfo déjà existant                  | Skip (ne pas écraser), log INFO                                              |
+| Artwork déjà existant               | Skip (ne pas re-télécharger), log INFO                                       |
+| ffprobe indisponible                | Générer NFO sans `<streamdetails>`, log WARNING                              |
+| Épisode non trouvé dans l'API       | Garder le nom original, log WARNING                                          |
+| Traduction FR épisode absente       | Fallback sur traduction anglaise (`eng`), puis titre original                |
+| Rate limit API                      | Respecter les headers Retry-After, backoff                                   |

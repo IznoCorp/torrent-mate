@@ -193,7 +193,9 @@ class GenreMapper:
            - Parse <genre> tags → genre names (pas d'IDs dans le NFO)
            - Parse <country> pour détection anime
            - Parse <uniqueid> pour déterminer la source (tmdb/tvdb)
+             Priorité source : TVDB pour TV shows (source primaire V3), TMDB pour films
            - Appeler categorize_movie() ou categorize_tvshow()
+           - ⚠️ Genre strings en FR (TMDB fr-FR → "Animation", "Documentaire") — normaliser lowercase + sans accents
         3. Retourne None si genres absents ou catégorie non identifiable."""
 ```
 

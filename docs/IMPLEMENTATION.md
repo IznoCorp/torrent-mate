@@ -101,7 +101,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Design        | [v1-ingest/DESIGN.md](v1-ingest/DESIGN.md)               | [x]    |
 | Plan (index)  | [v1-ingest/plan/INDEX.md](v1-ingest/plan/INDEX.md)       | [x]    |
 
-**5 phases, 12 sous-phases** — Modules : `qbit_client.py`, `tracker.py`, `ingest.py`
+**5 phases, 10 sous-phases** — Modules : `qbit_client.py`, `tracker.py`, `ingest.py`
 
 ---
 

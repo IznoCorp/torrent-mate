@@ -218,7 +218,7 @@ def release_lock() -> None:
 
 Chaque commande qui modifie le filesystem (`ingest`, `sort`, `scrape`, `verify`, `dispatch`, `run`)
 appelle `acquire_lock()` au début et `release_lock()` en `try/finally`.
-Option `--force` pour ignorer le lock existant.
+Le lock peut être supprimé manuellement si nécessaire (`rm ~/.personalscraper/pipeline.lock`).
 
 ## Transfert atomique (copie sûre)
 

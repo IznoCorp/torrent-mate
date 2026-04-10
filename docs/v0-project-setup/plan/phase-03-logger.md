@@ -35,7 +35,7 @@ Implémenter le logger structuré via structlog avec dual output (console color�
 ### 0.3.3 — Intégration CLI
 
 - [ ] `configure_logging()` appelé dans le groupe CLI principal (déjà prévu en 0.2.2)
-- [ ] Vérifier que `ctx.obj["console"]` (rich) et structlog cohabitent
+- [ ] Vérifier que `state["console"]` (rich) et structlog cohabitent
   - rich pour l'output utilisateur (progress bars, tables, panels)
   - structlog pour le logging opérationnel (debug, diagnostics, traçabilité)
 - [ ] Test : lancer une commande, vérifier que le fichier log JSON est créé et parseable

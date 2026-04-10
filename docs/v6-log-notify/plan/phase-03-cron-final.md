@@ -71,7 +71,7 @@ Configurer l'exécution automatique via launchd (natif macOS) et valider le proj
 - [ ] `personalscraper run --dry-run --verbose` fonctionne end-to-end
 - [ ] `make test` passe (tous les tests V0→V6)
 - [ ] `make lint` passe
-- [ ] Le cron est configuré
+- [ ] Le scheduling (LaunchAgent) est configuré
 - [ ] Le .env contient toutes les valeurs nécessaires
 - [ ] Git status propre, tout committé
 

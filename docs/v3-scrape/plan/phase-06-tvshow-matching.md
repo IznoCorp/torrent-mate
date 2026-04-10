@@ -33,7 +33,7 @@ Implémenter le matching séries avec TVDB prioritaire et fallback TMDB.
 - [ ] Implémenter `get_episode_titles(match, season, lang="fra")` → dict[int, str]
 - [ ] Si source=tvdb :
   - `tvdb_client.get_season_episodes(series_id, season)` → liste d'épisodes (noms en anglais)
-  - Pour chaque épisode, appeler `get_episode_translation(episode_id, lang)` pour obtenir le titre FR
+  - Pour chaque épisode, appeler `tvdb_client.get_episode_translation(episode_id, lang)` pour obtenir le titre FR
   - ⚠️ Codes langue TVDB en 3 chars : `fra` (pas `fr`)
 - [ ] Si source=tmdb :
   - `tmdb_client.get_tv_season(tv_id, season)` → épisodes déjà en FR (via `language=fr-FR`)

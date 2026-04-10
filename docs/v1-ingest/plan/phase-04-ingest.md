@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Implémenter `ingest.py` : l'orchestrateur appelé par la commande CLI Click.
+Implémenter `ingest.py` : l'orchestrateur appelé par la commande CLI Typer.
 
 ## Sous-phases
 

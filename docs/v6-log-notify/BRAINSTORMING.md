@@ -43,7 +43,7 @@ ignoré (espace insuffisant) ⏱️ Durée totale : 4min 32s 📅 2026-04-11 03:
 ## Contraintes techniques
 
 1. Le module logging doit être intégré **dès V0** (disponible pour toutes les versions)
-2. Supporte `--verbose` et `--quiet` de manière cohérente avec le CLI Click
+2. Supporte `--verbose` et `--quiet` de manière cohérente avec le CLI Typer
 3. Les notifications ne doivent **jamais bloquer** le pipeline (try/except, timeout court)
 4. Le log JSON doit être exploitable pour diagnostiquer les erreurs sans relancer
 5. Rotation automatique : supprimer les fichiers de plus de 30 jours au démarrage

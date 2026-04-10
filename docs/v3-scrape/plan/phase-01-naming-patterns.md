@@ -20,7 +20,7 @@ Implémenter le système de patterns de nommage configurable, compatible MediaEl
 ### 3.1.2 — Templating
 
 - [ ] Implémenter `format(pattern_name, **kwargs)` : remplace {Title}, {Year}, {Season:02d}, etc.
-- [ ] Gérer `<baseFileName>` : résoudre à partir du nom du fichier vidéo
+- [ ] Gérer `<baseFileName>` : résout à `{Title}` pour les films, `S{Season:02d}E{Episode:02d} - {EpisodeTitle}` pour les épisodes
 - [ ] Tests unitaires : chaque pattern produit le nom attendu
 
 > Note : Pas de `load()` depuis fichier config. Les patterns sont des standards Kodi/MediaElch

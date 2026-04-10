@@ -93,7 +93,7 @@ Documentation and implementation plans live in `docs/`:
 | V3      | SCRAPE        | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
 | V4      | VERIFY        | Quality gate: checker + fixer + genre categorization              | 4      |
 | V5      | DISPATCH      | Move to Disk1-4 (replace movies, merge series)                    | 3      |
-| V6      | LOG+NOTIFY    | JSON logging, Telegram notifications, cron setup                  | 3      |
+| V6      | LOG+NOTIFY    | JSON logging, Telegram notifications, launchd scheduling          | 3      |
 | V7      | E2E TESTS     | Real torrent tests with safe cleanup markers                      | 5      |
 
 ### Reference Documentation

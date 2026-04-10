@@ -24,6 +24,7 @@ Implémenter le cleaner de noms de fichiers media en utilisant `guessit` comme m
 - [ ] Implémenter `clean_for_folder(name)` : retourne "Title (Year)" ou "Title"
 - [ ] Implémenter `get_media_type(name)` : retourne `guessit(name).get("type")` ("movie"/"episode")
   - Utilisé par `file_type.py` pour renforcer la détection movie vs tvshow
+  - Ajouté à l'interface `NameCleaner` (voir V2 DESIGN.md)
 - [ ] Cacher le résultat guessit dans la classe (un seul appel `guess()` par nom, pas un par méthode)
 
 **Commit** : `v2.2.1: Implement NameCleaner via guessit`

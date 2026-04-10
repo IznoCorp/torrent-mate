@@ -188,6 +188,11 @@ def assert_verify_complete(results: list) -> None:
 def assert_dispatch_complete(disk_paths: list[Path], expected: list[dict]) -> None:
     """Vérifier que les fichiers sont sur le bon disque dans la bonne catégorie."""
 
+def assert_pipeline_report(report) -> None:
+    """Vérifier que V6 (log+notify) a produit un PipelineReport cohérent :
+    - Toutes les étapes (ingest→dispatch) ont un StepReport
+    - Le log file a été écrit et contient les événements attendus"""
+
 def assert_cleanup_complete(registry: TestRegistry) -> None:
     """Vérifier qu'aucun fichier de test ne reste nulle part."""
 ```
@@ -207,7 +212,7 @@ test_magnets.json
        ▼
 ┌──────────────────┐
 │ Pipeline V1→V6   │──▶ A TRIER/ → 001-MOVIES/ → Disk1-4/
-│ (exécution réelle│     (marker placé à chaque création de dossier)
+│ (exécution réelle│     (marker initial se propage avec les dossiers)
 │  du pipeline)    │
 └──────┬───────────┘
        │
@@ -228,13 +233,13 @@ test_magnets.json
 > **Critique** : le marker est la base de toute la stratégie de sécurité du cleanup.
 > Son comportement à chaque étape du pipeline DOIT être documenté et testé.
 
-| Étape                            | Opération filesystem                                | Le marker survit ?                                                                 | Explication                                                                                                                                                                |
-| -------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Setup** (torrent download)     | qBit télécharge dans `torrents/complete/`           | N/A                                                                                | Marker placé APRÈS le téléchargement, sur le dossier dans `torrents/complete/`                                                                                             |
-| **V1 Ingest** (copy/move)        | `shutil.copytree` ou `shutil.move` vers `A TRIER/`  | **OUI** si copytree (copie tout le contenu). **OUI** si move sur même FS (rename). | Marker `.e2e-test-marker` placé UNE SEULE FOIS par le test setup après ingest. Survit à toutes les étapes suivantes (sort, scrape, verify, dispatch). Pas de re-placement. |
-| **V2 Sort** (move)               | `shutil.move` vers `001-MOVIES/` ou `002-TVSHOWS/`  | **OUI** (même FS = rename atomique, le dossier entier est renommé)                 | Le marker est un fichier dans le dossier, il suit le rename                                                                                                                |
-| **V3 Scrape** (rename dossier)   | `Path.rename()` pour `Show Name → Show Name (Year)` | **OUI** (rename sur même FS)                                                       | Le dossier est renommé, pas recréé                                                                                                                                         |
-| **V5 Dispatch** (rsync cross-FS) | `rsync -a` de SSD vers Disk1-4                      | **OUI** (rsync copie TOUS les fichiers, y compris le marker)                       | `rsync -a` préserve le marker car c'est un fichier régulier dans le dossier                                                                                                |
+| Étape                            | Opération filesystem                                | Le marker survit ?                                                                 | Explication                                                                                                                                                          |
+| -------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Setup** (torrent download)     | qBit télécharge dans `torrents/complete/`           | N/A                                                                                | Marker placé APRÈS le téléchargement, sur le dossier dans `torrents/complete/`                                                                                       |
+| **V1 Ingest** (copy/move)        | `shutil.copytree` ou `shutil.move` vers `A TRIER/`  | **OUI** si copytree (copie tout le contenu). **OUI** si move sur même FS (rename). | Marker placé par le test setup sur le dossier dans `torrents/complete/` AVANT ingest. Survit à copytree (seeding) ou move (terminé). Pas de re-placement nécessaire. |
+| **V2 Sort** (move)               | `shutil.move` vers `001-MOVIES/` ou `002-TVSHOWS/`  | **OUI** (même FS = rename atomique, le dossier entier est renommé)                 | Le marker est un fichier dans le dossier, il suit le rename                                                                                                          |
+| **V3 Scrape** (rename dossier)   | `Path.rename()` pour `Show Name → Show Name (Year)` | **OUI** (rename sur même FS)                                                       | Le dossier est renommé, pas recréé                                                                                                                                   |
+| **V5 Dispatch** (rsync cross-FS) | `rsync -a` de SSD vers Disk1-4                      | **OUI** (rsync copie TOUS les fichiers, y compris le marker)                       | `rsync -a` préserve le marker car c'est un fichier régulier dans le dossier                                                                                          |
 
 **Stratégie marker** :
 
