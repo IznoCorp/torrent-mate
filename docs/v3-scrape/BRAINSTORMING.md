@@ -50,33 +50,54 @@ Pas de : fanart, banner, clearlogo, clearart, discart, .actors/
 - Patterns par défaut reprenant exactement ceux de MediaElch
 - Configurable si besoin de changer un pattern sans toucher au code
 
-**Patterns par défaut (à confirmer avec la config MediaElch) :**
+**Patterns par défaut (confirmés avec la config MediaElch) :**
 
 ```
-# Dossiers
-movie_dir       = {Title} ({Year})
-tvshow_dir      = {Title} ({Year})
-season_dir      = Saison {Season:02d}
+# ── Dossiers ─────────────────────────────────────────
+movie_dir             = {Title} ({Year})
+tvshow_dir            = {Title} ({Year})
+season_dir            = Saison {Season:02d}
 
-# Fichiers films
-movie_video     = {Title}.{ext}
-movie_nfo       = {Title}.nfo
-movie_poster    = {Title}-poster.jpg
-movie_landscape = {Title}-landscape.jpg
+# ── Films ────────────────────────────────────────────
+# <baseFileName> = nom du fichier vidéo sans extension
+movie_nfo             = <baseFileName>.nfo
+movie_poster          = <baseFileName>-poster.jpg
+movie_fanart          = <baseFileName>-fanart.jpg
+movie_banner          = <baseFileName>-banner.jpg
+movie_clearlogo       = <baseFileName>-clearlogo.png
+movie_clearart        = <baseFileName>-clearart.png
+movie_discart         = <baseFileName>-discart.png
+movie_landscape       = <baseFileName>-landscape.jpg
 
-# Fichiers séries (show level)
-tvshow_nfo      = tvshow.nfo
-tvshow_poster   = poster.jpg
-tvshow_landscape = landscape.jpg
-season_poster   = season{Season:02d}-poster.jpg
+# ── Séries (show level) ─────────────────────────────
+tvshow_nfo            = tvshow.nfo
+tvshow_poster         = poster.jpg
+tvshow_fanart         = fanart.jpg
+tvshow_banner         = banner.jpg
+tvshow_clearlogo      = clearlogo.png
+tvshow_clearart       = clearart.png
+tvshow_characterart   = characterart.png
+tvshow_landscape      = landscape.jpg
 
-# Fichiers épisodes
-episode_video   = S{Season:02d}E{Episode:02d} - {EpisodeTitle}.{ext}
-episode_nfo     = S{Season:02d}E{Episode:02d} - {EpisodeTitle}.nfo
-episode_thumb   = S{Season:02d}E{Episode:02d} - {EpisodeTitle}-thumb.jpg
+# ── Séries (season level) ───────────────────────────
+season_poster         = season<seasonNumber>-poster.jpg
+season_fanart         = season<seasonNumber>-fanart.jpg
+season_banner         = season<seasonNumber>-banner.jpg
+season_landscape      = season<seasonNumber>-landscape.jpg
+
+# ── Films (vidéo) ────────────────────────────────────
+movie_video           = {Title}.{ext}
+
+# ── Épisodes ─────────────────────────────────────────
+# <baseFileName> = S01E01 - Episode Title
+episode_video         = S{Season:02d}E{Episode:02d} - {EpisodeTitle}.{ext}
+episode_nfo           = <baseFileName>.nfo
+episode_thumb         = <baseFileName>-thumb.jpg
 ```
 
-> **TODO** : récupérer la config exacte de MediaElch pour confirmer/compléter ces patterns
+> Note : le fichier de patterns contient TOUS les patterns MediaElch pour compatibilité,
+> même si V3 ne télécharge que poster + landscape + season poster.
+> Les autres patterns sont présents pour que des artwork ajoutés manuellement soient reconnus.
 
 ### Fichiers NFO — identiques à MediaElch
 

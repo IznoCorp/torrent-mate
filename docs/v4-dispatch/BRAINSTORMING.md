@@ -56,12 +56,26 @@ Ce mapping doit être **configurable** (fichier de config ou .env).
 Note : certains sous-types (films animations, series animes, etc.) nécessitent
 une détection plus fine (genre TMDB/TVDB ? tag dans le nom ? mapping manuel ?).
 
-## Questions ouvertes
+## Décisions complémentaires
 
-- [ ] Comment distinguer les sous-types (films vs films animations, series vs series animes) ?
-      → Par le genre TMDB/TVDB ? Par un tag dans le nom ? Manuellement ?
-- [ ] Seuil minimum d'espace libre avant de refuser un dispatch ?
-- [ ] Que faire si aucun disque n'a la catégorie et assez d'espace ?
+### Sous-types (films animations, series animes, etc.)
+
+- Détection par le **genre TMDB/TVDB** récupéré en V3
+- Genre "Animation" → films animations / series animations
+- Genre "Animation" + origine Japon → series animes
+- Le genre est stocké dans le .nfo, donc lisible par V4
+- Mapping genre → sous-type configurable
+
+### Seuil d'espace disque
+
+- **100 Go minimum** sur un disque pour accepter un dispatch
+- Toujours choisir le disque avec le **plus d'espace disponible** parmi ceux compatibles
+- `df` ou `shutil.disk_usage()` pour vérifier
+
+### Aucun disque compatible
+
+- **Skip** le média + **Warning** dans les logs + **Notification** Telegram
+- Le média reste dans A TRIER/ jusqu'à ce qu'un disque soit libéré
 
 ## Contraintes techniques
 
