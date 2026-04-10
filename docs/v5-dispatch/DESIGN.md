@@ -14,9 +14,9 @@ personalscraper/dispatch/
 └── dispatcher.py       # Orchestrateur dispatch (replace/merge/new)
 ```
 
-> **Note** : le `genre_mapper.py` est dans `personalscraper/verify/` (V4). V5 l'importe :
-> `from personalscraper.verify.genre_mapper import GenreMapper`
-> Pas de duplication — le mapping genres→catégories est centralisé en V4.
+> **Note** : le `genre_mapper.py` est à la racine du package (`personalscraper/genre_mapper.py`).
+> Import : `from personalscraper.genre_mapper import GenreMapper`
+> Partagé entre V4 (verify) et V5 (dispatch) — single source of truth.
 
 ### Intégration avec V4 (verify)
 
@@ -26,7 +26,9 @@ V5 ne recalcule PAS la catégorie — il utilise celle de V4.
 
 ### Dépendances
 
-Aucune dépendance supplémentaire. Stdlib uniquement (`json`, `shutil`, `pathlib`, `xml.etree`).
+- `rapidfuzz` — fuzzy matching dans `MediaIndex.find()` (fallback, voir [docs/rapidfuzz-reference.md](../rapidfuzz-reference.md))
+- `rsync` (subprocess, pré-installé macOS) — transferts cross-filesystem robustes (reprise, checksum, progress)
+- Stdlib pour le reste (`json`, `shutil`, `pathlib`, `xml.etree`, `subprocess`)
 
 ## Interfaces
 
@@ -56,13 +58,15 @@ class MediaIndex:
         """Load index from JSON file."""
 
     def save(self) -> None:
-        """Save index to JSON file."""
+        """Save index to JSON file. Uses atomic write (write .tmp then os.rename)."""
 
     def rebuild(self, disks: list[DiskConfig]) -> int:
         """Full rebuild: scan all disks. Returns entry count."""
 
     def find(self, name: str, media_type: str) -> IndexEntry | None:
-        """Find a media by normalized name. Uses fuzzy matching."""
+        """Find a media by normalized name.
+        Strategy: exact dict lookup first, rapidfuzz WRatio fallback (score >= 85).
+        Uses media_processor from confidence.py for accent-insensitive matching."""
 
     def add(self, entry: IndexEntry) -> None:
         """Add or update an entry."""
@@ -109,7 +113,7 @@ def choose_disk(
 
 > **Catégorisation** : V5 ne fait PAS de mapping genre→catégorie.
 > La catégorie est fournie par V4 (verify) dans `VerifyResult.category`.
-> V5 utilise `from personalscraper.verify.genre_mapper import GenreMapper` uniquement
+> V5 utilise `from personalscraper.genre_mapper import GenreMapper` uniquement
 > en mode standalone (si V5 est exécuté sans V4, fallback sur le genre_mapper directement).
 
 ```python
@@ -155,13 +159,62 @@ class Dispatcher:
         """
 
     def _replace(self, source: Path, dest: Path) -> DispatchResult:
-        """Delete dest, move source to dest."""
+        """Safe cross-filesystem replace via rsync.
+
+        ⚠️ source (SSD A TRIER) et dest (Disk1-4) sont sur des filesystems différents.
+        os.rename() échoue en cross-device. shutil.move() fait copy+delete non-atomique.
+
+        Algorithme crash-safe :
+        1. rsync source → dest.new.tmp/ sur le disque destination (même FS que dest)
+           - `rsync -a --partial --checksum source/ dest.new.tmp/`
+           - --partial : garde les fichiers partiels pour reprise si interrompu
+           - --checksum : vérifie l'intégrité après transfert
+        2. os.rename(dest, dest.old.tmp) — atomique (même filesystem)
+        3. os.rename(dest.new.tmp, dest) — atomique (même filesystem)
+        4. shutil.rmtree(dest.old.tmp) — nettoyage de l'ancien
+        5. Supprimer la source dans A TRIER/
+
+        Recovery :
+        - Crash en étape 1 : seul dest.new.tmp partiel existe, dest intact → re-run rsync reprend
+        - Crash en étape 2 : dest.old.tmp + dest.new.tmp existent → détecter au prochain run
+        - Crash en étape 4 : dest est OK, dest.old.tmp reste → nettoyage au prochain run
+        """
 
     def _merge(self, source: Path, dest: Path) -> DispatchResult:
-        """Copy files from source that don't exist in dest (or same name → overwrite)."""
+        """Merge séries TV avec backup des fichiers écrasés.
+
+        ⚠️ Le merge écrase potentiellement des épisodes existants (même nom → overwrite).
+        Sans backup, un merge échoué = perte de données irréversible.
+
+        Algorithme avec rollback :
+        1. Lister les fichiers dans source qui existent déjà dans dest
+        2. Copier ces fichiers existants dans dest/.merge-backup-{timestamp}/
+        3. rsync source → dest avec `rsync -a --partial --checksum`
+           (dirs_exist_ok est le comportement par défaut de rsync)
+        4. Vérifier l'intégrité (tailles des fichiers copiés)
+        5. Si OK → supprimer dest/.merge-backup-{timestamp}/ et la source
+        6. Si ERREUR → restaurer depuis le backup, log ERROR
+
+        Gère la structure Saison XX/ récursivement.
+        Copie aussi les fichiers associés (.srt, .sub, .idx) aux côtés des vidéos."""
+
+    def _rsync(self, source: Path, dest: Path, delete: bool = False) -> bool:
+        """Wrapper rsync pour transferts cross-filesystem.
+        Args:
+            source: chemin source (avec trailing slash pour contenu)
+            dest: chemin destination
+            delete: si True, supprime les fichiers dans dest absents de source
+        Returns: True si succès (returncode 0).
+        Raises: DispatchError si rsync absent ou returncode non-0."""
 
     def _verify_transfer(self, source: Path, dest: Path) -> bool:
-        """Verify file sizes match after transfer."""
+        """Verify file sizes match after transfer (recursive for directories).
+        Pour chaque fichier dans source, vérifier que le fichier correspondant
+        dans dest a la même taille. Retourne False au premier mismatch."""
+
+    def _cleanup_stale_temps(self, disk_path: Path) -> None:
+        """Nettoyer les .new.tmp, .old.tmp, .merge-backup-* orphelins
+        laissés par des runs précédents interrompus."""
 ```
 
 ## Flux de données
@@ -215,12 +268,14 @@ DISK_CATEGORIES = {
 
 ## Gestion d'erreurs
 
-| Situation                     | Comportement                                                                                    |
-| ----------------------------- | ----------------------------------------------------------------------------------------------- |
-| Disque non monté              | Skip ce disque, log WARNING                                                                     |
-| Espace insuffisant (< 100 Go) | Skip + WARNING + notification                                                                   |
-| Aucun disque compatible       | Skip + WARNING + notification, média reste dans A TRIER/                                        |
-| .nfo absent (pas de genre)    | Ne devrait pas arriver si V4 a bloqué. En mode standalone : catégorie par défaut (films/series) |
-| Erreur pendant le move        | Log ERROR, ne pas supprimer la source, continuer                                                |
-| Vérification post-move échoue | Log ERROR, garder source et dest, signaler                                                      |
-| Index corrompu                | Recréer l'index (rebuild), log WARNING                                                          |
+| Situation                                          | Comportement                                                                                    |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Disque non monté                                   | Skip ce disque, log WARNING                                                                     |
+| Espace insuffisant (< max(100 Go, item_size\*1.5)) | Skip + WARNING + notification                                                                   |
+| Aucun disque compatible                            | Skip + WARNING + notification, média reste dans A TRIER/                                        |
+| .nfo absent (pas de genre)                         | Ne devrait pas arriver si V4 a bloqué. En mode standalone : catégorie par défaut (films/series) |
+| rsync échoue (returncode != 0)                     | Log ERROR, ne pas supprimer la source, continuer. dest.new.tmp nettoyé au prochain run          |
+| rsync absent (macOS minimal)                       | Erreur fatale au \_\_init\_\_, message clair "rsync required"                                   |
+| Vérification post-rsync échoue                     | Log ERROR, garder source et dest, signaler                                                      |
+| Merge échoue à mi-chemin                           | Restaurer depuis .merge-backup-{timestamp}/, log ERROR, garder source                           |
+| Index corrompu                                     | Recréer l'index (rebuild), log WARNING                                                          |

@@ -12,12 +12,12 @@ Premier test E2E complet : un film passe le pipeline entier du magnet au disque 
 - [ ] Décorateur `@pytest.mark.e2e` sur tous les tests
 - [ ] Test `test_movie_full_pipeline()` :
   1. **Setup** : ajouter le magnet film à qBit, attendre téléchargement
-  2. **Marker** : placer `.e2e-test-marker` sur le dossier téléchargé
+  2. **Marker** : placer `.e2e-test-marker` sur le dossier téléchargé (seul placement)
   3. **V1 Ingest** : exécuter ingest → fichier arrive dans A TRIER/
-     - Placer marker sur le dossier dans A TRIER/
+     - Vérifier que le marker a survécu (copytree/move)
      - `assert_ingest_complete()`
   4. **V2 Sort** : exécuter sort+clean → fichier dans 001-MOVIES/
-     - Placer marker sur le dossier trié
+     - Vérifier que le marker a survécu (move = rename même FS)
      - `assert_sort_complete()`
   5. **V3 Scrape** : exécuter scrape → NFO + artwork
      - `assert_scrape_complete()`
@@ -25,8 +25,10 @@ Premier test E2E complet : un film passe le pipeline entier du magnet au disque 
      - `assert_verify_complete()`
      - Vérifier la catégorie (doit matcher `expected_category`)
   7. **V5 Dispatch** : exécuter dispatch → fichier sur disque
-     - Placer marker sur le dossier dispatché
+     - Vérifier que le marker a survécu (rsync copie tout)
      - `assert_dispatch_complete()`
+       Note : le marker n'est PAS re-créé — il se propage naturellement
+       (voir DESIGN.md "Cycle de vie du marker")
   8. **Cleanup** : supprimer fichiers de test
      - `cleanup.cleanup_all(force=True)`
      - `assert_cleanup_complete()`

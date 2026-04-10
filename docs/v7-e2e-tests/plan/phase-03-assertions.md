@@ -41,7 +41,8 @@ Implémenter les fonctions d'assertion pour vérifier chaque étape du pipeline 
 - [ ] `assert_dispatch_complete(disk_paths, expected)` :
   - Chaque média est sur un disque dans la bonne catégorie
   - Le dossier dans A TRIER/ n'existe plus (déplacé)
-  - Le .e2e-test-marker a été préservé pendant le dispatch
+  - Le .e2e-test-marker existe dans le dossier sur le disque destination
+    (préservé par rsync — voir DESIGN.md "Cycle de vie du marker")
 - [ ] `assert_cleanup_complete(registry)` :
   - Aucun chemin du registre n'existe encore sur le filesystem
   - Aucun marker orphelin trouvé par `find_orphan_markers()`

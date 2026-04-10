@@ -6,17 +6,22 @@ Implémenter le système de confiance et le matching films via TMDB.
 
 ## Sous-phases
 
-### 3.5.1 — Algorithme de score de confiance
+### 3.5.1 — Algorithme de score de confiance (rapidfuzz)
+
+> Ref : [docs/rapidfuzz-reference.md](../../rapidfuzz-reference.md)
 
 - [ ] Créer `personalscraper/scraper/confidence.py`
+- [ ] Implémenter `media_processor(s)` : `default_process` + NFD decomposition pour strip les accents FR
+  - ⚠️ `default_process` de rapidfuzz NE supprime PAS les accents — processor custom obligatoire
 - [ ] Implémenter `MatchResult` dataclass (api_id, api_title, api_year, confidence, source)
 - [ ] Implémenter `score_match(local_title, local_year, api_title, api_year)` → float
-- [ ] Normalisation : lowercase, strip accents (unicodedata), strip articles (le/la/the/a/un/une)
-- [ ] Scoring : similarité titre (ratio tokens communs) + bonus année exacte
+  - Utiliser `fuzz.WRatio(local_title, api_title, processor=media_processor)` (score 0-100 → 0.0-1.0)
+  - ⚠️ `WRatio` sans processor retourne des scores faux (pas de lowercase, pas de strip ponctuation)
+  - Ajustement année : +0.1 si match exact, -0.15 si année différente de >1 an
 - [ ] Seuils : HIGH_CONFIDENCE = 0.8, LOW_CONFIDENCE = 0.5
-- [ ] Tests paramétrés : match exact, partiel, mauvais, sans année
+- [ ] Tests paramétrés : match exact, partiel, mauvais, sans année, titres FR avec accents
 
-**Commit** : `v3.5.1: Implement confidence scoring algorithm`
+**Commit** : `v3.5.1: Implement confidence scoring with rapidfuzz WRatio`
 
 ### 3.5.2 — Matching films (TMDB)
 

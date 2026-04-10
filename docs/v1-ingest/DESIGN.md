@@ -25,7 +25,7 @@ Fichier de données persistant : `~/.personalscraper/ingested_torrents.json` (no
 
 ## Interfaces
 
-### CLI (via Click, défini en V0)
+### CLI (via Typer, défini en V0)
 
 ```bash
 # Lancement manuel
@@ -105,26 +105,34 @@ class IngestTracker:
     def cleanup(self, active_hashes: set[str]) -> int:
     def load(self) -> dict:
     def save(self) -> None:
+        """Atomic write : écrire dans .tmp puis os.replace() vers le fichier final.
+        Évite la corruption si le processus est tué pendant l'écriture."""
 ```
 
 ### `ingest.py` — Orchestrateur principal
 
 ```python
-def run_ingest(settings: Settings, dry_run: bool = False, verbose: bool = False) -> StepReport:
+def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     """
     Flux principal, appelé par la commande CLI `personalscraper ingest`.
     Retourne un StepReport pour le pipeline.
 
-    1. Se connecter à qBittorrent via Settings
-    2. Récupérer les torrents complétés
-    3. Nettoyer le tracker (retirer les torrents supprimés de qBit)
-    4. Pour chaque torrent non encore ingéré :
+    Note : pas de paramètre `verbose` — le niveau de log est configuré
+    globalement par le callback Typer dans cli.py via configure_logging().
+
+    1. Acquérir le lock file (→ exit si un autre run est en cours)
+    2. Se connecter à qBittorrent via Settings
+    3. Récupérer les torrents complétés
+    4. Nettoyer le tracker (retirer les torrents supprimés de qBit)
+    5. Pour chaque torrent non encore ingéré :
        a. Résoudre le content_path
        b. Vérifier que le fichier/dossier existe
        c. Vérifier l'espace disque disponible sur le SSD
-       d. Copier (si seeding) ou déplacer (si terminé)
-       e. Marquer comme ingéré dans le tracker
-    5. Retourner le StepReport
+       d. Transférer via copie atomique (si seeding) ou move (si terminé)
+       e. Vérifier la taille du fichier destination vs source
+       f. Marquer comme ingéré dans le tracker
+    6. Libérer le lock file (via try/finally)
+    7. Retourner le StepReport
     """
 ```
 
@@ -185,3 +193,60 @@ Utilise les champs de `personalscraper/config.py` (V0) :
 > Ref : [docs/qbittorrent-api-reference.md](../qbittorrent-api-reference.md) — hiérarchie exceptions, TorrentState enum
 
 **Principe : ne jamais crasher sur un torrent individuel.**
+
+## Protection contre les exécutions concurrentes (lock file)
+
+> **Implémenté dès V1** (pas V6) — le lock protège dès la première commande qui modifie le filesystem.
+> V6 (`run`) réutilise le même module.
+
+```python
+# personalscraper/lock.py
+LOCK_FILE = Path("~/.personalscraper/pipeline.lock").expanduser()
+
+def acquire_lock() -> bool:
+    """Créer un lock file avec le PID du processus courant.
+    Si le lock existe déjà :
+    - Lire le PID stocké
+    - Vérifier si le processus est encore vivant (os.kill(pid, 0))
+    - Si mort → supprimer le stale lock, prendre le nouveau
+    - Si vivant → retourner False (un autre run est en cours)
+    """
+
+def release_lock() -> None:
+    """Supprimer le lock file."""
+```
+
+Chaque commande qui modifie le filesystem (`ingest`, `sort`, `scrape`, `verify`, `dispatch`, `run`)
+appelle `acquire_lock()` au début et `release_lock()` en `try/finally`.
+Option `--force` pour ignorer le lock existant.
+
+## Transfert atomique (copie sûre)
+
+> Problème : si le processus est interrompu pendant un `shutil.copytree`, un fichier
+> partiellement copié reste dans `A TRIER/`. La prochaine exécution le détecte comme
+> "déjà existant" et le skip — l'utilisateur se retrouve avec un fichier corrompu.
+
+```python
+STAGING_TMP_PREFIX = ".ingest_tmp_"
+
+def transfer_torrent(source: Path, dest: Path, copy: bool) -> None:
+    """Transfert atomique d'un torrent vers staging_dir.
+
+    Si copy=True (torrent en seed) :
+    1. Copier vers dest.parent / '.ingest_tmp_{hash}/' (dossier temporaire)
+    2. Vérifier taille : dest_tmp.stat().st_size == source.stat().st_size (par fichier)
+    3. os.rename(dest_tmp, dest) — atomique sur même filesystem (SSD)
+    → Si interruption en étape 1 : seul le .tmp existe, nettoyé au prochain run
+    → Si interruption en étape 3 : impossible (rename est atomique)
+
+    Si copy=False (torrent terminé) :
+    1. shutil.move(source, dest) — sur même filesystem c'est un rename atomique
+    2. Vérifier que dest existe et a la bonne taille
+
+    Au début de chaque run : nettoyer les .ingest_tmp_* orphelins.
+    """
+```
+
+**Vérification post-transfert** : après chaque copie/move, vérifier
+`dest.stat().st_size == source.stat().st_size` (par fichier, récursivement pour les dossiers).
+Instantané et détecte 99% des corruptions. Si mismatch → supprimer dest, log ERROR, continuer.

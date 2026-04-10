@@ -203,6 +203,30 @@ test_magnets.json
 └──────────────────┘
 ```
 
+## Cycle de vie du marker `.e2e-test-marker` à travers le pipeline
+
+> **Critique** : le marker est la base de toute la stratégie de sécurité du cleanup.
+> Son comportement à chaque étape du pipeline DOIT être documenté et testé.
+
+| Étape                            | Opération filesystem                                | Le marker survit ?                                                                 | Explication                                                                         |
+| -------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **Setup** (torrent download)     | qBit télécharge dans `torrents/complete/`           | N/A                                                                                | Marker placé APRÈS le téléchargement, sur le dossier dans `torrents/complete/`      |
+| **V1 Ingest** (copy/move)        | `shutil.copytree` ou `shutil.move` vers `A TRIER/`  | **OUI** si copytree (copie tout le contenu). **OUI** si move sur même FS (rename). | Marker re-placé explicitement sur le dossier dans `A TRIER/` par le test (sécurité) |
+| **V2 Sort** (move)               | `shutil.move` vers `001-MOVIES/` ou `002-TVSHOWS/`  | **OUI** (même FS = rename atomique, le dossier entier est renommé)                 | Le marker est un fichier dans le dossier, il suit le rename                         |
+| **V3 Scrape** (rename dossier)   | `Path.rename()` pour `Show Name → Show Name (Year)` | **OUI** (rename sur même FS)                                                       | Le dossier est renommé, pas recréé                                                  |
+| **V5 Dispatch** (rsync cross-FS) | `rsync -a` de SSD vers Disk1-4                      | **OUI** (rsync copie TOUS les fichiers, y compris le marker)                       | `rsync -a` préserve le marker car c'est un fichier régulier dans le dossier         |
+
+**Stratégie marker** :
+
+1. Le test place un marker initial après chaque création de dossier par le setup
+2. Le marker survit naturellement à travers toutes les étapes (rename/move/rsync)
+3. Au cleanup, `verify_marker()` vérifie que le marker est toujours là avec le bon session_id
+4. **Pas besoin de re-créer** le marker à chaque étape — il se propage naturellement
+
+**Test unitaire requis** (Phase 1, infra) : simuler un dossier avec marker passant par
+move (V2-style), rename (V3-style), et copie récursive (V5-style). Vérifier que le marker
+survit dans chaque cas.
+
 ## Gestion d'erreurs
 
 | Situation                         | Comportement                                                    |

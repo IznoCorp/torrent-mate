@@ -22,45 +22,61 @@ Aucune dépendance supplémentaire.
 
 ## Interfaces
 
-### `logger.py` — Logger JSON structuré
+### `logger.py` — Logger structuré (structlog)
+
+> Ref : [docs/structlog-reference.md](../structlog-reference.md) — configuration complète, processeurs, patterns
 
 ```python
-import logging
+import structlog
 
-class JsonFormatter(logging.Formatter):
-    """Format log records as JSON lines."""
+def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
+    """Configure structlog + stdlib logging pour dual output.
 
-    def format(self, record: logging.LogRecord) -> str:
-        """Produce: {"timestamp": "...", "level": "...", "module": "...",
-        "message": "...", "extra": {...}}"""
-
-def get_logger(name: str, verbose: bool = False, quiet: bool = False) -> logging.Logger:
-    """Configure a logger with JSON file handler + console handler.
-
-    - File handler: writes to logs/personalscraper-YYYY-MM-DD.json
-    - Console handler: human-readable colored output
+    Console handler: ConsoleRenderer coloré (dev/interactif)
+    File handler: TimedRotatingFileHandler → logs/personalscraper.json (JSON Lines, rotation midnight)
     - verbose=True → DEBUG level
     - quiet=True → WARNING+ only
     - Default → INFO level
+    - foreign_pre_chain pour les logs stdlib (requests, urllib3, qbittorrent-api)
+    - Auto-detection TTY : console colorée si interactif, JSON si cron/pipe
     """
 
+def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+    """Return a structlog bound logger."""
+    return structlog.get_logger(name)
+
 def cleanup_old_logs(logs_dir: Path, retention_days: int = 30) -> int:
-    """Delete log files older than retention_days. Returns count deleted."""
+    """Delete log files older than retention_days. Returns count deleted.
+    Complément au backupCount de TimedRotatingFileHandler."""
 ```
 
-**Format JSON d'une entrée log :**
+**Format JSON d'une entrée log (JSON Lines) :**
 
 ```json
 {
-  "timestamp": "2026-04-11T03:00:12.345",
-  "level": "INFO",
-  "module": "ingest",
-  "message": "Torrent ingested",
-  "extra": { "torrent": "The.Boys.S05E01", "action": "copied", "size_mb": 2400 }
+  "event": "torrent_ingested",
+  "level": "info",
+  "step": "ingest",
+  "run_id": "2026-04-11T03:00:00",
+  "torrent": "The.Boys.S05E01",
+  "action": "copied",
+  "size_mb": 2400,
+  "timestamp": "2026-04-11T03:00:12.345"
 }
 ```
 
-**Fichier log :** `logs/personalscraper-2026-04-11.json` (1 par jour, JSON Lines)
+**Fichier log :** `logs/personalscraper.json` (rotation quotidienne, 30 fichiers max)
+
+**Context binding par étape :**
+
+```python
+log = structlog.get_logger().bind(step="ingest")
+log.info("torrent_ingested", torrent="The.Boys.S05E01", action="copied", size_mb=2400)
+# "step" apparaît dans tous les logs automatiquement
+
+# Contexte global pipeline (run_id dans TOUS les logs)
+structlog.contextvars.bind_contextvars(run_id=datetime.now().isoformat())
+```
 
 ### `notifier.py` — Client Telegram
 
@@ -125,6 +141,22 @@ V5 (dispatch)──┘                                          ▼
 
 Chaque version crée un `StepReport` et l'ajoute au `PipelineReport`. À la fin du pipeline, le rapport est envoyé via Telegram (si configuré).
 
+### Contrat StepReport — conversion list[*Result] → StepReport
+
+> Chaque `run_*()` retourne un `StepReport`. La conversion depuis les types internes
+> (`list[SortResult]`, etc.) se fait dans l'orchestrateur de chaque version, PAS dans V6.
+
+| Version | Fonction         | Type interne           | Conversion → StepReport                                                                                                      |
+| ------- | ---------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| V1      | `run_ingest()`   | StepReport directement | Pas de conversion (déjà StepReport)                                                                                          |
+| V2      | `run_sort()`     | `list[SortResult]`     | `success_count = len([r for r if r.moved])`, `skip_count = len(skipped)`, `details = [f"{r.title} → {r.destination}" for r]` |
+| V3      | `run_scrape()`   | `list[ScrapeResult]`   | `success_count = matched`, `error_count = unmatched`, `details = [f"{r.title}: {r.source}" for r]`                           |
+| V4      | `run_verify()`   | `list[VerifyResult]`   | `success_count = valid+fixed`, `error_count = blocked`, `warnings = [r.warnings for r if r.warnings]`                        |
+| V5      | `run_dispatch()` | `list[DispatchResult]` | `success_count = replaced+merged+moved`, `skip_count = skipped`, `details = [f"{r.source.name} → {r.disk}" for r]`           |
+
+La commande `run` (V6) appelle simplement `report.add_step("ingest", run_ingest(settings, dry_run))` pour chaque étape.
+Chaque `run_*()` est responsable de construire son propre StepReport — V6 ne fait que les agréger.
+
 ## Format du message Telegram
 
 ```html
@@ -151,22 +183,38 @@ ignoré (espace insuffisant) ⏱️ Durée : 4min 32s 📅 2026-04-11 03:04:32
 
 ## Protection contre les exécutions concurrentes
 
-```python
-LOCK_FILE = Path("~/.personalscraper/pipeline.lock").expanduser()
-
-def acquire_lock() -> bool:
-    """Créer un lock file avec le PID du processus courant.
-    Si le lock existe déjà :
-    - Lire le PID stocké
-    - Vérifier si le processus est encore vivant (os.kill(pid, 0))
-    - Si mort → supprimer le stale lock, prendre le nouveau
-    - Si vivant → retourner False (un autre run est en cours)
-    """
-
-def release_lock() -> None:
-    """Supprimer le lock file."""
-```
+> **Module `personalscraper/lock.py`** — implémenté en V1, réutilisé par la commande `run`.
+> Voir V1 DESIGN.md pour les détails d'implémentation (acquire_lock, release_lock, stale detection).
 
 La commande `run` appelle `acquire_lock()` au début et `release_lock()` à la fin (via try/finally).
 Si le lock est pris, le pipeline log un WARNING et quitte sans erreur.
 Ceci empêche les collisions entre le cron quotidien et un lancement manuel simultané.
+
+## Monitoring externe (healthchecks.io)
+
+> Filet de sécurité : si le pipeline crash avant d'envoyer la notification Telegram
+> (OOM, segfault, disque plein), personne n'est prévenu. Un service de monitoring externe
+> détecte l'absence de signal.
+
+```python
+def ping_healthcheck(url: str, status: str = "") -> None:
+    """Ping healthchecks.io (ou compatible). Non-bloquant, never raises.
+    - url = settings.healthcheck_url (ex: 'https://hc-ping.com/{uuid}')
+    - status = '' (success), '/start' (début run), '/fail' (erreur)
+    """
+    if not url:
+        return
+    try:
+        requests.get(f"{url}{status}", timeout=5)
+    except Exception:
+        pass  # Le monitoring ne bloque jamais le pipeline
+```
+
+Flux dans la commande `run` :
+
+1. `ping_healthcheck(url, "/start")` — début du run
+2. Pipeline V1→V5
+3. `ping_healthcheck(url, "" if not report.has_errors() else "/fail")` — fin du run
+
+Configuration : `healthcheck_url` dans Settings (V0). Si vide → pas de ping (silencieux).
+Service gratuit recommandé : [healthchecks.io](https://healthchecks.io) (plan gratuit = 20 checks).

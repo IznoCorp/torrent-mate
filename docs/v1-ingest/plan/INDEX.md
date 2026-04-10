@@ -34,7 +34,9 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 
 - [ ] Le sous-package `personalscraper/ingest/` est créé et importable
 - [ ] `from personalscraper.ingest import qbit_client, tracker, ingest` fonctionne
+- [ ] `from personalscraper.lock import acquire_lock, release_lock` fonctionne
 - [ ] `~/.personalscraper/` existe
+- [ ] Tests lock file passent (acquire, release, stale detection)
 
 ### Après Phase 2 (qBit Client → Orchestrateur)
 
@@ -54,6 +56,10 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 - [ ] `personalscraper ingest --dry-run` fonctionne standalone
 - [ ] `--dry-run` ne modifie rien sur le filesystem
 - [ ] `run_ingest()` retourne un `StepReport` correct
+- [ ] Le lock file est acquis/libéré correctement (vérifier `~/.personalscraper/pipeline.lock`)
+- [ ] Les copies utilisent le pattern atomique (.ingest*tmp* → rename)
+- [ ] Les .ingest*tmp*\* orphelins sont nettoyés au début du run
+- [ ] La vérification de taille post-transfert fonctionne
 - [ ] Le script gère correctement les chemins avec espaces
 - [ ] Le résumé est clair et loggable
 

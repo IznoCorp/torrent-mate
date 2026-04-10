@@ -35,16 +35,21 @@ Linéaire — chaque phase dépend de la précédente.
 ### Après Phase 2 (Core → Logger)
 
 - [ ] `personalscraper --version` affiche la version
-- [ ] `personalscraper --help` affiche les sous-commandes
+- [ ] `personalscraper --help` affiche les sous-commandes (Typer rich output)
 - [ ] `Settings` charge le `.env` correctement
-- [ ] Les sous-commandes stubs (ingest, sort, scrape, dispatch, run) existent
+- [ ] Les sous-commandes stubs (ingest, sort, scrape, verify, dispatch, run) existent
+- [ ] `Console(quiet=True)` supprime l'output en mode `--quiet`
+- [ ] `rich.traceback.install()` rend les erreurs lisibles
 
 ### Après Phase 3 (Logger → Archive)
 
-- [ ] `get_logger("test")` crée un fichier dans `logs/`
-- [ ] Le format JSON est valide et parseable
+- [ ] `configure_logging()` crée un fichier JSON dans `logs/`
+- [ ] Le format JSON Lines est valide et parseable (1 ligne = 1 event)
+- [ ] Chaque event contient `timestamp`, `level`, `event` au minimum
 - [ ] `--verbose` / `--quiet` changent le niveau de log
+- [ ] Console output est coloré en mode interactif, JSON en mode non-TTY
 - [ ] `cleanup_old_logs()` fonctionne
+- [ ] Les logs stdlib (requests, urllib3) passent aussi par structlog
 
 ### Après Phase 4 (Archive → V1)
 

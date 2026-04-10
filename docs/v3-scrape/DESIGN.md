@@ -9,12 +9,13 @@
 ```
 personalscraper/scraper/
 ├── __init__.py
-├── tmdb_client.py        # Client API TMDB (films + fallback séries)
-├── tvdb_client.py        # Client API TVDB (séries principal)
+├── providers.py          # MetadataProvider Protocol (interface commune TMDB/TVDB)
+├── tmdb_client.py        # Client API TMDB (films + fallback séries), implémente MetadataProvider
+├── tvdb_client.py        # Client API TVDB (séries principal), implémente MetadataProvider
 ├── nfo_generator.py      # Génération XML NFO Kodi (movie, tvshow, episodedetails)
 ├── artwork.py            # Téléchargement artwork (poster, landscape, season poster)
 ├── mediainfo.py          # Extraction streamdetails via ffprobe (subprocess)
-├── confidence.py         # Score de confiance pour le matching
+├── confidence.py         # Score de confiance via rapidfuzz (WRatio + media_processor)
 └── scraper.py            # Orchestrateur principal
 ```
 
@@ -27,10 +28,44 @@ V3 re-parse les noms de dossiers indépendamment de V2 (plus résilient aux exé
 ### Dépendances
 
 - `requests` — API calls (déjà dans deps)
+- `rapidfuzz` — fuzzy matching titres pour confidence scoring (voir [docs/rapidfuzz-reference.md](../rapidfuzz-reference.md))
+- `tenacity` — retry avec backoff sur les appels API (voir [docs/tenacity-reference.md](../tenacity-reference.md))
 - `ffprobe` (via `subprocess`) — extraction codec/resolution/audio (installé via `brew install ffmpeg`, pas de dep Python)
 - `xml.etree.ElementTree` (stdlib) — génération NFO XML
 
 ## Interfaces
+
+### `providers.py` — MetadataProvider Protocol
+
+```python
+from typing import Protocol, runtime_checkable
+
+@runtime_checkable
+class MetadataProvider(Protocol):
+    """Interface commune pour les fournisseurs de metadata (TMDB, TVDB).
+    Inspiré de tinyMediaManager. Permet le testing avec FakeProvider
+    et l'extensibilité future.
+    Note : chaque client a aussi des méthodes spécifiques (épisodes TVDB,
+    certifications TMDB) qui ne font PAS partie du Protocol.
+    """
+
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict]:
+        """Rechercher un média par titre. Retourne les résultats bruts API."""
+        ...
+
+    def get_details(self, media_id: int, media_type: str = "movie") -> dict:
+        """Obtenir les détails complets (metadata + images + IDs croisés)."""
+        ...
+
+    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict]:
+        """Obtenir les URLs des artworks disponibles.
+        Retourne: [{"type": "poster"|"landscape"|"season_poster", "url": "...", "language": "fr"|"en"|None, "season": int|None}]
+        """
+        ...
+```
+
+TMDBClient et TVDBClient implémentent ce Protocol tout en gardant leurs méthodes spécifiques
+(get_tv_season, get_episode_translations, etc.).
 
 ### `tmdb_client.py` — Client TMDB
 
@@ -38,12 +73,16 @@ V3 re-parse les noms de dossiers indépendamment de V2 (plus résilient aux exé
 
 ```python
 class TMDBClient:
-    """Client for The Movie Database API v3."""
+    """Client for The Movie Database API v3.
+    All HTTP calls use tenacity retry (backoff exponentiel sur 429/5xx).
+    Ref: docs/tenacity-reference.md — pattern TMDB
+    """
 
     BASE_URL = "https://api.themoviedb.org/3"
 
     def __init__(self, api_key: str, language: str = "fr-FR"):
-        """Auth par Bearer token (recommandé) ou api_key query param."""
+        """Auth par Bearer token (recommandé). Session requests avec retry tenacity.
+        _get() décoré @retry: 4 attempts, exponential jitter, reraise=True."""
         ...
 
     def search_movie(self, title: str, year: int | None = None) -> list[dict]:
@@ -83,7 +122,10 @@ class TMDBClient:
 
 ```python
 class TVDBClient:
-    """Client for TheTVDB API v4."""
+    """Client for TheTVDB API v4.
+    All HTTP calls use tenacity retry (backoff exponentiel sur 429/5xx).
+    Ref: docs/tenacity-reference.md — pattern TVDB
+    """
 
     BASE_URL = "https://api4.thetvdb.com/v4"
 
@@ -130,7 +172,23 @@ class TVDBClient:
 
 ### `confidence.py` — Score de confiance
 
+> Ref : [docs/rapidfuzz-reference.md](../rapidfuzz-reference.md) — scoring, media_processor, intégration
+
 ```python
+from rapidfuzz import fuzz, utils
+import unicodedata
+
+def media_processor(s: str) -> str:
+    """Processor adapté aux titres media français.
+    Lowercase + strip non-alphanum + strip accents (NFD decomposition).
+    Obligatoire car default_process de rapidfuzz NE supprime PAS les accents.
+    """
+    s = utils.default_process(s)
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
+
 @dataclass
 class MatchResult:
     """Result of matching a local media to an API result."""
@@ -146,7 +204,10 @@ def score_match(
     api_title: str,
     api_year: int | None,
 ) -> float:
-    """Score a match between local and API data.
+    """Score a match between local and API data using rapidfuzz WRatio.
+    Combine titre similarity (WRatio 0-100 → 0.0-1.0) + year bonus/malus.
+    WRatio auto-sélectionne la meilleure stratégie (ratio, token_sort, token_set, partial)
+    avec pondération selon le ratio de longueur des strings.
     1.0 = exact title + exact year
     0.8+ = high confidence (auto-accept)
     0.5-0.8 = medium (interactive only)

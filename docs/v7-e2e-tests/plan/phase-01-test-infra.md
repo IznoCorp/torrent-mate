@@ -18,15 +18,22 @@ Implémenter les mécanismes de tracking et sécurité pour les tests E2E.
 
 **Commit** : `v7.1.1: Implement TestRegistry for E2E file tracking`
 
-### 7.1.2 — Markers de test
+### 7.1.2 — Markers de test + test cycle de vie
 
 - [ ] Créer `tests/e2e/markers.py`
 - [ ] `place_marker(directory, session_id)` : crée `.e2e-test-marker` contenant le UUID
 - [ ] `verify_marker(directory, session_id)` : triple check (fichier existe + UUID match + dans registre)
 - [ ] `find_orphan_markers(base_paths)` : scan récursif pour trouver des markers de sessions précédentes
-- [ ] Tests unitaires avec tmp_path
+- [ ] Tests unitaires avec tmp_path :
+  - Test basique : place + verify + find_orphan
+  - **Test cycle de vie pipeline** (critique) : simuler un dossier avec marker passant par :
+    1. `shutil.move(src, dst)` (simule V2 sort, même FS = rename) → marker survit
+    2. `Path.rename(old, new)` (simule V3 scrape rename) → marker survit
+    3. `shutil.copytree(src, dst)` (simule V5 dispatch cross-FS) → marker survit
+    4. Vérifier `verify_marker()` après chaque opération
+    - Ce test valide les assertions du DESIGN.md "Cycle de vie du marker"
 
-**Commit** : `v7.1.2: Implement E2E test markers with triple verification`
+**Commit** : `v7.1.2: Implement E2E test markers with lifecycle verification`
 
 ### 7.1.3 — Conftest pytest (fixtures)
 

@@ -6,23 +6,26 @@ Implémenter la commande `run` qui enchaîne V1→V5 et envoie le rapport.
 
 ## Sous-phases
 
-### 6.2.1 — Commande `run` avec lock file
+### 6.2.1 — Commande `run` avec pipeline orchestration
 
-- [ ] Implémenter `acquire_lock()` et `release_lock()` dans un module dédié ou dans `cli.py`
-  - Lock file : `~/.personalscraper/pipeline.lock` (PID du processus)
-  - Détection stale lock : `os.kill(pid, 0)` pour vérifier si le processus est vivant
-  - Si lock pris par un processus vivant → log WARNING, exit 0
 - [ ] Implémenter `personalscraper run` dans `cli.py` (remplacer le stub)
-- [ ] `acquire_lock()` en début, `release_lock()` en try/finally
+- [ ] Utiliser le lock module de V1 : `from personalscraper.lock import acquire_lock, release_lock`
+  - Le module existe déjà — pas besoin de le ré-implémenter
+  - `acquire_lock()` en début, `release_lock()` en try/finally
+- [ ] Si `settings.healthcheck_url` configuré : ping `{url}/start` au début du run
+- [ ] Au début du run : `structlog.contextvars.clear_contextvars()` + `bind_contextvars(run_id=...)`
+- [ ] Créer un `PipelineReport` au début
 - [ ] Séquence : ingest → sort → scrape → verify → dispatch
-- [ ] Créer un `PipelineReport` au début, passer à chaque étape
-- [ ] Chaque étape alimente son `StepReport`
+  - Chaque `run_*()` retourne un `StepReport` (conversion interne dans chaque version)
+  - `report.add_step("ingest", run_ingest(settings, dry_run))` etc.
+  - Chaque étape utilise `log.bind(step=...)` pour le contexte structlog
 - [ ] Si une étape échoue fatalement → log ERROR, continuer les suivantes
 - [ ] À la fin : envoyer le rapport via Telegram (si configuré)
-- [ ] Afficher le résumé en console
+- [ ] Si `settings.healthcheck_url` configuré : ping `{url}` (success) ou `{url}/fail` (erreur)
+- [ ] Afficher le résumé en console via `rich.panel.Panel` et `rich.table.Table`
 - [ ] Support --dry-run (passé à chaque étape)
 
-**Commit** : `v6.2.1: Implement pipeline run command with lock file`
+**Commit** : `v6.2.1: Implement pipeline run command with healthcheck pings`
 
 ### 6.2.2 — Tests du pipeline complet
 
