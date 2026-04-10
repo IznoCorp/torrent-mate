@@ -7,36 +7,44 @@
 Chaque version (V1→V4) produit des opérations qui doivent être tracées et notifiées.
 V5 fournit le système transversal de logging et notification.
 
+Note : le module logging doit être disponible dès V0 pour être utilisé par toutes les versions.
+
 ## Décisions prises
 
 ### Logging
 
-- **Fichier de log** structuré avec horodatage
-- Utilisé par toutes les versions (V1→V4)
-- Module Python importable par chaque composant du pipeline
+- **Format** : JSON structuré (parseable, exploitable par des outils)
+- **Emplacement** : `logs/` à la racine du projet (ajouté au `.gitignore`)
+- **Rétention** : 30 jours, 1 fichier par jour, rotation automatique
+- **Nommage** : `logs/personalscraper-YYYY-MM-DD.json`
+- Chaque entrée contient : timestamp, level, module, message, metadata
+- Supporte `--verbose` (DEBUG) et `--quiet` (WARNING+) via le CLI
 
 ### Notifications Telegram
 
-- Bot Telegram pour les notifications
-- API simple : `POST https://api.telegram.org/bot{token}/sendMessage`
-- Config dans `.env` : `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+- **Bot** : fourni par l'utilisateur en temps voulu
+- **Config** : `TELEGRAM_BOT_TOKEN` et `TELEGRAM_CHAT_ID` dans `.env`
+- **Si pas configuré** : pas de notification, pas d'erreur (silencieux)
+- **Granularité** : résumé final du pipeline uniquement (pas par étape)
+- **Format** : HTML (Telegram parse_mode), belle mise en forme, emojis pertinents
+- **API** : `POST https://api.telegram.org/bot{token}/sendMessage`
 
-## Questions ouvertes
+### Exemple de message Telegram
 
-- [ ] Format log : texte lisible humainement ou JSON structuré (parseable) ?
-- [ ] Emplacement : dans le projet (`logs/`) ou dossier dédié ?
-- [ ] Rétention : combien de jours/Mo de logs garder ? Rotation automatique ?
-- [ ] Bot Telegram : déjà existant ou à créer ?
-- [ ] Notifications : résumé final uniquement ou par étape ?
-- [ ] Format message Telegram : texte simple, markdown, emojis ?
+```html
+📊 <b>PersonalScraper — Rapport</b> ━━━━━━━━━━━━━━━━━━━━━━ 📥 <b>Ingest</b> ✅ 3
+torrents ingérés (2 copiés, 1 déplacé) ⏭️ 1 torrent ignoré (déjà traité) 📂
+<b>Sort</b> 🎬 2 films triés 📺 4 épisodes triés 🔍 <b>Scrape</b> ✅ 2 films
+scrapés ✅ 1 série scrapée (4 épisodes) ⚠️ 1 film non matché (confiance faible)
+💾 <b>Dispatch</b> ✅ 2 films → Disk3 ✅ 4 épisodes → Disk2 (merge) ⚠️ 1 film
+ignoré (espace insuffisant) ⏱️ Durée totale : 4min 32s 📅 2026-04-11 03:04:32
+```
 
 ## Contraintes techniques
 
-1. Le logging doit être intégré dès V0 (module disponible pour toutes les versions)
-2. Le module doit supporter `--verbose` et `--quiet` de manière cohérente
-3. Les notifications ne doivent pas bloquer le pipeline en cas d'échec Telegram
-4. Le log doit être exploitable pour diagnostiquer les erreurs sans relancer le pipeline
-
-## Notes de brainstorming
-
-_À compléter lors de la session de brainstorming dédiée_
+1. Le module logging doit être intégré **dès V0** (disponible pour toutes les versions)
+2. Supporte `--verbose` et `--quiet` de manière cohérente avec le CLI Click
+3. Les notifications ne doivent **jamais bloquer** le pipeline (try/except, timeout court)
+4. Le log JSON doit être exploitable pour diagnostiquer les erreurs sans relancer
+5. Rotation automatique : supprimer les fichiers de plus de 30 jours au démarrage
+6. Chaque version (V1→V4) alimente un objet "rapport" qui est finalisé en V5 pour la notification
