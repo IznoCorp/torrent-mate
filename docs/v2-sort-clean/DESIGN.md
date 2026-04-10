@@ -9,8 +9,8 @@
 ```
 personalscraper/sorter/
 ├── __init__.py
-├── cleaner.py           # Regex-based name cleaner (remplace clean_words.txt)
-├── file_type.py         # FileType enum + detection (from FileMate)
+├── cleaner.py           # Nettoyage noms via guessit (voir docs/guessit-evaluation.md)
+├── file_type.py         # FileType enum + detection (guessit type + extensions FileMate)
 ├── strategies.py        # Movie/TVShow/Default strategies (from FileMate)
 ├── matcher.py           # Fuzzy directory matching (from FileMate)
 └── sorter.py            # Main sorting orchestrator
@@ -81,9 +81,13 @@ class FileType(Enum):
     OTHER = "other"
 
 def detect_file_type(path: Path) -> FileType:
-    """Detect media type from file extension and name patterns.
-    Video + season/episode pattern → TVSHOW
-    Video without pattern → MOVIE
+    """Detect media type from file extension + guessit type.
+    1. Extension non-vidéo → EBOOK/AUDIO/APP/OTHER (logique FileMate)
+    2. Extension vidéo → guessit(name).get("type"):
+       - "episode" → TVSHOW (guessit détecte S01E04, Saison, etc.)
+       - "movie" → MOVIE
+       - fallback extension-only si guessit ne sait pas
+    Voir docs/guessit-evaluation.md — guessit détecte aussi les packs saison (S01-S08).
     """
 
 def detect_dir_type(path: Path) -> FileType:

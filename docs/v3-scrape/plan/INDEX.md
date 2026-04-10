@@ -65,8 +65,13 @@ Phase 13 : CLI et tests finaux.
 ### Après Phase 2 (Mediainfo via ffprobe)
 
 - [ ] `extract_stream_info()` retourne video/audio/subtitle sur un .mkv réel
+- [ ] Langues converties ISO 639-2/B → T : `fre` → `fra`, `ger` → `deu`
+- [ ] Aspect ratio en decimal : `"16:9"` → `1.778` (pas la string brute)
+- [ ] Durée arrondie avec `round()` (cohérent MediaElch)
+- [ ] EAC3 + Atmos détecté → codec `"atmos"` dans le dict
+- [ ] Scantype présent (`"progressive"` ou `"interlaced"`)
 - [ ] Retourne None gracieusement si ffprobe absent
-- [ ] Le dict retourné est directement utilisable par le NFO generator
+- [ ] Sortie comparable au NFO MediaElch existant (mêmes valeurs)
 
 ### Après Phase 3 (TMDB client)
 
