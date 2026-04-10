@@ -22,6 +22,10 @@ FileMate (`~/dev/FileMate/`) doit être intégré directement dans ce projet car
 - `pyproject.toml` PEP 621 avec setuptools
 - Python >= 3.10
 
+> Note : TorrentMaker utilise des dataclasses simples + `load_dotenv()` pour sa config.
+> PersonalScraper utilise `pydantic-settings` à la place — le `config.py` est réécrit
+> from scratch, pas copié de TorrentMaker. Le template sert pour pyproject.toml, Makefile, ruff.
+
 ### Outillage
 
 - **Ruff** pour linting + formatting (remplace Black/isort/flake8)

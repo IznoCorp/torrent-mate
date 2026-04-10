@@ -37,7 +37,8 @@ class IndexEntry:
 class MediaIndex:
     """JSON-based index of all media across storage disks."""
 
-    INDEX_PATH = Path("~/.personalscraper_media_index.json").expanduser()
+    INDEX_PATH = Path("~/.personalscraper/media_index.json").expanduser()
+    # Cohérent avec V1 tracker : ~/.personalscraper/ingested_torrents.json
 
     def __init__(self):
         ...
@@ -123,6 +124,16 @@ def determine_category(
     """Read genre from .nfo XML, map to disk category.
     Falls back to default if genre not in mapping."""
 ```
+
+> **Limites de la détection anime** :
+>
+> - L'heuristique `Animation + JP` est une approximation. Certains animes sont co-produits
+>   hors Japon (Netflix originals, co-productions), et `origin_country` peut ne pas contenir "JP".
+> - TMDB utilise `origin_country` (code ISO "JP"), TVDB peut utiliser un nom complet ("Japan")
+>   — normaliser les deux formats dans le mapper.
+> - Le terme "anime" est souvent un tag communautaire, pas un genre officiel API.
+> - Pour les cas ambigus, l'utilisateur peut déplacer manuellement ou ajouter un override
+>   dans le mapping configurable.
 
 ### `dispatcher.py` — Orchestrateur
 

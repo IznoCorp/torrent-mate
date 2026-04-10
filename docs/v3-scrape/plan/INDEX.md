@@ -61,12 +61,11 @@ Phase 13 : CLI et tests finaux.
 
 - [ ] Tous les patterns MediaElch reproduits exactement
 - [ ] `format()` fonctionne avec les variables de templating
-- [ ] `load()` depuis fichier config fonctionne
 
-### Après Phase 2 (Mediainfo)
+### Après Phase 2 (Mediainfo via ffprobe)
 
 - [ ] `extract_stream_info()` retourne video/audio/subtitle sur un .mkv réel
-- [ ] Retourne None gracieusement si pymediainfo absent
+- [ ] Retourne None gracieusement si ffprobe absent
 - [ ] Le dict retourné est directement utilisable par le NFO generator
 
 ### Après Phase 3 (TMDB client)
@@ -139,6 +138,8 @@ Phase 13 : CLI et tests finaux.
 - [ ] `scrape_tvshow(dir)` enchaîne : match → tvshow.nfo → artwork → saisons → rename → episode NFO
 - [ ] Skip si tvshow.nfo existe déjà
 - [ ] Gère les séries multi-saisons
+- [ ] **Handoff V2→V3** : renomme `Show Name/` → `Show Name (Year)/` après matching API
+- [ ] **Handoff V2→V3** : gère le cas d'un dossier déjà renommé avec année (pas de re-rename)
 
 ### Après Phase 13 (CLI → V4)
 

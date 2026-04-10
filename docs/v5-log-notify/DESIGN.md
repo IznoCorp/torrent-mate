@@ -147,3 +147,25 @@ ignoré (espace insuffisant) ⏱️ Durée : 4min 32s 📅 2026-04-11 03:04:32
 | Fichier log corrompu               | Nouveau fichier, log WARNING      |
 
 **Principe : les notifications ne bloquent jamais le pipeline.**
+
+## Protection contre les exécutions concurrentes
+
+```python
+LOCK_FILE = Path("~/.personalscraper/pipeline.lock").expanduser()
+
+def acquire_lock() -> bool:
+    """Créer un lock file avec le PID du processus courant.
+    Si le lock existe déjà :
+    - Lire le PID stocké
+    - Vérifier si le processus est encore vivant (os.kill(pid, 0))
+    - Si mort → supprimer le stale lock, prendre le nouveau
+    - Si vivant → retourner False (un autre run est en cours)
+    """
+
+def release_lock() -> None:
+    """Supprimer le lock file."""
+```
+
+La commande `run` appelle `acquire_lock()` au début et `release_lock()` à la fin (via try/finally).
+Si le lock est pris, le pipeline log un WARNING et quitte sans erreur.
+Ceci empêche les collisions entre le cron quotidien et un lancement manuel simultané.

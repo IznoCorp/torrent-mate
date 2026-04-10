@@ -17,15 +17,16 @@ Implémenter le système de patterns de nommage configurable, compatible MediaEl
 
 **Commit** : `v3.1.1: Implement NamingPatterns dataclass with MediaElch defaults`
 
-### 3.1.2 — Templating et chargement config
+### 3.1.2 — Templating
 
 - [ ] Implémenter `format(pattern_name, **kwargs)` : remplace {Title}, {Year}, {Season:02d}, etc.
 - [ ] Gérer `<baseFileName>` : résoudre à partir du nom du fichier vidéo
-- [ ] Implémenter `load(path)` : charger depuis un fichier .ini ou .toml optionnel
-- [ ] Valeur par défaut si pas de fichier config
 - [ ] Tests unitaires : chaque pattern produit le nom attendu
 
-**Commit** : `v3.1.2: Add pattern templating and config file loading`
+> Note : Pas de `load()` depuis fichier config. Les patterns sont des standards Kodi/MediaElch
+> qui ne changent pas. La dataclass avec valeurs par défaut suffit (YAGNI).
+
+**Commit** : `v3.1.2: Add pattern templating`
 
 ### 3.1.3 — Tests de conformité MediaElch
 

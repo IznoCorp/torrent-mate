@@ -103,7 +103,7 @@ episode_thumb         = <baseFileName>-thumb.jpg
 
 - Format XML Kodi standard
 - **Inclure `<fileinfo><streamdetails>`** avec les infos codec/resolution/audio
-- Nécessite `pymediainfo` ou `ffprobe` pour extraire les infos du fichier vidéo
+- Utilise `ffprobe` (subprocess) pour extraire les infos du fichier vidéo (déjà installé, zéro dep Python)
 - Le tag `<generator>` utilisera `personalscraper` au lieu de `MediaElch`
 - 3 types de NFO :
   - `<movie>` pour les films
@@ -240,8 +240,8 @@ GET /tv/{id}/images
 
 ## Contraintes techniques
 
-1. **Rate limiting** : TMDB = 40 req/sec (généreux), TVDB = plus restrictif → retry avec backoff
-2. **pymediainfo** ou **ffprobe** nécessaire pour `<streamdetails>` dans les NFO
+1. **Rate limiting** : TMDB = 40-50 req/sec (par IP), TVDB = non documenté → retry avec backoff
+2. **ffprobe** nécessaire pour `<streamdetails>` dans les NFO (installé via `brew install ffmpeg`)
 3. **Gestion des doublons** : ne pas re-scraper un média qui a déjà ses .nfo et artwork
 4. **Dry-run** : afficher ce qui serait scrapé sans rien télécharger
 5. **Mode interactif** : `--interactive` pour confirmer chaque match

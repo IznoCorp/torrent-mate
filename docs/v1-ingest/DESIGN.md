@@ -18,7 +18,8 @@ Fichier de données persistant : `~/.personalscraper/ingested_torrents.json` (no
 
 ### Dépendances Python
 
-- `requests` — appels HTTP vers l'API qBittorrent (déjà dans deps V0)
+- `qbittorrent-api>=2025.1.0` — client Python officieux pour l'API Web qBittorrent
+  (gestion auto de l'auth, re-login, CSRF, support qBit v5.0+ avec `stoppedUP`)
 - `pydantic-settings` — via Settings de V0 (pas de chargement .env propre)
 - Stdlib uniquement pour le reste (`shutil`, `json`, `pathlib`)
 
@@ -50,40 +51,39 @@ Note : le cron lance `run` (pipeline complet), pas `ingest` seul.
 
 ## Modules
 
-### `qbit_client.py` — Client API qBittorrent
+### `qbit_client.py` — Wrapper autour de `qbittorrent-api`
 
 ```python
+import qbittorrentapi
+
 class QBitClient:
-    """Client pour l'API Web de qBittorrent."""
+    """Wrapper autour de qbittorrent-api pour le pipeline ingest.
+    Utilise la librairie qbittorrent-api qui gère automatiquement :
+    - Auth (login/re-login si cookie expiré)
+    - Headers CSRF (Referer/Origin)
+    - Compatibilité qBit v4.x (pausedUP) et v5.0+ (stoppedUP)
+    """
 
     def __init__(self, host: str, port: int, username: str, password: str):
-        ...
-
-    def login(self) -> None:
-        """POST /api/v2/auth/login — obtient le cookie SID."""
-
-    def logout(self) -> None:
-        """POST /api/v2/auth/logout."""
+        self._client = qbittorrentapi.Client(
+            host=host, port=port, username=username, password=password,
+        )
 
     def __enter__(self) / __exit__(self):
-        """Context manager pour auto-login/logout."""
+        """Context manager : auth_log_in() / auth_log_out()."""
 
-    def get_completed_torrents(self) -> list[dict]:
-        """GET /api/v2/torrents/info — retourne les torrents complétés (progress=1.0)."""
+    def get_completed_torrents(self) -> list[qbittorrentapi.TorrentDictionary]:
+        """Retourne les torrents complétés via torrents_info(status_filter='completed')."""
 
-    def is_seeding(self, torrent: dict) -> bool:
-        """Vérifie si le torrent est en seed actif.
-        uploading/stalledUP/forcedUP/queuedUP → True
-        pausedUP/stoppedUP/missingFiles → False"""
+    def is_seeding(self, torrent: qbittorrentapi.TorrentDictionary) -> bool:
+        """Utilise torrent.state_enum.is_uploading (couvre uploading/stalledUP/forcedUP/queuedUP).
+        Retourne False si is_complete and not is_uploading (pausedUP/stoppedUP)."""
 
-    def get_torrent_hash(self, torrent: dict) -> str:
-        """Retourne le hash unique du torrent."""
-
-    def get_content_path(self, torrent: dict) -> Path:
-        """Retourne le chemin complet du contenu (fichier ou dossier)."""
+    def get_content_path(self, torrent: qbittorrentapi.TorrentDictionary) -> Path:
+        """Retourne Path(torrent.content_path)."""
 
     def get_all_torrent_hashes(self) -> set[str]:
-        """Retourne tous les hash de torrents connus de qBit."""
+        """Retourne {t.hash for t in self._client.torrents_info()}."""
 ```
 
 ### `tracker.py` — Tracking des torrents traités

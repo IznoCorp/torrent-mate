@@ -18,42 +18,55 @@ personalscraper/sorter/
 
 ### Dépendances
 
-Aucune dépendance supplémentaire au-delà de V0.
-Tout est stdlib (`re`, `pathlib`, `shutil`, `dataclasses`).
+- `guessit>=3.8.0` — parsing de noms media (ajouté dans V0 `pyproject.toml`)
+- Stdlib pour le reste (`pathlib`, `shutil`, `dataclasses`)
 
 ## Interfaces
 
-### `cleaner.py` — Nettoyage regex des noms
+### `cleaner.py` — Nettoyage via guessit
 
 ```python
-class NameCleaner:
-    """Regex-based media filename cleaner."""
+from guessit import guessit as guess
 
-    # Pattern categories compiled at init
-    RESOLUTION: re.Pattern    # 1080p, 720p, 2160p, 4K, UHD
-    CODEC: re.Pattern         # [HhXx]26[45], HEVC, AVC, AV1, VP9
-    AUDIO: re.Pattern         # DDP?\d?\.\d, AC3, DTS, AAC, Atmos, EAC3, TrueHD
-    SOURCE: re.Pattern        # WEB(-?DL|-?Rip)?, Blu-?Ray, BDRip, AMZN, NF, DSNP
-    VIDEO_PROPS: re.Pattern   # HDR\d*, DV, Dolby.Vision, 10bit
-    LANGUAGE: re.Pattern      # MULTi, VFF?, VOST(FR)?, FRENCH, TRUEFRENCH
-    RELEASE_GROUP: re.Pattern # -[A-Za-z0-9]+$ (trailing group tag)
-    MISC: re.Pattern          # REPACK, PROPER, EXTENDED, INTERNAL, COMPLETE
+class NameCleaner:
+    """Media filename cleaner powered by guessit.
+    Remplace le système regex custom par guessit (moteur de règles)
+    qui gère 140+ streaming services, titres avec chiffres/années,
+    conventions françaises (VFF, VOSTFR, TRUEFRENCH, MULTi, Saison).
+    Voir docs/guessit-evaluation.md pour l'évaluation complète.
+    """
 
     def clean(self, name: str) -> str:
-        """Clean a media filename. Returns title only (+ year/season/episode preserved).
+        """Clean a media filename. Returns title only (+ season/episode preserved).
         Input:  'Shrinking.S03.MULTi.1080p.WEBRiP.DDP5.1.x265-R3MiX'
         Output: 'Shrinking S03'
         """
+        r = guess(name)
+        title = r.get("title", name)
+        season = r.get("season")
+        episode = r.get("episode")
+        if season and episode:
+            return f"{title} S{season:02d}E{episode:02d}"
+        if season:
+            return f"{title} S{season:02d}"
+        return title
 
     def extract_year(self, name: str) -> int | None:
-        """Extract 4-digit year (1900-2099) from name."""
+        """Extract year from name via guessit."""
+        return guess(name).get("year")
 
     def extract_season_episode(self, name: str) -> tuple[int | None, int | None]:
         """Extract season and episode numbers.
-        Supports: S01E04, s01e04, 1x04, Saison 1 Episode 4, S03"""
+        Supports: S01E04, s01e04, 1x04, Saison 1 Episode 4, S03, double episodes."""
+        r = guess(name)
+        return r.get("season"), r.get("episode")
 
     def clean_for_folder(self, name: str) -> str:
         """Clean name for folder creation: 'Title (Year)' or 'Title'."""
+        r = guess(name)
+        title = r.get("title", name)
+        year = r.get("year")
+        return f"{title} ({year})" if year else title
 ```
 
 ### `file_type.py` — Détection de type

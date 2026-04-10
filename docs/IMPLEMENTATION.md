@@ -174,13 +174,18 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Déclenchement   | Cron 1x/jour à 3h + commande manuelle      | Robustesse, pas de risque fichier en cours d'écriture    |
 | FileMate        | Intégrer dans ce projet (pas fork externe) | Utilisé uniquement ici, simplifie la maintenance         |
 | Template projet | Basé sur TorrentMaker                      | pyproject.toml, Makefile, ruff, Click, pydantic-settings |
-| Nettoyage noms  | Tout virer sauf titre+année                | Seul le nécessaire au scraping doit rester               |
+| Config          | pydantic-settings (from scratch)           | TorrentMaker utilise des dataclasses — config réécrite   |
+| Nettoyage noms  | guessit (moteur de règles)                 | Remplace regex custom, 140+ services, cas edge robustes  |
 | Dossiers saison | Créés par V3 (scraper), pas V2             | MediaElch le faisait avant, V3 prend le relais           |
-| Metadata        | TMDB API (clé existante)                   | Gratuit, multi-langue, artwork inclus                    |
+| Metadata films  | TMDB API (clé existante)                   | Gratuit, multi-langue, artwork inclus                    |
+| Metadata séries | TVDB API v4 (prioritaire), TMDB fallback   | TVDB meilleur pour séries/anime, TMDB en complément      |
+| Streamdetails   | ffprobe (subprocess)                       | Déjà installé, zéro dep Python, standard industrie       |
 | Notifications   | Telegram bot                               | Choix utilisateur                                        |
 | Architecture    | Modulaire (1 fichier par concern)          | Testable indépendamment, maintenable                     |
-| Client torrent  | qBittorrent, API Web port 8081             | Client principal, API REST disponible                    |
+| Client torrent  | qbittorrent-api (Python lib)               | Gère auth/CSRF/compat qBit v5.0+, plus fiable que maison |
 | Tracking ingest | JSON par hash torrent                      | Simple, suffisant pour le volume                         |
+| Lock pipeline   | ~/.personalscraper/pipeline.lock (PID)     | Empêche les exécutions concurrentes (cron + manuel)      |
+| Données locales | Tout dans ~/.personalscraper/              | Cohérent : tracker, index media, lock                    |
 
 ## Conventions
 
