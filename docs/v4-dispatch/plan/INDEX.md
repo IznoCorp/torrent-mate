@@ -1,11 +1,44 @@
 # V4 — DISPATCH : Plan d'implémentation
 
-> _À rédiger après le design_
+> Déplacement intelligent des médias vers Disk1-4
 
 ## Phases
 
-| #   | Phase | Fichier | Status |
-| --- | ----- | ------- | ------ |
-|     |       |         |        |
+| #   | Phase                           | Fichier                                                | Status |
+| --- | ------------------------------- | ------------------------------------------------------ | ------ |
+| 1   | Media index JSON + disk scanner | [phase-01-index-scanner.md](phase-01-index-scanner.md) | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2_   |                                                        | [ ]    |
+| 2   | Genre mapper + dispatcher       | [phase-02-dispatcher.md](phase-02-dispatcher.md)       | [ ]    |
+| ·   | _Contrôle de cohérence P2→P3_   |                                                        | [ ]    |
+| 3   | CLI command + tests end-to-end  | [phase-03-cli-tests.md](phase-03-cli-tests.md)         | [ ]    |
+| ·   | _Contrôle de cohérence V4→V5_   |                                                        | [ ]    |
 
-_Les phases seront définies après validation du design._
+## Dépendances entre phases
+
+```
+Phase 1 (index + scanner) ──▶ Phase 2 (genre_mapper + dispatcher) ──▶ Phase 3 (CLI + tests)
+```
+
+## Contrôles de cohérence
+
+### Après Phase 1 (Index + Scanner → Dispatcher)
+
+- [ ] `MediaIndex.rebuild()` indexe correctement les 4 disques
+- [ ] `MediaIndex.find()` retourne le bon résultat (fuzzy matching)
+- [ ] `get_disk_status()` retourne l'espace libre correct
+- [ ] `choose_disk()` choisit le disque avec le plus d'espace parmi les compatibles
+
+### Après Phase 2 (Dispatcher → CLI)
+
+- [ ] `determine_category()` lit le genre du .nfo et mappe correctement
+- [ ] Films : replace fonctionne (ancien supprimé, nouveau en place)
+- [ ] Séries : merge fonctionne (nouveaux fichiers copiés, existants préservés)
+- [ ] Nouveaux médias : dispatched vers le disque avec le plus d'espace
+- [ ] `_verify_transfer()` détecte les transferts incomplets
+
+### Après Phase 3 (CLI → V5)
+
+- [ ] `personalscraper dispatch --dry-run` fonctionne end-to-end
+- [ ] L'index est mis à jour après chaque dispatch
+- [ ] Les DispatchResult alimentent correctement le StepReport
+- [ ] Les médias skippés (espace insuffisant) sont reportés
