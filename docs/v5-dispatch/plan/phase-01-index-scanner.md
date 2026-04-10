@@ -26,7 +26,7 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Implémenter `MediaIndex` : load, save, rebuild, find, add, remove_stale
 - [ ] `rebuild()` scanne tous les disques montés, indexe chaque dossier média
 - [ ] `find()` : normalisation unicode + fuzzy matching
-- [ ] Fichier index : `~/.personalscraper_media_index.json`
+- [ ] Fichier index : `~/.personalscraper/media_index.json`
 - [ ] Tests unitaires avec tmp_path
 
 **Commit** : `v5.1.2: Implement JSON media index with rebuild and fuzzy find`

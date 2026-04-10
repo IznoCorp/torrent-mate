@@ -8,7 +8,7 @@
 | --- | ------------------------------- | ------------------------------------------------------ | ------ |
 | 1   | Media index JSON + disk scanner | [phase-01-index-scanner.md](phase-01-index-scanner.md) | [ ]    |
 | ·   | _Contrôle de cohérence P1→P2_   |                                                        | [ ]    |
-| 2   | Genre mapper + dispatcher       | [phase-02-dispatcher.md](phase-02-dispatcher.md)       | [ ]    |
+| 2   | Dispatcher orchestrator         | [phase-02-dispatcher.md](phase-02-dispatcher.md)       | [ ]    |
 | ·   | _Contrôle de cohérence P2→P3_   |                                                        | [ ]    |
 | 3   | CLI command + tests end-to-end  | [phase-03-cli-tests.md](phase-03-cli-tests.md)         | [ ]    |
 | ·   | _Contrôle de cohérence V5→V6_   |                                                        | [ ]    |
@@ -16,7 +16,7 @@
 ## Dépendances entre phases
 
 ```
-Phase 1 (index + scanner) ──▶ Phase 2 (genre_mapper + dispatcher) ──▶ Phase 3 (CLI + tests)
+Phase 1 (index + scanner) ──▶ Phase 2 (dispatcher, uses V4 genre_mapper) ──▶ Phase 3 (CLI + tests)
 ```
 
 ## Contrôles de cohérence
@@ -30,7 +30,7 @@ Phase 1 (index + scanner) ──▶ Phase 2 (genre_mapper + dispatcher) ──�
 
 ### Après Phase 2 (Dispatcher → CLI)
 
-- [ ] `determine_category()` lit le genre du .nfo et mappe correctement
+- [ ] V4's `VerifyResult.category` est correctement importé et utilisé par le dispatcher
 - [ ] Films : replace fonctionne (ancien supprimé, nouveau en place)
 - [ ] Séries : merge fonctionne (nouveaux fichiers copiés, existants préservés)
 - [ ] Nouveaux médias : dispatched vers le disque avec le plus d'espace

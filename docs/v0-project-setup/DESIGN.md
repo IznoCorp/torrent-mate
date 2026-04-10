@@ -58,7 +58,9 @@ personalscraper/
 │   ├── ingest/
 │   ├── sorter/
 │   ├── scraper/
-│   └── dispatch/
+│   ├── verify/
+│   ├── dispatch/
+│   └── e2e/
 └── logs/                         # Logs JSON (non gitté)
 ```
 
@@ -120,13 +122,18 @@ def scrape(dry_run, interactive):
 
 @cli.command()
 @click.option("--dry-run", is_flag=True)
+def verify(dry_run):
+    """Verify and qualify scraped media before dispatch."""
+
+@cli.command()
+@click.option("--dry-run", is_flag=True)
 def dispatch(dry_run):
     """Move media to storage disks."""
 
 @cli.command()
 @click.option("--dry-run", is_flag=True)
 def run(dry_run):
-    """Run full pipeline (ingest → sort → scrape → dispatch)."""
+    """Run full pipeline (ingest → sort → scrape → verify → dispatch)."""
 ```
 
 Entry point : `personalscraper = "personalscraper.cli:cli"`
@@ -167,10 +174,10 @@ class Settings(BaseSettings):
 
     # Thresholds
     min_free_space_staging_gb: int = 20   # V1: SSD staging area
-    min_free_space_disk_gb: int = 100     # V4: storage disks
+    min_free_space_disk_gb: int = 100     # V5: storage disks
 ```
 
-### Logger (JSON structuré, détail en V5 design)
+### Logger (JSON structuré, détail en V6 design)
 
 ```python
 def get_logger(name: str, verbose: bool = False, quiet: bool = False) -> logging.Logger:
