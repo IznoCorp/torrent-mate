@@ -1,10 +1,10 @@
-# V4 — DISPATCH : Brainstorming
+# V5 — DISPATCH : Brainstorming
 
 > Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
 
 ## Contexte
 
-Après V3 (scrape), les médias dans `001-MOVIES/` et `002-TVSHOWS/` ont leurs .nfo, artwork,
+Après V4 (verify), les médias dans `001-MOVIES/` et `002-TVSHOWS/` ont leurs .nfo, artwork,
 et les épisodes sont renommés dans des dossiers `Saison XX/`. V4 doit les envoyer sur le bon
 disque de stockage.
 
@@ -84,4 +84,4 @@ une détection plus fine (genre TMDB/TVDB ? tag dans le nom ? mapping manuel ?).
 3. **Replace films** — supprimer l'ancien dossier, copier le nouveau
 4. **Vérification post-move** — s'assurer que les fichiers sont bien arrivés (taille identique)
 5. **Dry-run** — obligatoire
-6. **Logging** — chaque move/merge doit être loggé pour V5
+6. **Logging** — chaque move/merge doit être loggé pour V6

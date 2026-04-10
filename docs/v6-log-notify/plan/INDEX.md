@@ -1,4 +1,4 @@
-# V5 — LOG + NOTIFY : Plan d'implémentation
+# V6 — LOG + NOTIFY : Plan d'implémentation
 
 > Notifications Telegram + commande pipeline `run` + cron
 
@@ -11,7 +11,7 @@
 | 2   | Pipeline `run` command + rapport            | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [ ]    |
 | ·   | _Contrôle de cohérence P2→P3_               |                                                      | [ ]    |
 | 3   | Cron + alias + validation finale            | [phase-03-cron-final.md](phase-03-cron-final.md)     | [ ]    |
-| ·   | _Contrôle de cohérence V5 → projet complet_ |                                                      | [ ]    |
+| ·   | _Contrôle de cohérence V6 → projet complet_ |                                                      | [ ]    |
 
 ## Dépendances entre phases
 
@@ -19,7 +19,7 @@
 Phase 1 (telegram) ──▶ Phase 2 (pipeline run) ──▶ Phase 3 (cron + final)
 ```
 
-Note : le module logger est déjà implémenté en V0. V5 complète le notifier et assemble le pipeline.
+Note : le module logger est déjà implémenté en V0. V6 complète le notifier et assemble le pipeline.
 
 ## Contrôles de cohérence
 
@@ -32,7 +32,7 @@ Note : le module logger est déjà implémenté en V0. V5 complète le notifier 
 
 ### Après Phase 2 (Pipeline run → Cron)
 
-- [ ] `personalscraper run --dry-run` exécute V1→V4 en séquence
+- [ ] `personalscraper run --dry-run` exécute V1→V5 en séquence
 - [ ] Le PipelineReport est correctement alimenté par chaque étape
 - [ ] `to_html()` produit le message Telegram attendu
 - [ ] La notification est envoyée en fin de run (si configuré)

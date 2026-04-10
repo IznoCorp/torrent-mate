@@ -1,11 +1,11 @@
-# V5 — LOG + NOTIFY : Brainstorming
+# V6 — LOG + NOTIFY : Brainstorming
 
 > Logging structuré + notifications Telegram
 
 ## Contexte
 
-Chaque version (V1→V4) produit des opérations qui doivent être tracées et notifiées.
-V5 fournit le système transversal de logging et notification.
+Chaque version (V1→V5) produit des opérations qui doivent être tracées et notifiées.
+V6 fournit le système transversal de logging et notification.
 
 Note : le module logging doit être disponible dès V0 pour être utilisé par toutes les versions.
 
@@ -47,4 +47,4 @@ ignoré (espace insuffisant) ⏱️ Durée totale : 4min 32s 📅 2026-04-11 03:
 3. Les notifications ne doivent **jamais bloquer** le pipeline (try/except, timeout court)
 4. Le log JSON doit être exploitable pour diagnostiquer les erreurs sans relancer
 5. Rotation automatique : supprimer les fichiers de plus de 30 jours au démarrage
-6. Chaque version (V1→V4) alimente un objet "rapport" qui est finalisé en V5 pour la notification
+6. Chaque version (V1→V5) alimente un objet "rapport" qui est finalisé en V6 pour la notification

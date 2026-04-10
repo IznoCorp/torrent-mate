@@ -6,7 +6,7 @@ Connecter le dispatcher au CLI et valider end-to-end.
 
 ## Sous-phases
 
-### 4.3.1 — Commande CLI dispatch
+### 5.3.1 — Commande CLI dispatch
 
 - [ ] Implémenter `personalscraper dispatch` dans `cli.py`
 - [ ] Option `--rebuild-index` pour forcer un rebuild complet
@@ -14,9 +14,9 @@ Connecter le dispatcher au CLI et valider end-to-end.
 - [ ] Alimenter StepReport avec les DispatchResult
 - [ ] Afficher résumé (X films → DiskY, X épisodes merged, X skippés)
 
-**Commit** : `v4.3.1: Wire dispatch command into CLI`
+**Commit** : `v5.3.1: Wire dispatch command into CLI`
 
-### 4.3.2 — Tests end-to-end
+### 5.3.2 — Tests end-to-end
 
 - [ ] Test dry-run avec médias réels dans 001-MOVIES/ et 002-TVSHOWS/
 - [ ] Vérifier que l'index est construit correctement
@@ -25,4 +25,4 @@ Connecter le dispatcher au CLI et valider end-to-end.
 - [ ] Vérifier skip si espace insuffisant
 - [ ] Test avec `personalscraper dispatch --dry-run` via CliRunner
 
-**Commit** : `v4.3.2: Add end-to-end dispatch tests`
+**Commit** : `v5.3.2: Add end-to-end dispatch tests`

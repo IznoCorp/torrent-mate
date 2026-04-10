@@ -1,4 +1,4 @@
-# V5 — LOG + NOTIFY : Design
+# V6 — LOG + NOTIFY : Design
 
 > Logging JSON structuré + notifications Telegram
 
@@ -9,7 +9,7 @@
 ```
 personalscraper/
 ├── logger.py          # Logger JSON structuré (implémenté en V0)
-├── notifier.py        # Client Telegram (stub en V0, implémenté en V5)
+├── notifier.py        # Client Telegram (stub en V0, implémenté en V6)
 └── models.py          # PipelineReport dataclass
 ```
 
@@ -89,7 +89,7 @@ class TelegramNotifier:
 @dataclass
 class StepReport:
     """Report for a single pipeline step."""
-    name: str                          # "ingest", "sort", "scrape", "dispatch"
+    name: str                          # "ingest", "sort", "scrape", "verify", "dispatch"
     success_count: int = 0
     skip_count: int = 0
     error_count: int = 0
@@ -114,9 +114,10 @@ class PipelineReport:
 
 ```
 V1 (ingest)  ──┐
-V2 (sort)    ──┤── alimentent ──▶ PipelineReport ──▶ notifier.send_report()
-V3 (scrape)  ──┤                                          │
-V4 (dispatch)──┘                                          ▼
+V2 (sort)    ──┤
+V3 (scrape)  ──┤── alimentent ──▶ PipelineReport ──▶ notifier.send_report()
+V4 (verify)  ──┤                                          │
+V5 (dispatch)──┘                                          ▼
                                                     Telegram API
      │
      └── Chaque étape log via ──▶ get_logger() ──▶ logs/YYYY-MM-DD.json

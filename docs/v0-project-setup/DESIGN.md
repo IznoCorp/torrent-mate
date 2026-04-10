@@ -18,9 +18,9 @@ personalscraper/
 │   ├── cli.py                    # Click CLI entry point (groups)
 │   ├── config.py                 # Pydantic Settings (single .env)
 │   ├── models.py                 # Dataclasses partagées (SortResult, MediaInfo, etc.)
-│   ├── logger.py                 # Module logging JSON structuré (V5)
-│   ├── notifier.py               # Module Telegram (V5, stub en V0)
-│   ├── naming_patterns.py        # Patterns de nommage MediaElch (partagé sorter/scraper)
+│   ├── logger.py                 # Module logging JSON structuré (V6)
+│   ├── notifier.py               # Module Telegram (V6, stub en V0)
+│   ├── naming_patterns.py        # Patterns de nommage MediaElch (partagé sorter/scraper/verify)
 │   ├── ingest/                   # V1
 │   │   ├── __init__.py
 │   │   ├── qbit_client.py
@@ -40,7 +40,13 @@ personalscraper/
 │   │   ├── artwork.py
 │   │   ├── mediainfo.py
 │   │   └── scraper.py
-│   └── dispatch/                 # V4
+│   ├── verify/                   # V4
+│   │   ├── __init__.py
+│   │   ├── checker.py
+│   │   ├── fixer.py
+│   │   ├── genre_mapper.py       # Partagé avec V5 (dispatch)
+│   │   └── verifier.py
+│   └── dispatch/                 # V5
 │       ├── __init__.py
 │       ├── media_index.py
 │       ├── disk_scanner.py
@@ -183,7 +189,7 @@ V0 met en place la structure. Le flux de données commence à V1.
 4. `.gitignore` mis à jour (logs/, .env, **pycache**, etc.)
 5. Package `personalscraper/` avec `__init__.py`, `cli.py`, `config.py`
 6. Module `logger.py` fonctionnel (JSON, rotation, verbose/quiet)
-7. Module `notifier.py` en stub (interface définie, implémentation en V5)
+7. Module `notifier.py` en stub (interface définie, implémentation en V6)
 8. `models.py` avec les dataclasses partagées (vides, remplies par V1-V4)
 9. `tests/conftest.py` avec fixtures de base
 10. Ruff config dans `pyproject.toml`

@@ -46,7 +46,7 @@ class CheckResult:
 class MediaChecker:
     """Vérifie qu'un dossier média est conforme aux standards."""
 
-    def __init__(self, patterns: NamingPatterns):
+    def __init__(self, patterns: NamingPatterns, genre_mapper: "GenreMapper"):
         ...
 
     def check_movie(self, movie_dir: Path) -> list[CheckResult]:
@@ -163,6 +163,13 @@ class GenreMapper:
         'series animes', 'emissions'.
         ⚠️ Anime = Animation + origin_country JP (TMDB) ou genre Anime (TVDB).
         ⚠️ source='tmdb' ou 'tvdb' pour utiliser les bons genre IDs."""
+
+    def categorize_from_nfo(self, nfo_path: Path, media_type: str) -> str | None:
+        """Extraire genres + country du NFO XML, déterminer la catégorie.
+        Parse <genre> tags → genre names (pas d'IDs dans le NFO, genre_ids sera toujours None).
+        Parse <country> pour détection anime.
+        Parse <uniqueid> pour déterminer la source (tmdb/tvdb).
+        Retourne None si genres absents ou catégorie non identifiable."""
 ```
 
 ### `verifier.py` — Orchestrateur

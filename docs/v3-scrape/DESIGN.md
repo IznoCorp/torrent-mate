@@ -13,7 +13,7 @@ personalscraper/scraper/
 ├── tvdb_client.py        # Client API TVDB (séries principal)
 ├── nfo_generator.py      # Génération XML NFO Kodi (movie, tvshow, episodedetails)
 ├── artwork.py            # Téléchargement artwork (poster, landscape, season poster)
-├── mediainfo.py          # Extraction streamdetails via pymediainfo
+├── mediainfo.py          # Extraction streamdetails via ffprobe (subprocess)
 ├── confidence.py         # Score de confiance pour le matching
 └── scraper.py            # Orchestrateur principal
 ```

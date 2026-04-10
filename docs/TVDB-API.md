@@ -531,12 +531,6 @@ Inclut tous les champs de base **plus** :
       }
     ],
 
-    "audioLanguages": ["eng"],
-    "subtitleLanguages": ["eng", "fra", "spa"],
-    "spokenLanguages": ["eng"],
-    "studios": [
-      /* ... */
-    ],
     "lists": [
       /* ... */
     ],

@@ -72,13 +72,13 @@ MARKER_FILENAME = ".e2e-test-marker"
 def place_marker(directory: Path, session_id: str) -> None:
     """Créer un fichier .e2e-test-marker contenant le session_id."""
 
-def verify_marker(directory: Path, session_id: str) -> bool:
+def verify_marker(directory: Path, session_id: str, registry: "TestRegistry") -> bool:
     """Vérifier qu'un dossier contient le bon marker avec le bon session_id.
     TRIPLE CHECK avant toute suppression :
     1. Le fichier marker existe
     2. Le contenu correspond au session_id attendu
-    3. Le chemin est dans le registre
-    """
+    3. Le chemin est dans le registre (registry.created_paths)
+    Les 3 checks doivent passer. Si UN SEUL échoue → retourne False."""
 
 def find_orphan_markers(base_paths: list[Path]) -> list[Path]:
     """Trouver des markers orphelins (tests précédents non nettoyés)."""
@@ -205,14 +205,14 @@ test_magnets.json
 
 ## Gestion d'erreurs
 
-| Situation                          | Comportement                                                      |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| qBittorrent non accessible         | Skip tous les tests E2E (pytest.skip)                             |
-| Torrent timeout (pas téléchargé)   | Skip ce torrent, tester les autres                                |
-| Disque non monté                   | Skip le test dispatch pour ce disque                              |
-| API TMDB/TVDB inaccessible         | Fail le test scrape avec message clair                            |
-| Échec en milieu de pipeline        | finally/atexit exécute le cleanup quoi qu'il arrive               |
-| Cleanup échoue sur un fichier      | Logger l'erreur, continuer les autres, afficher résumé à la fin   |
-| Marker absent sur un dossier disk  | NE PAS SUPPRIMER, logger l'alerte, signaler à l'utilisateur       |
-| Registre introuvable               | Chercher les markers orphelins, proposer un cleanup manuel        |
-| test_magnets.json absent           | Skip les tests E2E avec message explicite                         |
+| Situation                         | Comportement                                                    |
+| --------------------------------- | --------------------------------------------------------------- |
+| qBittorrent non accessible        | Skip tous les tests E2E (pytest.skip)                           |
+| Torrent timeout (pas téléchargé)  | Skip ce torrent, tester les autres                              |
+| Disque non monté                  | Skip le test dispatch pour ce disque                            |
+| API TMDB/TVDB inaccessible        | Fail le test scrape avec message clair                          |
+| Échec en milieu de pipeline       | finally/atexit exécute le cleanup quoi qu'il arrive             |
+| Cleanup échoue sur un fichier     | Logger l'erreur, continuer les autres, afficher résumé à la fin |
+| Marker absent sur un dossier disk | NE PAS SUPPRIMER, logger l'alerte, signaler à l'utilisateur     |
+| Registre introuvable              | Chercher les markers orphelins, proposer un cleanup manuel      |
+| test_magnets.json absent          | Skip les tests E2E avec message explicite                       |
