@@ -6,6 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (using MediaElch), then moved to permanent storage on one of 4 disks.
 
+## Package
+
+Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
+Will replace `torrent-sort` and `099-SCRIPTS/` after V0 implementation.
+
+## Commit Convention
+
+- Format: `vX.Y.Z: Description` (X=version, Y=phase, Z=sub-phase)
+- NEVER include `Co-Authored-By`, Claude, Anthropic, or AI references in commits
+- A PreToolUse hook (`block_ai_attribution.py`) enforces this — commit will be blocked
+
+## Implementation Workflow
+
+ALL planning (brainstorming → design → plan) must be complete for ALL versions before ANY code is written.
+Use `/model-version` for planning, `/implement-version` to start coding (blocks if planning incomplete).
+Coherence check between every phase — verify interfaces match design before continuing.
+
 ## Commands
 
 ```bash
@@ -106,21 +123,7 @@ A TRIER/
 ├── 006-ANDROID/         # Android apps staging (currently empty)
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
-└── 099-SCRIPTS/         # Utility scripts (Python)
-    ├── PackUnpack.py    # Flatten nested folders + clean filenames (unpack/pack)
-    ├── Unpack.py        # Unpack-only variant
-    ├── TVDBNameToNum.py # Interactive TVDB episode matcher/renamer (CLI, uses tvdb_api v3)
-    ├── EpisodesTVDBNamer.py
-    ├── videoCutter.py / videoMerger.py
-    ├── SensCritiqueScrapper.py
-    └── plex/            # Plex-oriented maintenance scripts
-        ├── cleanFileSystem.py   # Remove empty media folders across all disks
-        ├── trailerScraper.py    # Auto-download trailers from YouTube
-        ├── fileSystem.py        # Shared filesystem utilities (getSubFolders, getEmptyFolders, etc.)
-        ├── decorators.py        # @timeit and @cacheit decorators (file-based cache)
-        ├── youtubeScraper.py    # YouTube search & download wrapper
-        ├── senscritique.py      # SensCritique scraper
-        └── contents.json        # Cached media index
+└── 099-SCRIPTS/         # Legacy — will be archived to ~/dev/099-SCRIPTS-archive/ by V0
 ```
 
 ## Naming Conventions
