@@ -87,7 +87,7 @@ Documentation and implementation plans live in `docs/`:
 
 | Version | Name          | Role                                                              | Phases |
 | ------- | ------------- | ----------------------------------------------------------------- | ------ |
-| V0      | PROJECT SETUP | pyproject.toml, CLI Click, pydantic-settings, logger              | 4      |
+| V0      | PROJECT SETUP | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
 | V1      | INGEST        | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
 | V2      | SORT+CLEAN    | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
 | V3      | SCRAPE        | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |

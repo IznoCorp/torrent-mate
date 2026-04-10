@@ -65,5 +65,6 @@ Implémenter le client HTTP complet pour l'API TMDB v3.
   4. Au sein d'une même langue, trier par `vote_average` descendant
 - [ ] ⚠️ Les images sont DÉJÀ dans la réponse de `get_movie()`/`get_tv()` via `append_to_response` — PAS besoin d'endpoints séparés `get_movie_images()`/`get_tv_images()`
 - [ ] Tests : vérifier que les URLs sont valides (HEAD request optionnel)
+- [ ] Test `select_best_image()` : vérifier priorité fr > en > null, tie-breaking par vote_average.
 
 **Commit** : `v3.3.4: Implement image selection logic and URL building`

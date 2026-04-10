@@ -10,9 +10,9 @@ Créer la structure de base du projet Python avec pyproject.toml, Makefile, et .
 
 - [ ] Créer `pyproject.toml` basé sur TorrentMaker
 - [ ] Configurer : name=personalscraper, version dynamique, Python>=3.10
-- [ ] Ajouter dependencies (click, pydantic-settings, python-dotenv, requests, qbittorrent-api, guessit, rapidfuzz, tenacity, rich, structlog)
+- [ ] Ajouter dependencies (typer, pydantic-settings, python-dotenv, requests, qbittorrent-api, guessit, rapidfuzz, tenacity, rich, structlog)
 - [ ] Ajouter optional-dependencies dev (pytest, pytest-cov, ruff)
-- [ ] Configurer `[project.scripts]` : personalscraper = personalscraper.cli:cli
+- [ ] Configurer `[project.scripts]` : personalscraper = personalscraper.cli:app
 - [ ] Configurer `[tool.ruff]` : target-version py310, line-length 120, rules E/F/I/W
 - [ ] Configurer `[tool.pytest.ini_options]` : testpaths, pythonpath
 

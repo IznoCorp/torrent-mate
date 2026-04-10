@@ -163,6 +163,8 @@ class GenreMapper:
         "series animes", "emissions",
         "livres audios",
     })
+    # Validation : chaque disk.categories doit être un sous-ensemble de KNOWN_CATEGORIES
+    # Vérifié au démarrage de V5 dispatch
 
     def categorize_movie(self, genres: list[str], genre_ids: list[int] | None = None) -> str:
         """Retourne la catégorie film : 'films', 'films animations', 'films documentaires'.

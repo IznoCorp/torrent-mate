@@ -15,13 +15,14 @@ personalscraper/
 ├── .gitignore
 ├── personalscraper/
 │   ├── __init__.py               # __version__, public API
-│   ├── cli.py                    # Click CLI entry point (groups)
+│   ├── cli.py                    # Typer CLI entry point (groups)
 │   ├── config.py                 # Pydantic Settings (single .env)
-│   ├── models.py                 # Dataclasses partagées (SortResult, MediaInfo, etc.)
+│   ├── models.py                 # Dataclasses partagées (SortResult, StepReport, etc.)
+│   ├── text_utils.py             # (ajouté en V2) Utilitaires texte partagés (media_processor pour rapidfuzz)
 │   ├── logger.py                 # Module logging JSON structuré (V6)
-│   ├── lock.py                   # Lock file PID (V1, utilisé par toutes les commandes)
+│   ├── lock.py                   # (ajouté en V1) Lock file PID, utilisé par toutes les commandes
 │   ├── notifier.py               # Module Telegram (V6, stub en V0)
-│   ├── naming_patterns.py        # Patterns de nommage MediaElch (partagé sorter/scraper/verify)
+│   ├── naming_patterns.py        # (ajouté en V3) Patterns de nommage MediaElch (partagé sorter/scraper/verify)
 │   ├── genre_mapper.py           # Mapping genres API → catégories dispatch (partagé verify/dispatch)
 │   ├── ingest/                   # V1
 │   │   ├── __init__.py
@@ -223,6 +224,34 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     """Return a structlog bound logger (thin wrapper around structlog.get_logger)."""
     return structlog.get_logger(name)
+```
+
+### Models partagés (models.py)
+
+```python
+@dataclass
+class SortResult:
+    """Résultat du tri d'un fichier/dossier média."""
+    source: Path          # Chemin source dans A TRIER/
+    destination: Path     # Chemin destination (001-MOVIES/, 002-TVSHOWS/, etc.)
+    media_type: str       # "movie", "episode", "audio", "ebook", etc.
+    title: str            # Titre extrait
+    year: int | None      # Année si détectée
+    status: str           # "moved", "skipped", "error"
+    message: str | None   # Message d'erreur ou info supplémentaire
+
+@dataclass
+class StepReport:
+    """Rapport d'exécution d'une étape du pipeline."""
+    step_name: str        # "ingest", "sort", "scrape", "verify", "dispatch"
+    status: str           # "success", "partial", "error", "skipped"
+    items_processed: int
+    items_success: int
+    items_error: int
+    items_skipped: int
+    errors: list[str]     # Messages d'erreur détaillés
+    duration_seconds: float
+    details: dict         # Données spécifiques à l'étape
 ```
 
 ## Flux de données — V0 ne produit pas de données

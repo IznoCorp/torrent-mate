@@ -79,7 +79,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ### V0 — PROJECT SETUP `[x] Modélisation terminée`
 
-> Mise en place du projet Python (pyproject.toml, Makefile, ruff, pytest, CLI Click, pydantic-settings) + intégration FileMate
+> Mise en place du projet Python (pyproject.toml, Makefile, ruff, pytest, CLI Typer, pydantic-settings) + intégration FileMate
 
 | Document      | Fichier                                                                | Status |
 | ------------- | ---------------------------------------------------------------------- | ------ |
@@ -87,7 +87,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Design        | [v0-project-setup/DESIGN.md](v0-project-setup/DESIGN.md)               | [x]    |
 | Plan (index)  | [v0-project-setup/plan/INDEX.md](v0-project-setup/plan/INDEX.md)       | [x]    |
 
-**4 phases, 14 sous-phases** — Package personalscraper/, CLI Click, pydantic-settings, logger JSON
+**4 phases, 14 sous-phases** — Package personalscraper/, CLI Typer, pydantic-settings, logger JSON
 
 ---
 

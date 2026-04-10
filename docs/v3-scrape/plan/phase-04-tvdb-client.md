@@ -21,8 +21,9 @@ Implémenter le client HTTP pour l'API TVDB v4 (séries prioritaire).
   - `wait_exponential(multiplier=1, min=1, max=30)`, `stop_after_attempt(3)`, `reraise=True`
   - `before_sleep=before_sleep_log(logger, logging.WARNING)`
   - Ref : [docs/tenacity-reference.md](../../tenacity-reference.md) — pattern TVDB
-- [ ] Implémenter `LANG_MAP` : conversion 2-chars → 3-chars (`fr`→`fra`, `en`→`eng`)
+- [ ] Implémenter `LANG_MAP` : conversion codes internes pipeline (2-chars) → codes TVDB API (3-chars) (`fr`→`fra`, `en`→`eng`)
   - ⚠️ `shortCode` dans `/languages` est toujours null — mapping manuel obligatoire
+  - Appliqué AVANT chaque appel API nécessitant un code langue (get_episode_translations, etc.)
 - [ ] Tests : vérifier login + token obtenu
 
 **Commit** : `v3.4.1: Implement TVDB client with bearer token auth`

@@ -12,7 +12,8 @@ Intégrer les modules réutilisables de FileMate dans personalscraper/sorter/.
 - [ ] Porter `FileType` enum depuis FileMate (MOVIE, TVSHOW, EBOOK, AUDIO, APP, OTHER)
 - [ ] Porter `FileTypeExtensions` (mapping extension → type)
 - [ ] Porter `detect_file_type(path)` et `detect_dir_type(path)` depuis FileMate
-- [ ] Adapter la détection TV : ajouter patterns `1x04`, `ep.1`
+- [ ] Détection TV basée sur les extensions uniquement dans cette phase
+  - La détection améliorée via guessit (patterns `1x04`, `ep.1`) est implémentée en phase 2 (cleaner.py)
 - [ ] Tests unitaires
 
 **Commit** : `v2.1.1: Port file type detection from FileMate`

@@ -13,7 +13,7 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Implémenter `get_disk_configs(settings)` : construire les configs depuis .env
 - [ ] Implémenter `get_disk_status(config)` : espace libre, monté ou non
 - [ ] Implémenter `choose_disk(disks, category, min_free_gb, item_size_gb=0)` : meilleur disque
-  - Filtre : `free_space >= min_free_gb + item_size_gb`
+  - Filtre : `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)`
 - [ ] Configuration du mapping disque → catégories (dict dans config ou fichier dédié)
 - [ ] Tests unitaires
 
@@ -26,7 +26,7 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Implémenter `MediaIndex` : load, save, rebuild, find, add, remove_stale
 - [ ] `rebuild()` scanne tous les disques montés, indexe chaque dossier média
 - [ ] `find()` : lookup exact dict d'abord, rapidfuzz WRatio en fallback (score >= 85)
-  - Utilise `media_processor` de `confidence.py` pour normalisation unicode + accents
+  - Utilise `media_processor` de `personalscraper.text_utils` pour normalisation unicode + accents
   - Ref : [docs/rapidfuzz-reference.md](../../rapidfuzz-reference.md)
 - [ ] `save()` : écriture atomique (write .tmp + os.rename) pour éviter corruption si crash
 - [ ] Fichier index : `~/.personalscraper/media_index.json`

@@ -39,7 +39,7 @@ Implémenter l'orchestrateur de dispatch. La catégorisation est fournie par V4 
   6. Si ERREUR → restaurer depuis backup, log ERROR
 - [ ] Implémenter `_verify_transfer(source, dest)` : vérifier tailles fichiers récursivement
 - [ ] Mettre à jour l'index après chaque dispatch
-- [ ] Seuil : `max(min_free_space_disk_gb, item_size_gb * 1.5)`, skip + warning si insuffisant
+- [ ] Seuil : `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)`, skip + warning si insuffisant
 - [ ] Support dry-run (log rsync commands sans les exécuter)
 - [ ] Tests unitaires avec tmp_path (mock rsync subprocess pour les tests)
 

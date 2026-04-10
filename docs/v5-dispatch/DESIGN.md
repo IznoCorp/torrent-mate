@@ -24,6 +24,8 @@ V5 reçoit la liste des médias validés par V4 via `Verifier.get_dispatchable()
 Chaque `VerifyResult` contient la `category` déjà calculée par V4's `GenreMapper`.
 V5 ne recalcule PAS la catégorie — il utilise celle de V4.
 
+> **StepReport** : `StepReport` est défini dans `personalscraper/models.py` (V0). Chaque `run_*()` est responsable de convertir ses résultats internes (`SortResult`, `DispatchResult`, etc.) en `StepReport` avant de retourner.
+
 ### Dépendances
 
 - `rapidfuzz` — fuzzy matching dans `MediaIndex.find()` (fallback, voir [docs/rapidfuzz-reference.md](../rapidfuzz-reference.md))
@@ -66,7 +68,8 @@ class MediaIndex:
     def find(self, name: str, media_type: str) -> IndexEntry | None:
         """Find a media by normalized name.
         Strategy: exact dict lookup first, rapidfuzz WRatio fallback (score >= 85).
-        Uses media_processor from confidence.py for accent-insensitive matching."""
+        Uses media_processor from personalscraper.text_utils for accent-insensitive matching.
+        Import: from personalscraper.text_utils import media_processor"""
 
     def add(self, entry: IndexEntry) -> None:
         """Add or update an entry."""
@@ -93,7 +96,19 @@ class DiskStatus:
     is_mounted: bool
 
 def get_disk_configs(settings: Settings) -> list[DiskConfig]:
-    """Build disk configs from settings. Category mapping from config file."""
+    """Build disk configs from settings. Category mapping from config file.
+
+    Mapping disque → catégories (source : Settings ou config hardcodée)
+    Voir CLAUDE.md "Storage Disks" pour la référence.
+    Exemple :
+        DiskConfig(name="Disk1", path=Path("/Volumes/Disk1/medias"),
+                   categories=["films", "films animations", "films documentaires",
+                               "livres audios", "series", "series animations",
+                               "series documentaires", "spectacles", "theatres", "emissions"]),
+        DiskConfig(name="Disk2", path=Path("/Volumes/Disk2/medias"),
+                   categories=["series", "series animes"]),
+        # ... Disk3, Disk4
+    """
 
 def get_disk_status(config: DiskConfig) -> DiskStatus:
     """Get current free space and mount status."""
@@ -102,9 +117,11 @@ def choose_disk(
     disks: list[DiskStatus],
     category: str,
     min_free_gb: int,
+    item_size_gb: float = 0,
 ) -> DiskStatus | None:
     """Choose the best disk for a new media item.
-    Filters: is_mounted, has_category, free_space >= min_free_gb + item_size.
+    Filters: is_mounted, has_category,
+             free_space_gb >= max(min_free_gb, item_size_gb * 1.5).
     Sorts: most free space first.
     Returns None if no disk qualifies."""
 ```
@@ -117,6 +134,8 @@ def choose_disk(
 > en mode standalone (si V5 est exécuté sans V4, fallback sur le genre_mapper directement).
 
 ```python
+from personalscraper.verify.verifier import VerifyResult
+
 @dataclass
 class DispatchResult:
     """Result of dispatching a single media item."""
@@ -135,12 +154,15 @@ class Dispatcher:
                  dry_run: bool = False):
         ...
 
-    def process(self, verified: list["VerifyResult"] | None = None,
+    def process(self, verified: list[VerifyResult] | None = None,
                 staging_dir: Path | None = None) -> list[DispatchResult]:
-        """Dispatch verified media to storage disks.
-        If verified provided: dispatch only valid/fixed items (V4 output).
-        If staging_dir provided (standalone mode): scan filesystem + categorize via genre_mapper fallback.
-        At least one of verified/staging_dir must be provided."""
+        """Deux modes :
+        1. Pipeline (verified fourni) : utilise VerifyResult.category directement
+        2. Standalone (staging_dir fourni) : scan 001-MOVIES/ + 002-TVSHOWS/,
+           détecte media_type par structure, charge NFO → genres,
+           instancie GenreMapper pour catégoriser.
+           Skip si parsing genres échoue (log erreur).
+        Raises ValueError si les deux sont None ou les deux fournis."""
 
     def dispatch_movie(self, movie_dir: Path, category: str) -> DispatchResult:
         """Dispatch a movie:
@@ -251,6 +273,8 @@ REPLACE  choose_disk()            MERGE   choose_disk()
 
 ## Configuration — Disk category mapping
 
+Validation au demarrage : `assert all(cat in GenreMapper.KNOWN_CATEGORIES for disk in disks for cat in disk.categories)`
+
 ```python
 # In config.py or separate config file
 DISK_CATEGORIES = {
@@ -268,14 +292,14 @@ DISK_CATEGORIES = {
 
 ## Gestion d'erreurs
 
-| Situation                                          | Comportement                                                                                    |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Disque non monté                                   | Skip ce disque, log WARNING                                                                     |
-| Espace insuffisant (< max(100 Go, item_size\*1.5)) | Skip + WARNING + notification                                                                   |
-| Aucun disque compatible                            | Skip + WARNING + notification, média reste dans A TRIER/                                        |
-| .nfo absent (pas de genre)                         | Ne devrait pas arriver si V4 a bloqué. En mode standalone : catégorie par défaut (films/series) |
-| rsync échoue (returncode != 0)                     | Log ERROR, ne pas supprimer la source, continuer. dest.new.tmp nettoyé au prochain run          |
-| rsync absent (macOS minimal)                       | Erreur fatale au \_\_init\_\_, message clair "rsync required"                                   |
-| Vérification post-rsync échoue                     | Log ERROR, garder source et dest, signaler                                                      |
-| Merge échoue à mi-chemin                           | Restaurer depuis .merge-backup-{timestamp}/, log ERROR, garder source                           |
-| Index corrompu                                     | Recréer l'index (rebuild), log WARNING                                                          |
+| Situation                                                  | Comportement                                                                                    |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Disque non monté                                           | Skip ce disque, log WARNING                                                                     |
+| Espace insuffisant (< max(min_free_gb, item_size_gb\*1.5)) | Skip + WARNING + notification                                                                   |
+| Aucun disque compatible                                    | Skip + WARNING + notification, média reste dans A TRIER/                                        |
+| .nfo absent (pas de genre)                                 | Ne devrait pas arriver si V4 a bloqué. En mode standalone : catégorie par défaut (films/series) |
+| rsync échoue (returncode != 0)                             | Log ERROR, ne pas supprimer la source, continuer. dest.new.tmp nettoyé au prochain run          |
+| rsync absent (macOS minimal)                               | Erreur fatale au \_\_init\_\_, message clair "rsync required"                                   |
+| Vérification post-rsync échoue                             | Log ERROR, garder source et dest, signaler                                                      |
+| Merge échoue à mi-chemin                                   | Restaurer depuis .merge-backup-{timestamp}/, log ERROR, garder source                           |
+| Index corrompu                                             | Recréer l'index (rebuild), log WARNING                                                          |

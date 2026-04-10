@@ -57,8 +57,8 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 - [ ] `--dry-run` ne modifie rien sur le filesystem
 - [ ] `run_ingest()` retourne un `StepReport` correct
 - [ ] Le lock file est acquis/libéré correctement (vérifier `~/.personalscraper/pipeline.lock`)
-- [ ] Les copies utilisent le pattern atomique (.ingest*tmp* → rename)
-- [ ] Les .ingest*tmp*\* orphelins sont nettoyés au début du run
+- [ ] Les copies utilisent le pattern atomique (.ingest_tmp_* → rename)
+- [ ] Les .ingest_tmp_* orphelins sont nettoyés au début du run
 - [ ] La vérification de taille post-transfert fonctionne
 - [ ] Le script gère correctement les chemins avec espaces
 - [ ] Le résumé est clair et loggable

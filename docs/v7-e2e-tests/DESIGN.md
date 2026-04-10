@@ -9,8 +9,8 @@
 ```
 tests/e2e/
 ├── __init__.py
-├── conftest.py              # Fixtures pytest : session UUID, registry, cleanup
-├── test_magnets.example.json# Exemple de structure (commité)
+├── conftest.py              # Fixtures pytest (session-scoped : UUID, registry, qBit client, magnets)
+├── test_magnets.example.json# Exemple de structure (commité, schéma ci-dessous)
 ├── test_magnets.json        # Vrais magnets de test (gitignored)
 ├── setup_torrents.py        # Script : ajouter magnets à qBit + attendre téléchargement
 ├── cleanup.py               # Script : supprimer les fichiers de test (avec protections)
@@ -24,6 +24,20 @@ tests/e2e/
 ```
 personalscraper/
 └── cli.py                   # Ajout commande `personalscraper test-e2e` (optionnel)
+```
+
+### Schéma `test_magnets.json`
+
+```json
+[
+  {
+    "name": "The Matrix",
+    "magnet": "magnet:?xt=urn:btih:...",
+    "type": "movie",
+    "expected_category": "films",
+    "verify_nfo_fields": ["title", "year", "uniqueid[@type='imdb']"]
+  }
+]
 ```
 
 ### Dépendances
@@ -142,13 +156,15 @@ class TestCleanup:
         Utiliser la catégorie 'e2e-test' pour identifier.
         Supprimer le torrent ET ses fichiers dans torrents/complete."""
 
-    def cleanup_all(self, force: bool = False) -> dict:
+    def cleanup_all(self, force: bool = False) -> dict:  # {"staging": N, "disks": N, "torrents": N}
         """Nettoyage complet. Si dry_run et pas force : afficher le plan.
         Retourne un résumé {staging: N, disks: N, torrents: N}."""
 
     def verify_clean(self) -> list[Path]:
         """Post-cleanup : vérifier qu'il ne reste aucun marker orphelin."""
 ```
+
+Après cleanup complet, le fichier registry JSON lui-même est supprimé via `registry.cleanup()`.
 
 ### `assertions.py` — Assertions par étape
 
@@ -160,7 +176,11 @@ def assert_sort_complete(movies_dir: Path, tvshows_dir: Path, expected: list[dic
     """Vérifier le tri : films dans 001-MOVIES/, séries dans 002-TVSHOWS/."""
 
 def assert_scrape_complete(movies_dir: Path, tvshows_dir: Path, expected: list[dict]) -> None:
-    """Vérifier le scraping : NFO valides, artwork présent, épisodes renommés."""
+    """Vérifie :
+    - Chaque média a un .nfo valide (XML parseable)
+    - Artwork présent (poster obligatoire, fanart recommandé)
+    - Épisodes TV renommés au format S##E## avec .nfo individuel
+    Raises AssertionError avec message détaillé."""
 
 def assert_verify_complete(results: list) -> None:
     """Vérifier que tous les dossiers de test sont 'valid' ou 'fixed'."""
@@ -208,13 +228,13 @@ test_magnets.json
 > **Critique** : le marker est la base de toute la stratégie de sécurité du cleanup.
 > Son comportement à chaque étape du pipeline DOIT être documenté et testé.
 
-| Étape                            | Opération filesystem                                | Le marker survit ?                                                                 | Explication                                                                         |
-| -------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| **Setup** (torrent download)     | qBit télécharge dans `torrents/complete/`           | N/A                                                                                | Marker placé APRÈS le téléchargement, sur le dossier dans `torrents/complete/`      |
-| **V1 Ingest** (copy/move)        | `shutil.copytree` ou `shutil.move` vers `A TRIER/`  | **OUI** si copytree (copie tout le contenu). **OUI** si move sur même FS (rename). | Marker re-placé explicitement sur le dossier dans `A TRIER/` par le test (sécurité) |
-| **V2 Sort** (move)               | `shutil.move` vers `001-MOVIES/` ou `002-TVSHOWS/`  | **OUI** (même FS = rename atomique, le dossier entier est renommé)                 | Le marker est un fichier dans le dossier, il suit le rename                         |
-| **V3 Scrape** (rename dossier)   | `Path.rename()` pour `Show Name → Show Name (Year)` | **OUI** (rename sur même FS)                                                       | Le dossier est renommé, pas recréé                                                  |
-| **V5 Dispatch** (rsync cross-FS) | `rsync -a` de SSD vers Disk1-4                      | **OUI** (rsync copie TOUS les fichiers, y compris le marker)                       | `rsync -a` préserve le marker car c'est un fichier régulier dans le dossier         |
+| Étape                            | Opération filesystem                                | Le marker survit ?                                                                 | Explication                                                                                                                                                                |
+| -------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Setup** (torrent download)     | qBit télécharge dans `torrents/complete/`           | N/A                                                                                | Marker placé APRÈS le téléchargement, sur le dossier dans `torrents/complete/`                                                                                             |
+| **V1 Ingest** (copy/move)        | `shutil.copytree` ou `shutil.move` vers `A TRIER/`  | **OUI** si copytree (copie tout le contenu). **OUI** si move sur même FS (rename). | Marker `.e2e-test-marker` placé UNE SEULE FOIS par le test setup après ingest. Survit à toutes les étapes suivantes (sort, scrape, verify, dispatch). Pas de re-placement. |
+| **V2 Sort** (move)               | `shutil.move` vers `001-MOVIES/` ou `002-TVSHOWS/`  | **OUI** (même FS = rename atomique, le dossier entier est renommé)                 | Le marker est un fichier dans le dossier, il suit le rename                                                                                                                |
+| **V3 Scrape** (rename dossier)   | `Path.rename()` pour `Show Name → Show Name (Year)` | **OUI** (rename sur même FS)                                                       | Le dossier est renommé, pas recréé                                                                                                                                         |
+| **V5 Dispatch** (rsync cross-FS) | `rsync -a` de SSD vers Disk1-4                      | **OUI** (rsync copie TOUS les fichiers, y compris le marker)                       | `rsync -a` préserve le marker car c'est un fichier régulier dans le dossier                                                                                                |
 
 **Stratégie marker** :
 
@@ -240,3 +260,5 @@ survit dans chaque cas.
 | Marker absent sur un dossier disk | NE PAS SUPPRIMER, logger l'alerte, signaler à l'utilisateur     |
 | Registre introuvable              | Chercher les markers orphelins, proposer un cleanup manuel      |
 | test_magnets.json absent          | Skip les tests E2E avec message explicite                       |
+
+Notifications Telegram désactivées pendant les tests E2E (`settings.telegram_bot_token = ""`). Logs structlog capturés normalement.
