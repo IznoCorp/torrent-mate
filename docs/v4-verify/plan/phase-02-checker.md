@@ -11,8 +11,10 @@ Implémenter la vérification complète d'un dossier média contre les standards
 - [ ] Créer `personalscraper/verify/checker.py`
 - [ ] Implémenter `Severity` enum (ERROR, WARNING) et `CheckResult` dataclass
 - [ ] Implémenter `MediaChecker.__init__(patterns: NamingPatterns, genre_mapper: GenreMapper)`
+  - Import : `from personalscraper.genre_mapper import GenreMapper`
 - [ ] Implémenter `check_movie(movie_dir)` avec les checks :
   - `video_present` : au moins 1 fichier vidéo reconnu (extensions de CLAUDE.md) → ERROR
+  - `not_sample` : fichier vidéo principal > 100 Mo → WARNING si < 100 Mo (possible fichier sample)
   - `dir_naming` : format `Title (Year)/` — regex `^.+ \(\d{4}\)$` → ERROR (fixable=True)
   - `nfo_present` : fichier `.nfo` correspondant au pattern NamingPatterns → ERROR
   - `nfo_valid` : XML parseable + tags `<title>`, `<year>` présents → ERROR

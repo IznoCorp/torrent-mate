@@ -103,13 +103,23 @@ Documentation and implementation plans live in `docs/`:
 - `docs/ffprobe-reference.md` — V3: extraction streamdetails, mapping codec/langue Kodi
 - `docs/TMDB-API.md` — V3: référence API TMDB v3 vérifiée par tests live
 - `docs/TVDB-API.md` — V3: référence API TVDB v4 vérifiée par tests live
+- `docs/rapidfuzz-reference.md` — V3: fuzzy matching titres, scorers, media_processor custom
+- `docs/tenacity-reference.md` — V3: retry API calls, backoff, rate limits TMDB/TVDB
+- `docs/rich-reference.md` — V0: CLI output, progress bars, tables, theming
+- `docs/structlog-reference.md` — V6: logging JSON structuré, context binding, switch dev/prod
 
 ### Key Dependencies (chosen after evaluation)
 
+- `typer` — V0 CLI (wraps Click, type hints = spec CLI, rich native, same CliRunner for tests)
 - `qbittorrent-api` — V1 wrapper qBit (prefer over raw requests — handles auth/CSRF/v5 compat)
 - `guessit` — V2 filename parsing (prefer over custom regex — 140+ services, edge cases)
 - `ffprobe` (subprocess) — V3 streamdetails (prefer over pymediainfo — already installed, zero dep)
+- `rsync` (subprocess) — V5 cross-filesystem transfers (prefer over shutil — resume, checksum, crash-safe)
 - `pydantic-settings` — V0 config (rewritten from scratch, NOT copied from TorrentMaker)
+- `rapidfuzz` — V2+V3+V5 fuzzy matching (MIT license, C++ 5-100x faster than thefuzz, unified across all versions)
+- `tenacity` — V3 API retry (exponential backoff, wait_exception for Retry-After, composable strategies)
+- `rich` — V0 CLI output (progress bars, tables, theming, auto TTY detection, pulled by Typer)
+- `structlog` — V6 structured logging (replaces custom JsonFormatter, context binding, dev/prod auto-switch)
 
 ## Directory Structure
 
@@ -198,5 +208,14 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - Never include API keys in documentation or brainstorming files — use `.env` references only
 - When inserting a new version between existing ones, update ALL references: H1 titles, commit prefixes (`vX.Y.Z:`), cross-version refs, sub-phase numbering, data flow diagrams
 - `git filter-repo` works on this repo but `.git/config` is read-only (macOS permissions) — remote removal error is cosmetic, re-add remote after if needed
-- Genre mapper lives in `personalscraper/verify/genre_mapper.py` (V4) and is imported by V5-dispatch — single source of truth for genre→category mapping
+- Genre mapper lives in `personalscraper/genre_mapper.py` (package root) and is imported by V4-verify and V5-dispatch — single source of truth for genre→category mapping
 - Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`
+- rapidfuzz `default_process` does NOT strip accents — use custom `media_processor` with NFD decomposition for French titles
+- rapidfuzz v3.0+ has NO automatic preprocessing — always pass `processor=media_processor` or scores will be wrong
+- rapidfuzz `WRatio` is the recommended scorer for media titles (balances exact match with tolerance for extra tokens)
+- tenacity `@retry` without args retries FOREVER with NO delay — always specify `stop` and `wait`
+- tenacity `reraise=True` recommended — otherwise exceptions are wrapped in `RetryError`
+- structlog `ProcessorFormatter.wrap_for_formatter` MUST be the last structlog processor — JSONRenderer goes in ProcessorFormatter, not in structlog.configure
+- structlog `cache_logger_on_first_use=True` makes configure() calls after first log silently ignored — configure early
+- rich `Console(quiet=True)` suppresses all output natively — no need for `if not quiet:` checks
+- rich markup in log messages: keep `markup=False` on RichHandler to avoid `[brackets]` being interpreted as tags

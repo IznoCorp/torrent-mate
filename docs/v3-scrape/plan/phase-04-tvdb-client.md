@@ -16,7 +16,11 @@ Implémenter le client HTTP pour l'API TVDB v4 (séries prioritaire).
 - [ ] Stocker le token dans la session (header `Authorization: Bearer {token}`)
 - [ ] Token valide 1 mois — implémenter re-login automatique si HTTP 401
 - [ ] ⚠️ Deux formats d'erreur : login retourne `{status, message, data}`, endpoints retournent `{message}` seul
-- [ ] Méthode privée `_get(endpoint, params)` avec retry, timeout, auth
+- [ ] Implémenter le MetadataProvider Protocol (search, get_details, get_artwork_urls)
+- [ ] Méthode privée `_get(endpoint, params)` décorée `@retry` (tenacity) :
+  - `wait_exponential(multiplier=1, min=1, max=30)`, `stop_after_attempt(3)`, `reraise=True`
+  - `before_sleep=before_sleep_log(logger, logging.WARNING)`
+  - Ref : [docs/tenacity-reference.md](../../tenacity-reference.md) — pattern TVDB
 - [ ] Implémenter `LANG_MAP` : conversion 2-chars → 3-chars (`fr`→`fra`, `en`→`eng`)
   - ⚠️ `shortCode` dans `/languages` est toujours null — mapping manuel obligatoire
 - [ ] Tests : vérifier login + token obtenu

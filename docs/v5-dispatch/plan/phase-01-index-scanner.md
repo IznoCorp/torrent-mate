@@ -25,7 +25,10 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Implémenter `IndexEntry` dataclass
 - [ ] Implémenter `MediaIndex` : load, save, rebuild, find, add, remove_stale
 - [ ] `rebuild()` scanne tous les disques montés, indexe chaque dossier média
-- [ ] `find()` : normalisation unicode + fuzzy matching
+- [ ] `find()` : lookup exact dict d'abord, rapidfuzz WRatio en fallback (score >= 85)
+  - Utilise `media_processor` de `confidence.py` pour normalisation unicode + accents
+  - Ref : [docs/rapidfuzz-reference.md](../../rapidfuzz-reference.md)
+- [ ] `save()` : écriture atomique (write .tmp + os.rename) pour éviter corruption si crash
 - [ ] Fichier index : `~/.personalscraper/media_index.json`
 - [ ] Tests unitaires avec tmp_path
 

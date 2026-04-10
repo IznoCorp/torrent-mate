@@ -17,11 +17,19 @@ Intégrer les modules réutilisables de FileMate dans personalscraper/sorter/.
 
 **Commit** : `v2.1.1: Port file type detection from FileMate`
 
-### 2.1.2 — Fuzzy directory matcher
+### 2.1.2 — Fuzzy directory matcher (rapidfuzz)
 
 - [ ] Créer `personalscraper/sorter/matcher.py`
-- [ ] Porter `find_matching_directory()` et `tokenize()` depuis FileMate
-- [ ] Conserver la logique bidirectionnelle + single-token guard + year respect
-- [ ] Tests unitaires (reprendre les tests existants de FileMate)
+- [ ] Implémenter `media_processor(s)` : lowercase + NFD decomposition + strip ponctuation
+  - ⚠️ `rapidfuzz.utils.default_process` ne supprime PAS les accents — custom obligatoire
+  - Ref : docs/rapidfuzz-reference.md — section "media_processor custom"
+- [ ] Implémenter `find_matching_directory(name, candidates, respect_year, threshold=85.0)`
+  - Utiliser `rapidfuzz.process.extractOne(name, candidate_names, scorer=fuzz.WRatio, processor=media_processor)`
+  - Si `respect_year=True` : extraire année des deux noms, rejeter si années différentes
+  - Retourner `None` si score < threshold
+- [ ] ⚠️ NE PAS porter le matcher bidirectionnel custom de FileMate — remplacé par rapidfuzz
+  - Avantage : cohérence avec V3 (`confidence.py`) et V5 (`media_index.py`) qui utilisent aussi rapidfuzz
+- [ ] Tests unitaires : doublons ("The Matrix" vs "The Matrix Remastered"), accents ("Amélie" vs "Amelie"),
+      noms avec année, seuil de score
 
-**Commit** : `v2.1.2: Port fuzzy directory matcher from FileMate`
+**Commit** : `v2.1.2: Implement rapidfuzz-based directory matcher`

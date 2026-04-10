@@ -2,7 +2,7 @@
 
 ## Objectif
 
-Implémenter config.py (pydantic Settings), cli.py (Click groups), et models.py.
+Implémenter config.py (pydantic Settings), cli.py (Typer app), et models.py.
 
 ## Sous-phases
 
@@ -15,15 +15,19 @@ Implémenter config.py (pydantic Settings), cli.py (Click groups), et models.py.
 
 **Commit** : `v0.2.1: Implement Settings with pydantic-settings`
 
-### 0.2.2 — CLI (Click groups)
+### 0.2.2 — CLI (Typer app)
 
-- [ ] Créer `personalscraper/cli.py` avec le groupe principal
-- [ ] Sous-commandes stubs : ingest, sort, scrape, dispatch, run
-- [ ] Options globales : --verbose, --quiet, --dry-run
-- [ ] --version option
-- [ ] Chaque sous-commande charge Settings et configure le logger
+- [ ] Créer `personalscraper/cli.py` avec `app = typer.Typer()`
+- [ ] `@app.callback()` pour les options globales : --verbose, --quiet, --version
+- [ ] Sous-commandes stubs via `@app.command()` : ingest, sort, scrape, verify, dispatch, run
+- [ ] Options par commande : --dry-run (type hint `bool = typer.Option(False, "--dry-run")`)
+- [ ] Module-level `state` dict pour partager Console et flags entre commandes
+- [ ] Créer `Console(quiet=quiet)` dans le callback principal
+- [ ] Appeler `configure_logging(verbose, quiet)` dans le callback principal
+- [ ] Installer `rich.traceback.install()` pour des tracebacks lisibles
+- [ ] Entry point : `personalscraper = "personalscraper.cli:app"`
 
-**Commit** : `v0.2.2: Implement CLI with Click command groups`
+**Commit** : `v0.2.2: Implement CLI with Typer`
 
 ### 0.2.3 — Models partagés
 
@@ -37,7 +41,7 @@ Implémenter config.py (pydantic Settings), cli.py (Click groups), et models.py.
 
 - [ ] Créer `personalscraper/notifier.py` avec l'interface TelegramNotifier
 - [ ] Implémentation stub : `send()` retourne False, `is_configured()` retourne False
-- [ ] Sera complété en V5
+- [ ] Sera complété en V6
 
 **Commit** : `v0.2.4: Add TelegramNotifier stub`
 

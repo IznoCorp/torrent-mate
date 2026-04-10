@@ -19,7 +19,7 @@
 Phase 1 (telegram) ──▶ Phase 2 (pipeline run) ──▶ Phase 3 (cron + final)
 ```
 
-Note : le module logger est déjà implémenté en V0. V6 complète le notifier et assemble le pipeline.
+Note : le module logger (structlog) est déjà implémenté en V0. V6 complète le notifier, assemble le pipeline, et utilise rich pour l'output console.
 
 ## Contrôles de cohérence
 
@@ -36,11 +36,15 @@ Note : le module logger est déjà implémenté en V0. V6 complète le notifier 
 - [ ] Le PipelineReport est correctement alimenté par chaque étape
 - [ ] `to_html()` produit le message Telegram attendu
 - [ ] La notification est envoyée en fin de run (si configuré)
+- [ ] Les logs JSON contiennent `run_id` dans chaque event (contextvars)
+- [ ] Le résumé console utilise rich Panel/Table
 
-### Après Phase 3 (Cron → Projet complet)
+### Après Phase 3 (Scheduling → Projet complet)
 
-- [ ] Le cron s'exécute à 3h et lance `personalscraper run`
-- [ ] Les logs sont écrits dans `logs/`
+- [ ] Le LaunchAgent `com.personalscraper.pipeline` est chargé (`launchctl list`)
+- [ ] `launchctl start com.personalscraper.pipeline` lance le pipeline correctement
+- [ ] Les logs sont écrits dans `logs/` (structlog) et `~/.personalscraper/launchd-*.log` (stdout/stderr)
+- [ ] Si healthcheck_url configuré : les pings start/success/fail sont envoyés
 - [ ] L'alias `personalscraper` fonctionne dans le terminal
 - [ ] Le pipeline complet fonctionne en dry-run sur les données réelles
 - [ ] CLAUDE.md est à jour avec toutes les commandes

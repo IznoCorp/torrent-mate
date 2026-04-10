@@ -12,17 +12,20 @@ Implémenter le client HTTP complet pour l'API TMDB v3.
 
 - [ ] Créer `personalscraper/scraper/tmdb_client.py`
 - [ ] Implémenter `TMDBClient.__init__(api_key, language)` avec session requests
-- [ ] Méthode privée `_get(endpoint, params)` avec :
+- [ ] Implémenter le MetadataProvider Protocol (search, get_details, get_artwork_urls)
+- [ ] Méthode privée `_get(endpoint, params)` décorée `@retry` (tenacity) :
   - Auth par header `Authorization: Bearer {token}` (recommandé par TMDB, pas query param)
   - Language param automatique
   - Timeout 10s
-  - Retry 3x avec backoff exponentiel sur HTTP 429/500/502/503/504
-  - Ne PAS retrier sur HTTP 401/403 (erreur d'auth fatale)
-  - Logging des requêtes
+  - tenacity : `wait_exponential_jitter(multiplier=0.5, max=10, jitter=0.5)`, `stop_after_attempt(4)`, `reraise=True`
+  - `retry_if_exception` : retry sur 429/500/502/503/504 et ConnectionError/Timeout
+  - Ne PAS retrier sur HTTP 401/403/404 (erreurs fatales ou absence de résultat)
+  - `before_sleep=before_sleep_log(logger, logging.WARNING)` pour tracer les retries
   - Gestion des erreurs TMDB : parser `status_code` interne (7=clé invalide, 34=not found, 25=rate limit)
-- [ ] Tests : vérifier qu'un appel basique fonctionne
+  - Ref : [docs/tenacity-reference.md](../../tenacity-reference.md) — pattern TMDB
+- [ ] Tests : vérifier qu'un appel basique fonctionne + retry sur mock 429
 
-**Commit** : `v3.3.1: Implement TMDB client base HTTP with retry`
+**Commit** : `v3.3.1: Implement TMDB client base HTTP with tenacity retry`
 
 ### 3.3.2 — Recherche films et séries
 

@@ -11,11 +11,11 @@ personalscraper/verify/
 ├── __init__.py
 ├── checker.py           # Vérification d'un dossier média (critères + sévérités)
 ├── fixer.py             # Corrections automatiques (renommage, restructuration)
-├── genre_mapper.py      # Mapping genres API → catégories dispatch (partagé avec V5)
 └── verifier.py          # Orchestrateur : fix → check → rapport
 ```
 
-Note : `genre_mapper.py` vit dans `personalscraper/verify/` mais est importé par V5 (dispatch).
+Note : `genre_mapper.py` vit à la racine du package (`personalscraper/genre_mapper.py`)
+car il est partagé entre V4 (verify) et V5 (dispatch). Import : `from personalscraper.genre_mapper import GenreMapper`
 
 ### Dépendances
 
@@ -29,6 +29,7 @@ Note : `genre_mapper.py` vit dans `personalscraper/verify/` mais est importé pa
 
 ```python
 from enum import Enum
+from personalscraper.genre_mapper import GenreMapper
 
 class Severity(Enum):
     ERROR = "error"      # Bloque le dispatch
@@ -52,6 +53,7 @@ class MediaChecker:
     def check_movie(self, movie_dir: Path) -> list[CheckResult]:
         """Vérifie un dossier film. Critères :
         - video_present : au moins 1 fichier vidéo
+        - not_sample : fichier vidéo > 100 Mo (WARNING si < 100 Mo, possible sample)
         - dir_naming : format Title (Year)/
         - nfo_present : Title.nfo existe
         - nfo_valid : XML parseable + tags obligatoires (title, uniqueid tmdb+imdb)
@@ -118,6 +120,9 @@ class MediaFixer:
 
 ### `genre_mapper.py` — Mapping genres → catégories
 
+> **Emplacement** : `personalscraper/genre_mapper.py` (racine du package, partagé V4+V5)
+> Import : `from personalscraper.genre_mapper import GenreMapper`
+
 ```python
 class GenreMapper:
     """Mappe les genres TMDB/TVDB vers les catégories de destination disques.
@@ -150,10 +155,20 @@ class GenreMapper:
     TVDB_TALK_SHOW = 10
     TVDB_NEWS = 11
 
+    # Catégories connues (frozenset exporté pour validation par V5)
+    KNOWN_CATEGORIES: frozenset[str] = frozenset({
+        "films", "films animations", "films documentaires",
+        "spectacles", "theatres",
+        "series", "series animations", "series documentaires",
+        "series animes", "emissions",
+        "livres audios",
+    })
+
     def categorize_movie(self, genres: list[str], genre_ids: list[int] | None = None) -> str:
-        """Retourne la catégorie film : 'films', 'films animations', 'films documentaires',
-        'spectacles', 'theatres'.
-        Utilise genre_ids si dispo (plus fiable), sinon les noms de genres."""
+        """Retourne la catégorie film : 'films', 'films animations', 'films documentaires'.
+        Utilise genre_ids si dispo (plus fiable), sinon les noms de genres.
+        ⚠️ 'spectacles' et 'theatres' ne sont PAS détectables via genres TMDB/TVDB
+        → voir categorize_from_nfo() qui check le fichier .category en priorité."""
 
     def categorize_tvshow(
         self, genres: list[str], genre_ids: list[int] | None = None,
@@ -165,11 +180,19 @@ class GenreMapper:
         ⚠️ source='tmdb' ou 'tvdb' pour utiliser les bons genre IDs."""
 
     def categorize_from_nfo(self, nfo_path: Path, media_type: str) -> str | None:
-        """Extraire genres + country du NFO XML, déterminer la catégorie.
-        Parse <genre> tags → genre names (pas d'IDs dans le NFO, genre_ids sera toujours None).
-        Parse <country> pour détection anime.
-        Parse <uniqueid> pour déterminer la source (tmdb/tvdb).
-        Retourne None si genres absents ou catégorie non identifiable."""
+        """Déterminer la catégorie d'un dossier média.
+
+        Ordre de priorité :
+        1. Fichier `.category` dans le dossier parent du NFO
+           → Si présent et contenu ∈ KNOWN_CATEGORIES, retourner directement
+           → Ceci permet la catégorisation manuelle des spectacles/théâtres
+             (aucun genre TMDB/TVDB ne correspond à ces catégories)
+        2. Sinon, parser le NFO XML :
+           - Parse <genre> tags → genre names (pas d'IDs dans le NFO)
+           - Parse <country> pour détection anime
+           - Parse <uniqueid> pour déterminer la source (tmdb/tvdb)
+           - Appeler categorize_movie() ou categorize_tvshow()
+        3. Retourne None si genres absents ou catégorie non identifiable."""
 ```
 
 ### `verifier.py` — Orchestrateur

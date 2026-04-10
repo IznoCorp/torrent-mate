@@ -114,17 +114,30 @@ class DefaultStrategy(SortingStrategy):
     """Destination: staging_dir/{type_dir}/"""
 ```
 
-### `matcher.py` — Fuzzy directory matching
+### `matcher.py` — Fuzzy directory matching (rapidfuzz)
+
+> **Changement vs FileMate** : le matcher bidirectionnel custom est remplacé par `rapidfuzz.fuzz.WRatio`
+> avec le `media_processor` custom (normalisation accents FR). Cela unifie le matching
+> entre V2 (dossiers existants), V3 (titres API), et V5 (index média).
+> Ref : [docs/rapidfuzz-reference.md](../rapidfuzz-reference.md)
 
 ```python
+from rapidfuzz import fuzz, process
+
+def media_processor(s: str) -> str:
+    """Normalise pour le matching média : lowercase, NFD decomposition (accents FR),
+    suppression ponctuation. Partagé avec V3/V5."""
+
 def find_matching_directory(
     name: str,
     candidates: list[Path],
     respect_year: bool = True,
+    threshold: float = 85.0,
 ) -> Path | None:
-    """Bidirectional token matching to find existing directory.
-    Prevents duplicates like 'The Matrix (1999)' vs 'The Matrix Remastered (1999)'.
-    From FileMate, conservé tel quel."""
+    """Find best matching existing directory via rapidfuzz WRatio.
+    Uses media_processor for accent-insensitive French title matching.
+    Returns None if best score < threshold.
+    If respect_year=True and both names contain a year, years must match."""
 ```
 
 ### `sorter.py` — Orchestrateur
