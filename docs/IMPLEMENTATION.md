@@ -63,7 +63,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V5 (DISPATCH)      | [x] Brainstorming + Design + Plan |
 | A. Modélisation V6 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
 | A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan |
-| A. Review globale inter-versions   | [ ] À refaire (V4+V7 ajoutés)    |
+| A. Review globale inter-versions   | [ ] À refaire (V4+V7 ajoutés)     |
 | B. Implémentation V0               | [ ]                               |
 | B. Implémentation V1               | [ ]                               |
 | B. Implémentation V2               | [ ]                               |
@@ -137,11 +137,11 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 > Quality gate : vérification, correction et qualification des médias scrapés avant dispatch
 
-| Document      | Fichier                                                    | Status |
-| ------------- | ---------------------------------------------------------- | ------ |
-| Brainstorming | [v4-verify/BRAINSTORMING.md](v4-verify/BRAINSTORMING.md)   | [x]    |
-| Design        | [v4-verify/DESIGN.md](v4-verify/DESIGN.md)                 | [x]    |
-| Plan (index)  | [v4-verify/plan/INDEX.md](v4-verify/plan/INDEX.md)         | [x]    |
+| Document      | Fichier                                                  | Status |
+| ------------- | -------------------------------------------------------- | ------ |
+| Brainstorming | [v4-verify/BRAINSTORMING.md](v4-verify/BRAINSTORMING.md) | [x]    |
+| Design        | [v4-verify/DESIGN.md](v4-verify/DESIGN.md)               | [x]    |
+| Plan (index)  | [v4-verify/plan/INDEX.md](v4-verify/plan/INDEX.md)       | [x]    |
 
 **4 phases, 13 sous-phases** — GenreMapper, MediaChecker, MediaFixer, Verifier CLI
 
@@ -151,11 +151,11 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 > Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
 
-| Document      | Fichier                                                          | Status |
-| ------------- | ---------------------------------------------------------------- | ------ |
-| Brainstorming | [v5-dispatch/BRAINSTORMING.md](v5-dispatch/BRAINSTORMING.md)     | [x]    |
-| Design        | [v5-dispatch/DESIGN.md](v5-dispatch/DESIGN.md)                   | [x]    |
-| Plan (index)  | [v5-dispatch/plan/INDEX.md](v5-dispatch/plan/INDEX.md)           | [x]    |
+| Document      | Fichier                                                      | Status |
+| ------------- | ------------------------------------------------------------ | ------ |
+| Brainstorming | [v5-dispatch/BRAINSTORMING.md](v5-dispatch/BRAINSTORMING.md) | [x]    |
+| Design        | [v5-dispatch/DESIGN.md](v5-dispatch/DESIGN.md)               | [x]    |
+| Plan (index)  | [v5-dispatch/plan/INDEX.md](v5-dispatch/plan/INDEX.md)       | [x]    |
 
 **3 phases, 6 sous-phases** — MediaIndex JSON, Dispatcher replace/merge (catégorisation via V4 genre_mapper)
 
@@ -179,11 +179,11 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 > Tests end-to-end complets du pipeline V1→V6 avec de vrais fichiers torrents
 
-| Document      | Fichier                                                            | Status |
-| ------------- | ------------------------------------------------------------------ | ------ |
-| Brainstorming | [v7-e2e-tests/BRAINSTORMING.md](v7-e2e-tests/BRAINSTORMING.md)     | [x]    |
-| Design        | [v7-e2e-tests/DESIGN.md](v7-e2e-tests/DESIGN.md)                   | [x]    |
-| Plan (index)  | [v7-e2e-tests/plan/INDEX.md](v7-e2e-tests/plan/INDEX.md)           | [x]    |
+| Document      | Fichier                                                        | Status |
+| ------------- | -------------------------------------------------------------- | ------ |
+| Brainstorming | [v7-e2e-tests/BRAINSTORMING.md](v7-e2e-tests/BRAINSTORMING.md) | [x]    |
+| Design        | [v7-e2e-tests/DESIGN.md](v7-e2e-tests/DESIGN.md)               | [x]    |
+| Plan (index)  | [v7-e2e-tests/plan/INDEX.md](v7-e2e-tests/plan/INDEX.md)       | [x]    |
 
 **5 phases, 14 sous-phases** — Registry+markers, torrent setup, assertions, E2E films/séries, cleanup sécurisé
 
@@ -191,15 +191,18 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ## Ressources existantes
 
-| Outil                 | Emplacement                   | Rôle dans le pipeline                                               |
-| --------------------- | ----------------------------- | ------------------------------------------------------------------- |
-| TorrentMaker          | `~/dev/TorrentMaker/`         | V0 — Template projet Python (pyproject.toml, Makefile, ruff, Click) |
-| FileMate              | `~/dev/FileMate/`             | V2 — Intégré au projet, tri par type, nettoyage noms                |
-| YoutubeTrailerScraper | `/opt/YoutubeTrailerScraper/` | V3 — Patterns TMDB API réutilisables                                |
-| BashMate/MediaMate    | `~/BashMate/MediaMate/`       | V5 — Index/recherche media (à évaluer)                              |
-| Scripts plex          | `099-SCRIPTS/plex/`           | V5/V6 — cleanFileSystem, trailerScraper                             |
-| TMDB API docs         | `docs/TMDB-API.md`            | V3/V4 — Référence API vérifiée par tests live                       |
-| TVDB API docs         | `docs/TVDB-API.md`            | V3/V4 — Référence API vérifiée par tests live                       |
+| Outil                 | Emplacement                         | Rôle dans le pipeline                                               |
+| --------------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| TorrentMaker          | `~/dev/TorrentMaker/`               | V0 — Template projet Python (pyproject.toml, Makefile, ruff, Click) |
+| FileMate              | `~/dev/FileMate/`                   | V2 — Intégré au projet, tri par type, nettoyage noms                |
+| YoutubeTrailerScraper | `/opt/YoutubeTrailerScraper/`       | V3 — Patterns TMDB API réutilisables                                |
+| BashMate/MediaMate    | `~/BashMate/MediaMate/`             | V5 — Index/recherche media (à évaluer)                              |
+| Scripts plex          | `099-SCRIPTS/plex/`                 | V5/V6 — cleanFileSystem, trailerScraper                             |
+| TMDB API docs         | `docs/TMDB-API.md`                  | V3/V4 — Référence API vérifiée par tests live                       |
+| TVDB API docs         | `docs/TVDB-API.md`                  | V3/V4 — Référence API vérifiée par tests live                       |
+| guessit evaluation    | `docs/guessit-evaluation.md`        | V2 — Evaluation, tests réels, comparaison regex vs guessit          |
+| qbittorrent-api ref   | `docs/qbittorrent-api-reference.md` | V1 — Client, TorrentState enum, erreurs, patterns pipeline          |
+| ffprobe reference     | `docs/ffprobe-reference.md`         | V3 — Extraction streamdetails, mapping codec Kodi, langue ISO       |
 
 ## Décisions techniques
 
