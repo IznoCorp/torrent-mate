@@ -14,11 +14,12 @@ Assembler matching + NFO + artwork pour traiter un film complet.
   2. Skip si .nfo existe déjà
   3. `match_movie()` → MatchResult
   4. Si pas de match → retourner ScrapeResult(action="skipped_low_confidence")
-  5. `tmdb_client.get_movie(id)` → données complètes
-  6. `extract_stream_info(video_file)` → streamdetails
-  7. `generate_movie_nfo()` → écrire le .nfo
-  8. `download_movie_artwork()` → poster + landscape
-  9. Retourner ScrapeResult(action="scraped")
+  5. Si le nom canonique TMDB diffère du nom de dossier actuel → renommer le dossier
+  6. `tmdb_client.get_movie(id)` → données complètes
+  7. `extract_stream_info(video_file)` → streamdetails
+  8. `generate_movie_nfo()` → écrire le .nfo
+  9. `download_movie_artwork()` → poster + landscape
+  10. Retourner ScrapeResult(action="scraped")
 - [ ] Gestion d'erreurs à chaque étape (ne pas crasher, log + continuer)
 
 **Commit** : `v3.11.1: Implement movie scraping orchestrator`

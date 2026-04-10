@@ -31,8 +31,7 @@ personalscraper/
 │   │   ├── cleaner.py            # Regex-based name cleaner
 │   │   ├── file_type.py          # File type detection
 │   │   ├── strategies.py         # Movie/TVShow/Default strategies
-│   │   ├── sorter.py             # Main sorting orchestrator
-│   │   └── naming_patterns.py    # Configurable naming patterns
+│   │   └── sorter.py             # Main sorting orchestrator
 │   ├── scraper/                  # V3
 │   │   ├── __init__.py
 │   │   ├── tmdb_client.py

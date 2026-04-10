@@ -73,15 +73,17 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ## Versions
 
-### V0 — PROJECT SETUP `[ ] Modélisation à faire`
+### V0 — PROJECT SETUP `[x] Modélisation terminée`
 
 > Mise en place du projet Python (pyproject.toml, Makefile, ruff, pytest, CLI Click, pydantic-settings) + intégration FileMate
 
 | Document      | Fichier                                                                | Status |
 | ------------- | ---------------------------------------------------------------------- | ------ |
-| Brainstorming | [v0-project-setup/BRAINSTORMING.md](v0-project-setup/BRAINSTORMING.md) | [ ]    |
-| Design        | [v0-project-setup/DESIGN.md](v0-project-setup/DESIGN.md)               | [ ]    |
-| Plan (index)  | [v0-project-setup/plan/INDEX.md](v0-project-setup/plan/INDEX.md)       | [ ]    |
+| Brainstorming | [v0-project-setup/BRAINSTORMING.md](v0-project-setup/BRAINSTORMING.md) | [x]    |
+| Design        | [v0-project-setup/DESIGN.md](v0-project-setup/DESIGN.md)               | [x]    |
+| Plan (index)  | [v0-project-setup/plan/INDEX.md](v0-project-setup/plan/INDEX.md)       | [x]    |
+
+**4 phases, 14 sous-phases** — Package personalscraper/, CLI Click, pydantic-settings, logger JSON
 
 ---
 
@@ -99,51 +101,59 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ---
 
-### V2 — SORT + CLEAN `[ ] Modélisation à faire`
+### V2 — SORT + CLEAN `[x] Modélisation terminée`
 
 > Tri automatique via FileMate (amélioré) + nettoyage des noms de fichiers
 
 | Document      | Fichier                                                          | Status |
 | ------------- | ---------------------------------------------------------------- | ------ |
-| Brainstorming | [v2-sort-clean/BRAINSTORMING.md](v2-sort-clean/BRAINSTORMING.md) | [ ]    |
-| Design        | [v2-sort-clean/DESIGN.md](v2-sort-clean/DESIGN.md)               | [ ]    |
-| Plan (index)  | [v2-sort-clean/plan/INDEX.md](v2-sort-clean/plan/INDEX.md)       | [ ]    |
+| Brainstorming | [v2-sort-clean/BRAINSTORMING.md](v2-sort-clean/BRAINSTORMING.md) | [x]    |
+| Design        | [v2-sort-clean/DESIGN.md](v2-sort-clean/DESIGN.md)               | [x]    |
+| Plan (index)  | [v2-sort-clean/plan/INDEX.md](v2-sort-clean/plan/INDEX.md)       | [x]    |
+
+**4 phases, 8 sous-phases** — NameCleaner regex, FileMate strategies, Sorter → list[SortResult]
 
 ---
 
-### V3 — SCRAPE `[ ] Modélisation à faire`
+### V3 — SCRAPE `[x] Modélisation terminée`
 
 > Scraping automatique des métadonnées (TMDB/TVDB), génération NFO, téléchargement artwork
 
 | Document      | Fichier                                                  | Status |
 | ------------- | -------------------------------------------------------- | ------ |
-| Brainstorming | [v3-scrape/BRAINSTORMING.md](v3-scrape/BRAINSTORMING.md) | [ ]    |
-| Design        | [v3-scrape/DESIGN.md](v3-scrape/DESIGN.md)               | [ ]    |
-| Plan (index)  | [v3-scrape/plan/INDEX.md](v3-scrape/plan/INDEX.md)       | [ ]    |
+| Brainstorming | [v3-scrape/BRAINSTORMING.md](v3-scrape/BRAINSTORMING.md) | [x]    |
+| Design        | [v3-scrape/DESIGN.md](v3-scrape/DESIGN.md)               | [x]    |
+| Plan (index)  | [v3-scrape/plan/INDEX.md](v3-scrape/plan/INDEX.md)       | [x]    |
+
+**13 phases, 42 sous-phases** — TMDB/TVDB clients, NFO MediaElch, artwork, episode rename
 
 ---
 
-### V4 — DISPATCH `[ ] Modélisation à faire`
+### V4 — DISPATCH `[x] Modélisation terminée`
 
 > Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
 
 | Document      | Fichier                                                      | Status |
 | ------------- | ------------------------------------------------------------ | ------ |
-| Brainstorming | [v4-dispatch/BRAINSTORMING.md](v4-dispatch/BRAINSTORMING.md) | [ ]    |
-| Design        | [v4-dispatch/DESIGN.md](v4-dispatch/DESIGN.md)               | [ ]    |
-| Plan (index)  | [v4-dispatch/plan/INDEX.md](v4-dispatch/plan/INDEX.md)       | [ ]    |
+| Brainstorming | [v4-dispatch/BRAINSTORMING.md](v4-dispatch/BRAINSTORMING.md) | [x]    |
+| Design        | [v4-dispatch/DESIGN.md](v4-dispatch/DESIGN.md)               | [x]    |
+| Plan (index)  | [v4-dispatch/plan/INDEX.md](v4-dispatch/plan/INDEX.md)       | [x]    |
+
+**3 phases, 6 sous-phases** — MediaIndex JSON, genre mapping, Dispatcher replace/merge
 
 ---
 
-### V5 — LOG + NOTIFY `[ ] Modélisation à faire`
+### V5 — LOG + NOTIFY `[x] Modélisation terminée`
 
 > Logging structuré + notifications Telegram
 
 | Document      | Fichier                                                          | Status |
 | ------------- | ---------------------------------------------------------------- | ------ |
-| Brainstorming | [v5-log-notify/BRAINSTORMING.md](v5-log-notify/BRAINSTORMING.md) | [ ]    |
-| Design        | [v5-log-notify/DESIGN.md](v5-log-notify/DESIGN.md)               | [ ]    |
-| Plan (index)  | [v5-log-notify/plan/INDEX.md](v5-log-notify/plan/INDEX.md)       | [ ]    |
+| Brainstorming | [v5-log-notify/BRAINSTORMING.md](v5-log-notify/BRAINSTORMING.md) | [x]    |
+| Design        | [v5-log-notify/DESIGN.md](v5-log-notify/DESIGN.md)               | [x]    |
+| Plan (index)  | [v5-log-notify/plan/INDEX.md](v5-log-notify/plan/INDEX.md)       | [x]    |
+
+**3 phases, 7 sous-phases** — TelegramNotifier, pipeline `run`, cron 3h
 
 ---
 

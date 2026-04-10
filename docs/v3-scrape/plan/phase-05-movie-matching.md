@@ -22,9 +22,10 @@ Implémenter le système de confiance et le matching films via TMDB.
 
 - [ ] Implémenter `match_movie(tmdb_client, title, year)` → MatchResult | None
 - [ ] Rechercher sur TMDB → scorer chaque résultat → garder le meilleur
-- [ ] Si meilleur score >= 0.8 → retourner automatiquement
+- [ ] Si meilleur score >= 0.8 → retourner le MatchResult (auto-accept)
 - [ ] Si meilleur score < 0.5 → retourner None (pas de match)
-- [ ] Si entre 0.5 et 0.8 → retourner avec flag "low_confidence"
+- [ ] Si entre 0.5 et 0.8 → retourner le MatchResult (confidence dans le champ float,
+      c'est l'appelant scrape_movie/scrape_tvshow qui décide : skip en auto, prompt en interactif)
 - [ ] Tests avec des films réels de 001-MOVIES/
 
 **Commit** : `v3.5.2: Implement movie matching via TMDB`

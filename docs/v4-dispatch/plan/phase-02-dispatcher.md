@@ -26,8 +26,10 @@ Implémenter le mapping genre → catégorie et l'orchestrateur de dispatch.
 - [ ] Implémenter `process(staging_dir)` → list[DispatchResult]
 - [ ] Implémenter `dispatch_movie(dir)` : genre → find → replace ou move to best disk
 - [ ] Implémenter `dispatch_tvshow(dir)` : genre → find → merge ou move to best disk
-- [ ] Implémenter `_replace(source, dest)` : supprime ancien, move nouveau
-- [ ] Implémenter `_merge(source, dest)` : copie fichiers manquants, overwrite même nom
+- [ ] Implémenter `_replace(source, dest)` : move source vers dest.tmp sur même disque,
+      supprimer ancien dest, renommer dest.tmp → dest (plus sûr qu'un delete-then-move)
+- [ ] Implémenter `_merge(source, dest)` : copie **récursive** (`shutil.copytree` avec
+      `dirs_exist_ok=True`), préserve la structure Saison XX/, overwrite si même nom
 - [ ] Implémenter `_verify_transfer(source, dest)` : vérifier tailles fichiers
 - [ ] Mettre à jour l'index après chaque dispatch
 - [ ] Seuil 100 Go, skip + warning si insuffisant
