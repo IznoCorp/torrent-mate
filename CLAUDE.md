@@ -33,6 +33,7 @@ df -h /Volumes/Disk{1,2,3,4}
 ### torrent-sort command
 
 Shell alias:
+
 ```bash
 torrent-sort
 # Resolves to: python ~/dev/FileMate/main.py "/Volumes/IznoServer SSD/A TRIER" --verbose --sort
@@ -44,18 +45,26 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 
 ## Storage Disks
 
-| Disk | Mount | Categories |
-|------|-------|-----------|
+| Disk  | Mount                 | Categories                                                                                                                                    |
+| ----- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Disk1 | /Volumes/Disk1/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk2 | /Volumes/Disk2/medias | series, series animes |
+| Disk2 | /Volumes/Disk2/medias | series, series animes                                                                                                                         |
 | Disk3 | /Volumes/Disk3/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk4 | /Volumes/Disk4/medias | films, films animations, series, series animations, series documentaires, emissions |
+| Disk4 | /Volumes/Disk4/medias | films, films animations, series, series animations, series documentaires, emissions                                                           |
 
 ## Move Rules
 
 - **Movies** (films, animations, documentaires, spectacles, theatre): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
 - **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
+
+## Pipeline Automation (in progress)
+
+Documentation and implementation plans live in `docs/`:
+
+- `docs/IMPLEMENTATION.md` — Master tracker with progress and links
+- `docs/v1-ingest/` through `docs/v5-log-notify/` — Per-version brainstorming, design, and phased plans
+- Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
 
 ## Directory Structure
 
@@ -89,6 +98,7 @@ A TRIER/
 ## Naming Conventions
 
 ### Movie folders
+
 ```
 Title (Year)/
   Title.mkv
@@ -104,6 +114,7 @@ Title (Year)/
 ```
 
 ### TV Show folders
+
 ```
 Show Name (Year)/
   tvshow.nfo
@@ -124,26 +135,32 @@ Episode files follow the pattern: `S{nn}E{nn} - {Episode Title}.{ext}`
 ## Scripts
 
 ### torrent-sort (FileMate)
+
 Primary sorting tool. See [torrent-sort command](#torrent-sort-command) above.
 
 ### PackUnpack.py / Unpack.py (legacy)
+
 - `unpack()`: Recursively flattens nested subfolders, moving all files to the parent. Deletes `.jpg`, `.jpeg`, `.png`, `.nfo`, `.txt` files. Cleans filenames by stripping codec/release tags.
 - `pack()`: Creates one folder per file (for movie organization).
 - **Legacy** — hardcoded Windows paths (`N:/A TRIER/`), largely superseded by FileMate's cleaning.
 
 ### TVDBNameToNum.py (legacy)
+
 - Interactive CLI tool using `tvdb_api` (v3) to match local episode filenames to TVDB data.
 - Dependencies: `unidecode`, `termcolor`, `colorama`, `PyInquirer`, `tvdb_api`
 - **Legacy** — hardcoded Windows paths, needs manual path updates before each use.
 - Renames episodes to `S{nn}E{nn} - {Title}.ext` format.
 
 ### plex/cleanFileSystem.py
+
 ```bash
 python3 099-SCRIPTS/plex/cleanFileSystem.py [--dry-run] [--debug]
 ```
+
 Scans all media disks and removes folders that contain no video files.
 
 ### plex/trailerScraper.py
+
 Downloads missing trailers from YouTube for movies and TV shows across all disks. Uses `youtubeScraper.py` for search/download.
 
 ## Language
