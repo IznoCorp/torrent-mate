@@ -51,7 +51,7 @@ Implémenter le client HTTP pour l'API TVDB v4 (séries prioritaire).
   - ⚠️ Sans `?season=N`, retourne TOUS les épisodes y compris spéciaux (saison 0)
   - Chaque épisode : `id`, `name`, `number`, `seasonNumber`, `aired`, `runtime`, `overview`, `image`
   - `page_size=500` — largement suffisant pour une saison
-- [ ] Implémenter `get_episode_translation(episode_id, lang)` → dict via `GET /episodes/{id}/translations/{lang}`
+- [ ] Implémenter `get_episode_translation(episode_id, lang)` → dict via `GET /episodes/{id}/translations/{lang}` (singulier — une seule langue à la fois)
   - ⚠️ Codes langue 3 chars : `fra`, `eng` (pas `fr`, `en`)
   - Retourne : `name`, `overview`, `language`
 - [ ] Tests : vérifier les données de Breaking Bad (TVDB ID 81189)

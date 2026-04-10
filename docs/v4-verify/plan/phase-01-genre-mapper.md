@@ -21,7 +21,9 @@ Implémenter le mapping genres API → catégories de destination disques. Modul
     → seul le fichier `.category` (voir 4.1.3) permet cette catégorisation
 - [ ] Gérer le cas genre_ids=None → fallback sur les noms de genres (strings)
   - Normaliser les noms : lowercase, sans accents, pour gérer "Documentaire"/"Documentary"
-- [ ] Tests paramétrés : chaque catégorie couverte
+- [ ] Tests paramétrés : chaque catégorie couverte, y compris noms de genres en français
+  - ⚠️ TMDB avec fr-FR retourne des genres FR ("Animation", "Documentaire", "Science-Fiction")
+  - Tester le fallback string avec : "Documentaire", "Documentary", "Animation", "Comédie", "Aventure"
 
 **Commit** : `v4.1.1: Implement GenreMapper for TMDB movie categorization`
 

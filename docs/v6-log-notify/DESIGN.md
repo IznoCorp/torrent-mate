@@ -15,7 +15,7 @@ personalscraper/
 
 ### Dépendances
 
-- `logging` (stdlib) — base du logger
+- `structlog` (already in deps) + `logging` (stdlib, used for handlers and foreign log capture)
 - `requests` — appels API Telegram (déjà dans les deps)
 
 Aucune dépendance supplémentaire.
@@ -106,9 +106,13 @@ class TelegramNotifier:
         """Check if bot_token and chat_id are set in config."""
 ```
 
-### `models.py` — PipelineReport
+### `models.py` — StepReport + PipelineReport
+
+> **StepReport et PipelineReport sont définis dans `personalscraper/models.py` (V0).**
+> V6 ne les redéfinit pas — il les utilise tels quels.
 
 ```python
+# Rappel (défini en V0 models.py) :
 @dataclass
 class StepReport:
     """Report for a single pipeline step."""
@@ -126,7 +130,8 @@ class PipelineReport:
     steps: dict[str, StepReport] = field(default_factory=dict)
     finished_at: datetime | None = None
 
-    def add_step(self, name: str) -> StepReport: ...
+    def add_step(self, name: str, step: StepReport) -> None:
+        """Add a completed StepReport to the pipeline report."""
     def duration(self) -> timedelta: ...
     def has_errors(self) -> bool: ...
     def to_html(self) -> str:
@@ -163,13 +168,18 @@ Chaque version crée un `StepReport` et l'ajoute au `PipelineReport`. À la fin 
 > Chaque `run_*()` retourne un `StepReport`. La conversion depuis les types internes
 > (`list[SortResult]`, etc.) se fait dans l'orchestrateur de chaque version, PAS dans V6.
 
-| Version | Fonction         | Type interne           | Conversion → StepReport                                                                                                      |
-| ------- | ---------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| V1      | `run_ingest()`   | StepReport directement | Pas de conversion (déjà StepReport)                                                                                          |
-| V2      | `run_sort()`     | `list[SortResult]`     | `success_count = len([r for r if r.moved])`, `skip_count = len(skipped)`, `details = [f"{r.title} → {r.destination}" for r]` |
-| V3      | `run_scrape()`   | `list[ScrapeResult]`   | `success_count = matched`, `error_count = unmatched`, `details = [f"{r.title}: {r.source}" for r]`                           |
-| V4      | `run_verify()`   | `list[VerifyResult]`   | `success_count = valid+fixed`, `error_count = blocked`, `warnings = [r.warnings for r if r.warnings]`                        |
-| V5      | `run_dispatch()` | `list[DispatchResult]` | `success_count = replaced+merged+moved`, `skip_count = skipped`, `details = [f"{r.source.name} → {r.disk}" for r]`           |
+| Version | Fonction         | Type interne           | Conversion → StepReport                                                                                                                                                                                                    |
+| ------- | ---------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V1      | `run_ingest()`   | StepReport directement | Pas de conversion (déjà StepReport)                                                                                                                                                                                        |
+| V2      | `run_sort()`     | `list[SortResult]`     | `success_count = len([r for r in results if r.status == "moved"])`, `skip_count = len([r for r in results if r.status == "skipped"])`, `details = [f"{r.title} → {r.destination}" for r]`                                  |
+| V3      | `run_scrape()`   | `list[ScrapeResult]`   | `success_count = len([r for r in results if r.match])`, `error_count = len([r for r in results if not r.match])`, `details = [f"{r.media_path.name}: {r.match.source if r.match else 'unmatched'}" for r]`                 |
+| V4      | `run_verify()`   | `list[VerifyResult]`   | `success_count = len([r for r in results if r.status in ("valid", "fixed")])`, `error_count = len([r for r in results if r.status == "blocked"])`, `warnings = [w for r in results for w in r.warnings]`                   |
+| V5      | `run_dispatch()` | `list[DispatchResult]` | `success_count = len([r for r in results if r.action in ("replaced", "merged", "moved")])`, `skip_count = len([r for r in results if r.action == "skipped"])`, `details = [f"{r.source.name} → {r.disk}" for r if r.disk]` |
+
+> **`run_*()` wrapper functions** : chaque version (V2-V5) doit définir une fonction top-level
+> `run_sort(settings, dry_run) -> StepReport`, `run_scrape(...)`, etc. dans son orchestrateur
+> ou `__init__.py`. Ces fonctions instancient la classe, appellent `process()`, et convertissent
+> les résultats internes en `StepReport`. Pattern identique à V1 `run_ingest()`.
 
 La commande `run` (V6) appelle simplement `report.add_step("ingest", run_ingest(settings, dry_run))` pour chaque étape.
 Chaque `run_*()` est responsable de construire son propre StepReport — V6 ne fait que les agréger.
@@ -187,7 +197,7 @@ ignoré (espace insuffisant) ⏱️ Durée : 4min 32s 📅 2026-04-11 03:04:32
 
 ## Résumé console
 
-Le résumé console utilise `rich.table.Table` : colonnes (Étape, Statut, Succès, Erreurs, Durée). Affiché via `rich.console.Console`.
+Le résumé console utilise `rich.panel.Panel` + `rich.table.Table` : colonnes (Étape, Statut, Succès, Erreurs, Durée). Affiché via `rich.console.Console`.
 
 ## Gestion d'erreurs
 
@@ -217,7 +227,7 @@ Ceci empêche les collisions entre le cron quotidien et un lancement manuel simu
 > (OOM, segfault, disque plein), personne n'est prévenu. Un service de monitoring externe
 > détecte l'absence de signal.
 
-Défini dans `personalscraper/notify/notifier.py` (même module que TelegramNotifier).
+Défini dans `personalscraper/notifier.py` (même module que TelegramNotifier).
 
 ```python
 def ping_healthcheck(url: str, status: str = "") -> None:

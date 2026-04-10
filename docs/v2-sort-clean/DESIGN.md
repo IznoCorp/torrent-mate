@@ -67,6 +67,11 @@ class NameCleaner:
         title = r.get("title", name)
         year = r.get("year")
         return f"{title} ({year})" if year else title
+
+    def get_media_type(self, name: str) -> str | None:
+        """Return guessit media type: 'movie' or 'episode', or None if unknown.
+        Used by file_type.py to reinforce movie vs tvshow detection."""
+        return guess(name).get("type")
 ```
 
 ### `file_type.py` — Détection de type
@@ -187,7 +192,7 @@ Racine A TRIER/
          │
 ┌────────▼────────────────┐
 │  strategy.get_dest()    │ → 002-TVSHOWS/Shrinking/
-│  matcher.find_match()   │ → (fuzzy match existing dirs)
+│  find_matching_directory()│ → (fuzzy match existing dirs)
 └────────┬────────────────┘
          │
 ┌────────▼────────┐

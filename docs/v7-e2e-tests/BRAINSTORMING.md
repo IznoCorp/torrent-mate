@@ -51,26 +51,19 @@ Stratégie de protection multi-couches :
 
 Fichier de configuration : `tests/e2e/test_magnets.json`
 
+> **Note** : ce schéma a été simplifié dans le DESIGN.md vers une liste plate avec champ `type`.
+> Voir V7 DESIGN.md pour le schéma final.
+
 ```json
-{
-  "movies": [
-    {
-      "magnet": "magnet:?xt=urn:btih:...",
-      "expected_title": "Movie Title",
-      "expected_year": 2024,
-      "expected_category": "films"
-    }
-  ],
-  "tvshows": [
-    {
-      "magnet": "magnet:?xt=urn:btih:...",
-      "expected_title": "Show Name",
-      "expected_year": 2023,
-      "expected_category": "series",
-      "expected_seasons": [1]
-    }
-  ]
-}
+[
+  {
+    "name": "Movie Title",
+    "magnet": "magnet:?xt=urn:btih:...",
+    "type": "movie",
+    "expected_category": "films",
+    "verify_nfo_fields": ["title", "year", "uniqueid[@type='imdb']"]
+  }
+]
 ```
 
 **L'utilisateur fournit les magnet links.** Le fichier `test_magnets.json` est gitignored (contient des magnet links). Un `test_magnets.example.json` montre la structure attendue.
@@ -90,14 +83,14 @@ Fichier de configuration : `tests/e2e/test_magnets.json`
 
 ### Assertions par étape
 
-| Étape    | Assertions                                                                              |
-| -------- | --------------------------------------------------------------------------------------- |
-| INGEST   | Fichiers présents dans A TRIER/, pas dans torrents/complete                              |
-| SORT     | Films dans 001-MOVIES/, séries dans 002-TVSHOWS/, noms nettoyés                         |
-| SCRAPE   | NFO présents + valides, artwork téléchargé, épisodes renommés                           |
-| VERIFY   | Tous les dossiers de test = "valid" ou "fixed", catégories identifiées                  |
-| DISPATCH | Fichiers présents sur le bon disque dans la bonne catégorie                              |
-| CLEANUP  | Tous les fichiers de test supprimés, aucun fichier existant touché, torrents supprimés  |
+| Étape    | Assertions                                                                             |
+| -------- | -------------------------------------------------------------------------------------- |
+| INGEST   | Fichiers présents dans A TRIER/ (si seeding: aussi dans torrents/complete)             |
+| SORT     | Films dans 001-MOVIES/, séries dans 002-TVSHOWS/, noms nettoyés                        |
+| SCRAPE   | NFO présents + valides, artwork téléchargé, épisodes renommés                          |
+| VERIFY   | Tous les dossiers de test = "valid" ou "fixed", catégories identifiées                 |
+| DISPATCH | Fichiers présents sur le bon disque dans la bonne catégorie                            |
+| CLEANUP  | Tous les fichiers de test supprimés, aucun fichier existant touché, torrents supprimés |
 
 ### Gestion des erreurs de test
 

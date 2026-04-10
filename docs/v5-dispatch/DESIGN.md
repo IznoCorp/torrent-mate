@@ -96,10 +96,10 @@ class DiskStatus:
     is_mounted: bool
 
 def get_disk_configs(settings: Settings) -> list[DiskConfig]:
-    """Build disk configs from settings. Category mapping from config file.
+    """Build disk configs from settings. Category mapping hardcoded in DISK_CATEGORIES constant.
 
-    Mapping disque → catégories (source : Settings ou config hardcodée)
-    Voir CLAUDE.md "Storage Disks" pour la référence.
+    Le mapping disque → catégories est hardcodé (pas dans Settings) car il change rarement
+    et dépend de la configuration physique des disques. Voir CLAUDE.md "Storage Disks".
     Exemple :
         DiskConfig(name="Disk1", path=Path("/Volumes/Disk1/medias"),
                    categories=["films", "films animations", "films documentaires",
@@ -116,7 +116,7 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
 def choose_disk(
     disks: list[DiskStatus],
     category: str,
-    min_free_gb: int,
+    min_free_gb: float,
     item_size_gb: float = 0,
 ) -> DiskStatus | None:
     """Choose the best disk for a new media item.

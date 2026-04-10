@@ -30,14 +30,14 @@ FileMate (`~/dev/FileMate/`) doit être intégré directement dans ce projet car
 
 - **Ruff** pour linting + formatting (remplace Black/isort/flake8)
 - **pytest** pour les tests
-- **Click** pour le CLI (groups de commandes)
+- **Typer** pour le CLI (type hints = spec CLI, rich intégré)
 - **pydantic-settings** pour la config (type-safe, auto .env)
 - **Makefile** pour l'automatisation (clean, test, lint, format, install-dev)
 
 ### Structure du package
 
 - Layout plat (pas de `src/`) : `personalscraper/` à la racine du projet
-- CLI avec sous-commandes Click groups
+- CLI avec sous-commandes Typer `@app.command()`
 - Entry point dans `pyproject.toml` : `[project.scripts]`
 
 ### Intégration FileMate
@@ -83,7 +83,14 @@ TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
 # ── Thresholds ───────────────────────────────
-MIN_FREE_SPACE_GB=20
+MIN_FREE_SPACE_STAGING_GB=20
+MIN_FREE_SPACE_DISK_GB=100
+
+# ── Scraper ──────────────────────────────────
+SCRAPER_FALLBACK_LANGUAGE=en-US
+
+# ── Monitoring ───────────────────────────────
+HEALTHCHECK_URL=
 ```
 
 ## Ressources

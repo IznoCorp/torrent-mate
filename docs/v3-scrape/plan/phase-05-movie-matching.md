@@ -11,8 +11,8 @@ Implémenter le système de confiance et le matching films via TMDB.
 > Ref : [docs/rapidfuzz-reference.md](../../rapidfuzz-reference.md)
 
 - [ ] Créer `personalscraper/scraper/confidence.py`
-- [ ] Implémenter `media_processor(s)` : `default_process` + NFD decomposition pour strip les accents FR
-  - ⚠️ `default_process` de rapidfuzz NE supprime PAS les accents — processor custom obligatoire
+- [ ] Importer `media_processor` depuis `personalscraper.text_utils` (créé en V2 phase 2.1.2)
+  - ⚠️ NE PAS ré-implémenter — la fonction existe déjà dans `text_utils.py` (module partagé V2/V3/V5)
 - [ ] Implémenter `MatchResult` dataclass (api_id, api_title, api_year, confidence, source)
 - [ ] Implémenter `score_match(local_title, local_year, api_title, api_year)` → float
   - Utiliser `fuzz.WRatio(local_title, api_title, processor=media_processor)` (score 0-100 → 0.0-1.0)
@@ -39,9 +39,9 @@ Implémenter le système de confiance et le matching films via TMDB.
 ### 3.5.3 — Mode interactif
 
 - [ ] Implémenter `prompt_user_choice(results: list[MatchResult])` → MatchResult | None
-- [ ] Utiliser Click.prompt pour afficher les résultats numérotés
+- [ ] Utiliser `typer.prompt()` ou `rich.prompt.Prompt` pour afficher les résultats numérotés
 - [ ] Option "Aucun de ces résultats" → retourner None
 - [ ] Appelé quand --interactive et que la confiance est < 0.8
-- [ ] Tests avec mock Click.prompt
+- [ ] Tests avec mock `typer.prompt`
 
 **Commit** : `v3.5.3: Implement interactive matching mode`

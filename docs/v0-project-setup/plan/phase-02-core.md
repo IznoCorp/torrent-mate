@@ -32,8 +32,11 @@ Implémenter config.py (pydantic Settings), cli.py (Typer app), et models.py.
 ### 0.2.3 — Models partagés
 
 - [ ] Créer `personalscraper/models.py`
-- [ ] Dataclasses : SortResult, ScrapeResult, DispatchResult, StepReport, PipelineReport
-- [ ] Toutes les interfaces définies dans les designs V2-V5
+- [ ] Dataclasses partagées uniquement : SortResult, StepReport, PipelineReport
+  - ScrapeResult → défini en V3 dans `scraper.py` (référence MatchResult local)
+  - VerifyResult → défini en V4 dans `verifier.py`
+  - DispatchResult → défini en V5 dans `dispatcher.py`
+- [ ] Interfaces alignées sur les designs V0+V6 (StepReport et PipelineReport)
 
 **Commit** : `v0.2.3: Add shared dataclass models`
 

@@ -39,7 +39,7 @@ Connecter les orchestrateurs au CLI et valider l'ensemble.
 
 ### 3.13.4 — Test mode interactif
 
-- [ ] Test `personalscraper scrape --interactive` avec mock Click.prompt
+- [ ] Test `personalscraper scrape --interactive` avec mock `typer.prompt`
 - [ ] Vérifier que les résultats sont présentés correctement
 - [ ] Vérifier que le choix utilisateur est respecté
 - [ ] Vérifier "Aucun résultat" → skip propre

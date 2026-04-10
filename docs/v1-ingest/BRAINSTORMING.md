@@ -112,6 +112,6 @@ Champs utiles dans la réponse `torrents/info` :
 
 1. **Mot de passe qBit** → fichier `.env` (non gitté), avec `.env.example` toujours synchronisé
 2. **Détection "déjà ingéré"** → fichier JSON trackant les hash de torrents traités. Les entrées sont retirées quand le torrent est supprimé de qBittorrent.
-3. **Espace insuffisant** → skip + warning (notification via V5 plus tard)
+3. **Espace insuffisant** → skip + warning (notification via V6 plus tard)
 4. **Fichiers isolés** → déplacés/copiés tels quels à la racine de A TRIER/, FileMate (V2) s'occupe de l'organisation
 5. **Nettoyage post-ingest** → aucun, l'utilisateur gère manuellement les torrents dans qBit

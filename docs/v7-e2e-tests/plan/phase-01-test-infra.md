@@ -22,7 +22,7 @@ Implémenter les mécanismes de tracking et sécurité pour les tests E2E.
 
 - [ ] Créer `tests/e2e/markers.py`
 - [ ] `place_marker(directory, session_id)` : crée `.e2e-test-marker` contenant le UUID
-- [ ] `verify_marker(directory, session_id)` : triple check (fichier existe + UUID match + dans registre)
+- [ ] `verify_marker(directory, session_id, registry)` : triple check (fichier existe + UUID match + dans registre)
 - [ ] `find_orphan_markers(base_paths)` : scan récursif pour trouver des markers de sessions précédentes
 - [ ] Tests unitaires avec tmp_path :
   - Test basique : place + verify + find_orphan

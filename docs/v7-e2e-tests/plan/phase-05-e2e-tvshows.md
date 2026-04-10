@@ -34,7 +34,7 @@ Test E2E pour les séries (multi-saisons, renommage épisodes), puis test pipeli
   - Vérifier tous les résultats
   - Cleanup complet
 - [ ] Ce test simule une exécution réelle du cron (tout le batch d'un coup)
-- [ ] Vérifier que V6 (log+notify) produit un rapport cohérent avec tous les médias
+- [ ] Vérifier que V6 (log+notify) produit un rapport cohérent : `assert_pipeline_report(report)`
 
 **Commit** : `v7.5.2: Implement full mixed pipeline E2E test`
 

@@ -31,16 +31,19 @@ personalscraper/
 │   │   └── ingest.py
 │   ├── sorter/                   # V2 (FileMate intégré)
 │   │   ├── __init__.py
-│   │   ├── cleaner.py            # Regex-based name cleaner
+│   │   ├── cleaner.py            # guessit-based name cleaner
 │   │   ├── file_type.py          # File type detection
+│   │   ├── matcher.py            # (ajouté en V2) Fuzzy directory matching (rapidfuzz)
 │   │   ├── strategies.py         # Movie/TVShow/Default strategies
 │   │   └── sorter.py             # Main sorting orchestrator
 │   ├── scraper/                  # V3
 │   │   ├── __init__.py
+│   │   ├── providers.py          # (ajouté en V3) MetadataProvider Protocol
 │   │   ├── tmdb_client.py
 │   │   ├── tvdb_client.py
 │   │   ├── nfo_generator.py
 │   │   ├── artwork.py
+│   │   ├── confidence.py         # (ajouté en V3) Score de confiance rapidfuzz
 │   │   ├── mediainfo.py
 │   │   └── scraper.py
 │   ├── verify/                   # V4
@@ -228,6 +231,10 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 ### Models partagés (models.py)
 
+> **Convention** : seuls les modèles partagés entre 2+ versions vivent dans `models.py`.
+> Les modèles spécifiques à une version (`ScrapeResult`, `VerifyResult`, `DispatchResult`)
+> sont définis dans leurs modules respectifs (V3 `scraper.py`, V4 `verifier.py`, V5 `dispatcher.py`).
+
 ```python
 @dataclass
 class SortResult:
@@ -237,21 +244,35 @@ class SortResult:
     media_type: str       # "movie", "episode", "audio", "ebook", etc.
     title: str            # Titre extrait
     year: int | None      # Année si détectée
+    season: int | None    # Saison si détectée (V2 cleaner)
+    episode: int | None   # Épisode si détecté (V2 cleaner)
     status: str           # "moved", "skipped", "error"
     message: str | None   # Message d'erreur ou info supplémentaire
 
 @dataclass
 class StepReport:
-    """Rapport d'exécution d'une étape du pipeline."""
-    step_name: str        # "ingest", "sort", "scrape", "verify", "dispatch"
-    status: str           # "success", "partial", "error", "skipped"
-    items_processed: int
-    items_success: int
-    items_error: int
-    items_skipped: int
-    errors: list[str]     # Messages d'erreur détaillés
-    duration_seconds: float
-    details: dict         # Données spécifiques à l'étape
+    """Rapport d'exécution d'une étape du pipeline.
+    Chaque run_*() (V1-V5) convertit ses résultats internes en StepReport."""
+    name: str                          # "ingest", "sort", "scrape", "verify", "dispatch"
+    success_count: int = 0
+    skip_count: int = 0
+    error_count: int = 0
+    warnings: list[str] = field(default_factory=list)
+    details: list[str] = field(default_factory=list)
+
+@dataclass
+class PipelineReport:
+    """Aggregated report for a full pipeline run (V6)."""
+    started_at: datetime
+    steps: dict[str, StepReport] = field(default_factory=dict)
+    finished_at: datetime | None = None
+
+    def add_step(self, name: str, step: StepReport) -> None:
+        """Add a completed StepReport to the pipeline report."""
+    def duration(self) -> timedelta: ...
+    def has_errors(self) -> bool: ...
+    def to_html(self) -> str:
+        """Format report as Telegram HTML message."""
 ```
 
 ## Flux de données — V0 ne produit pas de données
@@ -267,7 +288,7 @@ V0 met en place la structure. Le flux de données commence à V1.
 5. Package `personalscraper/` avec `__init__.py`, `cli.py`, `config.py`
 6. Module `logger.py` fonctionnel (structlog, dual output console+JSON, verbose/quiet)
 7. Module `notifier.py` en stub (interface définie, implémentation en V6)
-8. `models.py` avec les dataclasses partagées (vides, remplies par V1-V4)
+8. `models.py` avec les dataclasses partagées (`SortResult`, `StepReport`, `PipelineReport` — enrichies par V1-V6)
 9. `tests/conftest.py` avec fixtures de base
 10. Ruff config dans `pyproject.toml`
 11. Archivage de `099-SCRIPTS/` vers `~/dev/099-SCRIPTS-archive/`

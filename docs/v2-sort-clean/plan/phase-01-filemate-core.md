@@ -21,8 +21,9 @@ Intégrer les modules réutilisables de FileMate dans personalscraper/sorter/.
 ### 2.1.2 — Fuzzy directory matcher (rapidfuzz)
 
 - [ ] Créer `personalscraper/sorter/matcher.py`
-- [ ] Implémenter `media_processor(s)` : lowercase + NFD decomposition + strip ponctuation
+- [ ] Créer `personalscraper/text_utils.py` et implémenter `media_processor(s)` : lowercase + NFD decomposition + strip ponctuation
   - ⚠️ `rapidfuzz.utils.default_process` ne supprime PAS les accents — custom obligatoire
+  - Ce module est partagé entre V2 (`matcher.py`), V3 (`confidence.py`), et V5 (`media_index.py`)
   - Ref : docs/rapidfuzz-reference.md — section "media_processor custom"
 - [ ] Implémenter `find_matching_directory(name, candidates, respect_year, threshold=85.0)`
   - Utiliser `rapidfuzz.process.extractOne(name, candidate_names, scorer=fuzz.WRatio, processor=media_processor)`

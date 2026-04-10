@@ -11,7 +11,8 @@ Implémenter les fonctions d'assertion pour vérifier chaque étape du pipeline 
 - [ ] Créer `tests/e2e/assertions.py`
 - [ ] `assert_ingest_complete(staging_dir, expected)` :
   - Chaque torrent attendu a ses fichiers dans A TRIER/
-  - Les fichiers ne sont plus dans torrents/complete/ (déplacés, pas copiés)
+  - Si torrent non-seeding : fichiers déplacés (absents de torrents/complete/)
+  - Si torrent seeding : fichiers copiés (présents dans LES DEUX emplacements)
   - Le tracker de V1 a enregistré l'ingestion
 - [ ] `assert_sort_complete(movies_dir, tvshows_dir, expected)` :
   - Chaque film attendu est dans 001-MOVIES/
