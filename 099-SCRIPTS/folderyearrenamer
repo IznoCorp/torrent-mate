@@ -1,0 +1,58 @@
+# Import module os  
+from os import listdir, mkdir, rename
+from os.path import isfile, isdir, join, basename, splitext
+ 
+# DryRun
+dryrun = True
+ 
+# Chemin vers les disques.
+medias_path = "E:/medias/a trier/004 SERIES ANIMATIONS/LooneyTunes/"
+
+# Récupération de la liste des fichiers du répertoire medias_path
+files = [file for file in listdir(medias_path) if isfile(medias_path+file)]
+
+# Parcours la liste des fichiers.
+for file in files:
+  
+  # Retire l'extension de fichier.
+  file_basename = basename(file)
+  file_name = splitext(file_basename)[0]  
+  file_ext = splitext(file_basename)[1]
+  
+  # HACK fichier ne terminant pas par la date.
+  while file_name[-1] not in [")"]:
+    file_name = file_name[0 : len(file_name) - 1]
+  
+  # Extrait la date des 6 derniers caractères.
+  file_year = file_name[-5:-1]
+      
+  # Ajoute S{date}E devant le nom de fichier.
+  new_file_name = f"S{file_year}E - {file_name}"
+  new_file = new_file_name+file_ext
+  
+  # Nom du sous-dossier de saison pour le fichier.
+  season_folder = f"Saison {file_year}/"
+  season_folder_path = medias_path+season_folder
+  
+  # Si le dossier de saison existe pas encore alors on le crée.
+  if not isdir(season_folder_path):
+    # Création du dossier.
+    print(f"Création du dossier : {season_folder_path}")
+    if not dryrun :
+      mkdir(season_folder_path)
+    else: 
+      print('Dry run')
+      
+  # Modification du nom de l'ancien fichier pour le nouveau nom de fichier.
+  old_file_path = medias_path+file
+  new_file_path = season_folder_path+new_file  
+  
+  # Déplacement du fichier dans son nouveau dossier avec son nouveau nom.
+  print(f"Déplacement du fichier {old_file_path} vers {new_file_path}")
+  if not dryrun :
+    rename(old_file_path, new_file_path)
+  else:
+    print('Dry run')
+  
+# Evite la fermeture de la fenêtre à la fin de l'exécution.
+input("Press enter to exit ;)")
