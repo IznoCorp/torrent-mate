@@ -63,7 +63,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V5 (DISPATCH)      | [x] Brainstorming + Design + Plan |
 | A. Modélisation V6 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
 | A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan |
-| A. Review globale inter-versions   | [ ] À refaire (V4+V7 ajoutés)     |
+| A. Review globale inter-versions   | [x] 17 issues fixed (5C+12I)      |
 | B. Implémentation V0               | [ ]                               |
 | B. Implémentation V1               | [ ]                               |
 | B. Implémentation V2               | [ ]                               |

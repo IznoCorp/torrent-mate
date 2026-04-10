@@ -6,7 +6,7 @@ Implémenter l'index des médias et le scanner de disques.
 
 ## Sous-phases
 
-### 4.1.1 — Disk scanner et configuration
+### 5.1.1 — Disk scanner et configuration
 
 - [ ] Créer `personalscraper/dispatch/disk_scanner.py`
 - [ ] Implémenter `DiskConfig` et `DiskStatus` dataclasses
@@ -17,9 +17,9 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Configuration du mapping disque → catégories (dict dans config ou fichier dédié)
 - [ ] Tests unitaires
 
-**Commit** : `v4.1.1: Implement disk scanner with config and space checking`
+**Commit** : `v5.1.1: Implement disk scanner with config and space checking`
 
-### 4.1.2 — Media index JSON
+### 5.1.2 — Media index JSON
 
 - [ ] Créer `personalscraper/dispatch/media_index.py`
 - [ ] Implémenter `IndexEntry` dataclass
@@ -29,4 +29,4 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Fichier index : `~/.personalscraper_media_index.json`
 - [ ] Tests unitaires avec tmp_path
 
-**Commit** : `v4.1.2: Implement JSON media index with rebuild and fuzzy find`
+**Commit** : `v5.1.2: Implement JSON media index with rebuild and fuzzy find`

@@ -2,11 +2,11 @@
 
 ## Objectif
 
-Implémenter la commande `run` qui enchaîne V1→V4 et envoie le rapport.
+Implémenter la commande `run` qui enchaîne V1→V5 et envoie le rapport.
 
 ## Sous-phases
 
-### 5.2.1 — Commande `run` avec lock file
+### 6.2.1 — Commande `run` avec lock file
 
 - [ ] Implémenter `acquire_lock()` et `release_lock()` dans un module dédié ou dans `cli.py`
   - Lock file : `~/.personalscraper/pipeline.lock` (PID du processus)
@@ -14,7 +14,7 @@ Implémenter la commande `run` qui enchaîne V1→V4 et envoie le rapport.
   - Si lock pris par un processus vivant → log WARNING, exit 0
 - [ ] Implémenter `personalscraper run` dans `cli.py` (remplacer le stub)
 - [ ] `acquire_lock()` en début, `release_lock()` en try/finally
-- [ ] Séquence : ingest → sort → scrape → dispatch
+- [ ] Séquence : ingest → sort → scrape → verify → dispatch
 - [ ] Créer un `PipelineReport` au début, passer à chaque étape
 - [ ] Chaque étape alimente son `StepReport`
 - [ ] Si une étape échoue fatalement → log ERROR, continuer les suivantes
@@ -22,9 +22,9 @@ Implémenter la commande `run` qui enchaîne V1→V4 et envoie le rapport.
 - [ ] Afficher le résumé en console
 - [ ] Support --dry-run (passé à chaque étape)
 
-**Commit** : `v5.2.1: Implement pipeline run command with lock file`
+**Commit** : `v6.2.1: Implement pipeline run command with lock file`
 
-### 5.2.2 — Tests du pipeline complet
+### 6.2.2 — Tests du pipeline complet
 
 - [ ] Test dry-run via CliRunner
 - [ ] Vérifier que chaque étape est appelée dans l'ordre
@@ -32,4 +32,4 @@ Implémenter la commande `run` qui enchaîne V1→V4 et envoie le rapport.
 - [ ] Vérifier que la notification est envoyée (mock)
 - [ ] Test avec Telegram non configuré (pas d'erreur)
 
-**Commit** : `v5.2.2: Add pipeline run integration tests`
+**Commit** : `v6.2.2: Add pipeline run integration tests`

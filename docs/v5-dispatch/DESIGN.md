@@ -1,4 +1,4 @@
-# V4 — DISPATCH : Design
+# V5 — DISPATCH : Design
 
 > Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
 
@@ -11,9 +11,18 @@ personalscraper/dispatch/
 ├── __init__.py
 ├── media_index.py      # Index JSON des médias sur les 4 disques
 ├── disk_scanner.py     # Scan des disques, espace libre, catégories
-├── genre_mapper.py     # Mapping genre TMDB/TVDB → sous-type (animation, anime, etc.)
 └── dispatcher.py       # Orchestrateur dispatch (replace/merge/new)
 ```
+
+> **Note** : le `genre_mapper.py` est dans `personalscraper/verify/` (V4). V5 l'importe :
+> `from personalscraper.verify.genre_mapper import GenreMapper`
+> Pas de duplication — le mapping genres→catégories est centralisé en V4.
+
+### Intégration avec V4 (verify)
+
+V5 reçoit la liste des médias validés par V4 via `Verifier.get_dispatchable()`.
+Chaque `VerifyResult` contient la `category` déjà calculée par V4's `GenreMapper`.
+V5 ne recalcule PAS la catégorie — il utilise celle de V4.
 
 ### Dépendances
 
@@ -96,46 +105,12 @@ def choose_disk(
     Returns None if no disk qualifies."""
 ```
 
-### `genre_mapper.py` — Mapping genre → sous-type
-
-```python
-# Default mapping (configurable)
-GENRE_TO_SUBTYPE = {
-    # Movies
-    ("movie", "Animation"): "films animations",
-    ("movie", "Documentaire"): "films documentaires",
-    ("movie", "Documentary"): "films documentaires",
-    ("movie", None): "films",  # default
-
-    # TV Shows
-    # Anime detection: V3 includes <country> from API origin_country in tvshow.nfo
-    # If country contains "JP" + genre "Animation" → anime
-    ("tvshow", "Animation", "JP"): "series animes",
-    ("tvshow", "Animation"): "series animations",
-    ("tvshow", "Documentaire"): "series documentaires",
-    ("tvshow", "Documentary"): "series documentaires",
-    ("tvshow", None): "series",  # default
-}
-
-def determine_category(
-    media_type: str,
-    nfo_path: Path,
-) -> str:
-    """Read genre from .nfo XML, map to disk category.
-    Falls back to default if genre not in mapping."""
-```
-
-> **Limites de la détection anime** :
->
-> - L'heuristique `Animation + JP` est une approximation. Certains animes sont co-produits
->   hors Japon (Netflix originals, co-productions), et `origin_country` peut ne pas contenir "JP".
-> - TMDB utilise `origin_country` (code ISO "JP"), TVDB peut utiliser un nom complet ("Japan")
->   — normaliser les deux formats dans le mapper.
-> - Le terme "anime" est souvent un tag communautaire, pas un genre officiel API.
-> - Pour les cas ambigus, l'utilisateur peut déplacer manuellement ou ajouter un override
->   dans le mapping configurable.
-
 ### `dispatcher.py` — Orchestrateur
+
+> **Catégorisation** : V5 ne fait PAS de mapping genre→catégorie.
+> La catégorie est fournie par V4 (verify) dans `VerifyResult.category`.
+> V5 utilise `from personalscraper.verify.genre_mapper import GenreMapper` uniquement
+> en mode standalone (si V5 est exécuté sans V4, fallback sur le genre_mapper directement).
 
 ```python
 @dataclass
@@ -156,20 +131,24 @@ class Dispatcher:
                  dry_run: bool = False):
         ...
 
-    def process(self, staging_dir: Path) -> list[DispatchResult]:
-        """Dispatch all media from 001-MOVIES/ and 002-TVSHOWS/."""
+    def process(self, verified: list["VerifyResult"] | None = None,
+                staging_dir: Path | None = None) -> list[DispatchResult]:
+        """Dispatch verified media to storage disks.
+        If verified provided: dispatch only valid/fixed items (V4 output).
+        If staging_dir provided (standalone mode): scan filesystem + categorize via genre_mapper fallback.
+        At least one of verified/staging_dir must be provided."""
 
-    def dispatch_movie(self, movie_dir: Path) -> DispatchResult:
+    def dispatch_movie(self, movie_dir: Path, category: str) -> DispatchResult:
         """Dispatch a movie:
-        1. Read genre from .nfo → determine category
+        1. Category already determined by V4 (passed as parameter)
         2. Search index for existing
         3. If found → replace (delete old, move new)
         4. If new → choose_disk(most free space) → move
         """
 
-    def dispatch_tvshow(self, show_dir: Path) -> DispatchResult:
+    def dispatch_tvshow(self, show_dir: Path, category: str) -> DispatchResult:
         """Dispatch a TV show:
-        1. Read genre from .nfo → determine category
+        1. Category already determined by V4 (passed as parameter)
         2. Search index for existing
         3. If found → merge (copy new files only)
         4. If new → choose_disk(most free space) → move
@@ -188,19 +167,11 @@ class Dispatcher:
 ## Flux de données
 
 ```
-001-MOVIES/Title (Year)/          002-TVSHOWS/Show Name (Year)/
+V4 VerifyResult[]                 (category déjà calculée par V4)
         │                                   │
-        ▼                                   ▼
-┌──────────────┐                  ┌──────────────┐
-│ read .nfo    │                  │ read .nfo    │
-│ → genre      │                  │ → genre      │
-└──────┬───────┘                  └──────┬───────┘
-       │                                 │
-       ▼                                 ▼
-┌──────────────┐                  ┌──────────────┐
-│ genre_mapper │                  │ genre_mapper │
-│ → category   │                  │ → category   │
-└──────┬───────┘                  └──────┬───────┘
+  ┌─────┴─────────────┐            ┌────────┴──────────────┐
+  │ movie_dir + category│           │ show_dir + category    │
+  └─────┬─────────────┘            └────────┬──────────────┘
        │                                 │
        ▼                                 ▼
 ┌──────────────┐                  ┌──────────────┐
@@ -244,12 +215,12 @@ DISK_CATEGORIES = {
 
 ## Gestion d'erreurs
 
-| Situation                     | Comportement                                             |
-| ----------------------------- | -------------------------------------------------------- |
-| Disque non monté              | Skip ce disque, log WARNING                              |
-| Espace insuffisant (< 100 Go) | Skip + WARNING + notification                            |
-| Aucun disque compatible       | Skip + WARNING + notification, média reste dans A TRIER/ |
-| .nfo absent (pas de genre)    | Utiliser la catégorie par défaut (films/series)          |
-| Erreur pendant le move        | Log ERROR, ne pas supprimer la source, continuer         |
-| Vérification post-move échoue | Log ERROR, garder source et dest, signaler               |
-| Index corrompu                | Recréer l'index (rebuild), log WARNING                   |
+| Situation                     | Comportement                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| Disque non monté              | Skip ce disque, log WARNING                                                                     |
+| Espace insuffisant (< 100 Go) | Skip + WARNING + notification                                                                   |
+| Aucun disque compatible       | Skip + WARNING + notification, média reste dans A TRIER/                                        |
+| .nfo absent (pas de genre)    | Ne devrait pas arriver si V4 a bloqué. En mode standalone : catégorie par défaut (films/series) |
+| Erreur pendant le move        | Log ERROR, ne pas supprimer la source, continuer                                                |
+| Vérification post-move échoue | Log ERROR, garder source et dest, signaler                                                      |
+| Index corrompu                | Recréer l'index (rebuild), log WARNING                                                          |
