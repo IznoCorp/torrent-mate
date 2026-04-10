@@ -4,17 +4,20 @@
 
 ## Contexte
 
-Une fois les médias triés et scrapés, il faut les envoyer sur le bon disque de stockage.
-Les règles diffèrent selon le type de média (replace pour films, merge pour séries).
+Après V3 (scrape), les médias dans `001-MOVIES/` et `002-TVSHOWS/` ont leurs .nfo, artwork,
+et les épisodes sont renommés dans des dossiers `Saison XX/`. V4 doit les envoyer sur le bon
+disque de stockage.
 
-## Règles de dispatch
+## Décisions prises
 
-| Type                | Si existe déjà                    | Si nouveau                         |
+### Règles de dispatch
+
+| Type                | Si existe déjà sur un disque      | Si nouveau                         |
 | ------------------- | --------------------------------- | ---------------------------------- |
 | Films (tous types)  | **Remplacer** le dossier existant | Disque avec le plus d'espace libre |
 | Séries (tous types) | **Merger** les nouveaux épisodes  | Disque avec le plus d'espace libre |
 
-## Disques et catégories
+### Disques et catégories
 
 | Disque | Catégories                                                                                                                                    |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -23,37 +26,48 @@ Les règles diffèrent selon le type de média (replace pour films, merge pour s
 | Disk3  | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
 | Disk4  | films, films animations, series, series animations, series documentaires, emissions                                                           |
 
-## Outils existants à évaluer
+### Index des médias — réécriture Python
 
-### BashMate/MediaMate (`~/BashMate/MediaMate/FindMedia/`)
+- **Réécrire from scratch** en Python (pas de wrapper autour des scripts bash BashMate)
+- Les scripts bash (`index-medias.sh`, `find-media.sh`) sont trop limités :
+  - Fichier plat sans structure (pas de type, pas de disque)
+  - Pas de mise à jour incrémentale
+  - Pas de fuzzy matching
+  - Pas de tracking des suppressions
 
-- `index-medias.sh` : indexe tous les dossiers médias dans `~/.medias_cache`
-- `find-media.sh` : recherche grep case-insensitive dans le cache
+### Format d'index
 
-**Limites identifiées :**
+- **JSON** pour la simplicité (pas SQLite — le volume est faible, ~quelques milliers d'entrées)
+- Structure : `{nom_normalisé: {disk, category, path, type, last_updated}}`
+- Mise à jour incrémentale (scan only what changed since last run)
+- Matching intelligent : normalisation unicode, fuzzy si nécessaire
 
-- Pas de mise à jour incrémentale (rebuild complet à chaque fois)
-- Matching par sous-chaîne simple (pas de fuzzy)
-- Fichier plat sans structure (pas de type, pas de disque)
-- Pas de tracking des suppressions (entrées orphelines)
+### Mapping catégorie → dossier disque
 
-### Recommandation préliminaire
+Le type de média (film, série, etc.) détermine dans quel sous-dossier du disque il va.
+Ce mapping doit être **configurable** (fichier de config ou .env).
 
-Réécrire un index Python intégré au pipeline qui :
+```
+001-MOVIES    → films/
+002-TVSHOWS   → series/
+004-AUDIO     → livres audios/
+```
 
-- Maintient un index structuré (JSON/SQLite) avec disque + catégorie + chemin
-- Supporte la mise à jour incrémentale
-- Offre un matching intelligent (fuzzy, normalisation accents)
-- Est importable comme module
+Note : certains sous-types (films animations, series animes, etc.) nécessitent
+une détection plus fine (genre TMDB/TVDB ? tag dans le nom ? mapping manuel ?).
 
 ## Questions ouvertes
 
-- [ ] Réécrire l'index from scratch ou wrapper autour des scripts bash existants ?
-- [ ] Format d'index : JSON (simple) ou SQLite (performant sur gros volumes) ?
-- [ ] Comment gérer le merge de séries ? (copier uniquement les fichiers manquants ? écraser si même nom ?)
-- [ ] Vérification d'espace libre avant déplacement (seuil minimum ?)
-- [ ] Que faire si aucun disque n'a assez d'espace ?
+- [ ] Comment distinguer les sous-types (films vs films animations, series vs series animes) ?
+      → Par le genre TMDB/TVDB ? Par un tag dans le nom ? Manuellement ?
+- [ ] Seuil minimum d'espace libre avant de refuser un dispatch ?
+- [ ] Que faire si aucun disque n'a la catégorie et assez d'espace ?
 
-## Notes de brainstorming
+## Contraintes techniques
 
-_À compléter lors de la session de brainstorming dédiée_
+1. **Chemins avec espaces** — tous les disques ont des chemins avec espaces
+2. **Merge séries** — copier uniquement les fichiers qui n'existent pas déjà (ou écraser si même nom)
+3. **Replace films** — supprimer l'ancien dossier, copier le nouveau
+4. **Vérification post-move** — s'assurer que les fichiers sont bien arrivés (taille identique)
+5. **Dry-run** — obligatoire
+6. **Logging** — chaque move/merge doit être loggé pour V5
