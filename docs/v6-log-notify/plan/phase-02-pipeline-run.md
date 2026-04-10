@@ -17,6 +17,7 @@ Implémenter la commande `run` qui enchaîne V1→V5 et envoie le rapport.
 - [ ] Créer un `PipelineReport` au début
 - [ ] Séquence : ingest → sort → scrape → verify → dispatch
   - Chaque `run_*()` retourne un `StepReport` (conversion interne dans chaque version)
+  - **Responsabilité** : chaque orchestrateur de version (run_ingest, run_sort, etc.) convertit ses résultats internes en StepReport. V6 ne fait qu'agréger et envoyer.
   - `report.add_step("ingest", run_ingest(settings, dry_run))` etc.
   - Chaque étape utilise `log.bind(step=...)` pour le contexte structlog
 - [ ] Si une étape échoue fatalement → log ERROR, continuer les suivantes

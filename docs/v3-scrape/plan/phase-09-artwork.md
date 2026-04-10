@@ -26,6 +26,7 @@ Télécharger poster, landscape et season posters depuis TMDB/TVDB.
 - [ ] Retry 2x si échec
 - [ ] Vérifier que le fichier téléchargé a une taille > 0
 - [ ] Skip si fichier existe déjà à destination
+- [ ] Support `dry_run` : si True, log le téléchargement prévu sans écrire de fichier
 
 **Commit** : `v3.9.1: Implement base artwork image downloader`
 

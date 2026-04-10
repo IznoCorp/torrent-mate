@@ -20,6 +20,7 @@ Implémenter les strategies de tri et l'orchestrateur qui retourne list[SortResu
 ### 2.3.2 — Sorter orchestrator
 
 - [ ] Créer `personalscraper/sorter/sorter.py`
+- [ ] SortResult est défini dans `personalscraper/models.py` (V0 phase 2). Import : `from personalscraper.models import SortResult`
 - [ ] Implémenter `Sorter.__init__(settings, cleaner, dry_run)`
 - [ ] Implémenter `process(staging_dir)` → `list[SortResult]`
 - [ ] Implémenter `sort_item(item)` → `SortResult`

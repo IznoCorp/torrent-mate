@@ -106,8 +106,7 @@ class MovieStrategy(SortingStrategy):
 
 class TVShowStrategy(SortingStrategy):
     """Destination: staging_dir/002-TVSHOWS/Show Name/
-    Note: year NOT included in folder name at this stage.
-    V3 (scraper) will rename to 'Show Name (Year)/' after matching on TVDB/TMDB.
+    V2 crée les dossiers séries SANS année (`Show Name/`) — l'année est ajoutée par V3 après matching API.
     Uses fuzzy matching to find existing show folders."""
 
 class DefaultStrategy(SortingStrategy):
@@ -123,10 +122,13 @@ class DefaultStrategy(SortingStrategy):
 
 ```python
 from rapidfuzz import fuzz, process
+from personalscraper.text_utils import media_processor
 
-def media_processor(s: str) -> str:
-    """Normalise pour le matching média : lowercase, NFD decomposition (accents FR),
-    suppression ponctuation. Partagé avec V3/V5."""
+# media_processor(s: str) -> str
+# Défini dans `personalscraper/text_utils.py` (module partagé).
+# Import : `from personalscraper.text_utils import media_processor`
+# Normalise pour le matching média : lowercase, NFD decomposition (accents FR),
+# suppression ponctuation. Partagé avec V3/V5.
 
 def find_matching_directory(
     name: str,

@@ -4,26 +4,27 @@
 
 ## Phases
 
-| #   | Phase                                    | Fichier                                                          | Status |
-| --- | ---------------------------------------- | ---------------------------------------------------------------- | ------ |
-| 1   | Infrastructure test (registry, markers)  | [phase-01-test-infra.md](phase-01-test-infra.md)                 | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2_            |                                                                  | [ ]    |
-| 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md)           | [ ]    |
-| ·   | _Contrôle de cohérence P2→P3_            |                                                                  | [ ]    |
-| 3   | Assertions pipeline                      | [phase-03-assertions.md](phase-03-assertions.md)                 | [ ]    |
-| ·   | _Contrôle de cohérence P3→P4_            |                                                                  | [ ]    |
-| 4   | Tests E2E films                          | [phase-04-e2e-movies.md](phase-04-e2e-movies.md)                 | [ ]    |
-| ·   | _Contrôle de cohérence P4→P5_            |                                                                  | [ ]    |
-| 5   | Tests E2E séries + test complet pipeline | [phase-05-e2e-tvshows.md](phase-05-e2e-tvshows.md)               | [ ]    |
+| #   | Phase                                    | Fichier                                                | Status |
+| --- | ---------------------------------------- | ------------------------------------------------------ | ------ |
+| 1   | Infrastructure test (registry, markers)  | [phase-01-test-infra.md](phase-01-test-infra.md)       | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2_            |                                                        | [ ]    |
+| 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md) | [ ]    |
+| ·   | _Contrôle de cohérence P2→P3_            |                                                        | [ ]    |
+| 3   | Assertions pipeline                      | [phase-03-assertions.md](phase-03-assertions.md)       | [ ]    |
+| ·   | _Contrôle de cohérence P3→P4_            |                                                        | [ ]    |
+| 4   | Tests E2E films                          | [phase-04-e2e-movies.md](phase-04-e2e-movies.md)       | [ ]    |
+| ·   | _Contrôle de cohérence P4→P5_            |                                                        | [ ]    |
+| 5   | Tests E2E séries + test complet pipeline | [phase-05-e2e-tvshows.md](phase-05-e2e-tvshows.md)     | [ ]    |
 
 ## Dépendances entre phases
 
 ```
-Phase 1 (infra: registry + markers) ──┐
-                                       ├──▶ Phase 4 (E2E films) ──────────┐
-Phase 2 (setup torrents + cleanup) ───┤                                    ├──▶ Phase 5 (E2E séries + complet)
-                                       │
-Phase 3 (assertions)──────────────────┘
+Prérequis : V6 complet (toutes les phases)
+      ↓
+Phase 1 (infra) ──┐
+Phase 2 (setup) ──┤─→ Phase 4 (E2E movies)
+Phase 3 (assert) ─┘         ↓
+                     Phase 5 (E2E complet)
 ```
 
 Phases 1-3 : modules de support (infra, setup, assertions).

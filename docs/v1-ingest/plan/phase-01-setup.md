@@ -22,7 +22,11 @@ Créer le sous-package `personalscraper/ingest/` avec les fichiers vides.
   - Si lock pris par processus vivant → retourner False
   - Si stale → supprimer, prendre le nouveau
 - [ ] Créer `tests/ingest/` (vide, avec `__init__.py`)
-- [ ] Créer `tests/test_lock.py` (test acquire/release, stale detection)
+- [ ] Créer `tests/test_lock.py` avec tests pour :
+  - [ ] `acquire_lock()` crée le fichier lock avec le PID
+  - [ ] `release_lock()` supprime le fichier lock
+  - [ ] Détection de stale lock (processus mort)
+  - [ ] Refus de prendre le lock si processus vivant
 - [ ] Vérifier : `from personalscraper.ingest import qbit_client` fonctionne
 - [ ] Vérifier : `from personalscraper.lock import acquire_lock, release_lock` fonctionne
 - [ ] Créer `~/.personalscraper/` si inexistant (pour `ingested_torrents.json` et `pipeline.lock`)

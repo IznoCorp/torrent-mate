@@ -21,8 +21,9 @@ personalscraper/scraper/
 
 Note : `naming_patterns.py` vit à `personalscraper/naming_patterns.py` (partagé sorter/scraper).
 
-**Important V2→V3** : V2 crée les dossiers TV sans année (`Show Name/`). V3 renomme le dossier
-en `Show Name (Year)/` après matching sur TVDB/TMDB (car il connaît maintenant l'année).
+Import V2 : `from personalscraper.sorter.cleaner import NameCleaner` -- extraction S/E depuis les noms de fichiers.
+
+**Important V2→V3** : V2 crée les dossiers TV sans année (`Show Name/`). V3 renomme `Show Name/` → `Show Name (Year)/` après matching TVDB/TMDB. Gère le cas idempotent (dossier déjà nommé avec année).
 V3 re-parse les noms de dossiers indépendamment de V2 (plus résilient aux exécutions indépendantes).
 
 ### Dépendances
@@ -45,8 +46,9 @@ class MetadataProvider(Protocol):
     """Interface commune pour les fournisseurs de metadata (TMDB, TVDB).
     Inspiré de tinyMediaManager. Permet le testing avec FakeProvider
     et l'extensibilité future.
-    Note : chaque client a aussi des méthodes spécifiques (épisodes TVDB,
-    certifications TMDB) qui ne font PAS partie du Protocol.
+    Le Protocol définit uniquement les méthodes communes minimales. Chaque client
+    (TMDBClient, TVDBClient) a des méthodes spécifiques supplémentaires documentées
+    dans leurs sections respectives.
     """
 
     def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict]:
@@ -114,6 +116,10 @@ class TMDBClient:
 
     def get_image_url(self, path: str, size: str = "original") -> str:
         """Build full image URL: https://image.tmdb.org/t/p/{size}{path}"""
+
+    def select_best_image(self, images: list[dict], image_type: str) -> str | None:
+        """Sélectionne la meilleure image par priorité de langue (fr > en > null)
+        puis par vote_average. Retourne l'URL relative ou None."""
 ```
 
 ### `tvdb_client.py` — Client TVDB
@@ -129,7 +135,9 @@ class TVDBClient:
 
     BASE_URL = "https://api4.thetvdb.com/v4"
 
-    # Mapping langue TMDB → TVDB (pas d'API pour ça, shortCode toujours null)
+    # LANG_MAP convertit les codes internes du pipeline (2 caractères : `fr`, `en`) vers les codes
+    # TVDB API (3 caractères : `fra`, `eng`). Appliqué AVANT les appels API.
+    # Pas d'API pour ça — shortCode toujours null dans /languages.
     LANG_MAP = {"fr": "fra", "en": "eng", "es": "spa", "de": "deu", "it": "ita", "ja": "jpn"}
 
     def __init__(self, api_key: str):
@@ -177,17 +185,18 @@ class TVDBClient:
 ```python
 from rapidfuzz import fuzz, utils
 import unicodedata
+from personalscraper.text_utils import media_processor
 
-def media_processor(s: str) -> str:
-    """Processor adapté aux titres media français.
-    Lowercase + strip non-alphanum + strip accents (NFD decomposition).
-    Obligatoire car default_process de rapidfuzz NE supprime PAS les accents.
-    """
-    s = utils.default_process(s)
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
-        if unicodedata.category(c) != 'Mn'
-    )
+# media_processor(s: str) -> str
+# Défini dans `personalscraper/text_utils.py` (module partagé).
+# Import : `from personalscraper.text_utils import media_processor`
+# Processor adapté aux titres media français.
+# Lowercase + strip non-alphanum + strip accents (NFD decomposition).
+# Obligatoire car default_process de rapidfuzz NE supprime PAS les accents.
+#
+# Implémentation (dans text_utils.py) :
+#   s = utils.default_process(s)
+#   return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 @dataclass
 class MatchResult:
@@ -240,7 +249,10 @@ class NFOGenerator:
 
 ```python
 class ArtworkDownloader:
-    """Download artwork images from TMDB/TVDB."""
+    """Download artwork images from TMDB/TVDB.
+    Timeout : 30s par image. Retry : 2 tentatives (tenacity).
+    Validation : vérifier taille > 0 après téléchargement.
+    Support dry_run : si True, log le téléchargement prévu sans écrire de fichier."""
 
     def download_image(self, url: str, dest: Path) -> bool:
         """Download image to dest. Returns True on success."""
@@ -444,14 +456,15 @@ class Scraper:
 
 ## Gestion d'erreurs
 
-| Situation                           | Comportement                                    |
-| ----------------------------------- | ----------------------------------------------- |
-| API inaccessible (timeout)          | Retry 3x avec backoff, puis skip + WARNING      |
-| Aucun résultat API                  | Skip + log "no match found"                     |
-| Confiance faible (< 0.8, mode auto) | Skip + log + ajout au rapport                   |
-| Confiance faible (mode interactif)  | Proposer les résultats à l'utilisateur          |
-| .nfo déjà existant                  | Skip (ne pas écraser), log INFO                 |
-| Artwork déjà existant               | Skip (ne pas re-télécharger), log INFO          |
-| ffprobe indisponible                | Générer NFO sans `<streamdetails>`, log WARNING |
-| Épisode non trouvé dans l'API       | Garder le nom original, log WARNING             |
-| Rate limit API                      | Respecter les headers Retry-After, backoff      |
+| Situation                           | Comportement                                                  |
+| ----------------------------------- | ------------------------------------------------------------- |
+| API inaccessible (timeout)          | Retry 3x avec backoff, puis skip + WARNING                    |
+| Aucun résultat API                  | Skip + log "no match found"                                   |
+| Confiance faible (< 0.8, mode auto) | Skip + log + ajout au rapport                                 |
+| Confiance faible (mode interactif)  | Proposer les résultats à l'utilisateur                        |
+| .nfo déjà existant                  | Skip (ne pas écraser), log INFO                               |
+| Artwork déjà existant               | Skip (ne pas re-télécharger), log INFO                        |
+| ffprobe indisponible                | Générer NFO sans `<streamdetails>`, log WARNING               |
+| Épisode non trouvé dans l'API       | Garder le nom original, log WARNING                           |
+| Traduction FR épisode absente       | Fallback sur traduction anglaise (`eng`), puis titre original |
+| Rate limit API                      | Respecter les headers Retry-After, backoff                    |

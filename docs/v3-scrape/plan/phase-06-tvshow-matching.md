@@ -39,7 +39,7 @@ Implémenter le matching séries avec TVDB prioritaire et fallback TMDB.
   - `tmdb_client.get_tv_season(tv_id, season)` → épisodes déjà en FR (via `language=fr-FR`)
 - [ ] Retourner {episode_number: episode_title} pour le renommage
 - [ ] Gérer le cas : saison n'existe pas dans l'API → log warning
-- [ ] Gérer le cas : traduction FR indisponible → fallback titre anglais
+- [ ] Gérer le cas : traduction FR indisponible → fallback titre anglais (`eng`), puis titre original si anglais absent
 - [ ] Tests avec des saisons réelles
 
 **Commit** : `v3.6.3: Implement episode title fetching for renaming`

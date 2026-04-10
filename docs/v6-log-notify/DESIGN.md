@@ -26,6 +26,13 @@ Aucune dépendance supplémentaire.
 
 > Ref : [docs/structlog-reference.md](../structlog-reference.md) — configuration complète, processeurs, patterns
 
+> **Points critiques structlog** (voir `docs/structlog-reference.md`) :
+>
+> - `cache_logger_on_first_use=True` — configurer AVANT le premier log
+> - `ProcessorFormatter.wrap_for_formatter` DOIT être le dernier processeur structlog
+> - `JSONRenderer` va dans `ProcessorFormatter`, PAS dans `structlog.configure()`
+> - `foreign_pre_chain` pour capturer les logs stdlib (requests, urllib3, qbittorrent-api)
+
 ```python
 import structlog
 
@@ -126,6 +133,14 @@ class PipelineReport:
         """Format report as Telegram HTML message."""
 ```
 
+### Intégration Settings (pydantic-settings)
+
+Nouvelles clés de configuration (dans `.env`) :
+
+- `TELEGRAM_BOT_TOKEN` : token du bot Telegram (vide = notifications désactivées)
+- `TELEGRAM_CHAT_ID` : ID chat/utilisateur Telegram (vide = notifications désactivées)
+- `HEALTHCHECK_URL` : endpoint healthchecks.io (optionnel, vide = pas de healthcheck)
+
 ## Flux de données
 
 ```
@@ -136,10 +151,12 @@ V4 (verify)  ──┤                                          │
 V5 (dispatch)──┘                                          ▼
                                                     Telegram API
      │
-     └── Chaque étape log via ──▶ get_logger() ──▶ logs/YYYY-MM-DD.json
+     └── Chaque étape log via ──▶ get_logger() ──▶ logs/personalscraper.json
 ```
 
 Chaque version crée un `StepReport` et l'ajoute au `PipelineReport`. À la fin du pipeline, le rapport est envoyé via Telegram (si configuré).
+
+**Responsabilité** : chaque orchestrateur de version (run_ingest, run_sort, etc.) convertit ses résultats internes en StepReport. V6 ne fait qu'agréger et envoyer.
 
 ### Contrat StepReport — conversion list[*Result] → StepReport
 
@@ -168,6 +185,10 @@ scrapés ✅ 1 série scrapée (4 épisodes) ⚠️ 1 film non matché 💾
 ignoré (espace insuffisant) ⏱️ Durée : 4min 32s 📅 2026-04-11 03:04:32
 ```
 
+## Résumé console
+
+Le résumé console utilise `rich.table.Table` : colonnes (Étape, Statut, Succès, Erreurs, Durée). Affiché via `rich.console.Console`.
+
 ## Gestion d'erreurs
 
 | Situation                          | Comportement                      |
@@ -195,6 +216,8 @@ Ceci empêche les collisions entre le cron quotidien et un lancement manuel simu
 > Filet de sécurité : si le pipeline crash avant d'envoyer la notification Telegram
 > (OOM, segfault, disque plein), personne n'est prévenu. Un service de monitoring externe
 > détecte l'absence de signal.
+
+Défini dans `personalscraper/notify/notifier.py` (même module que TelegramNotifier).
 
 ```python
 def ping_healthcheck(url: str, status: str = "") -> None:
