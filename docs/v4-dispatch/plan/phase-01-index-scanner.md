@@ -12,7 +12,8 @@ Implémenter l'index des médias et le scanner de disques.
 - [ ] Implémenter `DiskConfig` et `DiskStatus` dataclasses
 - [ ] Implémenter `get_disk_configs(settings)` : construire les configs depuis .env
 - [ ] Implémenter `get_disk_status(config)` : espace libre, monté ou non
-- [ ] Implémenter `choose_disk(disks, category, min_free_gb)` : meilleur disque
+- [ ] Implémenter `choose_disk(disks, category, min_free_gb, item_size_gb=0)` : meilleur disque
+  - Filtre : `free_space >= min_free_gb + item_size_gb`
 - [ ] Configuration du mapping disque → catégories (dict dans config ou fichier dédié)
 - [ ] Tests unitaires
 

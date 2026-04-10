@@ -14,17 +14,18 @@ Assembler matching + NFO + artwork + saisons + renommage pour traiter une série
   2. Skip si tvshow.nfo existe déjà
   3. `match_tvshow()` → MatchResult (TVDB → fallback TMDB)
   4. Si pas de match → retourner ScrapeResult(action="skipped")
-  5. Récupérer les données série complètes
-  6. `generate_tvshow_nfo()` → écrire tvshow.nfo
-  7. `download_tvshow_artwork()` → poster + landscape + season posters
-  8. Pour chaque saison détectée localement :
+  5. Si nom dossier ≠ `{Title} ({Year})` canonique → renommer le dossier, update show_dir
+  6. Récupérer les données série complètes
+  7. `generate_tvshow_nfo()` → écrire tvshow.nfo
+  8. `download_tvshow_artwork()` → poster + landscape + season posters
+  9. Pour chaque saison détectée localement :
      a. `get_episode_titles(match, season)` → titres épisodes
      b. `create_season_dirs()` → dossier Saison XX/
      c. `rename_episodes()` → renommage fichiers
      d. Pour chaque épisode renommé :
      - `extract_stream_info(video)` → streamdetails
      - `generate_episode_nfo()` → écrire .nfo épisode
-  9. Retourner ScrapeResult(action="scraped", episodes_renamed=N)
+  10. Retourner ScrapeResult(action="scraped", episodes_renamed=N)
 - [ ] Gestion d'erreurs par épisode (ne pas abandonner la série si 1 épisode échoue)
 
 **Commit** : `v3.12.1: Implement TV show scraping orchestrator`

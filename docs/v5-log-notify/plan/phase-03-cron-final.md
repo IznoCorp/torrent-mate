@@ -8,8 +8,10 @@ Configurer l'exécution automatique et valider le projet complet.
 
 ### 5.3.1 — Setup cron
 
+- [ ] Supprimer toute entrée cron legacy (media-ingest, ingest.py) — vérifier avec `crontab -l`
 - [ ] Ajouter l'entrée crontab : `0 3 * * * personalscraper run`
-- [ ] Rediriger stdout/stderr vers les logs (le logger gère déjà, mais pour le cron output)
+- [ ] Vérifier qu'il n'y a qu'UNE seule entrée personalscraper dans le crontab
+- [ ] Rediriger stdout/stderr vers les logs
 - [ ] Tester l'exécution cron
 
 **Commit** : `v5.3.1: Configure daily cron job at 3am`

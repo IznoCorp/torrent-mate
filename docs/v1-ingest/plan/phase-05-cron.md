@@ -1,22 +1,17 @@
-# Phase 5 — Cron + alias CLI
+# Phase 5 — Alias CLI
 
 ## Objectif
 
-Mettre en place l'exécution automatique (cron 3h) et l'alias pour le lancement manuel.
+Créer un alias pratique pour le lancement manuel.
+
+> Note : le cron est configuré en V5 (phase 5.3.1) via `personalscraper run`.
+> V1 ne configure PAS de cron — il ne crée qu'un alias pour le lancement manuel de ingest seul.
 
 ## Sous-phases
 
-### 5.1 — Setup cron
+### 5.1 — Alias shell
 
-- [ ] Créer le dossier `099-SCRIPTS/pipeline/logs/` (pour la sortie cron)
-- [ ] Ajouter l'entrée crontab : `0 3 * * *` exécutant `ingest.py`
-- [ ] Tester que le cron fonctionne (exécution ponctuelle via `crontab -l`)
-
-**Commit** : `v1.5.1: Configure daily cron job at 3am`
-
-### 5.2 — Alias shell
-
-- [ ] Définir un alias `media-ingest` (dans BashMate ou .zshrc)
+- [ ] Définir un alias `media-ingest` → `personalscraper ingest` (dans BashMate ou .zshrc)
 - [ ] Documenter l'usage dans CLAUDE.md (section Commands)
 
-**Commit** : `v1.5.2: Add media-ingest shell alias and update docs`
+**Commit** : `v1.5.1: Add media-ingest shell alias and update docs`

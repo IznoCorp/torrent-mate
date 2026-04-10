@@ -6,6 +6,10 @@ Télécharger poster, landscape et season posters depuis TMDB/TVDB.
 
 ## Sous-phases
 
+> Note : Ne télécharger que poster + landscape (films) et poster + landscape + season posters (séries).
+> Les autres patterns (fanart, clearlogo, etc.) sont définis dans NamingPatterns pour compatibilité
+> avec les fichiers ajoutés manuellement, mais ne sont PAS téléchargés automatiquement.
+
 ### 3.9.1 — Downloader de base
 
 - [ ] Créer `personalscraper/scraper/artwork.py`

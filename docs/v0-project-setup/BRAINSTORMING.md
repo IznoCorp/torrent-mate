@@ -69,9 +69,10 @@ DISK2_DIR=/Volumes/Disk2/medias
 DISK3_DIR=/Volumes/Disk3/medias
 DISK4_DIR=/Volumes/Disk4/medias
 
-# ── TMDB ─────────────────────────────────────
+# ── TMDB / TVDB ──────────────────────────────
 TMDB_API_KEY=
-TMDB_LANGUAGES=fr-FR,en-US
+TVDB_API_KEY=
+SCRAPER_LANGUAGE=fr-FR
 
 # ── Telegram ─────────────────────────────────
 TELEGRAM_BOT_TOKEN=

@@ -1,31 +1,23 @@
-# Phase 1 — Setup projet
+# Phase 1 — Setup sous-package ingest
 
 ## Objectif
 
-Mettre en place la structure de fichiers, la configuration, et le .gitignore.
+Créer le sous-package `personalscraper/ingest/` avec les fichiers vides.
+
+> Note : V0 a déjà créé le package `personalscraper/`, pyproject.toml, .env.example,
+> .gitignore, Settings, CLI stubs, et le logger. Cette phase crée uniquement le
+> sous-package ingest/ avec ses modules vides.
 
 ## Sous-phases
 
-### 1.1 — Créer la structure `099-SCRIPTS/pipeline/`
+### 1.1 — Créer le sous-package ingest
 
-- [ ] Créer le dossier `099-SCRIPTS/pipeline/`
-- [ ] Créer `__init__.py` (package Python)
-- [ ] Créer les fichiers vides : `ingest.py`, `qbit_client.py`, `tracker.py`
+- [ ] Créer `personalscraper/ingest/__init__.py`
+- [ ] Créer `personalscraper/ingest/qbit_client.py` (vide, avec docstring)
+- [ ] Créer `personalscraper/ingest/tracker.py` (vide, avec docstring)
+- [ ] Créer `personalscraper/ingest/ingest.py` (vide, avec docstring)
+- [ ] Créer `tests/ingest/` (vide, avec `__init__.py`)
+- [ ] Vérifier : `from personalscraper.ingest import qbit_client` fonctionne
+- [ ] Créer `~/.personalscraper/` si inexistant (pour `ingested_torrents.json`)
 
-**Commit** : `v1.1.1: Scaffold pipeline package structure`
-
-### 1.2 — Fichier .env et .env.example
-
-- [ ] Créer `.env.example` avec toutes les variables documentées (sans valeurs sensibles)
-- [ ] Créer `.env` avec les vraies valeurs (demander le mot de passe qBit à l'utilisateur)
-- [ ] Ajouter `.env` et `ingested_torrents.json` au `.gitignore` racine
-- [ ] Ajouter `099-SCRIPTS/pipeline/logs/` au `.gitignore`
-
-**Commit** : `v1.1.2: Add pipeline config (.env.example) and update .gitignore`
-
-### 1.3 — Vérifier les dépendances Python
-
-- [ ] Vérifier que `requests` et `python-dotenv` sont installés
-- [ ] Créer `099-SCRIPTS/pipeline/requirements.txt` si nécessaire
-
-**Commit** : `v1.1.3: Add pipeline requirements.txt`
+**Commit** : `v1.1.1: Scaffold ingest sub-package`
