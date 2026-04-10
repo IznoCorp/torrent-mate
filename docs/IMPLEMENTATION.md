@@ -5,9 +5,9 @@
 Automatisation complète du workflow media : de la récupération des torrents terminés jusqu'au dispatch sur les disques de stockage, avec scraping metadata et notifications.
 
 ```
-torrents/complete → A TRIER/ → Sort+Clean → Scrape → Disk1-4
-                                                        ↓
-                                                   Log + Notify
+torrents/complete → A TRIER/ → Sort+Clean → Scrape → Verify → Disk1-4
+                                                                  ↓
+                                                             Log + Notify
 ```
 
 ## Workflow global
@@ -16,18 +16,18 @@ Le projet suit **deux grandes étapes séquentielles** :
 
 ### Étape A — Modélisation complète (AVANT tout code)
 
-Toutes les versions (V1→V5) sont entièrement modélisées avant de toucher au code.
+Toutes les versions (V0→V7) sont entièrement modélisées avant de toucher au code.
 Pour chaque version :
 
 1. **Brainstorming** — Explorer les besoins, contraintes, options → `BRAINSTORMING.md`
 2. **Design** — Architecture, modules, interfaces, flux de données → `DESIGN.md`
 3. **Plan** — Découpage en phases et sous-phases → `plan/INDEX.md` + `plan/phase-XX.md`
 
-Quand les 5 versions sont planifiées → **review globale** de cohérence inter-versions.
+Quand toutes les versions sont planifiées → **review globale** de cohérence inter-versions.
 
 ### Étape B — Implémentation (APRÈS validation complète)
 
-Les versions sont implémentées séquentiellement (V1 → V2 → ... → V5).
+Les versions sont implémentées séquentiellement (V0 → V1 → ... → V7).
 Pour chaque version :
 
 1. Implémenter phase par phase, sous-phase par sous-phase
@@ -59,15 +59,19 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V1 (INGEST)        | [x] Brainstorming + Design + Plan |
 | A. Modélisation V2 (SORT+CLEAN)    | [x] Brainstorming + Design + Plan |
 | A. Modélisation V3 (SCRAPE)        | [x] Brainstorming + Design + Plan |
-| A. Modélisation V4 (DISPATCH)      | [x] Brainstorming + Design + Plan |
-| A. Modélisation V5 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
-| A. Review globale inter-versions   | [x] 18 checks, fixes appliqués    |
-| B. Implémentation V0               | [ ] Après review globale          |
+| A. Modélisation V4 (VERIFY)        | [x] Brainstorming + Design + Plan |
+| A. Modélisation V5 (DISPATCH)      | [x] Brainstorming + Design + Plan |
+| A. Modélisation V6 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
+| A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan |
+| A. Review globale inter-versions   | [ ] À refaire (V4+V7 ajoutés)    |
+| B. Implémentation V0               | [ ]                               |
 | B. Implémentation V1               | [ ]                               |
 | B. Implémentation V2               | [ ]                               |
 | B. Implémentation V3               | [ ]                               |
 | B. Implémentation V4               | [ ]                               |
 | B. Implémentation V5               | [ ]                               |
+| B. Implémentation V6               | [ ]                               |
+| B. Implémentation V7               | [ ]                               |
 
 ---
 
@@ -129,31 +133,59 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ---
 
-### V4 — DISPATCH `[x] Modélisation terminée`
+### V4 — VERIFY `[x] Modélisation terminée`
 
-> Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
+> Quality gate : vérification, correction et qualification des médias scrapés avant dispatch
 
-| Document      | Fichier                                                      | Status |
-| ------------- | ------------------------------------------------------------ | ------ |
-| Brainstorming | [v4-dispatch/BRAINSTORMING.md](v4-dispatch/BRAINSTORMING.md) | [x]    |
-| Design        | [v4-dispatch/DESIGN.md](v4-dispatch/DESIGN.md)               | [x]    |
-| Plan (index)  | [v4-dispatch/plan/INDEX.md](v4-dispatch/plan/INDEX.md)       | [x]    |
+| Document      | Fichier                                                    | Status |
+| ------------- | ---------------------------------------------------------- | ------ |
+| Brainstorming | [v4-verify/BRAINSTORMING.md](v4-verify/BRAINSTORMING.md)   | [x]    |
+| Design        | [v4-verify/DESIGN.md](v4-verify/DESIGN.md)                 | [x]    |
+| Plan (index)  | [v4-verify/plan/INDEX.md](v4-verify/plan/INDEX.md)         | [x]    |
 
-**3 phases, 6 sous-phases** — MediaIndex JSON, genre mapping, Dispatcher replace/merge
+**4 phases, 13 sous-phases** — GenreMapper, MediaChecker, MediaFixer, Verifier CLI
 
 ---
 
-### V5 — LOG + NOTIFY `[x] Modélisation terminée`
+### V5 — DISPATCH `[x] Modélisation terminée`
+
+> Déplacement intelligent des médias vers Disk1-4 (merge séries, replace films, free space)
+
+| Document      | Fichier                                                          | Status |
+| ------------- | ---------------------------------------------------------------- | ------ |
+| Brainstorming | [v5-dispatch/BRAINSTORMING.md](v5-dispatch/BRAINSTORMING.md)     | [x]    |
+| Design        | [v5-dispatch/DESIGN.md](v5-dispatch/DESIGN.md)                   | [x]    |
+| Plan (index)  | [v5-dispatch/plan/INDEX.md](v5-dispatch/plan/INDEX.md)           | [x]    |
+
+**3 phases, 6 sous-phases** — MediaIndex JSON, Dispatcher replace/merge (catégorisation via V4 genre_mapper)
+
+---
+
+### V6 — LOG + NOTIFY `[x] Modélisation terminée`
 
 > Logging structuré + notifications Telegram
 
 | Document      | Fichier                                                          | Status |
 | ------------- | ---------------------------------------------------------------- | ------ |
-| Brainstorming | [v5-log-notify/BRAINSTORMING.md](v5-log-notify/BRAINSTORMING.md) | [x]    |
-| Design        | [v5-log-notify/DESIGN.md](v5-log-notify/DESIGN.md)               | [x]    |
-| Plan (index)  | [v5-log-notify/plan/INDEX.md](v5-log-notify/plan/INDEX.md)       | [x]    |
+| Brainstorming | [v6-log-notify/BRAINSTORMING.md](v6-log-notify/BRAINSTORMING.md) | [x]    |
+| Design        | [v6-log-notify/DESIGN.md](v6-log-notify/DESIGN.md)               | [x]    |
+| Plan (index)  | [v6-log-notify/plan/INDEX.md](v6-log-notify/plan/INDEX.md)       | [x]    |
 
 **3 phases, 7 sous-phases** — TelegramNotifier, pipeline `run`, cron 3h
+
+---
+
+### V7 — E2E TESTS `[x] Modélisation terminée`
+
+> Tests end-to-end complets du pipeline V1→V6 avec de vrais fichiers torrents
+
+| Document      | Fichier                                                            | Status |
+| ------------- | ------------------------------------------------------------------ | ------ |
+| Brainstorming | [v7-e2e-tests/BRAINSTORMING.md](v7-e2e-tests/BRAINSTORMING.md)     | [x]    |
+| Design        | [v7-e2e-tests/DESIGN.md](v7-e2e-tests/DESIGN.md)                   | [x]    |
+| Plan (index)  | [v7-e2e-tests/plan/INDEX.md](v7-e2e-tests/plan/INDEX.md)           | [x]    |
+
+**5 phases, 14 sous-phases** — Registry+markers, torrent setup, assertions, E2E films/séries, cleanup sécurisé
 
 ---
 
@@ -164,8 +196,10 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | TorrentMaker          | `~/dev/TorrentMaker/`         | V0 — Template projet Python (pyproject.toml, Makefile, ruff, Click) |
 | FileMate              | `~/dev/FileMate/`             | V2 — Intégré au projet, tri par type, nettoyage noms                |
 | YoutubeTrailerScraper | `/opt/YoutubeTrailerScraper/` | V3 — Patterns TMDB API réutilisables                                |
-| BashMate/MediaMate    | `~/BashMate/MediaMate/`       | V4 — Index/recherche media (à évaluer)                              |
-| Scripts plex          | `099-SCRIPTS/plex/`           | V4/V5 — cleanFileSystem, trailerScraper                             |
+| BashMate/MediaMate    | `~/BashMate/MediaMate/`       | V5 — Index/recherche media (à évaluer)                              |
+| Scripts plex          | `099-SCRIPTS/plex/`           | V5/V6 — cleanFileSystem, trailerScraper                             |
+| TMDB API docs         | `docs/TMDB-API.md`            | V3/V4 — Référence API vérifiée par tests live                       |
+| TVDB API docs         | `docs/TVDB-API.md`            | V3/V4 — Référence API vérifiée par tests live                       |
 
 ## Décisions techniques
 
@@ -186,6 +220,10 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Tracking ingest | JSON par hash torrent                      | Simple, suffisant pour le volume                         |
 | Lock pipeline   | ~/.personalscraper/pipeline.lock (PID)     | Empêche les exécutions concurrentes (cron + manuel)      |
 | Données locales | Tout dans ~/.personalscraper/              | Cohérent : tracker, index media, lock                    |
+| Quality gate    | V4 verify entre scrape et dispatch         | Corrige puis bloque les dossiers non conformes           |
+| Catégorisation  | genre_mapper.py (V4, partagé V5)           | Mapping genres TMDB/TVDB → catégories disques            |
+| Tests E2E       | Vrais torrents + vrais appels API          | Marker files + registre pour cleanup sécurisé            |
+| Sécurité E2E    | Triple vérification avant suppression      | Marker + UUID session + registre — jamais rm -rf         |
 
 ## Conventions
 
