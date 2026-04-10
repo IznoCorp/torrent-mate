@@ -107,6 +107,8 @@ GENRE_TO_SUBTYPE = {
     ("movie", None): "films",  # default
 
     # TV Shows
+    # Anime detection: V3 includes <country> from API origin_country in tvshow.nfo
+    # If country contains "JP" + genre "Animation" → anime
     ("tvshow", "Animation", "JP"): "series animes",
     ("tvshow", "Animation"): "series animations",
     ("tvshow", "Documentaire"): "series documentaires",

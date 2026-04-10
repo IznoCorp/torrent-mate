@@ -61,7 +61,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V3 (SCRAPE)        | [x] Brainstorming + Design + Plan |
 | A. Modélisation V4 (DISPATCH)      | [x] Brainstorming + Design + Plan |
 | A. Modélisation V5 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
-| A. Review globale inter-versions   | [ ] Après modélisation complète   |
+| A. Review globale inter-versions   | [x] 18 checks, fixes appliqués    |
 | B. Implémentation V0               | [ ] Après review globale          |
 | B. Implémentation V1               | [ ]                               |
 | B. Implémentation V2               | [ ]                               |

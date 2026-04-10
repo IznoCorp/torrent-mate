@@ -15,11 +15,14 @@ personalscraper/scraper/
 ├── artwork.py            # Téléchargement artwork (poster, landscape, season poster)
 ├── mediainfo.py          # Extraction streamdetails via pymediainfo
 ├── confidence.py         # Score de confiance pour le matching
-├── scraper.py            # Orchestrateur principal
-└── naming_patterns.py    # Patterns de nommage MediaElch (partagé avec sorter/)
+└── scraper.py            # Orchestrateur principal
 ```
 
-Note : `naming_patterns.py` est au niveau `personalscraper/naming_patterns.py` (partagé entre sorter et scraper).
+Note : `naming_patterns.py` vit à `personalscraper/naming_patterns.py` (partagé sorter/scraper).
+
+**Important V2→V3** : V2 crée les dossiers TV sans année (`Show Name/`). V3 renomme le dossier
+en `Show Name (Year)/` après matching sur TVDB/TMDB (car il connaît maintenant l'année).
+V3 re-parse les noms de dossiers indépendamment de V2 (plus résilient aux exécutions indépendantes).
 
 ### Dépendances
 

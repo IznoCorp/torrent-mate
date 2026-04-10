@@ -13,8 +13,7 @@ personalscraper/sorter/
 ├── file_type.py         # FileType enum + detection (from FileMate)
 ├── strategies.py        # Movie/TVShow/Default strategies (from FileMate)
 ├── matcher.py           # Fuzzy directory matching (from FileMate)
-├── sorter.py            # Main sorting orchestrator
-└── naming_patterns.py   # Configurable naming pattern loader
+└── sorter.py            # Main sorting orchestrator
 ```
 
 ### Dépendances
@@ -90,6 +89,8 @@ class MovieStrategy(SortingStrategy):
 
 class TVShowStrategy(SortingStrategy):
     """Destination: staging_dir/002-TVSHOWS/Show Name/
+    Note: year NOT included in folder name at this stage.
+    V3 (scraper) will rename to 'Show Name (Year)/' after matching on TVDB/TMDB.
     Uses fuzzy matching to find existing show folders."""
 
 class DefaultStrategy(SortingStrategy):
@@ -111,19 +112,11 @@ def find_matching_directory(
 
 ### `sorter.py` — Orchestrateur
 
+````python
+## Note: SortResult est défini dans `personalscraper/models.py` (V0), pas ici.
+
 ```python
-@dataclass
-class SortResult:
-    """Result of sorting a single media item."""
-    source: Path
-    destination: Path
-    media_type: FileType
-    title: str
-    year: int | None
-    season: int | None
-    episode: int | None
-    action: str  # "moved", "skipped", "error"
-    error: str | None = None
+# from personalscraper.models import SortResult
 
 class Sorter:
     """Main sorting orchestrator."""
@@ -137,7 +130,7 @@ class Sorter:
 
     def sort_item(self, item: Path) -> SortResult:
         """Sort a single file or directory."""
-```
+````
 
 **Changement clé vs FileMate** : `process()` retourne `list[SortResult]` au lieu de None.
 

@@ -12,7 +12,7 @@ Générer `tvshow.nfo` (`<tvshow>`) et les NFO épisodes (`<episodedetails>`).
 - [ ] Tags : title, showtitle, originaltitle, year, premiered, plot, status, mpaa, runtime
 - [ ] Tags IDs : uniqueid (tvdb default, tmdb, imdb), id, episodeguide
 - [ ] Tags ratings : `<rating name="themoviedb|tvdb">`
-- [ ] Tags : genre, tag, studio, episode count, season count
+- [ ] Tags : genre, tag, studio, country (origin_country from API — needed by V4 for anime detection), episode count, season count
 - [ ] Tags acteurs : `<actor>` avec name, role, order, thumb
 - [ ] Tags images inline : `<thumb aspect="poster">`, `<fanart><thumb>`
 - [ ] Tag generator
