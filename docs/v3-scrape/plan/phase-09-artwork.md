@@ -9,6 +9,13 @@ Télécharger poster, landscape et season posters depuis TMDB/TVDB.
 > Note : Ne télécharger que poster + landscape (films) et poster + landscape + season posters (séries).
 > Les autres patterns (fanart, clearlogo, etc.) sont définis dans NamingPatterns pour compatibilité
 > avec les fichiers ajoutés manuellement, mais ne sont PAS téléchargés automatiquement.
+>
+> **Mapping artwork TMDB vs TVDB** :
+>
+> - TMDB : `posters[]` → poster, `backdrops[]` → landscape (filtrer avec `include_image_language=fr,en,null`)
+> - TVDB : type 2 = Poster série, type 3 = Background série (≈landscape, 1920×1080), type 7 = Poster saison
+> - ⚠️ TVDB n'a pas de type "landscape" — le Background est l'équivalent le plus proche
+> - Ref : [docs/TVDB-API.md — Types d'artwork](../../TVDB-API.md#types-dartwork)
 
 ### 3.9.1 — Downloader de base
 

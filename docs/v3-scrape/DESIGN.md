@@ -34,6 +34,8 @@ V3 re-parse les noms de dossiers indépendamment de V2 (plus résilient aux exé
 
 ### `tmdb_client.py` — Client TMDB
 
+> Ref : [docs/TMDB-API.md](../TMDB-API.md)
+
 ```python
 class TMDBClient:
     """Client for The Movie Database API v3."""
@@ -41,29 +43,43 @@ class TMDBClient:
     BASE_URL = "https://api.themoviedb.org/3"
 
     def __init__(self, api_key: str, language: str = "fr-FR"):
+        """Auth par Bearer token (recommandé) ou api_key query param."""
         ...
 
     def search_movie(self, title: str, year: int | None = None) -> list[dict]:
-        """GET /search/movie — returns list of results."""
+        """GET /search/movie — returns list of results.
+        ⚠️ Le param 'year' booste la pertinence mais n'exclut PAS les autres années.
+        Filtrer côté client par release_date si besoin d'un filtre strict.
+        Réponse vide = HTTP 200 avec results:[] (pas 404)."""
 
     def get_movie(self, movie_id: int) -> dict:
-        """GET /movie/{id}?append_to_response=credits,images — details + images en un appel.
-        Utilise append_to_response pour batcher credits et images (1 appel au lieu de 2)."""
+        """GET /movie/{id}?append_to_response=credits,images,external_ids,release_dates
+        &include_image_language=fr,en,null
+        ⚠️ include_image_language est OBLIGATOIRE sinon 5x-31x moins d'images.
+        release_dates nécessaire pour extraire la certification FR (type=3 theatrical).
+        Ref : docs/TMDB-API.md#certifications-fr--extraction"""
 
     def search_tv(self, title: str, year: int | None = None) -> list[dict]:
-        """GET /search/tv — fallback for TV shows."""
+        """GET /search/tv — fallback for TV shows.
+        Utilise first_air_date_year (pas year) pour les séries."""
 
     def get_tv(self, tv_id: int) -> dict:
-        """GET /tv/{id}?append_to_response=credits,images — details + images en un appel."""
+        """GET /tv/{id}?append_to_response=aggregate_credits,images,external_ids,content_ratings
+        &include_image_language=fr,en,null
+        ⚠️ Utiliser aggregate_credits (pas credits) pour les séries — regroupe les rôles multiples.
+        ⚠️ episode_run_time est vide pour les séries récentes → utiliser runtime par épisode."""
 
     def get_tv_season(self, tv_id: int, season: int) -> dict:
-        """GET /tv/{id}/season/{season} — episode list with titles."""
+        """GET /tv/{id}/season/{season}?append_to_response=images
+        Retourne tous les épisodes avec crew + guest_stars + runtime par épisode."""
 
     def get_image_url(self, path: str, size: str = "original") -> str:
-        """Build full image URL from TMDB path."""
+        """Build full image URL: https://image.tmdb.org/t/p/{size}{path}"""
 ```
 
 ### `tvdb_client.py` — Client TVDB
+
+> Ref : [docs/TVDB-API.md](../TVDB-API.md)
 
 ```python
 class TVDBClient:
@@ -71,23 +87,45 @@ class TVDBClient:
 
     BASE_URL = "https://api4.thetvdb.com/v4"
 
+    # Mapping langue TMDB → TVDB (pas d'API pour ça, shortCode toujours null)
+    LANG_MAP = {"fr": "fra", "en": "eng", "es": "spa", "de": "deu", "it": "ita", "ja": "jpn"}
+
     def __init__(self, api_key: str):
         ...
 
     def login(self) -> None:
-        """POST /login — obtain bearer token."""
+        """POST /login — obtain bearer token (clé Negotiated Contract, pas de PIN).
+        Token valide 1 mois. Re-login automatique sur HTTP 401."""
 
-    def search_series(self, title: str) -> list[dict]:
-        """GET /search?query={title}&type=series"""
+    def search_series(self, title: str, year: int | None = None) -> list[dict]:
+        """GET /search?query={title}&type=series[&year={year}]
+        ⚠️ La recherche retourne des résultats en snake_case (image_url, first_air_time, tvdb_id)
+        alors que les endpoints entity utilisent du camelCase."""
 
     def get_series(self, series_id: int) -> dict:
-        """GET /series/{id}/extended — full details."""
+        """GET /series/{id}/extended?short=true — détails + genres + seasons + remoteIds + contentRatings.
+        short=true exclut artworks/characters/trailers (réduit le payload).
+        ⚠️ Les champs audioLanguages/subtitleLanguages/spokenLanguages n'existent PAS."""
 
     def get_season_episodes(self, series_id: int, season: int) -> list[dict]:
-        """GET /series/{id}/episodes/default/{season}"""
+        """GET /series/{id}/episodes/default?season={season}&page=0
+        ⚠️ Pagination 0-indexed. Sans ?season=N, retourne TOUS les épisodes (spéciaux inclus)."""
 
-    def get_series_artworks(self, series_id: int) -> list[dict]:
-        """GET /series/{id}/artworks — posters, fanart, etc."""
+    def get_episode_translations(self, episode_id: int, lang: str = "fra") -> dict:
+        """GET /episodes/{id}/translations/{lang} — titre et synopsis traduits.
+        ⚠️ Codes langue 3 chars : fra, eng, spa (pas fr, en, es)."""
+
+    def get_series_artworks(self, series_id: int, type_id: int | None = None) -> list[dict]:
+        """GET /series/{id}/artworks[?type={type_id}]
+        ⚠️ Retourne un SeriesExtendedRecord (pas juste les artworks).
+        Type IDs vérifiés : 2=Poster série, 3=Background série, 7=Poster saison.
+        Pas de 'landscape' dans TVDB — Background (1920×1080) est l'équivalent.
+        Ref : docs/TVDB-API.md#types-dartwork"""
+
+    def get_remote_ids(self, series_data: dict) -> dict:
+        """Extraire IMDB/TMDB IDs depuis remoteIds[].
+        ⚠️ TMDB a 4 source type IDs : 10=films, 12=séries TV, 15=personnes, 28=collections.
+        Utiliser sourceName='TheMovieDB.com' + type=12 pour les séries."""
 ```
 
 ### `confidence.py` — Score de confiance
@@ -273,7 +311,7 @@ class Scraper:
        │ MatchResult (confidence >= 0.8)
        ▼
 ┌──────────────┐     ┌─────────────┐
-│ mediainfo    │────▶│ pymediainfo │
+│ mediainfo    │────▶│   ffprobe   │
 │ .extract()   │     └─────────────┘
 └──────┬───────┘
        │ stream_info

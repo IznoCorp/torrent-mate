@@ -70,19 +70,25 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 3 (TMDB client)
 
-- [ ] Search movie retourne des résultats
-- [ ] Get movie details retourne titre, année, genre, cast, IDs
-- [ ] Get images retourne des URLs valides
-- [ ] Rate limiting + retry fonctionnent
+- [ ] Search movie retourne des résultats (vérifier que `year` ne filtre pas strictement)
+- [ ] Get movie avec `append_to_response=credits,images,external_ids,release_dates` retourne tout en 1 appel
+- [ ] `include_image_language=fr,en,null` retourne bien 5x+ plus d'images que sans
+- [ ] Certification FR extractible de `release_dates` (type=3 theatrical)
+- [ ] Rate limiting + retry fonctionnent (HTTP 429 → backoff)
+- [ ] Erreurs TMDB correctement parsées (`status_code` interne, pas HTTP code)
 - [ ] La langue fr-FR est appliquée
 
 ### Après Phase 4 (TVDB client)
 
-- [ ] Login + bearer token fonctionne
-- [ ] Search series retourne des résultats
-- [ ] Get series extended retourne les détails
-- [ ] Get season episodes retourne la liste des épisodes avec titres
-- [ ] Get artworks retourne des URLs
+- [ ] Login sans PIN fonctionne (clé Negotiated Contract)
+- [ ] Re-login automatique sur HTTP 401
+- [ ] Search series retourne des résultats (champs snake_case normalisés)
+- [ ] Get series extended (`short=true`) retourne détails + `remoteIds` + `genres` + `seasons[]`
+- [ ] Get season episodes avec `?season=N` retourne les épisodes filtrés (pas tous)
+- [ ] Traductions épisodes FR via `/episodes/{id}/translations/fra`
+- [ ] Mapping langue 3-chars fonctionne (`fra`, `eng`)
+- [ ] Artwork types cachés au démarrage (27 types vérifiés)
+- [ ] IDs croisés TMDB extraits avec le bon source type (12 pour séries, pas 10)
 
 ### Après Phase 5 (Movie matching)
 
@@ -93,9 +99,10 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 6 (TVShow matching)
 
-- [ ] TVDB search → match fonctionne
+- [ ] TVDB search → match fonctionne (utiliser `tvdb_id` du résultat, pas `id`)
 - [ ] Fallback TMDB si TVDB échoue
-- [ ] Épisodes d'une saison récupérés avec titres
+- [ ] IDs croisés IMDB (type=2) et TMDB (type=12) extraits correctement
+- [ ] Épisodes d'une saison récupérés avec titres FR (traduction si disponible, fallback EN)
 - [ ] Mode interactif pour les séries aussi
 
 ### Après Phase 7 (NFO movie)
@@ -110,7 +117,7 @@ Phase 13 : CLI et tests finaux.
 
 - [ ] `tvshow.nfo` XML identique à MediaElch
 - [ ] `episodedetails` XML identique à MediaElch
-- [ ] IDs TVDB + TMDB + IMDB présents
+- [ ] IDs TVDB + TMDB + IMDB présents (TMDB source type 12 pour séries, 10 pour films)
 - [ ] `<streamdetails>` dans les NFO épisode
 
 ### Après Phase 9 (Artwork)
