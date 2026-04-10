@@ -4,70 +4,145 @@
 
 ## Phases
 
-| #   | Phase                                  | Fichier                                                  | Status |
-| --- | -------------------------------------- | -------------------------------------------------------- | ------ |
-| 1   | Naming patterns + mediainfo            | [phase-01-foundations.md](phase-01-foundations.md)       | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2_          |                                                          | [ ]    |
-| 2   | Clients API (TMDB + TVDB)              | [phase-02-api-clients.md](phase-02-api-clients.md)       | [ ]    |
-| ·   | _Contrôle de cohérence P2→P3_          |                                                          | [ ]    |
-| 3   | Confidence scoring + matching          | [phase-03-matching.md](phase-03-matching.md)             | [ ]    |
-| ·   | _Contrôle de cohérence P3→P4_          |                                                          | [ ]    |
-| 4   | NFO generator (movie, tvshow, episode) | [phase-04-nfo.md](phase-04-nfo.md)                       | [ ]    |
-| ·   | _Contrôle de cohérence P4→P5_          |                                                          | [ ]    |
-| 5   | Artwork downloader + episode renaming  | [phase-05-artwork-rename.md](phase-05-artwork-rename.md) | [ ]    |
-| ·   | _Contrôle de cohérence P5→P6_          |                                                          | [ ]    |
-| 6   | Scraper orchestrator + CLI + tests     | [phase-06-orchestrator.md](phase-06-orchestrator.md)     | [ ]    |
-| ·   | _Contrôle de cohérence V3→V4_          |                                                          | [ ]    |
+| #   | Phase                                | Fichier                                                            | Status |
+| --- | ------------------------------------ | ------------------------------------------------------------------ | ------ |
+| 1   | Naming patterns (fichier de config)  | [phase-01-naming-patterns.md](phase-01-naming-patterns.md)         | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2_        |                                                                    | [ ]    |
+| 2   | Extraction mediainfo (streamdetails) | [phase-02-mediainfo.md](phase-02-mediainfo.md)                     | [ ]    |
+| ·   | _Contrôle de cohérence P2→P3_        |                                                                    | [ ]    |
+| 3   | Client API TMDB                      | [phase-03-tmdb-client.md](phase-03-tmdb-client.md)                 | [ ]    |
+| ·   | _Contrôle de cohérence P3→P4_        |                                                                    | [ ]    |
+| 4   | Client API TVDB                      | [phase-04-tvdb-client.md](phase-04-tvdb-client.md)                 | [ ]    |
+| ·   | _Contrôle de cohérence P4→P5_        |                                                                    | [ ]    |
+| 5   | Confidence scoring + matching films  | [phase-05-movie-matching.md](phase-05-movie-matching.md)           | [ ]    |
+| ·   | _Contrôle de cohérence P5→P6_        |                                                                    | [ ]    |
+| 6   | Matching séries (TVDB→TMDB fallback) | [phase-06-tvshow-matching.md](phase-06-tvshow-matching.md)         | [ ]    |
+| ·   | _Contrôle de cohérence P6→P7_        |                                                                    | [ ]    |
+| 7   | NFO generator — films                | [phase-07-nfo-movie.md](phase-07-nfo-movie.md)                     | [ ]    |
+| ·   | _Contrôle de cohérence P7→P8_        |                                                                    | [ ]    |
+| 8   | NFO generator — séries + épisodes    | [phase-08-nfo-tvshow.md](phase-08-nfo-tvshow.md)                   | [ ]    |
+| ·   | _Contrôle de cohérence P8→P9_        |                                                                    | [ ]    |
+| 9   | Artwork downloader                   | [phase-09-artwork.md](phase-09-artwork.md)                         | [ ]    |
+| ·   | _Contrôle de cohérence P9→P10_       |                                                                    | [ ]    |
+| 10  | Dossiers saison + renommage épisodes | [phase-10-episode-rename.md](phase-10-episode-rename.md)           | [ ]    |
+| ·   | _Contrôle de cohérence P10→P11_      |                                                                    | [ ]    |
+| 11  | Orchestrateur films                  | [phase-11-movie-orchestrator.md](phase-11-movie-orchestrator.md)   | [ ]    |
+| ·   | _Contrôle de cohérence P11→P12_      |                                                                    | [ ]    |
+| 12  | Orchestrateur séries                 | [phase-12-tvshow-orchestrator.md](phase-12-tvshow-orchestrator.md) | [ ]    |
+| ·   | _Contrôle de cohérence P12→P13_      |                                                                    | [ ]    |
+| 13  | CLI scrape + tests end-to-end        | [phase-13-cli-tests.md](phase-13-cli-tests.md)                     | [ ]    |
+| ·   | _Contrôle de cohérence V3→V4_        |                                                                    | [ ]    |
 
 ## Dépendances entre phases
 
 ```
-Phase 1 (patterns + mediainfo) ──┐
-                                  ├──▶ Phase 4 (NFO) ──┐
-Phase 2 (API clients) ──▶ Phase 3 (matching) ──────────┤
-                                                        ├──▶ Phase 6 (orchestrator)
-                                  Phase 5 (artwork) ────┘
+Phase 1 (naming patterns) ─────────────────────────────────────┐
+Phase 2 (mediainfo) ───────────────────────────────────────────┤
+                                                                ├──▶ Phase 7 (NFO movie) ──▶ Phase 11 (movie orch.)──┐
+Phase 3 (TMDB client) ──▶ Phase 5 (movie matching) ───────────┤                                                     │
+                         ┌──────────────────────────────────────┤                                                     │
+Phase 4 (TVDB client) ──┤                                      ├──▶ Phase 8 (NFO tvshow) ──┐                         │
+                         └──▶ Phase 6 (tvshow matching) ───────┤                            ├──▶ Phase 12 (tv orch.)─┤
+                                                                ├──▶ Phase 9 (artwork) ─────┤                         │
+                                                                └──▶ Phase 10 (ep rename) ──┘                         │
+                                                                                                                      │
+                                                                Phase 13 (CLI + tests) ◀──────────────────────────────┘
 ```
 
-P1 et P2 sont indépendantes. P3 dépend de P2. P4 dépend de P1+P3. P5 dépend de P2. P6 dépend de tout.
+Phases 1-4 : fondations indépendantes (peuvent être parallélisées 1+2 et 3+4).
+Phases 5-6 : matching (dépendent des clients API).
+Phases 7-10 : génération de contenu (dépendent de matching + fondations).
+Phases 11-12 : orchestrateurs (assemblent tout par type de média).
+Phase 13 : CLI et tests finaux.
 
 ## Contrôles de cohérence
 
-### Après Phase 1 (Foundations → API clients)
+### Après Phase 1 (Naming patterns)
 
-- [ ] `NamingPatterns.format()` produit les bons noms de fichiers
-- [ ] `extract_stream_info()` retourne les infos codec/audio/subtitle
-- [ ] Les patterns correspondent exactement à ceux de MediaElch
+- [ ] Tous les patterns MediaElch reproduits exactement
+- [ ] `format()` fonctionne avec les variables de templating
+- [ ] `load()` depuis fichier config fonctionne
 
-### Après Phase 2 (API clients → Matching)
+### Après Phase 2 (Mediainfo)
 
-- [ ] `TMDBClient.search_movie()` retourne des résultats pour "The Boys"
-- [ ] `TVDBClient.search_series()` retourne des résultats pour "Shrinking"
-- [ ] Le fallback TMDB pour les séries fonctionne
-- [ ] Rate limiting et retry fonctionnent
+- [ ] `extract_stream_info()` retourne video/audio/subtitle sur un .mkv réel
+- [ ] Retourne None gracieusement si pymediainfo absent
+- [ ] Le dict retourné est directement utilisable par le NFO generator
 
-### Après Phase 3 (Matching → NFO / Artwork)
+### Après Phase 3 (TMDB client)
 
-- [ ] `score_match()` donne > 0.8 pour un match exact titre + année
-- [ ] `score_match()` donne < 0.5 pour un mauvais match
-- [ ] Le mode interactif propose les résultats correctement
+- [ ] Search movie retourne des résultats
+- [ ] Get movie details retourne titre, année, genre, cast, IDs
+- [ ] Get images retourne des URLs valides
+- [ ] Rate limiting + retry fonctionnent
+- [ ] La langue fr-FR est appliquée
 
-### Après Phase 4 (NFO → Artwork)
+### Après Phase 4 (TVDB client)
 
-- [ ] Le XML généré est valide et parseable
-- [ ] Les NFO contiennent `<streamdetails>` quand mediainfo est disponible
-- [ ] Le format est identique à celui de MediaElch (tags, structure, encoding)
+- [ ] Login + bearer token fonctionne
+- [ ] Search series retourne des résultats
+- [ ] Get series extended retourne les détails
+- [ ] Get season episodes retourne la liste des épisodes avec titres
+- [ ] Get artworks retourne des URLs
 
-### Après Phase 5 (Artwork + Rename → Orchestrator)
+### Après Phase 5 (Movie matching)
 
-- [ ] Les images sont téléchargées aux bons emplacements
-- [ ] Les noms de fichiers artwork suivent les patterns MediaElch
-- [ ] Les épisodes sont renommés au format `S01E01 - Titre.ext`
-- [ ] Les dossiers `Saison XX/` sont créés correctement
+- [ ] `score_match()` est précis (tests avec cas réels)
+- [ ] Match auto si confiance >= 0.8
+- [ ] Skip si confiance < 0.5 en mode auto
+- [ ] Mode interactif fonctionne (propose les choix)
 
-### Après Phase 6 (Orchestrator → V4)
+### Après Phase 6 (TVShow matching)
+
+- [ ] TVDB search → match fonctionne
+- [ ] Fallback TMDB si TVDB échoue
+- [ ] Épisodes d'une saison récupérés avec titres
+- [ ] Mode interactif pour les séries aussi
+
+### Après Phase 7 (NFO movie)
+
+- [ ] XML valide et parseable
+- [ ] Structure identique à MediaElch (comparer tag par tag)
+- [ ] `<streamdetails>` présent quand mediainfo disponible
+- [ ] Tous les IDs (IMDB, TMDB) présents
+- [ ] `<generator><appname>personalscraper</appname>`
+
+### Après Phase 8 (NFO tvshow + episode)
+
+- [ ] `tvshow.nfo` XML identique à MediaElch
+- [ ] `episodedetails` XML identique à MediaElch
+- [ ] IDs TVDB + TMDB + IMDB présents
+- [ ] `<streamdetails>` dans les NFO épisode
+
+### Après Phase 9 (Artwork)
+
+- [ ] Images téléchargées au bon endroit avec les bons noms
+- [ ] Film : poster + landscape
+- [ ] Série : poster + landscape + season posters
+- [ ] Skip si fichier existe déjà
+
+### Après Phase 10 (Episode rename)
+
+- [ ] Dossiers `Saison XX/` créés
+- [ ] Épisodes renommés `S01E01 - Titre.ext`
+- [ ] Sous-titres associés renommés aussi
+- [ ] Dry-run ne déplace rien
+
+### Après Phase 11 (Movie orchestrator)
+
+- [ ] `scrape_movie(dir)` enchaîne : match → NFO → artwork
+- [ ] Skip si .nfo existe déjà
+- [ ] Retourne `ScrapeResult` correct
+
+### Après Phase 12 (TVShow orchestrator)
+
+- [ ] `scrape_tvshow(dir)` enchaîne : match → tvshow.nfo → artwork → saisons → rename → episode NFO
+- [ ] Skip si tvshow.nfo existe déjà
+- [ ] Gère les séries multi-saisons
+
+### Après Phase 13 (CLI → V4)
 
 - [ ] `personalscraper scrape --dry-run` fonctionne end-to-end
-- [ ] Les .nfo sont générés pour films et séries
-- [ ] Le genre est lisible dans les .nfo (pour V4 genre_mapper)
-- [ ] Les médias non matchés sont reportés (pour les notifications V5)
+- [ ] `personalscraper scrape --interactive` propose les matchs
+- [ ] Les .nfo contiennent le genre (lisible par V4 genre_mapper)
+- [ ] Les médias non matchés sont dans le rapport
