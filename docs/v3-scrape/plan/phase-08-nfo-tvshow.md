@@ -9,9 +9,11 @@ Générer `tvshow.nfo` (`<tvshow>`) et les NFO épisodes (`<episodedetails>`).
 ### 3.8.1 — NFO tvshow.nfo
 
 - [ ] Implémenter `generate_tvshow_nfo(show_data)` → str XML
-- [ ] Tags : title, showtitle, originaltitle, year, premiered, plot, status, mpaa, runtime
+- [ ] Tags : title, showtitle, originaltitle, year, premiered, plot, status, mpaa, runtime (⚠️ utiliser `averageRuntime` de TVDB ou calculer depuis épisodes — `episode_run_time` TMDB est vide pour les séries récentes)
 - [ ] Tags IDs : uniqueid (tvdb default, tmdb, imdb), id, episodeguide
-- [ ] Tags ratings : `<rating name="themoviedb|tvdb">`
+  - ⚠️ TVDB IDs croisés : IMDB = source type 2, TMDB séries = source type 12 (pas 10 qui est films)
+- [ ] Tags ratings : `<rating name="themoviedb">`
+  - Note : TVDB `score` est un score de popularité relatif (pas une note /10), pas adapté pour `<rating>`
 - [ ] Tags : genre, tag, studio, country (origin_country from API — needed by V4 for anime detection), episode count, season count
 - [ ] Tags acteurs : `<actor>` avec name, role, order, thumb
 - [ ] Tags images inline : `<thumb aspect="poster">`, `<fanart><thumb>`

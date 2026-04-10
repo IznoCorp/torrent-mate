@@ -22,6 +22,7 @@ Implémenter le système de confiance et le matching films via TMDB.
 
 - [ ] Implémenter `match_movie(tmdb_client, title, year)` → MatchResult | None
 - [ ] Rechercher sur TMDB → scorer chaque résultat → garder le meilleur
+- [ ] ⚠️ Le param `year` de TMDB n'est PAS un filtre strict — il booste la pertinence mais retourne d'autres années. Le scoring DOIT comparer `release_date` côté client pour valider l'année.
 - [ ] Si meilleur score >= 0.8 → retourner le MatchResult (auto-accept)
 - [ ] Si meilleur score < 0.5 → retourner None (pas de match)
 - [ ] Si entre 0.5 et 0.8 → retourner le MatchResult (confidence dans le champ float,
