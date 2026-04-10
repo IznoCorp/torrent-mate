@@ -6,9 +6,14 @@ Implémenter la commande `run` qui enchaîne V1→V4 et envoie le rapport.
 
 ## Sous-phases
 
-### 5.2.1 — Commande `run`
+### 5.2.1 — Commande `run` avec lock file
 
+- [ ] Implémenter `acquire_lock()` et `release_lock()` dans un module dédié ou dans `cli.py`
+  - Lock file : `~/.personalscraper/pipeline.lock` (PID du processus)
+  - Détection stale lock : `os.kill(pid, 0)` pour vérifier si le processus est vivant
+  - Si lock pris par un processus vivant → log WARNING, exit 0
 - [ ] Implémenter `personalscraper run` dans `cli.py` (remplacer le stub)
+- [ ] `acquire_lock()` en début, `release_lock()` en try/finally
 - [ ] Séquence : ingest → sort → scrape → dispatch
 - [ ] Créer un `PipelineReport` au début, passer à chaque étape
 - [ ] Chaque étape alimente son `StepReport`
@@ -17,7 +22,7 @@ Implémenter la commande `run` qui enchaîne V1→V4 et envoie le rapport.
 - [ ] Afficher le résumé en console
 - [ ] Support --dry-run (passé à chaque étape)
 
-**Commit** : `v5.2.1: Implement pipeline run command`
+**Commit** : `v5.2.1: Implement pipeline run command with lock file`
 
 ### 5.2.2 — Tests du pipeline complet
 

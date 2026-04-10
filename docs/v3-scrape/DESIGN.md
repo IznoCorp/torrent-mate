@@ -27,7 +27,7 @@ V3 re-parse les noms de dossiers indépendamment de V2 (plus résilient aux exé
 ### Dépendances
 
 - `requests` — API calls (déjà dans deps)
-- `pymediainfo>=7.0.0` — extraction codec/resolution/audio (déjà dans deps)
+- `ffprobe` (via `subprocess`) — extraction codec/resolution/audio (installé via `brew install ffmpeg`, pas de dep Python)
 - `xml.etree.ElementTree` (stdlib) — génération NFO XML
 
 ## Interfaces
@@ -47,22 +47,17 @@ class TMDBClient:
         """GET /search/movie — returns list of results."""
 
     def get_movie(self, movie_id: int) -> dict:
-        """GET /movie/{id}?append_to_response=credits — full movie details."""
-
-    def get_movie_images(self, movie_id: int) -> dict:
-        """GET /movie/{id}/images — posters, backdrops."""
+        """GET /movie/{id}?append_to_response=credits,images — details + images en un appel.
+        Utilise append_to_response pour batcher credits et images (1 appel au lieu de 2)."""
 
     def search_tv(self, title: str, year: int | None = None) -> list[dict]:
         """GET /search/tv — fallback for TV shows."""
 
     def get_tv(self, tv_id: int) -> dict:
-        """GET /tv/{id}?append_to_response=credits"""
+        """GET /tv/{id}?append_to_response=credits,images — details + images en un appel."""
 
     def get_tv_season(self, tv_id: int, season: int) -> dict:
         """GET /tv/{id}/season/{season} — episode list with titles."""
-
-    def get_tv_images(self, tv_id: int) -> dict:
-        """GET /tv/{id}/images"""
 
     def get_image_url(self, path: str, size: str = "original") -> str:
         """Build full image URL from TMDB path."""
@@ -158,20 +153,31 @@ class ArtworkDownloader:
         """Download poster + landscape + season posters for a TV show."""
 ```
 
-### `mediainfo.py` — Extraction streamdetails
+### `mediainfo.py` — Extraction streamdetails via ffprobe
 
 ```python
+import subprocess
+import json
+
 def extract_stream_info(video_path: Path) -> dict | None:
-    """Extract video/audio/subtitle info from a video file using pymediainfo.
+    """Extract video/audio/subtitle info from a video file using ffprobe.
+    Calls: ffprobe -v quiet -print_format json -show_streams -show_format <path>
     Returns dict compatible with NFO <streamdetails> format:
     {
         "video": {"codec": "hevc", "width": 1920, "height": 1080, "aspect": 1.778},
         "audio": [{"language": "fra", "codec": "eac3", "channels": 6}],
         "subtitle": [{"language": "fra"}, {"language": "eng"}]
     }
-    Returns None if pymediainfo not available or file unreadable.
+    Returns None if ffprobe not available or file unreadable.
     """
 ```
+
+> Note : ffprobe est utilisé à la place de pymediainfo. Avantages :
+>
+> - Déjà installé sur le système (via `brew install ffmpeg`)
+> - Zéro dépendance Python supplémentaire (subprocess + json stdlib)
+> - Standard de l'industrie, activement maintenu
+> - Output JSON natif contenant exactement les données nécessaires au NFO
 
 ### `naming_patterns.py` — Patterns de nommage (partagé)
 
@@ -205,9 +211,8 @@ class NamingPatterns:
     def format(self, pattern_name: str, **kwargs) -> str:
         """Format a pattern with given variables."""
 
-    @classmethod
-    def load(cls, path: Path | None = None) -> "NamingPatterns":
-        """Load patterns from config file, or use defaults."""
+    # Pas de load() depuis fichier — ces patterns sont des standards Kodi/MediaElch
+    # et ne changent pas. Si un besoin de personnalisation apparaît, trivial à ajouter.
 ```
 
 ### `scraper.py` — Orchestrateur
@@ -310,6 +315,6 @@ class Scraper:
 | Confiance faible (mode interactif)  | Proposer les résultats à l'utilisateur          |
 | .nfo déjà existant                  | Skip (ne pas écraser), log INFO                 |
 | Artwork déjà existant               | Skip (ne pas re-télécharger), log INFO          |
-| pymediainfo indisponible            | Générer NFO sans `<streamdetails>`, log WARNING |
+| ffprobe indisponible                | Générer NFO sans `<streamdetails>`, log WARNING |
 | Épisode non trouvé dans l'API       | Garder le nom original, log WARNING             |
 | Rate limit API                      | Respecter les headers Retry-After, backoff      |

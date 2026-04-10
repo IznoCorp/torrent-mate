@@ -65,7 +65,8 @@ dependencies = [
     "pydantic-settings>=2.0",
     "python-dotenv>=1.0.0",
     "requests>=2.31.0",
-    "pymediainfo>=7.0.0",
+    "qbittorrent-api>=2025.1.0",
+    "guessit>=3.8.0",
 ]
 
 [project.optional-dependencies]
@@ -75,6 +76,13 @@ dev = [
     "ruff>=0.4.0",
 ]
 ```
+
+> **Notes sur les dépendances** :
+>
+> - `pymediainfo` supprimé — V3 utilise `ffprobe` (subprocess, déjà installé via `brew install ffmpeg`)
+> - `qbittorrent-api` — V1 wrapper qBittorrent (gère auth, CSRF, compat qBit v5.0+)
+> - `guessit` — V2 parsing noms de fichiers media (remplace le regex custom prévu)
+> - `config.py` utilise `pydantic-settings` (réécrit from scratch, pas copié de TorrentMaker qui utilise des dataclasses)
 
 ## Interfaces
 

@@ -4,18 +4,18 @@
 
 ## Phases
 
-| #   | Phase                            | Fichier                                            | Status |
-| --- | -------------------------------- | -------------------------------------------------- | ------ |
-| 1   | Setup sous-package ingest        | [phase-01-setup.md](phase-01-setup.md)             | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2/P3_ |                                                    | [ ]    |
-| 2   | Client API qBittorrent           | [phase-02-qbit-client.md](phase-02-qbit-client.md) | [ ]    |
-| ·   | _Contrôle de cohérence P2→P4_    |                                                    | [ ]    |
-| 3   | Tracker de torrents ingérés      | [phase-03-tracker.md](phase-03-tracker.md)         | [ ]    |
-| ·   | _Contrôle de cohérence P3→P4_    |                                                    | [ ]    |
-| 4   | Orchestrateur ingest             | [phase-04-ingest.md](phase-04-ingest.md)           | [ ]    |
-| ·   | _Contrôle de cohérence P4→P5_    |                                                    | [ ]    |
-| 5   | Alias CLI                        | [phase-05-cron.md](phase-05-cron.md)               | [ ]    |
-| ·   | _Contrôle de cohérence V1→V2_    |                                                    | [ ]    |
+| #   | Phase                                 | Fichier                                            | Status |
+| --- | ------------------------------------- | -------------------------------------------------- | ------ |
+| 1   | Setup sous-package ingest             | [phase-01-setup.md](phase-01-setup.md)             | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2/P3_      |                                                    | [ ]    |
+| 2   | Wrapper qBittorrent (qbittorrent-api) | [phase-02-qbit-client.md](phase-02-qbit-client.md) | [ ]    |
+| ·   | _Contrôle de cohérence P2→P4_         |                                                    | [ ]    |
+| 3   | Tracker de torrents ingérés           | [phase-03-tracker.md](phase-03-tracker.md)         | [ ]    |
+| ·   | _Contrôle de cohérence P3→P4_         |                                                    | [ ]    |
+| 4   | Orchestrateur ingest                  | [phase-04-ingest.md](phase-04-ingest.md)           | [ ]    |
+| ·   | _Contrôle de cohérence P4→P5_         |                                                    | [ ]    |
+| 5   | Alias CLI                             | [phase-05-cron.md](phase-05-cron.md)               | [ ]    |
+| ·   | _Contrôle de cohérence V1→V2_         |                                                    | [ ]    |
 
 ## Dépendances entre phases
 

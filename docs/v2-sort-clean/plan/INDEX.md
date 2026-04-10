@@ -50,3 +50,6 @@ Phase 1 (file_type + matcher) ──▶ Phase 2 (cleaner) ──▶ Phase 3 (str
 - [ ] Les fichiers dans `001-MOVIES/` et `002-TVSHOWS/` ont des noms propres
 - [ ] Les `SortResult` contiennent title, year, season, episode corrects
 - [ ] V3 peut lire les dossiers triés et identifier les médias à scraper
+- [ ] **Handoff V2→V3** : un dossier série existant SANS année (`Show Name/`)
+      reçoit correctement un nouvel épisode via fuzzy matching (pas de création de doublon)
+- [ ] **Handoff V2→V3** : V3 pourra renommer `Show Name/` → `Show Name (Year)/` sans conflit
