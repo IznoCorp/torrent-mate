@@ -67,6 +67,8 @@ class QBitClient:
     def __init__(self, host: str, port: int, username: str, password: str):
         self._client = qbittorrentapi.Client(
             host=host, port=port, username=username, password=password,
+            REQUESTS_ARGS={"timeout": 30},   # Défaut lib = 15.1s, trop court pour le cron
+            VERIFY_WEBUI_CERTIFICATE=False,   # API locale, pas de cert SSL
         )
 
     def __enter__(self) / __exit__(self):
@@ -170,14 +172,16 @@ Utilise les champs de `personalscraper/config.py` (V0) :
 
 ## Gestion d'erreurs
 
-| Situation                          | Comportement                                    |
-| ---------------------------------- | ----------------------------------------------- |
-| qBit API inaccessible              | Log ERROR, retourner StepReport avec erreur     |
-| Auth échouée                       | Log ERROR, retourner StepReport avec erreur     |
-| Torrent content_path introuvable   | Log WARNING, skip ce torrent, continuer         |
-| Espace disque insuffisant          | Log WARNING, skip ce torrent, continuer         |
-| Erreur de copie/move               | Log ERROR pour ce torrent, continuer les autres |
-| Fichier JSON corrompu              | Recréer un fichier vide, log WARNING            |
-| Fichier déjà existant dans A TRIER | Log INFO (skip), ne pas écraser                 |
+| Situation                          | Exception / détection               | Comportement                                    |
+| ---------------------------------- | ----------------------------------- | ----------------------------------------------- |
+| qBit API inaccessible              | `qbittorrentapi.APIConnectionError` | Log ERROR, retourner StepReport avec erreur     |
+| Auth échouée                       | `qbittorrentapi.LoginFailed`        | Log ERROR, retourner StepReport avec erreur     |
+| Torrent content_path introuvable   | `Path.exists() == False`            | Log WARNING, skip ce torrent, continuer         |
+| Espace disque insuffisant          | `shutil.disk_usage()`               | Log WARNING, skip ce torrent, continuer         |
+| Erreur de copie/move               | `OSError`, `PermissionError`        | Log ERROR pour ce torrent, continuer les autres |
+| Fichier JSON corrompu              | `json.JSONDecodeError`              | Recréer un fichier vide, log WARNING            |
+| Fichier déjà existant dans A TRIER | `Path.exists() == True`             | Log INFO (skip), ne pas écraser                 |
+
+> Ref : [docs/qbittorrent-api-reference.md](../qbittorrent-api-reference.md) — hiérarchie exceptions, TorrentState enum
 
 **Principe : ne jamais crasher sur un torrent individuel.**

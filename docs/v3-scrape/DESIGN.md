@@ -202,20 +202,58 @@ def extract_stream_info(video_path: Path) -> dict | None:
     Calls: ffprobe -v quiet -print_format json -show_streams -show_format <path>
     Returns dict compatible with NFO <streamdetails> format:
     {
-        "video": {"codec": "hevc", "width": 1920, "height": 1080, "aspect": 1.778},
-        "audio": [{"language": "fra", "codec": "eac3", "channels": 6}],
+        "video": {
+            "codec": "hevc",
+            "width": 3840,
+            "height": 2160,
+            "aspect": 1.778,          # Converti de "16:9" → decimal
+            "scantype": "progressive", # Depuis field_order (progressive/interlaced)
+            "durationinseconds": 7627, # round(float(format.duration))
+        },
+        "audio": [
+            {"language": "fra", "codec": "eac3", "channels": 6},
+            {"language": "eng", "codec": "atmos", "channels": 6},  # EAC3+Atmos → "atmos"
+        ],
         "subtitle": [{"language": "fra"}, {"language": "eng"}]
     }
     Returns None if ffprobe not available or file unreadable.
+
+    ⚠️ Conversions critiques (voir docs/ffprobe-reference.md) :
+    - Langue ISO 639-2/B → 639-2/T : ffprobe retourne "fre", Kodi attend "fra" (20 codes)
+    - Aspect ratio : "16:9" → 1.778 (division + round(3))
+    - Durée : round(float(format.duration)), cohérent avec MediaElch
+    - EAC3 + profile Atmos → codec "atmos" dans le NFO
+    - Scantype : field_order "progressive"/"tt"/"bb" → "progressive"/"interlaced"
     """
+
+# ISO 639-2/B → 639-2/T mapping (codes qui diffèrent)
+LANG_B_TO_T = {
+    "alb": "sqi", "arm": "hye", "baq": "eus", "bur": "mya",
+    "chi": "zho", "cze": "ces", "dut": "nld", "fre": "fra",
+    "geo": "kat", "ger": "deu", "gre": "ell", "ice": "isl",
+    "mac": "mkd", "mao": "mri", "may": "msa", "per": "fas",
+    "rum": "ron", "slo": "slk", "tib": "bod", "wel": "cym",
+}
+
+def _normalize_language(lang: str) -> str:
+    """Convert ISO 639-2/B to 639-2/T. 'fre' → 'fra', 'ger' → 'deu'."""
+    return LANG_B_TO_T.get(lang, lang)
+
+def _parse_aspect_ratio(ratio_str: str) -> float:
+    """Convert '16:9' → 1.778, '4:3' → 1.333."""
+    num, den = ratio_str.split(":")
+    return round(int(num) / int(den), 3)
 ```
 
-> Note : ffprobe est utilisé à la place de pymediainfo. Avantages :
+> Ref : [docs/ffprobe-reference.md](../ffprobe-reference.md) — sections 9 (codec mapping), 4-6 (extraction)
 >
-> - Déjà installé sur le système (via `brew install ffmpeg`)
-> - Zéro dépendance Python supplémentaire (subprocess + json stdlib)
-> - Standard de l'industrie, activement maintenu
-> - Output JSON natif contenant exactement les données nécessaires au NFO
+> Points critiques documentés :
+>
+> - **Langue** : ffprobe retourne ISO 639-2/B (`fre`), Kodi NFO attend 639-2/T (`fra`) — 20 codes diffèrent
+> - **Aspect ratio** : ffprobe retourne `"16:9"`, NFO attend `1.778` decimal
+> - **Durée** : `round(float(format.duration))` pour correspondre à MediaElch
+> - **Dolby Atmos** : EAC3 avec `profile="Dolby Digital Plus + Dolby Atmos"` → codec `"atmos"`
+> - **Performance** : ~65ms par fichier (lecture headers uniquement, pas le contenu)
 
 ### `naming_patterns.py` — Patterns de nommage (partagé)
 
