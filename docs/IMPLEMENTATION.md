@@ -63,7 +63,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V5 (DISPATCH)      | [x] Brainstorming + Design + Plan |
 | A. Modélisation V6 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
 | A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan |
-| A. Review globale inter-versions   | [x] 17 issues fixed (5C+12I)      |
+| A. Review globale inter-versions   | [x] 62 issues fixed (17C+30I+15M) |
 | B. Implémentation V0               | [ ]                               |
 | B. Implémentation V1               | [ ]                               |
 | B. Implémentation V2               | [ ]                               |
@@ -193,7 +193,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 | Outil                 | Emplacement                         | Rôle dans le pipeline                                               |
 | --------------------- | ----------------------------------- | ------------------------------------------------------------------- |
-| TorrentMaker          | `~/dev/TorrentMaker/`               | V0 — Template projet Python (pyproject.toml, Makefile, ruff, Click) |
+| TorrentMaker          | `~/dev/TorrentMaker/`               | V0 — Template projet Python (pyproject.toml, Makefile, ruff, Typer) |
 | FileMate              | `~/dev/FileMate/`                   | V2 — Intégré au projet, tri par type, nettoyage noms                |
 | YoutubeTrailerScraper | `/opt/YoutubeTrailerScraper/`       | V3 — Patterns TMDB API réutilisables                                |
 | BashMate/MediaMate    | `~/BashMate/MediaMate/`             | V5 — Index/recherche media (à évaluer)                              |
@@ -205,36 +205,41 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | ffprobe reference     | `docs/ffprobe-reference.md`         | V3 — Extraction streamdetails, mapping codec Kodi, langue ISO       |
 | rapidfuzz reference   | `docs/rapidfuzz-reference.md`       | V3 — Fuzzy matching titres, scorers, media_processor, confidence    |
 | tenacity reference    | `docs/tenacity-reference.md`        | V3 — Retry API calls, backoff exponentiel, rate limits TMDB/TVDB    |
-| rich reference        | `docs/rich-reference.md`            | V0 — CLI output, progress bars, tables, theming, Click integration  |
+| rich reference        | `docs/rich-reference.md`            | V0 — CLI output, progress bars, tables, theming, Typer integration  |
 | structlog reference   | `docs/structlog-reference.md`       | V6 — Logging JSON structuré, context binding, switch dev/prod       |
 
 ## Décisions techniques
 
-| Sujet           | Décision                                        | Raison                                                    |
-| --------------- | ----------------------------------------------- | --------------------------------------------------------- |
-| Déclenchement   | Cron 1x/jour à 3h + commande manuelle           | Robustesse, pas de risque fichier en cours d'écriture     |
-| FileMate        | Intégrer dans ce projet (pas fork externe)      | Utilisé uniquement ici, simplifie la maintenance          |
-| Template projet | Basé sur TorrentMaker                           | pyproject.toml, Makefile, ruff, Click, pydantic-settings  |
-| Config          | pydantic-settings (from scratch)                | TorrentMaker utilise des dataclasses — config réécrite    |
-| Nettoyage noms  | guessit (moteur de règles)                      | Remplace regex custom, 140+ services, cas edge robustes   |
-| Dossiers saison | Créés par V3 (scraper), pas V2                  | MediaElch le faisait avant, V3 prend le relais            |
-| Metadata films  | TMDB API (clé existante)                        | Gratuit, multi-langue, artwork inclus                     |
-| Metadata séries | TVDB API v4 (prioritaire), TMDB fallback        | TVDB meilleur pour séries/anime, TMDB en complément       |
-| Streamdetails   | ffprobe (subprocess)                            | Déjà installé, zéro dep Python, standard industrie        |
-| Notifications   | Telegram bot                                    | Choix utilisateur                                         |
-| Architecture    | Modulaire (1 fichier par concern)               | Testable indépendamment, maintenable                      |
-| Client torrent  | qbittorrent-api (Python lib)                    | Gère auth/CSRF/compat qBit v5.0+, plus fiable que maison  |
-| Tracking ingest | JSON par hash torrent                           | Simple, suffisant pour le volume                          |
-| Lock pipeline   | ~/.personalscraper/pipeline.lock (PID)          | Empêche les exécutions concurrentes (cron + manuel)       |
-| Données locales | Tout dans ~/.personalscraper/                   | Cohérent : tracker, index media, lock                     |
-| Quality gate    | V4 verify entre scrape et dispatch              | Corrige puis bloque les dossiers non conformes            |
-| Catégorisation  | genre_mapper.py (racine package, partagé V4/V5) | Mapping genres TMDB/TVDB → catégories disques             |
-| Tests E2E       | Vrais torrents + vrais appels API               | Marker files + registre pour cleanup sécurisé             |
-| Sécurité E2E    | Triple vérification avant suppression           | Marker + UUID session + registre — jamais rm -rf          |
-| Fuzzy matching  | rapidfuzz (WRatio + media_processor)            | MIT (vs GPL thefuzz), C++ 5-100x plus rapide, accents FR  |
-| API retry       | tenacity (backoff exponentiel)                  | Gère 429/5xx, wait_exception pour Retry-After, composable |
-| CLI output      | rich (progress, tables, theming)                | 56k stars, Click-compatible, auto-détection TTY           |
-| Logging struct. | structlog (JSON + context binding)              | Remplace JsonFormatter custom, switch dev/prod auto       |
+| Sujet            | Décision                                          | Raison                                                    |
+| ---------------- | ------------------------------------------------- | --------------------------------------------------------- |
+| Déclenchement    | Cron 1x/jour à 3h + commande manuelle             | Robustesse, pas de risque fichier en cours d'écriture     |
+| FileMate         | Intégrer dans ce projet (pas fork externe)        | Utilisé uniquement ici, simplifie la maintenance          |
+| Template projet  | Basé sur TorrentMaker                             | pyproject.toml, Makefile, ruff, Typer, pydantic-settings  |
+| Config           | pydantic-settings (from scratch)                  | TorrentMaker utilise des dataclasses — config réécrite    |
+| Nettoyage noms   | guessit (moteur de règles)                        | Remplace regex custom, 140+ services, cas edge robustes   |
+| Dossiers saison  | Créés par V3 (scraper), pas V2                    | MediaElch le faisait avant, V3 prend le relais            |
+| Metadata films   | TMDB API (clé existante)                          | Gratuit, multi-langue, artwork inclus                     |
+| Metadata séries  | TVDB API v4 (prioritaire), TMDB fallback          | TVDB meilleur pour séries/anime, TMDB en complément       |
+| Streamdetails    | ffprobe (subprocess)                              | Déjà installé, zéro dep Python, standard industrie        |
+| Notifications    | Telegram bot                                      | Choix utilisateur                                         |
+| Architecture     | Modulaire (1 fichier par concern)                 | Testable indépendamment, maintenable                      |
+| Client torrent   | qbittorrent-api (Python lib)                      | Gère auth/CSRF/compat qBit v5.0+, plus fiable que maison  |
+| Tracking ingest  | JSON par hash torrent                             | Simple, suffisant pour le volume                          |
+| Lock pipeline    | ~/.personalscraper/pipeline.lock (PID)            | Empêche les exécutions concurrentes (cron + manuel)       |
+| Données locales  | Tout dans ~/.personalscraper/                     | Cohérent : tracker, index media, lock                     |
+| Quality gate     | V4 verify entre scrape et dispatch                | Corrige puis bloque les dossiers non conformes            |
+| Catégorisation   | genre_mapper.py (racine package, partagé V4/V5)   | Mapping genres TMDB/TVDB → catégories disques             |
+| Tests E2E        | Vrais torrents + vrais appels API                 | Marker files + registre pour cleanup sécurisé             |
+| Sécurité E2E     | Triple vérification avant suppression             | Marker + UUID session + registre — jamais rm -rf          |
+| Fuzzy matching   | rapidfuzz (WRatio + media_processor)              | MIT (vs GPL thefuzz), C++ 5-100x plus rapide, accents FR  |
+| API retry        | tenacity (backoff exponentiel)                    | Gère 429/5xx, wait_exception pour Retry-After, composable |
+| CLI output       | rich (progress, tables, theming)                  | 56k stars, Click-compatible, auto-détection TTY           |
+| Logging struct.  | structlog (JSON + context binding)                | Remplace JsonFormatter custom, switch dev/prod auto       |
+| Shared text      | `text_utils.py` (media_processor partagé)         | NFD accents FR, utilisé par V2 matcher, V3 confidence, V5 |
+| Modèles partagés | `models.py` (SortResult, StepReport)              | Contrat inter-versions : chaque run\_\*() → StepReport    |
+| Dossiers TV      | V2 `Show Name/`, V3 → `Show Name (Year)/`         | V2 n'a pas l'année, V3 renomme après matching API         |
+| Seuil disque     | `max(min_free_gb, item_size_gb * 1.5)`            | Formule unifiée V5, garantit marge pour gros fichiers     |
+| E2E marker       | Placement unique après ingest, survit au pipeline | Pas de re-placement — sécurité cleanup par design         |
 
 ## Conventions
 
