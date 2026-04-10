@@ -23,6 +23,7 @@ Implémenter config.py (pydantic Settings), cli.py (Typer app), et models.py.
 - [ ] Options par commande : --dry-run (type hint `bool = typer.Option(False, "--dry-run")`)
 - [ ] Module-level `state` dict pour partager Console et flags entre commandes
 - [ ] Créer `Console(quiet=quiet)` dans le callback principal
+- [ ] Créer `personalscraper/logger.py` stub minimal : `def configure_logging(verbose=False, quiet=False): pass` et `def get_logger(name): return structlog.get_logger(name)` — remplacé par l'implémentation complète en phase 0.3.1
 - [ ] Appeler `configure_logging(verbose, quiet)` dans le callback principal
 - [ ] Installer `rich.traceback.install()` pour des tracebacks lisibles
 - [ ] Entry point : `personalscraper = "personalscraper.cli:app"`

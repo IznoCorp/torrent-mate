@@ -171,7 +171,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Design        | [v6-log-notify/DESIGN.md](v6-log-notify/DESIGN.md)               | [x]    |
 | Plan (index)  | [v6-log-notify/plan/INDEX.md](v6-log-notify/plan/INDEX.md)       | [x]    |
 
-**3 phases, 7 sous-phases** — TelegramNotifier, pipeline `run`, cron 3h
+**3 phases, 7 sous-phases** — TelegramNotifier, pipeline `run`, launchd 3h
 
 ---
 
@@ -185,7 +185,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Design        | [v7-e2e-tests/DESIGN.md](v7-e2e-tests/DESIGN.md)               | [x]    |
 | Plan (index)  | [v7-e2e-tests/plan/INDEX.md](v7-e2e-tests/plan/INDEX.md)       | [x]    |
 
-**5 phases, 14 sous-phases** — Registry+markers, torrent setup, assertions, E2E films/séries, cleanup sécurisé
+**5 phases, 15 sous-phases** — Registry+markers, torrent setup, assertions, E2E films/séries, cleanup sécurisé
 
 ---
 
@@ -225,7 +225,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Architecture     | Modulaire (1 fichier par concern)                 | Testable indépendamment, maintenable                      |
 | Client torrent   | qbittorrent-api (Python lib)                      | Gère auth/CSRF/compat qBit v5.0+, plus fiable que maison  |
 | Tracking ingest  | JSON par hash torrent                             | Simple, suffisant pour le volume                          |
-| Lock pipeline    | ~/.personalscraper/pipeline.lock (PID)            | Empêche les exécutions concurrentes (cron + manuel)       |
+| Lock pipeline    | ~/.personalscraper/pipeline.lock (PID)            | Empêche les exécutions concurrentes (scheduling + manuel) |
 | Données locales  | Tout dans ~/.personalscraper/                     | Cohérent : tracker, index media, lock                     |
 | Quality gate     | V4 verify entre scrape et dispatch                | Corrige puis bloque les dossiers non conformes            |
 | Catégorisation   | genre_mapper.py (racine package, partagé V4/V5)   | Mapping genres TMDB/TVDB → catégories disques             |

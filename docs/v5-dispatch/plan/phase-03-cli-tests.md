@@ -11,6 +11,10 @@ Connecter le dispatcher au CLI et valider end-to-end.
 - [ ] Implémenter `personalscraper dispatch` dans `cli.py`
 - [ ] Option `--rebuild-index` pour forcer un rebuild complet
 - [ ] Support --dry-run, --verbose
+- [ ] Implémenter `run_dispatch(settings, dry_run, verified=None) -> StepReport`
+  - Si verified fourni (pipeline mode) : utiliser directement
+  - Si verified=None (standalone) : scanner staging_dir + catégoriser via GenreMapper
+  - Le lock est acquis au niveau CLI, PAS dans run_dispatch()
 - [ ] Alimenter StepReport avec les DispatchResult
 - [ ] Afficher résumé (X films → DiskY, X épisodes merged, X skippés)
 

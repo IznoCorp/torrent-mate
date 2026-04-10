@@ -13,6 +13,7 @@ Implémenter la commande `run` qui enchaîne V1→V5 et envoie le rapport.
   - Le module existe déjà — pas besoin de le ré-implémenter
   - `acquire_lock()` en début, `release_lock()` en try/finally
 - [ ] Si `settings.healthcheck_url` configuré : ping `{url}/start` au début du run
+- [ ] Au début du run : `cleanup_old_logs(logs_dir)` pour nettoyer les logs > 30 jours
 - [ ] Au début du run : `structlog.contextvars.clear_contextvars()` + `bind_contextvars(run_id=...)`
 - [ ] Créer un `PipelineReport` au début
 - [ ] Séquence : ingest → sort → scrape → verify → dispatch

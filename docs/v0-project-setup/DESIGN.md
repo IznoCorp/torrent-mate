@@ -203,11 +203,11 @@ class Settings(BaseSettings):
     telegram_chat_id: str = ""
 
     # Monitoring (optional)
-    healthcheck_url: str = ""             # V6: healthchecks.io ping URL (filet de sécurité cron)
+    healthcheck_url: str = ""             # V6: healthchecks.io ping URL (filet de sécurité scheduling)
 
     # Thresholds
     min_free_space_staging_gb: int = 20   # V1: SSD staging area
-    min_free_space_disk_gb: int = 100     # V5: storage disks
+    min_free_space_disk_gb: float = 100   # V5: storage disks (float pour cohérence avec choose_disk)
 ```
 
 ### Logger (structlog, détail en V6 design)

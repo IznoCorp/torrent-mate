@@ -19,7 +19,7 @@ personalscraper/scraper/
 └── scraper.py            # Orchestrateur principal
 ```
 
-Note : `naming_patterns.py` vit à `personalscraper/naming_patterns.py` (partagé sorter/scraper).
+Note : `naming_patterns.py` vit à `personalscraper/naming_patterns.py` (partagé sorter/scraper/verify).
 
 Import V2 : `from personalscraper.sorter.cleaner import NameCleaner` -- extraction S/E depuis les noms de fichiers.
 
@@ -66,8 +66,11 @@ class MetadataProvider(Protocol):
         ...
 ```
 
-TMDBClient et TVDBClient implémentent ce Protocol tout en gardant leurs méthodes spécifiques
-(get_tv_season, get_episode_translations, etc.).
+TMDBClient et TVDBClient implémentent ce Protocol via des méthodes type-specific
+(search_movie/search_tv/search_series pour `search()`, get_movie/get_tv/get_series pour `get_details()`,
+etc.). Chaque client ajoute un thin `search()`/`get_details()`/`get_artwork_urls()` wrapper
+qui dispatche vers la bonne méthode type-specific. Les méthodes type-specific restent disponibles
+(get_tv_season, get_episode_translation, etc.).
 
 ### `tmdb_client.py` — Client TMDB
 
@@ -414,8 +417,15 @@ class Scraper:
     # Matching logic is in standalone functions in confidence.py:
     # match_movie(tmdb_client, title, year) -> MatchResult | None
     # match_tvshow(tvdb_client, tmdb_client, title, year) -> MatchResult | None
+    #   (internally calls match_tvshow_tvdb then fallback match_tvshow_tmdb)
     # prompt_user_choice(results) -> MatchResult | None
     # Scraper calls these with the appropriate clients.
+
+    # Episode management (inline in scraper.py):
+    # create_season_dirs(show_dir, episodes, patterns) -> list[Path]
+    # match_episode_files(video_files, api_episodes) -> dict[Path, dict]
+    # rename_episodes(matched, show_dir, patterns, dry_run) -> int
+    # get_episode_titles(match, season, tvdb_client/tmdb_client, lang) -> dict[int, str]
 ```
 
 ## Flux de données
@@ -425,7 +435,7 @@ class Scraper:
     │
     ▼
 ┌──────────────┐     ┌───────────┐
-│ _match_movie │────▶│ TMDB API  │
+│ match_movie  │────▶│ TMDB API  │
 │  confidence  │     └───────────┘
 └──────┬───────┘
        │ MatchResult (confidence >= 0.8)
@@ -446,7 +456,7 @@ class Scraper:
     │
     ▼
 ┌──────────────┐     ┌───────────┐     ┌───────────┐
-│ _match_tvshow│────▶│ TVDB API  │────▶│ TMDB API  │ (fallback)
+│ match_tvshow │────▶│ TVDB API  │────▶│ TMDB API  │ (fallback)
 │  confidence  │     └───────────┘     └───────────┘
 └──────┬───────┘
        │ MatchResult

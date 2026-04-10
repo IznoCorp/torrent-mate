@@ -76,6 +76,9 @@ class TestRegistry:
 
     def get_cleanup_order(self) -> list[Path]:
         """Retourner les chemins à supprimer en ordre inverse (enfants d'abord)."""
+
+    def cleanup(self) -> None:
+        """Supprimer le fichier registry JSON lui-même après cleanup complet."""
 ```
 
 ### `markers.py` — Fichiers marqueurs
