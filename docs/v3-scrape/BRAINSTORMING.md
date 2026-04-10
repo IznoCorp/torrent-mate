@@ -19,7 +19,7 @@ Après V2 (sort+clean), les médias sont dans `001-MOVIES/` et `002-TVSHOWS/` av
 - **Films** : TMDB (`https://api.themoviedb.org/3`)
 - **Séries** : TVDB en priorité, fallback TMDB si pas trouvé
 - Clé API TMDB : dans `/opt/YoutubeTrailerScraper/.env`
-- Clé API TVDB : dans `.env` du projet (`TVDB_API_KEY=REDACTED_TVDB_API_KEY`)
+- Clé API TVDB : dans `.env` du projet (variable `TVDB_API_KEY`)
 
 ### Matching et confiance
 
