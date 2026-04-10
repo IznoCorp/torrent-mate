@@ -209,8 +209,12 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - When inserting a new version between existing ones, update ALL references: H1 titles, commit prefixes (`vX.Y.Z:`), cross-version refs, sub-phase numbering, data flow diagrams
 - `git filter-repo` works on this repo but `.git/config` is read-only (macOS permissions) — remote removal error is cosmetic, re-add remote after if needed
 - Genre mapper lives in `personalscraper/genre_mapper.py` (package root) and is imported by V4-verify and V5-dispatch — single source of truth for genre→category mapping
+- `media_processor()` lives in `personalscraper/text_utils.py` (shared) — imported by V2 matcher, V3 confidence, V5 media_index. NFD accent stripping for French titles.
+- `SortResult` and `StepReport` are defined in `personalscraper/models.py` (V0) — each `run_*()` converts internal results to `StepReport` before returning
+- TV show folders: V2 creates `Show Name/` (no year), V3 renames to `Show Name (Year)/` after API matching — V3 handles idempotent rename
+- Disk space threshold: `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)` — unified formula across V5
 - Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`
-- rapidfuzz `default_process` does NOT strip accents — use custom `media_processor` with NFD decomposition for French titles
+- rapidfuzz `default_process` does NOT strip accents — use `media_processor` from `personalscraper/text_utils.py` with NFD decomposition for French titles
 - rapidfuzz v3.0+ has NO automatic preprocessing — always pass `processor=media_processor` or scores will be wrong
 - rapidfuzz `WRatio` is the recommended scorer for media titles (balances exact match with tolerance for extra tokens)
 - tenacity `@retry` without args retries FOREVER with NO delay — always specify `stop` and `wait`
