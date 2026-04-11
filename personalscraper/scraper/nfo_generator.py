@@ -159,56 +159,97 @@ class NFOGenerator:
         )
 
     def generate_tvshow_nfo(self, show_data: dict) -> str:
-        """Generate a <tvshow> NFO XML string.
+        """Generate a <tvshow> NFO XML string matching MediaElch format.
+
+        Produces XML with the same tag structure and ordering as MediaElch.
+        For TV shows, TMDB is the default uniqueid (unlike movies which use IMDB).
 
         Args:
-            show_data: TMDB or TVDB show details dict.
+            show_data: TMDB TV show details dict (from get_tv()).
 
         Returns:
             UTF-8 XML string with <?xml?> declaration.
         """
         root = ET.Element("tvshow")
 
-        _sub(root, "title", show_data.get("name", show_data.get("title", "")))
-        self._add_ratings(root, show_data)
-        _sub(root, "userrating", "0")
-        _sub(root, "plot", show_data.get("overview", ""))
-        _sub(root, "mpaa", self._extract_content_rating_fr(show_data))
+        # --- Basic metadata ---
+        title = show_data.get("name", show_data.get("title", ""))
+        _sub(root, "title", title)
+        _sub(root, "showtitle", "")
+        _sub(root, "originaltitle", show_data.get(
+            "original_name", show_data.get("originalName", ""),
+        ))
 
-        # IDs
+        # --- IDs (TMDB default for TV shows, unlike movies) ---
         external_ids = show_data.get("external_ids", {})
         imdb_id = external_ids.get("imdb_id", "")
         tmdb_id = str(show_data.get("id", ""))
         tvdb_id = str(external_ids.get("tvdb_id", ""))
 
-        _sub(root, "id", imdb_id)
-        uniqueid_imdb = _sub(root, "uniqueid", imdb_id)
-        uniqueid_imdb.set("default", "true")
-        uniqueid_imdb.set("type", "imdb")
         uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+        uniqueid_tmdb.set("default", "true")
         uniqueid_tmdb.set("type", "tmdb")
-        if tvdb_id and tvdb_id != "None":
+        if tvdb_id and tvdb_id not in ("", "None"):
             uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
             uniqueid_tvdb.set("type", "tvdb")
+        uniqueid_imdb = _sub(root, "uniqueid", imdb_id or "")
+        uniqueid_imdb.set("type", "imdb")
+        _sub(root, "id", tmdb_id)
 
-        for genre in show_data.get("genres", []):
-            _sub(root, "genre", genre.get("name", ""))
+        # --- Ratings ---
+        self._add_ratings(root, show_data)
+        _sub(root, "userrating", "0")
+        _sub(root, "top250", "0")
 
+        # --- Episode and season counts ---
+        _sub(root, "episode", str(show_data.get("number_of_episodes", 0)))
+        _sub(root, "season", str(show_data.get("number_of_seasons", 0)))
+
+        # --- Plot ---
+        _sub(root, "plot", show_data.get("overview", ""))
+
+        # --- Classification ---
+        _sub(root, "mpaa", self._extract_content_rating_fr(show_data))
+
+        # --- Dates ---
         premiered = show_data.get("first_air_date", "")
         _sub(root, "premiered", premiered)
         year = premiered[:4] if premiered and len(premiered) >= 4 else ""
         _sub(root, "year", year)
+        _sub(root, "dateadded", "")
 
+        # --- Status ---
         _sub(root, "status", show_data.get("status", ""))
 
-        for studio in show_data.get("production_companies", show_data.get("networks", [])):
-            _sub(root, "studio", studio.get("name", ""))
+        # --- Studios (networks for TV shows) ---
+        for network in show_data.get("networks", show_data.get("production_companies", [])):
+            _sub(root, "studio", network.get("name", ""))
 
-        # Actors (aggregate_credits for TMDB TV)
+        _sub(root, "trailer", "")
+
+        # --- Episode guide (TMDB ID for Kodi scraper) ---
+        _sub(root, "episodeguide", tmdb_id)
+
+        # --- Genres ---
+        for genre in show_data.get("genres", []):
+            _sub(root, "genre", genre.get("name", ""))
+
+        # --- Tags (from TMDB keywords) ---
+        keywords = show_data.get("keywords", {})
+        # TMDB TV uses "results" key, TMDB movies use "keywords" key
+        keyword_list = keywords.get("results", keywords.get("keywords", []))
+        for keyword in keyword_list:
+            _sub(root, "tag", keyword.get("name", ""))
+
+        # --- Inline images ---
+        self._add_inline_images_tv(root, show_data)
+
+        # --- Actors (aggregate_credits for TMDB TV) ---
         credits_data = show_data.get("aggregate_credits", show_data.get("credits", {}))
         for actor in credits_data.get("cast", []):
             self._add_actor_tv(root, actor)
 
+        # --- Generator ---
         generator = ET.SubElement(root, "generator")
         _sub(generator, "appname", "personalscraper")
 
@@ -218,10 +259,14 @@ class NFOGenerator:
         )
 
     def generate_episode_nfo(self, episode_data: dict, stream_info: dict | None = None) -> str:
-        """Generate an <episodedetails> NFO XML string.
+        """Generate an <episodedetails> NFO XML string matching MediaElch format.
+
+        Produces XML with the same tag structure and ordering as MediaElch.
+        For episodes, TVDB is the default uniqueid type.
 
         Args:
-            episode_data: Episode dict from TMDB/TVDB API.
+            episode_data: Episode dict enriched with show-level fields
+                (showtitle, mpaa, studio) and crew data from TMDB season API.
             stream_info: Stream details dict from extract_stream_info(), or None.
 
         Returns:
@@ -229,16 +274,67 @@ class NFOGenerator:
         """
         root = ET.Element("episodedetails")
 
+        # --- Basic metadata ---
         _sub(root, "title", episode_data.get("name", ""))
-        _sub(root, "season", str(episode_data.get("season_number", episode_data.get("seasonNumber", 0))))
-        _sub(root, "episode", str(episode_data.get("episode_number", episode_data.get("number", 0))))
+        _sub(root, "showtitle", episode_data.get("showtitle", ""))
+
+        # --- IDs (TVDB default for episodes) ---
+        tvdb_id = str(episode_data.get("tvdb_id", ""))
+        tmdb_id = str(episode_data.get("id", episode_data.get("tmdb_id", "")))
+
+        uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
+        uniqueid_tvdb.set("default", "true")
+        uniqueid_tvdb.set("type", "tvdb")
+        uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+        uniqueid_tmdb.set("type", "tmdb")
+
+        # --- Ratings (episodes use "tmdb" not "themoviedb") ---
+        self._add_ratings(root, episode_data, rating_name="tmdb")
+        _sub(root, "userrating", "0")
+        _sub(root, "top250", "0")
+
+        # --- Season and episode ---
+        _sub(root, "season", str(episode_data.get(
+            "season_number", episode_data.get("seasonNumber", 0),
+        )))
+        _sub(root, "episode", str(episode_data.get(
+            "episode_number", episode_data.get("number", 0),
+        )))
+
+        # --- Plot ---
         _sub(root, "plot", episode_data.get("overview", ""))
-        _sub(root, "runtime", str(episode_data.get("runtime", 0)))
+
+        # --- Classification ---
+        _sub(root, "mpaa", episode_data.get("mpaa", ""))
+        _sub(root, "playcount", "0")
+        _sub(root, "lastplayed", "")
+
+        # --- Aired date ---
         _sub(root, "aired", episode_data.get("air_date", episode_data.get("aired", "")))
 
+        # --- Studio (inherited from show) ---
+        _sub(root, "studio", episode_data.get("studio", ""))
+
+        # --- Credits and director (from TMDB crew data) ---
+        crew = episode_data.get("crew", [])
+        for member in crew:
+            if member.get("job") in ("Writer", "Screenplay", "Story"):
+                _sub(root, "credits", member.get("name", ""))
+
+        for member in crew:
+            if member.get("job") == "Director":
+                _sub(root, "director", member.get("name", ""))
+
+        # --- Episode thumb (screenshot) ---
+        still_path = episode_data.get("still_path", "")
+        if still_path:
+            _sub(root, "thumb", f"{IMAGE_BASE}/original{still_path}")
+
+        # --- Streamdetails ---
         if stream_info:
             self._add_streamdetails(root, stream_info)
 
+        # --- Generator ---
         generator = ET.SubElement(root, "generator")
         _sub(generator, "appname", "personalscraper")
 
@@ -258,16 +354,20 @@ class NFOGenerator:
 
     # --- Private helpers ---
 
-    def _add_ratings(self, root: ET.Element, data: dict) -> None:
-        """Add <ratings> element with TMDB rating.
+    def _add_ratings(
+        self, root: ET.Element, data: dict, rating_name: str = "themoviedb",
+    ) -> None:
+        """Add <ratings> element with rating data.
 
         Args:
             root: Parent XML element.
             data: API data with vote_average and vote_count.
+            rating_name: Rating source name. MediaElch uses "themoviedb" for
+                movies/shows and "tmdb" for episodes.
         """
         ratings = ET.SubElement(root, "ratings")
         rating = ET.SubElement(ratings, "rating")
-        rating.set("name", "themoviedb")
+        rating.set("name", rating_name)
         rating.set("default", "true")
         rating.set("max", "10")
         _sub(rating, "value", str(data.get("vote_average", 0)))
@@ -297,6 +397,44 @@ class NFOGenerator:
                 path = img.get("file_path", "")
                 thumb = _sub(fanart, "thumb", f"{IMAGE_BASE}/original{path}")
                 thumb.set("preview", f"{IMAGE_BASE}/{BACKDROP_PREVIEW_SIZE}{path}")
+
+    def _add_inline_images_tv(self, root: ET.Element, data: dict) -> None:
+        """Add inline <thumb> and <fanart> elements for TV shows.
+
+        MediaElch uses original-size URLs for TV show image previews
+        (unlike movies which use w342/w780 preview sizes).
+
+        Args:
+            root: Parent XML element.
+            data: API data with images.posters and images.backdrops.
+        """
+        images = data.get("images", {})
+
+        # Posters: first one gets aspect="poster", rest get aspect="0" with language
+        posters = images.get("posters", [])
+        for i, img in enumerate(posters):
+            path = img.get("file_path", "")
+            url = f"{IMAGE_BASE}/original{path}"
+            thumb = _sub(root, "thumb", url)
+            if i == 0:
+                thumb.set("aspect", "poster")
+                thumb.set("preview", url)
+            else:
+                lang = img.get("iso_639_1", "")
+                if lang:
+                    thumb.set("language", lang)
+                thumb.set("aspect", "0")
+                thumb.set("preview", url)
+
+        # Backdrops as <fanart><thumb> with original-size previews
+        backdrops = images.get("backdrops", [])
+        if backdrops:
+            fanart = ET.SubElement(root, "fanart")
+            for img in backdrops:
+                path = img.get("file_path", "")
+                url = f"{IMAGE_BASE}/original{path}"
+                thumb = _sub(fanart, "thumb", url)
+                thumb.set("preview", url)
 
     def _add_streamdetails(self, root: ET.Element, stream_info: dict) -> None:
         """Add <fileinfo><streamdetails> element.
