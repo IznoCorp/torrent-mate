@@ -61,7 +61,24 @@ def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview withou
 @app.command()
 def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Sort and clean media files."""
-    state["console"].print("[bold]sort[/bold] — not yet implemented (V2)")
+    from personalscraper.sorter.run import run_sort
+
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        report = run_sort(settings, dry_run=dry_run)
+        console.print(
+            f"[bold]Sort:[/bold] {report.success_count} OK, "
+            f"{report.skip_count} skipped, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        release_lock()
 
 
 @app.command()
