@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-Will replace `torrent-sort` and `099-SCRIPTS/` after V0 implementation.
+V0-V6 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications).
 
 ## Commit Convention
 
@@ -65,6 +65,13 @@ torrent-sort --dry-run
 
 # Check disk space (for choosing target disk)
 df -h /Volumes/Disk{1,2,3,4}
+
+# Scheduling (launchd)
+# Install: cp com.personalscraper.pipeline.plist ~/Library/LaunchAgents/
+# Load:    launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+# Unload:  launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+# Manual:  launchctl start com.personalscraper.pipeline
+# Status:  launchctl list | grep personalscraper
 ```
 
 ## Workflow Pipeline
@@ -161,11 +168,12 @@ A TRIER/
 ├── 006-ANDROID/         # Android apps staging (currently empty)
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
-├── personalscraper/     # Python package (V0+)
+├── personalscraper/     # Python package (V0-V6)
 ├── tests/               # pytest tests
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
 ├── .env.example         # Config template
+├── com.personalscraper.pipeline.plist  # launchd daily agent (3am)
 └── logs/                # Structured JSON logs (gitignored)
 ```
 
