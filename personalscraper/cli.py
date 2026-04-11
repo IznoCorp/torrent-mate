@@ -176,4 +176,112 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
 @app.command()
 def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline")) -> None:
     """Run full pipeline (ingest -> sort -> scrape -> verify -> dispatch)."""
-    state["console"].print("[bold]run[/bold] — not yet implemented (V6)")
+    import logging as _logging
+    from datetime import datetime
+
+    import structlog.contextvars
+    from rich.panel import Panel
+    from rich.table import Table
+
+    from personalscraper.dispatch.run import run_dispatch
+    from personalscraper.logger import cleanup_old_logs
+    from personalscraper.models import PipelineReport
+    from personalscraper.notifier import TelegramNotifier, ping_healthcheck
+    from personalscraper.scraper.run import run_scrape
+    from personalscraper.sorter.run import run_sort
+    from personalscraper.verify.run import run_verify
+
+    console = state["console"]
+    log = _logging.getLogger("pipeline")
+
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        settings = get_settings()
+
+        # Healthcheck start ping
+        ping_healthcheck(settings.healthcheck_url, "/start")
+
+        # Clean old logs and bind run context
+        cleanup_old_logs()
+        structlog.contextvars.clear_contextvars()
+        run_id = datetime.now().isoformat(timespec="seconds")
+        structlog.contextvars.bind_contextvars(run_id=run_id)
+
+        report = PipelineReport(started_at=datetime.now())
+        log.info("Pipeline started (dry_run=%s, run_id=%s)", dry_run, run_id)
+
+        # V1 — Ingest
+        try:
+            report.add_step("ingest", run_ingest(settings, dry_run=dry_run))
+        except Exception:
+            log.exception("Ingest step failed fatally")
+
+        # V2 — Sort
+        try:
+            report.add_step("sort", run_sort(settings, dry_run=dry_run))
+        except Exception:
+            log.exception("Sort step failed fatally")
+
+        # V3 — Scrape
+        try:
+            report.add_step("scrape", run_scrape(settings, dry_run=dry_run))
+        except Exception:
+            log.exception("Scrape step failed fatally")
+
+        # V4 — Verify (returns StepReport + dispatchable list)
+        verified = None
+        try:
+            step_report, verified = run_verify(settings, dry_run=dry_run)
+            report.add_step("verify", step_report)
+        except Exception:
+            log.exception("Verify step failed fatally")
+
+        # V5 — Dispatch (pass verified items from V4)
+        try:
+            report.add_step("dispatch", run_dispatch(settings, dry_run=dry_run, verified=verified))
+        except Exception:
+            log.exception("Dispatch step failed fatally")
+
+        report.finished_at = datetime.now()
+        log.info("Pipeline finished (duration=%s)", report.duration())
+
+        # Console summary using rich Panel + Table
+        table = Table(show_header=True, header_style="bold")
+        table.add_column("Step")
+        table.add_column("OK", justify="right")
+        table.add_column("Skip", justify="right")
+        table.add_column("Err", justify="right")
+        for name, step in report.steps.items():
+            err_style = "red" if step.error_count else ""
+            table.add_row(
+                name.capitalize(),
+                str(step.success_count),
+                str(step.skip_count),
+                f"[{err_style}]{step.error_count}[/{err_style}]" if err_style else str(step.error_count),
+            )
+        dur = report.duration()
+        minutes = int(dur.total_seconds()) // 60
+        seconds = int(dur.total_seconds()) % 60
+        dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
+        status_text = "[green]OK[/green]" if not report.has_errors() else "[red]ERRORS[/red]"
+        console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
+
+        # Telegram notification (if configured)
+        if TelegramNotifier.is_configured(settings):
+            notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+            notifier.send_report(report)
+
+        # Healthcheck end ping
+        ping_healthcheck(
+            settings.healthcheck_url,
+            "" if not report.has_errors() else "/fail",
+        )
+
+        if report.has_errors():
+            raise typer.Exit(1)
+
+    finally:
+        release_lock()
