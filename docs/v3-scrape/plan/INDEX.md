@@ -24,8 +24,8 @@
 | ·   | _Contrôle de cohérence P8→P9_        |                                                                    | [x]    |
 | 9   | Artwork downloader                   | [phase-09-artwork.md](phase-09-artwork.md)                         | [x]    |
 | ·   | _Contrôle de cohérence P9→P10_       |                                                                    | [x]    |
-| 10  | Dossiers saison + renommage épisodes | [phase-10-episode-rename.md](phase-10-episode-rename.md)           | [ ]    |
-| ·   | _Contrôle de cohérence P10→P11_      |                                                                    | [ ]    |
+| 10  | Dossiers saison + renommage épisodes | [phase-10-episode-rename.md](phase-10-episode-rename.md)           | [x]    |
+| ·   | _Contrôle de cohérence P10→P11_      |                                                                    | [x]    |
 | 11  | Orchestrateur films                  | [phase-11-movie-orchestrator.md](phase-11-movie-orchestrator.md)   | [ ]    |
 | ·   | _Contrôle de cohérence P11→P12_      |                                                                    | [ ]    |
 | 12  | Orchestrateur séries                 | [phase-12-tvshow-orchestrator.md](phase-12-tvshow-orchestrator.md) | [ ]    |
@@ -134,10 +134,10 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 10 (Episode rename)
 
-- [ ] Dossiers `Saison XX/` créés
-- [ ] Épisodes renommés `S01E01 - Titre.ext`
-- [ ] Sous-titres associés renommés aussi
-- [ ] Dry-run ne déplace rien
+- [x] Dossiers `Saison XX/` créés
+- [x] Épisodes renommés `S01E01 - Titre.ext`
+- [x] Sous-titres associés renommés aussi
+- [x] Dry-run ne déplace rien
 
 ### Après Phase 11 (Movie orchestrator)
 
