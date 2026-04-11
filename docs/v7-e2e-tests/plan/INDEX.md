@@ -10,7 +10,7 @@
 | ·   | _Contrôle de cohérence P1→P2_            |                                                        | [ ]    |
 | 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md) | [x]    |
 | ·   | _Contrôle de cohérence P2→P3_            |                                                        | [ ]    |
-| 3   | Assertions pipeline                      | [phase-03-assertions.md](phase-03-assertions.md)       | [ ]    |
+| 3   | Assertions pipeline                      | [phase-03-assertions.md](phase-03-assertions.md)       | [x]    |
 | ·   | _Contrôle de cohérence P3→P4_            |                                                        | [ ]    |
 | 4   | Tests E2E films                          | [phase-04-e2e-movies.md](phase-04-e2e-movies.md)       | [ ]    |
 | ·   | _Contrôle de cohérence P4→P5_            |                                                        | [ ]    |
@@ -51,9 +51,9 @@ Phase 5 : test E2E séries + test pipeline complet (films + séries ensemble).
 
 ### Après Phase 3 (Assertions)
 
-- [ ] Chaque fonction d'assertion vérifie les bons critères par étape
-- [ ] Les assertions produisent des messages d'erreur clairs et exploitables
-- [ ] Les assertions sont tolérantes aux timing issues (fichiers en cours d'écriture)
+- [x] Chaque fonction d'assertion vérifie les bons critères par étape
+- [x] Les assertions produisent des messages d'erreur clairs et exploitables
+- [x] Les assertions sont tolérantes aux timing issues (fichiers en cours d'écriture)
 
 ### Après Phase 4 (E2E films)
 
