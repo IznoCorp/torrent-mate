@@ -8,7 +8,7 @@
 | --- | ---------------------------------------- | ------------------------------------------------------ | ------ |
 | 1   | Infrastructure test (registry, markers)  | [phase-01-test-infra.md](phase-01-test-infra.md)       | [x]    |
 | ·   | _Contrôle de cohérence P1→P2_            |                                                        | [ ]    |
-| 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md) | [ ]    |
+| 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md) | [x]    |
 | ·   | _Contrôle de cohérence P2→P3_            |                                                        | [ ]    |
 | 3   | Assertions pipeline                      | [phase-03-assertions.md](phase-03-assertions.md)       | [ ]    |
 | ·   | _Contrôle de cohérence P3→P4_            |                                                        | [ ]    |
@@ -42,12 +42,12 @@ Phase 5 : test E2E séries + test pipeline complet (films + séries ensemble).
 
 ### Après Phase 2 (Setup + Cleanup)
 
-- [ ] `TorrentSetup` ajoute des magnets à qBit avec la catégorie "e2e-test"
-- [ ] `wait_for_completion()` respecte le timeout et retourne les statuts
-- [ ] `TestCleanup` en dry_run affiche le plan sans supprimer
-- [ ] `cleanup_disks()` refuse de supprimer un dossier sans marker valide
-- [ ] `cleanup_torrents()` supprime les torrents catégorie "e2e-test" uniquement
-- [ ] `verify_clean()` confirme qu'aucun fichier de test ne reste
+- [x] `TorrentSetup` ajoute des magnets à qBit avec la catégorie "e2e-test"
+- [x] `wait_for_completion()` respecte le timeout et retourne les statuts
+- [x] `TestCleanup` en dry_run affiche le plan sans supprimer
+- [x] `cleanup_disks()` refuse de supprimer un dossier sans marker valide
+- [x] `cleanup_torrents()` supprime les torrents catégorie "e2e-test" uniquement
+- [x] `verify_clean()` confirme qu'aucun fichier de test ne reste
 
 ### Après Phase 3 (Assertions)
 
