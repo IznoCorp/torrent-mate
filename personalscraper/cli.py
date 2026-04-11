@@ -116,9 +116,38 @@ def scrape(
 
 
 @app.command()
-def verify(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing")) -> None:
+def verify(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
+    fix: bool = typer.Option(True, "--fix/--no-fix", help="Attempt auto-fixes (default: True)"),
+    movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
+    tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
+) -> None:
     """Verify and qualify scraped media before dispatch."""
-    state["console"].print("[bold]verify[/bold] — not yet implemented (V4)")
+    from personalscraper.verify.run import run_verify
+
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        report, dispatchable = run_verify(
+            settings,
+            dry_run=dry_run,
+            fix=fix,
+            movies_only=movies_only,
+            tvshows_only=tvshows_only,
+        )
+        console.print(
+            f"[bold]Verify:[/bold] {report.success_count} OK, "
+            f"{report.error_count} blocked"
+        )
+        console.print(f"  {len(dispatchable)} ready for dispatch")
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        release_lock()
 
 
 @app.command()
