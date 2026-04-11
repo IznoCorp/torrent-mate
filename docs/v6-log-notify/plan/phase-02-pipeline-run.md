@@ -19,7 +19,11 @@ Implémenter la commande `run` qui enchaîne V1→V5 et envoie le rapport.
 - [ ] Séquence : ingest → sort → scrape → verify → dispatch
   - Chaque `run_*()` retourne un `StepReport` (conversion interne dans chaque version)
   - **Responsabilité** : chaque orchestrateur de version (run_ingest, run_sort, etc.) convertit ses résultats internes en StepReport. V6 ne fait qu'agréger et envoyer.
-  - `report.add_step("ingest", run_ingest(settings, dry_run))` etc.
+  - `report.add_step("ingest", run_ingest(settings, dry_run))`
+  - `report.add_step("sort", run_sort(settings, dry_run))`
+  - `report.add_step("scrape", run_scrape(settings, dry_run))`
+  - `step_report, verified = run_verify(settings, dry_run)` puis `report.add_step("verify", step_report)`
+  - `report.add_step("dispatch", run_dispatch(settings, dry_run, verified=verified))`
   - Chaque étape utilise `log.bind(step=...)` pour le contexte structlog
 - [ ] Si une étape échoue fatalement → log ERROR, continuer les suivantes
 - [ ] À la fin : envoyer le rapport via Telegram (si configuré)

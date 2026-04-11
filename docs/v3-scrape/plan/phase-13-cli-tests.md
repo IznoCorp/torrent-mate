@@ -11,7 +11,10 @@ Connecter les orchestrateurs au CLI et valider l'ensemble.
 - [ ] Implémenter `personalscraper scrape` dans `cli.py` (remplacer le stub)
 - [ ] Options : --dry-run, --interactive, --verbose, --movies-only, --tvshows-only
 - [ ] Initialiser les clients API (TMDB + TVDB) depuis Settings
-- [ ] Appeler process_movies() et process_tvshows()
+- [ ] Implémenter `run_scrape(settings, dry_run, interactive=False) -> StepReport`
+  - Instancier TMDBClient + TVDBClient + Scraper, appeler process_movies() + process_tvshows()
+  - Convertir list[ScrapeResult] en StepReport
+  - Le lock est acquis au niveau CLI, PAS dans run_scrape()
 - [ ] Alimenter StepReport avec les ScrapeResult
 - [ ] Afficher résumé en fin de commande (X scrapés, Y skippés, Z erreurs)
 - [ ] Logger toutes les opérations
