@@ -6,12 +6,12 @@
 
 | #   | Phase                           | Fichier                                                | Status |
 | --- | ------------------------------- | ------------------------------------------------------ | ------ |
-| 1   | Media index JSON + disk scanner | [phase-01-index-scanner.md](phase-01-index-scanner.md) | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2_   |                                                        | [ ]    |
-| 2   | Dispatcher orchestrator         | [phase-02-dispatcher.md](phase-02-dispatcher.md)       | [ ]    |
-| ·   | _Contrôle de cohérence P2→P3_   |                                                        | [ ]    |
-| 3   | CLI command + tests end-to-end  | [phase-03-cli-tests.md](phase-03-cli-tests.md)         | [ ]    |
-| ·   | _Contrôle de cohérence V5→V6_   |                                                        | [ ]    |
+| 1   | Media index JSON + disk scanner | [phase-01-index-scanner.md](phase-01-index-scanner.md) | [x]    |
+| ·   | _Contrôle de cohérence P1→P2_   |                                                        | [x]    |
+| 2   | Dispatcher orchestrator         | [phase-02-dispatcher.md](phase-02-dispatcher.md)       | [x]    |
+| ·   | _Contrôle de cohérence P2→P3_   |                                                        | [x]    |
+| 3   | CLI command + tests end-to-end  | [phase-03-cli-tests.md](phase-03-cli-tests.md)         | [x]    |
+| ·   | _Contrôle de cohérence V5→V6_   |                                                        | [x]    |
 
 ## Dépendances entre phases
 
