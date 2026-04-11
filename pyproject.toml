@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=65.5.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "personalscraper"
+dynamic = ["version"]
+description = "Media pipeline automation — ingest, sort, scrape, verify, dispatch."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    {name = "LounisBou", email = "lounis.bou@gmail.com"}
+]
+keywords = ["media", "plex", "kodi", "nfo", "scraper", "automation", "pipeline"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: MacOS",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Utilities",
+    "Environment :: Console",
+]
+dependencies = [
+    "typer>=0.12.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "qbittorrent-api>=2025.1.0",
+    "guessit>=3.8.0",
+    "rapidfuzz>=3.14.0",
+    "tenacity>=9.1.0",
+    "rich>=14.0.0",
+    "structlog>=25.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+personalscraper = "personalscraper.cli:app"
+
+[tool.setuptools.dynamic]
+version = {attr = "personalscraper.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["personalscraper*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
