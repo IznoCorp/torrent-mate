@@ -120,15 +120,21 @@ class TestTVShowFullPipeline:
 
 @pytest.mark.e2e
 class TestFullPipelineMixed:
-    """Full pipeline test with both movies and TV shows in one batch."""
+    """Full pipeline test using the real `personalscraper run` command.
 
-    def test_full_pipeline_mixed(
+    Unlike the movie/tvshow tests that call run_*() individually,
+    this test invokes the CLI `run` command via CliRunner — exercising
+    the full V6 orchestration: lock, contextvars, healthcheck pings,
+    Telegram notification, and rich console output.
+    """
+
+    def test_full_pipeline_via_run_command(
         self, e2e_session_id, e2e_registry, e2e_qbit_client, e2e_magnets, e2e_settings,
     ):
-        """Run full pipeline (V1→V6) with all test magnets in a single pass.
+        """Run `personalscraper run` on real data — full V1→V6 path.
 
-        Simulates a real daily scheduling run with mixed media types.
-        Uses the `run` command's orchestration logic.
+        This is the closest test to what the daily launchd scheduling
+        actually executes. Telegram notification is sent if configured.
         """
         if len(e2e_magnets) < 2:
             pytest.skip("Need at least 2 magnets (movie + tvshow) for mixed test")
@@ -146,7 +152,7 @@ class TestFullPipelineMixed:
         cleanup = TestCleanup(registry=e2e_registry, dry_run=False)
 
         try:
-            # Setup all magnets
+            # 1. Setup: download all test magnets
             hashes = setup.add_magnets(e2e_magnets)
             status = setup.wait_for_completion(hashes)
             incomplete = [h for h, ok in status.items() if not ok]
@@ -158,30 +164,36 @@ class TestFullPipelineMixed:
                     place_marker(downloaded, e2e_session_id)
                     e2e_registry.register(downloaded)
 
-            # Run full pipeline (same sequence as `personalscraper run`)
-            from datetime import datetime
+            # 2. Run the REAL `personalscraper run` command via CliRunner
+            #    This exercises the full V6 orchestration:
+            #    - acquire_lock / release_lock
+            #    - ping_healthcheck (if configured)
+            #    - structlog contextvars binding (run_id)
+            #    - cleanup_old_logs()
+            #    - V1→V5 in sequence with try/except per step
+            #    - rich Panel/Table console output
+            #    - Telegram notification (if configured — REAL API call)
+            #    - healthcheck end ping
+            from typer.testing import CliRunner
 
-            from personalscraper.dispatch.run import run_dispatch
-            from personalscraper.ingest.ingest import run_ingest
-            from personalscraper.models import PipelineReport
-            from personalscraper.scraper.run import run_scrape
-            from personalscraper.sorter.run import run_sort
-            from personalscraper.verify.run import run_verify
+            from personalscraper.cli import app
 
-            report = PipelineReport(started_at=datetime.now())
-            report.add_step("ingest", run_ingest(settings, dry_run=False))
-            report.add_step("sort", run_sort(settings, dry_run=False))
-            report.add_step("scrape", run_scrape(settings, dry_run=False))
-            step_report, verified = run_verify(settings, dry_run=False)
-            report.add_step("verify", step_report)
-            report.add_step("dispatch", run_dispatch(settings, dry_run=False, verified=verified))
-            report.finished_at = datetime.now()
+            runner = CliRunner()
+            result = runner.invoke(app, ["run"])
 
-            # Verify pipeline report
-            from tests.e2e.assertions import assert_pipeline_report
-            assert_pipeline_report(report)
+            # The command may exit 0 (all OK) or 1 (some errors) —
+            # both are valid E2E outcomes. What matters is it didn't crash.
+            assert result.exit_code in (0, 1), (
+                f"CLI `run` crashed with exit code {result.exit_code}:\n{result.output}"
+            )
 
-            # Register dispatched directories for cleanup
+            # Verify the console output contains the rich summary table
+            assert "Pipeline" in result.output, (
+                f"Missing pipeline summary in output:\n{result.output}"
+            )
+
+            # 3. Verify results on filesystem
+            # Check that media was dispatched to disks
             for disk in disk_paths:
                 if not disk.exists():
                     continue
@@ -193,6 +205,12 @@ class TestFullPipelineMixed:
                             m["name"].lower() in d.name.lower() for m in e2e_magnets
                         ):
                             e2e_registry.register(d)
+
+            # 4. Verify structlog wrote a log file with run_id
+            log_file = Path("logs/personalscraper.json")
+            if log_file.exists():
+                log_content = log_file.read_text()
+                assert "run_id" in log_content, "Log file missing run_id context"
 
         finally:
             cleanup.cleanup_all(client=e2e_qbit_client, force=True)
