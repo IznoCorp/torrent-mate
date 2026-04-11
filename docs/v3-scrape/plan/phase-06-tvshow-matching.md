@@ -30,13 +30,14 @@ Implémenter le matching séries avec TVDB prioritaire et fallback TMDB.
 
 ### 3.6.3 — Récupération des épisodes d'une saison
 
-- [ ] Implémenter `get_episode_titles(match, season, lang="fra")` → dict[int, str]
-- [ ] Si source=tvdb :
-  - `tvdb_client.get_season_episodes(series_id, season)` → liste d'épisodes (noms en anglais)
+- [ ] Implémenter `get_episode_titles(match, season, tvdb_client, tmdb_client, lang="fra")` → dict[int, str]
+  - Les clients sont passés en paramètres (le Scraper les transmet depuis son **init**)
+- [ ] Si match.source=="tvdb" :
+  - `tvdb_client.get_season_episodes(match.api_id, season)` → liste d'épisodes (noms en anglais)
   - Pour chaque épisode, appeler `tvdb_client.get_episode_translation(episode_id, lang)` pour obtenir le titre FR
   - ⚠️ Codes langue TVDB en 3 chars : `fra` (pas `fr`)
-- [ ] Si source=tmdb :
-  - `tmdb_client.get_tv_season(tv_id, season)` → épisodes déjà en FR (via `language=fr-FR`)
+- [ ] Si match.source=="tmdb" :
+  - `tmdb_client.get_tv_season(match.api_id, season)` → épisodes déjà en FR (via `language=fr-FR`)
 - [ ] Retourner {episode_number: episode_title} pour le renommage
 - [ ] Gérer le cas : saison n'existe pas dans l'API → log warning
 - [ ] Gérer le cas : traduction FR indisponible → fallback titre anglais (`eng`), puis titre original si anglais absent

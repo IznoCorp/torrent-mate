@@ -13,7 +13,7 @@ Assembler matching + NFO + artwork + saisons + renommage pour traiter une série
   1. Extraire titre + année du nom de dossier
   2. Skip si tvshow.nfo existe déjà
   3. `match_tvshow()` → MatchResult (TVDB → fallback TMDB)
-  4. Si pas de match → retourner ScrapeResult(action="skipped")
+  4. Si pas de match → retourner ScrapeResult(action="skipped_low_confidence")
   5. Si nom dossier ≠ `{Title} ({Year})` canonique → renommer le dossier, update show_dir
   6. Récupérer les données série complètes
   7. `generate_tvshow_nfo()` → écrire tvshow.nfo
