@@ -153,7 +153,24 @@ def verify(
 @app.command()
 def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Move media to storage disks."""
-    state["console"].print("[bold]dispatch[/bold] — not yet implemented (V5)")
+    from personalscraper.dispatch.run import run_dispatch
+
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        report = run_dispatch(settings, dry_run=dry_run)
+        console.print(
+            f"[bold]Dispatch:[/bold] {report.success_count} OK, "
+            f"{report.skip_count} skipped, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        release_lock()
 
 
 @app.command()
