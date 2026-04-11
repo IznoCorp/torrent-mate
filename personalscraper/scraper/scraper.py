@@ -17,13 +17,20 @@ from pathlib import Path
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.artwork import ArtworkDownloader
-from personalscraper.scraper.confidence import (
+from personalscraper.scraper.confidence import (  # noqa: F401
     MatchResult,
     match_movie,
+    match_tvshow,
+)
+from personalscraper.scraper.episode_manager import (  # noqa: F401
+    create_season_dirs,
+    match_episode_files,
+    rename_episodes,
 )
 from personalscraper.scraper.mediainfo import extract_stream_info
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
+from personalscraper.scraper.tvdb_client import TVDBClient
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
@@ -126,6 +133,7 @@ class Scraper:
 
         # Initialize API clients
         self._tmdb = TMDBClient(api_key=settings.tmdb_api_key)
+        self._tvdb = TVDBClient(api_key=settings.tvdb_api_key)
 
         # Initialize helpers
         self._nfo = NFOGenerator()
@@ -264,6 +272,240 @@ class Scraper:
         errors = sum(1 for r in results if r.action == "error")
         logger.info(
             "Movies done: %d scraped, %d skipped, %d errors",
+            scraped, skipped, errors,
+        )
+
+        return results
+
+    def scrape_tvshow(self, show_dir: Path) -> ScrapeResult:
+        """Scrape a TV show: match → NFO → artwork → seasons → episodes.
+
+        Args:
+            show_dir: Path to the TV show directory.
+
+        Returns:
+            ScrapeResult with action and details.
+        """
+        title, year = _parse_folder_name(show_dir.name)
+        result = ScrapeResult(media_path=show_dir, media_type="tvshow")
+
+        # Check for existing NFO
+        nfo_path = show_dir / self.patterns.tvshow_nfo
+        if nfo_path.exists():
+            result.action = "skipped_already_done"
+            logger.info("tvshow.nfo already exists, skipping: %s", show_dir.name)
+            return result
+
+        # Match against TVDB/TMDB
+        try:
+            match = match_tvshow(self._tvdb, self._tmdb, title, year)
+        except Exception as e:
+            result.error = f"Match failed: {e}"
+            logger.error("Failed to match show %s: %s", title, e)
+            return result
+
+        if match is None:
+            result.action = "skipped_low_confidence"
+            logger.info("No confident match for show: %s", title)
+            return result
+
+        result.match = match
+        logger.info(
+            "Matched show: %s → %s (%s, confidence=%.2f)",
+            title, match.api_title, match.source, match.confidence,
+        )
+
+        # Get full TMDB details (even if matched via TVDB)
+        tmdb_id: int | None = match.api_id
+        try:
+            if match.source == "tvdb":
+                tvdb_data = self._tvdb.get_series(match.api_id)
+                remote_ids = self._tvdb.get_remote_ids(tvdb_data)
+                raw_id = remote_ids.get("tmdb")
+                tmdb_id = int(raw_id) if raw_id else None
+                if not tmdb_id:
+                    logger.warning("No TMDB cross-ref for TVDB show %d", match.api_id)
+            if tmdb_id:
+                show_data = self._tmdb.get_tv(tmdb_id)
+            else:
+                result.error = "No TMDB ID available"
+                return result
+        except Exception as e:
+            result.error = f"Get details failed: {e}"
+            logger.error("Failed to get show details: %s", e)
+            return result
+
+        # Rename folder to canonical name (V2→V3 handoff)
+        # Uses movie_dir pattern since both use "{Title} ({Year})" format
+        canonical = self.patterns.format(
+            "movie_dir", Title=match.api_title,
+            Year=match.api_year or year or "",
+        )
+        if show_dir.name != canonical:
+            new_dir = show_dir.parent / canonical
+            if not new_dir.exists():
+                if not self.dry_run:
+                    show_dir.rename(new_dir)
+                    show_dir = new_dir
+                    logger.info("Renamed folder: %s → %s", title, canonical)
+                else:
+                    logger.info("[DRY RUN] Would rename: %s → %s", title, canonical)
+
+        # Generate tvshow.nfo
+        try:
+            xml = self._nfo.generate_tvshow_nfo(show_data)
+            nfo_path = show_dir / self.patterns.tvshow_nfo
+            if not self.dry_run:
+                self._nfo.write_nfo(xml, nfo_path)
+                result.nfo_written = True
+            else:
+                logger.info("[DRY RUN] Would write tvshow.nfo")
+        except Exception as e:
+            result.error = f"tvshow.nfo failed: {e}"
+            return result
+
+        # Download artwork
+        try:
+            downloaded = self._artwork.download_tvshow_artwork(
+                show_data, show_dir, self.patterns,
+            )
+            result.artwork_downloaded = [p.name for p in downloaded]
+        except Exception as e:
+            logger.warning("Artwork failed for %s: %s", match.api_title, e)
+
+        # Process episodes
+        total_renamed = 0
+        video_files = sorted(
+            f for f in show_dir.iterdir()
+            if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        )
+
+        if video_files:
+            api_episodes: dict[tuple[int, int], str] = {}
+            for season in show_data.get("seasons", []):
+                s_num = season.get("season_number", 0)
+                if s_num == 0:
+                    continue
+                try:
+                    s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
+                    for ep in s_detail.get("episodes", []):
+                        e_num = ep.get("episode_number", 0)
+                        api_episodes[(s_num, e_num)] = ep.get("name", f"Episode {e_num}")
+                except Exception as e:
+                    logger.warning("Failed to get season %d: %s", s_num, e)
+
+            if api_episodes:
+                ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
+                create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
+                matched = match_episode_files(video_files, api_episodes)
+                if matched:
+                    total_renamed = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
+                    self._generate_episode_nfos(matched, show_dir, show_data)
+
+        result.episodes_renamed = total_renamed
+        result.action = "scraped"
+        return result
+
+    def _generate_episode_nfos(
+        self,
+        matched: dict[Path, dict],
+        show_dir: Path,
+        show_data: dict,
+    ) -> None:
+        """Generate NFO files for each matched/renamed episode.
+
+        Args:
+            matched: Dict from match_episode_files().
+            show_dir: Path to the TV show directory.
+            show_data: Full TMDB show details.
+        """
+        show_title = show_data.get("name", "")
+        mpaa = NFOGenerator._extract_content_rating_fr(show_data)
+        networks = show_data.get("networks", [])
+        studio = networks[0].get("name", "") if networks else ""
+
+        for video_path, info in matched.items():
+            season = info["season"]
+            episode = info["episode"]
+            api_title = info["api_title"]
+
+            season_dir_name = self.patterns.format("season_dir", Season=season)
+            new_stem = self.patterns.format(
+                "episode_video",
+                Season=season, Episode=episode, EpisodeTitle=api_title,
+            )
+            nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
+
+            if nfo_path.exists():
+                continue
+
+            episode_data = {
+                "name": api_title,
+                "showtitle": show_title,
+                "id": "",
+                "tvdb_id": "",
+                "season_number": season,
+                "episode_number": episode,
+                "overview": "",
+                "mpaa": mpaa,
+                "studio": studio,
+                "crew": [],
+            }
+
+            # Stream info from the renamed video
+            renamed_video = show_dir / season_dir_name / f"{new_stem}{video_path.suffix}"
+            stream_info = None
+            if renamed_video.exists():
+                stream_info = extract_stream_info(renamed_video)
+
+            try:
+                xml = self._nfo.generate_episode_nfo(episode_data, stream_info)
+                if not self.dry_run:
+                    nfo_path.parent.mkdir(parents=True, exist_ok=True)
+                    self._nfo.write_nfo(xml, nfo_path)
+            except Exception as e:
+                logger.warning("Episode NFO failed for S%02dE%02d: %s", season, episode, e)
+
+    def process_tvshows(self, tvshows_dir: Path) -> list[ScrapeResult]:
+        """Scrape all TV shows in a directory.
+
+        Args:
+            tvshows_dir: Path to the TV shows directory (e.g. 002-TVSHOWS/).
+
+        Returns:
+            List of ScrapeResult for each processed show.
+        """
+        results: list[ScrapeResult] = []
+
+        if not tvshows_dir.exists():
+            logger.warning("TV shows directory not found: %s", tvshows_dir)
+            return results
+
+        subdirs = sorted(
+            d for d in tvshows_dir.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
+        )
+
+        logger.info("Processing %d TV shows in %s", len(subdirs), tvshows_dir.name)
+
+        for show_dir in subdirs:
+            try:
+                result = self.scrape_tvshow(show_dir)
+                results.append(result)
+            except Exception as e:
+                logger.error("Unexpected error processing %s: %s", show_dir.name, e)
+                results.append(ScrapeResult(
+                    media_path=show_dir,
+                    media_type="tvshow",
+                    action="error",
+                    error=str(e),
+                ))
+
+        scraped = sum(1 for r in results if r.action == "scraped")
+        skipped = sum(1 for r in results if r.action.startswith("skipped"))
+        errors = sum(1 for r in results if r.action == "error")
+        logger.info(
+            "TV shows done: %d scraped, %d skipped, %d errors",
             scraped, skipped, errors,
         )
 
