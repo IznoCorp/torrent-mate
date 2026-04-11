@@ -123,6 +123,11 @@ logs/
 099-SCRIPTS/plex/contents.json
 
 # ===========================================
+# E2E Tests (real magnets, gitignored)
+# ===========================================
+tests/e2e/test_magnets.json
+
+# ===========================================
 # Claude Code
 # ===========================================
 # .claude/ is its own git repo (shared config) — do NOT embed it
