@@ -15,7 +15,7 @@ from pathlib import Path
 POSTER_PREVIEW_SIZE = "w342"
 BACKDROP_PREVIEW_SIZE = "w780"
 ACTOR_THUMB_SIZE = "original"
-IMAGE_BASE = "http://image.tmdb.org/t/p"
+IMAGE_BASE = "https://image.tmdb.org/t/p"
 
 
 def _sub(parent: ET.Element, tag: str, text: str = "") -> ET.Element:

@@ -36,14 +36,24 @@ def acquire_lock(lock_file: Path = LOCK_FILE) -> bool:
     if lock_file.exists():
         try:
             stored_pid = int(lock_file.read_text().strip())
-            os.kill(stored_pid, 0)
-            # Process is alive → lock is valid
-            log.warning("lock_held", pid=stored_pid, lock_file=str(lock_file))
-            return False
-        except (ValueError, ProcessLookupError, PermissionError):
-            # PID invalid or process dead → stale lock
+        except ValueError:
+            # Corrupt PID file — remove stale lock
             log.info("stale_lock_removed", lock_file=str(lock_file))
             lock_file.unlink(missing_ok=True)
+        else:
+            try:
+                os.kill(stored_pid, 0)
+                # Process is alive → lock is valid
+                log.warning("lock_held", pid=stored_pid, lock_file=str(lock_file))
+                return False
+            except ProcessLookupError:
+                # Process dead → stale lock, safe to remove
+                log.info("stale_lock_removed", lock_file=str(lock_file))
+                lock_file.unlink(missing_ok=True)
+            except PermissionError:
+                # Process exists but owned by another user — treat as live
+                log.warning("lock_held_other_user", pid=stored_pid, lock_file=str(lock_file))
+                return False
 
     lock_file.write_text(str(os.getpid()))
     log.debug("lock_acquired", pid=os.getpid(), lock_file=str(lock_file))

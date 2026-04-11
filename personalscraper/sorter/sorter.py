@@ -7,6 +7,7 @@ reporting and downstream pipeline steps.
 """
 
 import logging
+import os
 import shutil
 from pathlib import Path
 
@@ -122,22 +123,11 @@ class Sorter:
             season, episode = self.cleaner.extract_season_episode(item.name)
 
             # Compute final destination path
-            dest_path = dest_dir / item.name if file_type not in (FileType.MOVIE,) else dest_dir
-            # For movies: item goes INTO the folder (dest_dir IS the movie folder)
-            # For TV shows: item goes INTO the show folder
-            # For others: item goes INTO the type directory
-            if file_type == FileType.MOVIE:
-                if item.is_dir():
-                    # Directory movies: move the whole dir into 001-MOVIES/
-                    dest_path = dest_dir
-                else:
-                    # File movies: move into 001-MOVIES/Title (Year)/
-                    dest_path = dest_dir / item.name
-            elif file_type == FileType.TVSHOW:
-                # TV items go into the show folder
-                dest_path = dest_dir / item.name
+            if file_type == FileType.MOVIE and item.is_dir():
+                # Directory movies: move the whole dir into 001-MOVIES/
+                dest_path = dest_dir
             else:
-                # Default: flat into type directory
+                # Files, TV shows, and all other types go INTO the target dir
                 dest_path = dest_dir / item.name
 
             # Check if already at destination
@@ -173,13 +163,18 @@ class Sorter:
             # Ensure parent directory exists
             dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if item.is_dir() and file_type == FileType.MOVIE:
-                # Movie directories: move into the movies folder
-                # dest_path is 001-MOVIES/Title (Year)/
-                if dest_path.exists():
-                    # Replace existing movie folder
-                    shutil.rmtree(dest_path)
-                shutil.move(str(item), str(dest_path))
+            if item.is_dir() and file_type == FileType.MOVIE and dest_path.exists():
+                # Replace existing movie folder — backup old before delete
+                backup = dest_path.parent / f"{dest_path.name}.old.tmp"
+                try:
+                    os.rename(dest_path, backup)
+                    shutil.move(str(item), str(dest_path))
+                    shutil.rmtree(backup)
+                except OSError:
+                    # Restore backup if move failed
+                    if backup.exists() and not dest_path.exists():
+                        os.rename(backup, dest_path)
+                    raise
             else:
                 shutil.move(str(item), str(dest_path))
 

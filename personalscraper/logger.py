@@ -123,7 +123,10 @@ def cleanup_old_logs(logs_dir: Path = LOGS_DIR, retention_days: int = 30) -> int
     cutoff = time.time() - (retention_days * 86400)
     deleted = 0
     for f in logs_dir.iterdir():
-        if f.is_file() and f.stat().st_mtime < cutoff:
-            f.unlink()
-            deleted += 1
+        try:
+            if f.is_file() and f.stat().st_mtime < cutoff:
+                f.unlink()
+                deleted += 1
+        except OSError:
+            pass  # File may be locked by an active log handler
     return deleted
