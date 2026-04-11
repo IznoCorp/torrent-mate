@@ -1,15 +1,22 @@
 """Tests for structlog integration with CLI commands."""
 
 import json
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
+from personalscraper.models import StepReport
 
 runner = CliRunner()
 
+_mock_report = StepReport(name="ingest")
 
-def test_cli_creates_log_file(tmp_path, monkeypatch):
+
+@patch("personalscraper.cli.run_ingest", return_value=_mock_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_cli_creates_log_file(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):
     """Running a CLI command creates a JSON log file in logs/."""
     import personalscraper.logger as logger_mod
 
@@ -26,7 +33,10 @@ def test_cli_creates_log_file(tmp_path, monkeypatch):
                 assert "level" in data
 
 
-def test_verbose_mode(tmp_path, monkeypatch):
+@patch("personalscraper.cli.run_ingest", return_value=_mock_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_verbose_mode(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):
     """--verbose flag sets log level to DEBUG without error."""
     import personalscraper.logger as logger_mod
 
@@ -35,7 +45,10 @@ def test_verbose_mode(tmp_path, monkeypatch):
     assert result.exit_code == 0
 
 
-def test_quiet_mode(tmp_path, monkeypatch):
+@patch("personalscraper.cli.run_ingest", return_value=_mock_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_quiet_mode(mock_lock, mock_release, mock_run, tmp_path, monkeypatch):
     """--quiet flag suppresses console output without error."""
     import personalscraper.logger as logger_mod
 
