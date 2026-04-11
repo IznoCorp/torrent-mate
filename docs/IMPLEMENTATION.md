@@ -32,9 +32,10 @@ Pour chaque version :
 
 1. Implémenter phase par phase, sous-phase par sous-phase
 2. **Un commit par sous-phase** (format : `vX.Y.Z: Description`)
-3. **Contrôle de cohérence** entre chaque phase (voir ci-dessous)
-4. Test end-to-end de la version complète
-5. Mise à jour de ce fichier
+3. **Mise à jour de l'avancement** (IMPLEMENTATION.md + plan/INDEX.md) **à chaque sous-phase** — pas en batch
+4. **Contrôle de cohérence** entre chaque phase (voir ci-dessous)
+5. Test end-to-end de la version complète
+6. **Compaction du contexte** : vérifier après chaque sous-phase si le contexte dépasse 80% — si oui, compacter avant de continuer
 
 ### Conventions de code
 

@@ -30,6 +30,12 @@ ALL planning (brainstorming → design → plan) must be complete for ALL versio
 Use `/model-version` for planning, `/implement-version` to start coding (blocks if planning incomplete).
 Coherence check between every phase — verify interfaces match design before continuing.
 
+### Per sub-phase discipline
+
+- **Commit** after every sub-phase (`vX.Y.Z: Description`)
+- **Update progress** (IMPLEMENTATION.md + plan/INDEX.md) after every sub-phase — never batch
+- **Check context** after every sub-phase — if ≥80% full, compact before continuing
+
 ## Commands
 
 ```bash
