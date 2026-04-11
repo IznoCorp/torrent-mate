@@ -121,19 +121,19 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     Note : pas de paramètre `verbose` — le niveau de log est configuré
     globalement par le callback Typer dans cli.py via configure_logging().
 
-    1. Acquérir le lock file (→ exit si un autre run est en cours)
-    2. Se connecter à qBittorrent via Settings
-    3. Récupérer les torrents complétés
-    4. Nettoyer le tracker (retirer les torrents supprimés de qBit)
-    5. Pour chaque torrent non encore ingéré :
+    Note : le lock est géré par le CLI caller, pas par cette fonction.
+
+    1. Se connecter à qBittorrent via Settings
+    2. Récupérer les torrents complétés
+    3. Nettoyer le tracker (retirer les torrents supprimés de qBit)
+    4. Pour chaque torrent non encore ingéré :
        a. Résoudre le content_path
        b. Vérifier que le fichier/dossier existe
        c. Vérifier l'espace disque disponible sur le SSD
        d. Transférer via copie atomique (si seeding) ou move (si terminé)
        e. Vérifier la taille du fichier destination vs source
        f. Marquer comme ingéré dans le tracker
-    6. Libérer le lock file (via try/finally)
-    7. Retourner le StepReport
+    5. Retourner le StepReport
     """
 ```
 

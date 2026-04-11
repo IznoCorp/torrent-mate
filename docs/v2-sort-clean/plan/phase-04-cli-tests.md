@@ -11,6 +11,9 @@ Connecter le sorter au CLI et valider end-to-end.
 - [ ] Implémenter la commande `personalscraper sort` dans `cli.py`
 - [ ] Connecter Settings → NameCleaner → Sorter → affichage résultats
 - [ ] Support --dry-run, --verbose
+- [ ] Implémenter `run_sort(settings, dry_run) -> StepReport`
+  - Instancier NameCleaner + Sorter, appeler process(), convertir list[SortResult] en StepReport
+  - Le lock est acquis au niveau CLI, PAS dans run_sort()
 - [ ] Alimenter le StepReport avec les SortResult
 - [ ] Logger chaque opération
 
