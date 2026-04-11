@@ -12,10 +12,12 @@ LOGS_DIR = Path("logs")
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
     """Configure structlog + stdlib logging for dual output.
 
-    Console handler: colored dev output via ConsoleRenderer.
-    File handler: JSON Lines via TimedRotatingFileHandler (logs/personalscraper.json).
-    verbose=True → DEBUG, quiet=True → WARNING, default → INFO.
+    Sets up two handlers: colored console (dev) and JSON Lines file (ops).
     foreign_pre_chain captures stdlib logs (requests, urllib3, qbittorrent-api).
+
+    Args:
+        verbose: If True, set log level to DEBUG.
+        quiet: If True, set log level to WARNING. Ignored if verbose is True.
     """
     LOGS_DIR.mkdir(exist_ok=True)
 
@@ -91,13 +93,29 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """Return a structlog bound logger."""
+    """Return a structlog bound logger.
+
+    Args:
+        name: Logger name (typically module name, e.g. "ingest").
+
+    Returns:
+        A BoundLogger instance with the given name.
+    """
     return structlog.get_logger(name)
 
 
 def cleanup_old_logs(logs_dir: Path = LOGS_DIR, retention_days: int = 30) -> int:
-    """Delete log files older than retention_days. Returns count deleted.
-    Complement to TimedRotatingFileHandler's backupCount."""
+    """Delete log files older than retention_days.
+
+    Complement to TimedRotatingFileHandler's backupCount for time-based cleanup.
+
+    Args:
+        logs_dir: Directory containing log files.
+        retention_days: Delete files older than this many days.
+
+    Returns:
+        Number of files deleted.
+    """
     import time
 
     if not logs_dir.exists():

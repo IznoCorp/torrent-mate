@@ -17,6 +17,13 @@ Will replace `torrent-sort` and `099-SCRIPTS/` after V0 implementation.
 - NEVER include `Co-Authored-By`, Claude, Anthropic, or AI references in commits
 - A PreToolUse hook (`block_ai_attribution.py`) enforces this — commit will be blocked
 
+## Code Conventions
+
+- **Google-style docstrings** mandatory on all modules, classes, functions, and methods
+- Docstrings include: description, `Args:`, `Returns:`, `Raises:` (as applicable)
+- **Inline comments** for non-trivial logic explaining the "why" (not the "what")
+- Docstring/comment language: **English**
+
 ## Implementation Workflow
 
 ALL planning (brainstorming → design → plan) must be complete for ALL versions before ANY code is written.

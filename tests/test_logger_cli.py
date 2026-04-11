@@ -1,4 +1,4 @@
-"""Test structlog integration with CLI commands."""
+"""Tests for structlog integration with CLI commands."""
 
 import json
 
@@ -10,7 +10,7 @@ runner = CliRunner()
 
 
 def test_cli_creates_log_file(tmp_path, monkeypatch):
-    """Running a CLI command creates a JSON log file."""
+    """Running a CLI command creates a JSON log file in logs/."""
     import personalscraper.logger as logger_mod
 
     monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")
@@ -27,7 +27,7 @@ def test_cli_creates_log_file(tmp_path, monkeypatch):
 
 
 def test_verbose_mode(tmp_path, monkeypatch):
-    """--verbose flag changes log level to DEBUG."""
+    """--verbose flag sets log level to DEBUG without error."""
     import personalscraper.logger as logger_mod
 
     monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")
@@ -36,7 +36,7 @@ def test_verbose_mode(tmp_path, monkeypatch):
 
 
 def test_quiet_mode(tmp_path, monkeypatch):
-    """--quiet flag suppresses console output."""
+    """--quiet flag suppresses console output without error."""
     import personalscraper.logger as logger_mod
 
     monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")

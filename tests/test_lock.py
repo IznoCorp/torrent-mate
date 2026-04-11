@@ -1,9 +1,12 @@
+"""Tests for personalscraper.lock — PID-based pipeline lock file."""
+
 import os
 
 from personalscraper.lock import acquire_lock, release_lock
 
 
 def test_acquire_creates_lock(tmp_path):
+    """acquire_lock creates a lock file containing the current PID."""
     lock_file = tmp_path / "pipeline.lock"
     assert acquire_lock(lock_file)
     assert lock_file.exists()
@@ -11,6 +14,7 @@ def test_acquire_creates_lock(tmp_path):
 
 
 def test_release_removes_lock(tmp_path):
+    """release_lock deletes the lock file."""
     lock_file = tmp_path / "pipeline.lock"
     acquire_lock(lock_file)
     release_lock(lock_file)

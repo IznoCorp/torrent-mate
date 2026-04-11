@@ -1,3 +1,9 @@
+"""Pipeline configuration via pydantic-settings.
+
+Loads settings from environment variables and .env file.
+Single source of truth for all pipeline configuration (V0-V7).
+"""
+
 from functools import lru_cache
 from pathlib import Path
 
@@ -5,6 +11,30 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Pipeline configuration loaded from .env and environment variables.
+
+    Attributes:
+        qbit_host: qBittorrent Web API hostname.
+        qbit_port: qBittorrent Web API port.
+        qbit_username: qBittorrent login username.
+        qbit_password: qBittorrent login password.
+        torrent_complete_dir: Directory where completed torrents land.
+        staging_dir: Staging area ("A TRIER") for media processing.
+        disk1_dir: Storage disk 1 mount point.
+        disk2_dir: Storage disk 2 mount point.
+        disk3_dir: Storage disk 3 mount point.
+        disk4_dir: Storage disk 4 mount point.
+        tmdb_api_key: The Movie Database API key (Bearer token).
+        tvdb_api_key: TheTVDB API key (Negotiated Contract).
+        scraper_language: Primary language for API queries (TMDB format: "fr-FR").
+        scraper_fallback_language: Fallback language when primary unavailable.
+        telegram_bot_token: Telegram bot token for notifications (empty = disabled).
+        telegram_chat_id: Telegram chat/user ID for notifications (empty = disabled).
+        healthcheck_url: Healthchecks.io ping URL for scheduling monitoring (empty = disabled).
+        min_free_space_staging_gb: Minimum free space on SSD before ingest (GB).
+        min_free_space_disk_gb: Minimum free space on storage disks before dispatch (GB).
+    """
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # qBittorrent
@@ -45,5 +75,9 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Return cached Settings singleton."""
+    """Return a cached Settings singleton.
+
+    Returns:
+        The Settings instance, loaded once and cached for all subsequent calls.
+    """
     return Settings()

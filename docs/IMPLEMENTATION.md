@@ -36,6 +36,15 @@ Pour chaque version :
 4. Test end-to-end de la version complète
 5. Mise à jour de ce fichier
 
+### Conventions de code
+
+- **Docstrings Google Style** obligatoires sur tous les modules, classes, fonctions et méthodes
+- **Commentaires inline** pour expliquer le "pourquoi" (pas le "quoi") sur la logique non triviale
+- Les docstrings de fonctions incluent : description, `Args:`, `Returns:`, `Raises:` (si applicable)
+- Les docstrings de classes incluent : description, `Attributes:` (si applicable)
+- Les docstrings de modules incluent : description du rôle du module dans le pipeline
+- Langue des docstrings/commentaires : **anglais**
+
 ### Contrôles de cohérence (entre chaque phase implémentée)
 
 Avant de passer à la phase suivante, vérifier :
