@@ -53,6 +53,8 @@ class PipelineReport:
         lines = ["<b>PersonalScraper — Rapport</b>"]
         for name, step in self.steps.items():
             status = "\u2705" if step.error_count == 0 else "\u274c"
-            lines.append(f"{status} <b>{name}</b>: {step.success_count} OK, {step.error_count} err, {step.skip_count} skip")
+            lines.append(
+                f"{status} <b>{name}</b>: {step.success_count} OK, {step.error_count} err, {step.skip_count} skip"
+            )
         lines.append(f"\u23f1\ufe0f Dur\u00e9e : {self.duration()}")
         return "\n".join(lines)
