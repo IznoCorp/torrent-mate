@@ -19,10 +19,10 @@ Créer les dossiers Saison XX/ et renommer les épisodes avec les titres de l'AP
 
 ### 3.10.2 — Matching fichiers → épisodes API
 
-- [ ] Implémenter `match_episode_files(video_files, api_episodes)` → list[tuple]
+- [ ] Implémenter `match_episode_files(video_files, api_episodes)` → dict[Path, dict]
+  - Retourne `{video_path: {"season": int, "episode": int, "api_title": str}}` (cohérent avec DESIGN)
 - [ ] Extraire S/E du filename (réutiliser le cleaner de V2)
 - [ ] Matcher avec le dict {episode_number: title} de l'API
-- [ ] Retourner [(video_path, season, episode, api_title)]
 - [ ] Gérer les épisodes non trouvés dans l'API (garder le nom original, log warning)
 - [ ] Tests avec des fichiers réalistes
 

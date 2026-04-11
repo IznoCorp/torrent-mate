@@ -423,9 +423,9 @@ class Scraper:
 
     # Episode management (inline in scraper.py):
     # create_season_dirs(show_dir, episodes, patterns) -> list[Path]
-    # match_episode_files(video_files, api_episodes) -> dict[Path, dict]
+    # match_episode_files(video_files, api_episodes) -> dict[Path, dict]  # {path: {season, episode, api_title}}
     # rename_episodes(matched, show_dir, patterns, dry_run) -> int
-    # get_episode_titles(match, season, tvdb_client/tmdb_client, lang) -> dict[int, str]
+    # get_episode_titles(match, season, tvdb_client, tmdb_client, lang="fra") -> dict[int, str]
 ```
 
 ## Flux de données
