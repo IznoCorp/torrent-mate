@@ -20,8 +20,8 @@
 | ·   | _Contrôle de cohérence P6→P7_        |                                                                    | [x]    |
 | 7   | NFO generator — films                | [phase-07-nfo-movie.md](phase-07-nfo-movie.md)                     | [x]    |
 | ·   | _Contrôle de cohérence P7→P8_        |                                                                    | [x]    |
-| 8   | NFO generator — séries + épisodes    | [phase-08-nfo-tvshow.md](phase-08-nfo-tvshow.md)                   | [ ]    |
-| ·   | _Contrôle de cohérence P8→P9_        |                                                                    | [ ]    |
+| 8   | NFO generator — séries + épisodes    | [phase-08-nfo-tvshow.md](phase-08-nfo-tvshow.md)                   | [x]    |
+| ·   | _Contrôle de cohérence P8→P9_        |                                                                    | [x]    |
 | 9   | Artwork downloader                   | [phase-09-artwork.md](phase-09-artwork.md)                         | [ ]    |
 | ·   | _Contrôle de cohérence P9→P10_       |                                                                    | [ ]    |
 | 10  | Dossiers saison + renommage épisodes | [phase-10-episode-rename.md](phase-10-episode-rename.md)           | [ ]    |
@@ -120,10 +120,10 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 8 (NFO tvshow + episode)
 
-- [ ] `tvshow.nfo` XML identique à MediaElch
-- [ ] `episodedetails` XML identique à MediaElch
-- [ ] IDs TVDB + TMDB + IMDB présents (TMDB source type 12 pour séries, 10 pour films)
-- [ ] `<streamdetails>` dans les NFO épisode
+- [x] `tvshow.nfo` XML identique à MediaElch
+- [x] `episodedetails` XML identique à MediaElch
+- [x] IDs TVDB + TMDB + IMDB présents (TMDB source type 12 pour séries, 10 pour films)
+- [x] `<streamdetails>` dans les NFO épisode
 
 ### Après Phase 9 (Artwork)
 
