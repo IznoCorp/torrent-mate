@@ -30,8 +30,8 @@
 | ·   | _Contrôle de cohérence P11→P12_      |                                                                    | [x]    |
 | 12  | Orchestrateur séries                 | [phase-12-tvshow-orchestrator.md](phase-12-tvshow-orchestrator.md) | [x]    |
 | ·   | _Contrôle de cohérence P12→P13_      |                                                                    | [x]    |
-| 13  | CLI scrape + tests end-to-end        | [phase-13-cli-tests.md](phase-13-cli-tests.md)                     | [ ]    |
-| ·   | _Contrôle de cohérence V3→V4_        |                                                                    | [ ]    |
+| 13  | CLI scrape + tests end-to-end        | [phase-13-cli-tests.md](phase-13-cli-tests.md)                     | [x]    |
+| ·   | _Contrôle de cohérence V3→V4_        |                                                                    | [x]    |
 
 ## Dépendances entre phases
 
@@ -155,7 +155,7 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 13 (CLI → V4)
 
-- [ ] `personalscraper scrape --dry-run` fonctionne end-to-end
-- [ ] `personalscraper scrape --interactive` propose les matchs
-- [ ] Les .nfo contiennent le genre (lisible par V4 genre_mapper)
-- [ ] Les médias non matchés sont dans le rapport
+- [x] `personalscraper scrape --dry-run` fonctionne end-to-end
+- [x] `personalscraper scrape --interactive` propose les matchs
+- [x] Les .nfo contiennent le genre (lisible par V4 genre_mapper)
+- [x] Les médias non matchés sont dans le rapport
