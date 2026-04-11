@@ -7,14 +7,14 @@
 | #   | Phase                                    | Fichier                                                | Status |
 | --- | ---------------------------------------- | ------------------------------------------------------ | ------ |
 | 1   | Infrastructure test (registry, markers)  | [phase-01-test-infra.md](phase-01-test-infra.md)       | [x]    |
-| ·   | _Contrôle de cohérence P1→P2_            |                                                        | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2_            |                                                        | [x]    |
 | 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md) | [x]    |
-| ·   | _Contrôle de cohérence P2→P3_            |                                                        | [ ]    |
+| ·   | _Contrôle de cohérence P2→P3_            |                                                        | [x]    |
 | 3   | Assertions pipeline                      | [phase-03-assertions.md](phase-03-assertions.md)       | [x]    |
-| ·   | _Contrôle de cohérence P3→P4_            |                                                        | [ ]    |
-| 4   | Tests E2E films                          | [phase-04-e2e-movies.md](phase-04-e2e-movies.md)       | [ ]    |
-| ·   | _Contrôle de cohérence P4→P5_            |                                                        | [ ]    |
-| 5   | Tests E2E séries + test complet pipeline | [phase-05-e2e-tvshows.md](phase-05-e2e-tvshows.md)     | [ ]    |
+| ·   | _Contrôle de cohérence P3→P4_            |                                                        | [x]    |
+| 4   | Tests E2E films                          | [phase-04-e2e-movies.md](phase-04-e2e-movies.md)       | [x]    |
+| ·   | _Contrôle de cohérence P4→P5_            |                                                        | [x]    |
+| 5   | Tests E2E séries + test complet pipeline | [phase-05-e2e-tvshows.md](phase-05-e2e-tvshows.md)     | [x]    |
 
 ## Dépendances entre phases
 
@@ -57,15 +57,15 @@ Phase 5 : test E2E séries + test pipeline complet (films + séries ensemble).
 
 ### Après Phase 4 (E2E films)
 
-- [ ] Un film passe le pipeline complet : magnet → qBit → ingest → sort → scrape → verify → dispatch
-- [ ] Le film est sur le bon disque avec NFO + artwork
-- [ ] Le cleanup supprime le film du disque et de qBit
-- [ ] Aucun fichier existant n'a été touché
+- [x] Un film passe le pipeline complet : magnet → qBit → ingest → sort → scrape → verify → dispatch
+- [x] Le film est sur le bon disque avec NFO + artwork
+- [x] Le cleanup supprime le film du disque et de qBit
+- [x] Aucun fichier existant n'a été touché
 
 ### Après Phase 5 (E2E séries + pipeline complet)
 
-- [ ] Une série passe le pipeline complet avec saisons et épisodes renommés
-- [ ] Le test pipeline complet (films + séries ensemble) fonctionne
-- [ ] Cleanup complet : rien ne reste nulle part
-- [ ] Les tests sont exécutables via `pytest tests/e2e/ -m e2e`
-- [ ] Les tests sont skippés proprement si qBit/disques/magnets non disponibles
+- [x] Une série passe le pipeline complet avec saisons et épisodes renommés
+- [x] Le test pipeline complet (films + séries ensemble) fonctionne
+- [x] Cleanup complet : rien ne reste nulle part
+- [x] Les tests sont exécutables via `pytest tests/e2e/ -m e2e`
+- [x] Les tests sont skippés proprement si qBit/disques/magnets non disponibles
