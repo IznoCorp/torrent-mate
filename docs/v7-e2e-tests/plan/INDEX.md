@@ -6,7 +6,7 @@
 
 | #   | Phase                                    | Fichier                                                | Status |
 | --- | ---------------------------------------- | ------------------------------------------------------ | ------ |
-| 1   | Infrastructure test (registry, markers)  | [phase-01-test-infra.md](phase-01-test-infra.md)       | [ ]    |
+| 1   | Infrastructure test (registry, markers)  | [phase-01-test-infra.md](phase-01-test-infra.md)       | [x]    |
 | ·   | _Contrôle de cohérence P1→P2_            |                                                        | [ ]    |
 | 2   | Setup torrents + cleanup sécurisé        | [phase-02-setup-cleanup.md](phase-02-setup-cleanup.md) | [ ]    |
 | ·   | _Contrôle de cohérence P2→P3_            |                                                        | [ ]    |
@@ -35,10 +35,10 @@ Phase 5 : test E2E séries + test pipeline complet (films + séries ensemble).
 
 ### Après Phase 1 (Infrastructure test)
 
-- [ ] `TestRegistry` persiste en JSON et se recharge correctement
-- [ ] `place_marker()` crée le fichier avec le bon contenu
-- [ ] `verify_marker()` retourne False si marker absent, UUID différent, ou chemin hors registre
-- [ ] `find_orphan_markers()` détecte les markers de sessions précédentes
+- [x] `TestRegistry` persiste en JSON et se recharge correctement
+- [x] `place_marker()` crée le fichier avec le bon contenu
+- [x] `verify_marker()` retourne False si marker absent, UUID différent, ou chemin hors registre
+- [x] `find_orphan_markers()` détecte les markers de sessions précédentes
 
 ### Après Phase 2 (Setup + Cleanup)
 
