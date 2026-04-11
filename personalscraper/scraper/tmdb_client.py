@@ -1,0 +1,384 @@
+"""TMDB API v3 client for movie and TV show metadata.
+
+Handles authentication (Bearer token), retry with exponential backoff
+(tenacity), and language configuration. Implements the MetadataProvider
+protocol for polymorphic usage alongside TVDBClient.
+
+All HTTP calls go through _get() which retries on 429/5xx and connection
+errors, but fails immediately on 401/403/404 (fatal errors).
+
+See docs/TMDB-API.md for the full API reference.
+See docs/tenacity-reference.md for retry strategy details.
+"""
+
+import logging
+
+import requests
+from requests.adapters import HTTPAdapter
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential_jitter,
+)
+from urllib3.util.retry import Retry as Urllib3Retry
+
+logger = logging.getLogger(__name__)
+
+# TMDB internal error codes (not HTTP codes)
+TMDB_INVALID_KEY = 7
+TMDB_SUSPENDED_KEY = 10
+TMDB_RATE_LIMIT = 25
+TMDB_NOT_FOUND = 34
+
+
+class TMDBError(Exception):
+    """TMDB API error with both HTTP and internal status codes.
+
+    Attributes:
+        http_status: HTTP status code from the response.
+        tmdb_code: TMDB internal status_code (e.g. 7=invalid key, 34=not found).
+        message: TMDB status_message.
+    """
+
+    def __init__(self, http_status: int, tmdb_code: int, message: str) -> None:
+        """Initialize TMDBError.
+
+        Args:
+            http_status: HTTP status code.
+            tmdb_code: TMDB internal error code.
+            message: TMDB error message.
+        """
+        self.http_status = http_status
+        self.tmdb_code = tmdb_code
+        self.message = message
+        super().__init__(f"TMDB {http_status} (code {tmdb_code}): {message}")
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """Determine if an exception is retryable.
+
+    Retries on 429 (rate limit), 5xx (server errors), and network errors.
+    Does NOT retry on 401/403/404 (fatal or no-result).
+
+    Args:
+        exc: The exception to check.
+
+    Returns:
+        True if the request should be retried.
+    """
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        return exc.response.status_code in {429, 500, 502, 503, 504}
+    return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+
+
+class TMDBClient:
+    """Client for The Movie Database API v3.
+
+    All HTTP calls use tenacity retry (exponential backoff on 429/5xx).
+    Auth via Bearer token (recommended by TMDB over query param).
+
+    Attributes:
+        BASE_URL: TMDB API v3 base URL.
+        IMAGE_BASE_URL: Base URL for TMDB image CDN.
+    """
+
+    BASE_URL = "https://api.themoviedb.org/3"
+    IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
+
+    def __init__(self, api_key: str, language: str = "fr-FR") -> None:
+        """Initialize the TMDB client with Bearer token auth.
+
+        Sets up a requests Session with transport-level retry (urllib3)
+        for DNS/TCP/TLS errors, and application-level retry (tenacity)
+        for 429/5xx via _get().
+
+        Args:
+            api_key: TMDB API read access token (Bearer token).
+            language: Default language for API queries (e.g. "fr-FR").
+        """
+        self._api_key = api_key
+        self._language = language
+
+        # Transport-level retry for low-level network issues
+        transport_retry = Urllib3Retry(
+            total=2,
+            backoff_factor=0.5,
+            status_forcelist=[502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=transport_retry)
+
+        self._session = requests.Session()
+        self._session.mount("https://", adapter)
+        self._session.headers.update({
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+        })
+
+    @retry(
+        retry=retry_if_exception(_is_retryable),
+        wait=wait_exponential_jitter(initial=0.5, max=10, jitter=0.5),
+        stop=stop_after_attempt(4),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    def _get(self, endpoint: str, params: dict | None = None) -> dict:
+        """Send a GET request to the TMDB API with automatic retry.
+
+        Adds the language parameter automatically. Retries on 429/5xx
+        with exponential backoff (4 attempts max). Parses TMDB error
+        responses and raises TMDBError with the internal status_code.
+
+        Args:
+            endpoint: API endpoint path (e.g. "/search/movie").
+            params: Optional query parameters.
+
+        Returns:
+            Parsed JSON response as a dict.
+
+        Raises:
+            TMDBError: On TMDB-specific errors (invalid key, not found, etc.).
+            requests.exceptions.HTTPError: On non-TMDB HTTP errors.
+            requests.exceptions.ConnectionError: On network errors (after retries).
+            requests.exceptions.Timeout: On timeout (after retries).
+        """
+        if params is None:
+            params = {}
+        params.setdefault("language", self._language)
+
+        resp = self._session.get(
+            f"{self.BASE_URL}{endpoint}",
+            params=params,
+            timeout=10,
+        )
+
+        # Parse TMDB error format before raise_for_status
+        if not resp.ok:
+            try:
+                error_data = resp.json()
+                tmdb_code = error_data.get("status_code", 0)
+                tmdb_msg = error_data.get("status_message", resp.reason)
+                raise TMDBError(resp.status_code, tmdb_code, tmdb_msg)
+            except (ValueError, KeyError):
+                # Not a TMDB error format — fall through to raise_for_status
+                pass
+            resp.raise_for_status()
+
+        return resp.json()
+
+    # -- Protocol methods (MetadataProvider) --
+
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict]:
+        """Search for a media item by title (Protocol method).
+
+        Dispatches to search_movie() or search_tv() based on media_type.
+
+        Args:
+            title: Media title to search for.
+            year: Optional release year to boost relevance.
+            media_type: "movie" or "tv".
+
+        Returns:
+            List of raw API result dicts.
+        """
+        if media_type == "tv":
+            return self.search_tv(title, year)
+        return self.search_movie(title, year)
+
+    def get_details(self, media_id: int, media_type: str = "movie") -> dict:
+        """Get full details for a media item (Protocol method).
+
+        Dispatches to get_movie() or get_tv() based on media_type.
+
+        Args:
+            media_id: TMDB media ID.
+            media_type: "movie" or "tv".
+
+        Returns:
+            Dict with full metadata, images, and external IDs.
+        """
+        if media_type == "tv":
+            return self.get_tv(media_id)
+        return self.get_movie(media_id)
+
+    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict]:
+        """Get artwork URLs from already-fetched details (Protocol method).
+
+        Images are embedded in get_movie()/get_tv() responses via
+        append_to_response — no additional API call needed.
+
+        Args:
+            media_id: TMDB media ID.
+            media_type: "movie" or "tv".
+
+        Returns:
+            List of artwork dicts with type, url, language, season keys.
+        """
+        details = self.get_details(media_id, media_type)
+        images = details.get("images", {})
+        artworks = []
+
+        # Posters
+        for img in images.get("posters", []):
+            artworks.append({
+                "type": "poster",
+                "url": self.get_image_url(img["file_path"]),
+                "language": img.get("iso_639_1"),
+                "season": None,
+            })
+
+        # Backdrops → landscape equivalent
+        for img in images.get("backdrops", []):
+            artworks.append({
+                "type": "landscape",
+                "url": self.get_image_url(img["file_path"]),
+                "language": img.get("iso_639_1"),
+                "season": None,
+            })
+
+        return artworks
+
+    # -- Type-specific methods --
+
+    def search_movie(self, title: str, year: int | None = None) -> list[dict]:
+        """Search for movies by title.
+
+        The year parameter boosts relevance but does NOT exclude other years.
+        Client-side filtering by release_date is needed for strict year matching.
+        An empty result is HTTP 200 with results:[] (not 404).
+
+        Args:
+            title: Movie title to search for.
+            year: Optional release year to boost relevance.
+
+        Returns:
+            List of movie result dicts from the API.
+        """
+        params: dict = {"query": title}
+        if year is not None:
+            params["year"] = year
+        data = self._get("/search/movie", params)
+        return data.get("results", [])
+
+    def search_tv(self, title: str, year: int | None = None) -> list[dict]:
+        """Search for TV shows by title.
+
+        Uses first_air_date_year (not year) for TV show searches.
+
+        Args:
+            title: TV show title to search for.
+            year: Optional first air date year to boost relevance.
+
+        Returns:
+            List of TV show result dicts from the API.
+        """
+        params: dict = {"query": title}
+        if year is not None:
+            # TMDB uses first_air_date_year for TV, not year
+            params["first_air_date_year"] = year
+        data = self._get("/search/tv", params)
+        return data.get("results", [])
+
+    def get_movie(self, movie_id: int) -> dict:
+        """Get full movie details with credits, images, IDs, and certifications.
+
+        Uses append_to_response to fetch everything in a single API call.
+        include_image_language=fr,en,null is MANDATORY — without it,
+        5x-31x fewer images are returned (backdrops especially).
+
+        Args:
+            movie_id: TMDB movie ID.
+
+        Returns:
+            Dict with full movie metadata including credits, images,
+            external_ids, and release_dates (for FR certification).
+        """
+        return self._get(f"/movie/{movie_id}", {
+            "append_to_response": "credits,images,external_ids,release_dates",
+            "include_image_language": "fr,en,null",
+        })
+
+    def get_tv(self, tv_id: int) -> dict:
+        """Get full TV show details with credits, images, IDs, and ratings.
+
+        Uses aggregate_credits (not credits) for TV shows — it groups
+        multiple roles via roles[]/jobs[]. episode_run_time may be empty
+        for recent shows — use per-episode runtime from season details.
+
+        Args:
+            tv_id: TMDB TV show ID.
+
+        Returns:
+            Dict with full TV show metadata including aggregate_credits,
+            images, external_ids, and content_ratings.
+        """
+        return self._get(f"/tv/{tv_id}", {
+            "append_to_response": "aggregate_credits,images,external_ids,content_ratings",
+            "include_image_language": "fr,en,null",
+        })
+
+    def get_tv_season(self, tv_id: int, season: int) -> dict:
+        """Get season details with episodes and images.
+
+        Returns all episodes with crew, guest_stars, and per-episode
+        runtime (more reliable than show-level episode_run_time).
+        Season images only return posters (no backdrops).
+
+        Args:
+            tv_id: TMDB TV show ID.
+            season: Season number.
+
+        Returns:
+            Dict with season details, episodes list, and images.
+        """
+        return self._get(f"/tv/{tv_id}/season/{season}", {
+            "append_to_response": "images",
+        })
+
+    def get_image_url(self, path: str, size: str = "original") -> str:
+        """Build a full TMDB image URL.
+
+        Args:
+            path: Image file path from API response (e.g. "/abc123.jpg").
+            size: Image size (e.g. "original", "w500", "w185").
+
+        Returns:
+            Full HTTPS URL to the image.
+        """
+        return f"{self.IMAGE_BASE_URL}/{size}{path}"
+
+    def select_best_image(self, images: list[dict], image_type: str) -> str | None:
+        """Select the best image by language priority and vote average.
+
+        Priority order:
+        1. French (iso_639_1 == "fr")
+        2. English (iso_639_1 == "en")
+        3. Neutral/no language (iso_639_1 is None) — textless images
+        4. Within same language, highest vote_average wins
+
+        Args:
+            images: List of image dicts from API (with iso_639_1,
+                vote_average, file_path keys).
+            image_type: Image type to filter ("posters" or "backdrops").
+                Not used for filtering here — caller should pass the
+                correct list already.
+
+        Returns:
+            Relative image path (file_path) of the best match, or None
+            if no images available.
+        """
+        if not images:
+            return None
+
+        # Language priority mapping (lower = better)
+        lang_priority: dict[str | None, int] = {"fr": 0, "en": 1}
+
+        def sort_key(img: dict) -> tuple:
+            lang: str | None = img.get("iso_639_1")
+            priority = lang_priority.get(lang, 2)  # None/other → 2
+            vote = img.get("vote_average", 0.0)
+            return (priority, -vote)  # Lower priority first, higher vote first
+
+        sorted_images = sorted(images, key=sort_key)
+        return sorted_images[0].get("file_path")
