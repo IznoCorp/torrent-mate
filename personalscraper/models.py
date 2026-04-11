@@ -109,14 +109,57 @@ class PipelineReport:
     def to_html(self) -> str:
         """Format report as Telegram HTML message.
 
+        Produces a compact, emoji-rich summary suitable for
+        Telegram's parse_mode="HTML" (supports b, i, code, a tags).
+
         Returns:
             HTML string suitable for Telegram's parse_mode="HTML".
         """
-        lines = ["<b>PersonalScraper \u2014 Rapport</b>"]
+        # Step name → emoji mapping for visual identification
+        step_icons = {
+            "ingest": "\U0001f4e5",    # 📥
+            "sort": "\U0001f4c2",      # 📂
+            "scrape": "\U0001f50d",    # 🔍
+            "verify": "\u2705",        # ✅
+            "dispatch": "\U0001f4be",  # 💾
+        }
+
+        header_emoji = "\u2705" if not self.has_errors() else "\u274c"
+        lines = [f"\U0001f4ca <b>PersonalScraper \u2014 Rapport</b> {header_emoji}"]
+
         for name, step in self.steps.items():
-            status = "\u2705" if step.error_count == 0 else "\u274c"
+            icon = step_icons.get(name, "\u2022")
+            parts = []
+            if step.success_count:
+                parts.append(f"{step.success_count} OK")
+            if step.skip_count:
+                parts.append(f"{step.skip_count} skip")
+            if step.error_count:
+                parts.append(f"{step.error_count} err")
+            summary = ", ".join(parts) if parts else "aucun item"
+
+            lines.append(f"{icon} <b>{name.capitalize()}</b>: {summary}")
+
+            # Include details (first 5 per step to avoid message bloat)
+            for detail in step.details[:5]:
+                lines.append(f"  \u2022 {detail}")
+            if len(step.details) > 5:
+                lines.append(f"  \u2026 +{len(step.details) - 5} autres")
+
+            # Show warnings inline
+            for warning in step.warnings[:3]:
+                lines.append(f"  \u26a0\ufe0f {warning}")
+
+        # Duration and timestamp footer
+        dur = self.duration()
+        minutes = int(dur.total_seconds()) // 60
+        seconds = int(dur.total_seconds()) % 60
+        dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
+        lines.append(f"\u23f1\ufe0f Dur\u00e9e : {dur_str}")
+
+        if self.finished_at:
             lines.append(
-                f"{status} <b>{name}</b>: {step.success_count} OK, {step.error_count} err, {step.skip_count} skip"
+                f"\U0001f4c5 {self.finished_at.strftime('%Y-%m-%d %H:%M:%S')}"
             )
-        lines.append(f"\u23f1\ufe0f Dur\u00e9e : {self.duration()}")
+
         return "\n".join(lines)
