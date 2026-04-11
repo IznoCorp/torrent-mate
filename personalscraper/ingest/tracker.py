@@ -64,10 +64,14 @@ class IngestTracker:
 
         Writes to a .tmp file first, then uses os.replace() for an atomic
         rename. This prevents corruption if the process is killed mid-write.
+        Logs a warning on write failure instead of crashing the ingest loop.
         """
         tmp_path = self.tracker_path.with_suffix(".tmp")
-        tmp_path.write_text(json.dumps(self._data, indent=2))
-        os.replace(tmp_path, self.tracker_path)
+        try:
+            tmp_path.write_text(json.dumps(self._data, indent=2))
+            os.replace(tmp_path, self.tracker_path)
+        except OSError as e:
+            log.error("tracker_save_failed", path=str(self.tracker_path), error=str(e))
 
     def is_ingested(self, torrent_hash: str) -> bool:
         """Check if a torrent has already been ingested.

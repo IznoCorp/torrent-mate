@@ -352,7 +352,11 @@ def prompt_user_choice(
     while True:
         try:
             choice = int(input("\nChoix : "))
-        except (ValueError, EOFError):
+        except EOFError:
+            # Non-interactive context (launchd, cron) — skip prompt
+            logger.warning("Non-interactive mode detected, skipping user prompt")
+            return None
+        except ValueError:
             continue
         if choice == 0:
             return None

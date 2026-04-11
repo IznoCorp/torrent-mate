@@ -271,18 +271,32 @@ class Dispatcher:
         tmp_old = dest.parent / f"{dest.name}.old.tmp"
 
         try:
+            # Phase 1: Transfer (critical — must succeed)
             if not self._rsync(source, tmp_new):
+                # Clean up partial rsync output
+                if tmp_new.exists():
+                    shutil.rmtree(tmp_new)
                 return False
+
+            # Phase 2: Atomic swap (critical — must succeed)
             if dest.exists():
                 os.rename(dest, tmp_old)
             os.rename(tmp_new, dest)
-            if tmp_old.exists():
-                shutil.rmtree(tmp_old)
-            shutil.rmtree(source)
-            return True
         except OSError as e:
             logger.error("Replace failed: %s", e)
             return False
+
+        # Phase 3: Cleanup (non-critical — replace already succeeded)
+        try:
+            if tmp_old.exists():
+                shutil.rmtree(tmp_old)
+        except OSError as e:
+            logger.warning("Failed to clean old copy %s: %s", tmp_old, e)
+        try:
+            shutil.rmtree(source)
+        except OSError as e:
+            logger.warning("Failed to clean source %s: %s", source, e)
+        return True
 
     def _merge(self, source: Path, dest: Path) -> bool:
         """Merge TV show with backup for existing files.

@@ -23,6 +23,9 @@ STAGING_TMP_PREFIX = ".ingest_tmp_"
 def _get_dir_size(path: Path) -> int:
     """Calculate total size of a directory tree in bytes.
 
+    Handles broken symlinks and permission errors gracefully
+    to avoid crashing the ingest step on a single bad file.
+
     Args:
         path: Directory or file path to measure.
 
@@ -31,7 +34,14 @@ def _get_dir_size(path: Path) -> int:
     """
     if path.is_file():
         return path.stat().st_size
-    return sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+    total = 0
+    for f in path.rglob("*"):
+        try:
+            if f.is_file():
+                total += f.stat().st_size
+        except OSError:
+            log.warning("cannot_stat_file", path=str(f))
+    return total
 
 
 def _verify_transfer(source: Path, dest: Path) -> bool:
@@ -64,9 +74,12 @@ def _cleanup_orphan_temps(staging_dir: Path) -> int:
     cleaned = 0
     for item in staging_dir.iterdir():
         if item.name.startswith(STAGING_TMP_PREFIX) and item.is_dir():
-            shutil.rmtree(item)
-            log.info("orphan_cleaned", path=str(item))
-            cleaned += 1
+            try:
+                shutil.rmtree(item)
+                log.info("orphan_cleaned", path=str(item))
+                cleaned += 1
+            except OSError as e:
+                log.warning("orphan_cleanup_failed", path=str(item), error=str(e))
     return cleaned
 
 
@@ -235,9 +248,9 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                     report.details.append(f"{name}: transfer failed")
 
     except Exception as e:
-        log.error("ingest_failed", error=str(e))
+        log.exception("ingest_failed", error=str(e))
         report.error_count += 1
-        report.details.append(f"Ingest failed: {e}")
+        report.details.append(f"Ingest failed: {type(e).__name__}: {e}")
 
     log.info(
         "ingest_complete",
