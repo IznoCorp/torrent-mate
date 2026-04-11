@@ -1,10 +1,12 @@
+"""Tests for personalscraper.config — Settings loading and validation."""
+
 from pathlib import Path
 
 from personalscraper.config import Settings
 
 
 def test_settings_defaults():
-    """Settings loads with defaults (no .env needed for fields with defaults)."""
+    """Settings loads with defaults when no .env file is present."""
     settings = Settings(_env_file=None)
     assert settings.qbit_host == "localhost"
     assert settings.qbit_port == 8081
@@ -14,7 +16,7 @@ def test_settings_defaults():
 
 
 def test_settings_from_env(tmp_path, monkeypatch):
-    """Settings reads from environment variables."""
+    """Settings reads and converts values from environment variables."""
     monkeypatch.setenv("QBIT_HOST", "192.168.1.100")
     monkeypatch.setenv("QBIT_PORT", "9090")
     monkeypatch.setenv("STAGING_DIR", str(tmp_path))

@@ -1,3 +1,10 @@
+"""Shared dataclass models used across multiple pipeline versions.
+
+Convention: only models shared between 2+ versions live here.
+Version-specific models (ScrapeResult, VerifyResult, DispatchResult)
+are defined in their respective modules.
+"""
+
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -5,23 +12,48 @@ from pathlib import Path
 
 @dataclass
 class SortResult:
-    """Résultat du tri d'un fichier/dossier média."""
+    """Result of sorting a single media file/directory.
+
+    Attributes:
+        source: Source path in staging area (A TRIER/).
+        destination: Target path (001-MOVIES/, 002-TVSHOWS/, etc.).
+        media_type: Detected type ("movie", "episode", "audio", "ebook", etc.).
+        title: Extracted title.
+        year: Detected year, if any.
+        season: Detected season number, if any (V2 cleaner).
+        episode: Detected episode number, if any (V2 cleaner).
+        status: Result status ("moved", "skipped", "error").
+        message: Error message or additional info.
+    """
+
     source: Path
     destination: Path
-    media_type: str       # "movie", "episode", "audio", "ebook", etc.
+    media_type: str
     title: str
     year: int | None
     season: int | None
     episode: int | None
-    status: str           # "moved", "skipped", "error"
+    status: str
     message: str | None
 
 
 @dataclass
 class StepReport:
-    """Rapport d'exécution d'une étape du pipeline.
-    Chaque run_*() (V1-V5) convertit ses résultats internes en StepReport."""
-    name: str             # "ingest", "sort", "scrape", "verify", "dispatch"
+    """Execution report for a single pipeline step.
+
+    Each run_*() function (V1-V5) converts its internal results
+    into a StepReport before returning.
+
+    Attributes:
+        name: Step identifier ("ingest", "sort", "scrape", "verify", "dispatch").
+        success_count: Number of successfully processed items.
+        skip_count: Number of skipped items.
+        error_count: Number of failed items.
+        warnings: Warning messages collected during execution.
+        details: Per-item detail strings for reporting.
+    """
+
+    name: str
     success_count: int = 0
     skip_count: int = 0
     error_count: int = 0
@@ -31,26 +63,56 @@ class StepReport:
 
 @dataclass
 class PipelineReport:
-    """Aggregated report for a full pipeline run (V6)."""
+    """Aggregated report for a full pipeline run (V6).
+
+    Collects StepReports from each pipeline step and provides
+    summary methods for notifications and console display.
+
+    Attributes:
+        started_at: Pipeline start timestamp.
+        steps: Ordered dict of step name to StepReport.
+        finished_at: Pipeline end timestamp (None if still running).
+    """
+
     started_at: datetime
     steps: dict[str, StepReport] = field(default_factory=dict)
     finished_at: datetime | None = None
 
     def add_step(self, name: str, step: StepReport) -> None:
-        """Add a completed StepReport to the pipeline report."""
+        """Add a completed StepReport to the pipeline report.
+
+        Args:
+            name: Step identifier (e.g. "ingest", "sort").
+            step: The completed StepReport to add.
+        """
         self.steps[name] = step
 
     def duration(self) -> timedelta:
+        """Calculate total pipeline duration.
+
+        Returns:
+            Time elapsed between started_at and finished_at,
+            or zero if finished_at is not set.
+        """
         if self.finished_at and self.started_at:
             return self.finished_at - self.started_at
         return timedelta()
 
     def has_errors(self) -> bool:
+        """Check if any step reported errors.
+
+        Returns:
+            True if at least one step has error_count > 0.
+        """
         return any(s.error_count > 0 for s in self.steps.values())
 
     def to_html(self) -> str:
-        """Format report as Telegram HTML message."""
-        lines = ["<b>PersonalScraper — Rapport</b>"]
+        """Format report as Telegram HTML message.
+
+        Returns:
+            HTML string suitable for Telegram's parse_mode="HTML".
+        """
+        lines = ["<b>PersonalScraper \u2014 Rapport</b>"]
         for name, step in self.steps.items():
             status = "\u2705" if step.error_count == 0 else "\u274c"
             lines.append(

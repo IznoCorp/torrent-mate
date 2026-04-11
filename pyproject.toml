@@ -63,4 +63,8 @@ target-version = "py310"
 line-length = 120
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
+select = ["E", "F", "I", "W", "D"]
+ignore = ["D100", "D104"]  # D100=module docstring (enforced manually), D104=__init__ docstring
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

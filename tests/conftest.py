@@ -1,3 +1,5 @@
+"""Shared pytest fixtures for PersonalScraper tests."""
+
 import pytest
 
 from personalscraper.config import Settings
@@ -5,7 +7,15 @@ from personalscraper.config import Settings
 
 @pytest.fixture
 def mock_settings(tmp_path, monkeypatch):
-    """Provide a Settings instance with temp paths and no real .env."""
+    """Provide a Settings instance with temp paths and no real .env.
+
+    Args:
+        tmp_path: Pytest temporary directory fixture.
+        monkeypatch: Pytest monkeypatch fixture for env vars.
+
+    Returns:
+        A Settings instance pointing to temporary directories.
+    """
     monkeypatch.setenv("TORRENT_COMPLETE_DIR", str(tmp_path / "complete"))
     monkeypatch.setenv("STAGING_DIR", str(tmp_path / "staging"))
     monkeypatch.setenv("DISK1_DIR", str(tmp_path / "disk1"))

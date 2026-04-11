@@ -1,3 +1,5 @@
+"""Tests for personalscraper.logger — structured logging and log cleanup."""
+
 import json
 import time
 
@@ -5,7 +7,7 @@ from personalscraper.logger import cleanup_old_logs, configure_logging, get_logg
 
 
 def test_configure_logging_creates_logs_dir(tmp_path, monkeypatch):
-    """configure_logging creates logs/ directory if missing."""
+    """configure_logging creates the logs/ directory if it doesn't exist."""
     import personalscraper.logger as logger_mod
 
     monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")
@@ -53,12 +55,12 @@ def test_cleanup_old_logs_deletes_old_files(tmp_path):
 
 
 def test_cleanup_old_logs_empty_dir(tmp_path):
-    """cleanup_old_logs handles empty directory."""
+    """cleanup_old_logs handles an empty directory gracefully."""
     deleted = cleanup_old_logs(tmp_path, retention_days=30)
     assert deleted == 0
 
 
 def test_cleanup_old_logs_missing_dir(tmp_path):
-    """cleanup_old_logs handles missing directory."""
+    """cleanup_old_logs handles a non-existent directory gracefully."""
     deleted = cleanup_old_logs(tmp_path / "nonexistent", retention_days=30)
     assert deleted == 0
