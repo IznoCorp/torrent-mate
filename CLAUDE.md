@@ -133,7 +133,12 @@ A TRIER/
 ├── 006-ANDROID/         # Android apps staging (currently empty)
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
-└── 099-SCRIPTS/         # Legacy — will be archived to ~/dev/099-SCRIPTS-archive/ by V0
+├── personalscraper/     # Python package (V0+)
+├── tests/               # pytest tests
+├── pyproject.toml       # Project config (PEP 621)
+├── Makefile             # make test/lint/format/install-dev
+├── .env.example         # Config template
+└── logs/                # Structured JSON logs (gitignored)
 ```
 
 ## Naming Conventions
@@ -179,11 +184,10 @@ Episode files follow the pattern: `S{nn}E{nn} - {Episode Title}.{ext}`
 
 Primary sorting tool. See [torrent-sort command](#torrent-sort-command) above.
 
-### 099-SCRIPTS/ — legacy, will be archived by V0 phase 4
+### 099-SCRIPTS/ — archived (V0 phase 4)
 
-Contains legacy Python scripts (PackUnpack, TVDBNameToNum, cleanFileSystem, trailerScraper).
-All are hardcoded to Windows paths or use deprecated APIs (tvdb_api v3).
-Useful patterns have been extracted into the V1-V3 designs. Will be moved to `~/dev/099-SCRIPTS-archive/`.
+Legacy scripts archived to `~/dev/099-SCRIPTS-archive/` and removed from repo.
+Useful patterns were extracted into V1-V3 designs.
 
 ## Language
 
@@ -193,8 +197,7 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 
 - FileMate's directory name mappings (001-MOVIES, 002-TVSHOWS, etc.) are defined in `~/dev/FileMate/.env` — update there if folder naming changes.
 - Paths contain spaces (`/Volumes/IznoServer SSD/A TRIER/`) — always quote paths in shell commands.
-- Some scripts still reference Windows paths (`N:/A TRIER/`) — these are legacy and need updating for the macOS environment.
-- The `plex/` scripts reference disk paths as `/Volumes/DISK1/` (uppercase) but actual mounts are `/Volumes/Disk1/` (mixed case) — be aware of case sensitivity.
+- Legacy scripts (099-SCRIPTS/) archived to `~/dev/099-SCRIPTS-archive/` — no longer in repo.
 - MediaElch is the external metadata scraper — Claude does not interact with it directly.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`
 - ffprobe returns ISO 639-2/B language codes (`fre`), Kodi NFO expects 639-2/T (`fra`) — always convert via `LANG_B_TO_T` mapping (20 codes differ)
