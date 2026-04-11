@@ -98,6 +98,17 @@ __pycache__/
 *.pyc
 *.pyo
 *.pkl
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# ===========================================
+# Logs (structured JSON, non-committed)
+# ===========================================
+logs/
 
 # ===========================================
 # IDE / Editor
