@@ -8,30 +8,20 @@ Implémenter le système de patterns de nommage configurable, compatible MediaEl
 
 ### 3.1.1 — NamingPatterns dataclass
 
-- [ ] Créer `personalscraper/naming_patterns.py` (niveau package, partagé)
-- [ ] Implémenter `NamingPatterns` dataclass avec tous les patterns MediaElch
-- [ ] Patterns films : movie_dir, movie_video, movie_nfo, movie_poster, movie_fanart, movie_banner, movie_clearlogo, movie_clearart, movie_discart, movie_landscape
-- [ ] Patterns séries show-level : tvshow_nfo, tvshow_poster, tvshow_fanart, tvshow_banner, tvshow_clearlogo, tvshow_clearart, tvshow_characterart, tvshow_landscape
-- [ ] Patterns season-level : season_dir, season_poster, season_fanart, season_banner, season_landscape
-- [ ] Patterns épisodes : episode_video, episode_nfo, episode_thumb
+- [x] Créer `personalscraper/naming_patterns.py` (niveau package, partagé)
+- [x] Implémenter `NamingPatterns` frozen dataclass avec tous les patterns MediaElch
+- [x] Patterns films : movie_dir, movie_video, movie_nfo, movie_poster, movie_fanart, movie_banner, movie_clearlogo, movie_clearart, movie_discart, movie_landscape
+- [x] Patterns séries show-level : tvshow_nfo, tvshow_poster, tvshow_fanart, tvshow_banner, tvshow_clearlogo, tvshow_clearart, tvshow_characterart, tvshow_landscape
+- [x] Patterns season-level : season_dir, season_poster, season_fanart, season_banner, season_landscape
+- [x] Patterns épisodes : episode_video, episode_nfo, episode_thumb
 
-**Commit** : `v3.1.1: Implement NamingPatterns dataclass with MediaElch defaults`
+**Commit** : `v3.1.1: Implement NamingPatterns dataclass with MediaElch defaults` ✅
 
-### 3.1.2 — Templating
+### 3.1.2 — Templating + Tests de conformité MediaElch (merged with 3.1.3)
 
-- [ ] Implémenter `format(pattern_name, **kwargs)` : remplace {Title}, {Year}, {Season:02d}, etc.
-- [ ] Gérer `<baseFileName>` : résout à `{Title}` pour les films, `S{Season:02d}E{Episode:02d} - {EpisodeTitle}` pour les épisodes
-- [ ] Tests unitaires : chaque pattern produit le nom attendu
+- [x] Implémenter `format(pattern_name, **kwargs)` et `format_base_filename()`
+- [x] Tests unitaires : chaque pattern produit le nom attendu (32 tests)
+- [x] Comparé avec fichiers réels : The Piano Lesson, Gérald le Conquérant, Shrinking S03, Fallout
+- [x] Épisodes FR vérifiés : « I will be grape », Régime dépression
 
-> Note : Pas de `load()` depuis fichier config. Les patterns sont des standards Kodi/MediaElch
-> qui ne changent pas. La dataclass avec valeurs par défaut suffit (YAGNI).
-
-**Commit** : `v3.1.2: Add pattern templating`
-
-### 3.1.3 — Tests de conformité MediaElch
-
-- [ ] Comparer les patterns générés avec les fichiers réels dans 001-MOVIES/ et 002-TVSHOWS/
-- [ ] Vérifier que les noms produits correspondent à ce que MediaElch produit
-- [ ] Tests paramétrés avec des cas variés (films avec sous-titres, séries multi-saisons)
-
-**Commit** : `v3.1.3: Add MediaElch conformity tests for naming patterns`
+**Commit** : `v3.1.2: Add pattern templating with MediaElch conformity tests` ✅

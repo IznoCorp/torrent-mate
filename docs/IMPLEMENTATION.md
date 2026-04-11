@@ -77,8 +77,8 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Review globale inter-versions   | [x] 79 issues fixed across 5 passes (5/5 CLEAN) |
 | B. Implémentation V0               | [x] 4 phases, 14 sous-phases                    |
 | B. Implémentation V1               | [x] 5 phases, 10 sous-phases                    |
-| B. Implémentation V2               | [ ]                                             |
-| B. Implémentation V3               | [ ]                                             |
+| B. Implémentation V2               | [x] 4 phases, 8 sous-phases                     |
+| B. Implémentation V3               | [~] P1-P7 done, P8 next (22/42 sous-phases)     |
 | B. Implémentation V4               | [ ]                                             |
 | B. Implémentation V5               | [ ]                                             |
 | B. Implémentation V6               | [ ]                                             |
