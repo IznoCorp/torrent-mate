@@ -185,7 +185,7 @@ def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipe
 
     from personalscraper.dispatch.run import run_dispatch
     from personalscraper.logger import cleanup_old_logs
-    from personalscraper.models import PipelineReport
+    from personalscraper.models import PipelineReport, StepReport
     from personalscraper.notifier import TelegramNotifier, ping_healthcheck
     from personalscraper.scraper.run import run_scrape
     from personalscraper.sorter.run import run_sort
@@ -218,18 +218,30 @@ def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipe
             report.add_step("ingest", run_ingest(settings, dry_run=dry_run))
         except Exception:
             log.exception("Ingest step failed fatally")
+            report.add_step("ingest", StepReport(
+                name="ingest", error_count=1,
+                details=["Fatal exception — see logs"],
+            ))
 
         # V2 — Sort
         try:
             report.add_step("sort", run_sort(settings, dry_run=dry_run))
         except Exception:
             log.exception("Sort step failed fatally")
+            report.add_step("sort", StepReport(
+                name="sort", error_count=1,
+                details=["Fatal exception — see logs"],
+            ))
 
         # V3 — Scrape
         try:
             report.add_step("scrape", run_scrape(settings, dry_run=dry_run))
         except Exception:
             log.exception("Scrape step failed fatally")
+            report.add_step("scrape", StepReport(
+                name="scrape", error_count=1,
+                details=["Fatal exception — see logs"],
+            ))
 
         # V4 — Verify (returns StepReport + dispatchable list)
         verified = None
@@ -238,12 +250,20 @@ def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipe
             report.add_step("verify", step_report)
         except Exception:
             log.exception("Verify step failed fatally")
+            report.add_step("verify", StepReport(
+                name="verify", error_count=1,
+                details=["Fatal exception — see logs"],
+            ))
 
         # V5 — Dispatch (pass verified items from V4)
         try:
             report.add_step("dispatch", run_dispatch(settings, dry_run=dry_run, verified=verified))
         except Exception:
             log.exception("Dispatch step failed fatally")
+            report.add_step("dispatch", StepReport(
+                name="dispatch", error_count=1,
+                details=["Fatal exception — see logs"],
+            ))
 
         report.finished_at = datetime.now()
         log.info("Pipeline finished (duration=%s)", report.duration())

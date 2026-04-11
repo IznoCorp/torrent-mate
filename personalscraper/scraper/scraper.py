@@ -18,6 +18,7 @@ from personalscraper.config import Settings
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.artwork import ArtworkDownloader
 from personalscraper.scraper.confidence import (  # noqa: F401
+    LOW_CONFIDENCE,
     MatchResult,
     match_movie,
     match_tvshow,
@@ -53,6 +54,7 @@ class ScrapeResult:
         action: Result action ("scraped", "skipped_low_confidence",
             "skipped_already_done", "error").
         error: Error message if action is "error".
+        warnings: Non-fatal issues (e.g. artwork download failure).
     """
 
     media_path: Path
@@ -63,6 +65,7 @@ class ScrapeResult:
     episodes_renamed: int = 0
     action: str = "error"
     error: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 def _parse_folder_name(name: str) -> tuple[str, int | None]:
@@ -176,9 +179,12 @@ class Scraper:
             logger.error("Failed to match movie %s: %s", title, e)
             return result
 
-        if match is None:
+        if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
-            logger.info("No confident match for: %s", title)
+            logger.info(
+                "No confident match for: %s (score=%.2f)",
+                title, match.confidence if match else 0.0,
+            )
             return result
 
         result.match = match
@@ -223,6 +229,7 @@ class Scraper:
             result.artwork_downloaded = [p.name for p in downloaded]
         except Exception as e:
             logger.warning("Artwork download failed for %s: %s", title, e)
+            result.warnings.append(f"Artwork failed: {e}")
 
         result.action = "scraped"
         return result
@@ -304,9 +311,12 @@ class Scraper:
             logger.error("Failed to match show %s: %s", title, e)
             return result
 
-        if match is None:
+        if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
-            logger.info("No confident match for show: %s", title)
+            logger.info(
+                "No confident match for show: %s (score=%.2f)",
+                title, match.confidence if match else 0.0,
+            )
             return result
 
         result.match = match
@@ -321,7 +331,7 @@ class Scraper:
             if match.source == "tvdb":
                 tvdb_data = self._tvdb.get_series(match.api_id)
                 remote_ids = self._tvdb.get_remote_ids(tvdb_data)
-                raw_id = remote_ids.get("tmdb")
+                raw_id = remote_ids.get("tmdb_id")
                 tmdb_id = int(raw_id) if raw_id else None
                 if not tmdb_id:
                     logger.warning("No TMDB cross-ref for TVDB show %d", match.api_id)
@@ -372,6 +382,7 @@ class Scraper:
             result.artwork_downloaded = [p.name for p in downloaded]
         except Exception as e:
             logger.warning("Artwork failed for %s: %s", match.api_title, e)
+            result.warnings.append(f"Artwork failed: {e}")
 
         # Process episodes
         total_renamed = 0
