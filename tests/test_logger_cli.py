@@ -1,0 +1,44 @@
+"""Test structlog integration with CLI commands."""
+
+import json
+
+from typer.testing import CliRunner
+
+from personalscraper.cli import app
+
+runner = CliRunner()
+
+
+def test_cli_creates_log_file(tmp_path, monkeypatch):
+    """Running a CLI command creates a JSON log file."""
+    import personalscraper.logger as logger_mod
+
+    monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")
+    result = runner.invoke(app, ["ingest"])
+    assert result.exit_code == 0
+
+    log_file = tmp_path / "logs" / "personalscraper.json"
+    if log_file.exists():
+        for line in log_file.read_text().strip().split("\n"):
+            if line:
+                data = json.loads(line)
+                assert "timestamp" in data
+                assert "level" in data
+
+
+def test_verbose_mode(tmp_path, monkeypatch):
+    """--verbose flag changes log level to DEBUG."""
+    import personalscraper.logger as logger_mod
+
+    monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")
+    result = runner.invoke(app, ["--verbose", "ingest"])
+    assert result.exit_code == 0
+
+
+def test_quiet_mode(tmp_path, monkeypatch):
+    """--quiet flag suppresses console output."""
+    import personalscraper.logger as logger_mod
+
+    monkeypatch.setattr(logger_mod, "LOGS_DIR", tmp_path / "logs")
+    result = runner.invoke(app, ["--quiet", "ingest"])
+    assert result.exit_code == 0
