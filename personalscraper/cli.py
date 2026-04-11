@@ -1,8 +1,8 @@
 """Typer CLI entry point for PersonalScraper.
 
 Defines the main app with global options (--verbose, --quiet, --version)
-and stub commands for each pipeline step (ingest, sort, scrape, verify, dispatch, run).
-Each command is implemented in its respective version (V1-V6).
+and commands for each pipeline step. Lock is acquired per-command to
+prevent concurrent executions.
 """
 
 import typer
@@ -10,6 +10,9 @@ from rich.console import Console
 from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
+from personalscraper.config import get_settings
+from personalscraper.ingest.ingest import run_ingest
+from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging
 
 # Rich tracebacks for readable error output
@@ -40,7 +43,19 @@ def main(
 @app.command()
 def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Ingest completed torrents from qBittorrent."""
-    state["console"].print("[bold]ingest[/bold] — not yet implemented (V1)")
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        report = run_ingest(settings, dry_run=dry_run)
+        console.print(
+            f"[bold]Ingest:[/bold] {report.success_count} OK, "
+            f"{report.skip_count} skipped, {report.error_count} errors"
+        )
+    finally:
+        release_lock()
 
 
 @app.command()
@@ -72,5 +87,5 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
 
 @app.command()
 def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline")) -> None:
-    """Run full pipeline (ingest → sort → scrape → verify → dispatch)."""
+    """Run full pipeline (ingest -> sort -> scrape -> verify -> dispatch)."""
     state["console"].print("[bold]run[/bold] — not yet implemented (V6)")
