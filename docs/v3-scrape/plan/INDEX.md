@@ -22,8 +22,8 @@
 | ·   | _Contrôle de cohérence P7→P8_        |                                                                    | [x]    |
 | 8   | NFO generator — séries + épisodes    | [phase-08-nfo-tvshow.md](phase-08-nfo-tvshow.md)                   | [x]    |
 | ·   | _Contrôle de cohérence P8→P9_        |                                                                    | [x]    |
-| 9   | Artwork downloader                   | [phase-09-artwork.md](phase-09-artwork.md)                         | [ ]    |
-| ·   | _Contrôle de cohérence P9→P10_       |                                                                    | [ ]    |
+| 9   | Artwork downloader                   | [phase-09-artwork.md](phase-09-artwork.md)                         | [x]    |
+| ·   | _Contrôle de cohérence P9→P10_       |                                                                    | [x]    |
 | 10  | Dossiers saison + renommage épisodes | [phase-10-episode-rename.md](phase-10-episode-rename.md)           | [ ]    |
 | ·   | _Contrôle de cohérence P10→P11_      |                                                                    | [ ]    |
 | 11  | Orchestrateur films                  | [phase-11-movie-orchestrator.md](phase-11-movie-orchestrator.md)   | [ ]    |
@@ -127,10 +127,10 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 9 (Artwork)
 
-- [ ] Images téléchargées au bon endroit avec les bons noms
-- [ ] Film : poster + landscape
-- [ ] Série : poster + landscape + season posters
-- [ ] Skip si fichier existe déjà
+- [x] Images téléchargées au bon endroit avec les bons noms
+- [x] Film : poster + landscape
+- [x] Série : poster + landscape + season posters
+- [x] Skip si fichier existe déjà
 
 ### Après Phase 10 (Episode rename)
 
