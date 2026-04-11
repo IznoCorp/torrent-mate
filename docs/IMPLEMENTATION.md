@@ -82,7 +82,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | B. Implémentation V4               | [x] 4 phases, 13 sous-phases                    |
 | B. Implémentation V5               | [x] 3 phases, 6 sous-phases                     |
 | B. Implémentation V6               | [x] 3 phases, 7 sous-phases                     |
-| B. Implémentation V7               | [ ]                                             |
+| B. Implémentation V7               | [x] 5 phases, 15 sous-phases                    |
 
 ---
 
