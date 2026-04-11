@@ -1,5 +1,114 @@
 """JSON-based tracker for ingested torrents.
 
 Persists torrent hashes to ~/.personalscraper/ingested_torrents.json
-to avoid re-ingesting already-processed torrents. Implemented in V1 phase 3.
+to avoid re-ingesting already-processed torrents. Uses atomic writes
+(write to .tmp then os.replace) to prevent corruption on crash.
 """
+
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+
+from personalscraper.logger import get_logger
+
+TRACKER_DIR = Path("~/.personalscraper").expanduser()
+TRACKER_FILE = TRACKER_DIR / "ingested_torrents.json"
+
+log = get_logger("tracker")
+
+
+class IngestTracker:
+    """Persist the state of already-ingested torrents in a JSON file.
+
+    The JSON structure is a dict mapping torrent hash to metadata:
+    ``{"abc123": {"name": "The.Boys.S05E01", "action": "copied", "date": "..."}}``
+
+    Attributes:
+        tracker_path: Path to the JSON tracker file.
+        _data: In-memory dict of torrent hash to metadata.
+    """
+
+    def __init__(self, tracker_path: Path = TRACKER_FILE) -> None:
+        """Initialize the tracker.
+
+        Args:
+            tracker_path: Path to the JSON file. Defaults to ~/.personalscraper/ingested_torrents.json.
+        """
+        self.tracker_path = tracker_path
+        self._data: dict[str, dict] = {}
+        self.load()
+
+    def load(self) -> dict[str, dict]:
+        """Load tracker data from the JSON file.
+
+        Creates parent directory if missing. Handles missing or corrupted files
+        gracefully by starting with an empty dict.
+
+        Returns:
+            The loaded tracker data dict.
+        """
+        self.tracker_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.tracker_path.exists():
+            try:
+                self._data = json.loads(self.tracker_path.read_text())
+            except (json.JSONDecodeError, ValueError):
+                log.warning("tracker_corrupted", path=str(self.tracker_path))
+                self._data = {}
+        else:
+            self._data = {}
+        return self._data
+
+    def save(self) -> None:
+        """Save tracker data to the JSON file atomically.
+
+        Writes to a .tmp file first, then uses os.replace() for an atomic
+        rename. This prevents corruption if the process is killed mid-write.
+        """
+        tmp_path = self.tracker_path.with_suffix(".tmp")
+        tmp_path.write_text(json.dumps(self._data, indent=2))
+        os.replace(tmp_path, self.tracker_path)
+
+    def is_ingested(self, torrent_hash: str) -> bool:
+        """Check if a torrent has already been ingested.
+
+        Args:
+            torrent_hash: The torrent hash to check.
+
+        Returns:
+            True if the hash exists in the tracker.
+        """
+        return torrent_hash in self._data
+
+    def mark_ingested(self, torrent_hash: str, torrent_name: str, action: str) -> None:
+        """Record a torrent as ingested and persist to disk.
+
+        Args:
+            torrent_hash: The torrent hash identifier.
+            torrent_name: Human-readable torrent name.
+            action: Transfer action performed ("copied" or "moved").
+        """
+        self._data[torrent_hash] = {
+            "name": torrent_name,
+            "action": action,
+            "date": datetime.now().isoformat(),
+        }
+        self.save()
+        log.info("torrent_marked", hash=torrent_hash, name=torrent_name, action=action)
+
+    def cleanup(self, active_hashes: set[str]) -> int:
+        """Remove entries for torrents no longer in qBittorrent.
+
+        Args:
+            active_hashes: Set of torrent hashes currently in qBittorrent.
+
+        Returns:
+            Number of stale entries removed.
+        """
+        stale = set(self._data.keys()) - active_hashes
+        for h in stale:
+            del self._data[h]
+        if stale:
+            self.save()
+            log.info("tracker_cleaned", removed=len(stale))
+        return len(stale)
