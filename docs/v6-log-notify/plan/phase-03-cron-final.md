@@ -59,20 +59,20 @@ Configurer l'exécution automatique via launchd (natif macOS) et valider le proj
 
 ### 6.3.2 — Documentation et CLAUDE.md
 
-- [ ] Mettre à jour CLAUDE.md avec toutes les commandes finales
-- [ ] Documenter le .env.example complet
-- [ ] Mettre à jour le Directory Structure dans CLAUDE.md
-- [ ] Mettre à jour IMPLEMENTATION.md : marquer V5 et toutes les versions complètes
+- [x] Mettre à jour CLAUDE.md avec toutes les commandes finales
+- [x] Documenter le .env.example complet
+- [x] Mettre à jour le Directory Structure dans CLAUDE.md
+- [x] Mettre à jour IMPLEMENTATION.md : marquer V5 et toutes les versions complètes
 
 **Commit** : `v6.3.2: Update CLAUDE.md and finalize documentation`
 
 ### 6.3.3 — Validation finale du projet
 
-- [ ] `personalscraper run --dry-run --verbose` fonctionne end-to-end
-- [ ] `make test` passe (tous les tests V0→V6)
-- [ ] `make lint` passe
-- [ ] Le scheduling (LaunchAgent) est configuré
-- [ ] Le .env contient toutes les valeurs nécessaires
-- [ ] Git status propre, tout committé
+- [x] `personalscraper run --dry-run --verbose` fonctionne end-to-end
+- [x] `make test` passe (tous les tests V0→V6)
+- [x] `make lint` passe
+- [x] Le scheduling (LaunchAgent) est configuré
+- [x] Le .env contient toutes les valeurs nécessaires
+- [x] Git status propre, tout committé
 
 **Commit** : `v6.3.3: Project complete — full pipeline validated`
