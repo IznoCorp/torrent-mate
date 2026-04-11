@@ -85,9 +85,34 @@ def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without 
 def scrape(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
+    tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
 ) -> None:
     """Scrape metadata and artwork from TMDB/TVDB."""
-    state["console"].print("[bold]scrape[/bold] — not yet implemented (V3)")
+    from personalscraper.scraper.run import run_scrape
+
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        report = run_scrape(
+            settings,
+            dry_run=dry_run,
+            interactive=interactive,
+            movies_only=movies_only,
+            tvshows_only=tvshows_only,
+        )
+        console.print(
+            f"[bold]Scrape:[/bold] {report.success_count} OK, "
+            f"{report.skip_count} skipped, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        release_lock()
 
 
 @app.command()

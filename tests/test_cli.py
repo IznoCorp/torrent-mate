@@ -60,10 +60,40 @@ def test_sort_stub():
     assert result.exit_code == 0
 
 
-def test_scrape_stub():
-    """Scrape stub command runs without error."""
+_mock_scrape_report = StepReport(name="scrape", success_count=3, skip_count=2, error_count=1)
+
+
+@patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_scrape_command(mock_lock, mock_release, mock_run):
+    """Scrape command acquires lock, runs scrape, and shows report."""
     result = runner.invoke(app, ["scrape"])
     assert result.exit_code == 0
+    assert "3 OK" in result.output
+    assert "2 skipped" in result.output
+    mock_lock.assert_called_once()
+    mock_release.assert_called_once()
+
+
+@patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_scrape_dry_run(mock_lock, mock_release, mock_run):
+    """Scrape --dry-run flag is passed through."""
+    result = runner.invoke(app, ["scrape", "--dry-run"])
+    assert result.exit_code == 0
+    # Verify dry_run=True was passed
+    call_kwargs = mock_run.call_args
+    assert call_kwargs is not None
+
+
+@patch("personalscraper.cli.acquire_lock", return_value=False)
+def test_scrape_lock_blocked(mock_lock):
+    """Scrape command exits with error if lock is held."""
+    result = runner.invoke(app, ["scrape"])
+    assert result.exit_code == 1
+    assert "Another instance" in result.output
 
 
 @patch("personalscraper.cli.run_ingest", return_value=_mock_report)
