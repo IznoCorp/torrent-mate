@@ -113,5 +113,7 @@ def ping_healthcheck(url: str, status: str = "") -> None:
         return
     try:
         requests.get(f"{url}{status}", timeout=5)
-    except Exception:
-        pass
+    except requests.RequestException as exc:
+        logger.warning("Healthcheck ping failed for %s%s: %s", url, status, exc)
+    except Exception as exc:
+        logger.warning("Unexpected error pinging healthcheck %s%s: %s", url, status, exc)

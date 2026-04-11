@@ -23,6 +23,7 @@ def mock_settings() -> MagicMock:
     s.disk2_dir = "/Volumes/Disk2/medias"
     s.disk3_dir = "/Volumes/Disk3/medias"
     s.disk4_dir = "/Volumes/Disk4/medias"
+    s.min_free_space_disk_gb = 100.0
     return s
 
 

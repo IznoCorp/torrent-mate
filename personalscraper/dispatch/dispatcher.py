@@ -26,8 +26,6 @@ from personalscraper.verify.verifier import VerifyResult
 
 logger = logging.getLogger(__name__)
 
-# Minimum free space threshold (GB) before any dispatch
-MIN_FREE_GB = 10.0
 
 
 class DispatchError(Exception):
@@ -170,7 +168,7 @@ class Dispatcher:
             result.action = "replaced" if success else "error"
         else:
             # Move to best disk
-            target = choose_disk(disk_statuses, category, MIN_FREE_GB, item_size_gb)
+            target = choose_disk(disk_statuses, category, self.settings.min_free_space_disk_gb, item_size_gb)
             if not target:
                 result.action = "skipped"
                 result.reason = f"No disk with enough space for category '{category}'"
@@ -225,7 +223,7 @@ class Dispatcher:
             success = self._merge(show_dir, dest)
             result.action = "merged" if success else "error"
         else:
-            target = choose_disk(disk_statuses, category, MIN_FREE_GB, item_size_gb)
+            target = choose_disk(disk_statuses, category, self.settings.min_free_space_disk_gb, item_size_gb)
             if not target:
                 result.action = "skipped"
                 result.reason = f"No disk with enough space for category '{category}'"
