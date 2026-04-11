@@ -240,3 +240,146 @@ class TestProcessMovies:
 
         assert len(results) == 1
         assert results[0].action == "error"
+
+
+# ---------------------------------------------------------------------------
+# TV show scraping orchestration
+# ---------------------------------------------------------------------------
+
+class TestScrapeTvshow:
+    """Tests for Scraper.scrape_tvshow."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked API clients."""
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_skip_if_tvshow_nfo_exists(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Should skip show if tvshow.nfo already exists."""
+        show_dir = tmp_path / "Fallout (2024)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text("<tvshow/>")
+
+        result = scraper.scrape_tvshow(show_dir)
+        assert result.action == "skipped_already_done"
+
+    def test_skip_low_confidence(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Should skip if no confident match found."""
+        show_dir = tmp_path / "Unknown Show (2024)"
+        show_dir.mkdir()
+
+        with patch("personalscraper.scraper.scraper.match_tvshow", return_value=None):
+            result = scraper.scrape_tvshow(show_dir)
+
+        assert result.action == "skipped_low_confidence"
+
+    def test_full_scrape_flow(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Should complete full scrape: match → details → NFO → artwork."""
+        show_dir = tmp_path / "Fallout (2024)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=106379, api_title="Fallout",
+            api_year=2024, confidence=0.95, source="tmdb",
+        )
+        show_data = {
+            "id": 106379,
+            "name": "Fallout",
+            "original_name": "Fallout",
+            "overview": "Test",
+            "vote_average": 8.1,
+            "vote_count": 2000,
+            "genres": [],
+            "first_air_date": "2024-04-10",
+            "status": "Returning Series",
+            "networks": [{"name": "Prime Video"}],
+            "origin_country": ["US"],
+            "number_of_episodes": 8,
+            "number_of_seasons": 1,
+            "external_ids": {"imdb_id": "tt12637874", "tvdb_id": 416744},
+            "aggregate_credits": {"cast": []},
+            "images": {"posters": [], "backdrops": []},
+            "content_ratings": {"results": []},
+            "seasons": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        assert result.action == "scraped"
+        assert result.match == match
+        assert result.nfo_written is True
+        assert (show_dir / "tvshow.nfo").exists()
+
+
+# ---------------------------------------------------------------------------
+# Batch TV show processing
+# ---------------------------------------------------------------------------
+
+class TestProcessTvshows:
+    """Tests for Scraper.process_tvshows."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked clients."""
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_processes_all_subdirs(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Should call scrape_tvshow for each subdirectory."""
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        (tvshows_dir / "Show A (2024)").mkdir()
+        (tvshows_dir / "Show B (2025)").mkdir()
+        (tvshows_dir / ".hidden").mkdir()
+
+        with patch.object(scraper, "scrape_tvshow") as mock_scrape:
+            mock_scrape.return_value = ScrapeResult(
+                media_path=Path("."), media_type="tvshow", action="scraped",
+            )
+            results = scraper.process_tvshows(tvshows_dir)
+
+        assert len(results) == 2
+        assert mock_scrape.call_count == 2
+
+    def test_nonexistent_dir(self, scraper: Scraper, tmp_path: Path) -> None:
+        """Should return empty list for nonexistent directory."""
+        results = scraper.process_tvshows(tmp_path / "nonexistent")
+        assert results == []
