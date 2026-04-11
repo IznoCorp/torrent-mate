@@ -1,5 +1,6 @@
 """Tests for personalscraper.notifier — Telegram client and healthcheck."""
 
+import os
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +9,11 @@ import pytest
 from personalscraper.config import Settings
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.notifier import TelegramNotifier, ping_healthcheck
+
+# Detect if real Telegram credentials are available for live tests
+_HAS_TELEGRAM = bool(
+    os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")
+)
 
 
 @pytest.fixture()
@@ -141,3 +147,49 @@ class TestPingHealthcheck:
         """Default status is empty string (success endpoint)."""
         ping_healthcheck("https://hc-ping.com/abc")
         mock_get.assert_called_once_with("https://hc-ping.com/abc", timeout=5)
+
+
+# ── Live Telegram tests (skipped if no credentials) ──
+
+
+@pytest.mark.skipif(not _HAS_TELEGRAM, reason="TELEGRAM_BOT_TOKEN/CHAT_ID not set in env")
+class TestTelegramLive:
+    """Live integration tests against the real Telegram Bot API.
+
+    Skipped unless TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set
+    in the environment (loaded from .env by pydantic-settings).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _live_notifier(self):
+        """Create a notifier with real credentials from env."""
+        self.notifier = TelegramNotifier(
+            bot_token=os.environ["TELEGRAM_BOT_TOKEN"],
+            chat_id=os.environ["TELEGRAM_CHAT_ID"],
+        )
+
+    def test_send_plain_text(self):
+        """Send a plain text message to verify bot token + chat_id are valid."""
+        result = self.notifier.send(
+            "\U0001f9ea <b>PersonalScraper</b> — test unitaire live\n"
+            "Ce message confirme que le bot Telegram fonctionne.",
+        )
+        assert result is True, "Telegram API returned failure — check bot token and chat_id"
+
+    def test_send_report_html(self):
+        """Send a formatted PipelineReport to verify HTML rendering."""
+        report = PipelineReport(started_at=datetime(2026, 4, 11, 3, 0, 0))
+        report.add_step("ingest", StepReport(name="ingest", success_count=3, skip_count=1))
+        report.add_step("sort", StepReport(name="sort", success_count=5))
+        report.add_step("scrape", StepReport(name="scrape", success_count=4, error_count=1))
+        report.add_step("verify", StepReport(name="verify", success_count=6))
+        report.add_step("dispatch", StepReport(name="dispatch", success_count=2))
+        report.finished_at = datetime(2026, 4, 11, 3, 4, 32)
+
+        result = self.notifier.send_report(report)
+        assert result is True, "send_report() failed — check HTML format compatibility"
+
+    def test_is_configured_with_real_settings(self):
+        """is_configured returns True with the loaded settings."""
+        settings = Settings()
+        assert TelegramNotifier.is_configured(settings) is True
