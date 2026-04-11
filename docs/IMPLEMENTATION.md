@@ -36,6 +36,7 @@ Pour chaque version :
 4. **Contrôle de cohérence** entre chaque phase (voir ci-dessous)
 5. Test end-to-end de la version complète
 6. **Compaction du contexte** : vérifier après chaque sous-phase si le contexte dépasse 80% — si oui, compacter avant de continuer
+7. **Flux continu** : ne JAMAIS demander confirmation pour passer à la phase/version suivante — enchaîner automatiquement. Seules raisons d'arrêt : erreur bloquante nécessitant une décision utilisateur, ou compaction contexte
 
 ### Conventions de code
 

@@ -36,6 +36,13 @@ Coherence check between every phase — verify interfaces match design before co
 - **Update progress** (IMPLEMENTATION.md + plan/INDEX.md) after every sub-phase — never batch
 - **Check context** after every sub-phase — if ≥80% full, compact before continuing
 
+### Continuous flow
+
+- **Never ask for confirmation** to continue between sub-phases, phases, or versions
+- **Always continue automatically** — phase done → next phase, version done → next version
+- **Only stop** if: a blocking error requires a user decision, or context needs compaction
+- Do NOT ask "On continue ?", "Shall I proceed?", or present options to continue — just do it
+
 ## Commands
 
 ```bash
