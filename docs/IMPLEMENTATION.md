@@ -74,7 +74,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan               |
 | A. Review globale inter-versions   | [x] 79 issues fixed across 5 passes (5/5 CLEAN) |
 | B. Implémentation V0               | [x] 4 phases, 14 sous-phases                    |
-| B. Implémentation V1               | [ ]                                             |
+| B. Implémentation V1               | [x] 5 phases, 10 sous-phases                    |
 | B. Implémentation V2               | [ ]                                             |
 | B. Implémentation V3               | [ ]                                             |
 | B. Implémentation V4               | [ ]                                             |

@@ -33,14 +33,22 @@ Coherence check between every phase — verify interfaces match design before co
 ## Commands
 
 ```bash
-# Sort new downloads into category folders
-torrent-sort
-torrent-sort --dry-run          # Preview without moving
-torrent-sort --verbose --clean  # Sort + delete leftovers
+# PersonalScraper CLI (V0+)
+personalscraper ingest              # Ingest completed torrents from qBittorrent
+personalscraper ingest --dry-run    # Preview without moving
+personalscraper sort                # Sort media files into category folders (V2)
+personalscraper scrape              # Scrape metadata from TMDB/TVDB (V3)
+personalscraper verify              # Quality check before dispatch (V4)
+personalscraper dispatch            # Move to storage disks (V5)
+personalscraper run                 # Full pipeline (V6)
+personalscraper run --dry-run       # Preview full pipeline
 
-# Clean empty media folders across all disks
-python3 099-SCRIPTS/plex/cleanFileSystem.py --dry-run
-python3 099-SCRIPTS/plex/cleanFileSystem.py
+# Alias
+media-ingest                        # → personalscraper ingest
+
+# Sort new downloads into category folders (legacy, replaced by `personalscraper sort` in V2)
+torrent-sort
+torrent-sort --dry-run
 
 # Check disk space (for choosing target disk)
 df -h /Volumes/Disk{1,2,3,4}
