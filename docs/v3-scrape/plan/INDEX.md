@@ -26,10 +26,10 @@
 | ·   | _Contrôle de cohérence P9→P10_       |                                                                    | [x]    |
 | 10  | Dossiers saison + renommage épisodes | [phase-10-episode-rename.md](phase-10-episode-rename.md)           | [x]    |
 | ·   | _Contrôle de cohérence P10→P11_      |                                                                    | [x]    |
-| 11  | Orchestrateur films                  | [phase-11-movie-orchestrator.md](phase-11-movie-orchestrator.md)   | [ ]    |
-| ·   | _Contrôle de cohérence P11→P12_      |                                                                    | [ ]    |
-| 12  | Orchestrateur séries                 | [phase-12-tvshow-orchestrator.md](phase-12-tvshow-orchestrator.md) | [ ]    |
-| ·   | _Contrôle de cohérence P12→P13_      |                                                                    | [ ]    |
+| 11  | Orchestrateur films                  | [phase-11-movie-orchestrator.md](phase-11-movie-orchestrator.md)   | [x]    |
+| ·   | _Contrôle de cohérence P11→P12_      |                                                                    | [x]    |
+| 12  | Orchestrateur séries                 | [phase-12-tvshow-orchestrator.md](phase-12-tvshow-orchestrator.md) | [x]    |
+| ·   | _Contrôle de cohérence P12→P13_      |                                                                    | [x]    |
 | 13  | CLI scrape + tests end-to-end        | [phase-13-cli-tests.md](phase-13-cli-tests.md)                     | [ ]    |
 | ·   | _Contrôle de cohérence V3→V4_        |                                                                    | [ ]    |
 
@@ -141,17 +141,17 @@ Phase 13 : CLI et tests finaux.
 
 ### Après Phase 11 (Movie orchestrator)
 
-- [ ] `scrape_movie(dir)` enchaîne : match → NFO → artwork
-- [ ] Skip si .nfo existe déjà
-- [ ] Retourne `ScrapeResult` correct
+- [x] `scrape_movie(dir)` enchaîne : match → NFO → artwork
+- [x] Skip si .nfo existe déjà
+- [x] Retourne `ScrapeResult` correct
 
 ### Après Phase 12 (TVShow orchestrator)
 
-- [ ] `scrape_tvshow(dir)` enchaîne : match → tvshow.nfo → artwork → saisons → rename → episode NFO
-- [ ] Skip si tvshow.nfo existe déjà
-- [ ] Gère les séries multi-saisons
-- [ ] **Handoff V2→V3** : renomme `Show Name/` → `Show Name (Year)/` après matching API
-- [ ] **Handoff V2→V3** : gère le cas d'un dossier déjà renommé avec année (pas de re-rename)
+- [x] `scrape_tvshow(dir)` enchaîne : match → tvshow.nfo → artwork → saisons → rename → episode NFO
+- [x] Skip si tvshow.nfo existe déjà
+- [x] Gère les séries multi-saisons
+- [x] **Handoff V2→V3** : renomme `Show Name/` → `Show Name (Year)/` après matching API
+- [x] **Handoff V2→V3** : gère le cas d'un dossier déjà renommé avec année (pas de re-rename)
 
 ### Après Phase 13 (CLI → V4)
 
