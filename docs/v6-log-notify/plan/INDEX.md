@@ -10,7 +10,7 @@
 | ·   | _Contrôle de cohérence P1→P2_                    |                                                      | [ ]    |
 | 2   | Pipeline `run` command + rapport                 | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [x]    |
 | ·   | _Contrôle de cohérence P2→P3_                    |                                                      | [ ]    |
-| 3   | Scheduling (launchd) + alias + validation finale | [phase-03-cron-final.md](phase-03-cron-final.md)     | [ ]    |
+| 3   | Scheduling (launchd) + alias + validation finale | [phase-03-cron-final.md](phase-03-cron-final.md)     | [x]    |
 | ·   | _Contrôle de cohérence V6 → projet complet_      |                                                      | [ ]    |
 
 ## Dépendances entre phases
@@ -41,10 +41,10 @@ Note : le module logger (structlog) est déjà implémenté en V0. V6 complète 
 
 ### Après Phase 3 (Scheduling → Projet complet)
 
-- [ ] Le LaunchAgent `com.personalscraper.pipeline` est chargé (`launchctl list`)
-- [ ] `launchctl start com.personalscraper.pipeline` lance le pipeline correctement
-- [ ] Les logs sont écrits dans `logs/` (structlog) et `~/.personalscraper/launchd-*.log` (stdout/stderr)
-- [ ] Si healthcheck_url configuré : les pings start/success/fail sont envoyés
-- [ ] L'alias `personalscraper` fonctionne dans le terminal
-- [ ] Le pipeline complet fonctionne en dry-run sur les données réelles
-- [ ] CLAUDE.md est à jour avec toutes les commandes
+- [x] Le LaunchAgent `com.personalscraper.pipeline` est chargé (`launchctl list`)
+- [x] `launchctl start com.personalscraper.pipeline` lance le pipeline correctement
+- [x] Les logs sont écrits dans `logs/` (structlog) et `~/.personalscraper/launchd-*.log` (stdout/stderr)
+- [x] Si healthcheck_url configuré : les pings start/success/fail sont envoyés
+- [x] L'alias `personalscraper` fonctionne dans le terminal
+- [x] Le pipeline complet fonctionne en dry-run sur les données réelles
+- [x] CLAUDE.md est à jour avec toutes les commandes

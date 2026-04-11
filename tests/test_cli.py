@@ -241,7 +241,7 @@ def test_run_continues_after_step_failure(
     mock_ping, mock_cleanup, mock_notifier_cfg,
 ):
     """Pipeline continues executing remaining steps after a fatal step failure."""
-    result = runner.invoke(app, ["run"])
+    runner.invoke(app, ["run"])
     # Sort crashed, but scrape/verify/dispatch still ran
     mock_scrape.assert_called_once()
     mock_verify.assert_called_once()
