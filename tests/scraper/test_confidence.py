@@ -10,10 +10,13 @@ from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     LOW_CONFIDENCE,
     MatchResult,
+    get_episode_titles,
     match_movie,
+    match_tvshow,
+    match_tvshow_tvdb,
     prompt_user_choice,
     score_match,
-)
+)  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # score_match — parametrized tests
@@ -175,6 +178,169 @@ class TestMatchMovie:
         client = self._make_tmdb_client([])
         match_movie(client, "Inception", 2010)
         client.search_movie.assert_called_once_with("Inception", 2010)
+
+
+# ---------------------------------------------------------------------------
+# match_tvshow — TVDB + TMDB fallback
+# ---------------------------------------------------------------------------
+
+class TestMatchTvshow:
+    """Tests for TV show matching with TVDB/TMDB fallback."""
+
+    def test_tvdb_match_found(self) -> None:
+        """Should return TVDB match when found with high confidence."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"},
+        ]
+
+        result = match_tvshow_tvdb(tvdb, "Breaking Bad", 2008)
+
+        assert result is not None
+        assert result.api_id == 81189
+        assert result.source == "tvdb"
+        assert result.confidence >= HIGH_CONFIDENCE
+
+    def test_tvdb_no_results(self) -> None:
+        """Should return None when TVDB has no results."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+
+        result = match_tvshow_tvdb(tvdb, "nonexistent", 2024)
+        assert result is None
+
+    def test_tvdb_uses_tvdb_id_not_id(self) -> None:
+        """Should use tvdb_id field (not id) from search results."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "12345", "name": "Test Show", "year": "2020"},
+        ]
+
+        result = match_tvshow_tvdb(tvdb, "Test Show", 2020)
+        assert result is not None
+        assert result.api_id == 12345
+
+    def test_fallback_to_tmdb(self) -> None:
+        """Should use TMDB when TVDB has no results."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+
+        tmdb = MagicMock()
+        tmdb.search_tv.return_value = [
+            {"id": 67195, "name": "Lupin", "first_air_date": "2021-01-08"},
+        ]
+
+        result = match_tvshow(tvdb, tmdb, "Lupin", 2021)
+
+        assert result is not None
+        assert result.source == "tmdb"
+        assert result.api_id == 67195
+
+    def test_tvdb_preferred_at_equal_confidence(self) -> None:
+        """TVDB should win when both providers have equal confidence."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "100", "name": "Test Show", "year": "2020"},
+        ]
+
+        tmdb = MagicMock()
+        tmdb.search_tv.return_value = [
+            {"id": 200, "name": "Test Show", "first_air_date": "2020-01-01"},
+        ]
+
+        result = match_tvshow(tvdb, tmdb, "Test Show", 2020)
+
+        assert result is not None
+        assert result.source == "tvdb"
+
+    def test_both_no_results(self) -> None:
+        """Should return None when neither provider has results."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+        tmdb = MagicMock()
+        tmdb.search_tv.return_value = []
+
+        result = match_tvshow(tvdb, tmdb, "nonexistent", 2024)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# get_episode_titles
+# ---------------------------------------------------------------------------
+
+class TestGetEpisodeTitles:
+    """Tests for episode title fetching."""
+
+    def test_tvdb_episodes_with_translation(self) -> None:
+        """TVDB episodes should be translated to French."""
+        tvdb = MagicMock()
+        tvdb.get_season_episodes.return_value = [
+            {"id": 100, "name": "Pilot", "number": 1},
+            {"id": 101, "name": "Cat's in the Bag", "number": 2},
+        ]
+        tvdb.get_episode_translation.side_effect = [
+            {"name": "Épisode pilote", "language": "fra"},
+            {"name": "Le Chat dans le sac", "language": "fra"},
+        ]
+
+        match_r = MatchResult(api_id=81189, api_title="Breaking Bad", api_year=2008, confidence=0.95, source="tvdb")
+        titles = get_episode_titles(match_r, 1, tvdb, MagicMock())
+
+        assert titles == {1: "Épisode pilote", 2: "Le Chat dans le sac"}
+
+    def test_tvdb_fallback_to_english(self) -> None:
+        """Should fall back to English if French translation is missing."""
+        tvdb = MagicMock()
+        tvdb.get_season_episodes.return_value = [
+            {"id": 100, "name": "Pilot", "number": 1},
+        ]
+        tvdb.get_episode_translation.side_effect = [
+            None,
+            {"name": "The Pilot", "language": "eng"},
+        ]
+
+        match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
+        titles = get_episode_titles(match_r, 1, tvdb, MagicMock())
+
+        assert titles == {1: "The Pilot"}
+
+    def test_tvdb_fallback_to_original(self) -> None:
+        """Should use original name if no translations available."""
+        tvdb = MagicMock()
+        tvdb.get_season_episodes.return_value = [
+            {"id": 100, "name": "Original Title", "number": 1},
+        ]
+        tvdb.get_episode_translation.return_value = None
+
+        match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
+        titles = get_episode_titles(match_r, 1, tvdb, MagicMock())
+
+        assert titles == {1: "Original Title"}
+
+    def test_tmdb_episodes(self) -> None:
+        """TMDB episodes should already be in French."""
+        tmdb = MagicMock()
+        tmdb.get_tv_season.return_value = {
+            "episodes": [
+                {"episode_number": 1, "name": "Chapitre 1"},
+                {"episode_number": 2, "name": "Chapitre 2"},
+            ],
+        }
+
+        match_r = MatchResult(api_id=67195, api_title="Lupin", api_year=2021, confidence=0.9, source="tmdb")
+        titles = get_episode_titles(match_r, 1, MagicMock(), tmdb)
+
+        assert titles == {1: "Chapitre 1", 2: "Chapitre 2"}
+
+    def test_empty_season(self) -> None:
+        """Should return empty dict for non-existent season."""
+        tvdb = MagicMock()
+        tvdb.get_season_episodes.return_value = []
+
+        match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
+        titles = get_episode_titles(match_r, 99, tvdb, MagicMock())
+
+        assert titles == {}
 
 
 # ---------------------------------------------------------------------------

@@ -143,6 +143,185 @@ def match_movie(
     return best_match
 
 
+def match_tvshow_tvdb(
+    tvdb_client: object,
+    title: str,
+    year: int | None,
+) -> MatchResult | None:
+    """Match a local TV show against TVDB search results.
+
+    TVDB is the primary provider for TV shows. Search results use
+    snake_case fields and tvdb_id (string) as the identifier.
+
+    Args:
+        tvdb_client: TVDBClient instance.
+        title: Show title from the local folder.
+        year: First air date year (None if not detected).
+
+    Returns:
+        Best MatchResult with source="tvdb", or None if no results.
+    """
+    results = tvdb_client.search_series(title, year)  # type: ignore[attr-defined]
+    if not results:
+        logger.info("No TVDB results for show: %s (%s)", title, year)
+        return None
+
+    best_match: MatchResult | None = None
+    best_score = -1.0
+
+    for result in results:
+        api_title = result.get("name", "")
+        # TVDB search returns year as string in the "year" field
+        year_str = result.get("year", "")
+        api_year = int(year_str) if year_str and str(year_str).isdigit() else None
+
+        score = score_match(title, year, api_title, api_year)
+
+        if score > best_score:
+            best_score = score
+            # TVDB search uses tvdb_id (string), not id
+            tvdb_id_str = result.get("tvdb_id", "")
+            api_id = int(tvdb_id_str) if tvdb_id_str and str(tvdb_id_str).isdigit() else 0
+            best_match = MatchResult(
+                api_id=api_id,
+                api_title=api_title,
+                api_year=api_year,
+                confidence=score,
+                source="tvdb",
+            )
+
+    if best_match:
+        logger.info(
+            "Best TVDB match for '%s': '%s' (%s) — confidence %.2f",
+            title, best_match.api_title, best_match.api_year, best_match.confidence,
+        )
+
+    return best_match
+
+
+def match_tvshow(
+    tvdb_client: object,
+    tmdb_client: object,
+    title: str,
+    year: int | None,
+) -> MatchResult | None:
+    """Match a TV show using TVDB (primary) with TMDB fallback.
+
+    Tries TVDB first. If TVDB returns no results or low confidence,
+    falls back to TMDB search. Returns the best match from either.
+
+    Args:
+        tvdb_client: TVDBClient instance.
+        tmdb_client: TMDBClient instance (fallback).
+        title: Show title from the local folder.
+        year: First air date year (None if not detected).
+
+    Returns:
+        Best MatchResult (source="tvdb" or "tmdb"), or None.
+    """
+    # Try TVDB first (primary for TV shows)
+    tvdb_match = match_tvshow_tvdb(tvdb_client, title, year)
+    if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
+        return tvdb_match
+
+    # Fallback to TMDB
+    tmdb_results = tmdb_client.search_tv(title, year)  # type: ignore[attr-defined]
+    tmdb_match: MatchResult | None = None
+    best_score = -1.0
+
+    for result in tmdb_results:
+        api_title = result.get("name", "")
+        first_air = result.get("first_air_date", "")
+        api_year = int(first_air[:4]) if first_air and len(first_air) >= 4 else None
+
+        score = score_match(title, year, api_title, api_year)
+        if score > best_score:
+            best_score = score
+            tmdb_match = MatchResult(
+                api_id=result["id"],
+                api_title=api_title,
+                api_year=api_year,
+                confidence=score,
+                source="tmdb",
+            )
+
+    if tmdb_match:
+        logger.info(
+            "TMDB fallback for '%s': '%s' (%s) — confidence %.2f",
+            title, tmdb_match.api_title, tmdb_match.api_year, tmdb_match.confidence,
+        )
+
+    # Return whichever is better (TVDB preferred at equal confidence)
+    if tvdb_match and tmdb_match:
+        if tvdb_match.confidence >= tmdb_match.confidence:
+            return tvdb_match
+        return tmdb_match
+    return tvdb_match or tmdb_match
+
+
+def get_episode_titles(
+    match: MatchResult,
+    season: int,
+    tvdb_client: object,
+    tmdb_client: object,
+    lang: str = "fra",
+) -> dict[int, str]:
+    """Get episode titles for a season from the matched provider.
+
+    For TVDB matches: fetches episodes, then translates each one.
+    For TMDB matches: episodes are already in the requested language.
+    Falls back from French to English, then to the original title.
+
+    Args:
+        match: MatchResult from match_tvshow() or match_movie().
+        season: Season number to fetch.
+        tvdb_client: TVDBClient instance.
+        tmdb_client: TMDBClient instance.
+        lang: Target language code (3-char for TVDB, auto-converted).
+
+    Returns:
+        Dict mapping episode number to episode title.
+        Empty dict if the season doesn't exist in the API.
+    """
+    titles: dict[int, str] = {}
+
+    if match.source == "tvdb":
+        episodes = tvdb_client.get_season_episodes(match.api_id, season)  # type: ignore[attr-defined]
+        if not episodes:
+            logger.warning("Season %d not found on TVDB for %s", season, match.api_title)
+            return titles
+
+        for ep in episodes:
+            ep_num = ep.get("number", 0)
+            ep_id = ep.get("id", 0)
+            # Try French translation first
+            translation = tvdb_client.get_episode_translation(ep_id, lang)  # type: ignore[attr-defined]
+            if translation and translation.get("name"):
+                titles[ep_num] = translation["name"]
+            else:
+                # Fallback to English translation
+                en_trans = tvdb_client.get_episode_translation(ep_id, "eng")  # type: ignore[attr-defined]
+                if en_trans and en_trans.get("name"):
+                    titles[ep_num] = en_trans["name"]
+                else:
+                    # Final fallback: original name from episode data
+                    titles[ep_num] = ep.get("name", f"Episode {ep_num}")
+
+    elif match.source == "tmdb":
+        season_data = tmdb_client.get_tv_season(match.api_id, season)  # type: ignore[attr-defined]
+        episodes = season_data.get("episodes", [])
+        if not episodes:
+            logger.warning("Season %d not found on TMDB for %s", season, match.api_title)
+            return titles
+
+        for ep in episodes:
+            ep_num = ep.get("episode_number", 0)
+            # TMDB episodes are already in the requested language (fr-FR)
+            titles[ep_num] = ep.get("name", f"Episode {ep_num}")
+
+    return titles
+
+
 def prompt_user_choice(
     results: list[MatchResult],
     local_title: str,
