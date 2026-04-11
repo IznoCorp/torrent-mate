@@ -6,9 +6,9 @@
 
 | #   | Phase                                            | Fichier                                              | Status |
 | --- | ------------------------------------------------ | ---------------------------------------------------- | ------ |
-| 1   | Telegram notifier (compléter le stub V0)         | [phase-01-telegram.md](phase-01-telegram.md)         | [ ]    |
+| 1   | Telegram notifier (compléter le stub V0)         | [phase-01-telegram.md](phase-01-telegram.md)         | [x]    |
 | ·   | _Contrôle de cohérence P1→P2_                    |                                                      | [ ]    |
-| 2   | Pipeline `run` command + rapport                 | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [ ]    |
+| 2   | Pipeline `run` command + rapport                 | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [x]    |
 | ·   | _Contrôle de cohérence P2→P3_                    |                                                      | [ ]    |
 | 3   | Scheduling (launchd) + alias + validation finale | [phase-03-cron-final.md](phase-03-cron-final.md)     | [ ]    |
 | ·   | _Contrôle de cohérence V6 → projet complet_      |                                                      | [ ]    |
@@ -25,19 +25,19 @@ Note : le module logger (structlog) est déjà implémenté en V0. V6 complète 
 
 ### Après Phase 1 (Telegram → Pipeline run)
 
-- [ ] `TelegramNotifier.send()` envoie un message (test avec bot réel ou mock)
-- [ ] `is_configured()` retourne True quand .env contient les tokens
-- [ ] `is_configured()` retourne False quand .env est vide → pas d'erreur
-- [ ] `send()` ne crash jamais (try/except, timeout 10s)
+- [x] `TelegramNotifier.send()` envoie un message (test avec bot réel ou mock)
+- [x] `is_configured()` retourne True quand .env contient les tokens
+- [x] `is_configured()` retourne False quand .env est vide → pas d'erreur
+- [x] `send()` ne crash jamais (try/except, timeout 10s)
 
 ### Après Phase 2 (Pipeline run → Cron)
 
-- [ ] `personalscraper run --dry-run` exécute V1→V5 en séquence
-- [ ] Le PipelineReport est correctement alimenté par chaque étape
-- [ ] `to_html()` produit le message Telegram attendu
-- [ ] La notification est envoyée en fin de run (si configuré)
-- [ ] Les logs JSON contiennent `run_id` dans chaque event (contextvars)
-- [ ] Le résumé console utilise rich Panel/Table
+- [x] `personalscraper run --dry-run` exécute V1→V5 en séquence
+- [x] Le PipelineReport est correctement alimenté par chaque étape
+- [x] `to_html()` produit le message Telegram attendu
+- [x] La notification est envoyée en fin de run (si configuré)
+- [x] Les logs JSON contiennent `run_id` dans chaque event (contextvars)
+- [x] Le résumé console utilise rich Panel/Table
 
 ### Après Phase 3 (Scheduling → Projet complet)
 

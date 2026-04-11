@@ -13,8 +13,8 @@ Configurer l'exécution automatique via launchd (natif macOS) et valider le proj
 
 ### 6.3.1 — Setup launchd
 
-- [ ] Supprimer toute entrée cron legacy (media-ingest, ingest.py) — vérifier avec `crontab -l`
-- [ ] Créer le fichier plist `~/Library/LaunchAgents/com.personalscraper.pipeline.plist` :
+- [x] Supprimer toute entrée cron legacy (media-ingest, ingest.py) — vérifier avec `crontab -l`
+- [x] Créer le fichier plist `~/Library/LaunchAgents/com.personalscraper.pipeline.plist` :
   ```xml
   <?xml version="1.0" encoding="UTF-8"?>
   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -43,10 +43,10 @@ Configurer l'exécution automatique via launchd (natif macOS) et valider le proj
   </dict>
   </plist>
   ```
-- [ ] Charger l'agent : `launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist`
-- [ ] Vérifier le chargement : `launchctl list | grep personalscraper`
-- [ ] Tester un run manuel : `launchctl start com.personalscraper.pipeline`
-- [ ] Documenter les commandes utiles :
+- [x] Charger l'agent : `launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist`
+- [x] Vérifier le chargement : `launchctl list | grep personalscraper`
+- [x] Tester un run manuel : `launchctl start com.personalscraper.pipeline`
+- [x] Documenter les commandes utiles :
   - `launchctl load/unload` pour activer/désactiver
   - `launchctl start` pour déclencher manuellement
   - `launchctl list | grep personalscraper` pour vérifier le statut
