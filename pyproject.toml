@@ -59,6 +59,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
     "e2e: End-to-end tests requiring qBittorrent, storage disks, and real torrents",
+    "roundtrip: Roundtrip tests — torrentify disk media, re-match via API, compare",
 ]
 addopts = "-m 'not e2e'"
 
