@@ -53,25 +53,25 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ## Avancement global
 
-| Étape                              | Status                            |
-| ---------------------------------- | --------------------------------- |
-| A. Modélisation V0 (PROJECT SETUP) | [x] Brainstorming + Design + Plan |
-| A. Modélisation V1 (INGEST)        | [x] Brainstorming + Design + Plan |
-| A. Modélisation V2 (SORT+CLEAN)    | [x] Brainstorming + Design + Plan |
-| A. Modélisation V3 (SCRAPE)        | [x] Brainstorming + Design + Plan |
-| A. Modélisation V4 (VERIFY)        | [x] Brainstorming + Design + Plan |
-| A. Modélisation V5 (DISPATCH)      | [x] Brainstorming + Design + Plan |
-| A. Modélisation V6 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan |
-| A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan |
-| A. Review globale inter-versions   | [x] 62 issues fixed (17C+30I+15M) |
-| B. Implémentation V0               | [ ]                               |
-| B. Implémentation V1               | [ ]                               |
-| B. Implémentation V2               | [ ]                               |
-| B. Implémentation V3               | [ ]                               |
-| B. Implémentation V4               | [ ]                               |
-| B. Implémentation V5               | [ ]                               |
-| B. Implémentation V6               | [ ]                               |
-| B. Implémentation V7               | [ ]                               |
+| Étape                              | Status                                          |
+| ---------------------------------- | ----------------------------------------------- |
+| A. Modélisation V0 (PROJECT SETUP) | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V1 (INGEST)        | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V2 (SORT+CLEAN)    | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V3 (SCRAPE)        | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V4 (VERIFY)        | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V5 (DISPATCH)      | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V6 (LOG+NOTIFY)    | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V7 (E2E TESTS)     | [x] Brainstorming + Design + Plan               |
+| A. Review globale inter-versions   | [x] 79 issues fixed across 5 passes (5/5 CLEAN) |
+| B. Implémentation V0               | [x] 4 phases, 14 sous-phases                    |
+| B. Implémentation V1               | [ ]                                             |
+| B. Implémentation V2               | [ ]                                             |
+| B. Implémentation V3               | [ ]                                             |
+| B. Implémentation V4               | [ ]                                             |
+| B. Implémentation V5               | [ ]                                             |
+| B. Implémentation V6               | [ ]                                             |
+| B. Implémentation V7               | [ ]                                             |
 
 ---
 
