@@ -346,3 +346,253 @@ class TestTMDBClientSearch:
             results = client.search_movie("Matrix")
 
         assert len(results) == 3
+
+
+# ---------------------------------------------------------------------------
+# TMDBClient — details (append_to_response)
+# ---------------------------------------------------------------------------
+
+# Sample TMDB movie response (abbreviated)
+SAMPLE_MOVIE = {
+    "id": 1049112,
+    "title": "Le Comte de Monte-Cristo",
+    "original_title": "Le Comte de Monte-Cristo",
+    "release_date": "2024-06-28",
+    "runtime": 178,
+    "overview": "Edmond Dantès...",
+    "genres": [{"id": 18, "name": "Drame"}, {"id": 12, "name": "Aventure"}],
+    "vote_average": 8.1,
+    "credits": {
+        "cast": [
+            {"id": 82104, "name": "Pierre Niney", "character": "Edmond Dantès", "order": 0},
+        ],
+        "crew": [
+            {"id": 90414, "name": "Matthieu Delaporte", "job": "Director"},
+        ],
+    },
+    "images": {
+        "posters": [
+            {"file_path": "/poster_fr.jpg", "iso_639_1": "fr", "vote_average": 5.3},
+            {"file_path": "/poster_en.jpg", "iso_639_1": "en", "vote_average": 5.1},
+        ],
+        "backdrops": [
+            {"file_path": "/backdrop1.jpg", "iso_639_1": None, "vote_average": 5.5},
+        ],
+    },
+    "external_ids": {
+        "imdb_id": "tt2372220",
+        "tvdb_id": None,
+    },
+    "release_dates": {
+        "results": [
+            {
+                "iso_3166_1": "FR",
+                "release_dates": [
+                    {"type": 3, "certification": "Tous publics", "release_date": "2024-06-28"},
+                ],
+            },
+        ],
+    },
+}
+
+# Sample TMDB TV response (abbreviated)
+SAMPLE_TV = {
+    "id": 67195,
+    "name": "Lupin",
+    "original_name": "Lupin",
+    "first_air_date": "2021-01-08",
+    "episode_run_time": [],
+    "overview": "Un gentleman cambrioleur...",
+    "genres": [{"id": 80, "name": "Crime"}, {"id": 18, "name": "Drame"}],
+    "vote_average": 7.9,
+    "number_of_seasons": 3,
+    "aggregate_credits": {
+        "cast": [
+            {
+                "id": 1245,
+                "name": "Omar Sy",
+                "roles": [{"character": "Assane Diop", "episode_count": 17}],
+            },
+        ],
+    },
+    "images": {
+        "posters": [{"file_path": "/lupin_poster.jpg", "iso_639_1": "fr", "vote_average": 5.5}],
+        "backdrops": [{"file_path": "/lupin_bg.jpg", "iso_639_1": None, "vote_average": 5.2}],
+    },
+    "external_ids": {
+        "imdb_id": "tt2527336",
+        "tvdb_id": 356882,
+    },
+    "content_ratings": {
+        "results": [
+            {"iso_3166_1": "FR", "rating": "10"},
+        ],
+    },
+}
+
+# Sample TMDB season response
+SAMPLE_SEASON = {
+    "id": 90000,
+    "season_number": 1,
+    "episodes": [
+        {
+            "id": 2400001,
+            "episode_number": 1,
+            "name": "Chapitre 1",
+            "runtime": 52,
+            "crew": [],
+            "guest_stars": [],
+        },
+        {
+            "id": 2400002,
+            "episode_number": 2,
+            "name": "Chapitre 2",
+            "runtime": 45,
+            "crew": [],
+            "guest_stars": [],
+        },
+    ],
+    "images": {
+        "posters": [{"file_path": "/s1_poster.jpg", "iso_639_1": "fr", "vote_average": 5.0}],
+    },
+}
+
+
+class TestTMDBClientDetails:
+    """Tests for get_movie(), get_tv(), and get_tv_season()."""
+
+    def test_get_movie_append_to_response(self, client: TMDBClient) -> None:
+        """get_movie should request credits, images, external_ids, release_dates."""
+        mock_resp = _mock_response(200, SAMPLE_MOVIE)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            result = client.get_movie(1049112)
+
+        _, kwargs = mock_get.call_args
+        append = kwargs["params"]["append_to_response"]
+        assert "credits" in append
+        assert "images" in append
+        assert "external_ids" in append
+        assert "release_dates" in append
+
+    def test_get_movie_include_image_language(self, client: TMDBClient) -> None:
+        """get_movie MUST include include_image_language=fr,en,null."""
+        mock_resp = _mock_response(200, SAMPLE_MOVIE)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            client.get_movie(1049112)
+
+        _, kwargs = mock_get.call_args
+        assert kwargs["params"]["include_image_language"] == "fr,en,null"
+
+    def test_get_movie_returns_full_data(self, client: TMDBClient) -> None:
+        """get_movie should return complete metadata."""
+        mock_resp = _mock_response(200, SAMPLE_MOVIE)
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            result = client.get_movie(1049112)
+
+        assert result["title"] == "Le Comte de Monte-Cristo"
+        assert result["runtime"] == 178
+        assert len(result["genres"]) == 2
+        assert result["external_ids"]["imdb_id"] == "tt2372220"
+        assert len(result["credits"]["cast"]) == 1
+        assert len(result["images"]["posters"]) == 2
+
+    def test_get_movie_certification_fr(self, client: TMDBClient) -> None:
+        """FR certification should be extractable from release_dates."""
+        mock_resp = _mock_response(200, SAMPLE_MOVIE)
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            result = client.get_movie(1049112)
+
+        # Extract FR certification (type=3 = theatrical)
+        fr_releases = [
+            r for r in result["release_dates"]["results"]
+            if r["iso_3166_1"] == "FR"
+        ]
+        assert len(fr_releases) == 1
+        theatrical = [rd for rd in fr_releases[0]["release_dates"] if rd["type"] == 3]
+        assert theatrical[0]["certification"] == "Tous publics"
+
+    def test_get_tv_aggregate_credits(self, client: TMDBClient) -> None:
+        """get_tv should use aggregate_credits (not credits) for TV shows."""
+        mock_resp = _mock_response(200, SAMPLE_TV)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            result = client.get_tv(67195)
+
+        _, kwargs = mock_get.call_args
+        append = kwargs["params"]["append_to_response"]
+        assert "aggregate_credits" in append
+        # aggregate_credits has roles[] instead of character
+        assert "roles" in result["aggregate_credits"]["cast"][0]
+
+    def test_get_tv_content_ratings(self, client: TMDBClient) -> None:
+        """get_tv should include content_ratings for FR certification."""
+        mock_resp = _mock_response(200, SAMPLE_TV)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            result = client.get_tv(67195)
+
+        _, kwargs = mock_get.call_args
+        assert "content_ratings" in kwargs["params"]["append_to_response"]
+        # FR rating extraction
+        fr_rating = [
+            r for r in result["content_ratings"]["results"]
+            if r["iso_3166_1"] == "FR"
+        ]
+        assert fr_rating[0]["rating"] == "10"
+
+    def test_get_tv_include_image_language(self, client: TMDBClient) -> None:
+        """get_tv MUST include include_image_language=fr,en,null."""
+        mock_resp = _mock_response(200, SAMPLE_TV)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            client.get_tv(67195)
+
+        _, kwargs = mock_get.call_args
+        assert kwargs["params"]["include_image_language"] == "fr,en,null"
+
+    def test_get_tv_season_episodes(self, client: TMDBClient) -> None:
+        """get_tv_season should return episodes with runtime."""
+        mock_resp = _mock_response(200, SAMPLE_SEASON)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            result = client.get_tv_season(67195, 1)
+
+        assert len(result["episodes"]) == 2
+        assert result["episodes"][0]["runtime"] == 52
+        assert result["episodes"][1]["name"] == "Chapitre 2"
+        # Check endpoint
+        assert "/tv/67195/season/1" in mock_get.call_args[0][0]
+
+    def test_get_tv_season_append_images(self, client: TMDBClient) -> None:
+        """get_tv_season should request images."""
+        mock_resp = _mock_response(200, SAMPLE_SEASON)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            client.get_tv_season(67195, 1)
+
+        _, kwargs = mock_get.call_args
+        assert "images" in kwargs["params"]["append_to_response"]
+
+    def test_get_details_protocol_movie(self, client: TMDBClient) -> None:
+        """Protocol get_details() should dispatch to get_movie."""
+        mock_resp = _mock_response(200, SAMPLE_MOVIE)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            result = client.get_details(1049112, media_type="movie")
+
+        assert "/movie/1049112" in mock_get.call_args[0][0]
+        assert result["title"] == "Le Comte de Monte-Cristo"
+
+    def test_get_details_protocol_tv(self, client: TMDBClient) -> None:
+        """Protocol get_details() should dispatch to get_tv."""
+        mock_resp = _mock_response(200, SAMPLE_TV)
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            result = client.get_details(67195, media_type="tv")
+
+        assert "/tv/67195" in mock_get.call_args[0][0]
+        assert result["name"] == "Lupin"
