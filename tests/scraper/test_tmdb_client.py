@@ -241,3 +241,108 @@ class TestTMDBClientInit:
         """Session should have application/json Accept header."""
         client = TMDBClient(api_key="test")
         assert client._session.headers["Accept"] == "application/json"
+
+
+# ---------------------------------------------------------------------------
+# TMDBClient — search methods
+# ---------------------------------------------------------------------------
+
+class TestTMDBClientSearch:
+    """Tests for search_movie() and search_tv()."""
+
+    def test_search_movie_basic(self, client: TMDBClient) -> None:
+        """search_movie should call /search/movie with query param."""
+        mock_resp = _mock_response(200, {
+            "results": [
+                {"id": 1049112, "title": "Le Comte de Monte-Cristo", "release_date": "2024-06-28"},
+            ],
+        })
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            results = client.search_movie("Le Comte de Monte-Cristo", year=2024)
+
+        assert len(results) == 1
+        assert results[0]["id"] == 1049112
+        # Check endpoint and params
+        args, kwargs = mock_get.call_args
+        assert "/search/movie" in args[0]
+        assert kwargs["params"]["query"] == "Le Comte de Monte-Cristo"
+        assert kwargs["params"]["year"] == 2024
+
+    def test_search_movie_without_year(self, client: TMDBClient) -> None:
+        """search_movie without year should not include year param."""
+        mock_resp = _mock_response(200, {"results": [{"id": 1}]})
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            client.search_movie("Matrix")
+
+        _, kwargs = mock_get.call_args
+        assert "year" not in kwargs["params"]
+
+    def test_search_movie_empty_results(self, client: TMDBClient) -> None:
+        """Empty search should return empty list (HTTP 200, not 404)."""
+        mock_resp = _mock_response(200, {"results": []})
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            results = client.search_movie("xyznonexistent12345")
+
+        assert results == []
+
+    def test_search_tv_uses_first_air_date_year(self, client: TMDBClient) -> None:
+        """search_tv should use first_air_date_year, not year."""
+        mock_resp = _mock_response(200, {
+            "results": [{"id": 67195, "name": "Lupin", "first_air_date": "2021-01-08"}],
+        })
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            results = client.search_tv("Lupin", year=2021)
+
+        assert len(results) == 1
+        _, kwargs = mock_get.call_args
+        assert "/search/tv" in mock_get.call_args[0][0]
+        assert kwargs["params"]["first_air_date_year"] == 2021
+        assert "year" not in kwargs["params"]
+
+    def test_search_tv_without_year(self, client: TMDBClient) -> None:
+        """search_tv without year should not include year param."""
+        mock_resp = _mock_response(200, {"results": []})
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            client.search_tv("Breaking Bad")
+
+        _, kwargs = mock_get.call_args
+        assert "first_air_date_year" not in kwargs["params"]
+
+    def test_search_protocol_dispatches_movie(self, client: TMDBClient) -> None:
+        """Protocol search() should dispatch to search_movie for movies."""
+        mock_resp = _mock_response(200, {"results": [{"id": 1}]})
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            results = client.search("Matrix", media_type="movie")
+
+        assert len(results) == 1
+        assert "/search/movie" in mock_get.call_args[0][0]
+
+    def test_search_protocol_dispatches_tv(self, client: TMDBClient) -> None:
+        """Protocol search() should dispatch to search_tv for TV shows."""
+        mock_resp = _mock_response(200, {"results": [{"id": 1}]})
+
+        with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
+            client.search("Lupin", media_type="tv")
+
+        assert "/search/tv" in mock_get.call_args[0][0]
+
+    def test_search_movie_multiple_results(self, client: TMDBClient) -> None:
+        """Search should return all results from the API."""
+        mock_resp = _mock_response(200, {
+            "results": [
+                {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
+                {"id": 604, "title": "The Matrix Reloaded", "release_date": "2003-05-15"},
+                {"id": 605, "title": "The Matrix Revolutions", "release_date": "2003-11-05"},
+            ],
+        })
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            results = client.search_movie("Matrix")
+
+        assert len(results) == 3
