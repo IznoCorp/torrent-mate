@@ -57,6 +57,10 @@ include = ["personalscraper*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "e2e: End-to-end tests requiring qBittorrent, storage disks, and real torrents",
+]
+addopts = "-m 'not e2e'"
 
 [tool.ruff]
 target-version = "py310"

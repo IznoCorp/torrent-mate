@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Example Movie Title",
+    "magnet": "magnet:?xt=urn:btih:REPLACE_WITH_REAL_HASH&dn=Example.Movie.2024.1080p",
+    "type": "movie",
+    "expected_category": "films",
+    "verify_nfo_fields": ["title", "year", "uniqueid[@type='imdb']"]
+  },
+  {
+    "name": "Example TV Show S01E01",
+    "magnet": "magnet:?xt=urn:btih:REPLACE_WITH_REAL_HASH&dn=Example.Show.S01E01.1080p",
+    "type": "tvshow",
+    "expected_category": "series",
+    "verify_nfo_fields": ["title", "season", "episode"]
+  }
+]
