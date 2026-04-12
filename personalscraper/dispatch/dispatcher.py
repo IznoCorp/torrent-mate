@@ -104,10 +104,24 @@ class Dispatcher:
         for config in self._disk_configs:
             if not config.path.exists():
                 continue
-            for category_dir in config.path.iterdir():
+            try:
+                category_dirs = list(config.path.iterdir())
+            except OSError as e:
+                logger.warning(
+                    "Cannot scan %s for orphans: %s", config.name, e,
+                )
+                continue
+            for category_dir in category_dirs:
                 if not category_dir.is_dir():
                     continue
-                for item in category_dir.iterdir():
+                try:
+                    items = list(category_dir.iterdir())
+                except OSError as e:
+                    logger.warning(
+                        "Cannot scan %s for orphans: %s", category_dir, e,
+                    )
+                    continue
+                for item in items:
                     if not item.is_dir():
                         continue
                     # Clean _tmp_dispatch_* orphans
@@ -465,31 +479,51 @@ class Dispatcher:
             return False
 
     @staticmethod
-    def _restore_merge_backup(dest: Path, backup_dir: Path) -> None:
+    def _restore_merge_backup(dest: Path, backup_dir: Path) -> int:
         """Restore overwritten files from merge backup.
 
         Copies files from backup_dir back to their original locations
-        within dest, then removes the backup directory.
+        within dest, then removes the backup directory. Continues
+        restoring remaining files even if one file fails.
 
         Args:
             dest: Destination directory to restore into.
             backup_dir: Backup directory with original files.
+
+        Returns:
+            Number of files restored (0 if backup_dir doesn't exist).
         """
         if not backup_dir.exists():
-            return
+            return 0
 
-        try:
-            for backup_file in backup_dir.rglob("*"):
-                if not backup_file.is_file():
-                    continue
-                rel = backup_file.relative_to(backup_dir)
-                original = dest / rel
+        restored = 0
+        failed = 0
+        for backup_file in backup_dir.rglob("*"):
+            if not backup_file.is_file():
+                continue
+            rel = backup_file.relative_to(backup_dir)
+            original = dest / rel
+            try:
                 original.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(backup_file, original)
+                restored += 1
                 logger.info("Restored from backup: %s", rel)
-            shutil.rmtree(backup_dir)
-        except OSError as e:
-            logger.error("Failed to restore merge backup: %s", e)
+            except OSError as e:
+                failed += 1
+                logger.error("Failed to restore %s: %s", rel, e)
+
+        if failed:
+            logger.error(
+                "Merge backup restore: %d restored, %d failed", restored, failed,
+            )
+        else:
+            # All files restored — safe to remove backup
+            try:
+                shutil.rmtree(backup_dir)
+            except OSError as e:
+                logger.warning("Failed to clean backup dir: %s", e)
+
+        return restored
 
     def _move_new(self, source: Path, dest: Path) -> bool:
         """Move a new media item to disk via staging→commit pattern.
@@ -530,16 +564,24 @@ class Dispatcher:
                 shutil.rmtree(source)
                 return True
 
+            # Verification failed — remove dest to restore clean state
             logger.error("Transfer verification failed for %s", source.name)
+            try:
+                if dest.exists():
+                    shutil.rmtree(dest)
+                    logger.info("Cleaned failed destination: %s", dest)
+            except OSError as cleanup_err:
+                logger.warning("Failed to clean dest %s: %s", dest, cleanup_err)
             return False
         except OSError as e:
             logger.error("Move failed: %s", e)
-            # Clean up temp on any failure
-            try:
-                if tmp_dir.exists():
-                    shutil.rmtree(tmp_dir)
-            except OSError as cleanup_err:
-                logger.warning("Failed to clean tmp %s: %s", tmp_dir, cleanup_err)
+            # Clean up temp or dest on any failure
+            for path in (tmp_dir, dest):
+                try:
+                    if path.exists():
+                        shutil.rmtree(path)
+                except OSError as cleanup_err:
+                    logger.warning("Failed to clean %s: %s", path, cleanup_err)
             return False
 
     def _rsync(self, source: Path, dest: Path, delete: bool = False) -> bool:

@@ -134,9 +134,17 @@ class Scraper:
         self.dry_run = dry_run
         self.interactive = interactive
 
-        # Initialize API clients
-        self._tmdb = TMDBClient(api_key=settings.tmdb_api_key)
-        self._tvdb = TVDBClient(api_key=settings.tvdb_api_key)
+        # Initialize API clients with circuit breaker config from settings
+        self._tmdb = TMDBClient(
+            api_key=settings.tmdb_api_key,
+            circuit_breaker_threshold=settings.circuit_breaker_threshold,
+            circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
+        )
+        self._tvdb = TVDBClient(
+            api_key=settings.tvdb_api_key,
+            circuit_breaker_threshold=settings.circuit_breaker_threshold,
+            circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
+        )
 
         # Initialize helpers
         self._nfo = NFOGenerator()

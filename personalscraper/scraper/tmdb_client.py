@@ -90,7 +90,13 @@ class TMDBClient:
     BASE_URL = "https://api.themoviedb.org/3"
     IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 
-    def __init__(self, api_key: str, language: str = "fr-FR") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        language: str = "fr-FR",
+        circuit_breaker_threshold: int = 5,
+        circuit_breaker_cooldown: int = 300,
+    ) -> None:
         """Initialize the TMDB client with Bearer token auth.
 
         Sets up a requests Session with transport-level retry (urllib3)
@@ -100,6 +106,8 @@ class TMDBClient:
         Args:
             api_key: TMDB API read access token (Bearer token).
             language: Default language for API queries (e.g. "fr-FR").
+            circuit_breaker_threshold: Consecutive failures before opening circuit.
+            circuit_breaker_cooldown: Seconds to wait before half-open test.
         """
         self._api_key = api_key
         self._language = language
@@ -122,7 +130,11 @@ class TMDBClient:
         # Circuit breaker for sustained outage detection (above tenacity)
         from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
-        self._circuit = CircuitBreaker(name="TMDB")
+        self._circuit = CircuitBreaker(
+            name="TMDB",
+            failure_threshold=circuit_breaker_threshold,
+            cooldown_seconds=circuit_breaker_cooldown,
+        )
 
     @retry(
         retry=retry_if_exception(_is_retryable),
@@ -159,8 +171,7 @@ class TMDBClient:
         from personalscraper.scraper.circuit_breaker import CircuitOpenError
 
         # Fail fast if provider is down
-        if not self._circuit.can_proceed():
-            raise CircuitOpenError("TMDB", self._circuit._remaining_cooldown())
+        self._circuit.guard()
 
         if params is None:
             params = {}
