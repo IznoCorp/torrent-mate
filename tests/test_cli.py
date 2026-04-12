@@ -64,6 +64,7 @@ def test_help():
     assert "scrape" in result.output
     assert "verify" in result.output
     assert "dispatch" in result.output
+    assert "process" in result.output
     assert "run" in result.output
 
 
@@ -158,6 +159,23 @@ def test_scrape_lock_blocked(mock_lock):
     result = runner.invoke(app, ["scrape"])
     assert result.exit_code == 1
     assert "Another instance" in result.output
+
+
+@patch("personalscraper.process.run.run_process")
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_process_command(mock_lock, mock_release, mock_run_process):
+    """Process command runs and shows 3 step reports."""
+    mock_run_process.return_value = (
+        StepReport(name="clean", success_count=2),
+        StepReport(name="scrape", success_count=5),
+        StepReport(name="cleanup", success_count=1),
+    )
+    result = runner.invoke(app, ["process"])
+    assert result.exit_code == 0
+    assert "Clean" in result.output
+    assert "Scrape" in result.output
+    assert "Cleanup" in result.output
 
 
 @patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report)
