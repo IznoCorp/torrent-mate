@@ -178,6 +178,34 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
 
 
 @app.command()
+def process(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+) -> None:
+    """Run process phase only (reclean + dedup + scrape + cleanup)."""
+    from personalscraper.process.run import run_process
+
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive)
+
+        for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
+            console.print(
+                f"[bold]{label}:[/bold] {report.success_count} OK, "
+                f"{report.skip_count} skipped, {report.error_count} errors"
+            )
+            if state["verbose"]:
+                for detail in report.details:
+                    console.print(f"  {detail}")
+    finally:
+        release_lock()
+
+
+@app.command()
 def run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
