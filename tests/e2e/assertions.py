@@ -417,6 +417,58 @@ def assert_structure_golden(media_dir: Path, golden) -> None:
             )
 
 
+def find_media_dir(parent_dir: Path, folder_pattern: str) -> Path:
+    """Find a media directory by folder name pattern.
+
+    Searches subdirectories of parent_dir for a directory whose name
+    contains the given pattern (case-insensitive).
+
+    Args:
+        parent_dir: Parent directory to search (e.g. 001-MOVIES/).
+        folder_pattern: Expected folder name or substring.
+
+    Returns:
+        Path to the matching directory.
+
+    Raises:
+        AssertionError: If no matching directory is found.
+    """
+    if not parent_dir.exists():
+        raise AssertionError(f"find_media_dir: parent '{parent_dir}' does not exist")
+
+    for d in parent_dir.iterdir():
+        if d.is_dir() and folder_pattern.lower() in d.name.lower():
+            return d
+
+    available = sorted(d.name for d in parent_dir.iterdir() if d.is_dir())
+    raise AssertionError(
+        f"find_media_dir: no directory matching '{folder_pattern}' in {parent_dir.name}. "
+        f"Available: {available}"
+    )
+
+
+def find_dispatch_result(results: list, torrent_name: str):
+    """Find a DispatchResult matching a torrent name.
+
+    Searches the list of DispatchResult for one whose source.name
+    partially matches the torrent name (case-insensitive).
+
+    Args:
+        results: List of DispatchResult from run_dispatch().
+        torrent_name: Torrent name to match against source.name.
+
+    Returns:
+        Matching DispatchResult, or None if not found.
+    """
+    torrent_lower = torrent_name.lower()
+    for r in results:
+        if torrent_lower in str(r.source.name).lower():
+            return r
+        if str(r.source.name).lower() in torrent_lower:
+            return r
+    return None
+
+
 def assert_cleanup_complete(
     registry: TestRegistry,
     base_paths: list[Path] | None = None,
