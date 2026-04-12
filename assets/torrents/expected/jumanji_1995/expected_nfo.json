@@ -1,0 +1,22 @@
+{
+  "media_type": "movie",
+  "title": "Jumanji",
+  "year": 1995,
+  "tmdb_id": 8844,
+  "imdb_id": "tt0113497",
+  "genres": ["Aventure", "Fantastique", "Familial"],
+  "expected_category": "films",
+  "folder_name_pattern": "Jumanji (1995)",
+  "required_nfo_tags": [
+    "title",
+    "originaltitle",
+    "year",
+    "plot",
+    "genre",
+    "runtime"
+  ],
+  "nfo_invariants": {
+    "title": "Jumanji",
+    "year": "1995"
+  }
+}
