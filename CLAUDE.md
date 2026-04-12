@@ -10,6 +10,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 V0-V7 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests).
+V7.x (test audit + golden files) and V8 (robustness) modeled — implementation pending.
 
 ## Commit Convention
 
@@ -130,6 +131,8 @@ All versions (V0–V7) are implemented. Documentation and plans live in `docs/`:
 | V5      | DISPATCH      | Move to Disk1-4 (replace movies, merge series)                    | 3      |
 | V6      | LOG+NOTIFY    | JSON logging, Telegram notifications, launchd scheduling          | 3      |
 | V7      | E2E TESTS     | Real torrent tests with safe cleanup markers                      | 5      |
+| V7.x    | TEST AUDIT    | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
+| V8      | ROBUSTNESS    | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
 
 ### Reference Documentation
 
@@ -183,6 +186,11 @@ A TRIER/
 ├── tests/               # pytest tests (unit + E2E)
 │   └── e2e/             # Real torrent E2E (pytest -m e2e_torrent)
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
+│   └── expected/        # V7.x: Golden files (expected results per torrent)
+├── docs/                # Planning docs per version
+│   ├── v0-project-setup/ through v7-e2e-tests/  # V0-V7 (completed)
+│   ├── v7x-test-audit/  # V7.x: Test audit + golden files (modeled)
+│   └── v8-robustness/   # V8: Robustness improvements (modeled)
 ├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
