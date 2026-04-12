@@ -1,0 +1,6 @@
+{
+  "root_dir": "Jumanji (1995)",
+  "required_files": ["*.mkv", "*.nfo", "*-poster.jpg"],
+  "required_dirs": [],
+  "forbidden_patterns": ["*.txt", "*.url", "*.nfo.bak"]
+}

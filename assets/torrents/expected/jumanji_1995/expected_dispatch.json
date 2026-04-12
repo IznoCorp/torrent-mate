@@ -1,0 +1,7 @@
+{
+  "action": "moved",
+  "target_category": "films",
+  "eligible_disks": ["Disk1", "Disk3", "Disk4"],
+  "selection_rule": "most_free_space",
+  "destination_contains": "films/Jumanji (1995)"
+}

@@ -1,0 +1,10 @@
+{
+  "required": ["Jumanji-poster.jpg"],
+  "optional": [
+    "Jumanji-fanart.jpg",
+    "Jumanji-landscape.jpg",
+    "Jumanji-banner.jpg",
+    "Jumanji-clearlogo.png"
+  ],
+  "min_poster_size_bytes": 10000
+}
