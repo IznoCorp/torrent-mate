@@ -173,9 +173,9 @@ A TRIER/
 ├── personalscraper/     # Python package
 │   ├── ingest/          # V1: qBittorrent → staging
 │   ├── sorter/          # V2: guessit + strategies → category folders
-│   ├── scraper/         # V3: TMDB/TVDB matching, NFO, artwork, episodes
+│   ├── scraper/         # V3: TMDB/TVDB matching, NFO, artwork, episodes + V8 circuit breaker
 │   ├── verify/          # V4: quality gate, fixer, genre categorization
-│   ├── dispatch/        # V5: disk scanner, media index, rsync transfer
+│   ├── dispatch/        # V5: disk scanner, media index, rsync transfer + V8 rollback/fallback
 │   ├── cli.py           # Typer CLI entry point
 │   ├── config.py        # pydantic-settings
 │   ├── logger.py        # structlog dual output (console + JSON)
@@ -286,6 +286,13 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - TV show folders: V2 creates `Show Name/` (no year), V3 renames to `Show Name (Year)/` after API matching — V3 handles idempotent rename
 - Disk space threshold: `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)` — unified formula across V5
 - Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`
+- Circuit breaker sits ABOVE tenacity: tenacity retries transient errors (429, single timeout), circuit breaker detects sustained outages (5 consecutive 5xx/timeout/connection → OPEN for 5 min). Only counts 5xx/timeout/connection — NOT 429 (tenacity) or 4xx (client errors)
+- Circuit breaker `guard()` method centralizes the check-then-raise pattern — clients call `self._circuit.guard()` instead of manually checking `can_proceed()` + constructing `CircuitOpenError`
+- `fuzzy_match_score()` in `text_utils.py` provides 3 anti-false-positive guards for fuzzy matching: year (±1), length ratio (≥0.67), adaptive threshold (≤10 chars → 95%, >10 → 90%). Used by V2 matcher and V5 media_index
+- Dispatch `_move_new()` uses staging→commit: rsync to `_tmp_dispatch_{name}`, then atomic `os.rename`. Crash leaves only tmp dir (cleaned on next run)
+- Dispatch `_merge()` uses rsync `--backup --backup-dir=.merge_backup/` for rollback. On failure, `_restore_merge_backup()` restores per-file (continues on individual errors)
+- `choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config)
+- E2E timeout: `ceil(GB) × 3 min, minimum 10 min` — prevents tests from hanging on stalled torrents
 - rapidfuzz `default_process` does NOT strip accents — use `media_processor` from `personalscraper/text_utils.py` with NFD decomposition for French titles
 - rapidfuzz v3.0+ has NO automatic preprocessing — always pass `processor=media_processor` or scores will be wrong
 - rapidfuzz `WRatio` is the recommended scorer for media titles (balances exact match with tolerance for extra tokens)
