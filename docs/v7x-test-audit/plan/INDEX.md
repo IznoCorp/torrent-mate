@@ -6,8 +6,8 @@
 
 | #   | Phase                              | Fichier                                                                | Status |
 | --- | ---------------------------------- | ---------------------------------------------------------------------- | ------ |
-| 1   | Fix + renforcement tests critiques | [phase-01-test-reinforcement.md](phase-01-test-reinforcement.md)       | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2_      |                                                                        | [ ]    |
+| 1   | Fix + renforcement tests critiques | [phase-01-test-reinforcement.md](phase-01-test-reinforcement.md)       | [x]    |
+| ·   | _Contrôle de cohérence P1→P2_      |                                                                        | [x]    |
 | 2   | Infrastructure golden files        | [phase-02-golden-infrastructure.md](phase-02-golden-infrastructure.md) | [ ]    |
 | ·   | _Contrôle de cohérence P2→P3_      |                                                                        | [ ]    |
 | 3   | Génération golden files (MANUELLE) | [phase-03-golden-generation.md](phase-03-golden-generation.md)         | [ ]    |
@@ -30,12 +30,12 @@ Ordre imposé : P1, P2, P3, P4
 
 ### Après Phase 1 (fix + renforcement → golden infrastructure)
 
-- [ ] Tous les tests existants passent (710+ passants, 0 échec)
-- [ ] `test_sort_stub` corrigé et passant
-- [ ] Couverture `dispatcher.py` > 65% (actuellement 48%)
-- [ ] Couverture `ingest.py` > 50% (actuellement 13%)
-- [ ] Couverture `verifier.py` > 75% (actuellement 63%)
-- [ ] Pas de régression sur les tests existants
+- [x] Tous les tests existants passent (720 passants, 0 échec)
+- [x] `test_sort_stub` corrigé et passant (→ `test_sort_command`)
+- [x] Couverture `dispatcher.py` > 65% (48% → 85%)
+- [x] Couverture `ingest.py` > 50% (13% → 87%)
+- [x] Couverture `verifier.py` > 75% (63% → 82%)
+- [x] Pas de régression sur les tests existants
 
 ### Après Phase 2 (golden infrastructure → golden generation)
 
