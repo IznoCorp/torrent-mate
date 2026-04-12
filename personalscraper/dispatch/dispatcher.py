@@ -10,11 +10,32 @@ The category is provided by V4 verify (VerifyResult.category).
 import logging
 import os
 import shutil
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from personalscraper.config import Settings
+
+
+def _force_rmtree(path: Path) -> None:
+    """Remove a directory tree, handling macOS permission errors.
+
+    Uses an onerror handler that clears read-only/immutable flags
+    before retrying. Handles .actors and other macOS-protected dirs.
+
+    Args:
+        path: Directory to remove.
+    """
+    def _on_error(func, fpath, _exc_info):
+        """Clear immutable flags and retry deletion."""
+        try:
+            os.chmod(fpath, stat.S_IRWXU)
+            func(fpath)
+        except OSError:
+            pass  # Best-effort — log at caller level if rmtree still fails
+
+    shutil.rmtree(path, onerror=_on_error)
 from personalscraper.dispatch.disk_scanner import (
     choose_disk,
     get_disk_configs,
@@ -128,7 +149,7 @@ class Dispatcher:
                     if item.name.startswith("_tmp_dispatch_"):
                         logger.warning("Cleaning orphan tmp: %s", item)
                         try:
-                            shutil.rmtree(item)
+                            _force_rmtree(item)
                             cleaned += 1
                         except OSError as e:
                             logger.error("Failed to clean orphan %s: %s", item, e)
@@ -137,7 +158,7 @@ class Dispatcher:
                     if backup.exists():
                         logger.warning("Cleaning orphan merge backup: %s", backup)
                         try:
-                            shutil.rmtree(backup)
+                            _force_rmtree(backup)
                             cleaned += 1
                         except OSError as e:
                             logger.error("Failed to clean backup %s: %s", backup, e)
@@ -370,7 +391,7 @@ class Dispatcher:
         if not self._rsync(source, tmp_new):
             try:
                 if tmp_new.exists():
-                    shutil.rmtree(tmp_new)
+                    _force_rmtree(tmp_new)
             except OSError as e:
                 logger.warning("Failed to clean partial tmp_new %s: %s", tmp_new, e)
             return False
@@ -396,11 +417,11 @@ class Dispatcher:
         # Phase 3: Cleanup (non-critical — replace already succeeded)
         try:
             if tmp_old.exists():
-                shutil.rmtree(tmp_old)
+                _force_rmtree(tmp_old)
         except OSError as e:
             logger.warning("Failed to clean old copy %s: %s", tmp_old, e)
         try:
-            shutil.rmtree(source)
+            _force_rmtree(source)
         except OSError as e:
             logger.warning("Failed to clean source %s: %s", source, e)
         return True
@@ -431,8 +452,8 @@ class Dispatcher:
             if self._verify_transfer(source, dest):
                 # Success — clean backup and source
                 if backup_dir.exists():
-                    shutil.rmtree(backup_dir)
-                shutil.rmtree(source)
+                    _force_rmtree(backup_dir)
+                _force_rmtree(source)
                 return True
 
             logger.error("Merge verification failed for %s", source.name)
@@ -469,6 +490,7 @@ class Dispatcher:
         try:
             proc = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=3600,
+                encoding="utf-8", errors="replace",
             )
             if proc.returncode != 0:
                 logger.error("rsync merge failed (rc=%d): %s", proc.returncode, proc.stderr)
@@ -519,7 +541,7 @@ class Dispatcher:
         else:
             # All files restored — safe to remove backup
             try:
-                shutil.rmtree(backup_dir)
+                _force_rmtree(backup_dir)
             except OSError as e:
                 logger.warning("Failed to clean backup dir: %s", e)
 
@@ -548,12 +570,12 @@ class Dispatcher:
             # Clean orphan tmp from a previous failed attempt
             if tmp_dir.exists():
                 logger.warning("Cleaning orphan tmp: %s", tmp_dir)
-                shutil.rmtree(tmp_dir)
+                _force_rmtree(tmp_dir)
 
             # Stage: rsync to temporary directory
             if not self._rsync(source, tmp_dir):
                 if tmp_dir.exists():
-                    shutil.rmtree(tmp_dir)
+                    _force_rmtree(tmp_dir)
                 return False
 
             # Commit: atomic rename to final destination
@@ -561,14 +583,14 @@ class Dispatcher:
 
             # Verify and clean source
             if self._verify_transfer(source, dest):
-                shutil.rmtree(source)
+                _force_rmtree(source)
                 return True
 
             # Verification failed — remove dest to restore clean state
             logger.error("Transfer verification failed for %s", source.name)
             try:
                 if dest.exists():
-                    shutil.rmtree(dest)
+                    _force_rmtree(dest)
                     logger.info("Cleaned failed destination: %s", dest)
             except OSError as cleanup_err:
                 logger.warning("Failed to clean dest %s: %s", dest, cleanup_err)
@@ -579,7 +601,7 @@ class Dispatcher:
             for path in (tmp_dir, dest):
                 try:
                     if path.exists():
-                        shutil.rmtree(path)
+                        _force_rmtree(path)
                 except OSError as cleanup_err:
                     logger.warning("Failed to clean %s: %s", path, cleanup_err)
             return False
@@ -604,6 +626,7 @@ class Dispatcher:
         try:
             proc = subprocess.run(
                 cmd, capture_output=True, text=True, timeout=3600,
+                encoding="utf-8", errors="replace",
             )
             if proc.returncode != 0:
                 logger.error("rsync failed (rc=%d): %s", proc.returncode, proc.stderr)

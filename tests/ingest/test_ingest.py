@@ -197,6 +197,7 @@ class TestRunIngest:
         """No completed torrents should return success_count=0."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 1
 
         mock_client = MagicMock()
@@ -219,6 +220,7 @@ class TestRunIngest:
         """Already-ingested torrents should be skipped."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 1
 
         mock_client = MagicMock()
@@ -251,6 +253,7 @@ class TestRunIngest:
         """Seeding torrent should be copied (not moved)."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("SeedingMovie", "hash1")
@@ -291,6 +294,7 @@ class TestRunIngest:
         """Completed (not seeding) torrent should be moved."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("DoneMovie", "hash2")
@@ -331,6 +335,7 @@ class TestRunIngest:
         """Insufficient disk space should skip the torrent."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 999
 
         torrent = _make_torrent("BigMovie", "hash3")
@@ -368,6 +373,7 @@ class TestRunIngest:
         """Transfer failure should increment error_count."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("FailMovie", "hash4")
@@ -401,6 +407,7 @@ class TestRunIngest:
         """Dry run should not call _cleanup_orphan_temps or mark ingested."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("DryMovie", "hash5")
@@ -434,6 +441,7 @@ class TestRunIngest:
         """StepReport should have correct name and initial counts."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         mock_client = MagicMock()
@@ -463,6 +471,7 @@ class TestRunIngest:
         """Multiple torrents: 1 seeding (copy) + 1 done (move) + 1 already ingested."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         t1 = _make_torrent("Seeding", "h1")
@@ -514,9 +523,10 @@ class TestRunIngest:
     def test_content_path_missing(
         self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
     ) -> None:
-        """Missing content path should increment error_count."""
+        """Missing content path should increment skip_count (file likely already processed)."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("Ghost", "hash6")
@@ -535,7 +545,8 @@ class TestRunIngest:
 
         report = run_ingest(settings)
 
-        assert report.error_count == 1
+        assert report.skip_count == 1
+        assert report.error_count == 0
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
@@ -545,6 +556,7 @@ class TestRunIngest:
         """If destination already exists in staging, skip and mark ingested."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("Existing", "hash7")
@@ -552,9 +564,9 @@ class TestRunIngest:
         source.mkdir(parents=True)
         (source / "file.mkv").write_bytes(b"\x00" * 100)
 
-        # Destination already exists in staging
-        dest = tmp_path / "Existing"
-        dest.mkdir()
+        # Destination already exists in 097-TEMP/ (where ingest deposits)
+        dest = tmp_path / "097-TEMP" / "Existing"
+        dest.mkdir(parents=True)
 
         mock_client = MagicMock()
         mock_client.get_completed_torrents.return_value = [torrent]

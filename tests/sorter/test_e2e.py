@@ -157,8 +157,10 @@ class TestE2ERunSort:
 
     def test_run_sort_returns_step_report(self, staging_settings, staging):
         """run_sort returns a properly populated StepReport."""
-        _create_movie_dir(staging, "Movie.2024.1080p")
-        _create_episode_file(staging, "Show.S01E01.mkv")
+        temp = staging / "097-TEMP"
+        temp.mkdir(exist_ok=True)
+        _create_movie_dir(temp, "Movie.2024.1080p")
+        _create_episode_file(temp, "Show.S01E01.mkv")
         report = run_sort(staging_settings, dry_run=False)
         assert report.name == "sort"
         assert report.success_count == 2
@@ -166,13 +168,16 @@ class TestE2ERunSort:
 
     def test_run_sort_dry_run(self, staging_settings, staging):
         """run_sort dry-run counts items in details."""
-        _create_movie_dir(staging, "Movie.2024.1080p")
+        temp = staging / "097-TEMP"
+        temp.mkdir(exist_ok=True)
+        _create_movie_dir(temp, "Movie.2024.1080p")
         report = run_sort(staging_settings, dry_run=True)
         assert report.success_count == 1
         assert any("[DRY-RUN]" in d for d in report.details)
 
-    def test_run_sort_empty_staging(self, staging_settings):
+    def test_run_sort_empty_staging(self, staging_settings, staging):
         """run_sort on empty staging returns zero counts."""
+        (staging / "097-TEMP").mkdir(exist_ok=True)
         report = run_sort(staging_settings, dry_run=False)
         assert report.success_count == 0
         assert report.skip_count == 0

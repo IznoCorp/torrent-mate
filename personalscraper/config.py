@@ -1,7 +1,7 @@
 """Pipeline configuration via pydantic-settings.
 
 Loads settings from environment variables and .env file.
-Single source of truth for all pipeline configuration (V0-V7).
+Single source of truth for all pipeline configuration (V0-V8).
 """
 
 from functools import lru_cache
@@ -33,6 +33,16 @@ class Settings(BaseSettings):
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring (empty = disabled).
         min_free_space_staging_gb: Minimum free space on SSD before ingest (GB).
         min_free_space_disk_gb: Minimum free space on storage disks before dispatch (GB).
+        ingest_dir_name: Ingest subdirectory name (relative to staging_dir).
+        data_dir_name: Data directory name for lock/tracker (relative to staging_dir).
+        movies_dir_name: Movies category directory name.
+        tvshows_dir_name: TV shows category directory name.
+        ebooks_dir_name: Ebooks category directory name.
+        audio_dir_name: Audio category directory name.
+        apps_dir_name: Apps category directory name.
+        other_dir_name: Other/misc category directory name.
+        circuit_breaker_threshold: Consecutive errors before opening circuit.
+        circuit_breaker_cooldown: Seconds to wait before retrying after circuit opens.
     """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -72,9 +82,41 @@ class Settings(BaseSettings):
     min_free_space_staging_gb: int = 20
     min_free_space_disk_gb: float = 100
 
+    # Internal directories (relative to staging_dir if not absolute)
+    ingest_dir_name: str = "097-TEMP"
+    data_dir_name: str = ".personalscraper"
+
+    # Category directory names
+    movies_dir_name: str = "001-MOVIES"
+    tvshows_dir_name: str = "002-TVSHOWS"
+    ebooks_dir_name: str = "003-EBOOKS"
+    audio_dir_name: str = "004-AUDIO"
+    apps_dir_name: str = "005-APPS"
+    other_dir_name: str = "098-AUTRES"
+
     # Circuit breaker (V8 — API outage detection)
     circuit_breaker_threshold: int = 5
     circuit_breaker_cooldown: int = 300
+
+    @property
+    def ingest_dir(self) -> Path:
+        """Resolved ingest directory (where ingest deposits files).
+
+        Returns:
+            Absolute path, resolved relative to staging_dir if not absolute.
+        """
+        p = Path(self.ingest_dir_name)
+        return p if p.is_absolute() else self.staging_dir / p
+
+    @property
+    def data_dir(self) -> Path:
+        """Resolved data directory (lock file, tracker JSON).
+
+        Returns:
+            Absolute path, resolved relative to staging_dir if not absolute.
+        """
+        p = Path(self.data_dir_name)
+        return p if p.is_absolute() else self.staging_dir / p
 
 
 @lru_cache

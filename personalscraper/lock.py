@@ -1,8 +1,8 @@
 """Pipeline lock file — prevents concurrent pipeline executions.
 
-Uses a PID-based lock file in ~/.personalscraper/ to ensure only one
-pipeline instance runs at a time. Detects and cleans up stale locks
-from crashed processes.
+Uses a PID-based lock file in the project data directory (configurable
+via DATA_DIR_NAME in .env, defaults to .personalscraper/ under staging_dir).
+Detects and cleans up stale locks from crashed processes.
 
 Lock is acquired at CLI command level (not in run_*() functions)
 to avoid double-lock when the `run` command calls individual steps.
@@ -13,13 +13,21 @@ from pathlib import Path
 
 from personalscraper.logger import get_logger
 
-LOCK_DIR = Path("~/.personalscraper").expanduser()
-LOCK_FILE = LOCK_DIR / "pipeline.lock"
-
 log = get_logger("lock")
 
 
-def acquire_lock(lock_file: Path = LOCK_FILE) -> bool:
+def _default_lock_file() -> Path:
+    """Return the default lock file path from settings.
+
+    Returns:
+        Path to pipeline.lock inside the configured data directory.
+    """
+    from personalscraper.config import get_settings
+
+    return get_settings().data_dir / "pipeline.lock"
+
+
+def acquire_lock(lock_file: Path | None = None) -> bool:
     """Create a lock file with the current process PID.
 
     Checks for existing locks and handles stale ones (dead process)
@@ -27,11 +35,13 @@ def acquire_lock(lock_file: Path = LOCK_FILE) -> bool:
     Creates parent directory if it doesn't exist.
 
     Args:
-        lock_file: Path to the lock file. Defaults to ~/.personalscraper/pipeline.lock.
+        lock_file: Path to the lock file. Defaults to settings.data_dir/pipeline.lock.
 
     Returns:
         True if lock was acquired, False if another live instance holds it.
     """
+    if lock_file is None:
+        lock_file = _default_lock_file()
     lock_file.parent.mkdir(parents=True, exist_ok=True)
 
     if lock_file.exists():
@@ -61,11 +71,13 @@ def acquire_lock(lock_file: Path = LOCK_FILE) -> bool:
     return True
 
 
-def release_lock(lock_file: Path = LOCK_FILE) -> None:
+def release_lock(lock_file: Path | None = None) -> None:
     """Remove the lock file.
 
     Args:
-        lock_file: Path to the lock file. Defaults to ~/.personalscraper/pipeline.lock.
+        lock_file: Path to the lock file. Defaults to settings.data_dir/pipeline.lock.
     """
+    if lock_file is None:
+        lock_file = _default_lock_file()
     lock_file.unlink(missing_ok=True)
     log.debug("lock_released", lock_file=str(lock_file))

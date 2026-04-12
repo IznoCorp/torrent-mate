@@ -52,14 +52,14 @@ def run_scrape(
 
     # Process movies
     if not tvshows_only:
-        movies_dir = staging / "001-MOVIES"
+        movies_dir = staging / settings.movies_dir_name
         if movies_dir.exists():
             results = scraper.process_movies(movies_dir)
             all_results.extend(results)
 
     # Process TV shows
     if not movies_only:
-        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir = staging / settings.tvshows_dir_name
         if tvshows_dir.exists():
             results = scraper.process_tvshows(tvshows_dir)
             all_results.extend(results)

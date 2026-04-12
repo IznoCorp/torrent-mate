@@ -1,7 +1,8 @@
 """Sort step entry point — run_sort() function.
 
-Coordinates NameCleaner and Sorter to sort all items at the staging root
-into categorized subdirectories. Returns a StepReport for the pipeline.
+Coordinates NameCleaner and Sorter to sort all items from the ingest
+directory (097-TEMP/) into categorized subdirectories under the staging
+root. Returns a StepReport for the pipeline.
 The lock is managed by the CLI caller, not by this module.
 """
 
@@ -16,13 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 def run_sort(settings: Settings, dry_run: bool = False) -> StepReport:
-    """Sort all items at the staging root into type subdirectories.
+    """Sort all items from the ingest directory into type subdirectories.
 
-    Instantiates NameCleaner and Sorter, processes the staging directory,
-    and converts the list of SortResult into a StepReport.
+    Instantiates NameCleaner and Sorter, processes the ingest directory
+    (097-TEMP/) and sorts items into category subdirectories (001-MOVIES/,
+    002-TVSHOWS/, etc.) under the staging root.
 
     Args:
-        settings: Pipeline settings (staging_dir path).
+        settings: Pipeline configuration (ingest_dir and staging_dir).
         dry_run: If True, simulate moves without actually moving.
 
     Returns:
@@ -31,7 +33,8 @@ def run_sort(settings: Settings, dry_run: bool = False) -> StepReport:
     cleaner = NameCleaner()
     sorter = Sorter(cleaner=cleaner, dry_run=dry_run)
 
-    results = sorter.process(settings.staging_dir)
+    # Sort processes ingest_dir (097-TEMP/) → categorized dirs at staging root
+    results = sorter.process(settings.ingest_dir, dest_root=settings.staging_dir)
 
     report = StepReport(name="sort")
     for r in results:

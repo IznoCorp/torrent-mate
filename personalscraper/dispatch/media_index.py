@@ -4,7 +4,7 @@ Maintains an index of all media items across the 4 storage disks.
 Supports exact lookup, fuzzy matching (via fuzzy_match_score), atomic
 save, and full rebuild from disk scans.
 
-Index file: ~/.personalscraper/media_index.json
+Index file: data_dir/media_index.json (configurable via DATA_DIR_NAME in .env).
 """
 
 import json
@@ -17,7 +17,16 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-INDEX_PATH = Path("~/.personalscraper/media_index.json").expanduser()
+
+def _default_index_path() -> Path:
+    """Return the default index file path from settings.
+
+    Returns:
+        Path to media_index.json inside the configured data directory.
+    """
+    from personalscraper.config import get_settings
+
+    return get_settings().data_dir / "media_index.json"
 
 
 _YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
@@ -82,9 +91,9 @@ class MediaIndex:
 
         Args:
             index_path: Path to the JSON index file.
-                Defaults to ~/.personalscraper/media_index.json.
+                Defaults to settings.data_dir/media_index.json.
         """
-        self._path = index_path or INDEX_PATH
+        self._path = index_path or _default_index_path()
         self._entries: dict[str, IndexEntry] = {}
 
     def load(self) -> None:

@@ -11,9 +11,13 @@ threshold). Used by V5 (media_index.py) and V2 (matcher.py).
 See docs/rapidfuzz-reference.md for rationale on custom processing.
 """
 
+import re
 import unicodedata
 
 from rapidfuzz import utils
+
+# Year suffix pattern for length ratio normalization
+_YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
 
 
 def media_processor(s: str) -> str:
@@ -75,18 +79,46 @@ def fuzzy_match_score(
     processed_query = media_processor(query)
     processed_candidate = media_processor(candidate)
 
-    # Guard 2 — Length ratio: reject if strings are too different in length
+    # Guard 2 — Length ratio: reject if strings are too different in length.
+    # Strip year suffix before comparison so "Shrinking" vs "Shrinking (2023)"
+    # doesn't get rejected — the year guard already handles year checking.
     if not processed_query or not processed_candidate:
         return None
-    shorter = min(len(processed_query), len(processed_candidate))
-    longer = max(len(processed_query), len(processed_candidate))
+    stripped_query = media_processor(_YEAR_SUFFIX.sub("", query))
+    stripped_candidate = media_processor(_YEAR_SUFFIX.sub("", candidate))
+    # Use stripped versions consistently — if EITHER is empty after stripping,
+    # fall back to processed versions for both to avoid asymmetric comparison
+    if stripped_query and stripped_candidate:
+        len_query = len(stripped_query)
+        len_candidate = len(stripped_candidate)
+    else:
+        len_query = len(processed_query)
+        len_candidate = len(processed_candidate)
+    shorter = min(len_query, len_candidate)
+    longer = max(len_query, len_candidate)
     if shorter / longer < 0.67:
         return None
 
-    # Guard 3 — Adaptive threshold: short titles need higher score
-    threshold = 95.0 if len(processed_query) <= 10 else 90.0
+    # Guard 3 — Adaptive threshold: short titles need higher score.
+    # Use stripped length so "Shrinking" (9 chars) vs "Shrinking (2023)"
+    # uses the title-only length for threshold selection.
+    effective_len = len(stripped_query) if stripped_query else len(processed_query)
+    threshold = 95.0 if effective_len <= 10 else 90.0
 
     score = fuzz.WRatio(query, candidate, processor=media_processor)
     if score >= threshold:
         return score
+
+    # If only ONE side has a year suffix, re-score without it.
+    # Handles "Shrinking" vs "Shrinking (2023)" where WRatio drops to 90.
+    # Don't re-score when BOTH have years — digit differences are meaningful.
+    stripped_q_raw = _YEAR_SUFFIX.sub("", query).strip()
+    stripped_c_raw = _YEAR_SUFFIX.sub("", candidate).strip()
+    q_had_year = stripped_q_raw != query
+    c_had_year = stripped_c_raw != candidate
+    if q_had_year != c_had_year:  # exactly one side has a year
+        score = fuzz.WRatio(stripped_q_raw, stripped_c_raw, processor=media_processor)
+        if score >= threshold:
+            return score
+
     return None

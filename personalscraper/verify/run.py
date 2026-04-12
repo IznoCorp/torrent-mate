@@ -45,12 +45,12 @@ def run_verify(
     staging = Path(settings.staging_dir)
 
     if not tvshows_only:
-        movies_dir = staging / "001-MOVIES"
+        movies_dir = staging / settings.movies_dir_name
         if movies_dir.exists():
             all_results.extend(verifier.verify_all_movies(movies_dir))
 
     if not movies_only:
-        tvshows_dir = staging / "002-TVSHOWS"
+        tvshows_dir = staging / settings.tvshows_dir_name
         if tvshows_dir.exists():
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
 
