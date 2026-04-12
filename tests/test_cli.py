@@ -64,10 +64,40 @@ def test_ingest_lock_blocked(mock_lock):
     assert "Another instance" in result.output
 
 
-def test_sort_stub():
-    """Sort stub command runs without error."""
+_mock_sort_report = StepReport(name="sort", success_count=4, skip_count=1)
+
+
+@patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_sort_command(mock_lock, mock_release, mock_run):
+    """Sort command acquires lock, runs sort, and shows report."""
     result = runner.invoke(app, ["sort"])
     assert result.exit_code == 0
+    assert "4 OK" in result.output
+    assert "1 skipped" in result.output
+    mock_lock.assert_called_once()
+    mock_run.assert_called_once()
+    mock_release.assert_called_once()
+
+
+@patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+def test_sort_dry_run(mock_lock, mock_release, mock_run):
+    """Sort --dry-run flag is passed through."""
+    result = runner.invoke(app, ["sort", "--dry-run"])
+    assert result.exit_code == 0
+    call_kwargs = mock_run.call_args
+    assert call_kwargs is not None
+
+
+@patch("personalscraper.cli.acquire_lock", return_value=False)
+def test_sort_lock_blocked(mock_lock):
+    """Sort command exits with error if lock is held."""
+    result = runner.invoke(app, ["sort"])
+    assert result.exit_code == 1
+    assert "Another instance" in result.output
 
 
 _mock_scrape_report = StepReport(name="scrape", success_count=3, skip_count=2, error_count=1)
