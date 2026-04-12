@@ -13,6 +13,7 @@ def test_settings_defaults():
     assert settings.scraper_language == "fr-FR"
     assert settings.min_free_space_staging_gb == 20
     assert settings.min_free_space_disk_gb == 100
+    assert settings.scraper_prefer_local_title is True
 
 
 def test_settings_from_env(tmp_path, monkeypatch):
