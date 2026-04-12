@@ -253,12 +253,13 @@ class Dispatcher:
     def _replace(self, source: Path, dest: Path) -> bool:
         """Crash-safe cross-filesystem replace via rsync.
 
-        Steps:
-        1. rsync source → dest.new.tmp/
-        2. os.rename(dest, dest.old.tmp)
-        3. os.rename(dest.new.tmp, dest)
-        4. shutil.rmtree(dest.old.tmp)
-        5. shutil.rmtree(source)
+        Phase 1 (Transfer): rsync source → dest.new.tmp/
+        Phase 2 (Atomic swap): rename dest → dest.old.tmp, rename dest.new.tmp → dest
+        Phase 3 (Cleanup, non-critical): remove dest.old.tmp and source
+
+        Phases 1-2 must succeed; Phase 3 failures are logged as warnings
+        since the replace is already complete at that point. If Phase 2
+        fails mid-way, the original is restored from dest.old.tmp.
 
         Args:
             source: Source directory.
@@ -270,20 +271,31 @@ class Dispatcher:
         tmp_new = dest.parent / f"{dest.name}.new.tmp"
         tmp_old = dest.parent / f"{dest.name}.old.tmp"
 
-        try:
-            # Phase 1: Transfer (critical — must succeed)
-            if not self._rsync(source, tmp_new):
-                # Clean up partial rsync output
+        # Phase 1: Transfer (critical — must succeed)
+        if not self._rsync(source, tmp_new):
+            try:
                 if tmp_new.exists():
                     shutil.rmtree(tmp_new)
-                return False
+            except OSError as e:
+                logger.warning("Failed to clean partial tmp_new %s: %s", tmp_new, e)
+            return False
 
-            # Phase 2: Atomic swap (critical — must succeed)
+        # Phase 2: Atomic swap (critical — rollback on failure)
+        try:
             if dest.exists():
                 os.rename(dest, tmp_old)
             os.rename(tmp_new, dest)
         except OSError as e:
-            logger.error("Replace failed: %s", e)
+            logger.error(
+                "Replace failed: %s (tmp_old=%s, tmp_new=%s)", e, tmp_old, tmp_new,
+            )
+            # Attempt to restore original from backup
+            try:
+                if tmp_old.exists() and not dest.exists():
+                    os.rename(tmp_old, dest)
+                    logger.info("Restored original from backup: %s", dest)
+            except OSError as restore_err:
+                logger.error("Failed to restore backup: %s", restore_err)
             return False
 
         # Phase 3: Cleanup (non-critical — replace already succeeded)

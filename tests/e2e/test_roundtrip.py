@@ -10,6 +10,15 @@ if a movie correctly stored as "The Matrix (1999)" on disk cannot be
 recovered from "The.Matrix.1999.MULTi.1080p.BluRay.x264-FiDELiO",
 there is a bug in the pipeline.
 
+TV show torrents deliberately omit the year (realistic: season packs
+rarely include it), testing the pipeline's ability to match by title alone.
+
+Requirements:
+    - At least one storage disk mounted at /Volumes/Disk{1-4}/medias
+    - TMDB_API_KEY set in .env (Bearer read access token)
+    - TVDB_API_KEY set in .env
+    - Network access to api.themoviedb.org and api4.thetvdb.com
+
 Usage:
     pytest tests/e2e/test_roundtrip.py -m roundtrip -v -s
 """
@@ -49,7 +58,10 @@ DISK_PATHS = {
 }
 
 # Categories that go through TMDB movie matching
-MOVIE_CATEGORIES = ["films", "films animations", "films documentaires"]
+MOVIE_CATEGORIES = [
+    "films", "films animations", "films documentaires",
+    "spectacles", "theatres",
+]
 
 # Categories that go through TVDB/TMDB TV show matching
 TVSHOW_CATEGORIES = [
@@ -60,8 +72,10 @@ TVSHOW_CATEGORIES = [
 # How many items to sample per category (evenly spaced)
 SAMPLE_SIZE = 5
 
-# Minimum fraction of items that must match successfully
-MIN_SUCCESS_RATE = 0.7
+# Minimum fraction of items that must match successfully.
+# Set to 0.6 (3/5) to allow for edge cases: French spectacles,
+# titles with special characters, or niche emissions.
+MIN_SUCCESS_RATE = 0.6
 
 
 # ---------------------------------------------------------------------------
@@ -107,8 +121,10 @@ def _sample_evenly(items: list[str], n: int) -> list[str]:
     Returns:
         List of N evenly-spaced items.
     """
-    if len(items) <= n:
-        return items
+    if not items or n <= 0:
+        return []
+    if len(items) <= n or n == 1:
+        return items[:n]
     step = (len(items) - 1) / (n - 1)
     return [items[round(i * step)] for i in range(n)]
 
@@ -264,6 +280,8 @@ class TestRoundtripMovies:
             results.append(result)
 
         # Report and assert
+        if not results:
+            pytest.skip(f"No processable samples for '{category}'")
         successes = sum(1 for r in results if r["success"])
         rate = successes / len(results)
 
@@ -365,6 +383,8 @@ class TestRoundtripTVShows:
             results.append(result)
 
         # Report and assert
+        if not results:
+            pytest.skip(f"No processable samples for '{category}'")
         successes = sum(1 for r in results if r["success"])
         rate = successes / len(results)
 

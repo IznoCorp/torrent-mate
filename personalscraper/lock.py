@@ -22,7 +22,8 @@ log = get_logger("lock")
 def acquire_lock(lock_file: Path = LOCK_FILE) -> bool:
     """Create a lock file with the current process PID.
 
-    Checks for existing locks and handles stale ones (dead process).
+    Checks for existing locks and handles stale ones (dead process)
+    or locks held by other users (PermissionError on os.kill).
     Creates parent directory if it doesn't exist.
 
     Args:

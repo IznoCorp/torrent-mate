@@ -2,7 +2,8 @@
 
 Sends pipeline reports via Telegram Bot API and pings external
 monitoring services (healthchecks.io). All external calls are
-non-blocking and never raise — notifications must not halt the pipeline.
+fault-tolerant and never raise — failures are logged as warnings
+but never halt the pipeline.
 """
 
 import logging
