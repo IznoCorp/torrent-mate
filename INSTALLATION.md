@@ -1,0 +1,150 @@
+# Installation
+
+Guide d'installation et de configuration de PersonalScraper.
+
+> Voir aussi : [README.md](README.md) (vue d'ensemble du projet) | [MANUAL.md](MANUAL.md) (manuel d'utilisation)
+
+## Prérequis
+
+### Système
+
+- **macOS** (testé sur macOS Sonoma 14+)
+- **Python 3.10+** (`python3 --version`)
+- **pip** (`pip --version`)
+- **rsync** (inclus avec macOS)
+- **ffprobe** (inclus avec [FFmpeg](https://ffmpeg.org/))
+
+```bash
+# Installer FFmpeg si nécessaire (via Homebrew)
+brew install ffmpeg
+```
+
+### Services externes
+
+- **qBittorrent** avec l'interface Web activée (Preferences > Web UI)
+- Un compte **TMDB** avec clé API v3 — [inscription](https://www.themoviedb.org/settings/api)
+- Un compte **TVDB** avec clé API v4 — [inscription](https://thetvdb.com/dashboard/account/apikeys)
+- _(Optionnel)_ Un bot **Telegram** pour les notifications — [créer un bot](https://core.telegram.org/bots#how-do-i-create-a-bot)
+
+### Disques de stockage
+
+Les 4 disques doivent être montés pour que le dispatch fonctionne :
+
+```
+/Volumes/Disk1/medias
+/Volumes/Disk2/medias
+/Volumes/Disk3/medias
+/Volumes/Disk4/medias
+```
+
+## Installation
+
+```bash
+# Cloner le dépôt
+git clone <repo-url> "/Volumes/IznoServer SSD/A TRIER"
+cd "/Volumes/IznoServer SSD/A TRIER"
+
+# Installer en mode développement (package + dépendances dev)
+make install-dev
+# ou directement :
+pip install -e ".[dev]"
+```
+
+Cela installe :
+
+- Le package `personalscraper` en mode éditable
+- La commande CLI `personalscraper` dans le PATH
+- Les outils de dev (pytest, ruff)
+
+## Configuration
+
+### Fichier .env
+
+```bash
+cp .env.example .env
+```
+
+Ouvrir `.env` et remplir les valeurs :
+
+```ini
+# ── qBittorrent ──────────────────────────────
+QBIT_HOST=localhost
+QBIT_PORT=8081
+QBIT_USERNAME=izno
+QBIT_PASSWORD=votre_mot_de_passe
+
+# ── TMDB / TVDB ──────────────────────────────
+TMDB_API_KEY=votre_clé_tmdb
+TVDB_API_KEY=votre_clé_tvdb
+
+# ── Telegram (optionnel) ─────────────────────
+TELEGRAM_BOT_TOKEN=votre_token_bot
+TELEGRAM_CHAT_ID=votre_chat_id
+```
+
+Les autres valeurs (chemins, seuils, langues) ont des valeurs par défaut adaptées. Voir `.env.example` pour la liste complète.
+
+### Vérification
+
+```bash
+# Vérifier que la CLI est accessible
+personalscraper --help
+
+# Vérifier que les tests passent
+make test
+
+# Prévisualiser le pipeline (sans rien modifier)
+personalscraper run --dry-run
+```
+
+## Scheduling automatique (optionnel)
+
+Un agent launchd permet d'exécuter le pipeline automatiquement tous les jours à 3h du matin.
+
+### Installer l'agent
+
+```bash
+cp com.personalscraper.pipeline.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+```
+
+### Gérer l'agent
+
+```bash
+# Lancer manuellement
+launchctl start com.personalscraper.pipeline
+
+# Vérifier le statut
+launchctl list | grep personalscraper
+
+# Désactiver
+launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+```
+
+### Logs
+
+Les logs du pipeline sont écrits dans `logs/` (format JSON structuré). Pour consulter :
+
+```bash
+# Dernières entrées
+tail -f logs/personalscraper.json
+
+# Ou avec jq pour un affichage lisible
+tail -f logs/personalscraper.json | python -m json.tool
+```
+
+## Mise à jour
+
+```bash
+cd "/Volumes/IznoServer SSD/A TRIER"
+git pull
+pip install -e ".[dev]"
+```
+
+## Désinstallation
+
+```bash
+pip uninstall personalscraper
+launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+rm ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+```
