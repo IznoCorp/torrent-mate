@@ -396,7 +396,7 @@ class TestMerge:
         source.mkdir()
         dest.mkdir()
 
-        with patch.object(d, "_rsync", return_value=False):
+        with patch.object(d, "_rsync_merge", return_value=False):
             result = d._merge(source, dest)
 
         assert result is False
@@ -415,7 +415,7 @@ class TestMerge:
         dest.mkdir()
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync", return_value=True), \
+        with patch.object(d, "_rsync_merge", return_value=True), \
              patch.object(d, "_verify_transfer", return_value=False):
             result = d._merge(source, dest)
 
@@ -435,7 +435,7 @@ class TestMerge:
         dest.mkdir()
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync", return_value=True), \
+        with patch.object(d, "_rsync_merge", return_value=True), \
              patch.object(d, "_verify_transfer", return_value=True):
             result = d._merge(source, dest)
 
@@ -455,7 +455,7 @@ class TestMerge:
         source.mkdir()
         dest.mkdir()
 
-        with patch.object(d, "_rsync", side_effect=OSError("disk error")):
+        with patch.object(d, "_rsync_merge", side_effect=OSError("disk error")):
             result = d._merge(source, dest)
 
         assert result is False
@@ -472,7 +472,7 @@ class TestMoveNew:
     def test_move_new_success(
         self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
     ) -> None:
-        """Successful move: rsync + verify → source removed."""
+        """Successful move: rsync to tmp → rename → verify → source removed."""
         idx = MediaIndex(tmp_path / "index.json")
         d = Dispatcher(mock_settings, idx)
 
@@ -481,13 +481,21 @@ class TestMoveNew:
         source.mkdir()
         (source / "file.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync", return_value=True), \
+        # Mock rsync to create the tmp dir (staging→commit pattern)
+        tmp_dir = dest.parent / f"_tmp_dispatch_{dest.name}"
+
+        def mock_rsync(src, dst, **kwargs):
+            dst.mkdir(parents=True, exist_ok=True)
+            return True
+
+        with patch.object(d, "_rsync", side_effect=mock_rsync), \
              patch.object(d, "_verify_transfer", return_value=True):
             result = d._move_new(source, dest)
 
         assert result is True
         assert not source.exists()
-        assert dest.parent.exists()
+        assert dest.exists()
+        assert not tmp_dir.exists()
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_move_new_rsync_failure(
@@ -505,6 +513,7 @@ class TestMoveNew:
             result = d._move_new(source, dest)
 
         assert result is False
+        assert not dest.exists()
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_move_new_verify_failure(
@@ -518,11 +527,44 @@ class TestMoveNew:
         dest = tmp_path / "dest" / "films" / "Movie (2024)"
         source.mkdir()
 
-        with patch.object(d, "_rsync", return_value=True), \
+        def mock_rsync(src, dst, **kwargs):
+            dst.mkdir(parents=True, exist_ok=True)
+            return True
+
+        with patch.object(d, "_rsync", side_effect=mock_rsync), \
              patch.object(d, "_verify_transfer", return_value=False):
             result = d._move_new(source, dest)
 
         assert result is False
+
+    @patch("shutil.which", return_value="/usr/bin/rsync")
+    def test_move_new_orphan_tmp_cleaned(
+        self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Existing orphan _tmp_dispatch_* is cleaned before new attempt."""
+        idx = MediaIndex(tmp_path / "index.json")
+        d = Dispatcher(mock_settings, idx)
+
+        source = tmp_path / "source"
+        dest = tmp_path / "dest" / "films" / "Movie (2024)"
+        source.mkdir()
+        (source / "file.mkv").write_bytes(b"\x00" * 1024)
+
+        # Create orphan tmp dir
+        tmp_dir = dest.parent / f"_tmp_dispatch_{dest.name}"
+        tmp_dir.mkdir(parents=True)
+        (tmp_dir / "partial.mkv").write_bytes(b"\x00" * 512)
+
+        def mock_rsync(src, dst, **kwargs):
+            dst.mkdir(parents=True, exist_ok=True)
+            return True
+
+        with patch.object(d, "_rsync", side_effect=mock_rsync), \
+             patch.object(d, "_verify_transfer", return_value=True):
+            result = d._move_new(source, dest)
+
+        assert result is True
+        assert not tmp_dir.exists()
 
 
 # ---------------------------------------------------------------------------
@@ -794,3 +836,60 @@ class TestDispatchExisting:
 
         assert len(results) == 1
         assert results[0].action == "moved"
+
+
+# ---------------------------------------------------------------------------
+# Orphan cleanup
+# ---------------------------------------------------------------------------
+
+
+class TestOrphanCleanup:
+    """Tests for _cleanup_orphan_temps."""
+
+    @patch("shutil.which", return_value="/usr/bin/rsync")
+    def test_cleans_tmp_dispatch_orphans(
+        self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Orphan _tmp_dispatch_* directories are cleaned up."""
+        from personalscraper.dispatch.disk_scanner import DiskConfig
+
+        # Create disk structure with orphan
+        disk = tmp_path / "Disk1" / "medias"
+        films_dir = disk / "films"
+        films_dir.mkdir(parents=True)
+        orphan = films_dir / "_tmp_dispatch_Movie (2024)"
+        orphan.mkdir()
+        (orphan / "partial.mkv").write_bytes(b"\x00" * 512)
+
+        idx = MediaIndex(tmp_path / "index.json")
+        d = Dispatcher(mock_settings, idx)
+        d._disk_configs = [DiskConfig("Disk1", disk, ["films"])]
+
+        cleaned = d._cleanup_orphan_temps()
+
+        assert cleaned == 1
+        assert not orphan.exists()
+
+    @patch("shutil.which", return_value="/usr/bin/rsync")
+    def test_cleans_merge_backup_orphans(
+        self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Orphan .merge_backup directories inside media dirs are cleaned."""
+        from personalscraper.dispatch.disk_scanner import DiskConfig
+
+        disk = tmp_path / "Disk1" / "medias"
+        series_dir = disk / "series"
+        show_dir = series_dir / "Show (2024)"
+        show_dir.mkdir(parents=True)
+        backup = show_dir / ".merge_backup"
+        backup.mkdir()
+        (backup / "old_file.mkv").write_bytes(b"\x00" * 100)
+
+        idx = MediaIndex(tmp_path / "index.json")
+        d = Dispatcher(mock_settings, idx)
+        d._disk_configs = [DiskConfig("Disk1", disk, ["series"])]
+
+        cleaned = d._cleanup_orphan_temps()
+
+        assert cleaned == 1
+        assert not backup.exists()
