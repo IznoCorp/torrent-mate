@@ -893,3 +893,80 @@ class TestOrphanCleanup:
 
         assert cleaned == 1
         assert not backup.exists()
+
+
+# ---------------------------------------------------------------------------
+# Merge backup restore
+# ---------------------------------------------------------------------------
+
+
+class TestRestoreMergeBackup:
+    """Tests for Dispatcher._restore_merge_backup."""
+
+    def test_restores_all_files(self, tmp_path: Path) -> None:
+        """All backup files are restored to their original locations."""
+        dest = tmp_path / "Show (2024)"
+        dest.mkdir()
+        # Existing file that was overwritten
+        (dest / "S01E01.mkv").write_bytes(b"new")
+
+        # Backup contains the original
+        backup = dest / ".merge_backup"
+        backup.mkdir()
+        (backup / "S01E01.mkv").write_bytes(b"original")
+
+        restored = Dispatcher._restore_merge_backup(dest, backup)
+
+        assert restored == 1
+        assert (dest / "S01E01.mkv").read_bytes() == b"original"
+        assert not backup.exists()  # Cleaned after successful restore
+
+    def test_continues_on_per_file_error(self, tmp_path: Path) -> None:
+        """Per-file error does not abort remaining restores."""
+        dest = tmp_path / "Show (2024)"
+        dest.mkdir()
+
+        backup = dest / ".merge_backup"
+        backup.mkdir()
+        (backup / "good.mkv").write_bytes(b"good-data")
+        # Create a subdirectory backup
+        (backup / "Saison 01").mkdir()
+        (backup / "Saison 01" / "ep.mkv").write_bytes(b"ep-data")
+
+        # Make one target read-only to force an error
+        read_only_dir = dest / "Saison 01"
+        read_only_dir.mkdir()
+        read_only_target = read_only_dir / "ep.mkv"
+        read_only_target.write_bytes(b"locked")
+        read_only_target.chmod(0o000)
+
+        try:
+            restored = Dispatcher._restore_merge_backup(dest, backup)
+            # At least the good file should be restored
+            assert (dest / "good.mkv").read_bytes() == b"good-data"
+            # Backup NOT removed because some files failed
+            assert backup.exists()
+        finally:
+            # Restore permissions for cleanup
+            read_only_target.chmod(0o644)
+
+    def test_empty_backup_dir(self, tmp_path: Path) -> None:
+        """Empty backup dir returns 0 and is cleaned up."""
+        dest = tmp_path / "Show"
+        dest.mkdir()
+        backup = dest / ".merge_backup"
+        backup.mkdir()
+
+        restored = Dispatcher._restore_merge_backup(dest, backup)
+
+        assert restored == 0
+        assert not backup.exists()
+
+    def test_nonexistent_backup_dir(self, tmp_path: Path) -> None:
+        """Nonexistent backup dir returns 0 immediately."""
+        dest = tmp_path / "Show"
+        dest.mkdir()
+        backup = dest / ".merge_backup"
+
+        restored = Dispatcher._restore_merge_backup(dest, backup)
+        assert restored == 0

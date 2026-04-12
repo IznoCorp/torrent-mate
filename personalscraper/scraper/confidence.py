@@ -220,16 +220,14 @@ def match_tvshow(
         Best MatchResult (source="tvdb" or "tmdb"), or None.
     """
     # Try TVDB first (primary for TV shows)
-    # CircuitOpenError from TVDB is caught so TMDB fallback still works
-    from personalscraper.scraper.circuit_breaker import CircuitOpenError
-
+    # Any TVDB error (circuit open, 5xx, timeout) falls through to TMDB
     tvdb_match: MatchResult | None = None
     try:
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year)
         if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
             return tvdb_match
-    except CircuitOpenError:
-        logger.warning("TVDB circuit OPEN, falling back to TMDB for: %s", title)
+    except Exception as e:
+        logger.warning("TVDB failed for '%s', falling back to TMDB: %s", title, e)
 
     # Fallback to TMDB
     tmdb_results = tmdb_client.search_tv(title, year)  # type: ignore[attr-defined]

@@ -123,6 +123,18 @@ class CircuitBreaker:
         """
         return self.state != CircuitState.OPEN
 
+    def guard(self) -> None:
+        """Raise CircuitOpenError if the circuit is OPEN.
+
+        Centralizes the check-then-raise pattern so callers don't need
+        to access _remaining_cooldown() directly.
+
+        Raises:
+            CircuitOpenError: If the circuit is OPEN.
+        """
+        if not self.can_proceed():
+            raise CircuitOpenError(self.name, self._remaining_cooldown())
+
     def record_success(self) -> None:
         """Record a successful API call.
 

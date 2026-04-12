@@ -109,7 +109,12 @@ class TVDBClient:
         "zh": "zho", "ar": "ara", "nl": "nld",
     }
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        circuit_breaker_threshold: int = 5,
+        circuit_breaker_cooldown: int = 300,
+    ) -> None:
         """Initialize the TVDB client.
 
         Does NOT automatically login — call login() explicitly or let
@@ -117,6 +122,8 @@ class TVDBClient:
 
         Args:
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
+            circuit_breaker_threshold: Consecutive failures before opening circuit.
+            circuit_breaker_cooldown: Seconds to wait before half-open test.
         """
         self._api_key = api_key
         self._token: str | None = None
@@ -137,7 +144,11 @@ class TVDBClient:
         # Circuit breaker for sustained outage detection (above tenacity)
         from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
-        self._circuit = CircuitBreaker(name="TVDB")
+        self._circuit = CircuitBreaker(
+            name="TVDB",
+            failure_threshold=circuit_breaker_threshold,
+            cooldown_seconds=circuit_breaker_cooldown,
+        )
 
     def login(self) -> None:
         """Authenticate with the TVDB API and store the JWT token.
@@ -203,8 +214,7 @@ class TVDBClient:
         from personalscraper.scraper.circuit_breaker import CircuitOpenError
 
         # Fail fast if provider is down
-        if not self._circuit.can_proceed():
-            raise CircuitOpenError("TVDB", self._circuit._remaining_cooldown())
+        self._circuit.guard()
 
         # Auto-login if no token
         if self._token is None:

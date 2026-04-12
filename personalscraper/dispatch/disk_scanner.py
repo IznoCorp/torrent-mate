@@ -183,10 +183,20 @@ def choose_disk(
         ]
         if fallback:
             fallback.sort(key=lambda d: d.free_space_gb, reverse=True)
-            logger.info(
-                "No disk has category '%s' — falling back to %s (most free)",
-                category, fallback[0].config.name,
-            )
-            return fallback[0]
+            chosen = fallback[0]
+            # Warn if the chosen disk is not configured for this category
+            if category not in chosen.config.categories:
+                logger.warning(
+                    "Category '%s' not in %s config — creating anyway "
+                    "(overflow: no configured disk has space)",
+                    category, chosen.config.name,
+                )
+            else:
+                logger.info(
+                    "No disk has category '%s' with space — "
+                    "falling back to %s (most free)",
+                    category, chosen.config.name,
+                )
+            return chosen
 
     return None
