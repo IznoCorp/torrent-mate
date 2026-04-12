@@ -2,21 +2,65 @@
 
 Ce document explique comment utiliser la zone de tri "A TRIER" et les outils disponibles pour organiser les fichiers media.
 
+> Voir aussi : [README.md](README.md) (vue d'ensemble du projet) | [INSTALLATION.md](INSTALLATION.md) (prérequis et installation)
+
 ## Vue d'ensemble
 
 ```
 Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
-                    torrent-sort          /move-to-disk
-                    MediaElch (scraping)
+                    personalscraper run     (V1→V5 automatisé)
 ```
 
-**Pipeline complet :**
+**Pipeline automatisé (PersonalScraper V0-V7) :**
 
-1. Les torrents terminés arrivent dans `/Volumes/IznoServer SSD/torrents/complete`
-2. `torrent-sort` dispatche les fichiers dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
-3. Renommer/nettoyer les noms de fichiers si nécessaire
-4. Scraper les metadonnées avec **MediaElch** (posters, fanart, .nfo)
-5. Déplacer vers un disque de stockage avec `/move-to-disk`
+1. **V1 Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `A TRIER/`
+2. **V2 Sort** — Les fichiers sont triés dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
+3. **V3 Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
+4. **V4 Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
+5. **V5 Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
+
+> **Note :** MediaElch reste disponible comme fallback manuel pour le scraping si l'API ne trouve pas le résultat.
+
+---
+
+## Commandes PersonalScraper (CLI)
+
+Le pipeline automatisé est accessible via la commande `personalscraper` :
+
+```bash
+# Pipeline complet (V1→V5 en séquence)
+personalscraper run                 # Exécute tout : ingest → sort → scrape → verify → dispatch
+personalscraper run --dry-run       # Prévisualiser sans modifier
+
+# Étapes individuelles
+personalscraper ingest              # V1: Copier/déplacer les torrents terminés depuis qBittorrent
+personalscraper ingest --dry-run    # Prévisualiser
+personalscraper sort                # V2: Trier dans 001-MOVIES, 002-TVSHOWS, etc.
+personalscraper scrape              # V3: Récupérer métadonnées TMDB/TVDB (.nfo, artwork)
+personalscraper verify              # V4: Contrôle qualité avant dispatch
+personalscraper dispatch            # V5: Déplacer vers disques de stockage
+```
+
+Chaque commande supporte des options supplémentaires (`--dry-run`, `--movies-only`, `--tvshows-only`, etc.). Voir `personalscraper <command> --help`.
+
+**Prérequis :** fichier `.env` configuré (clés API TMDB/TVDB, credentials qBittorrent). Voir `.env.example`.
+
+**Scheduling :** un agent launchd (`com.personalscraper.pipeline.plist`) peut exécuter le pipeline automatiquement à 3h du matin.
+
+```bash
+# Installer et activer
+cp com.personalscraper.pipeline.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+
+# Désactiver
+launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+
+# Lancer manuellement
+launchctl start com.personalscraper.pipeline
+
+# Statut
+launchctl list | grep personalscraper
+```
 
 ---
 
@@ -39,18 +83,6 @@ torrent-sort --verbose --clean
 
 L'outil **FileMate** (`~/dev/FileMate/`) est appelé en arrière-plan. Les associations type → dossier sont configurées dans `~/dev/FileMate/.env`.
 
-### Nettoyage des dossiers vides
-
-Supprime les dossiers media vides (sans fichier vidéo) sur tous les disques.
-
-```bash
-# Prévisualiser
-python3 099-SCRIPTS/plex/cleanFileSystem.py --dry-run
-
-# Exécuter
-python3 099-SCRIPTS/plex/cleanFileSystem.py
-```
-
 ### Espace disque
 
 ```bash
@@ -59,50 +91,20 @@ df -h /Volumes/Disk{1,2,3,4}
 
 ---
 
-## Commandes Claude Code
+## Commandes Claude Code (archivées)
 
-Ces commandes sont utilisables dans une session Claude Code ouverte sur le dossier A TRIER.
-
-### /check-staging
-
-Affiche un rapport de l'état de la zone de tri :
-- Espace disque sur les 4 disques de stockage
-- Liste des films dans 001-MOVIES avec leur statut (prêt / à scraper)
-- Liste des séries dans 002-TVSHOWS avec leur statut
-- Résumé et prochaines actions recommandées
-
-```
-/check-staging
-```
-
-### /move-to-disk
-
-Déplace un media de A TRIER vers le bon disque de stockage.
-
-```
-/move-to-disk                                    # Affiche la liste et demande lequel déplacer
-/move-to-disk Peaky Blinders L'Immortel (2026)   # Déplace un film spécifique
-/move-to-disk 001-MOVIES/La Femme de ménage (2025)
-```
-
-**Comportement :**
-- Cherche si le dossier existe déjà sur un des 4 disques
-- **Film existant** → remplace l'ancien dossier par le nouveau
-- **Série existante** → fusionne (merge) les nouveaux fichiers dans le dossier existant
-- **Nouveau media** → déplace vers le disque avec le plus d'espace libre
-- Demande toujours une confirmation avant d'agir
-- Avertit si le scraping n'est pas terminé (pas de .nfo)
+> **Note :** Les anciennes commandes `/check-staging` et `/move-to-disk` ont été remplacées par le pipeline automatisé (`personalscraper verify` et `personalscraper dispatch`). Elles sont archivées dans `.claude-old/skills/`.
 
 ---
 
 ## Disques de stockage
 
-| Disque | Montage | Catégories disponibles |
-|--------|---------|----------------------|
+| Disque | Montage               | Catégories disponibles                                                                                                                        |
+| ------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Disk1  | /Volumes/Disk1/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk2  | /Volumes/Disk2/medias | series, series animes |
+| Disk2  | /Volumes/Disk2/medias | series, series animes                                                                                                                         |
 | Disk3  | /Volumes/Disk3/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk4  | /Volumes/Disk4/medias | films, films animations, series, series animations, series documentaires, emissions |
+| Disk4  | /Volumes/Disk4/medias | films, films animations, series, series animations, series documentaires, emissions                                                           |
 
 ---
 
@@ -112,15 +114,18 @@ Déplace un media de A TRIER vers le bon disque de stockage.
 
 ```
 A TRIER/
-├── 001-MOVIES/     Films en attente
-├── 002-TVSHOWS/    Séries en attente
-├── 003-EBOOKS/     Ebooks
-├── 004-AUDIO/      Livres audio
-├── 005-APPS/       Applications
-├── 006-ANDROID/    APK Android
-├── 097-TEMP/       Espace temporaire
-├── 098-AUTRES/     Divers
-└── 099-SCRIPTS/    Scripts utilitaires (Python)
+├── 001-MOVIES/          Films en attente
+├── 002-TVSHOWS/         Séries en attente
+├── 003-EBOOKS/          Ebooks
+├── 004-AUDIO/           Livres audio
+├── 005-APPS/            Applications
+├── 006-ANDROID/         APK Android
+├── 097-TEMP/            Espace temporaire
+├── 098-AUTRES/          Divers
+├── 099-SCRIPTS/         Scripts legacy (.bak, gitignored)
+├── personalscraper/     Package Python (CLI V0-V7)
+├── tests/               Tests unitaires + E2E
+└── assets/torrents/     Fichiers .torrent pour tests E2E
 ```
 
 ### Nommage des films
@@ -163,25 +168,26 @@ Nom de la Série (Année)/
 
 ---
 
-## Scraping avec MediaElch
+## Scraping des métadonnées
 
-MediaElch est une application de bureau (GUI) utilisée pour récupérer les métadonnées et les images.
+### Automatique (recommandé) — `personalscraper scrape`
 
-**Pour un film :**
-1. Ouvrir MediaElch
-2. Charger le dossier 001-MOVIES
-3. Pour chaque film, lancer la recherche (TMDb/IMDb)
-4. Sélectionner le bon résultat
-5. Télécharger poster, fanart, banner, etc.
-6. Sauvegarder → génère le fichier `.nfo`
+Le scraping est automatisé via les APIs TMDB et TVDB :
 
-**Pour une série :**
-1. Ouvrir MediaElch
-2. Charger le dossier 002-TVSHOWS
-3. Pour chaque série, lancer la recherche (TheTVDB/TMDb)
-4. Sélectionner le bon résultat
-5. Télécharger les images de la série et des saisons
-6. Sauvegarder → génère `tvshow.nfo` et les `.nfo` par épisode
+```bash
+personalscraper scrape              # Scrape tous les médias (films + séries)
+```
+
+Produit : fichiers `.nfo` (XML Kodi), posters, fanarts, banners, et renomme les épisodes au format `S01E01 - Titre.mkv`.
+
+### Fallback manuel — MediaElch
+
+Si l'API ne trouve pas un résultat, MediaElch (application de bureau GUI) peut être utilisé manuellement :
+
+1. Ouvrir MediaElch, charger le dossier 001-MOVIES ou 002-TVSHOWS
+2. Lancer la recherche (TMDb/TheTVDB)
+3. Télécharger poster, fanart, banner, etc.
+4. Sauvegarder → génère le fichier `.nfo`
 
 **Un media est prêt à déplacer quand il a au minimum :** un fichier vidéo + un fichier `.nfo`.
 
@@ -189,29 +195,30 @@ MediaElch est une application de bureau (GUI) utilisée pour récupérer les mé
 
 ## Protections Claude Code
 
-Deux hooks de sécurité sont actifs dans `.claude/settings.json` :
+Hooks actifs dans `.claude/settings.json` :
 
-1. **Protection des fichiers media** — Claude ne peut pas éditer les fichiers .mkv, .mp4, .nfo, .jpg, .png, etc. Seuls les fichiers .py, .md, .json, .txt, .sh sont éditables.
+1. **Blocage attribution AI** (`block_ai_attribution.py`) — Empêche les commits contenant `Co-Authored-By`, Claude, ou Anthropic
+2. **Blocage fichiers sensibles** (`block_sensitive_files.py`) — Empêche l'édition de fichiers sensibles (.env, clés API)
+3. **Auto-format** (`auto_format.py`) — Formate automatiquement après chaque édition
+4. **Loggers** — `bash_logger.py`, `agent_logger.py`, `skill_logger.py` enregistrent les actions
 
-2. **Protection des disques de stockage** — Claude ne peut pas exécuter de commandes destructrices (rm, mv depuis) sur les chemins /Volumes/Disk1 à Disk4. Les commandes en lecture seule (ls, find, du, df) sont toujours autorisées.
+> **Note :** Les hooks `block_media_files.py` et `block_disk_destructive.py` sont configurés dans settings.json mais les fichiers Python n'existent pas dans `.claude/hooks/` — ces protections sont **inactives**. La commande `rm` est bloquée via la liste `deny` des permissions.
 
 ---
 
 ## Scripts legacy (099-SCRIPTS/)
 
-Ces scripts sont d'anciens outils, la plupart remplacés par FileMate et MediaElch.
+Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper V0-V7.
 
-| Script | Usage | Statut |
-|--------|-------|--------|
-| PackUnpack.py | Aplatir les sous-dossiers + nettoyer les noms | Legacy (chemins Windows) |
-| Unpack.py | Variante d'unpack seul | Legacy (chemins Windows) |
-| TVDBNameToNum.py | Matcher les noms d'épisodes via TheTVDB | Legacy (chemins Windows) |
-| EpisodesTVDBNamer.py | Renommage d'épisodes TVDB | Legacy |
-| videoCutter.py | Couper des vidéos | Fonctionnel |
-| videoMerger.py | Fusionner des vidéos | Fonctionnel |
-| SensCritiqueScrapper.py | Scraping SensCritique | Legacy |
-| plex/cleanFileSystem.py | Supprimer les dossiers media vides | **Actif** |
-| plex/trailerScraper.py | Télécharger les bandes-annonces YouTube | Fonctionnel |
+| Script                      | Usage d'origine                               | Statut                    |
+| --------------------------- | --------------------------------------------- | ------------------------- |
+| PackUnpack.py.bak           | Aplatir les sous-dossiers + nettoyer les noms | Archivé (chemins Windows) |
+| Unpack.py.bak               | Variante d'unpack seul                        | Archivé                   |
+| TVDBNameToNum.py.bak        | Matcher les noms d'épisodes via TheTVDB       | Archivé → remplacé par V3 |
+| EpisodesTVDBNamer.py.bak    | Renommage d'épisodes TVDB                     | Archivé → remplacé par V3 |
+| videoCutter.py.bak          | Couper des vidéos                             | Archivé                   |
+| videoMerger.py.bak          | Fusionner des vidéos                          | Archivé                   |
+| SensCritiqueScrapper.py.bak | Scraping SensCritique                         | Archivé                   |
 
 ---
 

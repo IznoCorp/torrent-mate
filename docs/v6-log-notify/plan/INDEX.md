@@ -7,11 +7,11 @@
 | #   | Phase                                            | Fichier                                              | Status |
 | --- | ------------------------------------------------ | ---------------------------------------------------- | ------ |
 | 1   | Telegram notifier (compléter le stub V0)         | [phase-01-telegram.md](phase-01-telegram.md)         | [x]    |
-| ·   | _Contrôle de cohérence P1→P2_                    |                                                      | [ ]    |
+| ·   | _Contrôle de cohérence P1→P2_                    |                                                      | [x]    |
 | 2   | Pipeline `run` command + rapport                 | [phase-02-pipeline-run.md](phase-02-pipeline-run.md) | [x]    |
-| ·   | _Contrôle de cohérence P2→P3_                    |                                                      | [ ]    |
+| ·   | _Contrôle de cohérence P2→P3_                    |                                                      | [x]    |
 | 3   | Scheduling (launchd) + alias + validation finale | [phase-03-cron-final.md](phase-03-cron-final.md)     | [x]    |
-| ·   | _Contrôle de cohérence V6 → projet complet_      |                                                      | [ ]    |
+| ·   | _Contrôle de cohérence V6 → projet complet_      |                                                      | [x]    |
 
 ## Dépendances entre phases
 
