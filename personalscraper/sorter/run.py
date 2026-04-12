@@ -59,3 +59,31 @@ def run_sort(settings: Settings, dry_run: bool = False) -> StepReport:
         report.error_count,
     )
     return report
+
+
+def assert_temp_empty(settings: Settings) -> list[str]:
+    """Check that the ingest directory is empty after sort.
+
+    Ignores hidden files (.gitkeep, .DS_Store, etc.) since these
+    are not unsorted media.
+
+    Args:
+        settings: Pipeline configuration (ingest_dir path).
+
+    Returns:
+        List of remaining file/dir names. Empty list means gate passes.
+    """
+    ingest_dir = settings.ingest_dir
+    if not ingest_dir.exists():
+        return []
+    remaining = [
+        item.name
+        for item in ingest_dir.iterdir()
+        if not item.name.startswith(".")
+    ]
+    if remaining:
+        logger.warning(
+            "097-TEMP not empty after sort: %d items remain",
+            len(remaining),
+        )
+    return remaining
