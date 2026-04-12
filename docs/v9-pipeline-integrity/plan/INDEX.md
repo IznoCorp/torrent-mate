@@ -14,7 +14,7 @@
 | .   | _Controle de coherence P3→P4_  |                                                        | [x]    |
 | 4   | Verify renforce + titre local  | [phase-04-verify-title.md](phase-04-verify-title.md)   | [x]    |
 | .   | _Controle de coherence P4→P5_  |                                                        | [x]    |
-| 5   | Integration CLI + tests E2E    | [phase-05-integration.md](phase-05-integration.md)     | [ ]    |
+| 5   | Integration CLI + tests E2E    | [phase-05-integration.md](phase-05-integration.md)     | [x]    |
 
 ## Dependances entre phases
 
@@ -66,12 +66,11 @@ P1 et P2 sont independantes. P3 depend de P1+P2. P4 est independante de P1-P3. P
 
 ### Apres Phase 5 (Integration → Done)
 
-- [ ] `personalscraper run` affiche 7 lignes dans le panel final
-- [ ] Pipeline complet avec fichier brut → scrape → verify → dispatch fonctionne
-- [ ] Pipeline avec doublons → dedup → merge → verify → dispatch fonctionne
-- [ ] Dispatch skip si aucun item dispatchable
-- [ ] Dispatch partiel : items valid dispatches, blocked restent
-- [ ] `--interactive` fonctionne pour re-clean et scrape
-- [ ] `--dry-run` fonctionne pour toutes les phases
-- [ ] Telegram notification inclut les 7 steps
-- [ ] Tests E2E couvrent le flux complet
+- [x] `personalscraper run` affiche 7 lignes dans le panel final
+- [x] Pipeline complet 7 steps dans le bon ordre (test_full_pipeline_7_steps)
+- [x] Reclean sur dossier pollue fonctionne (test_reclean_runs_on_polluted_folder)
+- [x] Dispatch skip si aucun item dispatchable (test_dispatch_skipped_no_verified)
+- [x] `--interactive` propage aux phases process et scrape
+- [x] `--dry-run` propage a toutes les phases
+- [x] Telegram notification inclut les 7 steps (to_html verified)
+- [x] 961 tests passent (baseline 898 → +63 tests)

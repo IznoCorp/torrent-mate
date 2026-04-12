@@ -88,7 +88,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V8 (ROBUSTNESS)         | [x] Brainstorming + Design + Plan               |
 | B. Implémentation V8                    | [x] 5 phases, 14 sous-phases                    |
 | A. Modélisation V9 (PIPELINE INTEGRITY) | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V9                    | [ ] 5 phases, 14 sous-phases                    |
+| B. Implémentation V9                    | [x] 5 phases, 14 sous-phases                    |
 
 ---
 

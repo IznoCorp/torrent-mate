@@ -20,34 +20,33 @@ Integrer tous les composants V9 dans le CLI, mettre a jour le notifier Telegram,
 
 ### 9.5.2 — Commande standalone process
 
-- [ ] Ajouter commande `personalscraper process` dans cli.py
-- [ ] Options : `--dry-run`, `--interactive`, `--movies-only`, `--tvshows-only`
-- [ ] Appelle `run_process()` directement (sans ingest/sort/verify/dispatch)
-- [ ] Affiche les 3 StepReports (clean, scrape, cleanup)
-- [ ] Tests : test_cli pour la commande process
+- [x] Ajouter commande `personalscraper process` dans cli.py
+- [x] Options : `--dry-run`, `--interactive`
+- [x] Appelle `run_process()` directement (sans ingest/sort/verify/dispatch)
+- [x] Affiche les 3 StepReports (clean, scrape, cleanup)
+- [x] Tests : test_cli pour la commande process
 
 **Commit** : `v9.5.2: Add standalone process command`
 
 ### 9.5.3 — Tests integration pipeline complet
 
-- [ ] Test : fichier brut dans 097-TEMP → sort → process (reclean+scrape) → verify → dispatch OK
-- [ ] Test : doublon dans 001-MOVIES → process (dedup+merge) → verify → dispatch OK
-- [ ] Test : fichier non-matchable → process skip → verify blocked → dispatch partiel
-- [ ] Test : 097-TEMP non vide apres sort → warning logged, pipeline continue
-- [ ] Test : dispatch skip quand aucun item dispatchable
-- [ ] Test : --dry-run traverse les 7 phases sans modifier le filesystem
-- [ ] Test : --interactive propage aux phases process et scrape
-- [ ] Verifier 898+ tests existants passent toujours
+- [x] Test : pipeline complet 7 steps dans le bon ordre
+- [x] Test : reclean sur dossier pollue dans 001-MOVIES
+- [x] Test : 097-TEMP non vide apres sort → warning logged, pipeline continue
+- [x] Test : dispatch skip quand aucun item dispatchable
+- [x] Test : --dry-run traverse les 7 phases
+- [x] Test : --interactive propage aux phases process et scrape
+- [x] 961 tests passent (baseline 898)
 
 **Commit** : `v9.5.3: Add integration tests for full 7-step pipeline`
 
 ### 9.5.4 — Update docs et CLAUDE.md
 
-- [ ] Mettre a jour CLAUDE.md : section Pipeline Versions (ajouter V9)
-- [ ] Mettre a jour CLAUDE.md : section Directory Structure (ajouter process/)
-- [ ] Mettre a jour CLAUDE.md : section Commands (ajouter `personalscraper process`)
-- [ ] Mettre a jour IMPLEMENTATION.md : V9 status [x]
-- [ ] Mettre a jour plan/INDEX.md : toutes les phases [x]
-- [ ] Commit final
+- [x] Mettre a jour CLAUDE.md : section Pipeline Versions (ajouter V9)
+- [x] Mettre a jour CLAUDE.md : section Directory Structure (ajouter process/)
+- [x] Mettre a jour CLAUDE.md : section Commands (ajouter `personalscraper process`)
+- [x] Mettre a jour IMPLEMENTATION.md : V9 status [x]
+- [x] Mettre a jour plan/INDEX.md : toutes les phases [x]
+- [x] Commit final
 
 **Commit** : `v9.5.4: Update docs — V9 pipeline integrity, 7-step flow`

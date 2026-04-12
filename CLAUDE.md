@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V8 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness).
+V0-V9 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity).
 
 ## Commit Convention
 
@@ -53,7 +53,8 @@ personalscraper sort                # Sort media files into category folders (V2
 personalscraper scrape              # Scrape metadata from TMDB/TVDB (V3)
 personalscraper verify              # Quality check before dispatch (V4)
 personalscraper dispatch            # Move to storage disks (V5)
-personalscraper run                 # Full pipeline (V6)
+personalscraper process             # Reclean + dedup + scrape + cleanup (V9)
+personalscraper run                 # Full pipeline (V6+V9)
 personalscraper run --dry-run       # Preview full pipeline
 
 # Alias
@@ -120,18 +121,19 @@ All versions (V0–V7.x) are implemented. V8 modeled — implementation pending.
 
 ### Pipeline Versions
 
-| Version | Name          | Role                                                              | Phases |
-| ------- | ------------- | ----------------------------------------------------------------- | ------ |
-| V0      | PROJECT SETUP | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
-| V1      | INGEST        | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
-| V2      | SORT+CLEAN    | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
-| V3      | SCRAPE        | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
-| V4      | VERIFY        | Quality gate: checker + fixer + genre categorization              | 4      |
-| V5      | DISPATCH      | Move to Disk1-4 (replace movies, merge series)                    | 3      |
-| V6      | LOG+NOTIFY    | JSON logging, Telegram notifications, launchd scheduling          | 3      |
-| V7      | E2E TESTS     | Real torrent tests with safe cleanup markers                      | 5      |
-| V7.x    | TEST AUDIT    | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
-| V8      | ROBUSTNESS    | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
+| Version | Name               | Role                                                              | Phases |
+| ------- | ------------------ | ----------------------------------------------------------------- | ------ |
+| V0      | PROJECT SETUP      | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
+| V1      | INGEST             | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
+| V2      | SORT+CLEAN         | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
+| V3      | SCRAPE             | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
+| V4      | VERIFY             | Quality gate: checker + fixer + genre categorization              | 4      |
+| V5      | DISPATCH           | Move to Disk1-4 (replace movies, merge series)                    | 3      |
+| V6      | LOG+NOTIFY         | JSON logging, Telegram notifications, launchd scheduling          | 3      |
+| V7      | E2E TESTS          | Real torrent tests with safe cleanup markers                      | 5      |
+| V7.x    | TEST AUDIT         | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
+| V8      | ROBUSTNESS         | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
+| V9      | PIPELINE INTEGRITY | Sequential 7-step pipeline, reclean+dedup, verify reinforced      | 5      |
 
 ### Reference Documentation
 
@@ -174,8 +176,10 @@ A TRIER/
 │   ├── ingest/          # V1: qBittorrent → staging
 │   ├── sorter/          # V2: guessit + strategies → category folders
 │   ├── scraper/         # V3: TMDB/TVDB matching, NFO, artwork, episodes + V8 circuit breaker
-│   ├── verify/          # V4: quality gate, fixer, genre categorization
+│   ├── process/         # V9: reclean, dedup, cleanup (between sort and scrape)
+│   ├── verify/          # V4+V9: quality gate, fixer, genre categorization, reinforced checks
 │   ├── dispatch/        # V5: disk scanner, media index, rsync transfer + V8 rollback/fallback
+│   ├── pipeline.py      # V9: Sequential 7-step pipeline orchestrator
 │   ├── cli.py           # Typer CLI entry point
 │   ├── config.py        # pydantic-settings
 │   ├── logger.py        # structlog dual output (console + JSON)
@@ -189,7 +193,8 @@ A TRIER/
 ├── docs/                # Planning docs per version
 │   ├── v0-project-setup/ through v7-e2e-tests/  # V0-V7 (completed)
 │   ├── v7x-test-audit/  # V7.x: Test audit + golden files (implemented)
-│   └── v8-robustness/   # V8: Robustness improvements (implemented)
+│   ├── v8-robustness/   # V8: Robustness improvements (implemented)
+│   └── v9-pipeline-integrity/  # V9: Pipeline integrity (implemented)
 ├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
