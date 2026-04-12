@@ -367,3 +367,91 @@ class TestAssertStructureGolden:
         media_dir.mkdir()
         golden = GoldenFile(name="test", nfo={}, artwork={}, structure={}, dispatch={})
         assert_structure_golden(media_dir, golden)
+
+
+# ---------------------------------------------------------------------------
+# Helper functions (V7.x)
+# ---------------------------------------------------------------------------
+
+
+class TestFindMediaDir:
+    """Tests for find_media_dir helper."""
+
+    def test_finds_matching_dir(self, tmp_path):
+        """Should find directory by pattern."""
+        from tests.e2e.assertions import find_media_dir
+
+        (tmp_path / "Jumanji (1995)").mkdir()
+        (tmp_path / "Matrix (1999)").mkdir()
+
+        result = find_media_dir(tmp_path, "Jumanji (1995)")
+        assert result.name == "Jumanji (1995)"
+
+    def test_case_insensitive(self, tmp_path):
+        """Should match case-insensitively."""
+        from tests.e2e.assertions import find_media_dir
+
+        (tmp_path / "The Matrix (1999)").mkdir()
+
+        result = find_media_dir(tmp_path, "matrix")
+        assert "Matrix" in result.name
+
+    def test_not_found_raises(self, tmp_path):
+        """Should raise AssertionError when not found."""
+        from tests.e2e.assertions import find_media_dir
+
+        (tmp_path / "SomeMovie (2024)").mkdir()
+
+        with pytest.raises(AssertionError, match="no directory"):
+            find_media_dir(tmp_path, "Nonexistent")
+
+    def test_parent_not_exists_raises(self, tmp_path):
+        """Should raise AssertionError when parent doesn't exist."""
+        from tests.e2e.assertions import find_media_dir
+
+        with pytest.raises(AssertionError, match="does not exist"):
+            find_media_dir(tmp_path / "nonexistent", "Movie")
+
+
+class TestFindDispatchResult:
+    """Tests for find_dispatch_result helper."""
+
+    def test_finds_matching_result(self):
+        """Should find result by torrent name."""
+        from pathlib import Path
+
+        from tests.e2e.assertions import find_dispatch_result
+
+        r1 = MagicMock()
+        r1.source = Path("/staging/Jumanji (1995)")
+        r2 = MagicMock()
+        r2.source = Path("/staging/Matrix (1999)")
+
+        result = find_dispatch_result([r1, r2], "Jumanji")
+        assert result is r1
+
+    def test_reverse_match(self):
+        """Should match when torrent name contains source name."""
+        from pathlib import Path
+
+        from tests.e2e.assertions import find_dispatch_result
+
+        r1 = MagicMock()
+        r1.source = Path("/staging/Jumanji")
+
+        result = find_dispatch_result(
+            [r1], "[LaCale]-Jumanji.1995.BluRay"
+        )
+        assert result is r1
+
+    def test_not_found_returns_none(self):
+        """Should return None when no match."""
+        from pathlib import Path
+
+        from tests.e2e.assertions import find_dispatch_result
+
+        r1 = MagicMock()
+        r1.source = Path("/staging/Matrix (1999)")
+
+        result = find_dispatch_result([r1], "Jumanji")
+        assert result is None
