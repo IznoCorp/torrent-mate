@@ -1,14 +1,16 @@
 """E2E test registry — tracks all files and torrents created during a test session.
 
 Persists to JSON so cleanup can recover from crashes or interrupted sessions.
-Registry file lives in ~/.personalscraper/ alongside the pipeline lock.
+Registry file lives in the project data directory (settings.data_dir).
 """
 
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-REGISTRY_DIR = Path("~/.personalscraper").expanduser()
+from personalscraper.config import get_settings
+
+REGISTRY_DIR = get_settings().data_dir
 
 
 @dataclass

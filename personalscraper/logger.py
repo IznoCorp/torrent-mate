@@ -79,6 +79,14 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
                 "level": "DEBUG",
                 "propagate": True,
             },
+            # Silence noisy third-party loggers unless --verbose is active
+            "rebulk": {"level": "DEBUG" if verbose else "WARNING"},
+            "guessit": {"level": "DEBUG" if verbose else "WARNING"},
+            "urllib3": {"level": "DEBUG" if verbose else "WARNING"},
+            "requests": {"level": "DEBUG" if verbose else "WARNING"},
+            "qbittorrentapi": {"level": "DEBUG" if verbose else "INFO"},
+            "httpcore": {"level": "DEBUG" if verbose else "WARNING"},
+            "httpx": {"level": "DEBUG" if verbose else "WARNING"},
         },
     })
 

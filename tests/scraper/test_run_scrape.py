@@ -90,6 +90,8 @@ class TestRunScrape:
         """Should process both 001-MOVIES and 002-TVSHOWS."""
         settings = MagicMock()
         settings.staging_dir = str(tmp_path)
+        settings.movies_dir_name = "001-MOVIES"
+        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
@@ -115,6 +117,8 @@ class TestRunScrape:
         """--movies-only should skip TV shows."""
         settings = MagicMock()
         settings.staging_dir = str(tmp_path)
+        settings.movies_dir_name = "001-MOVIES"
+        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
@@ -134,6 +138,8 @@ class TestRunScrape:
         """--tvshows-only should skip movies."""
         settings = MagicMock()
         settings.staging_dir = str(tmp_path)
+        settings.movies_dir_name = "001-MOVIES"
+        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 

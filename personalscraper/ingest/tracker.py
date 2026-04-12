@@ -1,6 +1,6 @@
 """JSON-based tracker for ingested torrents.
 
-Persists torrent hashes to ~/.personalscraper/ingested_torrents.json
+Persists torrent hashes to data_dir/ingested_torrents.json
 to avoid re-ingesting already-processed torrents. Uses atomic writes
 (write to .tmp then os.replace) to prevent corruption on crash.
 """
@@ -12,10 +12,18 @@ from pathlib import Path
 
 from personalscraper.logger import get_logger
 
-TRACKER_DIR = Path("~/.personalscraper").expanduser()
-TRACKER_FILE = TRACKER_DIR / "ingested_torrents.json"
-
 log = get_logger("tracker")
+
+
+def _default_tracker_file() -> Path:
+    """Return the default tracker file path from settings.
+
+    Returns:
+        Path to ingested_torrents.json inside the configured data directory.
+    """
+    from personalscraper.config import get_settings
+
+    return get_settings().data_dir / "ingested_torrents.json"
 
 
 class IngestTracker:
@@ -29,12 +37,14 @@ class IngestTracker:
         _data: In-memory dict of torrent hash to metadata.
     """
 
-    def __init__(self, tracker_path: Path = TRACKER_FILE) -> None:
+    def __init__(self, tracker_path: Path | None = None) -> None:
         """Initialize the tracker.
 
         Args:
-            tracker_path: Path to the JSON file. Defaults to ~/.personalscraper/ingested_torrents.json.
+            tracker_path: Path to the JSON file. Defaults to settings.data_dir/ingested_torrents.json.
         """
+        if tracker_path is None:
+            tracker_path = _default_tracker_file()
         self.tracker_path = tracker_path
         self._data: dict[str, dict] = {}
         self.load()

@@ -1,9 +1,9 @@
 """Main sorting orchestrator for the V2 pipeline step.
 
-Processes all items at the root of the staging directory, detects their
-type, cleans their names, and moves them into the correct subdirectory
-(001-MOVIES/, 002-TVSHOWS/, etc.). Returns a list of SortResult for
-reporting and downstream pipeline steps.
+Processes all items from a source directory (typically 097-TEMP/), detects
+their type, cleans their names, and moves them into the correct category
+subdirectory (001-MOVIES/, 002-TVSHOWS/, etc.) under a destination root.
+Returns a list of SortResult for reporting and downstream pipeline steps.
 """
 
 import logging
@@ -15,17 +15,14 @@ from personalscraper.models import SortResult
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType, detect_dir_type, detect_file_type
 from personalscraper.sorter.strategies import (
-    TYPE_DIR_MAP,
     DefaultStrategy,
     MovieStrategy,
     SortingStrategy,
     TVShowStrategy,
+    get_type_dir_map,
 )
 
 logger = logging.getLogger(__name__)
-
-# Directories that are sorting destinations — skip them during processing
-_SKIP_DIRS: frozenset[str] = frozenset(TYPE_DIR_MAP.values())
 
 
 def _get_strategy(file_type: FileType) -> SortingStrategy:
@@ -47,8 +44,9 @@ def _get_strategy(file_type: FileType) -> SortingStrategy:
 class Sorter:
     """Main sorting orchestrator.
 
-    Processes all items at the root of a staging directory, detecting
-    their type, cleaning names, and sorting them into subdirectories.
+    Processes all items from a source directory, detecting their type,
+    cleaning names, and sorting them into subdirectories under a
+    destination root.
 
     Attributes:
         cleaner: NameCleaner instance for filename parsing.
@@ -65,35 +63,47 @@ class Sorter:
         self.cleaner = cleaner or NameCleaner()
         self.dry_run = dry_run
 
-    def process(self, staging_dir: Path) -> list[SortResult]:
-        """Sort all items at the root of staging_dir into type subdirectories.
+    def process(self, source_dir: Path, dest_root: Path | None = None) -> list[SortResult]:
+        """Sort all items from source_dir into type subdirectories under dest_root.
 
-        Iterates over direct children of staging_dir (files and directories),
-        skipping known sorted directories (001-MOVIES, 002-TVSHOWS, etc.).
-        Each item is processed independently — errors on one item don't
-        stop processing of others.
+        Iterates over direct children of source_dir (files and directories),
+        skipping known sorted directories (001-MOVIES, 002-TVSHOWS, etc.)
+        and hidden files. Each item is processed independently — errors on
+        one item don't stop processing of others.
 
         Args:
-            staging_dir: Root staging directory (A TRIER/).
+            source_dir: Directory to scan for unsorted items (e.g. 097-TEMP/).
+            dest_root: Root directory for category subdirectories (001-MOVIES/,
+                002-TVSHOWS/, etc.). Defaults to source_dir for backward compat.
 
         Returns:
             List of SortResult for each processed item.
         """
+        if dest_root is None:
+            dest_root = source_dir
+
         results: list[SortResult] = []
 
+        if not source_dir.exists():
+            logger.warning("Source directory does not exist: %s", source_dir)
+            return results
+
         # Sort the items list to get deterministic ordering
-        items = sorted(staging_dir.iterdir(), key=lambda p: p.name)
+        items = sorted(source_dir.iterdir(), key=lambda p: p.name)
+
+        # Directories that are sorting destinations — skip them during processing
+        skip_dirs = frozenset(get_type_dir_map().values())
 
         for item in items:
             # Skip sorted directories and hidden files
-            if item.name in _SKIP_DIRS or item.name.startswith("."):
+            if item.name in skip_dirs or item.name.startswith("."):
                 continue
-            result = self.sort_item(item, staging_dir)
+            result = self.sort_item(item, dest_root)
             results.append(result)
 
         return results
 
-    def sort_item(self, item: Path, staging_dir: Path) -> SortResult:
+    def sort_item(self, item: Path, dest_root: Path) -> SortResult:
         """Sort a single file or directory.
 
         Detects type, determines destination via strategy, then moves
@@ -101,7 +111,7 @@ class Sorter:
 
         Args:
             item: Path to the file or directory to sort.
-            staging_dir: Root staging directory for strategy resolution.
+            dest_root: Root directory where category subdirectories live.
 
         Returns:
             SortResult with source, destination, type, and status.
@@ -115,7 +125,7 @@ class Sorter:
 
             # Get destination via strategy
             strategy = _get_strategy(file_type)
-            dest_dir = strategy.get_destination(item.name, staging_dir, self.cleaner)
+            dest_dir = strategy.get_destination(item.name, dest_root, self.cleaner)
 
             # Extract metadata for the SortResult
             title = self.cleaner.clean(item.name)

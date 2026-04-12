@@ -293,6 +293,8 @@ class TestRunVerify:
         """Should process both movies and tvshows."""
         settings = MagicMock()
         settings.staging_dir = str(tmp_path)
+        settings.movies_dir_name = "001-MOVIES"
+        settings.tvshows_dir_name = "002-TVSHOWS"
 
         movies = tmp_path / "001-MOVIES"
         movies.mkdir()

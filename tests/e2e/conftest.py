@@ -48,9 +48,10 @@ def e2e_registry(e2e_session_id):
     Yields:
         A TestRegistry instance. Cleaned up after all tests complete.
     """
-    # Store registry in project dir (writable) instead of ~/.personalscraper/
-    project_dir = Path(__file__).resolve().parent.parent.parent
-    reg = TestRegistry(session_id=e2e_session_id, base_dir=project_dir)
+    # Store registry in the configured data directory
+    from personalscraper.config import get_settings
+
+    reg = TestRegistry(session_id=e2e_session_id, base_dir=get_settings().data_dir.parent)
     yield reg
     # Registry file cleanup happens in the E2E cleanup phase, not here
 

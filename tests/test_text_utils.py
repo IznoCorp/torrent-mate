@@ -121,3 +121,18 @@ class TestFuzzyMatchScore:
         # "Avengers Endgame" (16 chars) vs "Avengers End Game" — slight diff
         result = fuzzy_match_score("Avengers Endgame", "Avengers End Game")
         assert result is not None
+
+    def test_year_suffix_not_rejected_by_length_guard(self):
+        """Title without year matches title with year (year suffix stripped before length check)."""
+        # "Shrinking" (9 chars) vs "Shrinking (2023)" (16 chars)
+        # Without year stripping: 9/16 = 0.56 < 0.67 → rejected
+        # With year stripping: 9/9 = 1.0 → accepted
+        result = fuzzy_match_score("Shrinking", "Shrinking (2023)")
+        assert result is not None
+        assert result >= 90.0
+
+    def test_year_suffix_both_directions(self):
+        """Year suffix stripping works regardless of which side has the year."""
+        assert fuzzy_match_score("Shrinking (2023)", "Shrinking") is not None
+        assert fuzzy_match_score("The Boys", "The Boys (2019)") is not None
+        assert fuzzy_match_score("The Boys (2019)", "The Boys") is not None

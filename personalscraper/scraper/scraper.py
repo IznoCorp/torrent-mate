@@ -40,6 +40,43 @@ logger = logging.getLogger(__name__)
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 
 
+def _merge_dirs(source: Path, target: Path) -> int:
+    """Merge contents of source directory into target, then remove source.
+
+    Files in source that already exist in target are replaced (newer wins).
+    Subdirectories are merged recursively. Used to deduplicate folders
+    like "Shrinking" + "Shrinking (2023)".
+
+    Args:
+        source: Directory to merge from (will be removed after).
+        target: Directory to merge into (must exist).
+
+    Returns:
+        Number of items moved.
+    """
+    import shutil as _shutil
+
+    moved = 0
+    for item in source.iterdir():
+        dest = target / item.name
+        if item.is_dir() and dest.is_dir():
+            # Recursive merge for subdirectories (e.g. Saison 01/)
+            moved += _merge_dirs(item, dest)
+        else:
+            # Move file/dir, replacing if exists
+            if dest.exists():
+                if dest.is_dir():
+                    _shutil.rmtree(dest)
+                else:
+                    dest.unlink()
+            _shutil.move(str(item), str(dest))
+            moved += 1
+    # Remove empty source after merge
+    if source.exists() and not any(source.iterdir()):
+        source.rmdir()
+    return moved
+
+
 @dataclass
 class ScrapeResult:
     """Result of scraping a single media item.
@@ -71,18 +108,36 @@ class ScrapeResult:
 def _parse_folder_name(name: str) -> tuple[str, int | None]:
     """Parse a media folder name into title and year.
 
-    Handles "Title (Year)" format used by the pipeline.
-    Falls back to using the full name as title with no year.
+    First tries the clean "Title (Year)" format. If that fails,
+    uses NameCleaner (guessit) to extract title and year from raw
+    release names like "Movie.Title.2024.1080p.BluRay.x264-GROUP".
+    This allows the scraper to handle files deposited directly into
+    category folders without going through the sort step.
 
     Args:
-        name: Folder name (e.g. "The Matrix (1999)").
+        name: Folder name — either clean or raw release format.
 
     Returns:
         Tuple of (title, year). Year is None if not found.
     """
+    # Try clean format first: "Title (Year)"
     m = _FOLDER_PATTERN.match(name)
     if m:
         return m.group(1).strip(), int(m.group(2))
+
+    # Fall back to guessit for raw release names
+    try:
+        from personalscraper.sorter.cleaner import NameCleaner
+
+        cleaner = NameCleaner()
+        title = cleaner.clean(name)
+        year = cleaner.extract_year(name)
+        if title and title != name:
+            logger.info("Cleaned raw folder name: %s → %s (%s)", name, title, year)
+            return title, year
+    except Exception:
+        pass  # Guessit unavailable — use raw name
+
     return name.strip(), None
 
 
@@ -200,6 +255,29 @@ class Scraper:
             "Matched: %s → %s (%s, confidence=%.2f)",
             title, match.api_title, match.source, match.confidence,
         )
+
+        # Rename folder to clean format if it doesn't match "Title (Year)"
+        api_year = match.api_year or year
+        clean_name = f"{match.api_title} ({api_year})" if api_year else match.api_title
+        if movie_dir.name != clean_name:
+            new_path = movie_dir.parent / clean_name
+            if not self.dry_run:
+                if new_path.exists():
+                    # Duplicate detected — merge contents into existing folder
+                    count = _merge_dirs(movie_dir, new_path)
+                    logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, count)
+                else:
+                    movie_dir.rename(new_path)
+                    logger.info("Renamed folder: %s → %s", movie_dir.name, clean_name)
+                movie_dir = new_path
+                result.media_path = new_path
+                # Recompute title/nfo after rename
+                title = match.api_title
+                nfo_name = self.patterns.format("movie_nfo", Title=title)
+                nfo_path = movie_dir / nfo_name
+            else:
+                action = "merge into" if new_path.exists() else "rename"
+                logger.info("[DRY RUN] Would %s: %s → %s", action, movie_dir.name, clean_name)
 
         # Get full movie details
         try:
@@ -389,13 +467,18 @@ class Scraper:
         )
         if show_dir.name != canonical:
             new_dir = show_dir.parent / canonical
-            if not new_dir.exists():
-                if not self.dry_run:
-                    show_dir.rename(new_dir)
-                    show_dir = new_dir
-                    logger.info("Renamed folder: %s → %s", title, canonical)
+            if not self.dry_run:
+                if new_dir.exists():
+                    # Duplicate detected — merge contents into existing folder
+                    count = _merge_dirs(show_dir, new_dir)
+                    logger.info("Merged duplicate: %s → %s (%d items)", title, canonical, count)
                 else:
-                    logger.info("[DRY RUN] Would rename: %s → %s", title, canonical)
+                    show_dir.rename(new_dir)
+                    logger.info("Renamed folder: %s → %s", title, canonical)
+                show_dir = new_dir
+            else:
+                action = "merge into" if new_dir.exists() else "rename"
+                logger.info("[DRY RUN] Would %s: %s → %s", action, title, canonical)
 
         # Generate tvshow.nfo
         try:

@@ -171,9 +171,13 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     """
     report = StepReport(name="ingest")
 
+    # Ingest deposits into ingest_dir (097-TEMP/) so sort processes only media
+    ingest_dir = settings.ingest_dir
+    ingest_dir.mkdir(parents=True, exist_ok=True)
+
     # Clean orphaned temp dirs from interrupted runs
     if not dry_run:
-        _cleanup_orphan_temps(settings.staging_dir)
+        _cleanup_orphan_temps(ingest_dir)
 
     try:
         client = QBitClient(
@@ -209,16 +213,17 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                     report.skip_count += 1
                     continue
 
-                # Resolve content path
+                # Resolve content path — missing files are skipped (not errors),
+                # typically means the torrent was already moved or the disk is unmounted
                 source = client.get_content_path(torrent)
                 if not source.exists():
                     log.warning("content_missing", name=name, path=str(source))
-                    report.error_count += 1
-                    report.details.append(f"{name}: content path missing ({source})")
+                    report.skip_count += 1
+                    report.warnings.append(f"{name}: content path missing ({source})")
                     continue
 
-                # Destination in staging area
-                dest = settings.staging_dir / source.name
+                # Destination in 097-TEMP/ (sort picks up from here)
+                dest = ingest_dir / source.name
                 if dest.exists():
                     log.info("already_exists", name=name, dest=str(dest))
                     report.skip_count += 1
@@ -228,7 +233,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
 
                 # Check disk space
                 source_size = _get_dir_size(source)
-                if not _check_disk_space(settings.staging_dir, source_size, settings.min_free_space_staging_gb):
+                if not _check_disk_space(ingest_dir, source_size, settings.min_free_space_staging_gb):
                     log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
                     report.skip_count += 1
                     report.warnings.append(f"{name}: insufficient disk space")
@@ -251,7 +256,21 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     except Exception as e:
         log.exception("ingest_failed", error=str(e))
         report.error_count += 1
-        report.details.append(f"Ingest failed: {type(e).__name__}: {e}")
+        error_msg = str(e)
+        # Provide actionable hints for common qBittorrent errors
+        if "403" in error_msg or "Forbidden" in type(e).__name__:
+            report.details.append(
+                f"qBittorrent auth blocked (IP banned): {error_msg}. "
+                "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
+                "or wait for the ban to expire."
+            )
+        elif "Connection" in type(e).__name__ or "refused" in error_msg.lower():
+            report.details.append(
+                f"qBittorrent unreachable: {error_msg}. "
+                "Fix: verify qBit is running and Web UI is enabled."
+            )
+        else:
+            report.details.append(f"Ingest failed: {type(e).__name__}: {error_msg}")
 
     log.info(
         "ingest_complete",

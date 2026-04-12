@@ -15,7 +15,7 @@ from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType
 from personalscraper.sorter.matcher import find_matching_directory
 
-# Mapping FileType → staging subdirectory name
+# Default mapping FileType → staging subdirectory name
 TYPE_DIR_MAP: dict[FileType, str] = {
     FileType.MOVIE: "001-MOVIES",
     FileType.TVSHOW: "002-TVSHOWS",
@@ -24,6 +24,41 @@ TYPE_DIR_MAP: dict[FileType, str] = {
     FileType.APP: "005-APPS",
     FileType.OTHER: "098-AUTRES",
 }
+
+
+def get_type_dir_map() -> dict[FileType, str]:
+    """Return the FileType → directory name mapping, using settings if available.
+
+    Falls back to TYPE_DIR_MAP defaults only when settings are genuinely
+    unavailable (e.g. tests without .env). Logs a warning for unexpected
+    errors so that configuration mistakes are not silently ignored.
+
+    Returns:
+        Dict mapping FileType to directory name string.
+    """
+    try:
+        from personalscraper.config import get_settings
+
+        s = get_settings()
+        return {
+            FileType.MOVIE: s.movies_dir_name,
+            FileType.TVSHOW: s.tvshows_dir_name,
+            FileType.EBOOK: s.ebooks_dir_name,
+            FileType.AUDIO: s.audio_dir_name,
+            FileType.APP: s.apps_dir_name,
+            FileType.OTHER: s.other_dir_name,
+        }
+    except (ImportError, FileNotFoundError):
+        # Settings not available (tests without .env) — use defaults silently
+        return TYPE_DIR_MAP
+    except Exception:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "Failed to load settings for directory mapping, using defaults",
+            exc_info=True,
+        )
+        return TYPE_DIR_MAP
 
 
 class SortingStrategy(ABC):
@@ -66,7 +101,7 @@ class MovieStrategy(SortingStrategy):
         Returns:
             Destination path inside 001-MOVIES/.
         """
-        movies_dir = staging_dir / TYPE_DIR_MAP[FileType.MOVIE]
+        movies_dir = staging_dir / get_type_dir_map()[FileType.MOVIE]
         folder_name = cleaner.clean_for_folder(name)
 
         # Check for existing matching folder
@@ -98,7 +133,7 @@ class TVShowStrategy(SortingStrategy):
         Returns:
             Destination path inside 002-TVSHOWS/.
         """
-        tvshows_dir = staging_dir / TYPE_DIR_MAP[FileType.TVSHOW]
+        tvshows_dir = staging_dir / get_type_dir_map()[FileType.TVSHOW]
 
         # Extract show name without season/episode info and without year
         # V2 creates "Show Name/" — V3 will rename to "Show Name (Year)/"
@@ -150,4 +185,5 @@ class DefaultStrategy(SortingStrategy):
         Returns:
             The type-specific directory path.
         """
-        return staging_dir / TYPE_DIR_MAP.get(self.file_type, TYPE_DIR_MAP[FileType.OTHER])
+        dir_map = get_type_dir_map()
+        return staging_dir / dir_map.get(self.file_type, dir_map[FileType.OTHER])
