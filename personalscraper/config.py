@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     min_free_space_staging_gb: int = 20
     min_free_space_disk_gb: float = 100
 
+    # Circuit breaker (V8 — API outage detection)
+    circuit_breaker_threshold: int = 5
+    circuit_breaker_cooldown: int = 300
+
 
 @lru_cache
 def get_settings() -> Settings:

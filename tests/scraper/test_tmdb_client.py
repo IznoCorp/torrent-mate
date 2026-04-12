@@ -685,3 +685,64 @@ class TestTMDBClientImages:
             assert art["url"].startswith("https://image.tmdb.org/t/p/")
         # Check we have the right count (2 posters + 1 backdrop)
         assert len(artworks) == 3
+
+
+# ---------------------------------------------------------------------------
+# Circuit Breaker integration
+# ---------------------------------------------------------------------------
+
+
+class TestTMDBCircuitBreaker:
+    """Test CircuitBreaker integration in TMDBClient._get()."""
+
+    def test_circuit_open_raises_without_http_call(self, client):
+        """_get() raises CircuitOpenError immediately when circuit is OPEN."""
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+        # Force circuit OPEN by recording enough failures
+        error = TMDBError(500, 0, "Internal Server Error")
+        for _ in range(5):
+            client.circuit.record_failure(error)
+
+        with pytest.raises(CircuitOpenError) as exc_info:
+            client._get("/search/movie", {"query": "test"})
+
+        assert exc_info.value.provider == "TMDB"
+        assert exc_info.value.remaining_seconds > 0
+
+    def test_circuit_records_success_on_ok_response(self, client):
+        """Successful _get() call records success on circuit breaker."""
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.json.return_value = {"results": []}
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            client._get("/search/movie", {"query": "test"})
+
+        assert client.circuit.state.value == "closed"
+
+    def test_circuit_records_failure_on_5xx(self, client):
+        """5xx TMDBError records failure on circuit breaker."""
+        from personalscraper.scraper.circuit_breaker import CircuitState
+
+        mock_resp = MagicMock()
+        mock_resp.ok = False
+        mock_resp.status_code = 500
+        mock_resp.json.return_value = {
+            "status_code": 0,
+            "status_message": "Internal Server Error",
+        }
+
+        with patch.object(client._session, "get", return_value=mock_resp):
+            with pytest.raises(TMDBError):
+                client._get.__wrapped__(client, "/test")
+
+        # One failure recorded — should still be CLOSED (threshold=5)
+        assert client.circuit.state == CircuitState.CLOSED
+
+    def test_circuit_exposes_property(self, client):
+        """TMDBClient.circuit property exposes the CircuitBreaker."""
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+
+        assert isinstance(client.circuit, CircuitBreaker)
+        assert client.circuit.name == "TMDB"
