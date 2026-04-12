@@ -119,6 +119,11 @@ class TMDBClient:
             "Accept": "application/json",
         })
 
+        # Circuit breaker for sustained outage detection (above tenacity)
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+
+        self._circuit = CircuitBreaker(name="TMDB")
+
     @retry(
         retry=retry_if_exception(_is_retryable),
         wait=wait_exponential_jitter(initial=0.5, max=10, jitter=0.5),
@@ -133,6 +138,10 @@ class TMDBClient:
         with exponential backoff (4 attempts max). Parses TMDB error
         responses and raises TMDBError with the internal status_code.
 
+        Circuit breaker check runs before the HTTP call — if the provider
+        is considered down (OPEN state), CircuitOpenError is raised
+        immediately without making a network request.
+
         Args:
             endpoint: API endpoint path (e.g. "/search/movie").
             params: Optional query parameters.
@@ -141,34 +150,57 @@ class TMDBClient:
             Parsed JSON response as a dict.
 
         Raises:
+            CircuitOpenError: If the circuit breaker is OPEN.
             TMDBError: On TMDB-specific errors (invalid key, not found, etc.).
             requests.exceptions.HTTPError: On non-TMDB HTTP errors.
             requests.exceptions.ConnectionError: On network errors (after retries).
             requests.exceptions.Timeout: On timeout (after retries).
         """
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+        # Fail fast if provider is down
+        if not self._circuit.can_proceed():
+            raise CircuitOpenError("TMDB", self._circuit._remaining_cooldown())
+
         if params is None:
             params = {}
         params.setdefault("language", self._language)
 
-        resp = self._session.get(
-            f"{self.BASE_URL}{endpoint}",
-            params=params,
-            timeout=10,
-        )
+        try:
+            resp = self._session.get(
+                f"{self.BASE_URL}{endpoint}",
+                params=params,
+                timeout=10,
+            )
 
-        # Parse TMDB error format before raise_for_status
-        if not resp.ok:
-            try:
-                error_data = resp.json()
-                tmdb_code = error_data.get("status_code", 0)
-                tmdb_msg = error_data.get("status_message", resp.reason)
-                raise TMDBError(resp.status_code, tmdb_code, tmdb_msg)
-            except (ValueError, KeyError):
-                # Not a TMDB error format — fall through to raise_for_status
-                pass
-            resp.raise_for_status()
+            # Parse TMDB error format before raise_for_status
+            if not resp.ok:
+                try:
+                    error_data = resp.json()
+                    tmdb_code = error_data.get("status_code", 0)
+                    tmdb_msg = error_data.get("status_message", resp.reason)
+                    raise TMDBError(resp.status_code, tmdb_code, tmdb_msg)
+                except (ValueError, KeyError):
+                    # Not a TMDB error format — fall through to raise_for_status
+                    pass
+                resp.raise_for_status()
 
-        return resp.json()
+            self._circuit.record_success()
+            return resp.json()
+        except CircuitOpenError:
+            raise
+        except Exception as exc:
+            self._circuit.record_failure(exc)
+            raise
+
+    @property
+    def circuit(self):
+        """Expose circuit breaker for scraper fallback logic.
+
+        Returns:
+            The CircuitBreaker instance for this client.
+        """
+        return self._circuit
 
     # -- Protocol methods (MetadataProvider) --
 
