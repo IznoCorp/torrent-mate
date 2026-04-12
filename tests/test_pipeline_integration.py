@@ -185,3 +185,66 @@ class TestPipelineIntegration:
         assert not polluted.exists()
         # Should be renamed to clean format
         assert (movies / "Movie Title (2024)").exists()
+
+    @patch("personalscraper.scraper.run.run_scrape")
+    @patch("personalscraper.sorter.run.run_sort")
+    @patch("personalscraper.ingest.ingest.run_ingest")
+    @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
+    def test_clean_crash_does_not_block_scrape(
+        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
+        integration_settings, quiet_console,
+    ):
+        """If clean phase crashes, scrape and cleanup still run."""
+        mock_ingest.return_value = StepReport(name="ingest")
+        mock_sort.return_value = StepReport(name="sort")
+        mock_scrape.return_value = StepReport(name="scrape", success_count=3)
+
+        with (
+            patch("personalscraper.process.run.run_clean", side_effect=RuntimeError("reclean boom")),
+            patch("personalscraper.verify.run.run_verify") as mock_verify,
+        ):
+            mock_verify.return_value = (StepReport(name="verify"), [])
+            pipeline = Pipeline(integration_settings, console=quiet_console)
+            report = pipeline.run()
+
+        # Clean has error, but scrape ran successfully
+        assert report.steps["clean"].error_count == 1
+        assert "reclean boom" in report.steps["clean"].details[0]
+        assert report.steps["scrape"].success_count == 3
+        assert "cleanup" in report.steps
+
+    @patch("personalscraper.scraper.run.run_scrape")
+    @patch("personalscraper.sorter.run.run_sort")
+    @patch("personalscraper.ingest.ingest.run_ingest")
+    @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
+    def test_reclean_oserror_counted_not_crash(
+        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
+        integration_settings, quiet_console,
+    ):
+        """OSError in reclean_folders is counted as error, not a crash."""
+        mock_ingest.return_value = StepReport(name="ingest")
+        mock_sort.return_value = StepReport(name="sort")
+        mock_scrape.return_value = StepReport(name="scrape")
+
+        # Create a polluted folder with a permission issue via mock
+        movies = integration_settings.staging_dir / "001-MOVIES"
+        polluted = movies / "Movie.Title.2024.1080p.BluRay.x264-GROUP"
+        polluted.mkdir()
+        (polluted / "movie.mkv").write_text("video")
+
+        with (
+            patch("personalscraper.process.reclean.reclean_folders") as mock_reclean,
+            patch("personalscraper.verify.run.run_verify") as mock_verify,
+        ):
+            # reclean returns a report with errors (not a crash)
+            mock_reclean.return_value = StepReport(
+                name="reclean", error_count=1,
+                warnings=["permission denied"],
+            )
+            mock_verify.return_value = (StepReport(name="verify"), [])
+            pipeline = Pipeline(integration_settings, console=quiet_console)
+            report = pipeline.run()
+
+        # Clean step has the error but pipeline continued
+        assert report.steps["clean"].error_count >= 1
+        assert report.steps["scrape"].name == "scrape"

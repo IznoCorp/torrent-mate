@@ -127,7 +127,7 @@ def reclean_folders(
                 logger.info("Reclean: %s → %s", folder.name, clean_name)
                 report.details.append(f"{folder.name} → {clean_name}")
             report.success_count += 1
-        except OSError as exc:
+        except (OSError, Exception) as exc:
             logger.warning("Reclean failed for %s: %s", folder.name, exc)
             report.error_count += 1
             report.warnings.append(f"{folder.name}: {exc}")

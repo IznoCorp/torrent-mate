@@ -112,11 +112,18 @@ def dedup_folders(
                     source.name, target.name, score,
                 )
             else:
-                count = _merge_dirs(source, target)
-                logger.info(
-                    "Dedup merge: %s → %s (%d items, score=%.0f)",
-                    source.name, target.name, count, score,
-                )
+                try:
+                    count = _merge_dirs(source, target)
+                    logger.info(
+                        "Dedup merge: %s → %s (%d items, score=%.0f)",
+                        source.name, target.name, count, score,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Dedup merge failed: %s → %s: %s",
+                        source.name, target.name, exc,
+                    )
+                    continue
 
             removed.add(source.name)
             merged += 1

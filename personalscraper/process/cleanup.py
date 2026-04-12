@@ -68,13 +68,20 @@ def cleanup_empty_dirs(
         if not directory.exists():
             continue
 
-        if _is_effectively_empty(directory):
-            rel_path = directory.relative_to(category_dir)
-            if dry_run:
-                logger.info("[DRY-RUN] Would remove empty dir: %s", rel_path)
-                report.success_count += 1
-                report.details.append(f"[DRY-RUN] {rel_path}")
-            else:
+        try:
+            if not _is_effectively_empty(directory):
+                continue
+        except PermissionError:
+            logger.warning("Cannot access dir: %s", directory.name)
+            continue
+
+        rel_path = directory.relative_to(category_dir)
+        if dry_run:
+            logger.info("[DRY-RUN] Would remove empty dir: %s", rel_path)
+            report.success_count += 1
+            report.details.append(f"[DRY-RUN] {rel_path}")
+        else:
+            try:
                 # Remove junk files first, then the directory
                 for junk in directory.iterdir():
                     junk.unlink()
@@ -82,5 +89,7 @@ def cleanup_empty_dirs(
                 logger.info("Removed empty dir: %s", rel_path)
                 report.success_count += 1
                 report.details.append(str(rel_path))
+            except OSError as exc:
+                logger.warning("Failed to remove dir %s: %s", rel_path, exc)
 
     return report

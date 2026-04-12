@@ -1,8 +1,10 @@
-"""Process phase entry point — run_process() function.
+"""Process phase entry point — run_process() and sub-step functions.
 
 Coordinates reclean, dedup, scrape, and cleanup across all category
 directories. Returns 3 StepReports for the pipeline:
 clean (reclean+dedup), scrape, cleanup.
+
+Each sub-step can be called independently for error isolation.
 """
 
 import logging
@@ -13,35 +15,22 @@ from personalscraper.models import StepReport
 logger = logging.getLogger(__name__)
 
 
-def run_process(
-    settings: Settings,
-    dry_run: bool = False,
-    interactive: bool = False,
-) -> tuple[StepReport, StepReport, StepReport]:
-    """Run Phase 3: reclean + dedup + scrape + cleanup.
-
-    Execution order:
-    1. reclean_folders + dedup_folders on movies and tvshows → clean_report
-    2. run_scrape → scrape_report
-    3. cleanup_empty_dirs on movies and tvshows → cleanup_report
+def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
+    """Run reclean + dedup on all category directories.
 
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview without modifying files.
-        interactive: If True, prompt for ambiguous scrape matches.
 
     Returns:
-        Tuple of (clean_report, scrape_report, cleanup_report).
+        StepReport with combined reclean + dedup counts.
     """
-    from personalscraper.process.cleanup import cleanup_empty_dirs
     from personalscraper.process.dedup import dedup_folders
     from personalscraper.process.reclean import reclean_folders
-    from personalscraper.scraper.run import run_scrape
 
     movies_dir = settings.staging_dir / settings.movies_dir_name
     tvshows_dir = settings.staging_dir / settings.tvshows_dir_name
 
-    # Step 1: reclean + dedup
     clean_report = StepReport(name="clean")
 
     for category_dir in (movies_dir, tvshows_dir):
@@ -65,11 +54,24 @@ def run_process(
         clean_report.skip_count,
         clean_report.error_count,
     )
+    return clean_report
 
-    # Step 2: scrape
-    scrape_report = run_scrape(settings, dry_run=dry_run, interactive=interactive)
 
-    # Step 3: cleanup empty dirs
+def run_cleanup(settings: Settings, dry_run: bool = False) -> StepReport:
+    """Run empty directory cleanup on all category directories.
+
+    Args:
+        settings: Pipeline configuration.
+        dry_run: If True, preview without deleting.
+
+    Returns:
+        StepReport with cleanup counts.
+    """
+    from personalscraper.process.cleanup import cleanup_empty_dirs
+
+    movies_dir = settings.staging_dir / settings.movies_dir_name
+    tvshows_dir = settings.staging_dir / settings.tvshows_dir_name
+
     cleanup_report = StepReport(name="cleanup")
 
     for category_dir in (movies_dir, tvshows_dir):
@@ -78,5 +80,32 @@ def run_process(
         cleanup_report.details.extend(cat_report.details)
 
     logger.info("Cleanup phase: %d empty dirs removed", cleanup_report.success_count)
+    return cleanup_report
+
+
+def run_process(
+    settings: Settings,
+    dry_run: bool = False,
+    interactive: bool = False,
+) -> tuple[StepReport, StepReport, StepReport]:
+    """Run Phase 3: reclean + dedup + scrape + cleanup.
+
+    Convenience wrapper that calls all 3 sub-steps sequentially.
+    For error isolation, prefer calling run_clean, run_scrape,
+    and run_cleanup individually via Pipeline._run_step.
+
+    Args:
+        settings: Pipeline configuration.
+        dry_run: If True, preview without modifying files.
+        interactive: If True, prompt for ambiguous scrape matches.
+
+    Returns:
+        Tuple of (clean_report, scrape_report, cleanup_report).
+    """
+    from personalscraper.scraper.run import run_scrape
+
+    clean_report = run_clean(settings, dry_run=dry_run)
+    scrape_report = run_scrape(settings, dry_run=dry_run, interactive=interactive)
+    cleanup_report = run_cleanup(settings, dry_run=dry_run)
 
     return clean_report, scrape_report, cleanup_report
