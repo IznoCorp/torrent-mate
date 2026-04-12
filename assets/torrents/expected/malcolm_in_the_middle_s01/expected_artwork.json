@@ -1,0 +1,13 @@
+{
+  "required": ["poster.jpg"],
+  "optional": [
+    "fanart.jpg",
+    "banner.jpg",
+    "clearlogo.png",
+    "season01-poster.jpg"
+  ],
+  "min_poster_size_bytes": 10000,
+  "season_artwork": {
+    "1": ["season01-poster.jpg"]
+  }
+}

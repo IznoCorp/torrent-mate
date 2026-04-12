@@ -1,0 +1,7 @@
+{
+  "action": "moved",
+  "target_category": "series",
+  "eligible_disks": ["Disk1", "Disk2", "Disk3", "Disk4"],
+  "selection_rule": "most_free_space",
+  "destination_contains": "series/Malcolm in the Middle (2000)"
+}

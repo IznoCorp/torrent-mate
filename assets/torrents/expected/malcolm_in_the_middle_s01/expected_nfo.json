@@ -1,0 +1,26 @@
+{
+  "media_type": "tvshow",
+  "title": "Malcolm in the Middle",
+  "year": 2000,
+  "tvdb_id": "73838",
+  "imdb_id": "tt0212671",
+  "tmdb_id": 2004,
+  "genres": ["Comédie", "Familial"],
+  "expected_category": "series",
+  "folder_name_pattern": "Malcolm in the Middle (2000)",
+  "required_nfo_tags": ["title", "year", "genre", "plot"],
+  "nfo_invariants": {
+    "title": "Malcolm in the Middle"
+  },
+  "seasons": {
+    "1": {
+      "episode_count": 16,
+      "season_dir": "Saison 01",
+      "episode_pattern": "S01E{:02d}",
+      "sample_episodes": {
+        "1": "S01E01 - Pilot",
+        "16": "S01E16 - Water Park"
+      }
+    }
+  }
+}

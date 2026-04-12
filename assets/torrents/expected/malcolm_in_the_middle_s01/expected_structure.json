@@ -1,0 +1,13 @@
+{
+  "root_dir": "Malcolm in the Middle (2000)",
+  "required_files": ["tvshow.nfo", "poster.jpg"],
+  "required_dirs": ["Saison 01"],
+  "season_files": {
+    "Saison 01": {
+      "min_episode_count": 10,
+      "episode_pattern": "S01E*.mkv",
+      "episode_nfo_pattern": "S01E*.nfo"
+    }
+  },
+  "forbidden_patterns": ["*.txt", "*.url"]
+}
