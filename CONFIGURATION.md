@@ -277,6 +277,35 @@ MIN_FREE_SPACE_DISK_GB=100
 
 ---
 
+## Circuit Breaker (V8)
+
+Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker détecte quand un provider est durablement down et évite de le spammer.
+
+| Variable                    | Défaut | Description                                                  |
+| --------------------------- | ------ | ------------------------------------------------------------ |
+| `CIRCUIT_BREAKER_THRESHOLD` | `5`    | Nombre d'erreurs consécutives avant d'ouvrir le circuit      |
+| `CIRCUIT_BREAKER_COOLDOWN`  | `300`  | Temps d'attente (secondes) avant de retenter après ouverture |
+
+### Fonctionnement
+
+- **CLOSED** (normal) : les appels passent, les erreurs 5xx/timeout/connexion sont comptées
+- **OPEN** (après N erreurs) : tous les appels échouent immédiatement (`CircuitOpenError`), le pipeline bascule sur le provider alternatif (TMDB↔TVDB)
+- **HALF_OPEN** (après cooldown) : un seul appel de test est autorisé — succès → CLOSED, échec → retour OPEN
+
+> Le circuit breaker ne compte PAS les erreurs 429 (rate limit, gérées par tenacity) ni les 4xx (erreurs client).
+
+### Comment configurer
+
+```ini
+# Valeurs par défaut — adaptées à la plupart des cas
+CIRCUIT_BREAKER_THRESHOLD=5
+CIRCUIT_BREAKER_COOLDOWN=300
+```
+
+> Pour un usage intensif avec beaucoup de médias, augmenter le seuil à 10 pour tolérer des erreurs transitoires. Pour un réseau instable, baisser le cooldown à 120 secondes.
+
+---
+
 ## Exemple complet
 
 ```ini
@@ -312,6 +341,10 @@ HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 # ── Thresholds ───────────────────────────────
 MIN_FREE_SPACE_STAGING_GB=20
 MIN_FREE_SPACE_DISK_GB=100
+
+# ── Circuit Breaker (V8) ─────────────────────
+CIRCUIT_BREAKER_THRESHOLD=5
+CIRCUIT_BREAKER_COOLDOWN=300
 ```
 
 ---
