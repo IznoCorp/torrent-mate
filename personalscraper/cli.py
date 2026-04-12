@@ -8,9 +8,6 @@ prevent concurrent executions.
 from __future__ import annotations
 
 import logging
-import time
-from collections.abc import Callable
-from typing import Any
 
 import typer
 from rich.console import Console
@@ -180,114 +177,25 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
         release_lock()
 
 
-def _run_step(
-    name: str,
-    fn: Callable,
-    report: Any,
-    log: logging.Logger,
-    console: Console,
-    verbose: bool,
-) -> Any:
-    """Execute a pipeline step with logging, timing, and console feedback.
-
-    Args:
-        name: Step name for display and logging.
-        fn: Callable that returns StepReport or (StepReport, extra).
-        report: PipelineReport to add results to.
-        log: Logger instance.
-        console: Rich console for output.
-        verbose: Whether to show per-item details.
-
-    Returns:
-        Extra data from fn (e.g. verified list), or None.
-    """
-    from personalscraper.models import StepReport
-
-    step_icons = {
-        "ingest": "[cyan]1/5[/cyan]",
-        "sort": "[cyan]2/5[/cyan]",
-        "scrape": "[cyan]3/5[/cyan]",
-        "verify": "[cyan]4/5[/cyan]",
-        "dispatch": "[cyan]5/5[/cyan]",
-    }
-    icon = step_icons.get(name, "")
-    console.print(f"\n{icon} [bold]{name.upper()}[/bold]", highlight=False)
-    log.info("Step %s started", name)
-    t0 = time.monotonic()
-    extra = None
-
-    try:
-        result = fn()
-        # Some steps return (StepReport, extra_data)
-        if isinstance(result, tuple):
-            step_report, extra = result
-        else:
-            step_report = result
-        report.add_step(name, step_report)
-    except Exception as exc:
-        log.exception("Step %s failed fatally", name)
-        error_msg = f"{type(exc).__name__}: {exc}"
-        step_report = StepReport(
-            name=name, error_count=1,
-            details=[f"Fatal: {error_msg}"],
-        )
-        report.add_step(name, step_report)
-        console.print(f"   [red]FATAL: {error_msg}[/red]", highlight=False)
-
-    elapsed = time.monotonic() - t0
-    elapsed_str = f"{elapsed:.1f}s"
-
-    # Inline summary after each step
-    ok = step_report.success_count
-    skip = step_report.skip_count
-    err = step_report.error_count
-    parts = []
-    if ok:
-        parts.append(f"[green]{ok} OK[/green]")
-    if skip:
-        parts.append(f"[yellow]{skip} skip[/yellow]")
-    if err:
-        parts.append(f"[red]{err} err[/red]")
-    summary = ", ".join(parts) if parts else "[dim]nothing to do[/dim]"
-    console.print(f"   {summary} ({elapsed_str})", highlight=False)
-
-    # Show details in verbose mode — skip "already done" noise, show actionable items
-    if verbose:
-        for detail in step_report.details:
-            if "skipped_already_done" in detail:
-                continue  # Don't spam console with already-processed items
-            console.print(f"   [dim]{detail}[/dim]", highlight=False)
-        for warning in step_report.warnings:
-            console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
-
-    log.info(
-        "Step %s finished: ok=%d skip=%d err=%d (%.1fs)",
-        name, ok, skip, err, elapsed,
-    )
-    return extra
-
-
 @app.command()
-def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline")) -> None:
-    """Run full pipeline (ingest -> sort -> scrape -> verify -> dispatch)."""
-    import logging as _logging
+def run(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+) -> None:
+    """Run full pipeline (ingest -> sort -> process -> verify -> dispatch)."""
     from datetime import datetime
 
     import structlog.contextvars
     from rich.panel import Panel
     from rich.table import Table
 
-    from personalscraper.dispatch.run import run_dispatch
     from personalscraper.logger import cleanup_old_logs
-    from personalscraper.models import PipelineReport
     from personalscraper.notifier import TelegramNotifier, ping_healthcheck
-    from personalscraper.scraper.run import run_scrape
-    from personalscraper.sorter.run import run_sort
-    from personalscraper.verify.run import run_verify
+    from personalscraper.pipeline import Pipeline
 
     console = state["console"]
     verbose = state["verbose"]
-    log = _logging.getLogger("pipeline")
+    log = logging.getLogger("pipeline")
 
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -305,7 +213,6 @@ def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipe
         run_id = datetime.now().isoformat(timespec="seconds")
         structlog.contextvars.bind_contextvars(run_id=run_id)
 
-        report = PipelineReport(started_at=datetime.now())
         mode = "[yellow]DRY-RUN[/yellow]" if dry_run else "[green]LIVE[/green]"
         console.print(
             f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
@@ -313,46 +220,23 @@ def run(dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipe
         )
         log.info("Pipeline started (dry_run=%s, run_id=%s)", dry_run, run_id)
 
-        # V1 — Ingest
-        _run_step("ingest", lambda: run_ingest(settings, dry_run=dry_run),
-                   report, log, console, verbose)
-
-        # V2 — Sort
-        _run_step("sort", lambda: run_sort(settings, dry_run=dry_run),
-                   report, log, console, verbose)
-
-        # V3 — Scrape
-        _run_step("scrape", lambda: run_scrape(settings, dry_run=dry_run),
-                   report, log, console, verbose)
-
-        # V4 — Verify (returns StepReport + dispatchable list)
-        verified = _run_step(
-            "verify", lambda: run_verify(settings, dry_run=dry_run),
-            report, log, console, verbose,
+        # Delegate to Pipeline orchestrator (7-step sequential flow)
+        pipeline = Pipeline(
+            settings,
+            dry_run=dry_run,
+            interactive=interactive,
+            verbose=verbose,
+            console=console,
         )
+        report = pipeline.run()
 
-        # V5 — Dispatch (skip if verify crashed — don't dispatch unverified media)
-        if verified is not None:
-            _run_step("dispatch", lambda: run_dispatch(settings, dry_run=dry_run, verified=verified),
-                       report, log, console, verbose)
-        else:
-            from personalscraper.models import StepReport as _SR
-
-            log.warning("Skipping dispatch: verify step produced no results")
-            console.print("\n[cyan]5/5[/cyan] [bold]DISPATCH[/bold]", highlight=False)
-            console.print("   [yellow]SKIPPED: verify failed, cannot dispatch unverified media[/yellow]",
-                          highlight=False)
-            report.add_step("dispatch", _SR(name="dispatch", skip_count=1,
-                            details=["Skipped: verify step failed"]))
-
-        report.finished_at = datetime.now()
         dur = report.duration()
         minutes = int(dur.total_seconds()) // 60
         seconds = int(dur.total_seconds()) % 60
         dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
         log.info("Pipeline finished (duration=%s)", dur_str)
 
-        # Final summary table
+        # Final summary table (7 steps)
         table = Table(show_header=True, header_style="bold")
         table.add_column("Step")
         table.add_column("OK", justify="right")
