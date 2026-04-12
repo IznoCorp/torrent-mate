@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (using MediaElch), then moved to permanent storage on one of 4 disks.
+This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to permanent storage on one of 4 disks.
 
 ## Package
 
@@ -180,10 +180,13 @@ A TRIER/
 │   ├── models.py        # StepReport, SortResult
 │   ├── notifier.py      # V6: Telegram notifications
 │   └── genre_mapper.py  # Genre → category mapping (V4+V5)
-├── tests/               # pytest tests (652 unit + 3 E2E)
+├── tests/               # pytest tests (unit + E2E)
 │   └── e2e/             # Real torrent E2E (pytest -m e2e_torrent)
+├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
+├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
+├── MANUAL.md            # User manual (French) — shell commands, disk layout, naming
 ├── .env.example         # Config template
 ├── com.personalscraper.pipeline.plist  # launchd daily agent (3am)
 └── logs/                # Structured JSON logs (gitignored)
@@ -229,12 +232,15 @@ Episode files follow the pattern: `S{nn}E{nn} - {Episode Title}.{ext}`
 ## Testing
 
 ```bash
-# Unit tests (652 tests, ~6s)
+# Unit tests (~6s)
 make test                           # or: python -m pytest -v
 python -m pytest tests/ -x -q       # stop on first failure
 
 # E2E tests (real torrents — manual only, requires qBittorrent running)
-python -m pytest -m e2e_torrent -v -s   # downloads real torrents, calls TMDB/TVDB APIs
+python -m pytest -m e2e_torrent -v -s   # 3 pipeline tests (movie, tvshow, mixed CLI)
+
+# Roundtrip E2E tests (scrape accuracy — requires TMDB/TVDB API keys)
+python -m pytest -m roundtrip -v -s     # 2 tests (movie + tvshow roundtrip matching)
 
 # Lint + format
 make lint                           # ruff check
@@ -251,7 +257,7 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 
 - FileMate's directory name mappings (001-MOVIES, 002-TVSHOWS, etc.) are defined in `~/dev/FileMate/.env` — update there if folder naming changes.
 - Paths contain spaces (`/Volumes/IznoServer SSD/A TRIER/`) — always quote paths in shell commands.
-- Legacy scripts (099-SCRIPTS/) archived to `~/dev/099-SCRIPTS-archive/` — no longer in repo.
+- Legacy scripts (099-SCRIPTS/) exist on disk but are gitignored. Contains 7 `.bak` Python scripts and a `plex/` subfolder. All replaced by PersonalScraper V0-V7.
 - MediaElch is the external metadata scraper — Claude does not interact with it directly.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`
 - ffprobe returns ISO 639-2/B language codes (`fre`), Kodi NFO expects 639-2/T (`fra`) — always convert via `LANG_B_TO_T` mapping (20 codes differ)

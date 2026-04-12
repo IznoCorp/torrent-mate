@@ -6,16 +6,16 @@
 
 | #   | Phase                                 | Fichier                                            | Status |
 | --- | ------------------------------------- | -------------------------------------------------- | ------ |
-| 1   | Setup sous-package ingest             | [phase-01-setup.md](phase-01-setup.md)             | [ ]    |
-| ·   | _Contrôle de cohérence P1→P2/P3_      |                                                    | [ ]    |
-| 2   | Wrapper qBittorrent (qbittorrent-api) | [phase-02-qbit-client.md](phase-02-qbit-client.md) | [ ]    |
-| ·   | _Contrôle de cohérence P2→P4_         |                                                    | [ ]    |
-| 3   | Tracker de torrents ingérés           | [phase-03-tracker.md](phase-03-tracker.md)         | [ ]    |
-| ·   | _Contrôle de cohérence P3→P4_         |                                                    | [ ]    |
-| 4   | Orchestrateur ingest                  | [phase-04-ingest.md](phase-04-ingest.md)           | [ ]    |
-| ·   | _Contrôle de cohérence P4→P5_         |                                                    | [ ]    |
-| 5   | Alias CLI                             | [phase-05-cron.md](phase-05-cron.md)               | [ ]    |
-| ·   | _Contrôle de cohérence V1→V2_         |                                                    | [ ]    |
+| 1   | Setup sous-package ingest             | [phase-01-setup.md](phase-01-setup.md)             | [x]    |
+| ·   | _Contrôle de cohérence P1→P2/P3_      |                                                    | [x]    |
+| 2   | Wrapper qBittorrent (qbittorrent-api) | [phase-02-qbit-client.md](phase-02-qbit-client.md) | [x]    |
+| ·   | _Contrôle de cohérence P2→P4_         |                                                    | [x]    |
+| 3   | Tracker de torrents ingérés           | [phase-03-tracker.md](phase-03-tracker.md)         | [x]    |
+| ·   | _Contrôle de cohérence P3→P4_         |                                                    | [x]    |
+| 4   | Orchestrateur ingest                  | [phase-04-ingest.md](phase-04-ingest.md)           | [x]    |
+| ·   | _Contrôle de cohérence P4→P5_         |                                                    | [x]    |
+| 5   | Alias CLI                             | [phase-05-cron.md](phase-05-cron.md)               | [x]    |
+| ·   | _Contrôle de cohérence V1→V2_         |                                                    | [x]    |
 
 ## Dépendances entre phases
 
@@ -32,39 +32,39 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 
 ### Après Phase 1 (Setup → qBit Client / Tracker)
 
-- [ ] Le sous-package `personalscraper/ingest/` est créé et importable
-- [ ] `from personalscraper.ingest import qbit_client, tracker, ingest` fonctionne
-- [ ] `from personalscraper.lock import acquire_lock, release_lock` fonctionne
-- [ ] `~/.personalscraper/` existe
-- [ ] Tests lock file passent (acquire, release, stale detection)
+- [x] Le sous-package `personalscraper/ingest/` est créé et importable
+- [x] `from personalscraper.ingest import qbit_client, tracker, ingest` fonctionne
+- [x] `from personalscraper.lock import acquire_lock, release_lock` fonctionne
+- [x] `~/.personalscraper/` existe
+- [x] Tests lock file passent (acquire, release, stale detection)
 
 ### Après Phase 2 (qBit Client → Orchestrateur)
 
-- [ ] `QBitClient` expose les méthodes attendues par `run_ingest()` (design)
-- [ ] Les types de retour sont cohérents (list[TorrentDictionary], set[str], Path, bool)
-- [ ] Le context manager fonctionne (auto login/logout)
-- [ ] Test réel validé contre l'API qBit locale
+- [x] `QBitClient` expose les méthodes attendues par `run_ingest()` (design)
+- [x] Les types de retour sont cohérents (list[TorrentDictionary], set[str], Path, bool)
+- [x] Le context manager fonctionne (auto login/logout)
+- [x] Test réel validé contre l'API qBit locale
 
 ### Après Phase 3 (Tracker → Orchestrateur)
 
-- [ ] `IngestTracker` expose les méthodes attendues par `run_ingest()` (design)
-- [ ] Le JSON se crée/charge/sauvegarde dans `~/.personalscraper/`
-- [ ] Le cleanup accepte un `set[str]` (output de `get_all_torrent_hashes()`)
+- [x] `IngestTracker` expose les méthodes attendues par `run_ingest()` (design)
+- [x] Le JSON se crée/charge/sauvegarde dans `~/.personalscraper/`
+- [x] Le cleanup accepte un `set[str]` (output de `get_all_torrent_hashes()`)
 
 ### Après Phase 4 (Orchestrateur → Alias)
 
-- [ ] `personalscraper ingest --dry-run` fonctionne standalone
-- [ ] `--dry-run` ne modifie rien sur le filesystem
-- [ ] `run_ingest()` retourne un `StepReport` correct
-- [ ] Le lock file est acquis/libéré correctement (vérifier `~/.personalscraper/pipeline.lock`)
-- [ ] Les copies utilisent le pattern atomique (.ingest*tmp*\* → rename)
-- [ ] Les .ingest*tmp*\* orphelins sont nettoyés au début du run
-- [ ] La vérification de taille post-transfert fonctionne
-- [ ] Le script gère correctement les chemins avec espaces
-- [ ] Le résumé est clair et loggable
+- [x] `personalscraper ingest --dry-run` fonctionne standalone
+- [x] `--dry-run` ne modifie rien sur le filesystem
+- [x] `run_ingest()` retourne un `StepReport` correct
+- [x] Le lock file est acquis/libéré correctement (vérifier `~/.personalscraper/pipeline.lock`)
+- [x] Les copies utilisent le pattern atomique (.ingest*tmp*\* → rename)
+- [x] Les .ingest*tmp*\* orphelins sont nettoyés au début du run
+- [x] La vérification de taille post-transfert fonctionne
+- [x] Le script gère correctement les chemins avec espaces
+- [x] Le résumé est clair et loggable
 
 ### Après Phase 5 (Alias → V2)
 
-- [ ] L'alias `media-ingest` fonctionne
-- [ ] Les fichiers arrivent bien à la racine de staging_dir (prêts pour V2/sorter)
-- [ ] CLAUDE.md est à jour avec les nouvelles commandes
+- [x] L'alias `media-ingest` fonctionne
+- [x] Les fichiers arrivent bien à la racine de staging_dir (prêts pour V2/sorter)
+- [x] CLAUDE.md est à jour avec les nouvelles commandes
