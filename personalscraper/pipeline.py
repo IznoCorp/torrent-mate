@@ -154,30 +154,47 @@ class Pipeline:
     def _run_process_phase(self, report: PipelineReport) -> None:
         """Execute Phase 3: PROCESS as 3 separate steps.
 
-        Placeholder until process/ module is implemented in Phase 2-3.
-        Currently runs only scrape (existing behavior).
+        Calls run_process() which coordinates:
+        1. reclean + dedup (movies + tvshows) → clean StepReport
+        2. scrape → scrape StepReport
+        3. cleanup empty dirs → cleanup StepReport
+
+        Each sub-step is wrapped in _run_step for timing and error handling.
 
         Args:
             report: PipelineReport to add step results to.
         """
-        from personalscraper.scraper.run import run_scrape
+        from personalscraper.process.run import run_process
 
-        # clean step — placeholder until V9 Phase 2
-        report.add_step("clean", StepReport(name="clean"))
-
-        # scrape step
-        self._run_step(
-            "scrape",
-            lambda: run_scrape(
+        # run_process returns (clean, scrape, cleanup) as a tuple
+        # We wrap it in _run_step calls for individual timing/error handling
+        def _run_clean_and_scrape_and_cleanup():
+            return run_process(
                 self.settings,
                 dry_run=self.dry_run,
                 interactive=self.interactive,
-            ),
-            report,
-        )
+            )
 
-        # cleanup step — placeholder until V9 Phase 3
-        report.add_step("cleanup", StepReport(name="cleanup"))
+        try:
+            clean_report, scrape_report, cleanup_report = _run_clean_and_scrape_and_cleanup()
+            report.add_step("clean", clean_report)
+            self._log_step_summary("clean", clean_report)
+            report.add_step("scrape", scrape_report)
+            self._log_step_summary("scrape", scrape_report)
+            report.add_step("cleanup", cleanup_report)
+            self._log_step_summary("cleanup", cleanup_report)
+        except Exception as exc:
+            self._log.exception("Process phase failed fatally")
+            error_msg = f"{type(exc).__name__}: {exc}"
+            # Add error reports for any missing steps
+            for step_name in ("clean", "scrape", "cleanup"):
+                if step_name not in report.steps:
+                    report.add_step(
+                        step_name,
+                        StepReport(name=step_name, error_count=1,
+                                   details=[f"Fatal: {error_msg}"]),
+                    )
+            self.console.print(f"   [red]FATAL: {error_msg}[/red]", highlight=False)
 
     def _check_temp_empty_gate(self) -> None:
         """Gate: verify 097-TEMP is empty after sort.
@@ -199,6 +216,39 @@ class Pipeline:
                 f"   [yellow]! 097-TEMP not empty: {len(remaining)} files remain[/yellow]",
                 highlight=False,
             )
+
+    def _log_step_summary(self, name: str, step_report: StepReport) -> None:
+        """Log a brief console summary for a process sub-step.
+
+        Used by _run_process_phase to show inline feedback for
+        clean/scrape/cleanup steps without full _run_step wrapping.
+
+        Args:
+            name: Step name for display.
+            step_report: Completed StepReport.
+        """
+        icon = self._step_icon(name)
+        self.console.print(f"\n{icon} [bold]{name.upper()}[/bold]", highlight=False)
+        ok = step_report.success_count
+        skip = step_report.skip_count
+        err = step_report.error_count
+        parts = []
+        if ok:
+            parts.append(f"[green]{ok} OK[/green]")
+        if skip:
+            parts.append(f"[yellow]{skip} skip[/yellow]")
+        if err:
+            parts.append(f"[red]{err} err[/red]")
+        summary = ", ".join(parts) if parts else "[dim]nothing to do[/dim]"
+        self.console.print(f"   {summary}", highlight=False)
+
+        if self.verbose:
+            for detail in step_report.details:
+                if "skipped_already_done" in detail:
+                    continue
+                self.console.print(f"   [dim]{detail}[/dim]", highlight=False)
+            for warning in step_report.warnings:
+                self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
 
     def _step_icon(self, name: str) -> str:
         """Return the step number indicator for console output.
