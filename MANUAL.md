@@ -64,6 +64,23 @@ launchctl list | grep personalscraper
 
 ---
 
+## Tests
+
+```bash
+# Tests unitaires (rapide, ~6s)
+make test                               # ou: python -m pytest -v
+
+# Tests E2E torrents (MANUEL — nécessite qBittorrent actif)
+python -m pytest -m e2e_torrent -v -s   # 3 tests pipeline (film, série, CLI mixte)
+
+# Tests E2E roundtrip (MANUEL — nécessite clés API TMDB/TVDB)
+python -m pytest -m roundtrip -v -s     # 2 tests (matching aller-retour film + série)
+```
+
+**Important :** les tests E2E ne sont **jamais** lancés par `make test` — ils nécessitent un lancement manuel explicite avec `-m e2e_torrent` ou `-m roundtrip`. Ils téléchargent de vrais torrents depuis les fichiers `.torrent` dans `assets/torrents/`, appellent les APIs TMDB/TVDB, et nettoient tout à la fin. Le dispatch tourne toujours en dry-run (les disques de stockage ne sont jamais modifiés).
+
+---
+
 ## Commandes shell
 
 ### torrent-sort
