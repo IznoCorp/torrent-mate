@@ -70,22 +70,24 @@ class TestFindMatchingDirectory:
         result = find_matching_directory("The Matrix (2003)", dirs, respect_year=True)
         assert result is None
 
-    def test_year_mismatch_allowed_when_disabled(self, tmp_path):
-        """Year check is skipped when respect_year=False.
+    def test_year_mismatch_rejected_even_when_disabled(self, tmp_path):
+        """Year guard is skipped with respect_year=False, but adaptive
+        threshold still rejects low scores from digit differences.
 
-        Note: WRatio("The Matrix (2003)", "The Matrix (1999)") = 76
-        so we need a lower threshold since the year digits differ.
+        V8: fuzzy_match_score's adaptive threshold (90%) means that
+        different year digits lower the WRatio score below the cutoff.
         """
         dirs = self._make_dirs(tmp_path, ["The Matrix (1999)"])
         result = find_matching_directory(
             "The Matrix (2003)", dirs, respect_year=False, threshold=70.0
         )
-        assert result == dirs[0]
+        # V8: rejected by adaptive threshold — year digits differ too much
+        assert result is None
 
-    def test_name_without_year_matches_name_with_year(self, tmp_path):
-        """A name without year matches a candidate with year (year filter only rejects conflicts)."""
+    def test_same_title_different_format_matches(self, tmp_path):
+        """Same title with and without year matches when year is same."""
         dirs = self._make_dirs(tmp_path, ["The Matrix (1999)"])
-        result = find_matching_directory("The Matrix", dirs, respect_year=True)
+        result = find_matching_directory("The Matrix (1999)", dirs, respect_year=True)
         assert result == dirs[0]
 
     def test_picks_best_match_among_multiple(self, tmp_path):
@@ -108,12 +110,25 @@ class TestFindMatchingDirectory:
         result = find_matching_directory("Shrinking", dirs, respect_year=False)
         assert result == dirs[0]
 
-    def test_custom_threshold(self, tmp_path):
-        """Custom threshold can be more or less strict."""
+    def test_length_guard_rejects_partial_titles(self, tmp_path):
+        """V8: 'The Matrix' does NOT match 'The Matrix Reloaded' (length guard).
+
+        Length ratio: 10/19 = 0.53 < 0.67 → rejected regardless of threshold.
+        """
         dirs = self._make_dirs(tmp_path, ["The Matrix Reloaded"])
-        # With very high threshold, partial match is rejected
-        result = find_matching_directory("The Matrix", dirs, threshold=98.0)
-        assert result is None
-        # With lower threshold, it matches
+        # Old behavior: low threshold would accept. New: length guard rejects.
         result = find_matching_directory("The Matrix", dirs, threshold=60.0)
+        assert result is None
+
+    def test_short_title_needs_high_score(self, tmp_path):
+        """V8: Short titles (≤10 chars) require 95% threshold."""
+        dirs = self._make_dirs(tmp_path, ["Alien (1979)"])
+        # "Alien" exact match → high score → accepted
+        result = find_matching_directory("Alien (1979)", dirs)
+        assert result == dirs[0]
+
+    def test_long_title_accepts_at_90_percent(self, tmp_path):
+        """V8: Long titles (>10 chars) use 90% threshold."""
+        dirs = self._make_dirs(tmp_path, ["Avengers Endgame (2019)"])
+        result = find_matching_directory("Avengers Endgame (2019)", dirs)
         assert result == dirs[0]

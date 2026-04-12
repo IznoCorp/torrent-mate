@@ -12,10 +12,6 @@ V3 and V5 use rapidfuzz directly for API title and disk index matching.
 import re
 from pathlib import Path
 
-from rapidfuzz import fuzz, process
-
-from personalscraper.text_utils import media_processor
-
 # Year pattern: 4-digit year in parentheses or standalone
 _YEAR_PATTERN: re.Pattern[str] = re.compile(r"\b((?:19|20)\d{2})\b")
 
@@ -39,54 +35,45 @@ def find_matching_directory(
     respect_year: bool = True,
     threshold: float = 85.0,
 ) -> Path | None:
-    """Find the best matching existing directory via rapidfuzz WRatio.
+    """Find the best matching existing directory with anti-false-positive guards.
 
-    Uses media_processor for accent-insensitive French title matching.
-    WRatio auto-selects the best scoring strategy based on string length
-    ratio (exact ratio for similar lengths, partial for very different).
+    Uses fuzzy_match_score() for accent-insensitive French title matching
+    with three guards: year constraint (±1), length ratio (≥0.67), and
+    adaptive threshold (95% for short titles, 90% for long).
+
+    The threshold parameter is kept for backward compatibility but is
+    overridden by fuzzy_match_score's adaptive threshold internally.
 
     Args:
         name: The cleaned media name to match (e.g. "The Matrix").
         candidates: List of existing directory paths to match against.
-        respect_year: If True and both names contain a year, years must
-            match. Prevents "The Matrix (1999)" matching "The Matrix
-            Reloaded (2003)".
-        threshold: Minimum WRatio score (0-100) to accept a match.
+        respect_year: If True, year guard is active in fuzzy_match_score.
+            If False, years are not passed to the guard function.
+        threshold: Legacy parameter — overridden by adaptive threshold.
 
     Returns:
         The Path of the best matching directory, or None if no match
-        exceeds the threshold.
+        passes the guards.
     """
+    from personalscraper.text_utils import fuzzy_match_score
+
     if not candidates:
         return None
 
     name_year = _extract_year(name) if respect_year else None
 
-    # Build candidate list, filtering by year when applicable
-    valid_candidates: list[Path] = []
+    best_score = 0.0
+    best_candidate: Path | None = None
+
     for cand in candidates:
-        if respect_year and name_year is not None:
-            cand_year = _extract_year(cand.name)
-            # If candidate also has a year, it must match
-            if cand_year is not None and cand_year != name_year:
-                continue
-        valid_candidates.append(cand)
+        cand_year = _extract_year(cand.name) if respect_year else None
+        score = fuzzy_match_score(
+            name, cand.name,
+            query_year=name_year,
+            candidate_year=cand_year,
+        )
+        if score is not None and score > best_score:
+            best_score = score
+            best_candidate = cand
 
-    if not valid_candidates:
-        return None
-
-    # rapidfuzz process.extractOne returns (match_string, score, index)
-    candidate_names = [c.name for c in valid_candidates]
-    result = process.extractOne(
-        name,
-        candidate_names,
-        scorer=fuzz.WRatio,
-        processor=media_processor,
-        score_cutoff=threshold,
-    )
-
-    if result is None:
-        return None
-
-    _, _, idx = result
-    return valid_candidates[idx]
+    return best_candidate
