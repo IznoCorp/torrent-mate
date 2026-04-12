@@ -227,6 +227,196 @@ def assert_pipeline_report(report) -> None:
     assert report.finished_at is not None, "Pipeline report not finished"
 
 
+def assert_scrape_golden(media_dir: Path, golden) -> None:
+    """Assert scrape results match golden file expectations.
+
+    Checks:
+    1. Directory name matches golden.nfo["folder_name_pattern"]
+    2. NFO file exists and is valid XML
+    3. All required_nfo_tags are present in NFO XML
+    4. All nfo_invariants match exact values in NFO XML
+    5. Required artwork files exist (golden.artwork["required"])
+    6. Artwork files meet minimum size (golden.artwork["min_poster_size_bytes"])
+    7. For TV shows: season dirs exist, episode count matches
+
+    Args:
+        media_dir: The scraped media directory.
+        golden: GoldenFile with expected data.
+
+    Raises:
+        AssertionError: If any check fails.
+    """
+    nfo = golden.nfo
+    if not nfo:
+        return
+
+    # 1. Folder name pattern
+    if "folder_name_pattern" in nfo:
+        assert nfo["folder_name_pattern"].lower() in media_dir.name.lower(), (
+            f"Golden: folder name '{media_dir.name}' doesn't match "
+            f"pattern '{nfo['folder_name_pattern']}'"
+        )
+
+    # 2-4. NFO validation
+    media_type = nfo.get("media_type", "movie")
+    if media_type == "tvshow":
+        nfo_path = media_dir / "tvshow.nfo"
+    else:
+        nfo_files = list(media_dir.glob("*.nfo"))
+        nfo_path = nfo_files[0] if nfo_files else None
+
+    if nfo_path and nfo_path.exists():
+        tree = ET.parse(nfo_path)
+        root = tree.getroot()
+
+        # 3. Required tags
+        for tag in nfo.get("required_nfo_tags", []):
+            assert root.find(tag) is not None, (
+                f"Golden: required NFO tag '{tag}' missing in {nfo_path.name}"
+            )
+
+        # 4. Invariants (exact value match)
+        for key, expected_value in nfo.get("nfo_invariants", {}).items():
+            elem = root.find(key)
+            assert elem is not None, (
+                f"Golden: invariant tag '{key}' missing in {nfo_path.name}"
+            )
+            assert elem.text == str(expected_value), (
+                f"Golden: NFO '{key}' = '{elem.text}', "
+                f"expected '{expected_value}'"
+            )
+
+    # 5-6. Artwork
+    artwork = golden.artwork
+    if artwork:
+        for filename in artwork.get("required", []):
+            art_path = media_dir / filename
+            assert art_path.exists(), (
+                f"Golden: required artwork '{filename}' missing in {media_dir.name}"
+            )
+
+        min_size = artwork.get("min_poster_size_bytes", 0)
+        if min_size:
+            posters = list(media_dir.glob("*poster*"))
+            for poster in posters:
+                assert poster.stat().st_size >= min_size, (
+                    f"Golden: poster '{poster.name}' too small "
+                    f"({poster.stat().st_size} < {min_size})"
+                )
+
+    # 7. TV show seasons
+    seasons = nfo.get("seasons", {})
+    for season_num, season_data in seasons.items():
+        season_dir_name = season_data.get("season_dir", f"Saison {int(season_num):02d}")
+        season_dir = media_dir / season_dir_name
+        assert season_dir.is_dir(), (
+            f"Golden: season dir '{season_dir_name}' missing in {media_dir.name}"
+        )
+
+        expected_count = season_data.get("episode_count", 0)
+        if expected_count:
+            mkv_files = list(season_dir.glob("*.mkv"))
+            assert len(mkv_files) >= expected_count, (
+                f"Golden: season {season_num} has {len(mkv_files)} episodes, "
+                f"expected {expected_count}"
+            )
+
+
+def assert_dispatch_golden(result, golden) -> None:
+    """Assert dispatch dry-run results match golden file expectations.
+
+    Args:
+        result: DispatchResult from run_dispatch(dry_run=True).
+        golden: GoldenFile with expected data.
+
+    Raises:
+        AssertionError: If any check fails.
+    """
+    dispatch = golden.dispatch
+    if not dispatch:
+        return
+
+    # 1. Action matches
+    expected_action = dispatch.get("action")
+    if expected_action:
+        assert result.action == expected_action, (
+            f"Golden: dispatch action '{result.action}', expected '{expected_action}'"
+        )
+
+    # 2. Disk in eligible list
+    eligible = dispatch.get("eligible_disks", [])
+    if eligible and result.disk:
+        assert result.disk in eligible, (
+            f"Golden: disk '{result.disk}' not in eligible {eligible}"
+        )
+
+    # 3. Destination contains expected substring
+    dest_contains = dispatch.get("destination_contains")
+    if dest_contains and result.destination:
+        assert dest_contains in str(result.destination), (
+            f"Golden: destination '{result.destination}' doesn't contain "
+            f"'{dest_contains}'"
+        )
+
+    # 4. No error/skipped
+    assert result.action not in ("error", "skipped"), (
+        f"Golden: dispatch failed with action '{result.action}', "
+        f"reason: {result.reason}"
+    )
+
+
+def assert_structure_golden(media_dir: Path, golden) -> None:
+    """Assert directory structure matches golden file expectations.
+
+    Args:
+        media_dir: The media directory to check.
+        golden: GoldenFile with expected data.
+
+    Raises:
+        AssertionError: If any check fails.
+    """
+    structure = golden.structure
+    if not structure:
+        return
+
+    # 1. Required files (glob patterns)
+    for pattern in structure.get("required_files", []):
+        matches = list(media_dir.glob(pattern))
+        assert matches, (
+            f"Golden: required file pattern '{pattern}' not found in {media_dir.name}"
+        )
+
+    # 2. Required dirs
+    for dir_name in structure.get("required_dirs", []):
+        dir_path = media_dir / dir_name
+        assert dir_path.is_dir(), (
+            f"Golden: required directory '{dir_name}' missing in {media_dir.name}"
+        )
+
+    # 3. Forbidden patterns
+    for pattern in structure.get("forbidden_patterns", []):
+        matches = list(media_dir.glob(pattern))
+        assert not matches, (
+            f"Golden: forbidden pattern '{pattern}' found in {media_dir.name}: "
+            f"{[m.name for m in matches]}"
+        )
+
+    # 4. Season files
+    for season_name, season_data in structure.get("season_files", {}).items():
+        season_dir = media_dir / season_name
+        if not season_dir.exists():
+            continue
+
+        min_count = season_data.get("min_episode_count", 0)
+        if min_count:
+            ep_pattern = season_data.get("episode_pattern", "*.mkv")
+            episodes = list(season_dir.glob(ep_pattern))
+            assert len(episodes) >= min_count, (
+                f"Golden: {season_name} has {len(episodes)} episodes matching "
+                f"'{ep_pattern}', expected >= {min_count}"
+            )
+
+
 def assert_cleanup_complete(
     registry: TestRegistry,
     base_paths: list[Path] | None = None,
