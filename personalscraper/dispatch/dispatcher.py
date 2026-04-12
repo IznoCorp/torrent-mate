@@ -204,6 +204,20 @@ class Dispatcher:
             dest = Path(existing.path)
             result.disk = existing.disk
             result.destination = dest
+
+            # Check if disk has enough space for the replacement
+            existing_disk = next(
+                (d for d in disk_statuses if d.config.name == existing.disk), None,
+            )
+            if existing_disk:
+                threshold = max(
+                    self.settings.min_free_space_disk_gb, item_size_gb * 1.5,
+                )
+                if existing_disk.free_space_gb < threshold:
+                    result.action = "skipped"
+                    result.reason = f"Disk {existing.disk} full, cannot replace"
+                    return result
+
             if self.dry_run:
                 result.action = "replaced"
                 result.reason = f"[DRY RUN] Would replace on {existing.disk}"
@@ -211,8 +225,12 @@ class Dispatcher:
             success = self._replace(movie_dir, dest)
             result.action = "replaced" if success else "error"
         else:
-            # Move to best disk
-            target = choose_disk(disk_statuses, category, self.settings.min_free_space_disk_gb, item_size_gb)
+            # Move to best disk (allow creating category dir on new disk)
+            target = choose_disk(
+                disk_statuses, category,
+                self.settings.min_free_space_disk_gb, item_size_gb,
+                allow_create_category=True,
+            )
             if not target:
                 result.action = "skipped"
                 result.reason = f"No disk with enough space for category '{category}'"
@@ -260,6 +278,20 @@ class Dispatcher:
             dest = Path(existing.path)
             result.disk = existing.disk
             result.destination = dest
+
+            # Check if disk has enough space for the merge
+            existing_disk = next(
+                (d for d in disk_statuses if d.config.name == existing.disk), None,
+            )
+            if existing_disk:
+                threshold = max(
+                    self.settings.min_free_space_disk_gb, item_size_gb * 1.5,
+                )
+                if existing_disk.free_space_gb < threshold:
+                    result.action = "skipped"
+                    result.reason = f"Disk {existing.disk} full, cannot merge"
+                    return result
+
             if self.dry_run:
                 result.action = "merged"
                 result.reason = f"[DRY RUN] Would merge on {existing.disk}"
@@ -267,7 +299,12 @@ class Dispatcher:
             success = self._merge(show_dir, dest)
             result.action = "merged" if success else "error"
         else:
-            target = choose_disk(disk_statuses, category, self.settings.min_free_space_disk_gb, item_size_gb)
+            # Move to best disk (allow creating category dir on new disk)
+            target = choose_disk(
+                disk_statuses, category,
+                self.settings.min_free_space_disk_gb, item_size_gb,
+                allow_create_category=True,
+            )
             if not target:
                 result.action = "skipped"
                 result.reason = f"No disk with enough space for category '{category}'"
