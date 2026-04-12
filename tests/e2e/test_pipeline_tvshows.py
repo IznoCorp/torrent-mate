@@ -97,6 +97,24 @@ class TestTVShowFullPipeline:
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(staging / "001-MOVIES", tvshows_dir, expected)
 
+            # ── 4b. Golden file assertions (optional — skip if no golden file) ──
+            from tests.e2e.assertions import (
+                assert_scrape_golden,
+                assert_structure_golden,
+                find_media_dir,
+            )
+            from tests.e2e.golden import match_torrent_to_golden
+
+            for torrent_name in names.values():
+                golden = match_torrent_to_golden(torrent_name)
+                if golden:
+                    print(f"  Golden match: {torrent_name} → {golden.name}")
+                    media_dir = find_media_dir(tvshows_dir, golden.nfo["folder_name_pattern"])
+                    assert_scrape_golden(media_dir, golden)
+                    assert_structure_golden(media_dir, golden)
+                else:
+                    print(f"  No golden file for {torrent_name} — smoke tests only")
+
             # Show episode structure
             for d in tvshows_dir.iterdir():
                 if not d.is_dir():
