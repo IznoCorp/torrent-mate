@@ -134,3 +134,4 @@ e2e-test-registry-*.json
 .claude/
 # .claude-old/ is a backup — ignore
 .claude-old/
+.personalscraper/
