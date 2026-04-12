@@ -589,3 +589,80 @@ class TestTVDBClientArtworks:
         assert "landscape" in types  # Background mapped to landscape
         assert "season_poster" in types
         assert len(artworks) == 3
+
+
+# ---------------------------------------------------------------------------
+# Circuit Breaker integration
+# ---------------------------------------------------------------------------
+
+
+class TestTVDBCircuitBreaker:
+    """Test CircuitBreaker integration in TVDBClient._get()."""
+
+    def test_circuit_open_raises_without_http_call(self, logged_in_client):
+        """_get() raises CircuitOpenError immediately when circuit is OPEN."""
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+        # Force circuit OPEN
+        error = TVDBError(500, "Internal Server Error")
+        for _ in range(5):
+            logged_in_client.circuit.record_failure(error)
+
+        with pytest.raises(CircuitOpenError) as exc_info:
+            logged_in_client._get("/search", {"query": "test"})
+
+        assert exc_info.value.provider == "TVDB"
+
+    def test_circuit_records_success_on_ok_response(self, logged_in_client):
+        """Successful _get() call records success on circuit breaker."""
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "success", "data": []}
+
+        with patch.object(logged_in_client._session, "get", return_value=mock_resp):
+            logged_in_client._get("/search", {"query": "test"})
+
+        assert logged_in_client.circuit.state.value == "closed"
+
+    def test_401_relogin_not_blocked_by_circuit(self, logged_in_client):
+        """401 (expired token) does NOT count as a circuit error.
+
+        The re-login flow should work even after multiple 401s.
+        """
+        from personalscraper.scraper.circuit_breaker import CircuitState
+
+        # Simulate 401 then success after re-login
+        resp_401 = MagicMock()
+        resp_401.ok = False
+        resp_401.status_code = 401
+
+        resp_ok = MagicMock()
+        resp_ok.ok = True
+        resp_ok.status_code = 200
+        resp_ok.json.return_value = {"status": "success", "data": {"results": []}}
+
+        login_resp = MagicMock()
+        login_resp.ok = True
+        login_resp.json.return_value = {"data": {"token": "new-token"}}
+
+        with patch.object(
+            logged_in_client._session,
+            "get",
+            side_effect=[resp_401, resp_ok],
+        ), patch.object(
+            logged_in_client._session,
+            "post",
+            return_value=login_resp,
+        ):
+            logged_in_client._get("/search", {"query": "test"})
+
+        # Circuit should be CLOSED — 401 is not a circuit error
+        assert logged_in_client.circuit.state == CircuitState.CLOSED
+
+    def test_circuit_exposes_property(self, client):
+        """TVDBClient.circuit property exposes the CircuitBreaker."""
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+
+        assert isinstance(client.circuit, CircuitBreaker)
+        assert client.circuit.name == "TVDB"
