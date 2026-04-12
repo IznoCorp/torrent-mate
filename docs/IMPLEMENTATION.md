@@ -86,7 +86,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V7.x (TEST AUDIT)  | [x] Brainstorming + Design + Plan               |
 | B. Implémentation V7.x             | [x] 4 phases, 13 sous-phases                    |
 | A. Modélisation V8 (ROBUSTNESS)    | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V8               | [ ] 5 phases, 14 sous-phases                    |
+| B. Implémentation V8               | [x] 5 phases, 14 sous-phases                    |
 
 ---
 
