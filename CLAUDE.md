@@ -10,7 +10,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 V0-V7 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests).
-V7.x (test audit + golden files) and V8 (robustness) modeled — implementation pending.
+V7.x (test audit + golden files) implemented. V8 (robustness) modeled — implementation pending.
 
 ## Commit Convention
 
@@ -113,7 +113,7 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 
 ## Pipeline Automation
 
-All versions (V0–V7) are implemented. Documentation and plans live in `docs/`:
+All versions (V0–V7.x) are implemented. V8 modeled — implementation pending. Documentation and plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
 - `docs/v0-project-setup/` through `docs/v7-e2e-tests/` — Per-version brainstorming, design, and phased plans
@@ -189,7 +189,7 @@ A TRIER/
 │   └── expected/        # V7.x: Golden files (expected results per torrent)
 ├── docs/                # Planning docs per version
 │   ├── v0-project-setup/ through v7-e2e-tests/  # V0-V7 (completed)
-│   ├── v7x-test-audit/  # V7.x: Test audit + golden files (modeled)
+│   ├── v7x-test-audit/  # V7.x: Test audit + golden files (implemented)
 │   └── v8-robustness/   # V8: Robustness improvements (modeled)
 ├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
@@ -256,6 +256,8 @@ make format                         # ruff format + fix
 ```
 
 E2E tests use `.torrent` files from `assets/torrents/`. Dispatch always runs in dry-run mode — storage disks are never modified. All staging artifacts and qBit test torrents are cleaned up after each test.
+
+Golden files in `assets/torrents/expected/` add exact validation on top of smoke tests — NFO invariants, artwork existence, directory structure, and dispatch expectations. E2E tests auto-match torrents to golden files via fuzzy matching; if no golden file exists, only smoke tests run.
 
 ## Language
 
