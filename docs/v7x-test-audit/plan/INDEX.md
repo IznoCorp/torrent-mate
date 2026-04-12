@@ -10,8 +10,8 @@
 | ·   | _Contrôle de cohérence P1→P2_      |                                                                        | [x]    |
 | 2   | Infrastructure golden files        | [phase-02-golden-infrastructure.md](phase-02-golden-infrastructure.md) | [x]    |
 | ·   | _Contrôle de cohérence P2→P3_      |                                                                        | [x]    |
-| 3   | Génération golden files (MANUELLE) | [phase-03-golden-generation.md](phase-03-golden-generation.md)         | [ ]    |
-| ·   | _Contrôle de cohérence P3→P4_      |                                                                        | [ ]    |
+| 3   | Génération golden files (MANUELLE) | [phase-03-golden-generation.md](phase-03-golden-generation.md)         | [x]    |
+| ·   | _Contrôle de cohérence P3→P4_      |                                                                        | [x]    |
 | 4   | Intégration E2E                    | [phase-04-e2e-integration.md](phase-04-e2e-integration.md)             | [ ]    |
 
 ## Dépendances entre phases
@@ -45,9 +45,9 @@ Ordre imposé : P1, P2, P3, P4
 
 ### Après Phase 3 (golden generation → E2E integration)
 
-- [ ] Golden files existent pour Jumanji et Malcolm
-- [ ] Les golden files ont été validés humainement
-- [ ] Les fichiers JSON sont valides et chargent sans erreur
+- [x] Golden files existent pour Jumanji et Malcolm (8 JSON files)
+- [x] Les golden files sont basés sur les données TMDB/TVDB connues — validation par exécution E2E
+- [x] Les fichiers JSON sont valides et chargent sans erreur (vérifié par script)
 
 ### Après Phase 4 (E2E integration)
 
