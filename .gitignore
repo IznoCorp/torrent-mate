@@ -123,9 +123,9 @@ logs/
 099-SCRIPTS/plex/contents.json
 
 # ===========================================
-# E2E Tests (real magnets, gitignored)
+# E2E Tests
 # ===========================================
-tests/e2e/test_magnets.json
+e2e-test-registry-*.json
 
 # ===========================================
 # Claude Code
