@@ -344,6 +344,28 @@ class TestReinforcedChecks:
         assert result.status == "valid"
         assert len(result.errors) == 0
 
+    def test_tvshow_nfo_without_uniqueid_blocked(self, tmp_path: Path) -> None:
+        """TV show with tvshow.nfo missing <uniqueid> is blocked."""
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
+
+        # NFO without uniqueid
+        root = ET.Element("tvshow")
+        ET.SubElement(root, "title").text = "Show"
+        ET.SubElement(root, "genre").text = "Drame"
+        ET.ElementTree(root).write(show / "tvshow.nfo", encoding="unicode")
+        (show / "poster.jpg").write_bytes(b"\xff")
+        (show / "fanart.jpg").write_bytes(b"\xff")
+
+        v = Verifier(MagicMock(), NamingPatterns())
+        result = v.verify_tvshow(show)
+        assert result.status == "blocked"
+        assert any("uniqueid" in e.lower() for e in result.errors)
+
 
 class TestRunVerify:
     """Tests for run_verify."""
