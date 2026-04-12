@@ -1,16 +1,18 @@
 """Pytest fixtures for E2E tests — session-scoped setup for real pipeline testing.
 
 Fixtures provide: unique session UUID, test registry, qBittorrent client,
-and magnet configuration. All skip gracefully if dependencies are unavailable.
+and torrent file discovery. All skip gracefully if dependencies are unavailable.
 """
 
-import json
 import uuid
 from pathlib import Path
 
 import pytest
 
 from tests.e2e.registry import TestRegistry
+
+# .torrent files live in assets/torrents/ at the project root
+ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "torrents"
 
 
 @pytest.fixture(scope="session")
@@ -39,7 +41,7 @@ def e2e_registry(e2e_session_id):
 
 @pytest.fixture(scope="session")
 def e2e_qbit_client():
-    """Connect to qBittorrent. Skip all E2E tests if unavailable.
+    """Connect to qBittorrent. Skip all E2E torrent tests if unavailable.
 
     Returns:
         A qbittorrentapi.Client connected to the local instance.
@@ -65,21 +67,20 @@ def e2e_qbit_client():
 
 
 @pytest.fixture(scope="session")
-def e2e_magnets():
-    """Load test magnet configuration from test_magnets.json.
+def e2e_torrent_files():
+    """Discover .torrent files in assets/torrents/.
 
-    Skip E2E tests if the file doesn't exist (template only committed).
+    Skip if no torrent files are found.
 
     Returns:
-        List of magnet dicts from test_magnets.json.
+        List of Path objects to .torrent files.
     """
-    magnets_path = Path(__file__).parent / "test_magnets.json"
-    if not magnets_path.exists():
-        pytest.skip(
-            "test_magnets.json not found. "
-            "Copy test_magnets.example.json and fill in real magnets."
-        )
-    return json.loads(magnets_path.read_text())
+    if not ASSETS_DIR.is_dir():
+        pytest.skip(f"assets/torrents/ directory not found at {ASSETS_DIR}")
+    files = sorted(ASSETS_DIR.glob("*.torrent"))
+    if not files:
+        pytest.skip("No .torrent files in assets/torrents/")
+    return files
 
 
 @pytest.fixture(scope="session")

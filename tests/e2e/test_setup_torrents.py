@@ -1,116 +1,85 @@
 """Tests for E2E torrent setup — mock qBittorrent interactions."""
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from tests.e2e.registry import TestRegistry
 from tests.e2e.setup_torrents import TorrentSetup
 
 
-@pytest.fixture()
-def mock_client():
-    """Return a mock qBittorrent client."""
-    return MagicMock()
+@patch("tests.e2e.setup_torrents.time.sleep")
+class TestAddTorrentFiles:
+    """Tests for TorrentSetup.add_torrent_files()."""
 
+    def test_adds_torrent_files_with_category(self, _mock_sleep, tmp_path):
+        """Adds each .torrent file to qBit with the e2e-test category."""
+        mock_client = MagicMock()
+        registry = TestRegistry(session_id="test-add", base_dir=tmp_path)
+        setup = TorrentSetup(client=mock_client, registry=registry)
 
-@pytest.fixture()
-def registry(tmp_path):
-    """Return a TestRegistry using tmp_path."""
-    return TestRegistry(session_id="setup-test", base_dir=tmp_path)
-
-
-@pytest.fixture()
-def setup(mock_client, registry):
-    """Return a TorrentSetup instance."""
-    return TorrentSetup(client=mock_client, registry=registry, timeout=5)
-
-
-class TestLoadMagnets:
-    """Tests for TorrentSetup.load_magnets()."""
-
-    def test_loads_valid_json(self, setup, tmp_path):
-        """Loads and returns magnet entries from valid JSON."""
-        magnets = [
-            {"name": "Test", "magnet": "magnet:?xt=...", "type": "movie", "expected_category": "films"}
-        ]
-        config = tmp_path / "magnets.json"
-        config.write_text(json.dumps(magnets))
-
-        result = setup.load_magnets(config)
-        assert len(result) == 1
-        assert result[0]["name"] == "Test"
-
-    def test_raises_on_missing_fields(self, setup, tmp_path):
-        """Raises ValueError when required fields are missing."""
-        bad_magnets = [{"name": "Incomplete"}]
-        config = tmp_path / "magnets.json"
-        config.write_text(json.dumps(bad_magnets))
-
-        with pytest.raises(ValueError, match="missing fields"):
-            setup.load_magnets(config)
-
-
-class TestAddMagnets:
-    """Tests for TorrentSetup.add_magnets()."""
-
-    @patch("tests.e2e.setup_torrents.time.sleep")
-    def test_adds_magnets_with_category(self, mock_sleep, setup, mock_client):
-        """Adds each magnet to qBit with the e2e-test category."""
         mock_torrent = MagicMock()
         mock_torrent.hash = "abc123"
+        mock_torrent.name = "Movie (2024)"
         mock_client.torrents_info.return_value = [mock_torrent]
 
-        magnets = [{"name": "Movie", "magnet": "magnet:?xt=abc"}]
-        hashes = setup.add_magnets(magnets, category="e2e-test")
+        files = [Path("/tmp/movie.torrent")]
+        hashes = setup.add_torrent_files(files, category="e2e-test")
 
-        mock_client.torrents_add.assert_called_once_with(urls="magnet:?xt=abc", category="e2e-test")
+        mock_client.torrents_add.assert_called_once_with(
+            torrent_files=files[0], category="e2e-test",
+        )
         assert "abc123" in hashes
         assert "abc123" in setup.registry.torrent_hashes
+
+    def test_registers_multiple_torrents(self, _mock_sleep, tmp_path):
+        """Registers all returned hashes from qBit."""
+        mock_client = MagicMock()
+        registry = TestRegistry(session_id="test-multi", base_dir=tmp_path)
+        setup = TorrentSetup(client=mock_client, registry=registry)
+
+        t1, t2 = MagicMock(), MagicMock()
+        t1.hash, t1.name = "hash1", "Movie 1"
+        t2.hash, t2.name = "hash2", "Show S01"
+        mock_client.torrents_info.return_value = [t1, t2]
+
+        files = [Path("/tmp/movie.torrent"), Path("/tmp/show.torrent")]
+        hashes = setup.add_torrent_files(files)
+
+        assert len(hashes) == 2
+        assert set(hashes) == {"hash1", "hash2"}
 
 
 class TestWaitForCompletion:
     """Tests for TorrentSetup.wait_for_completion()."""
 
     @patch("tests.e2e.setup_torrents.time.sleep")
-    @patch("tests.e2e.setup_torrents.time.time")
-    def test_returns_completed_status(self, mock_time, mock_sleep, setup, mock_client):
-        """Returns True for completed torrents."""
-        # Simulate: first call returns time 0, second returns time 1, third returns timeout
-        mock_time.side_effect = [0, 1, 100]
+    def test_returns_when_all_complete(self, _mock_sleep, tmp_path):
+        """Returns once all torrents are complete (no timeout)."""
+        mock_client = MagicMock()
+        registry = TestRegistry(session_id="test-wait", base_dir=tmp_path)
+        setup = TorrentSetup(client=mock_client, registry=registry)
 
         mock_torrent = MagicMock()
         mock_torrent.hash = "abc123"
         mock_torrent.name = "Test Movie"
         mock_torrent.state_enum.is_complete = True
+        mock_torrent.progress = 1.0
+        mock_torrent.dlspeed = 0
         mock_client.torrents_info.return_value = [mock_torrent]
 
-        result = setup.wait_for_completion(["abc123"])
-        assert result["abc123"] is True
-
-    @patch("tests.e2e.setup_torrents.time.sleep")
-    @patch("tests.e2e.setup_torrents.time.time")
-    def test_timeout_returns_incomplete(self, mock_time, mock_sleep, setup, mock_client):
-        """Returns False for torrents that didn't complete before timeout."""
-        # Simulate: immediate timeout
-        mock_time.side_effect = [0, 100]
-
-        mock_torrent = MagicMock()
-        mock_torrent.hash = "abc123"
-        mock_torrent.state_enum.is_complete = False
-        mock_client.torrents_info.return_value = [mock_torrent]
-
-        result = setup.wait_for_completion(["abc123"])
-        assert result["abc123"] is False
+        # Should return without error (no timeout — waits until done)
+        setup.wait_for_completion(["abc123"])
 
 
 class TestGetDownloadedPaths:
     """Tests for TorrentSetup.get_downloaded_paths()."""
 
-    def test_returns_content_paths(self, setup, mock_client):
+    def test_returns_content_paths(self, tmp_path):
         """Returns paths for matching hashes."""
+        mock_client = MagicMock()
+        registry = TestRegistry(session_id="test-paths", base_dir=tmp_path)
+        setup = TorrentSetup(client=mock_client, registry=registry)
+
         mock_torrent = MagicMock()
         mock_torrent.hash = "abc123"
         mock_torrent.content_path = "/tmp/downloads/Movie"
@@ -119,3 +88,20 @@ class TestGetDownloadedPaths:
         paths = setup.get_downloaded_paths(["abc123"])
         assert len(paths) == 1
         assert paths[0] == Path("/tmp/downloads/Movie")
+
+
+class TestGetTorrentNames:
+    """Tests for TorrentSetup.get_torrent_names()."""
+
+    def test_returns_name_mapping(self, tmp_path):
+        """Returns dict mapping hash to name."""
+        mock_client = MagicMock()
+        registry = TestRegistry(session_id="test-names", base_dir=tmp_path)
+        setup = TorrentSetup(client=mock_client, registry=registry)
+
+        t1 = MagicMock()
+        t1.hash, t1.name = "abc", "Movie (2024)"
+        mock_client.torrents_info.return_value = [t1]
+
+        names = setup.get_torrent_names(["abc"])
+        assert names == {"abc": "Movie (2024)"}
