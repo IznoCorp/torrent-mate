@@ -1,11 +1,12 @@
-"""Sequential exhaustive pipeline orchestrator.
+"""Sequential exhaustive pipeline orchestrator (V9).
 
-Executes the 5 pipeline phases with gates between them:
-INGEST → SORT → (gate: 097-TEMP empty) → PROCESS → VERIFY → DISPATCH.
+Executes 5 phases producing 7 StepReports:
+INGEST → SORT → (gate: 097-TEMP empty) → PROCESS (clean, scrape, cleanup)
+→ VERIFY → DISPATCH.
 
 Each phase must complete fully before the next one starts. The dispatch
-phase only runs if verified items exist. Replaces the inline logic
-that was in cli.py:run().
+phase only runs if verified items exist. Phase 3 (PROCESS) runs 3
+independent sub-steps, each with its own error isolation.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ class PipelineGateError(Exception):
 class Pipeline:
     """Sequential exhaustive pipeline orchestrator.
 
-    Executes 5 phases with gates between them. Each phase must
+    Executes 5 phases producing 7 StepReports. Each phase must
     complete fully before the next one starts. The dispatch phase
     only runs if verified items exist.
 
@@ -152,49 +153,44 @@ class Pipeline:
         return run_verify(self.settings, dry_run=self.dry_run)
 
     def _run_process_phase(self, report: PipelineReport) -> None:
-        """Execute Phase 3: PROCESS as 3 separate steps.
+        """Execute Phase 3: PROCESS as 3 independent steps.
 
-        Calls run_process() which coordinates:
-        1. reclean + dedup (movies + tvshows) → clean StepReport
-        2. scrape → scrape StepReport
-        3. cleanup empty dirs → cleanup StepReport
+        Each sub-step is wrapped in _run_step for individual error
+        isolation, timing, and structured logging. If clean crashes,
+        scrape and cleanup still run.
 
-        Each sub-step is wrapped in _run_step for timing and error handling.
+        Steps:
+        1. clean — reclean + dedup (movies + tvshows)
+        2. scrape — TMDB/TVDB matching, NFO, artwork
+        3. cleanup — remove empty directories
 
         Args:
             report: PipelineReport to add step results to.
         """
-        from personalscraper.process.run import run_process
+        from personalscraper.process.run import run_clean, run_cleanup
+        from personalscraper.scraper.run import run_scrape
 
-        # run_process returns (clean, scrape, cleanup) as a tuple
-        # We wrap it in _run_step calls for individual timing/error handling
-        def _run_clean_and_scrape_and_cleanup():
-            return run_process(
+        self._run_step(
+            "clean",
+            lambda: run_clean(self.settings, dry_run=self.dry_run),
+            report,
+        )
+
+        self._run_step(
+            "scrape",
+            lambda: run_scrape(
                 self.settings,
                 dry_run=self.dry_run,
                 interactive=self.interactive,
-            )
+            ),
+            report,
+        )
 
-        try:
-            clean_report, scrape_report, cleanup_report = _run_clean_and_scrape_and_cleanup()
-            report.add_step("clean", clean_report)
-            self._log_step_summary("clean", clean_report)
-            report.add_step("scrape", scrape_report)
-            self._log_step_summary("scrape", scrape_report)
-            report.add_step("cleanup", cleanup_report)
-            self._log_step_summary("cleanup", cleanup_report)
-        except Exception as exc:
-            self._log.exception("Process phase failed fatally")
-            error_msg = f"{type(exc).__name__}: {exc}"
-            # Add error reports for any missing steps
-            for step_name in ("clean", "scrape", "cleanup"):
-                if step_name not in report.steps:
-                    report.add_step(
-                        step_name,
-                        StepReport(name=step_name, error_count=1,
-                                   details=[f"Fatal: {error_msg}"]),
-                    )
-            self.console.print(f"   [red]FATAL: {error_msg}[/red]", highlight=False)
+        self._run_step(
+            "cleanup",
+            lambda: run_cleanup(self.settings, dry_run=self.dry_run),
+            report,
+        )
 
     def _check_temp_empty_gate(self) -> None:
         """Gate: verify 097-TEMP is empty after sort.
@@ -216,39 +212,6 @@ class Pipeline:
                 f"   [yellow]! 097-TEMP not empty: {len(remaining)} files remain[/yellow]",
                 highlight=False,
             )
-
-    def _log_step_summary(self, name: str, step_report: StepReport) -> None:
-        """Log a brief console summary for a process sub-step.
-
-        Used by _run_process_phase to show inline feedback for
-        clean/scrape/cleanup steps without full _run_step wrapping.
-
-        Args:
-            name: Step name for display.
-            step_report: Completed StepReport.
-        """
-        icon = self._step_icon(name)
-        self.console.print(f"\n{icon} [bold]{name.upper()}[/bold]", highlight=False)
-        ok = step_report.success_count
-        skip = step_report.skip_count
-        err = step_report.error_count
-        parts = []
-        if ok:
-            parts.append(f"[green]{ok} OK[/green]")
-        if skip:
-            parts.append(f"[yellow]{skip} skip[/yellow]")
-        if err:
-            parts.append(f"[red]{err} err[/red]")
-        summary = ", ".join(parts) if parts else "[dim]nothing to do[/dim]"
-        self.console.print(f"   {summary}", highlight=False)
-
-        if self.verbose:
-            for detail in step_report.details:
-                if "skipped_already_done" in detail:
-                    continue
-                self.console.print(f"   [dim]{detail}[/dim]", highlight=False)
-            for warning in step_report.warnings:
-                self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
 
     def _step_icon(self, name: str) -> str:
         """Return the step number indicator for console output.

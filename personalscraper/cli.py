@@ -191,7 +191,12 @@ def process(
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive)
+        try:
+            clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive)
+        except Exception as exc:
+            console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
+            logging.getLogger("pipeline").exception("Process command failed")
+            raise typer.Exit(1)
 
         for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
             console.print(

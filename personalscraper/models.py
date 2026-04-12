@@ -45,7 +45,7 @@ class StepReport:
     into a StepReport before returning.
 
     Attributes:
-        name: Step identifier ("ingest", "sort", "scrape", "verify", "dispatch").
+        name: Step identifier ("ingest", "sort", "clean", "scrape", "cleanup", "verify", "dispatch").
         success_count: Number of successfully processed items.
         skip_count: Number of skipped items.
         error_count: Number of failed items.
@@ -63,7 +63,7 @@ class StepReport:
 
 @dataclass
 class PipelineReport:
-    """Aggregated report for a full pipeline run (V6).
+    """Aggregated report for a full pipeline run (V6, extended in V9).
 
     Collects StepReports from each pipeline step and provides
     summary methods for notifications and console display.

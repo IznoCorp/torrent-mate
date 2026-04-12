@@ -92,8 +92,8 @@ class MediaChecker:
         """Run all quality checks on a movie directory.
 
         Checks: video_present, not_sample, dir_naming, nfo_present,
-        nfo_valid, nfo_ids, artwork_poster, artwork_landscape,
-        streamdetails, category.
+        nfo_valid, nfo_ids, poster_present, artwork_landscape,
+        streamdetails, no_empty_dirs, category.
 
         Args:
             movie_dir: Path to the movie directory.
@@ -228,8 +228,9 @@ class MediaChecker:
         """Run all quality checks on a TV show directory.
 
         Checks: video_present, dir_naming, nfo_present, nfo_valid,
-        nfo_ids, artwork_poster, artwork_landscape, season_structure,
-        season_posters, episode_nfo, streamdetails, category.
+        nfo_ids, poster_present, artwork_landscape, season_structure,
+        season_posters, episode_renamed, episode_nfo, no_empty_dirs,
+        category.
 
         Args:
             show_dir: Path to the TV show directory.

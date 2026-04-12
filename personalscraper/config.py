@@ -1,7 +1,7 @@
 """Pipeline configuration via pydantic-settings.
 
 Loads settings from environment variables and .env file.
-Single source of truth for all pipeline configuration (V0-V8).
+Single source of truth for all pipeline configuration (V0-V9).
 """
 
 from functools import lru_cache

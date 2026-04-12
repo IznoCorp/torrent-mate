@@ -43,37 +43,44 @@ _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 def _merge_dirs(source: Path, target: Path) -> int:
     """Merge contents of source directory into target, then remove source.
 
-    Files in source that already exist in target are replaced (newer wins).
-    Subdirectories are merged recursively. Used to deduplicate folders
-    like "Shrinking" + "Shrinking (2023)".
+    Files in source that already exist in target are replaced
+    (source always wins). Subdirectories are merged recursively.
+    Per-item errors are logged and skipped — the merge continues
+    with remaining items.
 
     Args:
         source: Directory to merge from (will be removed after).
         target: Directory to merge into (must exist).
 
     Returns:
-        Number of items moved.
+        Number of items successfully moved.
     """
     import shutil as _shutil
 
     moved = 0
     for item in source.iterdir():
         dest = target / item.name
-        if item.is_dir() and dest.is_dir():
-            # Recursive merge for subdirectories (e.g. Saison 01/)
-            moved += _merge_dirs(item, dest)
-        else:
-            # Move file/dir, replacing if exists
-            if dest.exists():
-                if dest.is_dir():
-                    _shutil.rmtree(dest)
-                else:
-                    dest.unlink()
-            _shutil.move(str(item), str(dest))
-            moved += 1
+        try:
+            if item.is_dir() and dest.is_dir():
+                # Recursive merge for subdirectories (e.g. Saison 01/)
+                moved += _merge_dirs(item, dest)
+            else:
+                # Move file/dir, replacing if exists
+                if dest.exists():
+                    if dest.is_dir():
+                        _shutil.rmtree(dest)
+                    else:
+                        dest.unlink()
+                _shutil.move(str(item), str(dest))
+                moved += 1
+        except (OSError, _shutil.Error) as exc:
+            logger.warning("Merge failed for %s → %s: %s", item.name, dest, exc)
     # Remove empty source after merge
-    if source.exists() and not any(source.iterdir()):
-        source.rmdir()
+    try:
+        if source.exists() and not any(source.iterdir()):
+            source.rmdir()
+    except OSError as exc:
+        logger.warning("Could not remove source dir %s: %s", source.name, exc)
     return moved
 
 
@@ -220,7 +227,7 @@ class Scraper:
 
         Args:
             match_title: Title from the match result (API default).
-            api_data: Full movie/show data from TMDB/TVDB API.
+            api_data: Full movie/show data from TMDB API.
             media_type: "movie" or "tvshow".
 
         Returns:
@@ -312,17 +319,22 @@ class Scraper:
         if movie_dir.name != clean_name:
             new_path = movie_dir.parent / clean_name
             if not self.dry_run:
-                if new_path.exists():
-                    count = _merge_dirs(movie_dir, new_path)
-                    logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, count)
-                else:
-                    movie_dir.rename(new_path)
-                    logger.info("Renamed folder: %s → %s", movie_dir.name, clean_name)
-                movie_dir = new_path
-                result.media_path = new_path
-                title = resolved_title
-                nfo_name = self.patterns.format("movie_nfo", Title=title)
-                nfo_path = movie_dir / nfo_name
+                try:
+                    if new_path.exists():
+                        count = _merge_dirs(movie_dir, new_path)
+                        logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, count)
+                    else:
+                        movie_dir.rename(new_path)
+                        logger.info("Renamed folder: %s → %s", movie_dir.name, clean_name)
+                    movie_dir = new_path
+                    result.media_path = new_path
+                    title = resolved_title
+                    nfo_name = self.patterns.format("movie_nfo", Title=title)
+                    nfo_path = movie_dir / nfo_name
+                except (OSError, Exception) as exc:
+                    result.error = f"Rename/merge failed: {exc}"
+                    logger.error("Failed to rename %s → %s: %s", movie_dir.name, clean_name, exc)
+                    return result
             else:
                 action = "merge into" if new_path.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, movie_dir.name, clean_name)
@@ -510,14 +522,18 @@ class Scraper:
         if show_dir.name != canonical:
             new_dir = show_dir.parent / canonical
             if not self.dry_run:
-                if new_dir.exists():
-                    # Duplicate detected — merge contents into existing folder
-                    count = _merge_dirs(show_dir, new_dir)
-                    logger.info("Merged duplicate: %s → %s (%d items)", title, canonical, count)
-                else:
-                    show_dir.rename(new_dir)
-                    logger.info("Renamed folder: %s → %s", title, canonical)
-                show_dir = new_dir
+                try:
+                    if new_dir.exists():
+                        count = _merge_dirs(show_dir, new_dir)
+                        logger.info("Merged duplicate: %s → %s (%d items)", title, canonical, count)
+                    else:
+                        show_dir.rename(new_dir)
+                        logger.info("Renamed folder: %s → %s", title, canonical)
+                    show_dir = new_dir
+                except (OSError, Exception) as exc:
+                    result.error = f"Rename/merge failed: {exc}"
+                    logger.error("Failed to rename %s → %s: %s", title, canonical, exc)
+                    return result
             else:
                 action = "merge into" if new_dir.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, title, canonical)
