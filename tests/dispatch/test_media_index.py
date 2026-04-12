@@ -154,3 +154,49 @@ class TestMediaIndexRemoveStale:
         removed = idx.remove_stale([])
         assert removed == 1
         assert idx.count == 1
+
+
+# ---------------------------------------------------------------------------
+# Anti-false-positive fuzzy guards
+# ---------------------------------------------------------------------------
+
+
+class TestFuzzyGuards:
+    """Test that fuzzy_match_score guards prevent false positives in find()."""
+
+    def test_matrix_does_not_match_matrix_reloaded(self, tmp_path: Path) -> None:
+        """'The Matrix' should NOT match 'The Matrix Reloaded' (length guard)."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.add(IndexEntry(
+            name="The Matrix Reloaded (2003)", disk="Disk1",
+            category="films", path="/d/films/The Matrix Reloaded (2003)",
+            media_type="movie",
+        ))
+
+        result = idx.find("The Matrix (1999)", "movie")
+        assert result is None
+
+    def test_alien_does_not_match_aliens(self, tmp_path: Path) -> None:
+        """'Alien (1979)' should NOT match 'Aliens (1986)' (year + threshold)."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.add(IndexEntry(
+            name="Aliens (1986)", disk="Disk1",
+            category="films", path="/d/films/Aliens (1986)",
+            media_type="movie",
+        ))
+
+        result = idx.find("Alien (1979)", "movie")
+        assert result is None
+
+    def test_jumanji_matches_jumanji(self, tmp_path: Path) -> None:
+        """'Jumanji (1995)' SHOULD match 'Jumanji (1995)' in the index."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.add(IndexEntry(
+            name="Jumanji (1995)", disk="Disk1",
+            category="films", path="/d/films/Jumanji (1995)",
+            media_type="movie",
+        ))
+
+        result = idx.find("Jumanji (1995)", "movie")
+        assert result is not None
+        assert result.name == "Jumanji (1995)"

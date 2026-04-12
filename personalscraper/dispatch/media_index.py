@@ -1,8 +1,8 @@
 """JSON-based media index for cross-disk media tracking.
 
 Maintains an index of all media items across the 4 storage disks.
-Supports exact lookup, fuzzy matching (via rapidfuzz), atomic save,
-and full rebuild from disk scans.
+Supports exact lookup, fuzzy matching (via fuzzy_match_score), atomic
+save, and full rebuild from disk scans.
 
 Index file: ~/.personalscraper/media_index.json
 """
@@ -10,6 +10,7 @@ Index file: ~/.personalscraper/media_index.json
 import json
 import logging
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,22 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 INDEX_PATH = Path("~/.personalscraper/media_index.json").expanduser()
+
+
+_YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
+
+
+def _extract_year(name: str) -> int | None:
+    """Extract a year (19xx/20xx) from a media name.
+
+    Args:
+        name: Media directory name, possibly containing a year.
+
+    Returns:
+        The year as int, or None if not found.
+    """
+    match = _YEAR_PATTERN.search(name)
+    return int(match.group(1)) if match else None
 
 
 def _normalize_key(name: str) -> str:
@@ -107,7 +124,8 @@ class MediaIndex:
         """Find a media entry by name.
 
         Strategy: exact normalized lookup first, then fuzzy matching
-        with rapidfuzz WRatio (threshold >= 85).
+        with anti-false-positive guards (year, length ratio, adaptive
+        threshold via fuzzy_match_score).
 
         Args:
             name: Media directory name to search.
@@ -124,22 +142,24 @@ class MediaIndex:
             if entry.media_type == media_type:
                 return entry
 
-        # Fuzzy fallback
+        # Fuzzy fallback with anti-false-positive guards
         try:
-            from rapidfuzz import fuzz
+            from personalscraper.text_utils import fuzzy_match_score
 
-            from personalscraper.text_utils import media_processor
-
+            name_year = _extract_year(name)
             best_score = 0.0
             best_entry = None
 
-            for entry_key, entry in self._entries.items():
+            for _entry_key, entry in self._entries.items():
                 if entry.media_type != media_type:
                     continue
-                score = fuzz.WRatio(
-                    key, entry_key, processor=media_processor,
+                entry_year = _extract_year(entry.name)
+                score = fuzzy_match_score(
+                    name, entry.name,
+                    query_year=name_year,
+                    candidate_year=entry_year,
                 )
-                if score >= 85 and score > best_score:
+                if score is not None and score > best_score:
                     best_score = score
                     best_entry = entry
 
