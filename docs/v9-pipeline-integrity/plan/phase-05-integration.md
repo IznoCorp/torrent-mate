@@ -8,13 +8,13 @@ Integrer tous les composants V9 dans le CLI, mettre a jour le notifier Telegram,
 
 ### 9.5.1 — CLI run() final wiring
 
-- [ ] `cli.py:run()` passe `interactive` a Pipeline
-- [ ] Ajouter `--interactive` a la commande `run` (en plus de `scrape`)
-- [ ] Panel final avec 7 lignes : ingest, sort, clean, scrape, cleanup, verify, dispatch
-- [ ] Chaque StepReport de run_process() affiché via `_run_step()` dans Pipeline
-- [ ] `PipelineReport.to_html()` mis a jour pour 7 steps (Telegram)
-- [ ] `step_icons` dans `_run_step` etendu a 7 steps (1/7 a 7/7)
-- [ ] Tests : panel 7 lignes, Telegram HTML contient les 7 steps
+- [x] `cli.py:run()` passe `interactive` a Pipeline (done in 9.1.3)
+- [x] Ajouter `--interactive` a la commande `run` (done in 9.1.3)
+- [x] Panel final avec 7 lignes : ingest, sort, clean, scrape, cleanup, verify, dispatch (done in 9.1.3)
+- [x] Chaque StepReport de run_process() affiché via `_log_step_summary()` dans Pipeline (done in 9.3.2)
+- [x] `PipelineReport.to_html()` mis a jour pour 7 steps (done in 9.1.3)
+- [x] `step_icons` dans `_run_step` etendu a 7 steps (done in 9.1.1)
+- [x] Tests : panel 7 lignes, Telegram HTML contient les 7 steps (done in 9.1.3)
 
 **Commit** : `v9.5.1: Wire 7-step pipeline in CLI with --interactive`
 
