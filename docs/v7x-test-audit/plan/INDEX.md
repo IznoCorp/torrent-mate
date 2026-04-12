@@ -12,7 +12,7 @@
 | ·   | _Contrôle de cohérence P2→P3_      |                                                                        | [x]    |
 | 3   | Génération golden files (MANUELLE) | [phase-03-golden-generation.md](phase-03-golden-generation.md)         | [x]    |
 | ·   | _Contrôle de cohérence P3→P4_      |                                                                        | [x]    |
-| 4   | Intégration E2E                    | [phase-04-e2e-integration.md](phase-04-e2e-integration.md)             | [ ]    |
+| 4   | Intégration E2E                    | [phase-04-e2e-integration.md](phase-04-e2e-integration.md)             | [x]    |
 
 ## Dépendances entre phases
 
@@ -51,6 +51,6 @@ Ordre imposé : P1, P2, P3, P4
 
 ### Après Phase 4 (E2E integration)
 
-- [ ] Les 3 tests E2E pipeline utilisent les golden files
-- [ ] Les anciennes assertions restent en place (rétrocompatibilité)
-- [ ] Un test E2E sans golden file (nouveau torrent) continue de fonctionner avec les smoke tests seuls
+- [x] Les 2 tests E2E pipeline (movie + tvshow) utilisent les golden files
+- [x] Les anciennes assertions restent en place (rétrocompatibilité)
+- [x] Un test E2E sans golden file continue de fonctionner (graceful skip avec log)
