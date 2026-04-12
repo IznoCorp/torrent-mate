@@ -134,6 +134,11 @@ class TVDBClient:
         self._session.mount("https://", adapter)
         self._session.headers.update({"Accept": "application/json"})
 
+        # Circuit breaker for sustained outage detection (above tenacity)
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+
+        self._circuit = CircuitBreaker(name="TVDB")
+
     def login(self) -> None:
         """Authenticate with the TVDB API and store the JWT token.
 
@@ -177,6 +182,11 @@ class TVDBClient:
         Auto-login on first call or re-login on 401 (expired token).
         Retries on 429/5xx with exponential backoff (3 attempts max).
 
+        Circuit breaker check runs before the HTTP call — if the provider
+        is considered down (OPEN state), CircuitOpenError is raised
+        immediately without making a network request. The 401 re-login
+        is NOT blocked by the circuit breaker (401 is not a circuit error).
+
         Args:
             endpoint: API endpoint path (e.g. "/search").
             params: Optional query parameters.
@@ -185,39 +195,63 @@ class TVDBClient:
             The "data" field from the TVDB response envelope.
 
         Raises:
+            CircuitOpenError: If the circuit breaker is OPEN.
             TVDBError: On TVDB errors after re-login attempt.
             requests.exceptions.HTTPError: On non-TVDB HTTP errors.
             requests.exceptions.ConnectionError: On network errors (after retries).
         """
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+        # Fail fast if provider is down
+        if not self._circuit.can_proceed():
+            raise CircuitOpenError("TVDB", self._circuit._remaining_cooldown())
+
         # Auto-login if no token
         if self._token is None:
             self.login()
 
-        resp = self._session.get(
-            f"{self.BASE_URL}{endpoint}",
-            params=params or {},
-            timeout=15,
-        )
-
-        # Re-login on 401 (token expired) — one retry
-        if resp.status_code == 401:
-            logger.warning("TVDB token expired, re-authenticating")
-            self.login()
+        try:
             resp = self._session.get(
                 f"{self.BASE_URL}{endpoint}",
                 params=params or {},
                 timeout=15,
             )
 
-        if not resp.ok:
-            try:
-                error_data = resp.json()
-                msg = error_data.get("message", resp.reason)
-            except (ValueError, KeyError):
-                msg = resp.reason
-            raise TVDBError(resp.status_code, msg)
+            # Re-login on 401 (token expired) — one retry
+            # 401 is NOT a circuit error — it's a normal auth flow
+            if resp.status_code == 401:
+                logger.warning("TVDB token expired, re-authenticating")
+                self.login()
+                resp = self._session.get(
+                    f"{self.BASE_URL}{endpoint}",
+                    params=params or {},
+                    timeout=15,
+                )
 
-        return resp.json().get("data", {})
+            if not resp.ok:
+                try:
+                    error_data = resp.json()
+                    msg = error_data.get("message", resp.reason)
+                except (ValueError, KeyError):
+                    msg = resp.reason
+                raise TVDBError(resp.status_code, msg)
+
+            self._circuit.record_success()
+            return resp.json().get("data", {})
+        except CircuitOpenError:
+            raise
+        except Exception as exc:
+            self._circuit.record_failure(exc)
+            raise
+
+    @property
+    def circuit(self):
+        """Expose circuit breaker for scraper fallback logic.
+
+        Returns:
+            The CircuitBreaker instance for this client.
+        """
+        return self._circuit
 
     def _map_lang(self, lang: str) -> str:
         """Convert 2-char language code to 3-char TVDB code.
