@@ -7,14 +7,21 @@ import pytest
 from tests.e2e.assertions import (
     assert_cleanup_complete,
     assert_dispatch_complete,
+    assert_dispatch_golden,
     assert_ingest_complete,
     assert_pipeline_report,
     assert_scrape_complete,
+    assert_scrape_golden,
     assert_sort_complete,
+    assert_structure_golden,
     assert_verify_complete,
 )
+from tests.e2e.golden import GoldenFile
 from tests.e2e.markers import place_marker
 from tests.e2e.registry import TestRegistry
+
+# Keep golden imports accessible to test classes below
+__all_golden = [assert_scrape_golden, assert_dispatch_golden, assert_structure_golden, GoldenFile]
 
 
 class TestAssertIngestComplete:
@@ -162,3 +169,201 @@ class TestAssertCleanupComplete:
         reg.created_paths = [str(leftover)]
         with pytest.raises(AssertionError, match="still exists"):
             assert_cleanup_complete(reg)
+
+
+# ---------------------------------------------------------------------------
+# Golden file assertions (V7.x)
+# ---------------------------------------------------------------------------
+
+
+def _make_golden_movie(tmp_path, title="Movie", year=2024, tmdb_id="123"):
+    """Create a valid movie dir + matching golden file."""
+    import xml.etree.ElementTree as ET
+
+    media_dir = tmp_path / f"{title} ({year})"
+    media_dir.mkdir()
+    (media_dir / f"{title}.mkv").write_bytes(b"\x00" * 1024)
+
+    root = ET.Element("movie")
+    ET.SubElement(root, "title").text = title
+    ET.SubElement(root, "year").text = str(year)
+    ET.SubElement(root, "tmdbid").text = tmdb_id
+    ET.ElementTree(root).write(media_dir / f"{title}.nfo", encoding="unicode")
+
+    (media_dir / f"{title}-poster.jpg").write_bytes(b"\xff" * 20000)
+
+    golden = GoldenFile(
+        name=f"{title.lower()}_{year}",
+        nfo={
+            "media_type": "movie",
+            "folder_name_pattern": f"{title} ({year})",
+            "required_nfo_tags": ["title", "year", "tmdbid"],
+            "nfo_invariants": {"title": title, "year": str(year), "tmdbid": tmdb_id},
+        },
+        artwork={
+            "required": [f"{title}-poster.jpg"],
+            "min_poster_size_bytes": 10000,
+        },
+        structure={
+            "required_files": ["*.mkv", "*.nfo"],
+            "required_dirs": [],
+            "forbidden_patterns": ["*.txt", "*.url"],
+        },
+        dispatch={
+            "action": "moved",
+            "eligible_disks": ["Disk1", "Disk3"],
+            "destination_contains": f"films/{title} ({year})",
+        },
+    )
+    return media_dir, golden
+
+
+class TestAssertScrapeGolden:
+    """Tests for assert_scrape_golden."""
+
+    def test_valid_passes(self, tmp_path):
+        """All checks pass on valid movie."""
+        media_dir, golden = _make_golden_movie(tmp_path)
+        assert_scrape_golden(media_dir, golden)
+
+    def test_missing_nfo_tag(self, tmp_path):
+        """Missing required NFO tag raises AssertionError."""
+        media_dir, golden = _make_golden_movie(tmp_path)
+        golden.nfo["required_nfo_tags"].append("imdbid")
+        with pytest.raises(AssertionError, match="imdbid"):
+            assert_scrape_golden(media_dir, golden)
+
+    def test_wrong_invariant(self, tmp_path):
+        """Wrong NFO invariant value raises AssertionError."""
+        media_dir, golden = _make_golden_movie(tmp_path)
+        golden.nfo["nfo_invariants"]["title"] = "WrongTitle"
+        with pytest.raises(AssertionError, match="WrongTitle"):
+            assert_scrape_golden(media_dir, golden)
+
+    def test_missing_artwork(self, tmp_path):
+        """Missing required artwork raises AssertionError."""
+        media_dir, golden = _make_golden_movie(tmp_path)
+        golden.artwork["required"].append("fanart.jpg")
+        with pytest.raises(AssertionError, match="fanart.jpg"):
+            assert_scrape_golden(media_dir, golden)
+
+    def test_empty_golden_skips(self, tmp_path):
+        """Empty golden nfo/artwork should not raise."""
+        media_dir = tmp_path / "Empty (2024)"
+        media_dir.mkdir()
+        golden = GoldenFile(name="empty", nfo={}, artwork={}, structure={}, dispatch={})
+        assert_scrape_golden(media_dir, golden)
+
+
+class TestAssertDispatchGolden:
+    """Tests for assert_dispatch_golden."""
+
+    def test_correct_dispatch(self):
+        """Matching dispatch result passes."""
+        result = MagicMock()
+        result.action = "moved"
+        result.disk = "Disk1"
+        result.destination = "/Volumes/Disk1/medias/films/Movie (2024)"
+        result.reason = None
+
+        golden = GoldenFile(
+            name="test", nfo={}, artwork={}, structure={},
+            dispatch={
+                "action": "moved",
+                "eligible_disks": ["Disk1", "Disk3"],
+                "destination_contains": "films/Movie (2024)",
+            },
+        )
+        assert_dispatch_golden(result, golden)
+
+    def test_wrong_action(self):
+        """Wrong action raises AssertionError."""
+        result = MagicMock()
+        result.action = "replaced"
+        result.disk = "Disk1"
+        result.destination = "/some/path"
+        result.reason = None
+
+        golden = GoldenFile(
+            name="test", nfo={}, artwork={}, structure={},
+            dispatch={"action": "moved"},
+        )
+        with pytest.raises(AssertionError, match="moved"):
+            assert_dispatch_golden(result, golden)
+
+    def test_wrong_disk(self):
+        """Disk not in eligible list raises AssertionError."""
+        result = MagicMock()
+        result.action = "moved"
+        result.disk = "Disk4"
+        result.destination = "/some/path"
+        result.reason = None
+
+        golden = GoldenFile(
+            name="test", nfo={}, artwork={}, structure={},
+            dispatch={"eligible_disks": ["Disk1", "Disk3"]},
+        )
+        with pytest.raises(AssertionError, match="Disk4"):
+            assert_dispatch_golden(result, golden)
+
+    def test_error_action_fails(self):
+        """Error action always raises."""
+        result = MagicMock()
+        result.action = "error"
+        result.disk = None
+        result.destination = None
+        result.reason = "rsync failed"
+
+        golden = GoldenFile(
+            name="test", nfo={}, artwork={}, structure={},
+            dispatch={"action": "moved"},
+        )
+        with pytest.raises(AssertionError, match="error"):
+            assert_dispatch_golden(result, golden)
+
+
+class TestAssertStructureGolden:
+    """Tests for assert_structure_golden."""
+
+    def test_valid_structure(self, tmp_path):
+        """Valid structure passes all checks."""
+        media_dir, golden = _make_golden_movie(tmp_path)
+        assert_structure_golden(media_dir, golden)
+
+    def test_forbidden_file_fails(self, tmp_path):
+        """Forbidden file pattern raises AssertionError."""
+        media_dir, golden = _make_golden_movie(tmp_path)
+        (media_dir / "readme.txt").write_text("junk")
+        with pytest.raises(AssertionError, match="forbidden"):
+            assert_structure_golden(media_dir, golden)
+
+    def test_missing_required_file(self, tmp_path):
+        """Missing required file pattern raises AssertionError."""
+        media_dir = tmp_path / "Empty (2024)"
+        media_dir.mkdir()
+        golden = GoldenFile(
+            name="test", nfo={}, artwork={},
+            structure={"required_files": ["*.mkv"]},
+            dispatch={},
+        )
+        with pytest.raises(AssertionError, match="\\*.mkv"):
+            assert_structure_golden(media_dir, golden)
+
+    def test_missing_required_dir(self, tmp_path):
+        """Missing required directory raises AssertionError."""
+        media_dir = tmp_path / "Show (2024)"
+        media_dir.mkdir()
+        golden = GoldenFile(
+            name="test", nfo={}, artwork={},
+            structure={"required_dirs": ["Saison 01"]},
+            dispatch={},
+        )
+        with pytest.raises(AssertionError, match="Saison 01"):
+            assert_structure_golden(media_dir, golden)
+
+    def test_empty_golden_skips(self, tmp_path):
+        """Empty structure golden should not raise."""
+        media_dir = tmp_path / "Empty (2024)"
+        media_dir.mkdir()
+        golden = GoldenFile(name="test", nfo={}, artwork={}, structure={}, dispatch={})
+        assert_structure_golden(media_dir, golden)
