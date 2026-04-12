@@ -2,6 +2,10 @@
 
 Fixtures provide: unique session UUID, test registry, qBittorrent client,
 and torrent file discovery. All skip gracefully if dependencies are unavailable.
+
+Logging is initialized once per session so that all pipeline steps
+(ingest, sort, scrape, verify, dispatch) produce structured JSON logs
+in logs/personalscraper.json — same as the real CLI.
 """
 
 import uuid
@@ -9,10 +13,22 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.logger import configure_logging
 from tests.e2e.registry import TestRegistry
 
 # .torrent files live in assets/torrents/ at the project root
 ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "assets" / "torrents"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _e2e_logging():
+    """Initialize structured logging for E2E tests.
+
+    Calls configure_logging() once per session so that all pipeline
+    steps produce JSON logs in logs/personalscraper.json — same output
+    as the real CLI.
+    """
+    configure_logging(verbose=True)
 
 
 @pytest.fixture(scope="session")

@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V6 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications).
+V0-V7 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests).
 
 ## Commit Convention
 
@@ -79,7 +79,7 @@ df -h /Volumes/Disk{1,2,3,4}
 1. **Torrent download** — completed torrents land in `/Volumes/IznoServer SSD/torrents/complete`
 2. **Initial sort (`torrent-sort`)** — files are deposited at the root of `A TRIER/`, then `torrent-sort` dispatches them into the correct subdirectories (001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.) based on file type detection
 3. **Rename & clean** — strip release-group tags, codec info, resolution labels from filenames
-4. **Scrape metadata** — done via MediaElch (external GUI app), produces `.nfo` files and artwork (poster, fanart, banner, clearlogo, etc.)
+4. **Scrape metadata** (`personalscraper scrape`) — automated via TMDB/TVDB APIs (V3), produces `.nfo` files and artwork. MediaElch can still be used manually as fallback.
 5. **Move to storage** — files go to one of the 4 destination disks
 
 ### torrent-sort command
@@ -110,9 +110,9 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 - **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
 
-## Pipeline Automation (in progress)
+## Pipeline Automation
 
-Documentation and implementation plans live in `docs/`:
+All versions (V0–V7) are implemented. Documentation and plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
 - `docs/v0-project-setup/` through `docs/v7-e2e-tests/` — Per-version brainstorming, design, and phased plans
@@ -168,8 +168,20 @@ A TRIER/
 ├── 006-ANDROID/         # Android apps staging (currently empty)
 ├── 097-TEMP/            # Temporary workspace
 ├── 098-AUTRES/          # Miscellaneous
-├── personalscraper/     # Python package (V0-V6)
-├── tests/               # pytest tests
+├── personalscraper/     # Python package
+│   ├── ingest/          # V1: qBittorrent → staging
+│   ├── sorter/          # V2: guessit + strategies → category folders
+│   ├── scraper/         # V3: TMDB/TVDB matching, NFO, artwork, episodes
+│   ├── verify/          # V4: quality gate, fixer, genre categorization
+│   ├── dispatch/        # V5: disk scanner, media index, rsync transfer
+│   ├── cli.py           # Typer CLI entry point
+│   ├── config.py        # pydantic-settings
+│   ├── logger.py        # structlog dual output (console + JSON)
+│   ├── models.py        # StepReport, SortResult
+│   ├── notifier.py      # V6: Telegram notifications
+│   └── genre_mapper.py  # Genre → category mapping (V4+V5)
+├── tests/               # pytest tests (652 unit + 3 E2E)
+│   └── e2e/             # Real torrent E2E (pytest -m e2e_torrent)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
 ├── .env.example         # Config template
@@ -214,16 +226,22 @@ Show Name (Year)/
 Season folders use French naming: `Saison 01`, `Saison 02`, etc.
 Episode files follow the pattern: `S{nn}E{nn} - {Episode Title}.{ext}`
 
-## Scripts
+## Testing
 
-### torrent-sort (FileMate) — current
+```bash
+# Unit tests (652 tests, ~6s)
+make test                           # or: python -m pytest -v
+python -m pytest tests/ -x -q       # stop on first failure
 
-Primary sorting tool. See [torrent-sort command](#torrent-sort-command) above.
+# E2E tests (real torrents — manual only, requires qBittorrent running)
+python -m pytest -m e2e_torrent -v -s   # downloads real torrents, calls TMDB/TVDB APIs
 
-### 099-SCRIPTS/ — archived (V0 phase 4)
+# Lint + format
+make lint                           # ruff check
+make format                         # ruff format + fix
+```
 
-Legacy scripts archived to `~/dev/099-SCRIPTS-archive/` and removed from repo.
-Useful patterns were extracted into V1-V3 designs.
+E2E tests use `.torrent` files from `assets/torrents/`. Dispatch always runs in dry-run mode — storage disks are never modified. All staging artifacts and qBit test torrents are cleaned up after each test.
 
 ## Language
 
