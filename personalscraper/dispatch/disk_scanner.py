@@ -136,11 +136,16 @@ def choose_disk(
     category: str,
     min_free_gb: float,
     item_size_gb: float = 0,
+    allow_create_category: bool = False,
 ) -> DiskStatus | None:
     """Choose the best disk for a media item.
 
-    Filters disks by: mounted, supports the category, and has enough
-    free space. Returns the disk with the most free space.
+    Two-pass strategy:
+    1. Disks that have the category AND enough space (most free wins)
+    2. If none found AND allow_create_category=True: any mounted disk
+       with enough space (the category dir will be created by the caller)
+
+    The category directory is NOT created here — just the disk is chosen.
 
     Threshold formula: free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 
@@ -149,12 +154,15 @@ def choose_disk(
         category: Media category to dispatch.
         min_free_gb: Minimum free space threshold.
         item_size_gb: Size of the item to dispatch.
+        allow_create_category: If True, fall back to any disk with space
+            when no disk has the category. Used for new items only.
 
     Returns:
         Best DiskStatus, or None if no disk qualifies.
     """
     threshold = max(min_free_gb, item_size_gb * 1.5)
 
+    # Pass 1: disks with the category and enough space
     eligible = [
         d for d in disks
         if d.is_mounted
@@ -162,9 +170,23 @@ def choose_disk(
         and d.free_space_gb >= threshold
     ]
 
-    if not eligible:
-        return None
+    if eligible:
+        eligible.sort(key=lambda d: d.free_space_gb, reverse=True)
+        return eligible[0]
 
-    # Sort by free space (most free first)
-    eligible.sort(key=lambda d: d.free_space_gb, reverse=True)
-    return eligible[0]
+    # Pass 2: any mounted disk with enough space (create category)
+    if allow_create_category:
+        fallback = [
+            d for d in disks
+            if d.is_mounted
+            and d.free_space_gb >= threshold
+        ]
+        if fallback:
+            fallback.sort(key=lambda d: d.free_space_gb, reverse=True)
+            logger.info(
+                "No disk has category '%s' — falling back to %s (most free)",
+                category, fallback[0].config.name,
+            )
+            return fallback[0]
+
+    return None

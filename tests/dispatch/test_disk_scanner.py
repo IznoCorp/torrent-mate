@@ -86,3 +86,74 @@ class TestChooseDisk:
         result = choose_disk(disks, "series animes", min_free_gb=10)
         assert result is not None
         assert result.config.name == "Disk2"
+
+
+# ---------------------------------------------------------------------------
+# allow_create_category fallback
+# ---------------------------------------------------------------------------
+
+
+class TestChooseDiskCreateCategory:
+    """Tests for allow_create_category fallback logic."""
+
+    @staticmethod
+    def _disk(name: str, free_gb: float, cats: list[str]) -> DiskStatus:
+        return DiskStatus(
+            config=DiskConfig(name, Path(f"/Volumes/{name}/medias"), cats),
+            free_space_gb=free_gb,
+            is_mounted=True,
+        )
+
+    def test_default_false_same_behavior(self) -> None:
+        """Default (False) has same behavior as before — no fallback."""
+        disks = [self._disk("Disk1", 500, ["films"])]
+        result = choose_disk(disks, "spectacles", min_free_gb=10)
+        assert result is None
+
+    def test_create_category_finds_disk_with_space(self) -> None:
+        """With allow_create_category=True, falls back to any disk with space."""
+        disks = [
+            self._disk("Disk1", 100, ["films"]),
+            self._disk("Disk2", 500, ["series"]),
+        ]
+        # "spectacles" not on any disk — fallback picks most free
+        result = choose_disk(
+            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+        )
+        assert result is not None
+        assert result.config.name == "Disk2"
+
+    def test_create_category_prefers_existing(self) -> None:
+        """Category exists on a disk → uses that disk (pass 1), not fallback."""
+        disks = [
+            self._disk("Disk1", 200, ["films", "spectacles"]),
+            self._disk("Disk2", 500, ["series"]),
+        ]
+        result = choose_disk(
+            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+        )
+        assert result is not None
+        assert result.config.name == "Disk1"
+
+    def test_create_category_full_disk_fallback(self) -> None:
+        """Category exists but disk is full → fall back to another disk."""
+        disks = [
+            self._disk("Disk1", 5, ["spectacles"]),  # has category but full
+            self._disk("Disk2", 500, ["series"]),
+        ]
+        result = choose_disk(
+            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+        )
+        assert result is not None
+        assert result.config.name == "Disk2"
+
+    def test_create_category_all_full_returns_none(self) -> None:
+        """All disks full → returns None even with allow_create_category."""
+        disks = [
+            self._disk("Disk1", 5, ["films"]),
+            self._disk("Disk2", 3, ["series"]),
+        ]
+        result = choose_disk(
+            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+        )
+        assert result is None
