@@ -238,7 +238,8 @@ class Scraper:
         """Scrape all movies in a directory.
 
         Scans all subdirectories of movies_dir and calls scrape_movie()
-        on each one.
+        on each one. When the TMDB circuit breaker is OPEN, skips
+        remaining movies (no viable fallback for movie metadata).
 
         Args:
             movies_dir: Path to the movies directory (e.g. 001-MOVIES/).
@@ -246,6 +247,8 @@ class Scraper:
         Returns:
             List of ScrapeResult for each processed movie.
         """
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
         results: list[ScrapeResult] = []
 
         if not movies_dir.exists():
@@ -261,9 +264,34 @@ class Scraper:
         logger.info("Processing %d movies in %s", len(subdirs), movies_dir.name)
 
         for movie_dir in subdirs:
+            # Skip if TMDB circuit is OPEN (primary provider for movies)
+            if not self._tmdb.circuit.can_proceed():
+                logger.warning(
+                    "TMDB circuit OPEN, skipping movie: %s", movie_dir.name,
+                )
+                results.append(ScrapeResult(
+                    media_path=movie_dir,
+                    media_type="movie",
+                    action="error",
+                    error="TMDB circuit breaker OPEN",
+                ))
+                continue
+
             try:
                 result = self.scrape_movie(movie_dir)
                 results.append(result)
+            except CircuitOpenError as e:
+                # Circuit opened during this item's processing
+                logger.warning(
+                    "TMDB circuit opened while processing %s: %s",
+                    movie_dir.name, e,
+                )
+                results.append(ScrapeResult(
+                    media_path=movie_dir,
+                    media_type="movie",
+                    action="error",
+                    error=str(e),
+                ))
             except Exception as e:
                 logger.error("Unexpected error processing %s: %s", movie_dir.name, e)
                 results.append(ScrapeResult(
@@ -480,12 +508,18 @@ class Scraper:
     def process_tvshows(self, tvshows_dir: Path) -> list[ScrapeResult]:
         """Scrape all TV shows in a directory.
 
+        When both TVDB and TMDB circuits are OPEN, skips remaining shows.
+        When only TVDB is OPEN, TMDB fallback is used (handled in
+        match_tvshow via CircuitOpenError catch).
+
         Args:
             tvshows_dir: Path to the TV shows directory (e.g. 002-TVSHOWS/).
 
         Returns:
             List of ScrapeResult for each processed show.
         """
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
         results: list[ScrapeResult] = []
 
         if not tvshows_dir.exists():
@@ -500,9 +534,38 @@ class Scraper:
         logger.info("Processing %d TV shows in %s", len(subdirs), tvshows_dir.name)
 
         for show_dir in subdirs:
+            # Skip if both circuits are OPEN (no provider available)
+            if (
+                not self._tvdb.circuit.can_proceed()
+                and not self._tmdb.circuit.can_proceed()
+            ):
+                logger.warning(
+                    "Both TVDB and TMDB circuits OPEN, skipping show: %s",
+                    show_dir.name,
+                )
+                results.append(ScrapeResult(
+                    media_path=show_dir,
+                    media_type="tvshow",
+                    action="error",
+                    error="Both TVDB and TMDB circuit breakers OPEN",
+                ))
+                continue
+
             try:
                 result = self.scrape_tvshow(show_dir)
                 results.append(result)
+            except CircuitOpenError as e:
+                # Both providers went down during this item
+                logger.warning(
+                    "Circuit opened while processing %s: %s",
+                    show_dir.name, e,
+                )
+                results.append(ScrapeResult(
+                    media_path=show_dir,
+                    media_type="tvshow",
+                    action="error",
+                    error=str(e),
+                ))
             except Exception as e:
                 logger.error("Unexpected error processing %s: %s", show_dir.name, e)
                 results.append(ScrapeResult(

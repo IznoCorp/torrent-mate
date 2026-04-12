@@ -505,3 +505,120 @@ class TestScrapeTvshowExtra:
 
         assert len(results) == 1
         assert results[0].action == "error"
+
+
+# ---------------------------------------------------------------------------
+# Circuit breaker fallback
+# ---------------------------------------------------------------------------
+
+
+class TestCircuitBreakerFallback:
+    """Test inter-provider fallback when circuit breakers are OPEN."""
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with real CircuitBreaker instances."""
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            s = Scraper(mock_settings, NamingPatterns())
+        # Replace mock circuits with real ones for testing
+        s._tmdb.circuit = CircuitBreaker(name="TMDB")
+        s._tvdb.circuit = CircuitBreaker(name="TVDB")
+        return s
+
+    def test_process_movies_skips_when_tmdb_circuit_open(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Movies are skipped when TMDB circuit is OPEN."""
+        from personalscraper.scraper.tmdb_client import TMDBError
+
+        movies_dir = tmp_path / "001-MOVIES"
+        movies_dir.mkdir()
+        (movies_dir / "Movie A (2024)").mkdir()
+        (movies_dir / "Movie B (2024)").mkdir()
+
+        # Force TMDB circuit OPEN
+        error = TMDBError(500, 0, "Internal Server Error")
+        for _ in range(5):
+            scraper._tmdb.circuit.record_failure(error)
+
+        results = scraper.process_movies(movies_dir)
+
+        assert len(results) == 2
+        assert all(r.action == "error" for r in results)
+        assert all("circuit breaker OPEN" in (r.error or "") for r in results)
+
+    def test_process_movies_catches_circuit_open_during_scrape(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """CircuitOpenError during scrape_movie is caught gracefully."""
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+        movies_dir = tmp_path / "001-MOVIES"
+        movies_dir.mkdir()
+        (movies_dir / "Movie A (2024)").mkdir()
+
+        with patch.object(
+            scraper, "scrape_movie",
+            side_effect=CircuitOpenError("TMDB", 120.0),
+        ):
+            results = scraper.process_movies(movies_dir)
+
+        assert len(results) == 1
+        assert results[0].action == "error"
+        assert "TMDB" in (results[0].error or "")
+
+    def test_process_tvshows_skips_when_both_circuits_open(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """TV shows are skipped when both TVDB and TMDB circuits are OPEN."""
+        from personalscraper.scraper.tmdb_client import TMDBError
+        from personalscraper.scraper.tvdb_client import TVDBError
+
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        (tvshows_dir / "Show A (2024)").mkdir()
+
+        # Force both circuits OPEN
+        tmdb_err = TMDBError(500, 0, "Internal Server Error")
+        tvdb_err = TVDBError(502, "Bad Gateway")
+        for _ in range(5):
+            scraper._tmdb.circuit.record_failure(tmdb_err)
+            scraper._tvdb.circuit.record_failure(tvdb_err)
+
+        results = scraper.process_tvshows(tvshows_dir)
+
+        assert len(results) == 1
+        assert results[0].action == "error"
+        assert "Both" in (results[0].error or "")
+
+    def test_process_tvshows_continues_when_only_tvdb_open(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """TV shows still process when only TVDB is OPEN (TMDB fallback)."""
+        from personalscraper.scraper.tvdb_client import TVDBError
+
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        (tvshows_dir / "Show A (2024)").mkdir()
+
+        # Force only TVDB circuit OPEN — TMDB is still available
+        tvdb_err = TVDBError(502, "Bad Gateway")
+        for _ in range(5):
+            scraper._tvdb.circuit.record_failure(tvdb_err)
+
+        # scrape_tvshow should be called (TMDB fallback possible)
+        mock_result = ScrapeResult(
+            media_path=tvshows_dir / "Show A (2024)",
+            media_type="tvshow",
+            action="scraped",
+        )
+        with patch.object(scraper, "scrape_tvshow", return_value=mock_result):
+            results = scraper.process_tvshows(tvshows_dir)
+
+        assert len(results) == 1
+        assert results[0].action == "scraped"
