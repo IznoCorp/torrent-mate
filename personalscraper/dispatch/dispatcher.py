@@ -91,6 +91,46 @@ class Dispatcher:
         if not shutil.which("rsync"):
             raise DispatchError("rsync is required but not found in PATH")
 
+    def _cleanup_orphan_temps(self) -> int:
+        """Clean up orphan temporary directories from previous failed runs.
+
+        Scans all storage disks for _tmp_dispatch_* and .merge_backup/
+        directories that were left behind by interrupted dispatch operations.
+
+        Returns:
+            Number of orphan directories cleaned up.
+        """
+        cleaned = 0
+        for config in self._disk_configs:
+            if not config.path.exists():
+                continue
+            for category_dir in config.path.iterdir():
+                if not category_dir.is_dir():
+                    continue
+                for item in category_dir.iterdir():
+                    if not item.is_dir():
+                        continue
+                    # Clean _tmp_dispatch_* orphans
+                    if item.name.startswith("_tmp_dispatch_"):
+                        logger.warning("Cleaning orphan tmp: %s", item)
+                        try:
+                            shutil.rmtree(item)
+                            cleaned += 1
+                        except OSError as e:
+                            logger.error("Failed to clean orphan %s: %s", item, e)
+                    # Clean .merge_backup/ orphans inside media dirs
+                    backup = item / ".merge_backup"
+                    if backup.exists():
+                        logger.warning("Cleaning orphan merge backup: %s", backup)
+                        try:
+                            shutil.rmtree(backup)
+                            cleaned += 1
+                        except OSError as e:
+                            logger.error("Failed to clean backup %s: %s", backup, e)
+        if cleaned:
+            logger.info("Cleaned %d orphan temp directories", cleaned)
+        return cleaned
+
     def process(
         self,
         verified: list[VerifyResult] | None = None,
@@ -98,7 +138,8 @@ class Dispatcher:
     ) -> list[DispatchResult]:
         """Process media items for dispatch.
 
-        Two modes:
+        Cleans up orphan temp directories from previous runs before
+        processing. Two modes:
         1. Pipeline (verified provided): uses category from V4
         2. Standalone (staging_dir provided): scans and categorizes
 
@@ -116,6 +157,9 @@ class Dispatcher:
             raise ValueError("Provide either verified or staging_dir, not both")
         if verified is None and staging_dir is None:
             raise ValueError("Provide either verified or staging_dir")
+
+        # Clean up orphan temp dirs from previous failed runs
+        self._cleanup_orphan_temps()
 
         results: list[DispatchResult] = []
 
@@ -311,7 +355,11 @@ class Dispatcher:
         return True
 
     def _merge(self, source: Path, dest: Path) -> bool:
-        """Merge TV show with backup for existing files.
+        """Merge TV show with backup-based rollback for existing files.
+
+        Uses rsync --backup to preserve overwritten files in
+        .merge_backup/ within the destination. On failure, originals
+        are restored from the backup directory.
 
         Args:
             source: Source TV show directory.
@@ -320,21 +368,99 @@ class Dispatcher:
         Returns:
             True if successful.
         """
+        backup_dir = dest / ".merge_backup"
+
         try:
-            if not self._rsync(source, dest):
+            # rsync with backup for overwritten files
+            if not self._rsync_merge(source, dest, backup_dir):
+                self._restore_merge_backup(dest, backup_dir)
                 return False
+
             # Verify transfer
             if self._verify_transfer(source, dest):
+                # Success — clean backup and source
+                if backup_dir.exists():
+                    shutil.rmtree(backup_dir)
                 shutil.rmtree(source)
                 return True
+
             logger.error("Merge verification failed for %s", source.name)
+            self._restore_merge_backup(dest, backup_dir)
             return False
         except OSError as e:
             logger.error("Merge failed: %s", e)
+            self._restore_merge_backup(dest, backup_dir)
             return False
 
+    def _rsync_merge(
+        self, source: Path, dest: Path, backup_dir: Path,
+    ) -> bool:
+        """Execute rsync with backup for merge operations.
+
+        Backs up any overwritten files to backup_dir so they can
+        be restored on failure.
+
+        Args:
+            source: Source directory.
+            dest: Destination directory.
+            backup_dir: Directory to store backups of overwritten files.
+
+        Returns:
+            True if rsync succeeded.
+        """
+        cmd = [
+            "rsync", "-a", "--partial", "--checksum",
+            "--backup", f"--backup-dir={backup_dir}",
+            f"{source}/", str(dest),
+        ]
+
+        logger.info("rsync merge: %s → %s (backup: %s)", source.name, dest, backup_dir)
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=3600,
+            )
+            if proc.returncode != 0:
+                logger.error("rsync merge failed (rc=%d): %s", proc.returncode, proc.stderr)
+                return False
+            return True
+        except subprocess.TimeoutExpired:
+            logger.error("rsync merge timed out for %s", source.name)
+            return False
+
+    @staticmethod
+    def _restore_merge_backup(dest: Path, backup_dir: Path) -> None:
+        """Restore overwritten files from merge backup.
+
+        Copies files from backup_dir back to their original locations
+        within dest, then removes the backup directory.
+
+        Args:
+            dest: Destination directory to restore into.
+            backup_dir: Backup directory with original files.
+        """
+        if not backup_dir.exists():
+            return
+
+        try:
+            for backup_file in backup_dir.rglob("*"):
+                if not backup_file.is_file():
+                    continue
+                rel = backup_file.relative_to(backup_dir)
+                original = dest / rel
+                original.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(backup_file, original)
+                logger.info("Restored from backup: %s", rel)
+            shutil.rmtree(backup_dir)
+        except OSError as e:
+            logger.error("Failed to restore merge backup: %s", e)
+
     def _move_new(self, source: Path, dest: Path) -> bool:
-        """Move a new media item to disk via rsync.
+        """Move a new media item to disk via staging→commit pattern.
+
+        Writes to a temporary directory first (_tmp_dispatch_{name}),
+        then atomically renames to the final destination. If rsync
+        fails, the temp directory is cleaned up and the disk is left
+        in a consistent state.
 
         Args:
             source: Source directory.
@@ -343,17 +469,40 @@ class Dispatcher:
         Returns:
             True if successful.
         """
+        tmp_dir = dest.parent / f"_tmp_dispatch_{dest.name}"
+
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            if not self._rsync(source, dest):
+
+            # Clean orphan tmp from a previous failed attempt
+            if tmp_dir.exists():
+                logger.warning("Cleaning orphan tmp: %s", tmp_dir)
+                shutil.rmtree(tmp_dir)
+
+            # Stage: rsync to temporary directory
+            if not self._rsync(source, tmp_dir):
+                if tmp_dir.exists():
+                    shutil.rmtree(tmp_dir)
                 return False
+
+            # Commit: atomic rename to final destination
+            os.rename(tmp_dir, dest)
+
+            # Verify and clean source
             if self._verify_transfer(source, dest):
                 shutil.rmtree(source)
                 return True
+
             logger.error("Transfer verification failed for %s", source.name)
             return False
         except OSError as e:
             logger.error("Move failed: %s", e)
+            # Clean up temp on any failure
+            try:
+                if tmp_dir.exists():
+                    shutil.rmtree(tmp_dir)
+            except OSError as cleanup_err:
+                logger.warning("Failed to clean tmp %s: %s", tmp_dir, cleanup_err)
             return False
 
     def _rsync(self, source: Path, dest: Path, delete: bool = False) -> bool:
