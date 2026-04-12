@@ -1,0 +1,346 @@
+# Configuration
+
+Guide complet de configuration du fichier `.env` pour PersonalScraper.
+
+> Voir aussi : [INSTALLATION.md](INSTALLATION.md) (installation) | [MANUAL.md](MANUAL.md) (utilisation)
+
+## Mise en place
+
+```bash
+cp .env.example .env
+```
+
+Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Toutes les variables ont des valeurs par défaut sauf les clés API et le mot de passe qBittorrent qui doivent être renseignés.
+
+> **Ne jamais commiter le `.env`** — il est dans `.gitignore`. Utiliser `.env.example` comme template de référence.
+
+---
+
+## qBittorrent
+
+Variables de connexion à l'interface Web de qBittorrent (V1 — Ingest).
+
+| Variable        | Défaut      | Description                           |
+| --------------- | ----------- | ------------------------------------- |
+| `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent |
+| `QBIT_PORT`     | `8081`      | Port de l'interface Web API           |
+| `QBIT_USERNAME` | `izno`      | Nom d'utilisateur Web UI              |
+| `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                   |
+
+### Comment configurer
+
+1. Ouvrir qBittorrent > **Preferences** > **Web UI**
+2. Cocher **"Enable the Web User Interface (Remote control)"**
+3. Configurer le port (par défaut `8080`, ici `8081`)
+4. Définir un nom d'utilisateur et un mot de passe
+5. Reporter ces valeurs dans `.env`
+
+```ini
+QBIT_HOST=localhost
+QBIT_PORT=8081
+QBIT_USERNAME=izno
+QBIT_PASSWORD=mon_mot_de_passe
+```
+
+> **Accès distant :** si qBittorrent tourne sur une autre machine, utiliser son IP (ex: `QBIT_HOST=192.168.1.100`).
+
+---
+
+## Chemins
+
+Chemins du système de fichiers utilisés par le pipeline.
+
+| Variable               | Défaut                                      | Description                                                   |
+| ---------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| `TORRENT_COMPLETE_DIR` | `/Volumes/IznoServer SSD/torrents/complete` | Dossier de destination des torrents terminés dans qBittorrent |
+| `STAGING_DIR`          | `/Volumes/IznoServer SSD/A TRIER`           | Zone de tri (staging) — racine du projet                      |
+| `DISK1_DIR`            | `/Volumes/Disk1/medias`                     | Point de montage du disque de stockage 1                      |
+| `DISK2_DIR`            | `/Volumes/Disk2/medias`                     | Point de montage du disque de stockage 2                      |
+| `DISK3_DIR`            | `/Volumes/Disk3/medias`                     | Point de montage du disque de stockage 3                      |
+| `DISK4_DIR`            | `/Volumes/Disk4/medias`                     | Point de montage du disque de stockage 4                      |
+
+### Comment configurer
+
+Les valeurs par défaut correspondent à l'installation standard. Modifier uniquement si les chemins sont différents sur votre machine.
+
+```bash
+# Vérifier que les disques sont montés
+df -h /Volumes/Disk{1,2,3,4}
+
+# Vérifier le dossier de torrents terminés (dans qBittorrent > Preferences > Downloads > Default Save Path)
+ls "/Volumes/IznoServer SSD/torrents/complete"
+```
+
+> **Attention aux espaces** dans les chemins — les guillemets sont obligatoires en shell mais PAS dans le `.env` (pydantic-settings les gère nativement).
+
+```ini
+TORRENT_COMPLETE_DIR=/Volumes/IznoServer SSD/torrents/complete
+STAGING_DIR=/Volumes/IznoServer SSD/A TRIER
+```
+
+---
+
+## TMDB (The Movie Database)
+
+Clé API pour la recherche de métadonnées films et séries (V3 — Scrape).
+
+| Variable       | Défaut   | Description               |
+| -------------- | -------- | ------------------------- |
+| `TMDB_API_KEY` | _(vide)_ | Clé API v3 (Bearer token) |
+
+### Comment obtenir la clé
+
+1. Créer un compte sur [themoviedb.org](https://www.themoviedb.org/signup)
+2. Aller dans **Settings** > **API** ([lien direct](https://www.themoviedb.org/settings/api))
+3. Cliquer **"Create"** > choisir **"Developer"**
+4. Remplir le formulaire :
+   - **Type of use** : Personal
+   - **Application name** : PersonalScraper (ou autre)
+   - **Application URL** : (n'importe quelle URL, ex: `https://github.com`)
+   - **Application summary** : Personal media library management
+5. Accepter les conditions d'utilisation
+6. Copier la **"API Key (v3 auth)"** (pas le token Bearer v4)
+
+```ini
+TMDB_API_KEY=abcdef1234567890abcdef1234567890
+```
+
+> **Limites** : TMDB est gratuit et sans quota strict, mais respecte un rate limit d'environ 40 requetes/10 secondes. Le pipeline gère automatiquement les retries via `tenacity`.
+
+> **Langue** : le pipeline utilise `fr-FR` par défaut pour les titres et descriptions. Les images sont toujours demandées avec `include_image_language=fr,en,null` pour maximiser les résultats.
+
+---
+
+## TVDB (TheTVDB)
+
+Clé API pour la recherche de métadonnées séries, épisodes, et anime (V3 — Scrape).
+
+| Variable       | Défaut   | Description                      |
+| -------------- | -------- | -------------------------------- |
+| `TVDB_API_KEY` | _(vide)_ | Clé API v4 (Negotiated Contract) |
+
+### Comment obtenir la clé
+
+1. Créer un compte sur [thetvdb.com](https://thetvdb.com/auth/register)
+2. Aller dans **Dashboard** > **Account** > **API Keys** ([lien direct](https://thetvdb.com/dashboard/account/apikeys))
+3. Cliquer **"Create a new API key"**
+4. Remplir le formulaire :
+   - **Name** : PersonalScraper
+   - **API key type** : choisir **"Negotiated Contract"** (gratuit pour usage personnel < 50k$ revenus)
+   - **PIN** : laisser vide (pas nécessaire pour Negotiated Contract)
+5. Copier la clé API générée
+
+```ini
+TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+> **Important** : il existe deux types de clés TVDB :
+>
+> - **Negotiated Contract** (gratuit, pas de PIN) — c'est celui-ci qu'il faut
+> - **User Subscription** (nécessite un PIN) — pas utilisé par le pipeline
+>
+> Le pipeline s'authentifie avec `{"apikey": "..."}` uniquement, sans champ `pin`.
+
+> **Langue** : TVDB utilise des codes langue à 3 caractères (`fra`, `eng`). Le pipeline convertit automatiquement depuis le format TMDB (`fr-FR` → `fra`).
+
+---
+
+## Scraper
+
+Configuration des langues pour les requêtes API.
+
+| Variable                    | Défaut  | Description                                                          |
+| --------------------------- | ------- | -------------------------------------------------------------------- |
+| `SCRAPER_LANGUAGE`          | `fr-FR` | Langue principale pour les titres, descriptions, noms d'épisodes     |
+| `SCRAPER_FALLBACK_LANGUAGE` | `en-US` | Langue de repli si le contenu n'existe pas dans la langue principale |
+
+### Comment configurer
+
+Le format suit la convention TMDB : `{langue}-{PAYS}`.
+
+Exemples courants :
+
+- `fr-FR` — Francais (France)
+- `en-US` — Anglais (USA)
+- `de-DE` — Allemand (Allemagne)
+- `es-ES` — Espagnol (Espagne)
+- `ja-JP` — Japonais (Japon)
+
+```ini
+SCRAPER_LANGUAGE=fr-FR
+SCRAPER_FALLBACK_LANGUAGE=en-US
+```
+
+> Les valeurs par défaut conviennent pour une bibliothèque francophone. Le fallback anglais permet de récupérer les titres/descriptions quand la traduction française n'existe pas (fréquent pour les anime et les séries récentes).
+
+---
+
+## Telegram (optionnel)
+
+Notifications en fin de pipeline via un bot Telegram (V6 — Log+Notify).
+
+| Variable             | Défaut   | Description                                         |
+| -------------------- | -------- | --------------------------------------------------- |
+| `TELEGRAM_BOT_TOKEN` | _(vide)_ | Token d'authentification du bot                     |
+| `TELEGRAM_CHAT_ID`   | _(vide)_ | ID du chat/utilisateur qui recoit les notifications |
+
+Si ces variables sont vides, le pipeline fonctionne normalement mais n'envoie pas de notification.
+
+### Etape 1 — Créer le bot
+
+1. Ouvrir Telegram et chercher **@BotFather**
+2. Envoyer `/newbot`
+3. Choisir un nom (ex: "PersonalScraper Bot")
+4. Choisir un username (ex: `personalscraper_bot`)
+5. BotFather retourne un token du type : `123456789:ABCDefGhIjKlMnOpQrStUvWxYz`
+
+```ini
+TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIjKlMnOpQrStUvWxYz
+```
+
+### Etape 2 — Obtenir le Chat ID
+
+1. Envoyer un message au bot que vous venez de créer (n'importe quel texte)
+2. Ouvrir dans un navigateur :
+   ```
+   https://api.telegram.org/bot<VOTRE_TOKEN>/getUpdates
+   ```
+3. Dans la réponse JSON, chercher `"chat":{"id": 123456789}` — c'est votre Chat ID
+
+```ini
+TELEGRAM_CHAT_ID=123456789
+```
+
+> **Chat de groupe** : pour envoyer les notifications dans un groupe, ajouter le bot au groupe, envoyer un message dans le groupe, puis récupérer le Chat ID (qui sera négatif, ex: `-1001234567890`).
+
+### Etape 3 — Vérifier
+
+```bash
+# Envoyer un message de test
+curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+  -d "chat_id=${TELEGRAM_CHAT_ID}" \
+  -d "text=Test PersonalScraper" \
+  -d "parse_mode=HTML"
+```
+
+---
+
+## Monitoring (optionnel)
+
+Ping de supervision pour le scheduling automatique (V6 — launchd).
+
+| Variable          | Défaut   | Description                                                          |
+| ----------------- | -------- | -------------------------------------------------------------------- |
+| `HEALTHCHECK_URL` | _(vide)_ | URL de ping [Healthchecks.io](https://healthchecks.io) ou équivalent |
+
+Si vide, aucun ping n'est envoyé. Le pipeline fonctionne normalement.
+
+### Comment configurer
+
+1. Créer un compte sur [healthchecks.io](https://healthchecks.io) (gratuit pour 20 checks)
+2. Créer un nouveau check :
+   - **Name** : PersonalScraper Pipeline
+   - **Period** : 1 day
+   - **Grace** : 1 hour
+3. Copier l'URL du check (format : `https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+
+```ini
+HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+> Le pipeline envoie un ping au début (`/start`), en cas de succès, et en cas d'échec (`/fail`). Si le ping n'arrive pas dans les 24h + 1h de grâce, Healthchecks.io envoie une alerte (email, Telegram, Slack, etc.).
+
+---
+
+## Seuils d'espace disque
+
+Protections contre le remplissage des disques.
+
+| Variable                    | Défaut | Description                                                               |
+| --------------------------- | ------ | ------------------------------------------------------------------------- |
+| `MIN_FREE_SPACE_STAGING_GB` | `20`   | Espace libre minimum (Go) sur le SSD avant d'ingérer de nouveaux torrents |
+| `MIN_FREE_SPACE_DISK_GB`    | `100`  | Espace libre minimum (Go) sur un disque de stockage avant d'y dispatcher  |
+
+### Comment configurer
+
+```ini
+# SSD de 1 To → garder 20 Go de marge
+MIN_FREE_SPACE_STAGING_GB=20
+
+# Disques de 4-8 To → garder 100 Go de marge
+MIN_FREE_SPACE_DISK_GB=100
+```
+
+> **Formule de dispatch** : un disque est éligible si `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)`. Cela garantit une marge même pour les gros fichiers (ex: une série de 50 Go nécessite 75 Go libres minimum).
+
+> Adapter ces valeurs à la taille de vos disques. Pour des disques plus petits (1-2 To), baisser `MIN_FREE_SPACE_DISK_GB` à 50.
+
+---
+
+## Exemple complet
+
+```ini
+# ── qBittorrent ────────────────────────────��─
+QBIT_HOST=localhost
+QBIT_PORT=8081
+QBIT_USERNAME=izno
+QBIT_PASSWORD=mon_mot_de_passe
+
+# ── Paths ────────────────────────────────────
+TORRENT_COMPLETE_DIR=/Volumes/IznoServer SSD/torrents/complete
+STAGING_DIR=/Volumes/IznoServer SSD/A TRIER
+DISK1_DIR=/Volumes/Disk1/medias
+DISK2_DIR=/Volumes/Disk2/medias
+DISK3_DIR=/Volumes/Disk3/medias
+DISK4_DIR=/Volumes/Disk4/medias
+
+# ── TMDB / TVDB ──────────────────────────────
+TMDB_API_KEY=abcdef1234567890abcdef1234567890
+TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# ── Scraper ──────────────────────────────────
+SCRAPER_LANGUAGE=fr-FR
+SCRAPER_FALLBACK_LANGUAGE=en-US
+
+# ── Telegram ─────────────────────────────────
+TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIjKlMnOpQrStUvWxYz
+TELEGRAM_CHAT_ID=123456789
+
+# ── Monitoring ───────────────────────────────
+HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# ── Thresholds ───────────────────────────────
+MIN_FREE_SPACE_STAGING_GB=20
+MIN_FREE_SPACE_DISK_GB=100
+```
+
+---
+
+## Dépannage
+
+### Le pipeline ne trouve pas le .env
+
+Le fichier `.env` doit être à la racine du projet (`/Volumes/IznoServer SSD/A TRIER/.env`). Vérifier :
+
+```bash
+ls -la "/Volumes/IznoServer SSD/A TRIER/.env"
+```
+
+### Les clés API ne fonctionnent pas
+
+```bash
+# Tester TMDB
+curl -s "https://api.themoviedb.org/3/movie/550?api_key=VOTRE_CLE" | python -m json.tool
+
+# Tester TVDB (authentification)
+curl -s -X POST "https://api4.thetvdb.com/v4/login" \
+  -H "Content-Type: application/json" \
+  -d '{"apikey": "VOTRE_CLE"}' | python -m json.tool
+```
+
+### qBittorrent refuse la connexion
+
+1. Vérifier que l'interface Web est activée (Preferences > Web UI)
+2. Vérifier le port : `curl -s http://localhost:8081/api/v2/app/version`
+3. Si "Unauthorized" : vérifier les credentials dans `.env`
+4. Si timeout : vérifier que qBittorrent tourne (`pgrep -l qbittorrent`)

@@ -31,7 +31,7 @@ pip install -e ".[dev]"
 
 # Configuration
 cp .env.example .env
-# Remplir les clés API (TMDB, TVDB) et credentials qBittorrent
+# Remplir les clés API et credentials — voir CONFIGURATION.md pour le détail
 
 # Lancer le pipeline
 personalscraper run --dry-run   # Prévisualiser
@@ -76,10 +76,11 @@ make format                             # Formater le code
 
 ## Documentation
 
-| Document                           | Contenu                                                    |
-| ---------------------------------- | ---------------------------------------------------------- |
-| [INSTALLATION.md](INSTALLATION.md) | Prérequis, installation, configuration, scheduling         |
-| [MANUAL.md](MANUAL.md)             | Manuel d'utilisation complet — commandes, disques, nommage |
+| Document                             | Contenu                                                        |
+| ------------------------------------ | -------------------------------------------------------------- |
+| [INSTALLATION.md](INSTALLATION.md)   | Prérequis, installation, scheduling                            |
+| [CONFIGURATION.md](CONFIGURATION.md) | Guide complet du .env — toutes les variables, clés API, seuils |
+| [MANUAL.md](MANUAL.md)               | Manuel d'utilisation — commandes, disques, nommage             |
 
 ## Technologies
 
