@@ -104,6 +104,26 @@ class TestMovieFullPipeline:
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(movies_dir, staging / "002-TVSHOWS", expected)
 
+            # ── 4b. Golden file assertions (optional — skip if no golden file) ──
+            from tests.e2e.assertions import (
+                assert_scrape_golden,
+                assert_structure_golden,
+                find_media_dir,
+            )
+            from tests.e2e.golden import match_torrent_to_golden
+
+            golden_results = {}
+            for torrent_name in names.values():
+                golden = match_torrent_to_golden(torrent_name)
+                if golden:
+                    print(f"  Golden match: {torrent_name} → {golden.name}")
+                    media_dir = find_media_dir(movies_dir, golden.nfo["folder_name_pattern"])
+                    assert_scrape_golden(media_dir, golden)
+                    assert_structure_golden(media_dir, golden)
+                    golden_results[torrent_name] = golden
+                else:
+                    print(f"  No golden file for {torrent_name} — smoke tests only")
+
             # ── 5. V4 Verify (REAL) ──
             from personalscraper.verify.run import run_verify
             verify_report, verified = run_verify(settings, dry_run=False, movies_only=True)
@@ -119,6 +139,10 @@ class TestMovieFullPipeline:
             from personalscraper.dispatch.run import run_dispatch
             dispatch_report = run_dispatch(settings, dry_run=True, verified=verified)
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
+
+            # Note: golden dispatch assertions require DispatchResult objects,
+            # but run_dispatch() returns a StepReport. Dispatch golden validation
+            # is deferred to the standalone dispatch tests or future refactoring.
 
             print("\n  Pipeline complete (dispatch was dry-run, disks untouched)")
 
