@@ -174,12 +174,12 @@ class MediaChecker:
                 message="" if has_tmdb and has_imdb else f"Missing IDs: tmdb={has_tmdb}, imdb={has_imdb}",
             ))
 
-        # artwork_poster
+        # poster_present (blocking — dispatch requires poster)
         poster_name = self.patterns.format("movie_poster", Title=parsed_title)
         results.append(CheckResult(
-            name="artwork_poster",
+            name="poster_present",
             passed=(movie_dir / poster_name).exists(),
-            severity=Severity.WARNING,
+            severity=Severity.ERROR,
             message=f"Poster not found: {poster_name}" if not (movie_dir / poster_name).exists() else "",
         ))
 
@@ -201,6 +201,16 @@ class MediaChecker:
                 severity=Severity.WARNING,
                 message="" if has_sd else "No <streamdetails> in NFO",
             ))
+
+        # no_empty_dirs (check for empty subdirectories)
+        empty_dirs = self._find_empty_dirs(movie_dir)
+        results.append(CheckResult(
+            name="no_empty_dirs",
+            passed=len(empty_dirs) == 0,
+            severity=Severity.ERROR,
+            message=f"Empty subdirs: {', '.join(d.name for d in empty_dirs[:3])}" if empty_dirs else "",
+            fixable=True,
+        ))
 
         # category
         if nfo_exists:
@@ -281,11 +291,11 @@ class MediaChecker:
                 message="" if has_tvdb else "No TVDB or TMDB uniqueid",
             ))
 
-        # artwork
+        # poster_present (blocking — dispatch requires poster)
         results.append(CheckResult(
-            name="artwork_poster",
+            name="poster_present",
             passed=(show_dir / self.patterns.tvshow_poster).exists(),
-            severity=Severity.WARNING,
+            severity=Severity.ERROR,
             message="poster.jpg not found" if not (show_dir / self.patterns.tvshow_poster).exists() else "",
         ))
         results.append(CheckResult(
@@ -330,6 +340,15 @@ class MediaChecker:
                 message="",
             ))
 
+        # episode_renamed (all videos in Saison XX/ must match SxxExx pattern)
+        unrenamed = self._find_unrenamed_episodes(season_dirs)
+        results.append(CheckResult(
+            name="episode_renamed",
+            passed=len(unrenamed) == 0,
+            severity=Severity.ERROR,
+            message=f"Unrenamed episodes: {', '.join(f.name for f in unrenamed[:3])}" if unrenamed else "",
+        ))
+
         # episode_nfo (spot check: at least some episodes have NFOs)
         episode_nfos = list(show_dir.rglob("S??E??*.nfo"))
         results.append(CheckResult(
@@ -337,6 +356,16 @@ class MediaChecker:
             passed=len(episode_nfos) > 0,
             severity=Severity.WARNING,
             message="" if episode_nfos else "No episode NFO files found",
+        ))
+
+        # no_empty_dirs (recursive check for empty subdirectories)
+        empty_dirs = self._find_empty_dirs(show_dir)
+        results.append(CheckResult(
+            name="no_empty_dirs",
+            passed=len(empty_dirs) == 0,
+            severity=Severity.ERROR,
+            message=f"Empty subdirs: {', '.join(d.name for d in empty_dirs[:3])}" if empty_dirs else "",
+            fixable=True,
         ))
 
         # category
@@ -429,3 +458,51 @@ class MediaChecker:
         """
         m = re.match(r"^(.+?)\s*\(\d{4}\)$", dir_name)
         return m.group(1).strip() if m else dir_name
+
+    @staticmethod
+    def _find_empty_dirs(root: Path) -> list[Path]:
+        """Find empty subdirectories recursively.
+
+        A directory is considered empty if it contains no files
+        (junk files like .DS_Store count as empty).
+
+        Args:
+            root: Root directory to scan.
+
+        Returns:
+            List of empty directory paths.
+        """
+        junk = {".DS_Store", "Thumbs.db"}
+        empty = []
+        for d in root.rglob("*"):
+            if not d.is_dir():
+                continue
+            contents = list(d.iterdir())
+            has_real_content = any(
+                item.is_file() and item.name not in junk
+                for item in contents
+            )
+            if not has_real_content and not any(item.is_dir() for item in contents):
+                empty.append(d)
+        return empty
+
+    @staticmethod
+    def _find_unrenamed_episodes(season_dirs: list[Path]) -> list[Path]:
+        """Find video files in season dirs that don't match episode pattern.
+
+        Args:
+            season_dirs: List of 'Saison XX' directories.
+
+        Returns:
+            List of video files that don't match S##E## - Title.ext.
+        """
+        unrenamed = []
+        for sd in season_dirs:
+            for f in sd.iterdir():
+                if not f.is_file():
+                    continue
+                if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                    continue
+                if not _EPISODE_PATTERN.match(f.name):
+                    unrenamed.append(f)
+        return unrenamed

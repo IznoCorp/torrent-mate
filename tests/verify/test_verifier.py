@@ -286,6 +286,65 @@ class TestVerifyTvshow:
         assert results[0].status == "blocked"
 
 
+class TestReinforcedChecks:
+    """Tests for V9 reinforced verify checks — poster, episodes, empty dirs."""
+
+    def test_movie_no_poster_blocked(self, tmp_path: Path) -> None:
+        """Movie without poster is blocked (poster_present check)."""
+        d = _make_valid_movie(tmp_path)
+        # Remove poster
+        poster = d / "Movie-poster.jpg"
+        poster.unlink()
+        v = Verifier(MagicMock(), NamingPatterns())
+        result = v.verify_movie(d)
+        assert result.status == "blocked"
+        assert any("Poster not found" in e for e in result.errors)
+
+    def test_movie_with_empty_subdir_blocked(self, tmp_path: Path) -> None:
+        """Movie with empty subdirectory is blocked."""
+        d = _make_valid_movie(tmp_path)
+        (d / "empty_subdir").mkdir()
+        v = Verifier(MagicMock(), NamingPatterns())
+        result = v.verify_movie(d)
+        assert result.status == "blocked"
+        assert any("Empty subdirs" in e for e in result.errors)
+
+    def test_tvshow_unrenamed_episode_blocked(self, tmp_path: Path) -> None:
+        """TV show with unrenamed episode file is blocked."""
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        # Properly named episode
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
+        # Unrenamed episode (raw release name)
+        (season / "show.s01e02.1080p.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+
+        root = ET.Element("tvshow")
+        ET.SubElement(root, "title").text = "Show"
+        uid = ET.SubElement(root, "uniqueid")
+        uid.set("type", "tvdb")
+        uid.text = "123"
+        ET.SubElement(root, "genre").text = "Drame"
+        ET.ElementTree(root).write(show / "tvshow.nfo", encoding="unicode")
+        (show / "poster.jpg").write_bytes(b"\xff")
+        (show / "fanart.jpg").write_bytes(b"\xff")
+
+        v = Verifier(MagicMock(), NamingPatterns())
+        result = v.verify_tvshow(show)
+        assert result.status == "blocked"
+        assert any("Unrenamed episodes" in e for e in result.errors)
+
+    def test_valid_movie_with_poster_passes(self, tmp_path: Path) -> None:
+        """Movie with poster and no empty dirs passes all V9 checks."""
+        d = _make_valid_movie(tmp_path)
+        v = Verifier(MagicMock(), NamingPatterns())
+        result = v.verify_movie(d)
+        assert result.status == "valid"
+        assert len(result.errors) == 0
+
+
 class TestRunVerify:
     """Tests for run_verify."""
 
