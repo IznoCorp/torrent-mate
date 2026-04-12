@@ -64,25 +64,15 @@ Cela installe :
 cp .env.example .env
 ```
 
-Ouvrir `.env` et remplir les valeurs :
+Ouvrir `.env` et remplir au minimum les clés API et le mot de passe qBittorrent :
 
 ```ini
-# ── qBittorrent ──────────────────────────────
-QBIT_HOST=localhost
-QBIT_PORT=8081
-QBIT_USERNAME=izno
 QBIT_PASSWORD=votre_mot_de_passe
-
-# ── TMDB / TVDB ──────────────────────────────
 TMDB_API_KEY=votre_clé_tmdb
 TVDB_API_KEY=votre_clé_tvdb
-
-# ── Telegram (optionnel) ─────────────────────
-TELEGRAM_BOT_TOKEN=votre_token_bot
-TELEGRAM_CHAT_ID=votre_chat_id
 ```
 
-Les autres valeurs (chemins, seuils, langues) ont des valeurs par défaut adaptées. Voir `.env.example` pour la liste complète.
+Pour le guide complet de toutes les variables (16 au total), comment obtenir les clés API, et les options avancées, voir **[CONFIGURATION.md](CONFIGURATION.md)**.
 
 ### Vérification
 
