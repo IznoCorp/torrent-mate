@@ -374,3 +374,125 @@ class TestPromptUserChoice:
         """Empty results should return None without prompting."""
         choice = prompt_user_choice([], "Test Movie")
         assert choice is None
+
+
+# ---------------------------------------------------------------------------
+# Malformed API responses (V7.x)
+# ---------------------------------------------------------------------------
+
+class TestMalformedResponses:
+    """Tests for resilience to malformed API responses."""
+
+    def test_malformed_tmdb_missing_title(self) -> None:
+        """TMDB result without 'title' key should not crash."""
+        tmdb = MagicMock()
+        tmdb.search_movie.return_value = [
+            {"id": 999, "release_date": "2024-01-01"},
+        ]
+
+        result = match_movie(tmdb, "Test Movie", 2024)
+
+        # Should still return a result (with empty title, low score)
+        assert result is not None
+        assert result.api_title == ""
+
+    def test_malformed_tmdb_missing_release_date(self) -> None:
+        """TMDB result without 'release_date' should not crash."""
+        tmdb = MagicMock()
+        tmdb.search_movie.return_value = [
+            {"id": 999, "title": "Test"},
+        ]
+
+        result = match_movie(tmdb, "Test", None)
+
+        assert result is not None
+        assert result.api_year is None
+
+    def test_malformed_tvdb_missing_name(self) -> None:
+        """TVDB result without 'name' key should not crash."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "123", "year": "2024"},
+        ]
+
+        result = match_tvshow_tvdb(tvdb, "Test Show", 2024)
+
+        assert result is not None
+        assert result.api_title == ""
+
+    def test_malformed_tvdb_missing_year(self) -> None:
+        """TVDB result without 'year' should not crash."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "123", "name": "Test Show"},
+        ]
+
+        result = match_tvshow_tvdb(tvdb, "Test Show", None)
+
+        assert result is not None
+        assert result.api_year is None
+
+    def test_malformed_tvdb_invalid_tvdb_id(self) -> None:
+        """TVDB result with non-numeric tvdb_id should not crash."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "", "name": "Test", "year": "2024"},
+        ]
+
+        result = match_tvshow_tvdb(tvdb, "Test", 2024)
+
+        assert result is not None
+        assert result.api_id == 0
+
+
+class TestConfidenceConflict:
+    """Tests for TMDB/TVDB conflict resolution."""
+
+    def test_tmdb_tvdb_conflict_prefer_higher_confidence(self) -> None:
+        """When TMDB and TVDB differ, prefer the higher confidence match."""
+        tvdb = MagicMock()
+        tmdb = MagicMock()
+
+        # TVDB returns a low-confidence match
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "111", "name": "Wrong Show", "year": "2024"},
+        ]
+
+        # TMDB returns a high-confidence match
+        tmdb.search_tv.return_value = [
+            {"id": 222, "name": "Correct Show", "first_air_date": "2024-01-01"},
+        ]
+
+        result = match_tvshow(tvdb, tmdb, "Correct Show", 2024)
+
+        assert result is not None
+        assert result.api_title == "Correct Show"
+        assert result.source == "tmdb"
+
+    def test_tvdb_high_confidence_no_tmdb_fallback(self) -> None:
+        """TVDB with HIGH_CONFIDENCE should not trigger TMDB fallback."""
+        tvdb = MagicMock()
+        tmdb = MagicMock()
+
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "111", "name": "Exact Match", "year": "2024"},
+        ]
+
+        result = match_tvshow(tvdb, tmdb, "Exact Match", 2024)
+
+        assert result is not None
+        assert result.source == "tvdb"
+        # TMDB should not have been called
+        tmdb.search_tv.assert_not_called()
+
+    def test_both_providers_no_results(self) -> None:
+        """Both providers returning empty should return None."""
+        tvdb = MagicMock()
+        tmdb = MagicMock()
+
+        tvdb.search_series.return_value = []
+        tmdb.search_tv.return_value = []
+
+        result = match_tvshow(tvdb, tmdb, "Nonexistent", 2024)
+
+        assert result is None

@@ -383,3 +383,125 @@ class TestProcessTvshows:
         """Should return empty list for nonexistent directory."""
         results = scraper.process_tvshows(tmp_path / "nonexistent")
         assert results == []
+
+
+# ---------------------------------------------------------------------------
+# Additional scraper orchestration tests (V7.x)
+# ---------------------------------------------------------------------------
+
+
+class TestScrapeMovieExtra:
+    """Additional tests for movie scraping edge cases."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked API clients."""
+        with patch("personalscraper.scraper.scraper.TMDBClient"):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_process_movie_api_failure(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """API failure should return error result, pipeline continues."""
+        movie_dir = tmp_path / "ApiDown (2024)"
+        movie_dir.mkdir()
+
+        with patch(
+            "personalscraper.scraper.scraper.match_movie",
+            side_effect=ConnectionError("TMDB unreachable"),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "error"
+        assert "TMDB unreachable" in (result.error or "")
+
+    def test_process_movie_low_confidence_returns_match(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Low confidence match should return MatchResult with low score."""
+        movie_dir = tmp_path / "Ambiguous (2024)"
+        movie_dir.mkdir()
+
+        low_match = MatchResult(
+            api_id=1, api_title="Something Else",
+            api_year=2024, confidence=0.3, source="tmdb",
+        )
+        with patch("personalscraper.scraper.scraper.match_movie", return_value=low_match):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "skipped_low_confidence"
+
+    def test_scraper_already_scraped_skip(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """NFO exists should skip (tested via scrape_movie, not process)."""
+        movie_dir = tmp_path / "Already (2024)"
+        movie_dir.mkdir()
+        (movie_dir / "Already.nfo").write_text("<movie/>")
+
+        result = scraper.scrape_movie(movie_dir)
+        assert result.action == "skipped_already_done"
+
+
+class TestScrapeTvshowExtra:
+    """Additional tests for TV show scraping edge cases."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked API clients."""
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_process_tvshow_api_failure(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """API failure for TV show should return error result."""
+        show_dir = tmp_path / "ApiDown (2024)"
+        show_dir.mkdir()
+
+        with patch(
+            "personalscraper.scraper.scraper.match_tvshow",
+            side_effect=ConnectionError("TVDB unreachable"),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        assert result.action == "error"
+        assert "TVDB unreachable" in (result.error or "")
+
+    def test_process_tvshows_handles_error(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """Exception in scrape_tvshow should produce error result in batch."""
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        (tvshows_dir / "Crash Show (2024)").mkdir()
+
+        with patch.object(
+            scraper, "scrape_tvshow",
+            side_effect=RuntimeError("unexpected"),
+        ):
+            results = scraper.process_tvshows(tvshows_dir)
+
+        assert len(results) == 1
+        assert results[0].action == "error"
