@@ -21,23 +21,23 @@ Extraire la logique d'orchestration de `cli.py:run()` dans un `Pipeline` class d
 
 ### 9.1.2 — Gate assert_temp_empty
 
-- [ ] Ajouter `assert_temp_empty(settings) -> list[str]` dans `sorter/run.py`
-- [ ] Ignore `.gitkeep`, `.DS_Store`, fichiers caches (startswith `.`)
-- [ ] Retourne la liste des fichiers restants (vide = gate OK)
-- [ ] Pipeline appelle la gate entre sort et process
-- [ ] Si fichiers restants : log WARNING + continue (ne bloque pas le pipeline)
-- [ ] Tests : gate passe si vide, retourne noms si fichiers restent, ignore hidden
+- [x] Ajouter `assert_temp_empty(settings) -> list[str]` dans `sorter/run.py`
+- [x] Ignore `.gitkeep`, `.DS_Store`, fichiers caches (startswith `.`)
+- [x] Retourne la liste des fichiers restants (vide = gate OK)
+- [x] Pipeline appelle la gate entre sort et process
+- [x] Si fichiers restants : log WARNING + continue (ne bloque pas le pipeline)
+- [x] Tests : gate passe si vide, retourne noms si fichiers restent, ignore hidden
 
 **Commit** : `v9.1.2: Add assert_temp_empty gate between sort and process`
 
 ### 9.1.3 — CLI delegation a Pipeline
 
-- [ ] `cli.py:run()` instancie Pipeline et appelle `.run()`
-- [ ] Garder le lock/unlock, healthcheck, telegram dans cli.py (pas dans Pipeline)
-- [ ] Panel final affiche 7 lignes (ingest, sort, clean, scrape, cleanup, verify, dispatch)
-- [ ] `PipelineReport.to_html()` mis a jour pour 7 steps
-- [ ] Supprimer le code dupliqué de l'ancien run()
-- [ ] Tests existants cli passent toujours
-- [ ] Test : panel final avec 7 rows
+- [x] `cli.py:run()` instancie Pipeline et appelle `.run()`
+- [x] Garder le lock/unlock, healthcheck, telegram dans cli.py (pas dans Pipeline)
+- [x] Panel final affiche 7 lignes (ingest, sort, clean, scrape, cleanup, verify, dispatch)
+- [x] `PipelineReport.to_html()` mis a jour pour 7 steps
+- [x] Supprimer le code dupliqué de l'ancien run()
+- [x] Tests existants cli passent toujours
+- [x] Test : panel final avec 7 rows
 
 **Commit** : `v9.1.3: Wire CLI run() to Pipeline, 7-step panel`
