@@ -23,8 +23,9 @@ STAGING_TMP_PREFIX = ".ingest_tmp_"
 def _get_dir_size(path: Path) -> int:
     """Calculate total size of a directory tree in bytes.
 
-    Handles broken symlinks and permission errors gracefully
-    to avoid crashing the ingest step on a single bad file.
+    Handles permission errors gracefully to avoid crashing the ingest
+    step on a single inaccessible file. Broken symlinks are silently
+    skipped (is_file() returns False for them).
 
     Args:
         path: Directory or file path to measure.

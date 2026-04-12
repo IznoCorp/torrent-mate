@@ -130,8 +130,13 @@ class Sorter:
                 # Files, TV shows, and all other types go INTO the target dir
                 dest_path = dest_dir / item.name
 
-            # Check if already at destination
-            if dest_path.exists():
+            # Movie dirs replace existing; everything else skips
+            is_movie_dir_replace = (
+                item.is_dir()
+                and file_type == FileType.MOVIE
+                and dest_path.exists()
+            )
+            if dest_path.exists() and not is_movie_dir_replace:
                 logger.warning("Already exists at destination: %s", dest_path)
                 return SortResult(
                     source=item,
@@ -145,9 +150,9 @@ class Sorter:
                     message="Already exists at destination",
                 )
 
-            # Move or dry-run
             if self.dry_run:
-                logger.info("[DRY-RUN] Would move %s -> %s", item, dest_path)
+                action = "replace" if is_movie_dir_replace else "move"
+                logger.info("[DRY-RUN] Would %s %s -> %s", action, item, dest_path)
                 return SortResult(
                     source=item,
                     destination=dest_path,
@@ -160,18 +165,16 @@ class Sorter:
                     message=None,
                 )
 
-            # Ensure parent directory exists
             dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-            if item.is_dir() and file_type == FileType.MOVIE and dest_path.exists():
-                # Replace existing movie folder — backup old before delete
+            if is_movie_dir_replace:
+                # Crash-safe replace: backup old, move new, cleanup
                 backup = dest_path.parent / f"{dest_path.name}.old.tmp"
                 try:
                     os.rename(dest_path, backup)
                     shutil.move(str(item), str(dest_path))
                     shutil.rmtree(backup)
                 except OSError:
-                    # Restore backup if move failed
                     if backup.exists() and not dest_path.exists():
                         os.rename(backup, dest_path)
                     raise

@@ -56,7 +56,7 @@ def _is_retryable(exc: BaseException) -> bool:
         response = exc.response
         if response is not None and response.status_code >= 500:
             return True
-    # Also retry on TMDB/TVDB client errors for 5xx (artwork uses TMDB URLs)
+    # Also retry on API client errors with 5xx (TMDBError has http_status)
     if hasattr(exc, "http_status") and getattr(exc, "http_status", 0) >= 500:
         return True
     return False

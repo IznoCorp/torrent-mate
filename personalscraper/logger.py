@@ -128,5 +128,5 @@ def cleanup_old_logs(logs_dir: Path = LOGS_DIR, retention_days: int = 30) -> int
                 f.unlink()
                 deleted += 1
         except OSError:
-            pass  # File may be locked by an active log handler
+            pass  # File locked by active log handler — not worth logging
     return deleted
