@@ -28,6 +28,7 @@ class Settings(BaseSettings):
         tvdb_api_key: TheTVDB API key (Negotiated Contract).
         scraper_language: Primary language for API queries (TMDB format: "fr-FR").
         scraper_fallback_language: Fallback language when primary unavailable.
+        scraper_prefer_local_title: Use local (FR) title for folder renaming.
         telegram_bot_token: Telegram bot token for notifications (empty = disabled).
         telegram_chat_id: Telegram chat/user ID for notifications (empty = disabled).
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring (empty = disabled).
@@ -70,6 +71,7 @@ class Settings(BaseSettings):
     # Scraper
     scraper_language: str = "fr-FR"
     scraper_fallback_language: str = "en-US"
+    scraper_prefer_local_title: bool = True
 
     # Telegram (optional)
     telegram_bot_token: str = ""

@@ -205,6 +205,45 @@ class Scraper:
         self._nfo = NFOGenerator()
         self._artwork = ArtworkDownloader(dry_run=dry_run)
 
+    def _resolve_title(
+        self,
+        match_title: str,
+        api_data: dict,
+        media_type: str,
+    ) -> str:
+        """Pick the best title for folder renaming.
+
+        When scraper_prefer_local_title is True and the API data
+        contains a local (FR) title, uses it. Falls back to
+        match_title if the local title is empty or identical
+        to the original title.
+
+        Args:
+            match_title: Title from the match result (API default).
+            api_data: Full movie/show data from TMDB/TVDB API.
+            media_type: "movie" or "tvshow".
+
+        Returns:
+            Best title string for folder naming.
+        """
+        if not self.settings.scraper_prefer_local_title:
+            return match_title
+
+        # TMDB movies use "title", TV shows use "name"
+        key = "title" if media_type == "movie" else "name"
+        local_title = api_data.get(key, "")
+
+        if not local_title:
+            return match_title
+
+        # If local title is the same as original_title, it means
+        # there's no translation — use match_title instead
+        original = api_data.get("original_title" if media_type == "movie" else "original_name", "")
+        if local_title == original and local_title != match_title:
+            return match_title
+
+        return local_title
+
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
         """Scrape a single movie: match → NFO → artwork.
 
@@ -256,14 +295,24 @@ class Scraper:
             title, match.api_title, match.source, match.confidence,
         )
 
-        # Rename folder to clean format if it doesn't match "Title (Year)"
+        # Get full movie details (needed for local title resolution)
+        try:
+            movie_data = self._tmdb.get_movie(match.api_id)
+        except Exception as e:
+            result.error = f"Get details failed: {e}"
+            logger.error("Failed to get movie details for %s: %s", match.api_title, e)
+            return result
+
+        # Resolve title: use local FR title if preferred and available
+        resolved_title = self._resolve_title(match.api_title, movie_data, "movie")
         api_year = match.api_year or year
-        clean_name = f"{match.api_title} ({api_year})" if api_year else match.api_title
+        clean_name = f"{resolved_title} ({api_year})" if api_year else resolved_title
+
+        # Rename folder to clean format if it doesn't match
         if movie_dir.name != clean_name:
             new_path = movie_dir.parent / clean_name
             if not self.dry_run:
                 if new_path.exists():
-                    # Duplicate detected — merge contents into existing folder
                     count = _merge_dirs(movie_dir, new_path)
                     logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, count)
                 else:
@@ -271,21 +320,12 @@ class Scraper:
                     logger.info("Renamed folder: %s → %s", movie_dir.name, clean_name)
                 movie_dir = new_path
                 result.media_path = new_path
-                # Recompute title/nfo after rename
-                title = match.api_title
+                title = resolved_title
                 nfo_name = self.patterns.format("movie_nfo", Title=title)
                 nfo_path = movie_dir / nfo_name
             else:
                 action = "merge into" if new_path.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, movie_dir.name, clean_name)
-
-        # Get full movie details
-        try:
-            movie_data = self._tmdb.get_movie(match.api_id)
-        except Exception as e:
-            result.error = f"Get details failed: {e}"
-            logger.error("Failed to get movie details for %s: %s", match.api_title, e)
-            return result
 
         # Extract stream info from video file
         video_file = _find_video_file(movie_dir)
@@ -459,10 +499,12 @@ class Scraper:
             logger.error("Failed to get show details: %s", e)
             return result
 
+        # Resolve title: use local FR title if preferred and available
+        resolved_title = self._resolve_title(match.api_title, show_data, "tvshow")
+
         # Rename folder to canonical name (V2→V3 handoff)
-        # Uses movie_dir pattern since both use "{Title} ({Year})" format
         canonical = self.patterns.format(
-            "movie_dir", Title=match.api_title,
+            "movie_dir", Title=resolved_title,
             Year=match.api_year or year or "",
         )
         if show_dir.name != canonical:
