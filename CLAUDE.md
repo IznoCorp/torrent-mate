@@ -9,8 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V7 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests).
-V7.x (test audit + golden files) implemented. V8 (robustness) modeled — implementation pending.
+V0-V8 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness).
 
 ## Commit Convention
 
@@ -190,7 +189,7 @@ A TRIER/
 ├── docs/                # Planning docs per version
 │   ├── v0-project-setup/ through v7-e2e-tests/  # V0-V7 (completed)
 │   ├── v7x-test-audit/  # V7.x: Test audit + golden files (implemented)
-│   └── v8-robustness/   # V8: Robustness improvements (modeled)
+│   └── v8-robustness/   # V8: Robustness improvements (implemented)
 ├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
