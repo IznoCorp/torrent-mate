@@ -61,6 +61,26 @@ def run_sort(settings: Settings, dry_run: bool = False) -> StepReport:
     return report
 
 
+def _has_unsorted_items(settings: Settings) -> bool:
+    """Check if 097-TEMP contains non-hidden items to sort.
+
+    Used for fast-skip: if nothing to sort, skip the entire phase.
+
+    Args:
+        settings: Pipeline configuration (ingest_dir path).
+
+    Returns:
+        True if there are items to sort.
+    """
+    ingest_dir = settings.ingest_dir
+    if not ingest_dir.exists():
+        return False
+    return any(
+        not item.name.startswith(".")
+        for item in ingest_dir.iterdir()
+    )
+
+
 def assert_temp_empty(settings: Settings) -> list[str]:
     """Check that the ingest directory is empty after sort.
 
