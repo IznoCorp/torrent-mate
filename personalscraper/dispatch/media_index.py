@@ -31,6 +31,12 @@ def _default_index_path() -> Path:
 
 _YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
 
+# Categories that represent TV-like content (episodic/serialized)
+_SERIES_CATEGORIES = frozenset({
+    "series", "series animations", "series documentaires",
+    "series animes", "emissions",
+})
+
 
 def _extract_year(name: str) -> int | None:
     """Extract a year (19xx/20xx) from a media name.
@@ -219,7 +225,7 @@ class MediaIndex:
                         continue
 
                     # Infer media_type from category
-                    media_type = "tvshow" if category.startswith("series") else "movie"
+                    media_type = "tvshow" if category in _SERIES_CATEGORIES else "movie"
 
                     entry = IndexEntry(
                         name=media_dir.name,
