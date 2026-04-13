@@ -362,8 +362,6 @@ class TVDBClient:
             params["year"] = year
         data = self._get("/search", params)
         # /search returns a list directly in data
-        if isinstance(data, list):
-            return data
         return data if isinstance(data, list) else []
 
     def get_series(self, series_id: int) -> dict:
@@ -498,9 +496,7 @@ class TVDBClient:
 
             if source_type == TVDB_SOURCE_IMDB or "IMDB" in source_name:
                 result["imdb_id"] = rid_id
-            elif source_type == TVDB_SOURCE_TMDB_TV or (
-                "TheMovieDB" in source_name and source_type == TVDB_SOURCE_TMDB_TV
-            ):
+            elif source_type == TVDB_SOURCE_TMDB_TV or "TheMovieDB" in source_name:
                 result["tmdb_id"] = rid_id
 
         return result
