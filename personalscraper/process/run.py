@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     """Run reclean + dedup on all category directories.
 
+    Fast-skip: returns immediately if no polluted folders found.
+
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview without modifying files.
@@ -26,10 +28,15 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
         StepReport with combined reclean + dedup counts.
     """
     from personalscraper.process.dedup import dedup_folders
-    from personalscraper.process.reclean import reclean_folders
+    from personalscraper.process.reclean import _has_polluted_folders, reclean_folders
 
     movies_dir = settings.staging_dir / settings.movies_dir_name
     tvshows_dir = settings.staging_dir / settings.tvshows_dir_name
+
+    # Fast-skip: nothing to clean or dedup
+    if not _has_polluted_folders(movies_dir) and not _has_polluted_folders(tvshows_dir):
+        logger.info("Clean fast-skip: no polluted folders found")
+        return StepReport(name="clean")
 
     clean_report = StepReport(name="clean")
 

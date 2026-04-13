@@ -31,13 +31,11 @@ Creer les helpers de validation NFO et fast-skip, puis rendre Ingest, Sort et Cl
 
 ### 10.1.3 — Sort idempotence + fast-skip
 
-- [ ] Ajouter fast-skip en debut de `run_sort()` : si `_has_unsorted_items()` retourne False → retour immediat
-- [ ] Dans `Sorter.sort_item()` : avant de deplacer, verifier si un dossier avec le meme titre existe deja dans la categorie destination
-- [ ] Utiliser `fuzzy_match_score` pour la detection (meme guards que dedup)
-- [ ] Si match → status "skipped" avec message "already sorted as {existing_name}"
-- [ ] Tests : sort fast-skip avec 097-TEMP vide
-- [ ] Tests : sort skip item deja present dans 001-MOVIES
-- [ ] Tests : sort ne skip pas si titre different
+- [x] Ajouter fast-skip en debut de `run_sort()` : si `_has_unsorted_items()` retourne False → retour immediat
+- [x] Sort skip exact-name duplicates deja implemente dans `sort_item()` (ligne 149)
+- [x] Fuzzy dedup delegue a la phase clean (reclean+dedup) — pas duplique dans sort
+- [x] Tests : sort fast-skip avec 097-TEMP vide
+- [x] Tests : sort processes items quand 097-TEMP a du contenu
 
 **Commit** : `v10.1.3: Add sort idempotence — skip already-sorted items`
 
