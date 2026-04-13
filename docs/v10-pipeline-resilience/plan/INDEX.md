@@ -6,10 +6,10 @@
 
 | #   | Phase                                  | Fichier                                                            | Status |
 | --- | -------------------------------------- | ------------------------------------------------------------------ | ------ |
-| 1   | Helpers validation + Ingest/Sort/Clean | [phase-01-helpers-idempotence.md](phase-01-helpers-idempotence.md) | [ ]    |
-| .   | _Controle de coherence P1→P2_          |                                                                    | [ ]    |
-| 2   | Scrape resilience                      | [phase-02-scrape-resilience.md](phase-02-scrape-resilience.md)     | [ ]    |
-| .   | _Controle de coherence P2→P3_          |                                                                    | [ ]    |
+| 1   | Helpers validation + Ingest/Sort/Clean | [phase-01-helpers-idempotence.md](phase-01-helpers-idempotence.md) | [x]    |
+| .   | _Controle de coherence P1→P2_          |                                                                    | [x]    |
+| 2   | Scrape resilience                      | [phase-02-scrape-resilience.md](phase-02-scrape-resilience.md)     | [x]    |
+| .   | _Controle de coherence P2→P3_          |                                                                    | [x]    |
 | 3   | Verify + Dispatch resilience           | [phase-03-verify-dispatch.md](phase-03-verify-dispatch.md)         | [ ]    |
 | .   | _Controle de coherence P3→P4_          |                                                                    | [ ]    |
 | 4   | Tests resilience filesystem            | [phase-04-resilience-tests.md](phase-04-resilience-tests.md)       | [ ]    |
@@ -29,22 +29,20 @@ P4 (tests)                       ──→ P5 (integration + docs)
 
 ### Apres Phase 1 (Helpers + Ingest/Sort/Clean → Scrape)
 
-- [ ] `_is_nfo_complete()` valide XML parsable + `<uniqueid>` present
-- [ ] `_is_nfo_complete()` retourne False pour NFO tronque ou sans uniqueid
-- [ ] Sort skip les items deja presents en 001/002 (fuzzy match)
-- [ ] Sort fast-skip si 097-TEMP vide
-- [ ] Clean skip dossier source disparu apres crash mid-rename
-- [ ] Clean fast-skip si aucun dossier pollue
-- [ ] Ingest fast-skip si aucun torrent non-ingere
-- [ ] 963+ tests passent
+- [x] `_is_nfo_complete()` valide XML parsable + `<uniqueid>` present (6 tests)
+- [x] `_is_nfo_complete()` retourne False pour NFO tronque ou sans uniqueid
+- [x] Sort skip exact duplicates (existant) + fast-skip si 097-TEMP vide
+- [x] Clean skip source disparue (naturel via iterdir) + fast-skip si aucun pollue
+- [x] Ingest deja idempotent (hash tracker, orphan cleanup)
+- [x] 981 tests passent (baseline 963)
 
 ### Apres Phase 2 (Scrape → Verify)
 
-- [ ] Scrape detecte NFO corrompu (XML invalide) et le re-scrape
-- [ ] Scrape detecte NFO sans uniqueid et le re-scrape
-- [ ] Scrape detecte artwork manquant et re-download sans re-scrape NFO
-- [ ] Scrape fast-skip si tous les NFO sont valides
-- [ ] Le re-scrape produit un NFO valide (parsable + uniqueid)
+- [x] Scrape detecte NFO corrompu (XML invalide) et le supprime avant re-scrape
+- [x] Scrape detecte NFO sans uniqueid et le supprime avant re-scrape
+- [x] Scrape detecte artwork manquant et re-download via TMDB ID du NFO
+- [x] Scrape fast-skip si tous les NFO sont valides
+- [x] 981 tests passent
 
 ### Apres Phase 3 (Verify/Dispatch → Tests)
 

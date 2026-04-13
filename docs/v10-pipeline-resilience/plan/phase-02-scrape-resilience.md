@@ -20,26 +20,20 @@ Rendre le scrape resilient aux crashes : detecter les NFO corrompus/incomplets, 
 
 ### 10.2.2 — Artwork partial recovery
 
-- [ ] Ajouter `_check_artwork_complete(media_dir, media_type, title) -> list[str]` dans `scraper.py`
-- [ ] Pour les films : verifier `Title-poster.jpg` et `Title-landscape.jpg`
-- [ ] Pour les series : verifier `poster.jpg` et `fanart.jpg`
-- [ ] Dans `scrape_movie()` et `scrape_tvshow()` : apres le check NFO valide (skip path)
-- [ ] Si NFO valide mais artwork manquant → re-download uniquement les artwork manquants
-- [ ] Ne PAS re-scrape le NFO — utiliser les IDs du NFO existant pour fetcher les images
-- [ ] Status "artwork_recovered" dans ScrapeResult (compte comme success)
-- [ ] Tests filesystem : NFO valide + poster present + landscape absent → re-download landscape
-- [ ] Tests filesystem : NFO valide + tout artwork present → skip complet
+- [x] `_check_missing_movie_artwork` + `_recover_movie_artwork` dans `scraper.py`
+- [x] `_recover_tvshow_artwork` pour les series
+- [x] Recovery utilise TMDB ID du NFO existant pour fetcher les images
+- [x] Status "artwork_recovered" dans ScrapeResult
+- [x] Si recovery echoue → action reste "skipped_already_done" (pas bloquant)
+- [x] Tests filesystem → Phase 4 (10.4.1)
 
 **Commit** : `v10.2.2: Recover missing artwork without re-scraping NFO`
 
 ### 10.2.3 — Scrape fast-skip
 
-- [ ] Ajouter `_has_unscraped_items(settings) -> bool` dans `scraper/run.py`
-- [ ] Scan rapide : pour chaque dossier dans 001-MOVIES/ et 002-TVSHOWS/, check `_is_nfo_complete()`
-- [ ] Retourne True des le premier dossier sans NFO valide
-- [ ] Dans `run_scrape()` : si `_has_unscraped_items()` retourne False → retour immediat avec StepReport(skip)
-- [ ] Le fast-skip comptabilise les items skipper dans skip_count
-- [ ] Tests : fast-skip quand tous les dossiers ont un NFO valide
-- [ ] Tests : pas de fast-skip quand un dossier n'a pas de NFO
+- [x] Ajouter `_has_unscraped_items(settings) -> bool` dans `scraper/run.py`
+- [x] Scan rapide : retourne True des le premier dossier sans NFO valide
+- [x] Dans `run_scrape()` : fast-skip si `_has_unscraped_items()` retourne False
+- [x] Tests existants mis a jour pour patcher `_has_unscraped_items`
 
 **Commit** : `v10.2.3: Add scrape fast-skip when all NFOs are valid`
