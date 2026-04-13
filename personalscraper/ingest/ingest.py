@@ -214,14 +214,27 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                     report.skip_count += 1
                     continue
 
-                # Resolve content path — missing files are skipped (not errors),
-                # typically means the torrent was already moved or the disk is unmounted
+                # Resolve content path — if missing, check if already in staging
                 source = client.get_content_path(torrent)
                 if not source.exists():
-                    log.warning("content_missing", name=name, path=str(source))
-                    content_missing_count += 1
-                    report.skip_count += 1
-                    report.warnings.append(f"{name}: content path missing ({source})")
+                    # Check staging dirs for this content (already ingested pre-tracker)
+                    staging_dirs = [
+                        settings.staging_dir / settings.movies_dir_name,
+                        settings.staging_dir / settings.tvshows_dir_name,
+                        settings.ingest_dir,
+                    ]
+                    found_in_staging = any(
+                        (d / source.name).exists() for d in staging_dirs
+                    )
+                    if found_in_staging:
+                        log.debug("already_in_staging", name=name)
+                        tracker.mark_ingested(torrent_hash, name, "found_in_staging")
+                        report.skip_count += 1
+                    else:
+                        log.warning("content_missing", name=name, path=str(source))
+                        content_missing_count += 1
+                        report.skip_count += 1
+                        report.warnings.append(f"{name}: content path missing ({source})")
                     continue
 
                 # Destination in 097-TEMP/ (sort picks up from here)
