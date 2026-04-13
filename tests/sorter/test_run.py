@@ -72,3 +72,28 @@ class TestAssertTempEmpty:
         # Don't create ingest_dir — it shouldn't exist
         remaining = assert_temp_empty(gate_settings)
         assert remaining == []
+
+
+class TestSortFastSkip:
+    """Tests for sort fast-skip when 097-TEMP is empty."""
+
+    def test_fast_skip_empty_temp(self, gate_settings):
+        """Sort returns empty report immediately when 097-TEMP is empty."""
+        from personalscraper.sorter.run import run_sort
+
+        gate_settings.ingest_dir.mkdir(parents=True, exist_ok=True)
+        report = run_sort(gate_settings)
+        assert report.name == "sort"
+        assert report.success_count == 0
+        assert report.skip_count == 0
+        assert report.error_count == 0
+
+    def test_no_fast_skip_with_items(self, gate_settings):
+        """Sort processes items when 097-TEMP has content."""
+        from personalscraper.sorter.run import run_sort
+
+        gate_settings.ingest_dir.mkdir(parents=True, exist_ok=True)
+        (gate_settings.ingest_dir / "movie.mkv").write_text("video")
+        report = run_sort(gate_settings)
+        # At least one item was processed (moved or skipped)
+        assert report.success_count + report.skip_count + report.error_count > 0
