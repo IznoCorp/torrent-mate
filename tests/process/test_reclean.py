@@ -1,5 +1,7 @@
 """Tests for process/reclean.py — is_title_polluted and reclean_folders."""
 
+from pathlib import Path
+
 import pytest
 
 from personalscraper.process.reclean import is_title_polluted, reclean_folders
@@ -128,3 +130,28 @@ class TestRecleanFolders:
         assert report.success_count == 0
         assert report.skip_count == 0
         assert report.error_count == 0
+
+
+def test_reclean_removes_colon_from_folder_name(tmp_path: Path) -> None:
+    """Reclean should sanitize folder names — colons must be stripped.
+
+    When NameCleaner.clean() preserves a colon that is part of the title
+    (e.g. "Mission: Impossible"), _format_clean_name returns a name with
+    a colon. sanitize_filename() must be applied to strip it.
+    """
+    category_dir = tmp_path / "001-MOVIES"
+    category_dir.mkdir()
+
+    # Folder whose title portion retains a colon after guessit parsing.
+    # NameCleaner.clean() yields "Mission: Impossible", so _format_clean_name
+    # produces "Mission: Impossible (2024)" — sanitize_filename must strip the colon.
+    dirty = category_dir / "Mission: Impossible 2024 1080p BluRay"
+    dirty.mkdir()
+    (dirty / "video.mkv").write_bytes(b"\x00" * 1000)
+
+    reclean_folders(category_dir, dry_run=False)
+
+    # The colon should be gone from every resulting folder name
+    result_dirs = [d.name for d in category_dir.iterdir() if d.is_dir()]
+    for name in result_dirs:
+        assert ":" not in name, f"Colon found in folder name: {name}"
