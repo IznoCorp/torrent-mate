@@ -10,6 +10,7 @@ from pathlib import Path
 
 from personalscraper.models import StepReport
 from personalscraper.sorter.cleaner import NameCleaner
+from personalscraper.text_utils import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ def reclean_folders(
         # Re-clean via guessit
         title = cleaner.clean(folder.name)
         year = cleaner.extract_year(folder.name)
-        clean_name = _format_clean_name(title, year)
+        clean_name = sanitize_filename(_format_clean_name(title, year))
 
         if clean_name == folder.name:
             report.skip_count += 1
