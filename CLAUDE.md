@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V9 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity).
+V0-V10 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience).
 
 ## Commit Convention
 
@@ -133,19 +133,20 @@ All versions (V0–V9) are implemented. Documentation and plans live in `docs/`:
 
 ### Pipeline Versions
 
-| Version | Name               | Role                                                              | Phases |
-| ------- | ------------------ | ----------------------------------------------------------------- | ------ |
-| V0      | PROJECT SETUP      | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
-| V1      | INGEST             | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
-| V2      | SORT+CLEAN         | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
-| V3      | SCRAPE             | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
-| V4      | VERIFY             | Quality gate: checker + fixer + genre categorization              | 4      |
-| V5      | DISPATCH           | Move to Disk1-4 (replace movies, merge series)                    | 3      |
-| V6      | LOG+NOTIFY         | JSON logging, Telegram notifications, launchd scheduling          | 3      |
-| V7      | E2E TESTS          | Real torrent tests with safe cleanup markers                      | 5      |
-| V7.x    | TEST AUDIT         | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
-| V8      | ROBUSTNESS         | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
-| V9      | PIPELINE INTEGRITY | Sequential 7-step pipeline, reclean+dedup, verify reinforced      | 5      |
+| Version | Name                | Role                                                              | Phases |
+| ------- | ------------------- | ----------------------------------------------------------------- | ------ |
+| V0      | PROJECT SETUP       | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
+| V1      | INGEST              | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
+| V2      | SORT+CLEAN          | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
+| V3      | SCRAPE              | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
+| V4      | VERIFY              | Quality gate: checker + fixer + genre categorization              | 4      |
+| V5      | DISPATCH            | Move to Disk1-4 (replace movies, merge series)                    | 3      |
+| V6      | LOG+NOTIFY          | JSON logging, Telegram notifications, launchd scheduling          | 3      |
+| V7      | E2E TESTS           | Real torrent tests with safe cleanup markers                      | 5      |
+| V7.x    | TEST AUDIT          | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
+| V8      | ROBUSTNESS          | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
+| V9      | PIPELINE INTEGRITY  | Sequential 7-step pipeline, reclean+dedup, verify reinforced      | 5      |
+| V10     | PIPELINE RESILIENCE | Idempotence, fast-skip, NFO validation, crash recovery, tests     | 5      |
 
 ### Reference Documentation
 

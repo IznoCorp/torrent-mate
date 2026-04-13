@@ -90,7 +90,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | A. Modélisation V9 (PIPELINE INTEGRITY)   | [x] Brainstorming + Design + Plan               |
 | B. Implémentation V9                      | [x] 5 phases, 15 sous-phases                    |
 | A. Modélisation V10 (PIPELINE RESILIENCE) | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V10                     | [ ] 5 phases, 14 sous-phases                    |
+| B. Implémentation V10                     | [x] 5 phases, 14 sous-phases                    |
 
 ---
 
