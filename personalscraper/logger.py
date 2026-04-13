@@ -6,7 +6,7 @@ from pathlib import Path
 
 import structlog
 
-LOGS_DIR = Path("logs")
+LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
 
 
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
