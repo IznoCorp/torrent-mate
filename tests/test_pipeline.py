@@ -1,5 +1,8 @@
 """Tests for personalscraper.pipeline — sequential exhaustive orchestrator."""
 
+import os
+import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -168,3 +171,86 @@ class TestPipelineRun:
         # Pipeline continued despite gate warning
         assert "verify" in report.steps
         assert "dispatch" in report.steps
+
+
+class TestCrashRecovery:
+    """Tests for _recover_from_previous_run cleanup."""
+
+    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
+    def test_expired_lockout_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+        """Expired qBit lockout file (>1h) should be removed at startup."""
+        lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
+        lockout.parent.mkdir(parents=True)
+        lockout.write_text("login_failed")
+        # Set mtime to 2 hours ago
+        old_time = time.time() - 7200
+        os.utime(lockout, (old_time, old_time))
+
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+        settings.ingest_dir.mkdir()
+
+        pipeline = Pipeline(settings, dry_run=False)
+        pipeline._recover_from_previous_run(lockout_path=lockout)
+
+        assert not lockout.exists()
+
+    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
+    def test_non_expired_lockout_kept(self, mock_get_disks, tmp_path: Path) -> None:
+        """Recent lockout file (<1h) should NOT be removed."""
+        lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
+        lockout.parent.mkdir(parents=True)
+        lockout.write_text("login_failed")
+
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+        settings.ingest_dir.mkdir()
+
+        pipeline = Pipeline(settings, dry_run=False)
+        pipeline._recover_from_previous_run(lockout_path=lockout)
+
+        assert lockout.exists()
+
+    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs")
+    def test_orphan_tmp_dispatch_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+        """Orphan _tmp_dispatch_* dirs on storage disks should be removed."""
+        # Simulate a storage disk with an orphan
+        disk_path = tmp_path / "Disk1" / "medias"
+        category = disk_path / "films"
+        orphan = category / "_tmp_dispatch_Movie (2025)"
+        orphan.mkdir(parents=True)
+        (orphan / "file.mkv").write_bytes(b"\x00" * 100)
+
+        disk_config = MagicMock()
+        disk_config.path = disk_path
+        mock_get_disks.return_value = [disk_config]
+
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+        settings.ingest_dir.mkdir()
+
+        pipeline = Pipeline(settings, dry_run=False)
+        pipeline._recover_from_previous_run(
+            lockout_path=tmp_path / "nonexistent_lockout"
+        )
+
+        assert not orphan.exists()
+
+    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
+    def test_orphan_ingest_tmp_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+        """Orphan .ingest_tmp_* dirs in staging should be removed."""
+        ingest_dir = tmp_path / "097-TEMP"
+        ingest_dir.mkdir()
+        orphan = ingest_dir / ".ingest_tmp_Movie"
+        orphan.mkdir()
+        (orphan / "file.mkv").write_bytes(b"\x00" * 100)
+
+        settings = MagicMock()
+        settings.ingest_dir = ingest_dir
+
+        pipeline = Pipeline(settings, dry_run=False)
+        pipeline._recover_from_previous_run(
+            lockout_path=tmp_path / "nonexistent_lockout"
+        )
+
+        assert not orphan.exists()
