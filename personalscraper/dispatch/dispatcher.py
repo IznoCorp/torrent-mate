@@ -486,7 +486,8 @@ class Dispatcher:
             True if rsync succeeded.
         """
         cmd = [
-            "rsync", "-a", "--partial", "--checksum",
+            "rsync", "-a", "--no-perms", "--no-owner", "--no-group",
+            "--partial", "--checksum",
             "--backup", f"--backup-dir={backup_dir}",
             f"{source}/", str(dest),
         ]
@@ -622,7 +623,9 @@ class Dispatcher:
         Returns:
             True if rsync succeeded (returncode 0).
         """
-        cmd = ["rsync", "-a", "--partial", "--checksum"]
+        # -a minus -pgo: NTFS via macFUSE doesn't support Unix permissions
+        cmd = ["rsync", "-a", "--no-perms", "--no-owner", "--no-group",
+               "--partial", "--checksum"]
         if delete:
             cmd.append("--delete")
         cmd.extend([f"{source}/", str(dest)])
