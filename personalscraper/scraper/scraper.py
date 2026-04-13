@@ -197,18 +197,28 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
 
 
 def _find_video_file(directory: Path) -> Path | None:
-    """Find the first video file in a directory.
+    """Find the main video file in a directory tree.
+
+    Searches recursively for video files. When multiple are found,
+    returns the largest one (main feature, not sample/extra).
+    Skips hidden files and .actors/ directories.
 
     Args:
-        directory: Path to search for video files.
+        directory: Root directory to search.
 
     Returns:
-        Path to the first video file found, or None.
+        Path to the largest video file, or None if no video found.
     """
-    for f in sorted(directory.iterdir()):
-        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS:
-            return f
-    return None
+    candidates = [
+        f for f in directory.rglob("*")
+        if f.is_file()
+        and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+        and not f.name.startswith(".")
+        and ".actors" not in f.parts
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda f: f.stat().st_size)
 
 
 def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> int:
