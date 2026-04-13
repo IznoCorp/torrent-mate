@@ -336,7 +336,11 @@ class Scraper:
             tmdb_id = None
             for uid in root.findall("uniqueid"):
                 if uid.get("type") == "tmdb" and uid.text:
-                    tmdb_id = int(uid.text)
+                    try:
+                        tmdb_id = int(uid.text)
+                    except ValueError:
+                        logger.warning("Non-numeric TMDB ID '%s' in NFO: %s", uid.text, nfo_path)
+                        return
                     break
             if not tmdb_id:
                 logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
@@ -373,7 +377,11 @@ class Scraper:
             tmdb_id = None
             for uid in root.findall("uniqueid"):
                 if uid.get("type") == "tmdb" and uid.text:
-                    tmdb_id = int(uid.text)
+                    try:
+                        tmdb_id = int(uid.text)
+                    except ValueError:
+                        logger.warning("Non-numeric TMDB ID '%s' in NFO: %s", uid.text, nfo_path)
+                        return
                     break
             if not tmdb_id:
                 logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
@@ -431,7 +439,12 @@ class Scraper:
         # Corrupt NFO: delete before re-scrape
         if nfo_path.exists():
             logger.warning("Corrupt NFO detected, re-scraping: %s", nfo_path.name)
-            nfo_path.unlink()
+            try:
+                nfo_path.unlink()
+            except OSError as exc:
+                result.error = f"Cannot delete corrupt NFO: {exc}"
+                logger.error("Cannot delete corrupt NFO %s: %s", nfo_path, exc)
+                return result
 
         # Match against TMDB
         try:
@@ -638,7 +651,12 @@ class Scraper:
         # Corrupt NFO: delete before re-scrape
         if nfo_path.exists():
             logger.warning("Corrupt NFO detected, re-scraping: %s", nfo_path.name)
-            nfo_path.unlink()
+            try:
+                nfo_path.unlink()
+            except OSError as exc:
+                result.error = f"Cannot delete corrupt NFO: {exc}"
+                logger.error("Cannot delete corrupt NFO %s: %s", nfo_path, exc)
+                return result
 
         # Match against TVDB/TMDB
         try:

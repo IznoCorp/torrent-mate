@@ -19,18 +19,22 @@ logger = logging.getLogger(__name__)
 
 
 def _has_unscraped_items(settings: Settings) -> bool:
-    """Check if any media folder lacks a valid NFO.
+    """Check if any media folder needs scraping or artwork recovery.
 
-    Quick scan that returns True as soon as the first folder
-    without a complete NFO is found. Used for fast-skip.
+    Returns True if at least one folder has:
+    - No valid NFO (needs full scrape), OR
+    - Valid NFO but missing artwork (needs artwork recovery)
+
+    Uses _parse_folder_name for consistent title extraction.
 
     Args:
         settings: Pipeline configuration.
 
     Returns:
-        True if at least one folder needs scraping.
+        True if at least one folder needs work.
     """
     from personalscraper.naming_patterns import PATTERNS
+    from personalscraper.scraper.scraper import _parse_folder_name
 
     staging = Path(settings.staging_dir)
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
@@ -40,15 +44,22 @@ def _has_unscraped_items(settings: Settings) -> bool:
         for folder in cat_dir.iterdir():
             if not folder.is_dir() or folder.name.startswith("."):
                 continue
-            # Movie NFO: Title.nfo
             if dir_name == settings.movies_dir_name:
-                title = folder.name.split(" (")[0] if " (" in folder.name else folder.name
+                title, _ = _parse_folder_name(folder.name)
                 nfo_name = PATTERNS.format("movie_nfo", Title=title)
                 nfo_path = folder / nfo_name
+                if not _is_nfo_complete(nfo_path):
+                    return True
+                # Also check artwork for recovery
+                poster = PATTERNS.format("movie_poster", Title=title)
+                if not (folder / poster).exists():
+                    return True
             else:
                 nfo_path = folder / PATTERNS.tvshow_nfo
-            if not _is_nfo_complete(nfo_path):
-                return True
+                if not _is_nfo_complete(nfo_path):
+                    return True
+                if not (folder / PATTERNS.tvshow_poster).exists():
+                    return True
     return False
 
 
@@ -133,6 +144,12 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
                 parts.append(f"{len(r.artwork_downloaded)} artwork")
             if r.episodes_renamed > 0:
                 parts.append(f"{r.episodes_renamed} episodes")
+            details.append(" | ".join(parts))
+        elif r.action == "artwork_recovered":
+            success += 1
+            parts = [f"[recovered] {name}"]
+            if r.artwork_downloaded:
+                parts.append(f"{len(r.artwork_downloaded)} artwork")
             details.append(" | ".join(parts))
         elif r.action.startswith("skipped"):
             skipped += 1

@@ -33,21 +33,21 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     movies_dir = settings.staging_dir / settings.movies_dir_name
     tvshows_dir = settings.staging_dir / settings.tvshows_dir_name
 
-    # Fast-skip: nothing to clean or dedup
-    if not _has_polluted_folders(movies_dir) and not _has_polluted_folders(tvshows_dir):
-        logger.info("Clean fast-skip: no polluted folders found")
-        return StepReport(name="clean")
+    has_polluted = _has_polluted_folders(movies_dir) or _has_polluted_folders(tvshows_dir)
 
     clean_report = StepReport(name="clean")
 
     for category_dir in (movies_dir, tvshows_dir):
-        reclean_report = reclean_folders(category_dir, dry_run=dry_run)
-        clean_report.success_count += reclean_report.success_count
-        clean_report.skip_count += reclean_report.skip_count
-        clean_report.error_count += reclean_report.error_count
-        clean_report.details.extend(reclean_report.details)
-        clean_report.warnings.extend(reclean_report.warnings)
+        # Only run reclean if polluted folders exist
+        if has_polluted:
+            reclean_report = reclean_folders(category_dir, dry_run=dry_run)
+            clean_report.success_count += reclean_report.success_count
+            clean_report.skip_count += reclean_report.skip_count
+            clean_report.error_count += reclean_report.error_count
+            clean_report.details.extend(reclean_report.details)
+            clean_report.warnings.extend(reclean_report.warnings)
 
+        # Always run dedup (lightweight fuzzy comparison)
         dedup_merged, dedup_failed = dedup_folders(category_dir, dry_run=dry_run)
         if dedup_merged:
             clean_report.success_count += dedup_merged
