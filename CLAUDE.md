@@ -17,6 +17,19 @@ V0-V10 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notif
 - NEVER include `Co-Authored-By`, Claude, Anthropic, or AI references in commits
 - A PreToolUse hook (`block_ai_attribution.py`) enforces this — commit will be blocked
 
+## Pipeline Monitoring Rules
+
+When running `personalscraper run` or any long-running command with user observation:
+
+1. **NEVER run in background** — foreground only, timeout=600000. A hook (`block_background_pipeline.py`) enforces this.
+2. **Create TODO tasks BEFORE launching** — categories: bugs, incohérences, améliorations. Update in real-time.
+3. **Show output after each step** — read and display incrementally, don't wait for the end.
+4. **Kill on 2 identical consecutive errors** — systemic failure = STOP immediately, don't keep trying.
+5. **State limitations upfront** — if you can't guarantee something, say so BEFORE agreeing.
+6. **After kill: check filesystem** — orphans, lock files, temp dirs. Clean or report what can't be cleaned.
+
+Alternative: run steps individually (`personalscraper -v ingest`, then `personalscraper -v sort`, etc.) to maintain control between steps.
+
 ## Code Conventions
 
 - **Google-style docstrings** mandatory on all modules, classes, functions, and methods
