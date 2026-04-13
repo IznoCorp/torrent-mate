@@ -91,7 +91,8 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | B. Implémentation V9                      | [x] 5 phases, 15 sous-phases                    |
 | A. Modélisation V10 (PIPELINE RESILIENCE) | [x] Brainstorming + Design + Plan               |
 | B. Implémentation V10                     | [x] 5 phases, 14 sous-phases                    |
-| B. Implémentation V11 (INGEST HARDENING)  | [x] Phase 1 complete                            |
+| A. Modélisation V11 (CODE QUALITY)        | [x] Design + Plan                               |
+| B. Implémentation V11                     | [x] 4 phases, 4 sous-phases                     |
 
 ---
 
@@ -265,18 +266,23 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ---
 
-### V11 — INGEST HARDENING
+### V11 — CODE QUALITY HARDENING `[x] Terminé`
 
-> Robustesse de l'étape ingest : isolation d'erreurs par torrent, messages d'erreur actionnables pour les exceptions qBittorrent, suppression du code mort.
+> Fix 4 architectural issues from comprehensive code review: error isolation, CLI UX, dead code removal, DRY extraction.
+
+| Document | Fichier                                                          | Status |
+| -------- | ---------------------------------------------------------------- | ------ |
+| Design   | [v11-code-quality/DESIGN.md](v11-code-quality/DESIGN.md)         | [x]    |
+| Plan     | [v11-code-quality/plan/INDEX.md](v11-code-quality/plan/INDEX.md) | [x]    |
 
 | Phase | Description                                    | Status |
 | ----- | ---------------------------------------------- | ------ |
 | 1     | Per-torrent error isolation + typed exceptions | [x]    |
-| 2     | CLI config error decorator                     | [ ]    |
-| 3     | Remove dead TMDBClient.select_best_image       | [ ]    |
-| 4     | Extract shared \_is_retryable                  | [ ]    |
+| 2     | CLI config error decorator                     | [x]    |
+| 3     | Remove dead TMDBClient.select_best_image       | [x]    |
+| 4     | Extract shared \_is_retryable via factory      | [x]    |
 
-**Phase 1 complete** — `run_ingest()` restructured: per-torrent try/except (OSError isolation), typed outer catches (`LoginFailed`, `APIConnectionError`, `Forbidden403Error`, `QBitAuthLockoutError`), 3 new tests (29 total passing)
+**4 phases, all complete** — 1005 tests passing, 0 regressions
 
 ---
 
