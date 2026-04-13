@@ -16,11 +16,11 @@ def make_retryable_predicate(*provider_error_types: type) -> Callable[[BaseExcep
     """Create a retry predicate for tenacity.
 
     Retries on:
-    - Provider-specific errors with http_status in {429, 500-504}
-    - requests.HTTPError with status in {429, 500-504}
+    - Provider-specific errors with http_status in {429, 500, 502, 503, 504}
+    - requests.HTTPError with status in {429, 500, 502, 503, 504}
     - Connection errors and timeouts
 
-    Does NOT retry on 4xx client errors (401, 403, 404).
+    Does NOT retry on 4xx client errors (401, 403, 404) or 501/505+.
 
     Args:
         *provider_error_types: Exception classes with an http_status attribute
@@ -33,7 +33,8 @@ def make_retryable_predicate(*provider_error_types: type) -> Callable[[BaseExcep
     def _is_retryable(exc: BaseException) -> bool:
         for err_type in provider_error_types:
             if isinstance(exc, err_type):
-                return exc.http_status in _RETRYABLE_STATUS_CODES
+                status = getattr(exc, "http_status", None)
+                return status in _RETRYABLE_STATUS_CODES if status is not None else False
         if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
             return exc.response.status_code in _RETRYABLE_STATUS_CODES
         return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
