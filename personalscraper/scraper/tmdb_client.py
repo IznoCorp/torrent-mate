@@ -394,37 +394,3 @@ class TMDBClient:
         """
         return f"{self.IMAGE_BASE_URL}/{size}{path}"
 
-    def select_best_image(self, images: list[dict], image_type: str) -> str | None:
-        """Select the best image by language priority and vote average.
-
-        Priority order:
-        1. French (iso_639_1 == "fr")
-        2. English (iso_639_1 == "en")
-        3. Neutral/no language (iso_639_1 is None) — textless images
-        4. Within same language, highest vote_average wins
-
-        Args:
-            images: List of image dicts from API (with iso_639_1,
-                vote_average, file_path keys).
-            image_type: Image type to filter ("posters" or "backdrops").
-                Not used for filtering here — caller should pass the
-                correct list already.
-
-        Returns:
-            Relative image path (file_path) of the best match, or None
-            if no images available.
-        """
-        if not images:
-            return None
-
-        # Language priority mapping (lower = better)
-        lang_priority: dict[str | None, int] = {"fr": 0, "en": 1}
-
-        def sort_key(img: dict) -> tuple:
-            lang: str | None = img.get("iso_639_1")
-            priority = lang_priority.get(lang, 2)  # None/other → 2
-            vote = img.get("vote_average", 0.0)
-            return (priority, -vote)  # Lower priority first, higher vote first
-
-        sorted_images = sorted(images, key=sort_key)
-        return sorted_images[0].get("file_path")
