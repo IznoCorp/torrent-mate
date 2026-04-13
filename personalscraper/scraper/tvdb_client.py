@@ -29,6 +29,8 @@ from tenacity import (
 )
 from urllib3.util.retry import Retry as Urllib3Retry
 
+from personalscraper.scraper.http_retry import make_retryable_predicate
+
 logger = logging.getLogger(__name__)
 
 # TVDB source type IDs for cross-referencing
@@ -67,7 +69,6 @@ class TVDBError(Exception):
         super().__init__(f"TVDB {http_status}: {message}")
 
 
-from personalscraper.scraper.http_retry import make_retryable_predicate
 
 _is_retryable = make_retryable_predicate(TVDBError)
 
