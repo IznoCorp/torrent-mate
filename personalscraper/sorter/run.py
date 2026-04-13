@@ -23,6 +23,8 @@ def run_sort(settings: Settings, dry_run: bool = False) -> StepReport:
     (097-TEMP/) and sorts items into category subdirectories (001-MOVIES/,
     002-TVSHOWS/, etc.) under the staging root.
 
+    Fast-skip: returns immediately if 097-TEMP has no items to sort.
+
     Args:
         settings: Pipeline configuration (ingest_dir and staging_dir).
         dry_run: If True, simulate moves without actually moving.
@@ -30,6 +32,11 @@ def run_sort(settings: Settings, dry_run: bool = False) -> StepReport:
     Returns:
         StepReport with counts and per-item details.
     """
+    # Fast-skip: nothing to sort
+    if not _has_unsorted_items(settings):
+        logger.info("Sort fast-skip: 097-TEMP is empty")
+        return StepReport(name="sort")
+
     cleaner = NameCleaner()
     sorter = Sorter(cleaner=cleaner, dry_run=dry_run)
 
