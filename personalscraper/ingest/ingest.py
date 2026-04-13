@@ -320,20 +320,21 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
             f"qBittorrent login failed: {e}. "
             "Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env"
         )
-    except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
-        log.exception("ingest_failed", error=str(e))
-        report.error_count += 1
-        report.details.append(
-            f"qBittorrent unreachable: {e}. "
-            "Fix: verify qBit is running and Web UI is enabled."
-        )
     except qbittorrentapi.Forbidden403Error as e:
+        # Must come before APIConnectionError (Forbidden403Error is a subclass)
         log.exception("ingest_failed", error=str(e))
         report.error_count += 1
         report.details.append(
             f"qBittorrent auth blocked (IP banned): {e}. "
             "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
             "or wait for the ban to expire."
+        )
+    except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
+        log.exception("ingest_failed", error=str(e))
+        report.error_count += 1
+        report.details.append(
+            f"qBittorrent unreachable: {e}. "
+            "Fix: verify qBit is running and Web UI is enabled."
         )
     except Exception as e:
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
