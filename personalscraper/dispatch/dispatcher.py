@@ -12,6 +12,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,15 +34,26 @@ def _force_rmtree(path: Path) -> None:
     """
     errors: list[tuple[str, OSError]] = []
 
-    def _on_error(func, fpath, _exc_info):
-        """Add owner rwx permissions and retry deletion."""
+    def _on_error(func, fpath, exc):
+        """Add owner rwx permissions and retry deletion.
+
+        Args:
+            func: The function that raised the exception (os.remove, etc.).
+            fpath: Path of the file/dir that could not be removed.
+            exc: Exception info — tuple (type, value, tb) for onerror,
+                or BaseException for onexc (Python 3.12+).
+        """
         try:
             os.chmod(fpath, stat.S_IRWXU)
             func(fpath)
         except OSError as e:
             errors.append((fpath, e))
 
-    shutil.rmtree(path, onerror=_on_error)
+    # Python 3.12 deprecated onerror in favor of onexc
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_on_error)
+    else:
+        shutil.rmtree(path, onerror=_on_error)
 
     if errors and path.exists():
         for fpath, err in errors[:5]:
