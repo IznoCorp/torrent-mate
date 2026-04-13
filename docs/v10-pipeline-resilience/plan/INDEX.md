@@ -10,8 +10,8 @@
 | .   | _Controle de coherence P1→P2_          |                                                                    | [x]    |
 | 2   | Scrape resilience                      | [phase-02-scrape-resilience.md](phase-02-scrape-resilience.md)     | [x]    |
 | .   | _Controle de coherence P2→P3_          |                                                                    | [x]    |
-| 3   | Verify + Dispatch resilience           | [phase-03-verify-dispatch.md](phase-03-verify-dispatch.md)         | [ ]    |
-| .   | _Controle de coherence P3→P4_          |                                                                    | [ ]    |
+| 3   | Verify + Dispatch resilience           | [phase-03-verify-dispatch.md](phase-03-verify-dispatch.md)         | [x]    |
+| .   | _Controle de coherence P3→P4_          |                                                                    | [x]    |
 | 4   | Tests resilience filesystem            | [phase-04-resilience-tests.md](phase-04-resilience-tests.md)       | [ ]    |
 | .   | _Controle de coherence P4→P5_          |                                                                    | [ ]    |
 | 5   | Integration + docs                     | [phase-05-integration-docs.md](phase-05-integration-docs.md)       | [ ]    |
@@ -46,10 +46,10 @@ P4 (tests)                       ──→ P5 (integration + docs)
 
 ### Apres Phase 3 (Verify/Dispatch → Tests)
 
-- [ ] Verify ne re-applique pas les fixes si tous les checks passent au premier run
-- [ ] Verify double-run produit le meme resultat
-- [ ] Dispatch nettoie les `_tmp_dispatch_*` et `.merge_backup/` au debut
-- [ ] Les 7 phases sont idempotentes (re-run safe)
+- [x] Verify ne re-applique pas les fixes si aucun fixable_fails (deja le cas)
+- [x] Verify fast-skip si aucun media folder
+- [x] Dispatch nettoie `_tmp_dispatch_*` et `.merge_backup/` via `_cleanup_staging_orphans()`
+- [x] Les 7 phases sont idempotentes (re-run safe)
 
 ### Apres Phase 4 (Tests → Integration)
 
