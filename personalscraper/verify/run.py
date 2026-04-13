@@ -18,13 +18,16 @@ logger = logging.getLogger(__name__)
 def _has_items_to_verify(settings: Settings) -> bool:
     """Check if any media folders exist in category directories.
 
+    Used for fast-skip: if no media folders exist, the entire
+    verify phase is skipped.
+
     Args:
         settings: Pipeline configuration.
 
     Returns:
         True if at least one media folder exists.
     """
-    staging = Path(settings.staging_dir)
+    staging = settings.staging_dir
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():

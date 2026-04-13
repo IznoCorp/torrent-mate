@@ -373,7 +373,7 @@ class TestRunVerify:
     def test_processes_both_dirs(self, tmp_path: Path) -> None:
         """Should process both movies and tvshows."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
+        settings.staging_dir = tmp_path
         settings.movies_dir_name = "001-MOVIES"
         settings.tvshows_dir_name = "002-TVSHOWS"
 

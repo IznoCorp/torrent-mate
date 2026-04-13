@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     """Run reclean + dedup on all category directories.
 
-    Fast-skip: returns immediately if no polluted folders found.
+    Skips reclean when no polluted folder names are found.
+    Dedup always runs (lightweight fuzzy comparison).
 
     Args:
         settings: Pipeline configuration.

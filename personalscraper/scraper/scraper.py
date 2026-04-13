@@ -11,6 +11,7 @@ TV show flow: parse folder → match TVDB/TMDB → get details → tvshow.nfo �
 
 import logging
 import re
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -113,8 +114,6 @@ def _is_nfo_complete(nfo_path: Path) -> bool:
     if not nfo_path.exists():
         return False
     try:
-        import xml.etree.ElementTree as ET
-
         tree = ET.parse(nfo_path)  # noqa: S314
         root = tree.getroot()
         # Must have at least one uniqueid with non-empty text
@@ -122,7 +121,11 @@ def _is_nfo_complete(nfo_path: Path) -> bool:
             if uid.text and uid.text.strip():
                 return True
         return False
-    except (ET.ParseError, OSError):
+    except ET.ParseError:
+        logger.debug("NFO not parsable as XML: %s", nfo_path.name)
+        return False
+    except OSError as exc:
+        logger.warning("Cannot read NFO file %s: %s", nfo_path, exc)
         return False
 
 
@@ -138,7 +141,7 @@ class ScrapeResult:
         artwork_downloaded: List of downloaded artwork filenames.
         episodes_renamed: Number of episodes renamed (0 for movies).
         action: Result action ("scraped", "skipped_low_confidence",
-            "skipped_already_done", "error").
+            "skipped_already_done", "artwork_recovered", "error").
         error: Error message if action is "error".
         warnings: Non-fatal issues (e.g. artwork download failure).
     """
@@ -185,7 +188,7 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
             logger.info("Cleaned raw folder name: %s → %s (%s)", name, title, year)
             return title, year
     except ImportError:
-        pass  # Guessit not installed — use raw name
+        logger.warning("NameCleaner/guessit not available, using raw folder name: %s", name)
     except Exception:
         logger.warning("NameCleaner failed for '%s', using raw name", name, exc_info=True)
 
@@ -298,14 +301,17 @@ class Scraper:
         return local_title
 
     def _check_missing_movie_artwork(self, movie_dir: Path, title: str) -> list[str]:
-        """List missing artwork files for a movie directory.
+        """List missing essential artwork for a movie directory.
+
+        Checks poster and landscape only (the two files required by
+        the fast-skip gate in _has_unscraped_items).
 
         Args:
             movie_dir: Path to the movie directory.
             title: Movie title for filename patterns.
 
         Returns:
-            List of missing artwork filenames. Empty if all present.
+            List of missing artwork filenames. Empty if both present.
         """
         missing = []
         poster = self.patterns.format("movie_poster", Title=title)
@@ -316,36 +322,70 @@ class Scraper:
             missing.append(landscape)
         return missing
 
+    def _check_missing_tvshow_artwork(self, show_dir: Path) -> list[str]:
+        """List missing essential artwork for a TV show directory.
+
+        Checks poster and landscape only (the two files required by
+        the fast-skip gate in _has_unscraped_items).
+
+        Args:
+            show_dir: Path to the TV show directory.
+
+        Returns:
+            List of missing artwork filenames. Empty if both present.
+        """
+        missing = []
+        if not (show_dir / self.patterns.tvshow_poster).exists():
+            missing.append(self.patterns.tvshow_poster)
+        if not (show_dir / self.patterns.tvshow_landscape).exists():
+            missing.append(self.patterns.tvshow_landscape)
+        return missing
+
+    @staticmethod
+    def _extract_tmdb_id_from_nfo(nfo_path: Path) -> int | None:
+        """Extract TMDB ID from a valid NFO file.
+
+        Parses the NFO XML and finds the first <uniqueid type="tmdb">
+        element with a numeric value.
+
+        Args:
+            nfo_path: Path to the NFO file (must exist and be valid XML).
+
+        Returns:
+            TMDB ID as int, or None if not found or not numeric.
+        """
+        try:
+            root = ET.parse(nfo_path).getroot()  # noqa: S314
+        except (ET.ParseError, OSError) as exc:
+            logger.warning("Cannot parse NFO for TMDB ID: %s: %s", nfo_path.name, exc)
+            return None
+        for uid in root.findall("uniqueid"):
+            if uid.get("type") == "tmdb" and uid.text:
+                try:
+                    return int(uid.text)
+                except ValueError:
+                    logger.warning("Non-numeric TMDB ID '%s' in NFO: %s", uid.text, nfo_path)
+                    return None
+        logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
+        return None
+
     def _recover_movie_artwork(
         self, nfo_path: Path, movie_dir: Path, result: ScrapeResult,
     ) -> None:
-        """Re-download missing artwork using IDs from existing NFO.
+        """Re-download missing artwork using TMDB ID from existing NFO.
 
-        Parses the NFO to extract the TMDB ID, fetches movie data,
-        and downloads only the missing artwork files.
+        Extracts the TMDB ID, fetches movie data, and downloads artwork
+        (existing files are automatically skipped by the downloader).
 
         Args:
             nfo_path: Path to the valid NFO file.
             movie_dir: Path to the movie directory.
             result: ScrapeResult to update with recovery info.
         """
-        import xml.etree.ElementTree as ET
-
+        tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
+        if not tmdb_id:
+            return
         try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
-            tmdb_id = None
-            for uid in root.findall("uniqueid"):
-                if uid.get("type") == "tmdb" and uid.text:
-                    try:
-                        tmdb_id = int(uid.text)
-                    except ValueError:
-                        logger.warning("Non-numeric TMDB ID '%s' in NFO: %s", uid.text, nfo_path)
-                        return
-                    break
-            if not tmdb_id:
-                logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
-                return
-
             movie_data = self._tmdb.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
                 movie_data, movie_dir, self.patterns,
@@ -363,30 +403,20 @@ class Scraper:
     def _recover_tvshow_artwork(
         self, nfo_path: Path, show_dir: Path, result: ScrapeResult,
     ) -> None:
-        """Re-download missing artwork for a TV show using NFO IDs.
+        """Re-download missing artwork for a TV show using NFO TMDB ID.
+
+        Extracts the TMDB ID, fetches show data, and downloads artwork
+        (existing files are automatically skipped by the downloader).
 
         Args:
             nfo_path: Path to the valid tvshow.nfo file.
             show_dir: Path to the TV show directory.
             result: ScrapeResult to update with recovery info.
         """
-        import xml.etree.ElementTree as ET
-
+        tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
+        if not tmdb_id:
+            return
         try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314
-            tmdb_id = None
-            for uid in root.findall("uniqueid"):
-                if uid.get("type") == "tmdb" and uid.text:
-                    try:
-                        tmdb_id = int(uid.text)
-                    except ValueError:
-                        logger.warning("Non-numeric TMDB ID '%s' in NFO: %s", uid.text, nfo_path)
-                        return
-                    break
-            if not tmdb_id:
-                logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
-                return
-
             show_data = self._tmdb.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
                 show_data, show_dir, self.patterns,
@@ -406,12 +436,14 @@ class Scraper:
 
         Flow:
         1. Parse title + year from folder name
-        2. Skip if .nfo already exists
-        3. Match against TMDB
-        4. Get full movie details
-        5. Extract stream info from video file
-        6. Generate and write NFO
-        7. Download artwork (poster + landscape)
+        2. If valid NFO exists: recover missing artwork if needed, then skip
+        3. If corrupt NFO exists: delete it and re-scrape
+        4. Match against TMDB
+        5. Get full movie details + resolve local title
+        6. Rename folder to canonical format
+        7. Extract stream info from video file
+        8. Generate and write NFO
+        9. Download artwork (poster + landscape)
 
         Args:
             movie_dir: Path to the movie directory.
@@ -636,11 +668,7 @@ class Scraper:
         nfo_path = show_dir / self.patterns.tvshow_nfo
         if _is_nfo_complete(nfo_path):
             # Check for missing artwork — recover without re-scraping
-            missing_art = []
-            if not (show_dir / self.patterns.tvshow_poster).exists():
-                missing_art.append(self.patterns.tvshow_poster)
-            if not (show_dir / self.patterns.tvshow_landscape).exists():
-                missing_art.append(self.patterns.tvshow_landscape)
+            missing_art = self._check_missing_tvshow_artwork(show_dir)
             if missing_art and not self.dry_run:
                 self._recover_tvshow_artwork(nfo_path, show_dir, result)
             if result.action != "artwork_recovered":
