@@ -123,12 +123,21 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 
 ## Storage Disks
 
-| Disk  | Mount                 | Categories                                                                                                                                    |
-| ----- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Disk1 | /Volumes/Disk1/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk2 | /Volumes/Disk2/medias | series, series animes                                                                                                                         |
-| Disk3 | /Volumes/Disk3/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk4 | /Volumes/Disk4/medias | films, films animations, series, series animations, series documentaires, emissions                                                           |
+All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) over USB.
+
+| Disk  | Mount                 | Filesystem | Categories                                                                                                                                    |
+| ----- | --------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Disk1 | /Volumes/Disk1/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
+| Disk2 | /Volumes/Disk2/medias | NTFS       | series, series animes                                                                                                                         |
+| Disk3 | /Volumes/Disk3/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
+| Disk4 | /Volumes/Disk4/medias | NTFS       | films, films animations, series, series animations, series documentaires, emissions                                                           |
+
+### NTFS via macFUSE constraints
+
+- **No Unix permissions** — `chmod`, `chown`, `chgrp` are no-ops or fail with EPERM. All files appear as `rwxrwxrwx` owned by the mounting user.
+- **rsync must use `--no-perms --no-owner --no-group`** — `rsync -a` (which includes `-pgo`) fails with `Operation not permitted` on set times/permissions. The dispatcher uses `-a --no-perms --no-owner --no-group` to work around this.
+- **Mount flags**: `macfuse, local, synchronous, noatime, nobrowse` — `synchronous` means every write is committed immediately (slower but safer for USB).
+- **`_force_rmtree` limitation** — `os.chmod()` before retry has no effect on NTFS. Deletion failures on `.actors/` or `.DS_Store` are NTFS metadata issues, not permission issues.
 
 ## Move Rules
 
@@ -323,6 +332,7 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - `git filter-repo` works on this repo but `.git/config` is read-only (macOS permissions) — remote removal error is cosmetic, re-add remote after if needed
 - Genre mapper lives in `personalscraper/genre_mapper.py` (package root) and is imported by V4-verify and V5-dispatch — single source of truth for genre→category mapping
 - `media_processor()` lives in `personalscraper/text_utils.py` (shared) — imported by V2 matcher, V3 confidence, V5 media_index. NFD accent stripping for French titles.
+- `sanitize_filename()` lives in `personalscraper/text_utils.py` (shared) — strips `<>:"/\|?*` and normalizes U+00A0→space. Applied in `NamingPatterns.format()` (all artwork/NFO filenames) and in scraper `clean_name` (folder renames). TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography convention before `:`).
 - `SortResult`, `StepReport`, and `PipelineReport` are defined in `personalscraper/models.py` (V0+V6) — each `run_*()` converts internal results to `StepReport` before returning
 - TV show folders: V2 creates `Show Name/` (no year), V3 renames to `Show Name (Year)/` after API matching — V3 handles idempotent rename
 - Disk space threshold: `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)` — unified formula across V5
@@ -330,8 +340,10 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - Circuit breaker sits ABOVE tenacity: tenacity retries transient errors (429, single timeout), circuit breaker detects sustained outages (5 consecutive 5xx/timeout/connection → OPEN for 5 min). Only counts 5xx/timeout/connection — NOT 429 (tenacity) or 4xx (client errors)
 - Circuit breaker `guard()` method centralizes the check-then-raise pattern — clients call `self._circuit.guard()` instead of manually checking `can_proceed()` + constructing `CircuitOpenError`
 - `fuzzy_match_score()` in `text_utils.py` provides 3 anti-false-positive guards for fuzzy matching: year (±1), length ratio (≥0.67), adaptive threshold (≤10 chars → 95%, >10 → 90%). Used by V2 matcher and V5 media_index
+- Dispatch rsync uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support Unix permissions, plain `-a` (which includes `-pgo`) fails with EPERM on all 4 disks
 - Dispatch `_move_new()` uses staging→commit: rsync to `_tmp_dispatch_{name}`, then atomic `os.rename`. Crash leaves only tmp dir (cleaned on next run)
 - Dispatch `_merge()` uses rsync `--backup --backup-dir=.merge_backup/` for rollback. On failure, `_restore_merge_backup()` restores per-file (continues on individual errors)
+- Dispatch standalone (`personalscraper dispatch`) auto-runs verify first to get the dispatchable item list — there is no separate staging_dir scan mode
 - `choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config)
 - E2E timeout: `ceil(GB) × 3 min, minimum 10 min` — prevents tests from hanging on stalled torrents
 - rapidfuzz `default_process` does NOT strip accents — use `media_processor` from `personalscraper/text_utils.py` with NFD decomposition for French titles
@@ -343,6 +355,7 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - structlog `cache_logger_on_first_use=True` makes configure() calls after first log silently ignored — configure early
 - rich `Console(quiet=True)` suppresses all output natively — no need for `if not quiet:` checks
 - rich markup in log messages: keep `markup=False` on RichHandler to avoid `[brackets]` being interpreted as tags
+- Verify `nfo_ids` check requires at least one of TMDB or IMDB (not both). Missing one is WARNING, missing both is ERROR. Some recent films (e.g. "Libre antenne") have TMDB but no IMDB yet.
 - `_is_nfo_complete()` in `scraper.py` validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection
 - Scrape fast-skip: `_all_nfos_valid()` checks all movie/show dirs before starting — if all have valid NFOs, the entire scrape step is skipped
 - Artwork recovery: if NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO and re-downloads artwork without re-scraping
