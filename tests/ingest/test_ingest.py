@@ -601,6 +601,86 @@ class TestRunIngest:
         assert report.error_count == 1
         assert any("Bad" in d for d in report.details)
 
+    @patch("personalscraper.ingest.ingest.transfer_torrent")
+    @patch("personalscraper.ingest.ingest.IngestTracker")
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_consecutive_errors_abort_loop(
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        mock_transfer: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Two consecutive identical errors should abort the loop (systemic failure)."""
+        settings = MagicMock()
+        settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
+        settings.min_free_space_staging_gb = 0
+
+        t1 = _make_torrent("Fail1", "h1")
+        t2 = _make_torrent("Fail2", "h2")
+        t3 = _make_torrent("NeverReached", "h3")
+
+        for name in ("Fail1", "Fail2", "NeverReached"):
+            src = tmp_path / "complete" / name
+            src.mkdir(parents=True)
+            (src / "file.mkv").write_bytes(b"\x00" * 100)
+
+        mock_client = MagicMock()
+        mock_client.get_completed_torrents.return_value = [t1, t2, t3]
+        mock_client.get_all_torrent_hashes.return_value = {"h1", "h2", "h3"}
+        mock_client.get_content_path.side_effect = [
+            tmp_path / "complete" / "Fail1",
+            tmp_path / "complete" / "Fail2",
+            tmp_path / "complete" / "NeverReached",
+        ]
+        mock_client.is_seeding.return_value = False
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        mock_tracker = MagicMock()
+        mock_tracker.is_ingested.return_value = False
+        mock_tracker_cls.return_value = mock_tracker
+
+        # Both transfers raise the same error type → triggers abort after 2nd
+        mock_transfer.side_effect = [OSError("Disk dead"), OSError("Disk dead")]
+
+        report = run_ingest(settings)
+
+        # 2 errors, loop aborted before reaching torrent 3
+        assert report.error_count == 2
+        assert report.success_count == 0
+        assert any("Aborted" in d for d in report.details)
+        # Transfer was only called twice (3rd torrent never reached)
+        assert mock_transfer.call_count == 2
+
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_forbidden_403_actionable_message(
+        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Forbidden403Error should produce IP-banned message, not generic unreachable."""
+        import qbittorrentapi
+
+        settings = MagicMock()
+        settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(
+            side_effect=qbittorrentapi.Forbidden403Error()
+        )
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        report = run_ingest(settings)
+
+        assert report.error_count >= 1
+        combined = " ".join(report.details).lower()
+        # Must mention IP ban, not generic "unreachable"
+        assert "banned" in combined or "blocked" in combined
+        assert "unreachable" not in combined
+
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_login_failed_actionable_message(
         self, mock_qbit_cls: MagicMock, tmp_path: Path,
