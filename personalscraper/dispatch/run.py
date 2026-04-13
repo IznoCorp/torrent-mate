@@ -16,6 +16,49 @@ from personalscraper.verify.verifier import VerifyResult
 logger = logging.getLogger(__name__)
 
 
+def _cleanup_staging_orphans(settings: Settings) -> int:
+    """Remove orphaned dispatch temp dirs from staging categories.
+
+    Cleans up _tmp_dispatch_* directories and .merge_backup/
+    subdirectories that were left behind by interrupted dispatches.
+
+    Args:
+        settings: Pipeline configuration.
+
+    Returns:
+        Number of orphan directories removed.
+    """
+    import shutil
+
+    cleaned = 0
+    staging = Path(settings.staging_dir)
+    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+        cat_dir = staging / dir_name
+        if not cat_dir.exists():
+            continue
+        for item in cat_dir.iterdir():
+            if not item.is_dir():
+                continue
+            # Clean _tmp_dispatch_* orphans
+            if item.name.startswith("_tmp_dispatch_"):
+                try:
+                    shutil.rmtree(item)
+                    logger.warning("Cleaned staging orphan: %s", item.name)
+                    cleaned += 1
+                except OSError as exc:
+                    logger.warning("Failed to clean orphan %s: %s", item.name, exc)
+            # Clean .merge_backup/ inside media dirs
+            backup = item / ".merge_backup"
+            if backup.exists() and backup.is_dir():
+                try:
+                    shutil.rmtree(backup)
+                    logger.warning("Cleaned merge backup: %s/%s", item.name, backup.name)
+                    cleaned += 1
+                except OSError as exc:
+                    logger.warning("Failed to clean backup %s: %s", backup, exc)
+    return cleaned
+
+
 def run_dispatch(
     settings: Settings,
     dry_run: bool = False,
@@ -32,6 +75,10 @@ def run_dispatch(
     Returns:
         StepReport with dispatch counts and details.
     """
+    # Clean orphaned temp dirs from staging area
+    if not dry_run:
+        _cleanup_staging_orphans(settings)
+
     index = MediaIndex()
     index.load()
 

@@ -15,6 +15,26 @@ from personalscraper.verify.verifier import Verifier, VerifyResult
 logger = logging.getLogger(__name__)
 
 
+def _has_items_to_verify(settings: Settings) -> bool:
+    """Check if any media folders exist in category directories.
+
+    Args:
+        settings: Pipeline configuration.
+
+    Returns:
+        True if at least one media folder exists.
+    """
+    staging = Path(settings.staging_dir)
+    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+        cat_dir = staging / dir_name
+        if not cat_dir.exists():
+            continue
+        for item in cat_dir.iterdir():
+            if item.is_dir() and not item.name.startswith("."):
+                return True
+    return False
+
+
 def run_verify(
     settings: Settings,
     dry_run: bool = False,
@@ -34,6 +54,11 @@ def run_verify(
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
     """
+    # Fast-skip: no media folders to verify
+    if not _has_items_to_verify(settings):
+        logger.info("Verify fast-skip: no media folders found")
+        return StepReport(name="verify"), []
+
     verifier = Verifier(
         settings=settings,
         patterns=PATTERNS,

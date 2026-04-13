@@ -382,6 +382,9 @@ class TestRunVerify:
         tvshows = tmp_path / "002-TVSHOWS"
         tvshows.mkdir()
 
+        # Create a media folder so fast-skip doesn't trigger
+        (movies / "Movie (2024)").mkdir()
+
         with patch("personalscraper.verify.run.Verifier") as MockVerifier:
             mock_v = MockVerifier.return_value
             mock_v.verify_all_movies.return_value = []
