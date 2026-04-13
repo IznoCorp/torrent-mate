@@ -18,13 +18,13 @@ from pathlib import Path
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.artwork import ArtworkDownloader
-from personalscraper.scraper.confidence import (  # noqa: F401
+from personalscraper.scraper.confidence import (
     LOW_CONFIDENCE,
     MatchResult,
     match_movie,
     match_tvshow,
 )
-from personalscraper.scraper.episode_manager import (  # noqa: F401
+from personalscraper.scraper.episode_manager import (
     create_season_dirs,
     match_episode_files,
     rename_episodes,
@@ -34,7 +34,7 @@ from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
 from personalscraper.scraper.tvdb_client import TVDBClient
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
-from personalscraper.text_utils import sanitize_filename  # noqa: E402
+from personalscraper.text_utils import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -899,7 +899,10 @@ class Scraper:
                     nfo_path.parent.mkdir(parents=True, exist_ok=True)
                     self._nfo.write_nfo(xml, nfo_path)
             except Exception as e:
-                logger.warning("Episode NFO failed for S%02dE%02d: %s", season, episode, e)
+                logger.warning(
+                    "Episode NFO failed for S%02dE%02d: %s", season, episode, e,
+                    exc_info=True,
+                )
 
     def process_tvshows(self, tvshows_dir: Path) -> list[ScrapeResult]:
         """Scrape all TV shows in a directory.
