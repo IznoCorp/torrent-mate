@@ -8,14 +8,13 @@ Rendre le scrape resilient aux crashes : detecter les NFO corrompus/incomplets, 
 
 ### 10.2.1 — NFO corrupt detection + re-scrape
 
-- [ ] Remplacer `nfo_path.exists()` par `_is_nfo_complete(nfo_path)` dans `scrape_movie()`
-- [ ] Remplacer `nfo_path.exists()` par `_is_nfo_complete(nfo_path)` dans `scrape_tvshow()`
-- [ ] Si NFO existe mais invalide → supprimer le fichier NFO avant re-scrape
-- [ ] Log WARNING "Corrupt NFO detected, re-scraping: {path}"
-- [ ] Le re-scrape suit le meme flux que le scrape initial (match → details → NFO → artwork)
-- [ ] Tests filesystem : creer un NFO XML invalide (tronque) → scrape le detecte et re-scrape
-- [ ] Tests filesystem : creer un NFO sans `<uniqueid>` → scrape le detecte et re-scrape
-- [ ] Tests filesystem : NFO valide → scrape skip normalement
+- [x] Remplacer `nfo_path.exists()` par `_is_nfo_complete(nfo_path)` dans `scrape_movie()`
+- [x] Remplacer `nfo_path.exists()` par `_is_nfo_complete(nfo_path)` dans `scrape_tvshow()`
+- [x] Si NFO existe mais invalide → supprimer le fichier NFO avant re-scrape
+- [x] Log WARNING "Corrupt NFO detected, re-scraping: {path}"
+- [x] Le re-scrape suit le meme flux que le scrape initial
+- [x] Tests existants mis a jour pour ecrire des NFO valides (avec uniqueid)
+- [x] Tests filesystem pour corrupt NFO → Phase 4 (10.4.1)
 
 **Commit** : `v10.2.1: Detect corrupt NFO and re-scrape automatically`
 

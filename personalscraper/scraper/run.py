@@ -13,9 +13,43 @@ from pathlib import Path
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
-from personalscraper.scraper.scraper import Scraper, ScrapeResult
+from personalscraper.scraper.scraper import Scraper, ScrapeResult, _is_nfo_complete
 
 logger = logging.getLogger(__name__)
+
+
+def _has_unscraped_items(settings: Settings) -> bool:
+    """Check if any media folder lacks a valid NFO.
+
+    Quick scan that returns True as soon as the first folder
+    without a complete NFO is found. Used for fast-skip.
+
+    Args:
+        settings: Pipeline configuration.
+
+    Returns:
+        True if at least one folder needs scraping.
+    """
+    from personalscraper.naming_patterns import PATTERNS
+
+    staging = Path(settings.staging_dir)
+    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+        cat_dir = staging / dir_name
+        if not cat_dir.exists():
+            continue
+        for folder in cat_dir.iterdir():
+            if not folder.is_dir() or folder.name.startswith("."):
+                continue
+            # Movie NFO: Title.nfo
+            if dir_name == settings.movies_dir_name:
+                title = folder.name.split(" (")[0] if " (" in folder.name else folder.name
+                nfo_name = PATTERNS.format("movie_nfo", Title=title)
+                nfo_path = folder / nfo_name
+            else:
+                nfo_path = folder / PATTERNS.tvshow_nfo
+            if not _is_nfo_complete(nfo_path):
+                return True
+    return False
 
 
 def run_scrape(
@@ -40,6 +74,11 @@ def run_scrape(
     Returns:
         StepReport with success/skip/error counts and details.
     """
+    # Fast-skip: nothing to scrape
+    if not _has_unscraped_items(settings):
+        logger.info("Scrape fast-skip: all NFOs are valid")
+        return StepReport(name="scrape")
+
     scraper = Scraper(
         settings=settings,
         patterns=PATTERNS,
