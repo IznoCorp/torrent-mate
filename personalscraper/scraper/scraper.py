@@ -34,6 +34,7 @@ from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
 from personalscraper.scraper.tvdb_client import TVDBClient
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.text_utils import sanitize_filename  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -511,7 +512,9 @@ class Scraper:
         # Resolve title: use local FR title if preferred and available
         resolved_title = self._resolve_title(match.api_title, movie_data, "movie")
         api_year = match.api_year or year
-        clean_name = f"{resolved_title} ({api_year})" if api_year else resolved_title
+        clean_name = sanitize_filename(
+            f"{resolved_title} ({api_year})" if api_year else resolved_title
+        )
 
         # Rename folder to clean format if it doesn't match
         if movie_dir.name != clean_name:

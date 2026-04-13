@@ -19,6 +19,28 @@ from rapidfuzz import utils
 # Year suffix pattern for length ratio normalization
 _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
 
+# Characters illegal in filenames on Windows and displayed incorrectly on macOS
+_FILENAME_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
+
+
+def sanitize_filename(name: str) -> str:
+    """Remove characters that are illegal or problematic in filenames.
+
+    Strips characters forbidden on Windows (<>:"/\\|?*) and that display
+    incorrectly on macOS Finder (: shows as /). Also normalizes
+    non-breaking spaces (U+00A0) to regular spaces.
+
+    Args:
+        name: Raw filename or directory name.
+
+    Returns:
+        Sanitized name safe for cross-platform use.
+    """
+    # Replace non-breaking space with regular space
+    name = name.replace("\u00a0", " ")
+    # Remove illegal characters
+    return _FILENAME_ILLEGAL.sub("", name).strip()
+
 
 def media_processor(s: str) -> str:
     """Normalize a media title for fuzzy matching.
