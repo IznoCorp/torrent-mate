@@ -215,6 +215,8 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
             tracker.cleanup(active_hashes)
 
             content_missing_count = 0
+            consecutive_errors = 0
+            last_error_type = None
             for torrent in torrents:
                 name = torrent.name
                 torrent_hash = torrent.hash
@@ -296,6 +298,24 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                     )
                     report.error_count += 1
                     report.details.append(f"{name}: {type(torrent_err).__name__}: {torrent_err}")
+
+                    # Abort on 2 consecutive identical errors (systemic failure)
+                    err_key = type(torrent_err).__name__
+                    if err_key == last_error_type:
+                        consecutive_errors += 1
+                    else:
+                        consecutive_errors = 1
+                        last_error_type = err_key
+                    if consecutive_errors >= 2:
+                        log.error(
+                            "systemic_failure_detected",
+                            error_type=err_key,
+                            count=consecutive_errors,
+                        )
+                        report.details.append(
+                            f"Aborted: {consecutive_errors} consecutive {err_key} failures"
+                        )
+                        break
 
             # Escalate if ALL completed torrents had missing content paths
             # — likely means the source volume is unmounted
