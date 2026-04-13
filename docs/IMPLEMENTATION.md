@@ -298,7 +298,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Phase | Description                                         | Status |
 | ----- | --------------------------------------------------- | ------ |
 | 1     | sanitize_filename cohérent (bugs #3,4,5,9,10,13,16) | [x]    |
-| 2     | Restructuration épisodes (bugs #1,2,6,7,8)          | [ ]    |
+| 2     | Restructuration épisodes (bugs #1,2,6,7,8)          | [x]    |
 | 3     | result.media_path stale (bug #11)                   | [ ]    |
 | 4     | qBit auth pre-check (bug #12)                       | [ ]    |
 | 5     | Verify/Dispatch NTFS-safe (bugs #14,15)             | [ ]    |
@@ -308,6 +308,8 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | 9     | Test audit final                                    | [ ]    |
 
 **Phase 1 complete** — `_cleanup_stale_files` + `sanitize_filename` in reclean — 1010 tests passing, 0 regressions
+
+**Phase 2 complete** — `_find_video_file` recursive (rglob + largest), `_cleanup_empty_release_dirs` after episode rename — 1014 tests passing, 0 regressions
 
 ---
 
