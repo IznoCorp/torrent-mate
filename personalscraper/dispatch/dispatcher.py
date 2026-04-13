@@ -73,6 +73,7 @@ from personalscraper.dispatch.disk_scanner import (
 )
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.genre_mapper import GenreMapper
+from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
 logger = logging.getLogger(__name__)
@@ -242,6 +243,16 @@ class Dispatcher:
         """
         result = DispatchResult(source=movie_dir)
 
+        # Pre-scan for NTFS-illegal filenames before any rsync operation
+        if self._has_ntfs_illegal_names(movie_dir):
+            result.action = "skipped"
+            result.reason = (
+                f"NTFS-illegal filenames in {movie_dir.name}. "
+                "Run 'personalscraper process' to sanitize."
+            )
+            logger.error("dispatch_ntfs_illegal", source=str(movie_dir))
+            return result
+
         # Get disk statuses
         disk_statuses = [get_disk_status(c) for c in self._disk_configs]
 
@@ -321,6 +332,17 @@ class Dispatcher:
             DispatchResult with operation details.
         """
         result = DispatchResult(source=show_dir)
+
+        # Pre-scan for NTFS-illegal filenames before any rsync operation
+        if self._has_ntfs_illegal_names(show_dir):
+            result.action = "skipped"
+            result.reason = (
+                f"NTFS-illegal filenames in {show_dir.name}. "
+                "Run 'personalscraper process' to sanitize."
+            )
+            logger.error("dispatch_ntfs_illegal", source=str(show_dir))
+            return result
+
         disk_statuses = [get_disk_status(c) for c in self._disk_configs]
         item_size_gb = self._dir_size_gb(show_dir)
 
@@ -684,6 +706,25 @@ class Dispatcher:
             except OSError as exc:
                 logger.warning("Cannot verify %s: %s", rel, exc)
         return True
+
+    @staticmethod
+    def _has_ntfs_illegal_names(directory: Path) -> bool:
+        r"""Check if any file in directory has NTFS-illegal characters.
+
+        Scans recursively for filenames containing <>:"/\|?*.
+        Used as a pre-check before rsync to NTFS disks.
+
+        Args:
+            directory: Directory to scan.
+
+        Returns:
+            True if any file has illegal characters.
+        """
+        for f in directory.rglob("*"):
+            if f.is_file() and _FILENAME_ILLEGAL.search(f.name):
+                logger.warning("NTFS-illegal filename: %s", f)
+                return True
+        return False
 
     @staticmethod
     def _dir_size_gb(directory: Path) -> float:
