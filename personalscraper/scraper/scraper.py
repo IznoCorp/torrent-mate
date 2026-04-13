@@ -857,6 +857,7 @@ class Scraper:
                         show_dir.rename(new_dir)
                         logger.info("Renamed folder: %s → %s", title, canonical)
                     show_dir = new_dir
+                    result.media_path = new_dir
                     # Remove stale files that used the old folder name as prefix
                     _cleanup_stale_files(show_dir, old_dir_name, canonical)
                 except OSError as exc:
