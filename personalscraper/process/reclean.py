@@ -116,7 +116,6 @@ def reclean_folders(
         if not folder.is_dir() or folder.name.startswith("."):
             continue
 
-        # Check if folder name is polluted
         if not is_title_polluted(folder.name):
             report.skip_count += 1
             continue

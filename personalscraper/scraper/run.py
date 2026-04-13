@@ -23,9 +23,11 @@ def _has_unscraped_items(settings: Settings) -> bool:
 
     Returns True if at least one folder has:
     - No valid NFO (needs full scrape), OR
-    - Valid NFO but missing artwork (needs artwork recovery)
+    - Valid NFO but missing essential artwork — poster or landscape
+      (needs artwork recovery)
 
-    Uses _parse_folder_name for consistent title extraction.
+    Uses _parse_folder_name for consistent title extraction,
+    matching the same parsing logic as Scraper.scrape_movie/scrape_tvshow.
 
     Args:
         settings: Pipeline configuration.
@@ -33,10 +35,9 @@ def _has_unscraped_items(settings: Settings) -> bool:
     Returns:
         True if at least one folder needs work.
     """
-    from personalscraper.naming_patterns import PATTERNS
     from personalscraper.scraper.scraper import _parse_folder_name
 
-    staging = Path(settings.staging_dir)
+    staging = settings.staging_dir
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
@@ -50,15 +51,20 @@ def _has_unscraped_items(settings: Settings) -> bool:
                 nfo_path = folder / nfo_name
                 if not _is_nfo_complete(nfo_path):
                     return True
-                # Also check artwork for recovery
+                # Check essential artwork (poster + landscape)
                 poster = PATTERNS.format("movie_poster", Title=title)
                 if not (folder / poster).exists():
+                    return True
+                landscape = PATTERNS.format("movie_landscape", Title=title)
+                if not (folder / landscape).exists():
                     return True
             else:
                 nfo_path = folder / PATTERNS.tvshow_nfo
                 if not _is_nfo_complete(nfo_path):
                     return True
                 if not (folder / PATTERNS.tvshow_poster).exists():
+                    return True
+                if not (folder / PATTERNS.tvshow_landscape).exists():
                     return True
     return False
 
@@ -87,7 +93,7 @@ def run_scrape(
     """
     # Fast-skip: nothing to scrape
     if not _has_unscraped_items(settings):
-        logger.info("Scrape fast-skip: all NFOs are valid")
+        logger.info("Scrape fast-skip: all NFOs valid and artwork present")
         return StepReport(name="scrape")
 
     scraper = Scraper(

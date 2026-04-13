@@ -5,7 +5,7 @@ or scans the staging directory, and converts DispatchResult to StepReport.
 """
 
 import logging
-from pathlib import Path
+import shutil
 
 from personalscraper.config import Settings
 from personalscraper.dispatch.dispatcher import Dispatcher, DispatchResult
@@ -28,10 +28,8 @@ def _cleanup_staging_orphans(settings: Settings) -> int:
     Returns:
         Number of orphan directories removed.
     """
-    import shutil
-
     cleaned = 0
-    staging = Path(settings.staging_dir)
+    staging = settings.staging_dir
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
@@ -76,8 +74,9 @@ def run_dispatch(
         StepReport with dispatch counts and details.
     """
     # Clean orphaned temp dirs from staging area
+    cleaned = 0
     if not dry_run:
-        _cleanup_staging_orphans(settings)
+        cleaned = _cleanup_staging_orphans(settings)
 
     index = MediaIndex()
     index.load()
@@ -87,13 +86,16 @@ def run_dispatch(
     if verified is not None:
         results = dispatcher.process(verified=verified)
     else:
-        results = dispatcher.process(staging_dir=Path(settings.staging_dir))
+        results = dispatcher.process(staging_dir=settings.staging_dir)
 
     # Save updated index
     if not dry_run:
         index.save()
 
-    return _to_step_report(results)
+    report = _to_step_report(results)
+    if cleaned:
+        report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
+    return report
 
 
 def _to_step_report(results: list[DispatchResult]) -> StepReport:
