@@ -71,8 +71,8 @@ def cleanup_empty_dirs(
         try:
             if not _is_effectively_empty(directory):
                 continue
-        except PermissionError:
-            logger.warning("Cannot access dir: %s", directory.name)
+        except OSError as exc:
+            logger.warning("Cannot access dir %s: %s", directory.name, exc)
             continue
 
         rel_path = directory.relative_to(category_dir)
