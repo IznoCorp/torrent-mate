@@ -297,6 +297,102 @@ class Scraper:
 
         return local_title
 
+    def _check_missing_movie_artwork(self, movie_dir: Path, title: str) -> list[str]:
+        """List missing artwork files for a movie directory.
+
+        Args:
+            movie_dir: Path to the movie directory.
+            title: Movie title for filename patterns.
+
+        Returns:
+            List of missing artwork filenames. Empty if all present.
+        """
+        missing = []
+        poster = self.patterns.format("movie_poster", Title=title)
+        if not (movie_dir / poster).exists():
+            missing.append(poster)
+        landscape = self.patterns.format("movie_landscape", Title=title)
+        if not (movie_dir / landscape).exists():
+            missing.append(landscape)
+        return missing
+
+    def _recover_movie_artwork(
+        self, nfo_path: Path, movie_dir: Path, result: ScrapeResult,
+    ) -> None:
+        """Re-download missing artwork using IDs from existing NFO.
+
+        Parses the NFO to extract the TMDB ID, fetches movie data,
+        and downloads only the missing artwork files.
+
+        Args:
+            nfo_path: Path to the valid NFO file.
+            movie_dir: Path to the movie directory.
+            result: ScrapeResult to update with recovery info.
+        """
+        import xml.etree.ElementTree as ET
+
+        try:
+            root = ET.parse(nfo_path).getroot()  # noqa: S314
+            tmdb_id = None
+            for uid in root.findall("uniqueid"):
+                if uid.get("type") == "tmdb" and uid.text:
+                    tmdb_id = int(uid.text)
+                    break
+            if not tmdb_id:
+                logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
+                return
+
+            movie_data = self._tmdb.get_movie(tmdb_id)
+            downloaded = self._artwork.download_movie_artwork(
+                movie_data, movie_dir, self.patterns,
+            )
+            if downloaded:
+                result.action = "artwork_recovered"
+                result.artwork_downloaded = [p.name for p in downloaded]
+                logger.info(
+                    "Recovered %d artwork(s) for %s", len(downloaded), movie_dir.name,
+                )
+        except Exception as e:
+            logger.warning("Artwork recovery failed for %s: %s", movie_dir.name, e)
+            result.warnings.append(f"Artwork recovery failed: {e}")
+
+    def _recover_tvshow_artwork(
+        self, nfo_path: Path, show_dir: Path, result: ScrapeResult,
+    ) -> None:
+        """Re-download missing artwork for a TV show using NFO IDs.
+
+        Args:
+            nfo_path: Path to the valid tvshow.nfo file.
+            show_dir: Path to the TV show directory.
+            result: ScrapeResult to update with recovery info.
+        """
+        import xml.etree.ElementTree as ET
+
+        try:
+            root = ET.parse(nfo_path).getroot()  # noqa: S314
+            tmdb_id = None
+            for uid in root.findall("uniqueid"):
+                if uid.get("type") == "tmdb" and uid.text:
+                    tmdb_id = int(uid.text)
+                    break
+            if not tmdb_id:
+                logger.debug("No TMDB ID in NFO, cannot recover artwork: %s", nfo_path)
+                return
+
+            show_data = self._tmdb.get_tv(tmdb_id)
+            downloaded = self._artwork.download_tvshow_artwork(
+                show_data, show_dir, self.patterns,
+            )
+            if downloaded:
+                result.action = "artwork_recovered"
+                result.artwork_downloaded = [p.name for p in downloaded]
+                logger.info(
+                    "Recovered %d artwork(s) for %s", len(downloaded), show_dir.name,
+                )
+        except Exception as e:
+            logger.warning("Artwork recovery failed for %s: %s", show_dir.name, e)
+            result.warnings.append(f"Artwork recovery failed: {e}")
+
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
         """Scrape a single movie: match → NFO → artwork.
 
@@ -322,8 +418,14 @@ class Scraper:
         nfo_name = self.patterns.format("movie_nfo", Title=title)
         nfo_path = movie_dir / nfo_name
         if _is_nfo_complete(nfo_path):
-            result.action = "skipped_already_done"
-            logger.info("NFO already exists, skipping: %s", movie_dir.name)
+            # Check for missing artwork — recover without re-scraping
+            missing = self._check_missing_movie_artwork(movie_dir, title)
+            if missing and not self.dry_run:
+                self._recover_movie_artwork(nfo_path, movie_dir, result)
+            # Set action: artwork_recovered if recovery succeeded, else skipped
+            if result.action != "artwork_recovered":
+                result.action = "skipped_already_done"
+            logger.info("NFO valid, %s: %s", result.action, movie_dir.name)
             return result
 
         # Corrupt NFO: delete before re-scrape
@@ -520,8 +622,17 @@ class Scraper:
         # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
         if _is_nfo_complete(nfo_path):
-            result.action = "skipped_already_done"
-            logger.info("tvshow.nfo already exists, skipping: %s", show_dir.name)
+            # Check for missing artwork — recover without re-scraping
+            missing_art = []
+            if not (show_dir / self.patterns.tvshow_poster).exists():
+                missing_art.append(self.patterns.tvshow_poster)
+            if not (show_dir / self.patterns.tvshow_landscape).exists():
+                missing_art.append(self.patterns.tvshow_landscape)
+            if missing_art and not self.dry_run:
+                self._recover_tvshow_artwork(nfo_path, show_dir, result)
+            if result.action != "artwork_recovered":
+                result.action = "skipped_already_done"
+            logger.info("NFO valid, %s: %s", result.action, show_dir.name)
             return result
 
         # Corrupt NFO: delete before re-scrape
