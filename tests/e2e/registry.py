@@ -8,9 +8,16 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from personalscraper.config import get_settings
 
-REGISTRY_DIR = get_settings().data_dir
+def _default_registry_dir() -> Path:
+    """Return the default registry directory from settings.
+
+    Returns:
+        Path to the configured data directory.
+    """
+    from personalscraper.config import get_settings
+
+    return get_settings().data_dir
 
 
 @dataclass
@@ -28,7 +35,7 @@ class TestRegistry:
     """
 
     session_id: str
-    base_dir: Path = field(default_factory=lambda: REGISTRY_DIR)
+    base_dir: Path = field(default_factory=_default_registry_dir)
     created_paths: list[str] = field(default_factory=list)
     torrent_hashes: list[str] = field(default_factory=list)
 

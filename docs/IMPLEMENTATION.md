@@ -284,8 +284,8 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Architecture      | Modulaire (1 fichier par concern)                                  | Testable indépendamment, maintenable                            |
 | Client torrent    | qbittorrent-api (Python lib)                                       | Gère auth/CSRF/compat qBit v5.0+, plus fiable que maison        |
 | Tracking ingest   | JSON par hash torrent                                              | Simple, suffisant pour le volume                                |
-| Lock pipeline     | ~/.personalscraper/pipeline.lock (PID)                             | Empêche les exécutions concurrentes (scheduling + manuel)       |
-| Données locales   | Tout dans ~/.personalscraper/                                      | Cohérent : tracker, index media, lock                           |
+| Lock pipeline     | .personalscraper/pipeline.lock (configurable via DATA_DIR_NAME)    | Empêche les exécutions concurrentes (scheduling + manuel)       |
+| Données locales   | .personalscraper/ (sous staging_dir, configurable)                 | Cohérent : tracker, index media, lock                           |
 | Quality gate      | V4 verify entre scrape et dispatch                                 | Corrige puis bloque les dossiers non conformes                  |
 | Catégorisation    | genre_mapper.py (racine package, partagé V4/V5)                    | Mapping genres TMDB/TVDB → catégories disques                   |
 | Tests E2E         | Vrais torrents + vrais appels API                                  | Marker files + registre pour cleanup sécurisé                   |

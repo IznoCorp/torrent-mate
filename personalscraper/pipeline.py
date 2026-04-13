@@ -26,6 +26,14 @@ class PipelineGateError(Exception):
     """Raised when a pipeline gate check fails."""
 
 
+class _CriticalStepError(Exception):
+    """Raised internally when a critical pipeline step crashes.
+
+    Used to abort the pipeline early when ingest or sort fail fatally,
+    since downstream steps depend on their output.
+    """
+
+
 class Pipeline:
     """Sequential exhaustive pipeline orchestrator.
 
@@ -86,19 +94,33 @@ class Pipeline:
 
         report = PipelineReport(started_at=datetime.now())
 
-        # Phase 1: INGEST
-        self._run_step(
-            "ingest",
-            lambda: run_ingest(self.settings, dry_run=self.dry_run),
-            report,
-        )
+        # Phase 1: INGEST — abort pipeline on fatal crash because
+        # sort depends on ingest having deposited files into 097-TEMP
+        try:
+            self._run_step(
+                "ingest",
+                lambda: run_ingest(self.settings, dry_run=self.dry_run),
+                report,
+                critical=True,
+            )
+        except _CriticalStepError:
+            self._log.error("Ingest crashed fatally, aborting pipeline")
+            report.finished_at = datetime.now()
+            return report
 
-        # Phase 2: SORT
-        self._run_step(
-            "sort",
-            lambda: run_sort(self.settings, dry_run=self.dry_run),
-            report,
-        )
+        # Phase 2: SORT — abort pipeline on fatal crash because
+        # process/scrape depend on files being in category dirs
+        try:
+            self._run_step(
+                "sort",
+                lambda: run_sort(self.settings, dry_run=self.dry_run),
+                report,
+                critical=True,
+            )
+        except _CriticalStepError:
+            self._log.error("Sort crashed fatally, aborting pipeline")
+            report.finished_at = datetime.now()
+            return report
 
         # GATE: assert 097-TEMP is empty after sort
         self._check_temp_empty_gate()
@@ -238,22 +260,35 @@ class Pipeline:
         name: str,
         fn: Callable,
         report: PipelineReport,
+        *,
+        critical: bool = False,
     ) -> Any:
         """Execute a pipeline step with logging, timing, and console feedback.
+
+        If fn raises an exception, it is caught and recorded as a fatal
+        error in the report. The step still contributes to the pipeline
+        report rather than aborting — unless ``critical=True``, in which
+        case ``_CriticalStepError`` is re-raised after recording.
 
         Args:
             name: Step name for display and logging.
             fn: Callable that returns StepReport or (StepReport, extra).
             report: PipelineReport to add results to.
+            critical: If True, re-raise after recording so the caller
+                can abort the pipeline for data-dependent steps.
 
         Returns:
             Extra data from fn (e.g. verified list), or None.
+
+        Raises:
+            _CriticalStepError: If ``critical=True`` and fn raises.
         """
         icon = self._step_icon(name)
         self.console.print(f"\n{icon} [bold]{name.upper()}[/bold]", highlight=False)
         self._log.info("Step %s started", name)
         t0 = time.monotonic()
         extra = None
+        crashed = False
 
         try:
             result = fn()
@@ -264,6 +299,7 @@ class Pipeline:
                 step_report = result
             report.add_step(name, step_report)
         except Exception as exc:
+            crashed = True
             self._log.exception("Step %s failed fatally", name)
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
@@ -303,4 +339,8 @@ class Pipeline:
             "Step %s finished: ok=%d skip=%d err=%d (%.1fs)",
             name, ok, skip, err, elapsed,
         )
+
+        if crashed and critical:
+            raise _CriticalStepError(f"Critical step '{name}' crashed")
+
         return extra

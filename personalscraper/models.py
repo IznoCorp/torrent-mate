@@ -41,7 +41,7 @@ class SortResult:
 class StepReport:
     """Execution report for a single pipeline step.
 
-    Each run_*() function (V1-V5) converts its internal results
+    Each run_*() function (V1-V9) converts its internal results
     into a StepReport before returning.
 
     Attributes:

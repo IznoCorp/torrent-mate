@@ -54,8 +54,9 @@ def get_type_dir_map() -> dict[FileType, str]:
     except Exception:
         import logging
 
-        logging.getLogger(__name__).warning(
-            "Failed to load settings for directory mapping, using defaults",
+        logging.getLogger(__name__).error(
+            "Settings configuration error — using default directory mapping. "
+            "Check .env file for validation errors.",
             exc_info=True,
         )
         return TYPE_DIR_MAP
