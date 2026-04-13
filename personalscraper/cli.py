@@ -7,9 +7,11 @@ prevent concurrent executions.
 
 from __future__ import annotations
 
+import functools
 import logging
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.traceback import install as install_traceback
 
@@ -26,6 +28,55 @@ app = typer.Typer(help="PersonalScraper — Media pipeline automation.", invoke_
 
 # Global state shared between commands (set by the callback)
 state = {"console": Console(), "verbose": False, "quiet": False}
+
+
+def _format_validation(exc: ValidationError) -> str:
+    """Format pydantic ValidationError as a user-friendly one-liner.
+
+    Extracts field names and error messages from pydantic's structured
+    errors, joining them with semicolons.
+
+    Args:
+        exc: The pydantic ValidationError to format.
+
+    Returns:
+        Formatted string like "qbit_port: Input should be a valid integer".
+    """
+    parts = []
+    for err in exc.errors():
+        field = " → ".join(str(loc) for loc in err["loc"])
+        parts.append(f"{field}: {err['msg']}")
+    return "; ".join(parts)
+
+
+def handle_cli_errors(func):
+    """Catch configuration and file errors, display user-friendly messages.
+
+    Wraps CLI commands to intercept pydantic ValidationError (from
+    get_settings()) and FileNotFoundError, showing clear messages
+    instead of raw tracebacks.
+
+    Args:
+        func: The CLI command function to wrap.
+
+    Returns:
+        Wrapped function with error handling applied.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except ValidationError as exc:
+            state["console"].print(
+                f"[red]Configuration error:[/red] {_format_validation(exc)}"
+            )
+            raise typer.Exit(1)
+        except FileNotFoundError as exc:
+            state["console"].print(f"[red]Missing file:[/red] {exc}")
+            raise typer.Exit(1)
+
+    return wrapper
 
 
 @app.callback()
@@ -45,6 +96,7 @@ def main(
 
 
 @app.command()
+@handle_cli_errors
 def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Ingest completed torrents from qBittorrent."""
     console = state["console"]
@@ -63,6 +115,7 @@ def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview withou
 
 
 @app.command()
+@handle_cli_errors
 def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Sort and clean media files."""
     from personalscraper.sorter.run import run_sort
@@ -86,6 +139,7 @@ def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without 
 
 
 @app.command()
+@handle_cli_errors
 def scrape(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
@@ -120,6 +174,7 @@ def scrape(
 
 
 @app.command()
+@handle_cli_errors
 def verify(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
     fix: bool = typer.Option(True, "--fix/--no-fix", help="Attempt auto-fixes (default: True)"),
@@ -155,6 +210,7 @@ def verify(
 
 
 @app.command()
+@handle_cli_errors
 def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
@@ -178,6 +234,7 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
 
 
 @app.command()
+@handle_cli_errors
 def process(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
@@ -211,6 +268,7 @@ def process(
 
 
 @app.command()
+@handle_cli_errors
 def run(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
