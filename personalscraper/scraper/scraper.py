@@ -252,12 +252,14 @@ class Scraper:
         local_title = api_data.get(key, "")
 
         if not local_title:
+            logger.debug("No local title for '%s', using match title", match_title)
             return match_title
 
         # If local title is the same as original_title, it means
         # there's no translation — use match_title instead
         original = api_data.get("original_title" if media_type == "movie" else "original_name", "")
         if local_title == original and local_title != match_title:
+            logger.debug("No translation for '%s', using match title '%s'", local_title, match_title)
             return match_title
 
         return local_title

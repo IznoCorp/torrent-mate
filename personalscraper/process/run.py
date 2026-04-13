@@ -95,9 +95,8 @@ def run_process(
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 
-    Convenience wrapper that calls all 3 sub-steps sequentially.
-    For error isolation, prefer calling run_clean, run_scrape,
-    and run_cleanup individually via Pipeline._run_step.
+    Each sub-step is isolated so that a crash in one does not prevent
+    the others from running (same isolation as Pipeline._run_step).
 
     Args:
         settings: Pipeline configuration.
@@ -109,8 +108,32 @@ def run_process(
     """
     from personalscraper.scraper.run import run_scrape
 
-    clean_report = run_clean(settings, dry_run=dry_run)
-    scrape_report = run_scrape(settings, dry_run=dry_run, interactive=interactive)
-    cleanup_report = run_cleanup(settings, dry_run=dry_run)
+    # Error isolation: each sub-step runs independently
+    try:
+        clean_report = run_clean(settings, dry_run=dry_run)
+    except Exception as exc:
+        logger.exception("Clean sub-step failed fatally")
+        clean_report = StepReport(
+            name="clean", error_count=1,
+            details=[f"Fatal: {type(exc).__name__}: {exc}"],
+        )
+
+    try:
+        scrape_report = run_scrape(settings, dry_run=dry_run, interactive=interactive)
+    except Exception as exc:
+        logger.exception("Scrape sub-step failed fatally")
+        scrape_report = StepReport(
+            name="scrape", error_count=1,
+            details=[f"Fatal: {type(exc).__name__}: {exc}"],
+        )
+
+    try:
+        cleanup_report = run_cleanup(settings, dry_run=dry_run)
+    except Exception as exc:
+        logger.exception("Cleanup sub-step failed fatally")
+        cleanup_report = StepReport(
+            name="cleanup", error_count=1,
+            details=[f"Fatal: {type(exc).__name__}: {exc}"],
+        )
 
     return clean_report, scrape_report, cleanup_report

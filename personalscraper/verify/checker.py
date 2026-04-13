@@ -396,7 +396,10 @@ class MediaChecker:
         try:
             tree = ET.parse(nfo_path)  # noqa: S314
             return tree.getroot()
-        except (ET.ParseError, OSError):
+        except (ET.ParseError, OSError) as e:
+            logging.getLogger(__name__).warning(
+                "NFO parse failed for %s: %s", nfo_path.name, e,
+            )
             return None
 
     @staticmethod
