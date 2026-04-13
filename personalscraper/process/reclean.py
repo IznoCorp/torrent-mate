@@ -26,6 +26,28 @@ _POLLUTION_KEYS = frozenset({
 })
 
 
+def _has_polluted_folders(category_dir: Path) -> bool:
+    """Check if any folder in category_dir has a polluted name.
+
+    Quick scan that returns True as soon as the first polluted
+    folder is found. Used for fast-skip in the clean phase.
+
+    Args:
+        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+
+    Returns:
+        True if at least one folder has release tokens in its name.
+    """
+    if not category_dir.exists():
+        return False
+    for folder in category_dir.iterdir():
+        if not folder.is_dir() or folder.name.startswith("."):
+            continue
+        if is_title_polluted(folder.name):
+            return True
+    return False
+
+
 def is_title_polluted(title: str) -> bool:
     """Check if a folder title contains release group tokens.
 

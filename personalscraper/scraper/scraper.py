@@ -93,6 +93,39 @@ def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     return moved, failed
 
 
+def _is_nfo_complete(nfo_path: Path) -> bool:
+    """Check if an NFO file is complete and valid.
+
+    A complete NFO must:
+    1. Exist on disk
+    2. Be parsable as XML
+    3. Contain at least one <uniqueid> element with non-empty text
+
+    Used to distinguish valid NFOs from crash-truncated or incomplete
+    ones that should be re-scraped.
+
+    Args:
+        nfo_path: Path to the .nfo file.
+
+    Returns:
+        True if the NFO is complete and valid.
+    """
+    if not nfo_path.exists():
+        return False
+    try:
+        import xml.etree.ElementTree as ET
+
+        tree = ET.parse(nfo_path)  # noqa: S314
+        root = tree.getroot()
+        # Must have at least one uniqueid with non-empty text
+        for uid in root.findall("uniqueid"):
+            if uid.text and uid.text.strip():
+                return True
+        return False
+    except (ET.ParseError, OSError):
+        return False
+
+
 @dataclass
 class ScrapeResult:
     """Result of scraping a single media item.
