@@ -64,31 +64,33 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ## Avancement global
 
-| Étape                                   | Status                                          |
-| --------------------------------------- | ----------------------------------------------- |
-| A. Modélisation V0 (PROJECT SETUP)      | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V1 (INGEST)             | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V2 (SORT+CLEAN)         | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V3 (SCRAPE)             | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V4 (VERIFY)             | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V5 (DISPATCH)           | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V6 (LOG+NOTIFY)         | [x] Brainstorming + Design + Plan               |
-| A. Modélisation V7 (E2E TESTS)          | [x] Brainstorming + Design + Plan               |
-| A. Review globale inter-versions        | [x] 79 issues fixed across 5 passes (5/5 CLEAN) |
-| B. Implémentation V0                    | [x] 4 phases, 14 sous-phases                    |
-| B. Implémentation V1                    | [x] 5 phases, 10 sous-phases                    |
-| B. Implémentation V2                    | [x] 4 phases, 8 sous-phases                     |
-| B. Implémentation V3                    | [x] 13 phases, 41 sous-phases                   |
-| B. Implémentation V4                    | [x] 4 phases, 13 sous-phases                    |
-| B. Implémentation V5                    | [x] 3 phases, 5 sous-phases                     |
-| B. Implémentation V6                    | [x] 3 phases, 7 sous-phases                     |
-| B. Implémentation V7                    | [x] 5 phases, 15 sous-phases                    |
-| A. Modélisation V7.x (TEST AUDIT)       | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V7.x                  | [x] 4 phases, 12 sous-phases                    |
-| A. Modélisation V8 (ROBUSTNESS)         | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V8                    | [x] 5 phases, 14 sous-phases                    |
-| A. Modélisation V9 (PIPELINE INTEGRITY) | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V9                    | [x] 5 phases, 15 sous-phases                    |
+| Étape                                     | Status                                          |
+| ----------------------------------------- | ----------------------------------------------- |
+| A. Modélisation V0 (PROJECT SETUP)        | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V1 (INGEST)               | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V2 (SORT+CLEAN)           | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V3 (SCRAPE)               | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V4 (VERIFY)               | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V5 (DISPATCH)             | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V6 (LOG+NOTIFY)           | [x] Brainstorming + Design + Plan               |
+| A. Modélisation V7 (E2E TESTS)            | [x] Brainstorming + Design + Plan               |
+| A. Review globale inter-versions          | [x] 79 issues fixed across 5 passes (5/5 CLEAN) |
+| B. Implémentation V0                      | [x] 4 phases, 14 sous-phases                    |
+| B. Implémentation V1                      | [x] 5 phases, 10 sous-phases                    |
+| B. Implémentation V2                      | [x] 4 phases, 8 sous-phases                     |
+| B. Implémentation V3                      | [x] 13 phases, 41 sous-phases                   |
+| B. Implémentation V4                      | [x] 4 phases, 13 sous-phases                    |
+| B. Implémentation V5                      | [x] 3 phases, 5 sous-phases                     |
+| B. Implémentation V6                      | [x] 3 phases, 7 sous-phases                     |
+| B. Implémentation V7                      | [x] 5 phases, 15 sous-phases                    |
+| A. Modélisation V7.x (TEST AUDIT)         | [x] Brainstorming + Design + Plan               |
+| B. Implémentation V7.x                    | [x] 4 phases, 12 sous-phases                    |
+| A. Modélisation V8 (ROBUSTNESS)           | [x] Brainstorming + Design + Plan               |
+| B. Implémentation V8                      | [x] 5 phases, 14 sous-phases                    |
+| A. Modélisation V9 (PIPELINE INTEGRITY)   | [x] Brainstorming + Design + Plan               |
+| B. Implémentation V9                      | [x] 5 phases, 15 sous-phases                    |
+| A. Modélisation V10 (PIPELINE RESILIENCE) | [x] Brainstorming + Design + Plan               |
+| B. Implémentation V10                     | [ ] 5 phases, 14 sous-phases                    |
 
 ---
 
@@ -245,6 +247,20 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Plan (index)  | [v9-pipeline-integrity/plan/INDEX.md](v9-pipeline-integrity/plan/INDEX.md)       | [x]    |
 
 **5 phases, 14 sous-phases** — Pipeline orchestrator, reclean+dedup, cleanup+run_process, verify renforcé+titre FR, intégration CLI+E2E
+
+---
+
+### V10 — PIPELINE RESILIENCE `[x] Modélisation terminée`
+
+> Idempotence renforcée des 7 phases, reprise après crash via validation par contenu, nettoyage artéfacts partiels, tests filesystem réalistes.
+
+| Document      | Fichier                                                                              | Status |
+| ------------- | ------------------------------------------------------------------------------------ | ------ |
+| Brainstorming | [v10-pipeline-resilience/BRAINSTORMING.md](v10-pipeline-resilience/BRAINSTORMING.md) | [x]    |
+| Design        | [v10-pipeline-resilience/DESIGN.md](v10-pipeline-resilience/DESIGN.md)               | [x]    |
+| Plan (index)  | [v10-pipeline-resilience/plan/INDEX.md](v10-pipeline-resilience/plan/INDEX.md)       | [x]    |
+
+**5 phases, 14 sous-phases** — Helpers validation+fast-skip, scrape resilience, verify+dispatch, tests filesystem, intégration+docs
 
 ---
 
