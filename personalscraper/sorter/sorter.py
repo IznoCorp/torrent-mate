@@ -205,7 +205,7 @@ class Sorter:
             )
 
         except Exception as exc:
-            logger.error("Error sorting %s: %s", item, exc)
+            logger.error("Error sorting %s: %s", item, exc, exc_info=True)
             return SortResult(
                 source=item,
                 destination=Path(),
