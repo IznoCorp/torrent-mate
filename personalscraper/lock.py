@@ -66,7 +66,16 @@ def acquire_lock(lock_file: Path | None = None) -> bool:
                 log.warning("lock_held_other_user", pid=stored_pid, lock_file=str(lock_file))
                 return False
 
-    lock_file.write_text(str(os.getpid()))
+    # Atomic lock creation — O_CREAT|O_EXCL fails if file already exists,
+    # closing the TOCTOU race window between exists() check and write.
+    try:
+        fd = os.open(str(lock_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+    except FileExistsError:
+        # Another process grabbed the lock between our stale check and now
+        log.warning("lock_race_lost", lock_file=str(lock_file))
+        return False
     log.debug("lock_acquired", pid=os.getpid(), lock_file=str(lock_file))
     return True
 
