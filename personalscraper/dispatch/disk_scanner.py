@@ -121,8 +121,11 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
         try:
             usage = shutil.disk_usage(config.path)
             free_space_gb = usage.free / (1024 ** 3)
-        except OSError:
-            logger.warning("Cannot read disk usage for %s", config.name)
+        except OSError as exc:
+            # Can't read disk usage — treat as unmounted to avoid
+            # dispatching to an unusable disk
+            logger.error("Cannot read disk usage for %s: %s — treating as unmounted", config.name, exc)
+            is_mounted = False
 
     return DiskStatus(
         config=config,
