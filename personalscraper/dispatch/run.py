@@ -89,7 +89,6 @@ def run_dispatch(
         from personalscraper.verify.run import run_verify
 
         _, verified = run_verify(settings, dry_run=dry_run)
-        verified = [vr for vr in verified if vr.category]
 
     results = dispatcher.process(verified=verified)
 

@@ -86,8 +86,8 @@ class QBitClient:
                     )
                 # Lockout expired — clean up
                 _LOCKOUT_FILE.unlink(missing_ok=True)
-            except OSError:
-                pass  # Can't read lockout file — proceed with auth attempt
+            except OSError as e:
+                log.warning("qbit_lockout_read_failed", error=str(e))
 
         try:
             self._client.auth_log_in()
@@ -120,8 +120,8 @@ class QBitClient:
         """
         try:
             self._client.auth_log_out()
-        except Exception:
-            pass  # Logout failure is non-critical
+        except (qbittorrentapi.APIConnectionError, OSError) as e:
+            log.debug("qbit_logout_failed", error=str(e))
 
     def get_completed_torrents(self) -> list[qbittorrentapi.TorrentDictionary]:
         """List all completed torrents.
