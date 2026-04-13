@@ -119,17 +119,25 @@ def reclean_folders(
 
         try:
             if target.exists():
-                count = _merge_dirs(folder, target)
-                logger.info("Reclean+merge: %s → %s (%d items)", folder.name, clean_name, count)
-                report.details.append(f"{folder.name} → {clean_name} (merged {count} items)")
+                moved, merge_failed = _merge_dirs(folder, target)
+                logger.info("Reclean+merge: %s → %s (%d items)", folder.name, clean_name, moved)
+                report.details.append(f"{folder.name} → {clean_name} (merged {moved} items)")
+                if merge_failed:
+                    report.warnings.append(
+                        f"{folder.name}: {merge_failed} item(s) failed during merge"
+                    )
             else:
                 folder.rename(target)
                 logger.info("Reclean: %s → %s", folder.name, clean_name)
                 report.details.append(f"{folder.name} → {clean_name}")
             report.success_count += 1
-        except (OSError, Exception) as exc:
+        except OSError as exc:
             logger.warning("Reclean failed for %s: %s", folder.name, exc)
             report.error_count += 1
             report.warnings.append(f"{folder.name}: {exc}")
+        except Exception as exc:
+            logger.error("Unexpected error recleaning %s: %s", folder.name, exc, exc_info=True)
+            report.error_count += 1
+            report.warnings.append(f"{folder.name}: unexpected error: {exc}")
 
     return report

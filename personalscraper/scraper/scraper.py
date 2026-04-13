@@ -40,30 +40,33 @@ logger = logging.getLogger(__name__)
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 
 
-def _merge_dirs(source: Path, target: Path) -> int:
+def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     """Merge contents of source directory into target, then remove source.
 
     Files in source that already exist in target are replaced
     (source always wins). Subdirectories are merged recursively.
     Per-item errors are logged and skipped — the merge continues
-    with remaining items.
+    with remaining items. Source is only removed if fully emptied.
 
     Args:
-        source: Directory to merge from (will be removed after).
+        source: Directory to merge from (removed only if fully emptied).
         target: Directory to merge into (must exist).
 
     Returns:
-        Number of items successfully moved.
+        Tuple of (moved_count, failed_count).
     """
     import shutil as _shutil
 
     moved = 0
+    failed = 0
     for item in source.iterdir():
         dest = target / item.name
         try:
             if item.is_dir() and dest.is_dir():
                 # Recursive merge for subdirectories (e.g. Saison 01/)
-                moved += _merge_dirs(item, dest)
+                sub_moved, sub_failed = _merge_dirs(item, dest)
+                moved += sub_moved
+                failed += sub_failed
             else:
                 # Move file/dir, replacing if exists
                 if dest.exists():
@@ -74,14 +77,20 @@ def _merge_dirs(source: Path, target: Path) -> int:
                 _shutil.move(str(item), str(dest))
                 moved += 1
         except (OSError, _shutil.Error) as exc:
+            failed += 1
             logger.warning("Merge failed for %s → %s: %s", item.name, dest, exc)
-    # Remove empty source after merge
+    # Remove empty source after merge — preserve if items remain
     try:
         if source.exists() and not any(source.iterdir()):
             source.rmdir()
     except OSError as exc:
         logger.warning("Could not remove source dir %s: %s", source.name, exc)
-    return moved
+    if failed:
+        logger.warning(
+            "Merge %s → %s: %d moved, %d failed — source dir preserved",
+            source.name, target.name, moved, failed,
+        )
+    return moved, failed
 
 
 @dataclass
@@ -142,8 +151,10 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
         if title and title != name:
             logger.info("Cleaned raw folder name: %s → %s (%s)", name, title, year)
             return title, year
+    except ImportError:
+        pass  # Guessit not installed — use raw name
     except Exception:
-        pass  # Guessit unavailable — use raw name
+        logger.warning("NameCleaner failed for '%s', using raw name", name, exc_info=True)
 
     return name.strip(), None
 
@@ -321,8 +332,12 @@ class Scraper:
             if not self.dry_run:
                 try:
                     if new_path.exists():
-                        count = _merge_dirs(movie_dir, new_path)
-                        logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, count)
+                        moved, merge_failed = _merge_dirs(movie_dir, new_path)
+                        logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, moved)
+                        if merge_failed:
+                            result.warnings.append(
+                                f"Partial merge: {merge_failed} item(s) failed"
+                            )
                     else:
                         movie_dir.rename(new_path)
                         logger.info("Renamed folder: %s → %s", movie_dir.name, clean_name)
@@ -331,7 +346,7 @@ class Scraper:
                     title = resolved_title
                     nfo_name = self.patterns.format("movie_nfo", Title=title)
                     nfo_path = movie_dir / nfo_name
-                except (OSError, Exception) as exc:
+                except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
                     logger.error("Failed to rename %s → %s: %s", movie_dir.name, clean_name, exc)
                     return result
@@ -524,13 +539,17 @@ class Scraper:
             if not self.dry_run:
                 try:
                     if new_dir.exists():
-                        count = _merge_dirs(show_dir, new_dir)
-                        logger.info("Merged duplicate: %s → %s (%d items)", title, canonical, count)
+                        moved, merge_failed = _merge_dirs(show_dir, new_dir)
+                        logger.info("Merged duplicate: %s → %s (%d items)", title, canonical, moved)
+                        if merge_failed:
+                            result.warnings.append(
+                                f"Partial merge: {merge_failed} item(s) failed"
+                            )
                     else:
                         show_dir.rename(new_dir)
                         logger.info("Renamed folder: %s → %s", title, canonical)
                     show_dir = new_dir
-                except (OSError, Exception) as exc:
+                except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
                     logger.error("Failed to rename %s → %s: %s", title, canonical, exc)
                     return result

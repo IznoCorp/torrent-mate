@@ -113,10 +113,10 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 
 ## Pipeline Automation
 
-All versions (V0–V7.x) are implemented. V8 modeled — implementation pending. Documentation and plans live in `docs/`:
+All versions (V0–V9) are implemented. Documentation and plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
-- `docs/v0-project-setup/` through `docs/v7-e2e-tests/` — Per-version brainstorming, design, and phased plans
+- `docs/v0-project-setup/` through `docs/v9-pipeline-integrity/` — Per-version brainstorming, design, and phased plans
 - Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
 
 ### Pipeline Versions
