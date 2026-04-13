@@ -211,6 +211,40 @@ def _find_video_file(directory: Path) -> Path | None:
     return None
 
 
+def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> int:
+    """Remove stale files with old title prefix when sanitized versions exist.
+
+    After a folder rename (e.g., stripping ':'), old artwork/NFO files
+    may remain alongside the new sanitized versions. This function removes
+    the old duplicates only when a corresponding new file exists.
+
+    Args:
+        directory: Directory to scan for stale files.
+        old_prefix: The old title prefix (e.g., "Title : Subtitle").
+        new_prefix: The new sanitized prefix (e.g., "Title Subtitle").
+
+    Returns:
+        Number of stale files removed.
+    """
+    if old_prefix == new_prefix:
+        return 0
+
+    removed = 0
+    for f in list(directory.iterdir()):
+        if not f.is_file() or not f.name.startswith(old_prefix):
+            continue
+        # Build the expected sanitized equivalent
+        new_name = new_prefix + f.name[len(old_prefix):]
+        if (directory / new_name).exists():
+            try:
+                f.unlink()
+                logger.info("Cleaned stale file: %s", f.name)
+                removed += 1
+            except OSError as exc:
+                logger.warning("Cannot remove stale file %s: %s", f.name, exc)
+    return removed
+
+
 class Scraper:
     """Main scraping orchestrator.
 
@@ -516,6 +550,9 @@ class Scraper:
             f"{resolved_title} ({api_year})" if api_year else resolved_title
         )
 
+        # Save old title before rename for stale file cleanup
+        old_title = title
+
         # Rename folder to clean format if it doesn't match
         if movie_dir.name != clean_name:
             new_path = movie_dir.parent / clean_name
@@ -536,6 +573,8 @@ class Scraper:
                     title = resolved_title
                     nfo_name = self.patterns.format("movie_nfo", Title=title)
                     nfo_path = movie_dir / nfo_name
+                    # Remove stale artwork/NFO that used the old unsanitized title
+                    _cleanup_stale_files(movie_dir, old_title, resolved_title)
                 except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
                     logger.error("Failed to rename %s → %s: %s", movie_dir.name, clean_name, exc)
@@ -755,6 +794,7 @@ class Scraper:
         resolved_title = self._resolve_title(match.api_title, show_data, "tvshow")
 
         # Rename folder to canonical name (V2→V3 handoff)
+        old_dir_name = show_dir.name  # Save before potential rename
         canonical = self.patterns.format(
             "movie_dir", Title=resolved_title,
             Year=match.api_year or year or "",
@@ -774,6 +814,8 @@ class Scraper:
                         show_dir.rename(new_dir)
                         logger.info("Renamed folder: %s → %s", title, canonical)
                     show_dir = new_dir
+                    # Remove stale files that used the old folder name as prefix
+                    _cleanup_stale_files(show_dir, old_dir_name, canonical)
                 except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
                     logger.error("Failed to rename %s → %s: %s", title, canonical, exc)
