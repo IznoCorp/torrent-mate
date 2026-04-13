@@ -193,8 +193,8 @@ class GenreMapper:
         try:
             tree = ET.parse(nfo_path)  # noqa: S314
             root = tree.getroot()
-        except (ET.ParseError, OSError):
-            logger.warning("Failed to parse NFO: %s", nfo_path.name)
+        except (ET.ParseError, OSError) as exc:
+            logger.warning("Failed to parse NFO %s: %s", nfo_path.name, exc)
             return None
 
         genres = [g.text for g in root.findall("genre") if g.text]
