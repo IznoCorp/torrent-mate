@@ -630,3 +630,68 @@ class TestCircuitBreakerFallback:
 
         assert len(results) == 1
         assert results[0].action == "scraped"
+
+
+# ---------------------------------------------------------------------------
+# Stale artwork cleanup after folder rename
+# ---------------------------------------------------------------------------
+
+
+class TestCleanupStaleFiles:
+    """Tests for _cleanup_stale_files after folder rename."""
+
+    def test_old_artwork_with_colon_removed_after_rename(self, tmp_path: Path) -> None:
+        """Old artwork files with ':' should be deleted when sanitized versions exist."""
+        movie_dir = tmp_path / "Title Subtitle (2025)"
+        movie_dir.mkdir()
+
+        # Old files (from previous scrape, with colon)
+        (movie_dir / "Title : Subtitle-poster.jpg").write_bytes(b"old_poster")
+        (movie_dir / "Title : Subtitle-landscape.jpg").write_bytes(b"old_landscape")
+        (movie_dir / "Title : Subtitle.nfo").write_bytes(b"old_nfo")
+
+        # New files (from current scrape, sanitized)
+        (movie_dir / "Title Subtitle-poster.jpg").write_bytes(b"new_poster")
+        (movie_dir / "Title Subtitle-landscape.jpg").write_bytes(b"new_landscape")
+        (movie_dir / "Title Subtitle.nfo").write_bytes(b"new_nfo")
+
+        # Video file (should NOT be touched)
+        (movie_dir / "Title Subtitle.mkv").write_bytes(b"video")
+
+        from personalscraper.scraper.scraper import _cleanup_stale_files
+        _cleanup_stale_files(movie_dir, "Title : Subtitle", "Title Subtitle")
+
+        # Old files should be gone
+        assert not (movie_dir / "Title : Subtitle-poster.jpg").exists()
+        assert not (movie_dir / "Title : Subtitle-landscape.jpg").exists()
+        assert not (movie_dir / "Title : Subtitle.nfo").exists()
+
+        # New files should remain
+        assert (movie_dir / "Title Subtitle-poster.jpg").exists()
+        assert (movie_dir / "Title Subtitle-landscape.jpg").exists()
+        assert (movie_dir / "Title Subtitle.nfo").exists()
+
+        # Video untouched
+        assert (movie_dir / "Title Subtitle.mkv").exists()
+
+    def test_no_deletion_when_no_sanitized_duplicate(self, tmp_path: Path) -> None:
+        """Old files should NOT be deleted if no sanitized equivalent exists."""
+        movie_dir = tmp_path / "Title Subtitle (2025)"
+        movie_dir.mkdir()
+
+        # Only old file, no new equivalent
+        (movie_dir / "Title : Subtitle-poster.jpg").write_bytes(b"old_poster")
+
+        from personalscraper.scraper.scraper import _cleanup_stale_files
+        _cleanup_stale_files(movie_dir, "Title : Subtitle", "Title Subtitle")
+
+        # Should NOT be deleted (no replacement exists)
+        assert (movie_dir / "Title : Subtitle-poster.jpg").exists()
+
+    def test_no_crash_on_empty_directory(self, tmp_path: Path) -> None:
+        """Should handle empty directories without error."""
+        movie_dir = tmp_path / "Empty (2025)"
+        movie_dir.mkdir()
+
+        from personalscraper.scraper.scraper import _cleanup_stale_files
+        _cleanup_stale_files(movie_dir, "Old Name", "New Name")  # No crash
