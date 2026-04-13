@@ -81,6 +81,66 @@ def test_get_all_torrent_hashes(mock_client):
     assert result == {"abc123", "def456"}
 
 
+class TestPreCheckBan:
+    """Tests for qBit pre-check before auth_log_in."""
+
+    @patch("personalscraper.ingest.qbit_client.requests.get")
+    @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
+    def test_403_pre_check_skips_login(self, mock_client_cls, mock_get) -> None:
+        """When pre-check returns 403, auth_log_in should NOT be called."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        mock_get.return_value = mock_resp
+
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        client = QBitClient(host="localhost", port=8081, username="u", password="p")
+
+        with pytest.raises(qbittorrentapi.Forbidden403Error):
+            client.__enter__()
+
+        # auth_log_in must NEVER be called when IP is already banned
+        mock_client.auth_log_in.assert_not_called()
+
+    @patch("personalscraper.ingest.qbit_client.requests.get")
+    @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
+    def test_connection_refused_raises_api_error(self, mock_client_cls, mock_get) -> None:
+        """Connection refused on pre-check should raise APIConnectionError."""
+        import requests as req
+        mock_get.side_effect = req.ConnectionError("Connection refused")
+
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        client = QBitClient(host="localhost", port=8081, username="u", password="p")
+
+        with pytest.raises(qbittorrentapi.APIConnectionError):
+            client.__enter__()
+
+        mock_client.auth_log_in.assert_not_called()
+
+    @patch("personalscraper.ingest.qbit_client.requests.get")
+    @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
+    def test_200_pre_check_proceeds_to_login(self, mock_client_cls, mock_get) -> None:
+        """When pre-check returns 200, auth_log_in should be called normally."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_get.return_value = mock_resp
+
+        mock_client = MagicMock()
+        mock_client_cls.return_value = mock_client
+
+        client = QBitClient(host="localhost", port=8081, username="u", password="p")
+        # Remove lockout file if exists (from other tests)
+        from personalscraper.ingest.qbit_client import _LOCKOUT_FILE
+        _LOCKOUT_FILE.unlink(missing_ok=True)
+
+        client.__enter__()
+
+        mock_client.auth_log_in.assert_called_once()
+
+
 def test_live_api():
     """Connect to the real qBittorrent API and list torrents.
 
