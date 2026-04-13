@@ -550,6 +550,103 @@ class TestRunIngest:
         assert report.error_count == 1
         assert any("source volume mounted" in d for d in report.details)
 
+    @patch("personalscraper.ingest.ingest.transfer_torrent")
+    @patch("personalscraper.ingest.ingest.IngestTracker")
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_one_torrent_failure_does_not_block_others(
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        mock_transfer: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """OSError on one transfer should not prevent the others from completing."""
+        settings = MagicMock()
+        settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
+        settings.min_free_space_staging_gb = 0
+
+        t1 = _make_torrent("Good1", "h1")
+        t2 = _make_torrent("Bad", "h2")
+        t3 = _make_torrent("Good2", "h3")
+
+        for name in ("Good1", "Bad", "Good2"):
+            src = tmp_path / "complete" / name
+            src.mkdir(parents=True)
+            (src / "file.mkv").write_bytes(b"\x00" * 100)
+
+        src1 = tmp_path / "complete" / "Good1"
+        src2 = tmp_path / "complete" / "Bad"
+        src3 = tmp_path / "complete" / "Good2"
+
+        mock_client = MagicMock()
+        mock_client.get_completed_torrents.return_value = [t1, t2, t3]
+        mock_client.get_all_torrent_hashes.return_value = {"h1", "h2", "h3"}
+        mock_client.get_content_path.side_effect = [src1, src2, src3]
+        mock_client.is_seeding.return_value = False
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        mock_tracker = MagicMock()
+        mock_tracker.is_ingested.return_value = False
+        mock_tracker_cls.return_value = mock_tracker
+
+        # 2nd call raises OSError, 1st and 3rd succeed
+        mock_transfer.side_effect = [True, OSError("Disk I/O error"), True]
+
+        report = run_ingest(settings)
+
+        assert report.success_count == 2
+        assert report.error_count == 1
+        assert any("Bad" in d for d in report.details)
+
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_login_failed_actionable_message(
+        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+    ) -> None:
+        """LoginFailed should produce an actionable message mentioning auth or login."""
+        import qbittorrentapi
+
+        settings = MagicMock()
+        settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(side_effect=qbittorrentapi.LoginFailed())
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        report = run_ingest(settings)
+
+        assert report.error_count >= 1
+        combined = " ".join(report.details).lower()
+        assert "auth" in combined or "login" in combined
+
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_api_connection_error_actionable_message(
+        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+    ) -> None:
+        """APIConnectionError should produce an actionable message mentioning unreachable or running."""
+        import qbittorrentapi
+
+        settings = MagicMock()
+        settings.staging_dir = tmp_path
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(
+            side_effect=qbittorrentapi.APIConnectionError("Connection refused")
+        )
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        report = run_ingest(settings)
+
+        assert report.error_count >= 1
+        combined = " ".join(report.details).lower()
+        assert "unreachable" in combined or "running" in combined
+
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_dest_already_exists_skip(
