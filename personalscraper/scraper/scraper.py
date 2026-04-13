@@ -898,7 +898,7 @@ class Scraper:
             f for f in show_dir.rglob("*")
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            and not re.match(r"^Saison \d{2}$", f.parent.name)
+            and not re.match(r"^Saison \d+$", f.parent.name)
         )
 
         if video_files:

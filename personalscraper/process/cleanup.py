@@ -13,7 +13,7 @@ from personalscraper.models import StepReport
 logger = logging.getLogger(__name__)
 
 # Files that don't count as "content" (macOS metadata)
-_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db"})
+_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
 
 
 def _is_effectively_empty(directory: Path) -> bool:
