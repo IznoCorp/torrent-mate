@@ -306,3 +306,43 @@ def test_run_releases_lock_on_pipeline_crash(
     """Lock is released even when Pipeline.run() crashes."""
     runner.invoke(app, ["run"])
     mock_release.assert_called_once()
+
+
+# ── Config error decorator tests ──────────────────────
+
+
+@patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report)
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.get_settings")
+def test_invalid_config_shows_friendly_error(mock_get_settings, mock_lock, mock_release, mock_run):
+    """ValidationError from get_settings() is shown as friendly 'Configuration error'."""
+    from pydantic import ValidationError
+
+    from personalscraper.config import Settings
+
+    # Build a real ValidationError by triggering it from Settings itself.
+    try:
+        Settings(qbit_port="abc")  # type: ignore[arg-type]
+    except ValidationError as real_exc:
+        mock_get_settings.side_effect = real_exc
+
+    result = runner.invoke(app, ["ingest"])
+
+    assert result.exit_code == 1
+    assert "Configuration error" in result.output
+    assert "qbit_port" in result.output
+    assert "ValidationError" not in result.output
+
+
+@patch("personalscraper.cli.release_lock")
+@patch("personalscraper.cli.acquire_lock", return_value=True)
+@patch("personalscraper.cli.get_settings")
+def test_missing_env_file_shows_friendly_error(mock_get_settings, mock_lock, mock_release):
+    """FileNotFoundError from get_settings() is shown as friendly 'Missing file'."""
+    mock_get_settings.side_effect = FileNotFoundError(".env file not found")
+
+    result = runner.invoke(app, ["ingest"])
+
+    assert result.exit_code == 1
+    assert "Missing file" in result.output
