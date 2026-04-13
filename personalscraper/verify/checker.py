@@ -162,16 +162,18 @@ class MediaChecker:
                 message="" if nfo_valid else "NFO missing <title> or <year>",
             ))
 
-        # nfo_ids
+        # nfo_ids — at least one of TMDB or IMDB required for dispatch
         if nfo_root is not None:
             ids = self._extract_ids(nfo_root)
             has_tmdb = bool(ids.get("tmdb"))
             has_imdb = bool(ids.get("imdb"))
+            has_both = has_tmdb and has_imdb
+            has_any = has_tmdb or has_imdb
             results.append(CheckResult(
                 name="nfo_ids",
-                passed=has_tmdb and has_imdb,
-                severity=Severity.ERROR,
-                message="" if has_tmdb and has_imdb else f"Missing IDs: tmdb={has_tmdb}, imdb={has_imdb}",
+                passed=has_any,
+                severity=Severity.ERROR if not has_any else Severity.WARNING,
+                message="" if has_both else f"Missing IDs: tmdb={has_tmdb}, imdb={has_imdb}",
             ))
 
         # poster_present (blocking — dispatch requires poster)
