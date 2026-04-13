@@ -135,6 +135,7 @@ def cleanup_old_logs(logs_dir: Path = LOGS_DIR, retention_days: int = 30) -> int
             if f.is_file() and f.stat().st_mtime < cutoff:
                 f.unlink()
                 deleted += 1
-        except OSError:
-            pass  # File locked by active log handler — not worth logging
+        except OSError as exc:
+            # File may be locked by active log handler, or real FS error
+            structlog.get_logger("logger").debug("cannot_delete_log", file=f.name, error=str(exc))
     return deleted
