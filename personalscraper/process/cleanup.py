@@ -91,5 +91,7 @@ def cleanup_empty_dirs(
                 report.details.append(str(rel_path))
             except OSError as exc:
                 logger.warning("Failed to remove dir %s: %s", rel_path, exc)
+                report.error_count += 1
+                report.warnings.append(f"Failed to remove {rel_path}: {exc}")
 
     return report

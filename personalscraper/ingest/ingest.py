@@ -203,6 +203,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
             # Clean tracker of removed torrents
             tracker.cleanup(active_hashes)
 
+            content_missing_count = 0
             for torrent in torrents:
                 name = torrent.name
                 torrent_hash = torrent.hash
@@ -218,6 +219,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                 source = client.get_content_path(torrent)
                 if not source.exists():
                     log.warning("content_missing", name=name, path=str(source))
+                    content_missing_count += 1
                     report.skip_count += 1
                     report.warnings.append(f"{name}: content path missing ({source})")
                     continue
@@ -252,6 +254,18 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                 else:
                     report.error_count += 1
                     report.details.append(f"{name}: transfer failed")
+
+            # Escalate if ALL completed torrents had missing content paths
+            # — likely means the source volume is unmounted
+            if content_missing_count and content_missing_count == len(torrents):
+                log.error(
+                    "all_content_missing", count=content_missing_count,
+                )
+                report.error_count += 1
+                report.details.append(
+                    f"ALL {content_missing_count} torrents have missing content. "
+                    "Check: is the source volume mounted?"
+                )
 
     except Exception as e:
         log.exception("ingest_failed", error=str(e))

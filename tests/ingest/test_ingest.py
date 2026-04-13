@@ -546,7 +546,9 @@ class TestRunIngest:
         report = run_ingest(settings)
 
         assert report.skip_count == 1
-        assert report.error_count == 0
+        # Escalated to error because ALL torrents had missing content
+        assert report.error_count == 1
+        assert any("source volume mounted" in d for d in report.details)
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
