@@ -544,10 +544,24 @@ class Scraper:
                 action = "merge into" if new_path.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, movie_dir.name, clean_name)
 
-        # Extract stream info from video file
+        # Rename video file to clean title and extract stream info
         video_file = _find_video_file(movie_dir)
         stream_info = None
         if video_file:
+            clean_video_name = self.patterns.format(
+                "movie_video", Title=title,
+            ) + video_file.suffix
+            if video_file.name != clean_video_name:
+                new_video = movie_dir / clean_video_name
+                if not self.dry_run:
+                    try:
+                        video_file.rename(new_video)
+                        logger.info("Renamed video: %s → %s", video_file.name, clean_video_name)
+                        video_file = new_video
+                    except OSError as exc:
+                        logger.warning("Failed to rename video: %s", exc)
+                else:
+                    logger.info("[DRY RUN] Would rename video: %s → %s", video_file.name, clean_video_name)
             stream_info = extract_stream_info(video_file)
 
         # Generate and write NFO
