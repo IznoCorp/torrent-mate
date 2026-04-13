@@ -1,7 +1,8 @@
 """Dispatch step runner: entry point for the dispatch pipeline step.
 
-Instantiates the Dispatcher and MediaIndex, processes verified items
-or scans the staging directory, and converts DispatchResult to StepReport.
+Instantiates the Dispatcher and MediaIndex, processes verified items,
+and converts DispatchResult to StepReport. In standalone mode (no
+verified list provided), runs verify first to obtain dispatchable items.
 """
 
 import logging
@@ -68,7 +69,7 @@ def run_dispatch(
         settings: Pipeline configuration.
         dry_run: If True, preview without transferring files.
         verified: Verified items from V4 (pipeline mode).
-            If None, runs in standalone mode scanning staging dir.
+            If None, runs verify first to obtain dispatchable items.
 
     Returns:
         StepReport with dispatch counts and details.
@@ -87,7 +88,7 @@ def run_dispatch(
         # Standalone mode: run verify first to get dispatchable items
         from personalscraper.verify.run import run_verify
 
-        _, verified = run_verify(settings)
+        _, verified = run_verify(settings, dry_run=dry_run)
         verified = [vr for vr in verified if vr.category]
 
     results = dispatcher.process(verified=verified)

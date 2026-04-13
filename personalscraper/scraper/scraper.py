@@ -559,7 +559,13 @@ class Scraper:
                         logger.info("Renamed video: %s → %s", video_file.name, clean_video_name)
                         video_file = new_video
                     except OSError as exc:
-                        logger.warning("Failed to rename video: %s", exc)
+                        logger.warning(
+                            "Failed to rename video %s → %s in %s: %s",
+                            video_file.name, clean_video_name, movie_dir.name, exc,
+                        )
+                        result.warnings.append(
+                            f"Video rename failed: {video_file.name}: {exc}"
+                        )
                 else:
                     logger.info("[DRY RUN] Would rename video: %s → %s", video_file.name, clean_video_name)
             stream_info = extract_stream_info(video_file)
@@ -799,11 +805,14 @@ class Scraper:
             logger.warning("Artwork failed for %s: %s", match.api_title, e)
             result.warnings.append(f"Artwork failed: {e}")
 
-        # Process episodes — rglob to find files nested in release-group subdirs
+        # Process episodes — rglob to find files nested in release-group subdirs,
+        # but skip files already organized in Saison XX/ directories
         total_renamed = 0
         video_files = sorted(
             f for f in show_dir.rglob("*")
-            if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+            if f.is_file()
+            and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+            and not re.match(r"^Saison \d{2}$", f.parent.name)
         )
 
         if video_files:
