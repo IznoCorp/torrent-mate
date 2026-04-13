@@ -8,16 +8,18 @@ Ce document explique comment utiliser la zone de tri "A TRIER" et les outils dis
 
 ```
 Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
-                    personalscraper run     (V1→V5 automatisé)
+                    personalscraper run     (7 étapes V1→V9)
 ```
 
-**Pipeline automatisé (PersonalScraper V0-V7) :**
+**Pipeline automatisé (PersonalScraper V0-V9) :**
 
-1. **V1 Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `A TRIER/`
+1. **V1 Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `097-TEMP/`
 2. **V2 Sort** — Les fichiers sont triés dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
-3. **V3 Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
-4. **V4 Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
-5. **V5 Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
+3. **V9 Clean** — Nettoyage noms (reclean) + dédoublonnage fuzzy (dedup)
+4. **V3 Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
+5. **V9 Cleanup** — Suppression des dossiers vides
+6. **V4 Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
+7. **V5 Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
 
 > **Note :** MediaElch reste disponible comme fallback manuel pour le scraping si l'API ne trouve pas le résultat.
 
@@ -28,9 +30,13 @@ Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
 Le pipeline automatisé est accessible via la commande `personalscraper` :
 
 ```bash
-# Pipeline complet (V1→V5 en séquence)
-personalscraper run                 # Exécute tout : ingest → sort → scrape → verify → dispatch
+# Pipeline complet (7 étapes en séquence)
+personalscraper run                 # Exécute tout : ingest → sort → clean → scrape → cleanup → verify → dispatch
 personalscraper run --dry-run       # Prévisualiser sans modifier
+
+# Phase process seule (reclean + dedup + scrape + cleanup)
+personalscraper process             # V9: Nettoyer, dédoublonner, scraper, supprimer vides
+personalscraper process --dry-run   # Prévisualiser
 
 # Étapes individuelles
 personalscraper ingest              # V1: Copier/déplacer les torrents terminés depuis qBittorrent
@@ -140,7 +146,14 @@ A TRIER/
 ├── 097-TEMP/            Espace temporaire
 ├── 098-AUTRES/          Divers
 ├── 099-SCRIPTS/         Scripts legacy (.bak, gitignored)
-├── personalscraper/     Package Python (CLI V0-V7)
+├── personalscraper/     Package Python (CLI V0-V9)
+│   ├── ingest/          V1: qBittorrent → 097-TEMP/
+│   ├── sorter/          V2: guessit + strategies → dossiers catégorie
+│   ├── process/         V9: reclean, dedup, cleanup
+│   ├── scraper/         V3: TMDB/TVDB matching, NFO, artwork
+│   ├── verify/          V4+V9: contrôle qualité renforcé
+│   ├── dispatch/        V5: rsync vers Disk1-4
+│   └── pipeline.py      V9: Orchestrateur 7 étapes séquentiel
 ├── tests/               Tests unitaires + E2E
 └── assets/torrents/     Fichiers .torrent pour tests E2E
 ```
@@ -225,7 +238,7 @@ Hooks actifs dans `.claude/settings.json` :
 
 ## Scripts legacy (099-SCRIPTS/)
 
-Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper V0-V7.
+Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper V0-V9.
 
 | Script                      | Usage d'origine                               | Statut                    |
 | --------------------------- | --------------------------------------------- | ------------------------- |

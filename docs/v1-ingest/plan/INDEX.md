@@ -35,7 +35,7 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 - [x] Le sous-package `personalscraper/ingest/` est créé et importable
 - [x] `from personalscraper.ingest import qbit_client, tracker, ingest` fonctionne
 - [x] `from personalscraper.lock import acquire_lock, release_lock` fonctionne
-- [x] `~/.personalscraper/` existe
+- [x] `.personalscraper/` data dir existe (configurable via DATA_DIR_NAME)
 - [x] Tests lock file passent (acquire, release, stale detection)
 
 ### Après Phase 2 (qBit Client → Orchestrateur)
@@ -48,7 +48,7 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 ### Après Phase 3 (Tracker → Orchestrateur)
 
 - [x] `IngestTracker` expose les méthodes attendues par `run_ingest()` (design)
-- [x] Le JSON se crée/charge/sauvegarde dans `~/.personalscraper/`
+- [x] Le JSON se crée/charge/sauvegarde dans `.personalscraper/` (data_dir)
 - [x] Le cleanup accepte un `set[str]` (output de `get_all_torrent_hashes()`)
 
 ### Après Phase 4 (Orchestrateur → Alias)
@@ -56,7 +56,7 @@ Phase 4 dépend de 2 et 3. Phase 5 dépend de 4.
 - [x] `personalscraper ingest --dry-run` fonctionne standalone
 - [x] `--dry-run` ne modifie rien sur le filesystem
 - [x] `run_ingest()` retourne un `StepReport` correct
-- [x] Le lock file est acquis/libéré correctement (vérifier `~/.personalscraper/pipeline.lock`)
+- [x] Le lock file est acquis/libéré correctement (`.personalscraper/pipeline.lock`)
 - [x] Les copies utilisent le pattern atomique (.ingest*tmp*\* → rename)
 - [x] Les .ingest*tmp*\* orphelins sont nettoyés au début du run
 - [x] La vérification de taille post-transfert fonctionne

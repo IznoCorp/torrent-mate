@@ -23,22 +23,22 @@ Phase 1 (index + scanner) ──▶ Phase 2 (dispatcher, uses V4 genre_mapper) �
 
 ### Après Phase 1 (Index + Scanner → Dispatcher)
 
-- [ ] `MediaIndex.rebuild()` indexe correctement les 4 disques
-- [ ] `MediaIndex.find()` retourne le bon résultat (fuzzy matching)
-- [ ] `get_disk_status()` retourne l'espace libre correct
-- [ ] `choose_disk()` choisit le disque avec le plus d'espace parmi les compatibles
+- [x] `MediaIndex.rebuild()` indexe correctement les 4 disques
+- [x] `MediaIndex.find()` retourne le bon résultat (fuzzy matching)
+- [x] `get_disk_status()` retourne l'espace libre correct
+- [x] `choose_disk()` choisit le disque avec le plus d'espace parmi les compatibles
 
 ### Après Phase 2 (Dispatcher → CLI)
 
-- [ ] V4's `VerifyResult.category` est correctement importé et utilisé par le dispatcher
-- [ ] Films : replace fonctionne (ancien supprimé, nouveau en place)
-- [ ] Séries : merge fonctionne (nouveaux fichiers copiés, existants préservés)
-- [ ] Nouveaux médias : dispatched vers le disque avec le plus d'espace
-- [ ] `_verify_transfer()` détecte les transferts incomplets
+- [x] V4's `VerifyResult.category` est correctement importé et utilisé par le dispatcher
+- [x] Films : replace fonctionne (ancien supprimé, nouveau en place)
+- [x] Séries : merge fonctionne (nouveaux fichiers copiés, existants préservés)
+- [x] Nouveaux médias : dispatched vers le disque avec le plus d'espace
+- [x] `_verify_transfer()` détecte les transferts incomplets
 
 ### Après Phase 3 (CLI → V6)
 
-- [ ] `personalscraper dispatch --dry-run` fonctionne end-to-end
-- [ ] L'index est mis à jour après chaque dispatch
-- [ ] Les DispatchResult alimentent correctement le StepReport
-- [ ] Les médias skippés (espace insuffisant) sont reportés
+- [x] `personalscraper dispatch --dry-run` fonctionne end-to-end
+- [x] L'index est mis à jour après chaque dispatch
+- [x] Les DispatchResult alimentent correctement le StepReport
+- [x] Les médias skippés (espace insuffisant) sont reportés
