@@ -135,7 +135,8 @@ class MediaFixer:
         try:
             tree = ET.parse(nfo_path)  # noqa: S314
             root = tree.getroot()
-        except (ET.ParseError, OSError):
+        except (ET.ParseError, OSError) as exc:
+            logger.warning("Cannot parse NFO for dir naming fix: %s: %s", nfo_path.name, exc)
             return None
 
         title = root.findtext("title", "").strip()
