@@ -9,8 +9,11 @@ import os
 import shutil
 from pathlib import Path
 
+import qbittorrentapi
+import requests
+
 from personalscraper.config import Settings
-from personalscraper.ingest.qbit_client import QBitClient
+from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -216,65 +219,83 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                 name = torrent.name
                 torrent_hash = torrent.hash
 
-                # Skip already ingested
-                if tracker.is_ingested(torrent_hash):
-                    log.debug("already_ingested", name=name)
-                    report.skip_count += 1
-                    continue
-
-                # Resolve content path — if missing, check if already in staging
-                source = client.get_content_path(torrent)
-                if not source.exists():
-                    # Check staging dirs for this content (already ingested pre-tracker)
-                    staging_dirs = [
-                        settings.staging_dir / settings.movies_dir_name,
-                        settings.staging_dir / settings.tvshows_dir_name,
-                        settings.ingest_dir,
-                    ]
-                    found_in_staging = any(
-                        (d / source.name).exists() for d in staging_dirs
-                    )
-                    if found_in_staging:
-                        log.info("already_in_staging", name=name)
-                        tracker.mark_ingested(torrent_hash, name, "found_in_staging")
+                try:
+                    # Skip already ingested
+                    if tracker.is_ingested(torrent_hash):
+                        log.debug("already_ingested", name=name)
                         report.skip_count += 1
+                        continue
+
+                    # Resolve content path — if missing, check if already in staging
+                    source = client.get_content_path(torrent)
+                    if not source.exists():
+                        # Check staging dirs for this content (already ingested pre-tracker)
+                        staging_dirs = [
+                            settings.staging_dir / settings.movies_dir_name,
+                            settings.staging_dir / settings.tvshows_dir_name,
+                            settings.ingest_dir,
+                        ]
+                        found_in_staging = any(
+                            (d / source.name).exists() for d in staging_dirs
+                        )
+                        if found_in_staging:
+                            log.info("already_in_staging", name=name)
+                            tracker.mark_ingested(torrent_hash, name, "found_in_staging")
+                            report.skip_count += 1
+                        else:
+                            log.warning("content_missing", name=name, path=str(source))
+                            content_missing_count += 1
+                            report.skip_count += 1
+                            report.warnings.append(f"{name}: content path missing ({source})")
+                        continue
+
+                    # Destination in 097-TEMP/ (sort picks up from here)
+                    dest = ingest_dir / source.name
+                    if dest.exists():
+                        log.info("already_exists", name=name, dest=str(dest))
+                        report.skip_count += 1
+                        # Still mark as ingested to avoid re-checking
+                        tracker.mark_ingested(torrent_hash, name, "skipped_exists")
+                        continue
+
+                    # Check disk space
+                    source_size = _get_dir_size(source)
+                    if not _check_disk_space(
+                        ingest_dir, source_size, settings.min_free_space_staging_gb
+                    ):
+                        log.warning(
+                            "insufficient_space", name=name, size_mb=source_size // (1024 * 1024)
+                        )
+                        report.skip_count += 1
+                        report.warnings.append(f"{name}: insufficient disk space")
+                        continue
+
+                    # Transfer
+                    is_copy = client.is_seeding(torrent)
+                    action = "copied" if is_copy else "moved"
+                    success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
+
+                    if success:
+                        report.success_count += 1
+                        report.details.append(f"{name} → {action}")
+                        if not dry_run:
+                            tracker.mark_ingested(torrent_hash, name, action)
                     else:
-                        log.warning("content_missing", name=name, path=str(source))
-                        content_missing_count += 1
-                        report.skip_count += 1
-                        report.warnings.append(f"{name}: content path missing ({source})")
-                    continue
+                        report.error_count += 1
+                        report.details.append(f"{name}: transfer failed")
 
-                # Destination in 097-TEMP/ (sort picks up from here)
-                dest = ingest_dir / source.name
-                if dest.exists():
-                    log.info("already_exists", name=name, dest=str(dest))
-                    report.skip_count += 1
-                    # Still mark as ingested to avoid re-checking
-                    tracker.mark_ingested(torrent_hash, name, "skipped_exists")
-                    continue
-
-                # Check disk space
-                source_size = _get_dir_size(source)
-                if not _check_disk_space(ingest_dir, source_size, settings.min_free_space_staging_gb):
-                    log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
-                    report.skip_count += 1
-                    report.warnings.append(f"{name}: insufficient disk space")
-                    continue
-
-                # Transfer
-                is_copy = client.is_seeding(torrent)
-                action = "copied" if is_copy else "moved"
-                success = transfer_torrent(source, dest, copy=is_copy, dry_run=dry_run)
-
-                if success:
-                    report.success_count += 1
-                    report.details.append(f"{name} → {action}")
-                    if not dry_run:
-                        tracker.mark_ingested(torrent_hash, name, action)
-                else:
+                except Exception as torrent_err:
+                    # Isolate per-torrent failures so other torrents still process.
+                    # OSError/PermissionError from filesystem operations are the most
+                    # common — a bad disk sector should not block the whole batch.
+                    log.error(
+                        "torrent_ingest_failed",
+                        name=name,
+                        error=str(torrent_err),
+                        exc_info=True,
+                    )
                     report.error_count += 1
-                    report.details.append(f"{name}: transfer failed")
+                    report.details.append(f"{name}: {type(torrent_err).__name__}: {torrent_err}")
 
             # Escalate if ALL completed torrents had missing content paths
             # — likely means the source volume is unmounted
@@ -288,28 +309,37 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                     "Check: is the source volume mounted?"
                 )
 
-    except Exception as e:
+    except QBitAuthLockoutError as e:
         log.exception("ingest_failed", error=str(e))
         report.error_count += 1
-        error_msg = str(e)
-        # Provide actionable hints for common qBittorrent errors
-        if "QBitAuthLockoutError" in type(e).__name__:
-            report.details.append(
-                f"qBittorrent auth lockout active: {error_msg}"
-            )
-        elif "403" in error_msg or "Forbidden" in type(e).__name__:
-            report.details.append(
-                f"qBittorrent auth blocked (IP banned): {error_msg}. "
-                "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
-                "or wait for the ban to expire."
-            )
-        elif "Connection" in type(e).__name__ or "refused" in error_msg.lower():
-            report.details.append(
-                f"qBittorrent unreachable: {error_msg}. "
-                "Fix: verify qBit is running and Web UI is enabled."
-            )
-        else:
-            report.details.append(f"Ingest failed: {type(e).__name__}: {error_msg}")
+        report.details.append(f"qBittorrent auth lockout active: {e}")
+    except qbittorrentapi.LoginFailed as e:
+        log.exception("ingest_failed", error=str(e))
+        report.error_count += 1
+        report.details.append(
+            f"qBittorrent login failed: {e}. "
+            "Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env"
+        )
+    except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
+        log.exception("ingest_failed", error=str(e))
+        report.error_count += 1
+        report.details.append(
+            f"qBittorrent unreachable: {e}. "
+            "Fix: verify qBit is running and Web UI is enabled."
+        )
+    except qbittorrentapi.Forbidden403Error as e:
+        log.exception("ingest_failed", error=str(e))
+        report.error_count += 1
+        report.details.append(
+            f"qBittorrent auth blocked (IP banned): {e}. "
+            "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
+            "or wait for the ban to expire."
+        )
+    except Exception as e:
+        # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
+        log.exception("ingest_failed", error=str(e))
+        report.error_count += 1
+        report.details.append(f"Ingest failed: {type(e).__name__}: {e}")
 
     log.info(
         "ingest_complete",
