@@ -62,8 +62,12 @@ class IngestTracker:
         if self.tracker_path.exists():
             try:
                 self._data = json.loads(self.tracker_path.read_text())
-            except (json.JSONDecodeError, ValueError):
-                log.warning("tracker_corrupted", path=str(self.tracker_path))
+            except (json.JSONDecodeError, ValueError, OSError) as exc:
+                log.error(
+                    "tracker_corrupted_or_unreadable",
+                    path=str(self.tracker_path),
+                    error=str(exc),
+                )
                 self._data = {}
         else:
             self._data = {}
