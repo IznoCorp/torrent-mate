@@ -27,6 +27,7 @@ from tenacity import (
 )
 
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.scraper.http_retry import make_retryable_predicate
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,6 @@ IMAGE_SIZE = "original"
 _LANG_PRIORITY: dict[str | None, int] = {"fr": 0, "en": 1}
 
 
-from personalscraper.scraper.http_retry import make_retryable_predicate
 
 _is_retryable = make_retryable_predicate()
 

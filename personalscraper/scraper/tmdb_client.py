@@ -24,6 +24,8 @@ from tenacity import (
 )
 from urllib3.util.retry import Retry as Urllib3Retry
 
+from personalscraper.scraper.http_retry import make_retryable_predicate
+
 logger = logging.getLogger(__name__)
 
 # TMDB internal error codes (not HTTP codes)
@@ -56,7 +58,6 @@ class TMDBError(Exception):
         super().__init__(f"TMDB {http_status} (code {tmdb_code}): {message}")
 
 
-from personalscraper.scraper.http_retry import make_retryable_predicate
 
 _is_retryable = make_retryable_predicate(TMDBError)
 
