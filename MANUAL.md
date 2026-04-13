@@ -8,10 +8,10 @@ Ce document explique comment utiliser la zone de tri "A TRIER" et les outils dis
 
 ```
 Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
-                    personalscraper run     (7 étapes V1→V9)
+                    personalscraper run     (7 étapes V1→V10)
 ```
 
-**Pipeline automatisé (PersonalScraper V0-V9) :**
+**Pipeline automatisé (PersonalScraper V0-V10) :**
 
 1. **V1 Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `097-TEMP/`
 2. **V2 Sort** — Les fichiers sont triés dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
