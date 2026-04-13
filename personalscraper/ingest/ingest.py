@@ -272,7 +272,11 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
         report.error_count += 1
         error_msg = str(e)
         # Provide actionable hints for common qBittorrent errors
-        if "403" in error_msg or "Forbidden" in type(e).__name__:
+        if "QBitAuthLockoutError" in type(e).__name__:
+            report.details.append(
+                f"qBittorrent auth lockout active: {error_msg}"
+            )
+        elif "403" in error_msg or "Forbidden" in type(e).__name__:
             report.details.append(
                 f"qBittorrent auth blocked (IP banned): {error_msg}. "
                 "Fix: unban IP in qBit > Preferences > Web UI > IP Banning, "
