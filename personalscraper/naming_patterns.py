@@ -10,6 +10,8 @@ Patterns are MediaElch defaults — no config file needed (YAGNI).
 
 from dataclasses import dataclass
 
+from personalscraper.text_utils import sanitize_filename
+
 
 @dataclass(frozen=True)
 class NamingPatterns:
@@ -104,7 +106,7 @@ class NamingPatterns:
             KeyError: If a required template variable is missing.
         """
         pattern = getattr(self, pattern_name)
-        return pattern.format(**kwargs)
+        return sanitize_filename(pattern.format(**kwargs))
 
     def format_base_filename(self, is_episode: bool = False, **kwargs: object) -> str:
         """Resolve the base filename for a media item.
