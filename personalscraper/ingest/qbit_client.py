@@ -14,6 +14,7 @@ from pathlib import Path
 from types import TracebackType
 
 import qbittorrentapi
+import requests
 
 from personalscraper.logger import get_logger
 
@@ -88,6 +89,29 @@ class QBitClient:
                 _LOCKOUT_FILE.unlink(missing_ok=True)
             except OSError as e:
                 log.warning("qbit_lockout_read_failed", error=str(e))
+
+        # Pre-check: detect IP ban without attempting auth.
+        # /api/v2/app/version requires no credentials — a 403 here means the
+        # IP is already banned, so we must not call auth_log_in() at all
+        # (each failed login attempt counts toward the ban threshold).
+        try:
+            resp = requests.get(
+                f"http://{self._client.host}:{self._client.port}/api/v2/app/version",
+                timeout=5,
+            )
+            if resp.status_code == 403:
+                log.error(
+                    "qbit_ip_banned_pre_check",
+                    hint="IP is already banned. Unban in qBit > Preferences > Web UI > IP Banning.",
+                )
+                raise qbittorrentapi.Forbidden403Error(
+                    "IP is already banned by qBittorrent. "
+                    "Unban in Preferences > Web UI > IP Banning, or restart qBit."
+                )
+        except requests.ConnectionError as exc:
+            raise qbittorrentapi.APIConnectionError(
+                f"qBittorrent unreachable at {self._client.host}:{self._client.port}: {exc}"
+            ) from exc
 
         try:
             self._client.auth_log_in()
