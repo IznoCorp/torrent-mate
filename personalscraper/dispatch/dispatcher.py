@@ -186,48 +186,35 @@ class Dispatcher:
 
     def process(
         self,
-        verified: list[VerifyResult] | None = None,
-        staging_dir: Path | None = None,
+        verified: list[VerifyResult],
     ) -> list[DispatchResult]:
-        """Process media items for dispatch.
+        """Process verified media items for dispatch.
 
         Cleans up orphan temp directories from previous runs before
-        processing. Two modes:
-        1. Pipeline (verified provided): uses category from V4
-        2. Standalone (staging_dir provided): scans and categorizes
+        dispatching each item to the appropriate storage disk.
 
         Args:
-            verified: List of VerifyResult from V4 (pipeline mode).
-            staging_dir: Staging directory path (standalone mode).
+            verified: List of VerifyResult from V4 verify step.
 
         Returns:
             List of DispatchResult for each item.
-
-        Raises:
-            ValueError: If both or neither arguments are provided.
         """
-        if verified is not None and staging_dir is not None:
-            raise ValueError("Provide either verified or staging_dir, not both")
-        if verified is None and staging_dir is None:
-            raise ValueError("Provide either verified or staging_dir")
-
         # Clean up orphan temp dirs from previous failed runs
         self._cleanup_orphan_temps()
 
         results: list[DispatchResult] = []
 
-        if verified is not None:
-            for vr in verified:
-                if not vr.category:
-                    results.append(DispatchResult(
-                        source=vr.media_path, action="skipped",
-                        reason="No category assigned",
-                    ))
-                    continue
-                if vr.media_type == "movie":
-                    results.append(self.dispatch_movie(vr.media_path, vr.category))
-                else:
-                    results.append(self.dispatch_tvshow(vr.media_path, vr.category))
+        for vr in verified:
+            if not vr.category:
+                results.append(DispatchResult(
+                    source=vr.media_path, action="skipped",
+                    reason="No category assigned",
+                ))
+                continue
+            if vr.media_type == "movie":
+                results.append(self.dispatch_movie(vr.media_path, vr.category))
+            else:
+                results.append(self.dispatch_tvshow(vr.media_path, vr.category))
 
         return results
 

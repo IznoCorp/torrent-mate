@@ -83,10 +83,14 @@ def run_dispatch(
 
     dispatcher = Dispatcher(settings=settings, index=index, dry_run=dry_run)
 
-    if verified is not None:
-        results = dispatcher.process(verified=verified)
-    else:
-        results = dispatcher.process(staging_dir=settings.staging_dir)
+    if verified is None:
+        # Standalone mode: run verify first to get dispatchable items
+        from personalscraper.verify.run import run_verify
+
+        _, verified = run_verify(settings)
+        verified = [vr for vr in verified if vr.category]
+
+    results = dispatcher.process(verified=verified)
 
     # Save updated index
     if not dry_run:
