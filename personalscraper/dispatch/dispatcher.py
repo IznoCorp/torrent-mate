@@ -655,16 +655,22 @@ class Dispatcher:
             True if all file sizes match.
         """
         for src_file in source.rglob("*"):
-            if not src_file.is_file():
-                continue
+            try:
+                if not src_file.is_file():
+                    continue
+            except OSError:
+                continue  # Broken symlink or NTFS metadata
             rel = src_file.relative_to(source)
             dst_file = dest / rel
             if not dst_file.exists():
                 logger.warning("Missing after transfer: %s", rel)
                 return False
-            if src_file.stat().st_size != dst_file.stat().st_size:
-                logger.warning("Size mismatch: %s", rel)
-                return False
+            try:
+                if src_file.stat().st_size != dst_file.stat().st_size:
+                    logger.warning("Size mismatch: %s", rel)
+                    return False
+            except OSError as exc:
+                logger.warning("Cannot verify %s: %s", rel, exc)
         return True
 
     @staticmethod
@@ -677,5 +683,11 @@ class Dispatcher:
         Returns:
             Size in GB.
         """
-        total = sum(f.stat().st_size for f in directory.rglob("*") if f.is_file())
+        total = 0
+        for f in directory.rglob("*"):
+            try:
+                if f.is_file():
+                    total += f.stat().st_size
+            except OSError:
+                pass  # Broken symlinks, NTFS metadata permission errors
         return total / (1024 ** 3)
