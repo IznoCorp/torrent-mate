@@ -255,6 +255,39 @@ def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> i
     return removed
 
 
+def _cleanup_empty_release_dirs(show_dir: Path) -> int:
+    """Remove empty release-group subdirectories from a TV show folder.
+
+    After episodes are moved to Saison XX/ directories, the original
+    release-group subdirectories (e.g., Show.S01E01.1080p.WEB-GROUP/)
+    may be left empty. This function removes them.
+
+    Skips hidden directories (.actors/) and season directories (Saison XX/).
+
+    Args:
+        show_dir: Path to the TV show directory.
+
+    Returns:
+        Number of empty directories removed.
+    """
+    removed = 0
+    for subdir in list(show_dir.iterdir()):
+        if not subdir.is_dir():
+            continue
+        if subdir.name.startswith("."):
+            continue
+        if re.match(r"^Saison \d+$", subdir.name):
+            continue
+        try:
+            if not any(subdir.iterdir()):
+                subdir.rmdir()
+                logger.info("Removed empty release dir: %s", subdir.name)
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 class Scraper:
     """Main scraping orchestrator.
 
@@ -888,6 +921,9 @@ class Scraper:
                 if matched:
                     total_renamed = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
                     self._generate_episode_nfos(matched, show_dir, show_data)
+
+            # Clean empty release-group subdirectories left after episode moves
+            _cleanup_empty_release_dirs(show_dir)
 
         result.episodes_renamed = total_renamed
         result.action = "scraped"
