@@ -206,18 +206,15 @@ class TestProcess:
         assert results[0].action == "skipped"
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_process_requires_one_mode(
+    def test_process_empty_verified(
         self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
     ) -> None:
-        """Should raise ValueError with both or neither args."""
+        """Should return empty results for empty verified list."""
         idx = MediaIndex(tmp_path / "index.json")
         d = Dispatcher(mock_settings, idx)
 
-        with pytest.raises(ValueError):
-            d.process(verified=[], staging_dir=tmp_path)
-
-        with pytest.raises(ValueError):
-            d.process()
+        results = d.process(verified=[])
+        assert results == []
 
 
 # ---------------------------------------------------------------------------
