@@ -101,6 +101,7 @@ class TestRunScrape:
         tvshows_dir.mkdir()
 
         with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
             patch("personalscraper.scraper.run.Scraper") as MockScraper,
         ):
             mock_scraper = MockScraper.return_value
@@ -125,7 +126,10 @@ class TestRunScrape:
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
 
-        with patch("personalscraper.scraper.run.Scraper") as MockScraper:
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
             mock_scraper = MockScraper.return_value
             mock_scraper.process_movies.return_value = []
 
@@ -146,7 +150,10 @@ class TestRunScrape:
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
 
-        with patch("personalscraper.scraper.run.Scraper") as MockScraper:
+        with (
+            patch("personalscraper.scraper.run._has_unscraped_items", return_value=True),
+            patch("personalscraper.scraper.run.Scraper") as MockScraper,
+        ):
             mock_scraper = MockScraper.return_value
             mock_scraper.process_tvshows.return_value = []
 
