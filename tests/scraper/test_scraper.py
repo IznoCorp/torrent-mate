@@ -98,10 +98,13 @@ class TestScrapeMovie:
     def test_skip_if_nfo_exists(
         self, scraper: Scraper, tmp_path: Path,
     ) -> None:
-        """Should skip movie if .nfo already exists."""
+        """Should skip movie if valid .nfo already exists."""
         movie_dir = tmp_path / "The Matrix (1999)"
         movie_dir.mkdir()
-        (movie_dir / "The Matrix.nfo").write_text("<movie/>")
+        # Valid NFO must have <uniqueid> to pass _is_nfo_complete
+        (movie_dir / "The Matrix.nfo").write_text(
+            '<movie><uniqueid type="tmdb">603</uniqueid></movie>'
+        )
 
         result = scraper.scrape_movie(movie_dir)
         assert result.action == "skipped_already_done"
@@ -270,10 +273,13 @@ class TestScrapeTvshow:
     def test_skip_if_tvshow_nfo_exists(
         self, scraper: Scraper, tmp_path: Path,
     ) -> None:
-        """Should skip show if tvshow.nfo already exists."""
+        """Should skip show if valid tvshow.nfo already exists."""
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text("<tvshow/>")
+        # Valid NFO must have <uniqueid> to pass _is_nfo_complete
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tvdb">123</uniqueid></tvshow>'
+        )
 
         result = scraper.scrape_tvshow(show_dir)
         assert result.action == "skipped_already_done"
@@ -443,10 +449,12 @@ class TestScrapeMovieExtra:
     def test_scraper_already_scraped_skip(
         self, scraper: Scraper, tmp_path: Path,
     ) -> None:
-        """NFO exists should skip (tested via scrape_movie, not process)."""
+        """Valid NFO exists should skip (tested via scrape_movie, not process)."""
         movie_dir = tmp_path / "Already (2024)"
         movie_dir.mkdir()
-        (movie_dir / "Already.nfo").write_text("<movie/>")
+        (movie_dir / "Already.nfo").write_text(
+            '<movie><uniqueid type="tmdb">999</uniqueid></movie>'
+        )
 
         result = scraper.scrape_movie(movie_dir)
         assert result.action == "skipped_already_done"

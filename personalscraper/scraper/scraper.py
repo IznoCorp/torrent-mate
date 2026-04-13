@@ -318,13 +318,18 @@ class Scraper:
         title, year = _parse_folder_name(movie_dir.name)
         result = ScrapeResult(media_path=movie_dir, media_type="movie")
 
-        # Check for existing NFO
+        # Check for existing valid NFO
         nfo_name = self.patterns.format("movie_nfo", Title=title)
         nfo_path = movie_dir / nfo_name
-        if nfo_path.exists():
+        if _is_nfo_complete(nfo_path):
             result.action = "skipped_already_done"
             logger.info("NFO already exists, skipping: %s", movie_dir.name)
             return result
+
+        # Corrupt NFO: delete before re-scrape
+        if nfo_path.exists():
+            logger.warning("Corrupt NFO detected, re-scraping: %s", nfo_path.name)
+            nfo_path.unlink()
 
         # Match against TMDB
         try:
@@ -512,12 +517,17 @@ class Scraper:
         title, year = _parse_folder_name(show_dir.name)
         result = ScrapeResult(media_path=show_dir, media_type="tvshow")
 
-        # Check for existing NFO
+        # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
-        if nfo_path.exists():
+        if _is_nfo_complete(nfo_path):
             result.action = "skipped_already_done"
             logger.info("tvshow.nfo already exists, skipping: %s", show_dir.name)
             return result
+
+        # Corrupt NFO: delete before re-scrape
+        if nfo_path.exists():
+            logger.warning("Corrupt NFO detected, re-scraping: %s", nfo_path.name)
+            nfo_path.unlink()
 
         # Match against TVDB/TMDB
         try:
