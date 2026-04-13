@@ -83,6 +83,18 @@ df -h /Volumes/Disk{1,2,3,4}
 4. **Scrape metadata** (`personalscraper scrape`) — automated via TMDB/TVDB APIs (V3), produces `.nfo` files and artwork. MediaElch can still be used manually as fallback.
 5. **Move to storage** — files go to one of the 4 destination disks
 
+### Automated pipeline (`personalscraper run`)
+
+The full automated pipeline (V9) executes 7 steps sequentially:
+
+```
+INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE → CLEANUP → VERIFY → DISPATCH
+```
+
+- Steps 1-2 (ingest, sort) are critical — a crash aborts the pipeline
+- Steps 3-5 (clean, scrape, cleanup) run with individual error isolation
+- Step 6 (verify) produces a dispatchable list; step 7 (dispatch) is skipped if verify fails
+
 ### torrent-sort command
 
 Shell alias:
@@ -182,12 +194,21 @@ A TRIER/
 │   ├── pipeline.py      # V9: Sequential 7-step pipeline orchestrator
 │   ├── cli.py           # Typer CLI entry point
 │   ├── config.py        # pydantic-settings
+│   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
 │   ├── logger.py        # structlog dual output (console + JSON)
-│   ├── models.py        # StepReport, SortResult
+│   ├── models.py        # StepReport, SortResult, PipelineReport
+│   ├── text_utils.py    # media_processor, fuzzy_match_score (shared V2/V3/V5)
+│   ├── naming_patterns.py # NamingPatterns dataclass (shared V3/V4/V5)
 │   ├── notifier.py      # V6: Telegram notifications
 │   └── genre_mapper.py  # Genre → category mapping (V4+V5)
 ├── tests/               # pytest tests (unit + E2E)
-│   └── e2e/             # Real torrent E2E (pytest -m e2e_torrent)
+│   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent)
+│   ├── ingest/          # V1 unit tests
+│   ├── sorter/          # V2 unit tests
+│   ├── scraper/         # V3 unit tests
+│   ├── process/         # V9 unit tests (reclean, dedup, cleanup, run)
+│   ├── verify/          # V4 unit tests
+│   └── dispatch/        # V5 unit tests
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
 │   └── expected/        # V7.x: Golden files (expected results per torrent)
 ├── docs/                # Planning docs per version
@@ -274,7 +295,7 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - Legacy scripts (099-SCRIPTS/) exist on disk but are gitignored. Contains 7 `.bak` Python scripts and a `plex/` subfolder. All replaced by PersonalScraper V0-V7.
 - MediaElch is the external metadata scraper — Claude does not interact with it directly.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`
-- ffprobe returns ISO 639-2/B language codes (`fre`), Kodi NFO expects 639-2/T (`fra`) — always convert via `LANG_B_TO_T` mapping (20 codes differ)
+- ffprobe returns ISO 639-2/B language codes (`fre`), Kodi NFO expects 639-2/T (`fra`) — always convert via `ISO_639_2_B_TO_T` mapping in `mediainfo.py` (20 codes differ)
 - TVDB API v4 is free for personal use (< 50k$ revenue) but requires application + attribution
 - TVDB API v4 has two key types: "Negotiated Contract" (free, no PIN needed) and "User Subscription" (requires PIN). Pipeline uses Negotiated Contract — login with `{"apikey": "..."}` only, no `pin` field.
 - TVDB uses 3-char language codes (`fra`, `eng`), TMDB uses `fr-FR`/`en-US` — always convert between the two systems
@@ -287,10 +308,10 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - `git filter-repo` works on this repo but `.git/config` is read-only (macOS permissions) — remote removal error is cosmetic, re-add remote after if needed
 - Genre mapper lives in `personalscraper/genre_mapper.py` (package root) and is imported by V4-verify and V5-dispatch — single source of truth for genre→category mapping
 - `media_processor()` lives in `personalscraper/text_utils.py` (shared) — imported by V2 matcher, V3 confidence, V5 media_index. NFD accent stripping for French titles.
-- `SortResult` and `StepReport` are defined in `personalscraper/models.py` (V0) — each `run_*()` converts internal results to `StepReport` before returning
+- `SortResult`, `StepReport`, and `PipelineReport` are defined in `personalscraper/models.py` (V0+V6) — each `run_*()` converts internal results to `StepReport` before returning
 - TV show folders: V2 creates `Show Name/` (no year), V3 renames to `Show Name (Year)/` after API matching — V3 handles idempotent rename
 - Disk space threshold: `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)` — unified formula across V5
-- Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`
+- Video extensions handled: `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.flv`, `.mpg`, `.mpeg`, `.m4v`, `.webm`, `.ts`, `.m2ts`, `.mts`, `.3gp`, `.vob`, `.ogv`, `.rmvb`
 - Circuit breaker sits ABOVE tenacity: tenacity retries transient errors (429, single timeout), circuit breaker detects sustained outages (5 consecutive 5xx/timeout/connection → OPEN for 5 min). Only counts 5xx/timeout/connection — NOT 429 (tenacity) or 4xx (client errors)
 - Circuit breaker `guard()` method centralizes the check-then-raise pattern — clients call `self._circuit.guard()` instead of manually checking `can_proceed()` + constructing `CircuitOpenError`
 - `fuzzy_match_score()` in `text_utils.py` provides 3 anti-false-positive guards for fuzzy matching: year (±1), length ratio (≥0.67), adaptive threshold (≤10 chars → 95%, >10 → 90%). Used by V2 matcher and V5 media_index

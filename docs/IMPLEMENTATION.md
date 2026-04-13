@@ -78,17 +78,17 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | B. Implémentation V0                    | [x] 4 phases, 14 sous-phases                    |
 | B. Implémentation V1                    | [x] 5 phases, 10 sous-phases                    |
 | B. Implémentation V2                    | [x] 4 phases, 8 sous-phases                     |
-| B. Implémentation V3                    | [x] 13 phases, 42 sous-phases                   |
+| B. Implémentation V3                    | [x] 13 phases, 41 sous-phases                   |
 | B. Implémentation V4                    | [x] 4 phases, 13 sous-phases                    |
-| B. Implémentation V5                    | [x] 3 phases, 6 sous-phases                     |
+| B. Implémentation V5                    | [x] 3 phases, 5 sous-phases                     |
 | B. Implémentation V6                    | [x] 3 phases, 7 sous-phases                     |
 | B. Implémentation V7                    | [x] 5 phases, 15 sous-phases                    |
 | A. Modélisation V7.x (TEST AUDIT)       | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V7.x                  | [x] 4 phases, 13 sous-phases                    |
+| B. Implémentation V7.x                  | [x] 4 phases, 12 sous-phases                    |
 | A. Modélisation V8 (ROBUSTNESS)         | [x] Brainstorming + Design + Plan               |
 | B. Implémentation V8                    | [x] 5 phases, 14 sous-phases                    |
 | A. Modélisation V9 (PIPELINE INTEGRITY) | [x] Brainstorming + Design + Plan               |
-| B. Implémentation V9                    | [x] 5 phases, 14 sous-phases                    |
+| B. Implémentation V9                    | [x] 5 phases, 15 sous-phases                    |
 
 ---
 
