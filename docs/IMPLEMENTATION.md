@@ -300,7 +300,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | 1     | sanitize_filename cohérent (bugs #3,4,5,9,10,13,16) | [x]    |
 | 2     | Restructuration épisodes (bugs #1,2,6,7,8)          | [x]    |
 | 3     | result.media_path stale (bug #11)                   | [ ]    |
-| 4     | qBit auth pre-check (bug #12)                       | [ ]    |
+| 4     | qBit auth pre-check (bug #12)                       | [x]    |
 | 5     | Verify/Dispatch NTFS-safe (bugs #14,15)             | [ ]    |
 | 6     | Crash recovery pipeline (bug #17)                   | [ ]    |
 | 7     | Améliorations mineures                              | [ ]    |
