@@ -967,3 +967,37 @@ class TestRestoreMergeBackup:
 
         restored = Dispatcher._restore_merge_backup(dest, backup)
         assert restored == 0
+
+
+# ---------------------------------------------------------------------------
+# NTFS pre-scan
+# ---------------------------------------------------------------------------
+
+class TestNtfsPreScan:
+    """Tests for NTFS-illegal filename pre-scan before rsync."""
+
+    def test_item_with_colon_skipped(self, tmp_path: Path) -> None:
+        """Dispatch should skip items with NTFS-illegal filenames."""
+        from personalscraper.dispatch.dispatcher import Dispatcher
+
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie_dir / "Movie : Subtitle-poster.jpg").write_bytes(b"bad")
+
+        result = Dispatcher._has_ntfs_illegal_names(movie_dir)
+
+        assert result is True
+
+    def test_clean_item_passes(self, tmp_path: Path) -> None:
+        """Items with clean filenames should pass the pre-scan."""
+        from personalscraper.dispatch.dispatcher import Dispatcher
+
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie_dir / "Movie-poster.jpg").write_bytes(b"ok")
+
+        result = Dispatcher._has_ntfs_illegal_names(movie_dir)
+
+        assert result is False
