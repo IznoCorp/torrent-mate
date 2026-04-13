@@ -91,6 +91,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | B. Implémentation V9                      | [x] 5 phases, 15 sous-phases                    |
 | A. Modélisation V10 (PIPELINE RESILIENCE) | [x] Brainstorming + Design + Plan               |
 | B. Implémentation V10                     | [x] 5 phases, 14 sous-phases                    |
+| B. Implémentation V11 (INGEST HARDENING)  | [x] Phase 1 complete                            |
 
 ---
 
@@ -261,6 +262,21 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Plan (index)  | [v10-pipeline-resilience/plan/INDEX.md](v10-pipeline-resilience/plan/INDEX.md)       | [x]    |
 
 **5 phases, 14 sous-phases** — Helpers validation+fast-skip, scrape resilience, verify+dispatch, tests filesystem, intégration+docs
+
+---
+
+### V11 — INGEST HARDENING
+
+> Robustesse de l'étape ingest : isolation d'erreurs par torrent, messages d'erreur actionnables pour les exceptions qBittorrent, suppression du code mort.
+
+| Phase | Description                                    | Status |
+| ----- | ---------------------------------------------- | ------ |
+| 1     | Per-torrent error isolation + typed exceptions | [x]    |
+| 2     | CLI config error decorator                     | [ ]    |
+| 3     | Remove dead TMDBClient.select_best_image       | [ ]    |
+| 4     | Extract shared \_is_retryable                  | [ ]    |
+
+**Phase 1 complete** — `run_ingest()` restructured: per-torrent try/except (OSError isolation), typed outer catches (`LoginFailed`, `APIConnectionError`, `Forbidden403Error`, `QBitAuthLockoutError`), 3 new tests (29 total passing)
 
 ---
 
