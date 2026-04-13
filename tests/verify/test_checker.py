@@ -191,3 +191,66 @@ class TestCheckTvshow:
         failed = [r for r in poster_checks if not r.passed]
         assert len(failed) >= 1
         assert failed[0].severity == Severity.WARNING
+
+
+# ---------------------------------------------------------------------------
+# NTFS-safe filename checks
+# ---------------------------------------------------------------------------
+
+class TestNtfsSafeNames:
+    """Tests for NTFS-illegal character detection in verify checker."""
+
+    def test_colon_in_artwork_fails_check(self, tmp_path: Path) -> None:
+        """Artwork file with ':' should fail ntfs_safe_names check."""
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie_dir / "Movie.nfo").write_text("<movie><title>Movie</title></movie>")
+        (movie_dir / "Movie-poster.jpg").write_bytes(b"poster")
+        # This file has illegal ':' character
+        (movie_dir / "Movie : Special-landscape.jpg").write_bytes(b"bad")
+
+        from personalscraper.verify.checker import MediaChecker
+        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        results = checker.check_movie(movie_dir)
+
+        ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
+        assert ntfs_check is not None, "ntfs_safe_names check should exist"
+        assert ntfs_check.passed is False
+        assert ":" in ntfs_check.message
+
+    def test_clean_names_pass_check(self, tmp_path: Path) -> None:
+        """Files with NTFS-safe names should pass the check."""
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie_dir / "Movie.nfo").write_text("<movie><title>Movie</title></movie>")
+        (movie_dir / "Movie-poster.jpg").write_bytes(b"poster")
+
+        from personalscraper.verify.checker import MediaChecker
+        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        results = checker.check_movie(movie_dir)
+
+        ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
+        assert ntfs_check is not None
+        assert ntfs_check.passed is True
+
+    def test_tvshow_with_colon_in_nfo_fails(self, tmp_path: Path) -> None:
+        """TV show with ':' in a filename should also fail."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text("<tvshow><title>Show</title></tvshow>")
+        (show_dir / "poster.jpg").write_bytes(b"poster")
+        season_dir = show_dir / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / "S01E01 - Title.mkv").write_bytes(b"\x00" * 1000)
+        # Illegal file
+        (season_dir / "S01E01 : Title.nfo").write_bytes(b"bad_nfo")
+
+        from personalscraper.verify.checker import MediaChecker
+        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        results = checker.check_tvshow(show_dir)
+
+        ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
+        assert ntfs_check is not None
+        assert ntfs_check.passed is False
