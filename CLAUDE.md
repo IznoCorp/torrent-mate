@@ -85,7 +85,7 @@ df -h /Volumes/Disk{1,2,3,4}
 
 ### Automated pipeline (`personalscraper run`)
 
-The full automated pipeline (V9) executes 7 steps sequentially:
+The full automated pipeline (V9+V10) executes 7 steps sequentially with idempotence (safe to re-run):
 
 ```
 INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE → CLEANUP → VERIFY → DISPATCH
@@ -125,10 +125,10 @@ Supports `--dry-run` and `--clean` (delete leftovers after sorting) flags.
 
 ## Pipeline Automation
 
-All versions (V0–V9) are implemented. Documentation and plans live in `docs/`:
+All versions (V0–V10) are implemented. Documentation and plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
-- `docs/v0-project-setup/` through `docs/v9-pipeline-integrity/` — Per-version brainstorming, design, and phased plans
+- `docs/v0-project-setup/` through `docs/v10-pipeline-resilience/` — Per-version brainstorming, design, and phased plans
 - Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
 
 ### Pipeline Versions
@@ -216,7 +216,8 @@ A TRIER/
 │   ├── v0-project-setup/ through v7-e2e-tests/  # V0-V7 (completed)
 │   ├── v7x-test-audit/  # V7.x: Test audit + golden files (implemented)
 │   ├── v8-robustness/   # V8: Robustness improvements (implemented)
-│   └── v9-pipeline-integrity/  # V9: Pipeline integrity (implemented)
+│   ├── v9-pipeline-integrity/  # V9: Pipeline integrity (implemented)
+│   └── v10-pipeline-resilience/ # V10: Idempotence + crash recovery (implemented)
 ├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
@@ -329,3 +330,8 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - structlog `cache_logger_on_first_use=True` makes configure() calls after first log silently ignored — configure early
 - rich `Console(quiet=True)` suppresses all output natively — no need for `if not quiet:` checks
 - rich markup in log messages: keep `markup=False` on RichHandler to avoid `[brackets]` being interpreted as tags
+- `_is_nfo_complete()` in `scraper.py` validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection
+- Scrape fast-skip: `_all_nfos_valid()` checks all movie/show dirs before starting — if all have valid NFOs, the entire scrape step is skipped
+- Artwork recovery: if NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO and re-downloads artwork without re-scraping
+- Clean fast-skip: `_has_polluted_folders()` scans category dirs — if no polluted names found, skip reclean+dedup entirely
+- All 7 pipeline steps are idempotent: re-running the pipeline produces no changes if everything is already processed

@@ -246,7 +246,7 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | Design        | [v9-pipeline-integrity/DESIGN.md](v9-pipeline-integrity/DESIGN.md)               | [x]    |
 | Plan (index)  | [v9-pipeline-integrity/plan/INDEX.md](v9-pipeline-integrity/plan/INDEX.md)       | [x]    |
 
-**5 phases, 14 sous-phases** — Pipeline orchestrator, reclean+dedup, cleanup+run_process, verify renforcé+titre FR, intégration CLI+E2E
+**5 phases, 15 sous-phases** — Pipeline orchestrator, reclean+dedup, cleanup+run_process, verify renforcé+titre FR, intégration CLI+E2E
 
 ---
 
