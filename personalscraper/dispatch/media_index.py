@@ -117,8 +117,11 @@ class MediaIndex:
             self._entries = {
                 k: IndexEntry(**v) for k, v in data.items()
             }
-        except (json.JSONDecodeError, TypeError, KeyError):
-            logger.warning("Corrupted index, starting fresh: %s", self._path)
+        except (json.JSONDecodeError, TypeError, KeyError) as exc:
+            logger.error(
+                "Corrupted index %s: %s — starting fresh (risk of duplicates on disks)",
+                self._path, exc,
+            )
             self._entries = {}
 
     def save(self) -> None:
@@ -180,7 +183,7 @@ class MediaIndex:
 
             return best_entry
         except ImportError:
-            logger.debug("rapidfuzz not available, skipping fuzzy matching")
+            logger.warning("rapidfuzz not available — fuzzy matching disabled, exact match only")
             return None
 
     def add(self, entry: IndexEntry) -> None:
