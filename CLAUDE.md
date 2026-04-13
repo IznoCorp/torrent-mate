@@ -28,7 +28,7 @@ When running `personalscraper run` or any long-running command with user observa
 5. **State limitations upfront** — if you can't guarantee something, say so BEFORE agreeing.
 6. **After kill: check filesystem** — orphans, lock files, temp dirs. Clean or report what can't be cleaned.
 
-Alternative: run steps individually (`personalscraper -v ingest`, then `personalscraper -v sort`, etc.) to maintain control between steps.
+Alternative: run steps individually (`personalscraper ingest`, then `personalscraper sort`, etc.) to maintain control between steps. Use `-v` only for debugging a specific step (generates 100x more output).
 
 ## Code Conventions
 
