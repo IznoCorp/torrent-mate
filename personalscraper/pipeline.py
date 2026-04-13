@@ -73,6 +73,74 @@ class Pipeline:
         self.console = console or Console()
         self._log = logging.getLogger("pipeline")
 
+    def _recover_from_previous_run(
+        self, lockout_path: Path | None = None,
+    ) -> int:
+        """Clean up artifacts from a previous interrupted pipeline run.
+
+        Runs at pipeline startup before INGEST. Handles:
+        1. Orphan _tmp_dispatch_* directories on storage disks
+        2. Expired qBit auth lockout file (>1 hour)
+        3. Orphan .ingest_tmp_* directories in staging
+
+        Args:
+            lockout_path: Override lockout file path (for testing).
+                Defaults to ~/.cache/personalscraper/qbit_auth_lockout.
+
+        Returns:
+            Number of artifacts cleaned.
+        """
+        import shutil
+        from pathlib import Path as _Path
+
+        from personalscraper.dispatch.disk_scanner import get_disk_configs
+        from personalscraper.ingest.ingest import _cleanup_orphan_temps
+
+        cleaned = 0
+
+        # 1. Clean _tmp_dispatch_* on ALL storage disks
+        for disk_config in get_disk_configs(self.settings):
+            if not disk_config.path.exists():
+                continue
+            try:
+                for category_dir in disk_config.path.iterdir():
+                    if not category_dir.is_dir():
+                        continue
+                    for item in category_dir.iterdir():
+                        if item.name.startswith("_tmp_dispatch_"):
+                            try:
+                                shutil.rmtree(item)
+                                self._log.info("Crash recovery: cleaned dispatch orphan %s", item)
+                                cleaned += 1
+                            except OSError as exc:
+                                self._log.warning(
+                                    "Crash recovery: cannot clean %s: %s", item, exc,
+                                )
+            except OSError:
+                continue
+
+        # 2. Clean expired qBit lockout
+        if lockout_path is None:
+            lockout_path = _Path.home() / ".cache" / "personalscraper" / "qbit_auth_lockout"
+        if lockout_path.exists():
+            try:
+                age = time.time() - lockout_path.stat().st_mtime
+                if age > 3600:
+                    lockout_path.unlink(missing_ok=True)
+                    self._log.info("Crash recovery: cleaned expired lockout (%ds old)", int(age))
+                    cleaned += 1
+            except OSError:
+                pass
+
+        # 3. Clean .ingest_tmp_* in staging
+        ingest_dir = self.settings.ingest_dir
+        if ingest_dir.exists():
+            cleaned += _cleanup_orphan_temps(ingest_dir)
+
+        if cleaned:
+            self._log.info("Crash recovery: cleaned %d artifact(s)", cleaned)
+        return cleaned
+
     def run(self) -> PipelineReport:
         """Execute all pipeline phases sequentially with gates.
 
@@ -93,6 +161,9 @@ class Pipeline:
         from personalscraper.sorter.run import run_sort
 
         report = PipelineReport(started_at=datetime.now())
+
+        # Recover from previous interrupted run
+        self._recover_from_previous_run()
 
         # Phase 1: INGEST — abort pipeline on fatal crash because
         # sort depends on ingest having deposited files into 097-TEMP
