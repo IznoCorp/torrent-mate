@@ -74,6 +74,98 @@ class TestFindVideoFile:
 
 
 # ---------------------------------------------------------------------------
+# Video file finding — nested torrent structures (bug #6)
+# ---------------------------------------------------------------------------
+
+class TestFindVideoFileNested:
+    """Tests for _find_video_file with nested torrent structures."""
+
+    def test_finds_mkv_in_subdirectory(self, tmp_path: Path) -> None:
+        """Video file in a release-group subdirectory should be found."""
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        release_dir = movie_dir / "Movie.2025.1080p.BluRay.x264-GROUP"
+        release_dir.mkdir()
+        video = release_dir / "Movie.2025.1080p.BluRay.x264-GROUP.mkv"
+        video.write_bytes(b"\x00" * 1000)
+
+        from personalscraper.scraper.scraper import _find_video_file
+        result = _find_video_file(movie_dir)
+
+        assert result is not None
+        assert result == video
+
+    def test_picks_largest_when_multiple_videos(self, tmp_path: Path) -> None:
+        """When multiple video files exist, pick the largest (main feature)."""
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        sample = movie_dir / "Sample.mkv"
+        sample.write_bytes(b"\x00" * 100)
+        main = movie_dir / "sub" / "Movie.mkv"
+        main.parent.mkdir()
+        main.write_bytes(b"\x00" * 10000)
+
+        from personalscraper.scraper.scraper import _find_video_file
+        result = _find_video_file(movie_dir)
+
+        assert result == main
+
+    def test_finds_video_in_deeply_nested_dir(self, tmp_path: Path) -> None:
+        """Video in a 2-level deep structure should still be found."""
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        deep = movie_dir / "Release" / "Subs"
+        deep.mkdir(parents=True)
+        video = movie_dir / "Release" / "Movie.mkv"
+        video.write_bytes(b"\x00" * 1000)
+
+        from personalscraper.scraper.scraper import _find_video_file
+        result = _find_video_file(movie_dir)
+
+        assert result == video
+
+
+# ---------------------------------------------------------------------------
+# Empty release-group dir cleanup (bug #7, #8)
+# ---------------------------------------------------------------------------
+
+class TestCleanupEmptyReleaseDirs:
+    """Tests for empty release-group directory cleanup after episode rename."""
+
+    def test_empty_release_dirs_removed(self, tmp_path: Path) -> None:
+        """Empty release-group subdirectories should be removed after rename."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+
+        # Simulate post-rename state: episodes moved to Saison 01/,
+        # but empty release-group dirs remain
+        (show_dir / "Saison 01").mkdir()
+        (show_dir / "Saison 01" / "S01E01 - Title.mkv").write_bytes(b"ep1")
+
+        # Empty release-group dirs (should be removed)
+        (show_dir / "Show.S01E01.1080p.WEB-GROUP").mkdir()
+        (show_dir / "Show.S01E02.1080p.WEB-GROUP").mkdir()
+
+        # Non-empty dir (should NOT be removed)
+        leftover = show_dir / "Show.S01E03.1080p.WEB-GROUP"
+        leftover.mkdir()
+        (leftover / "S01E03.mkv").write_bytes(b"ep3")
+
+        # .actors dir (should NOT be removed even if empty)
+        (show_dir / ".actors").mkdir()
+
+        from personalscraper.scraper.scraper import _cleanup_empty_release_dirs
+        removed = _cleanup_empty_release_dirs(show_dir)
+
+        assert removed == 2
+        assert not (show_dir / "Show.S01E01.1080p.WEB-GROUP").exists()
+        assert not (show_dir / "Show.S01E02.1080p.WEB-GROUP").exists()
+        assert (show_dir / "Show.S01E03.1080p.WEB-GROUP").exists()  # Non-empty
+        assert (show_dir / ".actors").exists()  # Hidden dir preserved
+        assert (show_dir / "Saison 01").exists()  # Season dir preserved
+
+
+# ---------------------------------------------------------------------------
 # Movie scraping orchestration
 # ---------------------------------------------------------------------------
 
