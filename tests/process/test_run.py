@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from personalscraper.models import StepReport
-from personalscraper.process.run import run_process
+from personalscraper.process.run import run_clean, run_process
 
 
 def _make_settings(tmp_path):
@@ -39,12 +39,14 @@ class TestRunProcess:
         assert scrape.success_count == 3
         assert cleanup.name == "cleanup"
 
+    @patch("personalscraper.process.reclean._has_polluted_folders", return_value=True)
     @patch("personalscraper.process.cleanup.cleanup_empty_dirs")
     @patch("personalscraper.scraper.run.run_scrape")
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_calls_reclean_for_both_categories(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup, tmp_path,
+        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup,
+        mock_polluted, tmp_path,
     ):
         """reclean_folders is called for both movies and tvshows dirs."""
         mock_reclean.return_value = StepReport(name="reclean")
@@ -61,12 +63,14 @@ class TestRunProcess:
         assert "001-MOVIES" in str(movies_call)
         assert "002-TVSHOWS" in str(tvshows_call)
 
+    @patch("personalscraper.process.reclean._has_polluted_folders", return_value=True)
     @patch("personalscraper.process.cleanup.cleanup_empty_dirs")
     @patch("personalscraper.scraper.run.run_scrape")
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_dedup_count_added_to_clean_report(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup, tmp_path,
+        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup,
+        mock_polluted, tmp_path,
     ):
         """Dedup merge count is added to clean_report.success_count."""
         mock_reclean.return_value = StepReport(name="reclean", success_count=1)
@@ -121,3 +125,37 @@ class TestRunProcess:
         run_process(settings, interactive=True)
 
         assert mock_scrape.call_args.kwargs.get("interactive") is True
+
+
+class TestRunCleanFastSkip:
+    """Tests for run_clean fast-skip when no polluted folders."""
+
+    def test_fast_skip_all_clean(self, tmp_path):
+        """run_clean returns empty report when all folders are clean."""
+        settings = _make_settings(tmp_path)
+        movies = tmp_path / "001-MOVIES"
+        movies.mkdir()
+        (movies / "The Matrix (1999)").mkdir()
+        (movies / "Inception (2010)").mkdir()
+        tvshows = tmp_path / "002-TVSHOWS"
+        tvshows.mkdir()
+
+        report = run_clean(settings)
+
+        assert report.name == "clean"
+        assert report.success_count == 0
+        assert report.error_count == 0
+
+    def test_no_fast_skip_with_polluted(self, tmp_path):
+        """run_clean processes when polluted folders exist."""
+        settings = _make_settings(tmp_path)
+        movies = tmp_path / "001-MOVIES"
+        movies.mkdir()
+        (movies / "Movie.Title.2024.1080p.BluRay.x264-GROUP").mkdir()
+        tvshows = tmp_path / "002-TVSHOWS"
+        tvshows.mkdir()
+
+        report = run_clean(settings)
+
+        # Polluted folder was processed (re-cleaned)
+        assert report.success_count >= 1
