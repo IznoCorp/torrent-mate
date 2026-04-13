@@ -73,7 +73,12 @@ def _cleanup_orphan_temps(staging_dir: Path) -> int:
         Number of orphaned temp directories removed.
     """
     cleaned = 0
-    for item in staging_dir.iterdir():
+    try:
+        entries = list(staging_dir.iterdir())
+    except OSError as e:
+        log.warning("cannot_scan_for_orphans", path=str(staging_dir), error=str(e))
+        return 0
+    for item in entries:
         if item.name.startswith(STAGING_TMP_PREFIX) and item.is_dir():
             try:
                 shutil.rmtree(item)
@@ -135,7 +140,10 @@ def transfer_torrent(source: Path, dest: Path, copy: bool, dry_run: bool = False
             # Verify size before committing
             if not _verify_transfer(source, tmp_dest):
                 log.error("transfer_size_mismatch", source=str(source), tmp=str(tmp_dest))
-                shutil.rmtree(tmp_dest) if tmp_dest.is_dir() else tmp_dest.unlink()
+                try:
+                    shutil.rmtree(tmp_dest) if tmp_dest.is_dir() else tmp_dest.unlink()
+                except OSError as cleanup_err:
+                    log.warning("cleanup_failed_after_mismatch", path=str(tmp_dest), error=str(cleanup_err))
                 return False
 
             # Atomic rename (same filesystem)
