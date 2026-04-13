@@ -56,24 +56,9 @@ class TMDBError(Exception):
         super().__init__(f"TMDB {http_status} (code {tmdb_code}): {message}")
 
 
-def _is_retryable(exc: BaseException) -> bool:
-    """Determine if an exception is retryable.
+from personalscraper.scraper.http_retry import make_retryable_predicate
 
-    Retries on 429 (rate limit), 5xx (server errors), and network errors.
-    Does NOT retry on 401/403/404 (fatal or no-result).
-
-    Args:
-        exc: The exception to check.
-
-    Returns:
-        True if the request should be retried.
-    """
-    # TMDBError is raised by _get() for TMDB-specific errors (429, 5xx)
-    if isinstance(exc, TMDBError):
-        return exc.http_status in {429, 500, 502, 503, 504}
-    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-        return exc.response.status_code in {429, 500, 502, 503, 504}
-    return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+_is_retryable = make_retryable_predicate(TMDBError)
 
 
 class TMDBClient:
