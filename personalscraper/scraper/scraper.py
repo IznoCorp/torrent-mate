@@ -785,10 +785,10 @@ class Scraper:
             logger.warning("Artwork failed for %s: %s", match.api_title, e)
             result.warnings.append(f"Artwork failed: {e}")
 
-        # Process episodes
+        # Process episodes — rglob to find files nested in release-group subdirs
         total_renamed = 0
         video_files = sorted(
-            f for f in show_dir.iterdir()
+            f for f in show_dir.rglob("*")
             if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
         )
 
