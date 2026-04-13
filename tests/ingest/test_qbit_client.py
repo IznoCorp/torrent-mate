@@ -15,9 +15,12 @@ from personalscraper.ingest.qbit_client import QBitClient
 
 
 @pytest.fixture
-def mock_client():
+def mock_client(tmp_path):
     """Provide a QBitClient with a mocked underlying qbittorrent-api Client."""
-    with patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client") as mock_cls:
+    # Isolate lockout file so real pipeline runs don't break tests
+    fake_lockout = tmp_path / "qbit_auth_lockout"
+    with patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE", fake_lockout), \
+         patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client") as mock_cls:
         client = QBitClient(host="localhost", port=8081, username="test", password="test")
         client._client = mock_cls.return_value
         yield client
@@ -100,5 +103,13 @@ def test_live_api():
                 # Content path should exist on disk
                 assert path.exists(), f"Content path does not exist: {path}"
 
-    except (qbittorrentapi.LoginFailed, qbittorrentapi.APIConnectionError) as e:
-        pytest.skip(f"qBittorrent not accessible: {e}")
+    except (
+        qbittorrentapi.LoginFailed,
+        qbittorrentapi.APIConnectionError,
+        Exception,
+    ) as e:
+        if "lockout" in str(e).lower():
+            pytest.skip(f"qBittorrent auth lockout active: {e}")
+        if isinstance(e, (qbittorrentapi.LoginFailed, qbittorrentapi.APIConnectionError)):
+            pytest.skip(f"qBittorrent not accessible: {e}")
+        raise
