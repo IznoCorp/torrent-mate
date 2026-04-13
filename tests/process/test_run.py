@@ -27,7 +27,7 @@ class TestRunProcess:
     ):
         """run_process returns (clean, scrape, cleanup) StepReports."""
         mock_reclean.return_value = StepReport(name="reclean")
-        mock_dedup.return_value = 0
+        mock_dedup.return_value = (0, 0)
         mock_scrape.return_value = StepReport(name="scrape", success_count=3)
         mock_cleanup.return_value = StepReport(name="cleanup")
 
@@ -48,7 +48,7 @@ class TestRunProcess:
     ):
         """reclean_folders is called for both movies and tvshows dirs."""
         mock_reclean.return_value = StepReport(name="reclean")
-        mock_dedup.return_value = 0
+        mock_dedup.return_value = (0, 0)
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
@@ -70,7 +70,7 @@ class TestRunProcess:
     ):
         """Dedup merge count is added to clean_report.success_count."""
         mock_reclean.return_value = StepReport(name="reclean", success_count=1)
-        mock_dedup.return_value = 2  # 2 folders merged
+        mock_dedup.return_value = (2, 0)  # 2 folders merged, 0 failed
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
@@ -89,7 +89,7 @@ class TestRunProcess:
     ):
         """dry_run flag is passed to all sub-functions."""
         mock_reclean.return_value = StepReport(name="reclean")
-        mock_dedup.return_value = 0
+        mock_dedup.return_value = (0, 0)
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
@@ -113,7 +113,7 @@ class TestRunProcess:
     ):
         """Interactive flag is passed to run_scrape."""
         mock_reclean.return_value = StepReport(name="reclean")
-        mock_dedup.return_value = 0
+        mock_dedup.return_value = (0, 0)
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 

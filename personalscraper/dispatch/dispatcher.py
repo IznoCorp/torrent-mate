@@ -21,21 +21,39 @@ from personalscraper.config import Settings
 def _force_rmtree(path: Path) -> None:
     """Remove a directory tree, handling macOS permission errors.
 
-    Uses an onerror handler that clears read-only/immutable flags
-    before retrying. Handles .actors and other macOS-protected dirs.
+    Uses an onerror handler that adds owner rwx permissions before
+    retrying deletion. Handles .actors and other macOS-protected dirs.
+    Raises OSError if the directory could not be fully removed.
 
     Args:
         path: Directory to remove.
+
+    Raises:
+        OSError: If files remain after all retry attempts.
     """
+    errors: list[tuple[str, OSError]] = []
+
     def _on_error(func, fpath, _exc_info):
-        """Clear immutable flags and retry deletion."""
+        """Add owner rwx permissions and retry deletion."""
         try:
             os.chmod(fpath, stat.S_IRWXU)
             func(fpath)
-        except OSError:
-            pass  # Best-effort — log at caller level if rmtree still fails
+        except OSError as e:
+            errors.append((fpath, e))
 
     shutil.rmtree(path, onerror=_on_error)
+
+    if errors and path.exists():
+        for fpath, err in errors[:5]:
+            logging.getLogger(__name__).warning(
+                "rmtree: could not remove %s: %s", fpath, err,
+            )
+        raise OSError(
+            f"_force_rmtree incomplete for {path}: "
+            f"{len(errors)} file(s) could not be removed"
+        )
+
+
 from personalscraper.dispatch.disk_scanner import (
     choose_disk,
     get_disk_configs,

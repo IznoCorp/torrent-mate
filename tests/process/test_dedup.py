@@ -29,9 +29,10 @@ class TestDedupFolders:
         (canonical / "movie.mkv").write_text("video")
         (canonical / "movie.nfo").write_text("nfo")
 
-        merged = dedup_folders(movies_dir)
+        merged, failed = dedup_folders(movies_dir)
 
         assert merged == 1
+        assert failed == 0
         assert not dup.exists()
         assert canonical.exists()
         assert (canonical / "movie.nfo").exists()
@@ -46,9 +47,10 @@ class TestDedupFolders:
         b.mkdir()
         (b / "movie.mkv").write_text("v2")
 
-        merged = dedup_folders(movies_dir)
+        merged, failed = dedup_folders(movies_dir)
 
         assert merged == 0
+        assert failed == 0
         assert a.exists()
         assert b.exists()
 
@@ -62,7 +64,7 @@ class TestDedupFolders:
         b.mkdir()
         (b / "movie.mkv").write_text("v2")
 
-        merged = dedup_folders(movies_dir)
+        merged, _failed = dedup_folders(movies_dir)
 
         assert merged == 0
 
@@ -76,7 +78,7 @@ class TestDedupFolders:
         canonical.mkdir()
         (canonical / "movie.mkv").write_text("video")
 
-        merged = dedup_folders(movies_dir, dry_run=True)
+        merged, _failed = dedup_folders(movies_dir, dry_run=True)
 
         assert merged == 1
         # Both folders still exist
@@ -84,8 +86,8 @@ class TestDedupFolders:
         assert canonical.exists()
 
     def test_empty_dir_returns_zero(self, tmp_path):
-        """Non-existent category dir returns 0."""
-        assert dedup_folders(tmp_path / "nonexistent") == 0
+        """Non-existent category dir returns (0, 0)."""
+        assert dedup_folders(tmp_path / "nonexistent") == (0, 0)
 
     def test_merge_keeps_more_complete(self, movies_dir):
         """The folder with more files is kept as target."""
@@ -101,9 +103,10 @@ class TestDedupFolders:
         (rich / "movie.nfo").write_text("nfo")
         (rich / "movie-poster.jpg").write_text("poster")
 
-        merged = dedup_folders(movies_dir)
+        merged, failed = dedup_folders(movies_dir)
 
         assert merged == 1
+        assert failed == 0
         assert not sparse.exists()
         assert rich.exists()
         # Rich folder should still have all its files

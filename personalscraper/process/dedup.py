@@ -52,7 +52,7 @@ def _completeness_score(folder: Path) -> tuple[int, int, int]:
 def dedup_folders(
     category_dir: Path,
     dry_run: bool = False,
-) -> int:
+) -> tuple[int, int]:
     """Find and merge fuzzy duplicate folders within a category.
 
     Compares all folder pairs using fuzzy_match_score (with year guard,
@@ -64,12 +64,12 @@ def dedup_folders(
         dry_run: If True, log without merging.
 
     Returns:
-        Number of folders merged.
+        Tuple of (merged_count, failed_count).
     """
     from personalscraper.scraper.scraper import _merge_dirs
 
     if not category_dir.exists():
-        return 0
+        return 0, 0
 
     folders = sorted(
         [f for f in category_dir.iterdir() if f.is_dir() and not f.name.startswith(".")],
@@ -77,6 +77,7 @@ def dedup_folders(
     )
 
     merged = 0
+    failed = 0
     # Track folders that have been merged away
     removed: set[str] = set()
 
@@ -113,20 +114,27 @@ def dedup_folders(
                 )
             else:
                 try:
-                    count = _merge_dirs(source, target)
+                    moved, merge_failed = _merge_dirs(source, target)
                     logger.info(
                         "Dedup merge: %s → %s (%d items, score=%.0f)",
-                        source.name, target.name, count, score,
+                        source.name, target.name, moved, score,
                     )
-                except Exception as exc:
+                    if merge_failed:
+                        failed += 1
+                        logger.warning(
+                            "Dedup partial merge: %s → %s: %d items failed",
+                            source.name, target.name, merge_failed,
+                        )
+                except OSError as exc:
                     logger.warning(
                         "Dedup merge failed: %s → %s: %s",
                         source.name, target.name, exc,
                     )
+                    failed += 1
                     continue
 
             removed.add(source.name)
             merged += 1
             break  # folder_a was merged, move to next
 
-    return merged
+    return merged, failed

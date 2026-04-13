@@ -41,11 +41,16 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
         clean_report.details.extend(reclean_report.details)
         clean_report.warnings.extend(reclean_report.warnings)
 
-        dedup_count = dedup_folders(category_dir, dry_run=dry_run)
-        if dedup_count:
-            clean_report.success_count += dedup_count
+        dedup_merged, dedup_failed = dedup_folders(category_dir, dry_run=dry_run)
+        if dedup_merged:
+            clean_report.success_count += dedup_merged
             clean_report.details.append(
-                f"Dedup: {dedup_count} duplicates merged in {category_dir.name}"
+                f"Dedup: {dedup_merged} duplicates merged in {category_dir.name}"
+            )
+        if dedup_failed:
+            clean_report.error_count += dedup_failed
+            clean_report.warnings.append(
+                f"Dedup: {dedup_failed} merge(s) failed in {category_dir.name}"
             )
 
     logger.info(
