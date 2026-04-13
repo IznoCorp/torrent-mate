@@ -38,28 +38,9 @@ IMAGE_SIZE = "original"
 _LANG_PRIORITY: dict[str | None, int] = {"fr": 0, "en": 1}
 
 
-def _is_retryable(exc: BaseException) -> bool:
-    """Check if an HTTP exception should trigger a retry.
+from personalscraper.scraper.http_retry import make_retryable_predicate
 
-    Retries on connection errors, timeouts, and server errors (5xx).
-    Does NOT retry on client errors like 404 (image not found).
-
-    Args:
-        exc: The exception to check.
-
-    Returns:
-        True if the request should be retried.
-    """
-    if isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
-        return True
-    if isinstance(exc, requests.exceptions.HTTPError):
-        response = exc.response
-        if response is not None and response.status_code >= 500:
-            return True
-    # Also retry on API client errors with 5xx (TMDBError has http_status)
-    if hasattr(exc, "http_status") and getattr(exc, "http_status", 0) >= 500:
-        return True
-    return False
+_is_retryable = make_retryable_predicate()
 
 
 def select_best_image(images: list[dict]) -> str | None:

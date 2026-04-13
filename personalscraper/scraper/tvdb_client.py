@@ -67,24 +67,9 @@ class TVDBError(Exception):
         super().__init__(f"TVDB {http_status}: {message}")
 
 
-def _is_retryable(exc: BaseException) -> bool:
-    """Determine if an exception is retryable.
+from personalscraper.scraper.http_retry import make_retryable_predicate
 
-    Retries on 429 (rate limit), 5xx (server errors), and network errors.
-    Does NOT retry on 400/401/404 — 401 is handled by auto re-login.
-
-    Args:
-        exc: The exception to check.
-
-    Returns:
-        True if the request should be retried.
-    """
-    # TVDBError is raised by _get() for TVDB-specific errors (429, 5xx)
-    if isinstance(exc, TVDBError):
-        return exc.http_status in {429, 500, 502, 503, 504}
-    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-        return exc.response.status_code in {429, 500, 502, 503, 504}
-    return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+_is_retryable = make_retryable_predicate(TVDBError)
 
 
 class TVDBClient:
