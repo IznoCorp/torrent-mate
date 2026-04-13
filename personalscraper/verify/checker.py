@@ -20,6 +20,7 @@ from pathlib import Path
 from personalscraper.genre_mapper import GenreMapper
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.text_utils import _FILENAME_ILLEGAL
 
 logger = logging.getLogger(__name__)
 
@@ -224,6 +225,9 @@ class MediaChecker:
                 message="" if category else "Cannot determine category from genres",
             ))
 
+        # ntfs_safe_names
+        results.append(self._check_ntfs_safe_names(movie_dir))
+
         return results
 
     def check_tvshow(self, show_dir: Path) -> list[CheckResult]:
@@ -381,7 +385,44 @@ class MediaChecker:
                 message="" if category else "Cannot determine category from genres",
             ))
 
+        # ntfs_safe_names
+        results.append(self._check_ntfs_safe_names(show_dir))
+
         return results
+
+    # --- NTFS safety helpers ---
+
+    def _check_ntfs_safe_names(self, media_dir: Path) -> CheckResult:
+        """Check all filenames for NTFS-illegal characters.
+
+        Scans recursively for files containing <>:"/\\|?* in their names.
+        These characters cause rsync failures on NTFS storage disks.
+
+        Args:
+            media_dir: Directory to scan.
+
+        Returns:
+            CheckResult with list of offending filenames if any.
+        """
+        illegal_files = []
+        for f in media_dir.rglob("*"):
+            if f.is_file() and _FILENAME_ILLEGAL.search(f.name):
+                illegal_files.append(f.name)
+
+        if illegal_files:
+            sample = ", ".join(illegal_files[:3])
+            suffix = f" (+{len(illegal_files) - 3} more)" if len(illegal_files) > 3 else ""
+            message = f"NTFS-illegal filenames: {sample}{suffix}"
+        else:
+            message = ""
+
+        return CheckResult(
+            name="ntfs_safe_names",
+            passed=len(illegal_files) == 0,
+            severity=Severity.ERROR,
+            message=message,
+            fixable=True,
+        )
 
     # --- NFO parsing helpers ---
 
