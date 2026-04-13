@@ -70,8 +70,11 @@ class TelegramNotifier:
         except requests.Timeout:
             logger.warning("Telegram request timed out (%ds)", _TIMEOUT)
             return False
-        except Exception as exc:
+        except requests.RequestException as exc:
             logger.warning("Telegram send failed: %s", exc)
+            return False
+        except Exception as exc:
+            logger.error("Unexpected error in Telegram notifier: %s", exc, exc_info=True)
             return False
 
     def send_report(self, report: PipelineReport) -> bool:
@@ -117,4 +120,4 @@ def ping_healthcheck(url: str, status: str = "") -> None:
     except requests.RequestException as exc:
         logger.warning("Healthcheck ping failed for %s%s: %s", url, status, exc)
     except Exception as exc:
-        logger.warning("Unexpected error pinging healthcheck %s%s: %s", url, status, exc)
+        logger.warning("Unexpected error pinging healthcheck %s%s: %s", url, status, exc, exc_info=True)
