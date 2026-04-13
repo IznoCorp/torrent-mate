@@ -50,11 +50,15 @@ def _format_validation(exc: ValidationError) -> str:
 
 
 def handle_cli_errors(func):
-    """Catch configuration and file errors, display user-friendly messages.
+    """Catch configuration errors, display user-friendly messages.
 
     Wraps CLI commands to intercept pydantic ValidationError (from
-    get_settings()) and FileNotFoundError, showing clear messages
-    instead of raw tracebacks.
+    get_settings()), showing clear messages instead of raw tracebacks.
+
+    Only catches ValidationError — other exceptions (including
+    FileNotFoundError from pipeline steps) propagate normally so that
+    StepReport, Telegram notifications, and healthcheck pings are
+    not bypassed.
 
     Args:
         func: The CLI command function to wrap.
@@ -68,12 +72,11 @@ def handle_cli_errors(func):
         try:
             return func(*args, **kwargs)
         except ValidationError as exc:
+            msg = _format_validation(exc)
+            logging.getLogger("cli").error("Configuration error: %s", msg)
             state["console"].print(
-                f"[red]Configuration error:[/red] {_format_validation(exc)}"
+                f"[red]Configuration error:[/red] {msg}"
             )
-            raise typer.Exit(1)
-        except FileNotFoundError as exc:
-            state["console"].print(f"[red]Missing file:[/red] {exc}")
             raise typer.Exit(1)
 
     return wrapper

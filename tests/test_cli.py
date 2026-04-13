@@ -335,14 +335,3 @@ def test_invalid_config_shows_friendly_error(mock_get_settings, mock_lock, mock_
     assert "ValidationError" not in result.output
 
 
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-@patch("personalscraper.cli.get_settings")
-def test_missing_env_file_shows_friendly_error(mock_get_settings, mock_lock, mock_release):
-    """FileNotFoundError from get_settings() is shown as friendly 'Missing file'."""
-    mock_get_settings.side_effect = FileNotFoundError(".env file not found")
-
-    result = runner.invoke(app, ["ingest"])
-
-    assert result.exit_code == 1
-    assert "Missing file" in result.output
