@@ -19,10 +19,16 @@ from personalscraper.ingest.qbit_client import (
 
 @pytest.fixture
 def mock_client(tmp_path):
-    """Provide a QBitClient with a mocked underlying qbittorrent-api Client."""
-    # Isolate lockout file so real pipeline runs don't break tests
+    """Provide a QBitClient with a mocked underlying qbittorrent-api Client.
+
+    Also mocks requests.get (pre-check) with a 200 response so tests focused
+    on post-login behaviour are not affected by the IP-ban pre-check.
+    """
     fake_lockout = tmp_path / "qbit_auth_lockout"
+    mock_200 = MagicMock()
+    mock_200.status_code = 200
     with patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE", fake_lockout), \
+         patch("personalscraper.ingest.qbit_client.requests.get", return_value=mock_200), \
          patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client") as mock_cls:
         client = QBitClient(host="localhost", port=8081, username="test", password="test")
         client._client = mock_cls.return_value
@@ -86,8 +92,12 @@ class TestPreCheckBan:
 
     @patch("personalscraper.ingest.qbit_client.requests.get")
     @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
-    def test_403_pre_check_skips_login(self, mock_client_cls, mock_get) -> None:
+    @patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE")
+    def test_403_pre_check_skips_login(self, mock_lockout, mock_client_cls, mock_get) -> None:
         """When pre-check returns 403, auth_log_in should NOT be called."""
+        # Lockout file does not exist — isolate from any real lock on disk
+        mock_lockout.exists.return_value = False
+
         mock_resp = MagicMock()
         mock_resp.status_code = 403
         mock_get.return_value = mock_resp
@@ -105,9 +115,13 @@ class TestPreCheckBan:
 
     @patch("personalscraper.ingest.qbit_client.requests.get")
     @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
-    def test_connection_refused_raises_api_error(self, mock_client_cls, mock_get) -> None:
+    @patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE")
+    def test_connection_refused_raises_api_error(self, mock_lockout, mock_client_cls, mock_get) -> None:
         """Connection refused on pre-check should raise APIConnectionError."""
         import requests as req
+
+        # Lockout file does not exist — isolate from any real lock on disk
+        mock_lockout.exists.return_value = False
         mock_get.side_effect = req.ConnectionError("Connection refused")
 
         mock_client = MagicMock()
@@ -122,8 +136,12 @@ class TestPreCheckBan:
 
     @patch("personalscraper.ingest.qbit_client.requests.get")
     @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
-    def test_200_pre_check_proceeds_to_login(self, mock_client_cls, mock_get) -> None:
+    @patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE")
+    def test_200_pre_check_proceeds_to_login(self, mock_lockout, mock_client_cls, mock_get) -> None:
         """When pre-check returns 200, auth_log_in should be called normally."""
+        # Lockout file does not exist — isolate from any real lock on disk
+        mock_lockout.exists.return_value = False
+
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_get.return_value = mock_resp
@@ -132,9 +150,6 @@ class TestPreCheckBan:
         mock_client_cls.return_value = mock_client
 
         client = QBitClient(host="localhost", port=8081, username="u", password="p")
-        # Remove lockout file if exists (from other tests)
-        from personalscraper.ingest.qbit_client import _LOCKOUT_FILE
-        _LOCKOUT_FILE.unlink(missing_ok=True)
 
         client.__enter__()
 
