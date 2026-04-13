@@ -122,8 +122,8 @@ class NamingPatterns:
             The resolved base filename (without extension).
         """
         if is_episode:
-            return self.episode_video.format(**kwargs)
-        return str(kwargs.get("Title", ""))
+            return sanitize_filename(self.episode_video.format(**kwargs))
+        return sanitize_filename(str(kwargs.get("Title", "")))
 
 
 # Singleton — patterns are constants, no need for multiple instances

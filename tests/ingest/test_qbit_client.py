@@ -11,7 +11,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 import qbittorrentapi
 
-from personalscraper.ingest.qbit_client import QBitClient
+from personalscraper.ingest.qbit_client import (
+    QBitAuthLockoutError,  # noqa: F401
+    QBitClient,
+)
 
 
 @pytest.fixture
@@ -103,13 +106,7 @@ def test_live_api():
                 # Content path should exist on disk
                 assert path.exists(), f"Content path does not exist: {path}"
 
-    except (
-        qbittorrentapi.LoginFailed,
-        qbittorrentapi.APIConnectionError,
-        Exception,
-    ) as e:
-        if "lockout" in str(e).lower():
-            pytest.skip(f"qBittorrent auth lockout active: {e}")
-        if isinstance(e, (qbittorrentapi.LoginFailed, qbittorrentapi.APIConnectionError)):
-            pytest.skip(f"qBittorrent not accessible: {e}")
-        raise
+    except QBitAuthLockoutError as e:
+        pytest.skip(f"qBittorrent auth lockout active: {e}")
+    except (qbittorrentapi.LoginFailed, qbittorrentapi.APIConnectionError) as e:
+        pytest.skip(f"qBittorrent not accessible: {e}")

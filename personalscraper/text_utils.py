@@ -19,16 +19,18 @@ from rapidfuzz import utils
 # Year suffix pattern for length ratio normalization
 _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
 
-# Characters illegal in filenames on Windows and displayed incorrectly on macOS
+# Characters illegal on NTFS/Windows; colon also displays as / in macOS Finder
 _FILENAME_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
+_MULTI_SPACE = re.compile(r" {2,}")
 
 
 def sanitize_filename(name: str) -> str:
     """Remove characters that are illegal or problematic in filenames.
 
-    Strips characters forbidden on Windows (<>:"/\\|?*) and that display
-    incorrectly on macOS Finder (: shows as /). Also normalizes
-    non-breaking spaces (U+00A0) to regular spaces.
+    Strips characters forbidden on NTFS/Windows (<>:"/\\|?*) and that
+    display incorrectly on macOS Finder (: shows as /). Also normalizes
+    non-breaking spaces (U+00A0) to regular spaces and collapses any
+    resulting double spaces.
 
     Args:
         name: Raw filename or directory name.
@@ -38,8 +40,9 @@ def sanitize_filename(name: str) -> str:
     """
     # Replace non-breaking space with regular space
     name = name.replace("\u00a0", " ")
-    # Remove illegal characters
-    return _FILENAME_ILLEGAL.sub("", name).strip()
+    # Remove illegal characters and collapse resulting double spaces
+    name = _FILENAME_ILLEGAL.sub("", name)
+    return _MULTI_SPACE.sub(" ", name).strip()
 
 
 def media_processor(s: str) -> str:

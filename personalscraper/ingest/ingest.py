@@ -227,7 +227,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                         (d / source.name).exists() for d in staging_dirs
                     )
                     if found_in_staging:
-                        log.debug("already_in_staging", name=name)
+                        log.info("already_in_staging", name=name)
                         tracker.mark_ingested(torrent_hash, name, "found_in_staging")
                         report.skip_count += 1
                     else:
