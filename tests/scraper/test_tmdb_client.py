@@ -603,7 +603,7 @@ class TestTMDBClientDetails:
 # ---------------------------------------------------------------------------
 
 class TestTMDBClientImages:
-    """Tests for get_image_url() and select_best_image()."""
+    """Tests for get_image_url() and get_artwork_urls()."""
 
     def test_image_url_original(self, client: TMDBClient) -> None:
         """get_image_url should build a full URL with 'original' size."""
@@ -614,61 +614,6 @@ class TestTMDBClientImages:
         """get_image_url should accept custom sizes."""
         url = client.get_image_url("/abc123.jpg", size="w500")
         assert url == "https://image.tmdb.org/t/p/w500/abc123.jpg"
-
-    def test_select_best_image_prefers_french(self, client: TMDBClient) -> None:
-        """French images should be preferred over English."""
-        images = [
-            {"file_path": "/en.jpg", "iso_639_1": "en", "vote_average": 9.0},
-            {"file_path": "/fr.jpg", "iso_639_1": "fr", "vote_average": 5.0},
-        ]
-        assert client.select_best_image(images, "posters") == "/fr.jpg"
-
-    def test_select_best_image_english_over_null(self, client: TMDBClient) -> None:
-        """English images should be preferred over language-neutral."""
-        images = [
-            {"file_path": "/null.jpg", "iso_639_1": None, "vote_average": 9.0},
-            {"file_path": "/en.jpg", "iso_639_1": "en", "vote_average": 5.0},
-        ]
-        assert client.select_best_image(images, "posters") == "/en.jpg"
-
-    def test_select_best_image_vote_tiebreaker(self, client: TMDBClient) -> None:
-        """Within same language, higher vote_average should win."""
-        images = [
-            {"file_path": "/low.jpg", "iso_639_1": "fr", "vote_average": 3.0},
-            {"file_path": "/high.jpg", "iso_639_1": "fr", "vote_average": 8.0},
-        ]
-        assert client.select_best_image(images, "posters") == "/high.jpg"
-
-    def test_select_best_image_null_language(self, client: TMDBClient) -> None:
-        """Null-language images should be accepted (textless backdrops)."""
-        images = [
-            {"file_path": "/textless.jpg", "iso_639_1": None, "vote_average": 5.5},
-        ]
-        assert client.select_best_image(images, "backdrops") == "/textless.jpg"
-
-    def test_select_best_image_empty_list(self, client: TMDBClient) -> None:
-        """Empty image list should return None."""
-        assert client.select_best_image([], "posters") is None
-
-    def test_select_best_image_full_priority(self, client: TMDBClient) -> None:
-        """Full priority chain: fr > en > null, with vote tiebreaker."""
-        images = [
-            {"file_path": "/null_high.jpg", "iso_639_1": None, "vote_average": 9.0},
-            {"file_path": "/en_high.jpg", "iso_639_1": "en", "vote_average": 8.0},
-            {"file_path": "/fr_low.jpg", "iso_639_1": "fr", "vote_average": 2.0},
-            {"file_path": "/fr_high.jpg", "iso_639_1": "fr", "vote_average": 7.0},
-        ]
-        # Should pick the highest-voted French image
-        assert client.select_best_image(images, "posters") == "/fr_high.jpg"
-
-    def test_select_best_image_unknown_language(self, client: TMDBClient) -> None:
-        """Unknown languages should be treated as lowest priority (like null)."""
-        images = [
-            {"file_path": "/de.jpg", "iso_639_1": "de", "vote_average": 9.0},
-            {"file_path": "/en.jpg", "iso_639_1": "en", "vote_average": 5.0},
-        ]
-        # English (priority 1) should beat German (priority 2/unknown)
-        assert client.select_best_image(images, "posters") == "/en.jpg"
 
     def test_get_artwork_urls_protocol(self, client: TMDBClient) -> None:
         """Protocol get_artwork_urls should return poster and landscape entries."""
