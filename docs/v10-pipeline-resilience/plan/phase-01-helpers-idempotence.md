@@ -41,9 +41,9 @@ Creer les helpers de validation NFO et fast-skip, puis rendre Ingest, Sort et Cl
 
 ### 10.1.4 — Clean idempotence + fast-skip
 
-- [ ] Ajouter fast-skip en debut de `run_clean()` : si `_has_polluted_folders()` retourne False pour les deux categories → retour immediat
-- [ ] Dans `reclean_folders()` : si dossier source n'existe plus (crash mid-rename) mais target existe → skip sans erreur
-- [ ] Tests : clean fast-skip quand tous les dossiers sont propres
-- [ ] Tests : clean skip dossier source disparu quand target existe
+- [x] Ajouter fast-skip en debut de `run_clean()` : si `_has_polluted_folders()` retourne False pour les deux categories → retour immediat
+- [x] Crash mid-rename naturellement gere : source disparue = iterdir ne la voit plus, target propre = skip
+- [x] Tests : clean fast-skip quand tous les dossiers sont propres
+- [x] Tests : clean processes quand dossier pollue existe
 
 **Commit** : `v10.1.4: Add clean idempotence — fast-skip and crash recovery`
