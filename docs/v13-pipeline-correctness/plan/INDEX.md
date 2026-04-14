@@ -32,17 +32,17 @@
 
 ### Modified files
 
-| File                                     | Changes                                                                                                   |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `personalscraper/scraper/run.py`         | Add `_needs_repair()`, modify `_has_unscraped_items()` → `_should_skip_scrape()`                          |
-| `personalscraper/scraper/scraper.py`     | Add `_repair_movie_dir()`, `_repair_tvshow_dir()`, modify fast-skip in `scrape_movie()`/`scrape_tvshow()` |
-| `personalscraper/pipeline.py`            | Add ENFORCE step, update step count 7→8, update docstrings                                                |
-| `personalscraper/cli.py`                 | Add `enforce` command, deprecate `verify --fix`, update `run` docstring                                   |
-| `personalscraper/models.py`              | Add enforce icon to `to_html()`, update `StepReport.name` docstring                                       |
-| `personalscraper/genre_mapper.py`        | Fix `categorize_from_nfo()` to pass genre_ids                                                             |
-| `personalscraper/dispatch/dispatcher.py` | Add `--exclude=.DS_Store --exclude=._*` to rsync                                                          |
-| `personalscraper/verify/run.py`          | Accept `fix=False` from pipeline mode                                                                     |
-| `CLAUDE.md`                              | Update pipeline docs, add V13, add enforce/                                                               |
+| File                                     | Changes                                                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `personalscraper/scraper/run.py`         | Add `_needs_repair()`, modify `run_scrape()` fast-skip to combine `_has_unscraped_items()` + `_needs_repair()` |
+| `personalscraper/scraper/scraper.py`     | Add `_repair_movie_dir()`, `_repair_tvshow_dir()`, modify fast-skip in `scrape_movie()`/`scrape_tvshow()`      |
+| `personalscraper/pipeline.py`            | Add ENFORCE step, update step count 7→8, update docstrings                                                     |
+| `personalscraper/cli.py`                 | Add `enforce` command, deprecate `verify --fix`, update `run` docstring                                        |
+| `personalscraper/models.py`              | Add enforce icon to `to_html()`, update `StepReport.name` docstring                                            |
+| `personalscraper/genre_mapper.py`        | Add French TMDB genre variants to `_REALITY_NAMES` ("emission", "divertissement", "jeu televise")              |
+| `personalscraper/dispatch/dispatcher.py` | Add `--exclude=.DS_Store --exclude=._*` to rsync                                                               |
+| `personalscraper/verify/run.py`          | Accept `fix=False` from pipeline mode                                                                          |
+| `CLAUDE.md`                              | Update pipeline docs, add V13, add enforce/                                                                    |
 
 ---
 
@@ -99,7 +99,7 @@ task list.
 
 ```bash
 git add -f docs/v13-pipeline-correctness/AUDIT-V0-V12.md
-git commit -m "v13.0.2: Audit V0-V12 — promises vs implementation report"
+git commit -m "v13.0.1: Audit V0-V12 — promises vs implementation report"
 ```
 
 ---
@@ -117,6 +117,8 @@ git commit -m "v13.0.2: Audit V0-V12 — promises vs implementation report"
 
 ```python
 # tests/scraper/test_run_scrape.py — add these tests
+from personalscraper.scraper.run import _needs_repair
+
 
 def test_needs_repair_false_when_clean(tmp_path):
     """Clean show dir (episodes in Saison XX/, no residuals) → False."""
@@ -173,11 +175,14 @@ Expected: FAIL (function not found).
 - [ ] **Step 3: Implement `_needs_repair()`**
 
 ```python
-# personalscraper/scraper/run.py — add after _has_unscraped_items()
+# personalscraper/scraper/run.py — add imports at top of module (alongside existing ones)
+# Add: import re, from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
-import re as _re
+import re
 
-_SEASON_DIR_RE = _re.compile(r"^Saison \d+$")
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+
+_SEASON_DIR_RE = re.compile(r"^Saison \d+$")
 
 
 def _needs_repair(category_dir: Path) -> bool:
@@ -219,7 +224,7 @@ def _needs_repair(category_dir: Path) -> bool:
                 if (
                     has_season_dirs
                     and item.is_file()
-                    and item.suffix.lstrip(".").lower() in _VIDEO_EXTS
+                    and item.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
                 ):
                     return True
 
@@ -230,7 +235,7 @@ def _needs_repair(category_dir: Path) -> bool:
                     and not _SEASON_DIR_RE.match(item.name)
                 ):
                     for sub in item.rglob("*"):
-                        if sub.is_file() and sub.suffix.lstrip(".").lower() in _VIDEO_EXTS:
+                        if sub.is_file() and sub.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS:
                             return True
 
             # NFO residuals at root (anything besides tvshow.nfo)
@@ -242,11 +247,6 @@ def _needs_repair(category_dir: Path) -> bool:
                 return True
 
     return False
-
-
-# Import VIDEO_EXTENSIONS for the check
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTS_SET
-_VIDEO_EXTS = _VIDEO_EXTS_SET
 ```
 
 - [ ] **Step 4: Modify `run_scrape()` to use combined skip logic**
@@ -727,21 +727,21 @@ def test_renames_colon_file(tmp_path, settings):
     assert len(renamed) == 1
     assert renamed[0].old_name == "Avatar : De feu-poster.jpg"
     assert not colon_file.exists()
-    assert (movies / "Avatar  De feu-poster.jpg").exists()
+    assert (movies / "Avatar De feu-poster.jpg").exists()  # single space (sanitize collapses)
 
 
 def test_deletes_duplicate_when_sanitized_exists(tmp_path, settings):
     """Legacy file with : deleted when sanitized version already exists."""
     movies = tmp_path / "001-MOVIES" / "Avatar (2025)"
     movies.mkdir(parents=True)
-    (movies / "Avatar  De feu-poster.jpg").write_bytes(b"good")
+    (movies / "Avatar De feu-poster.jpg").write_bytes(b"good")  # sanitized = single space
     (movies / "Avatar : De feu-poster.jpg").write_bytes(b"legacy")
 
     results = sanitize_files(settings, dry_run=False)
     deleted = [r for r in results if r.action == "deleted_duplicate"]
     assert len(deleted) == 1
     assert not (movies / "Avatar : De feu-poster.jpg").exists()
-    assert (movies / "Avatar  De feu-poster.jpg").read_bytes() == b"good"
+    assert (movies / "Avatar De feu-poster.jpg").read_bytes() == b"good"
 
 
 def test_renames_directory_with_colon(tmp_path, settings):
@@ -755,7 +755,7 @@ def test_renames_directory_with_colon(tmp_path, settings):
     results = sanitize_files(settings, dry_run=False)
     renamed_dirs = [r for r in results if r.action == "renamed" and "Spirale" in (r.old_name or "")]
     assert len(renamed_dirs) == 1
-    assert (movies / "Spirale  L'Héritage de Saw (2021)").exists()
+    assert (movies / "Spirale L'Héritage de Saw (2021)").exists()  # single space
 
 
 def test_deletes_ds_store(tmp_path, settings):
@@ -1013,24 +1013,264 @@ git commit -m "v13.2.1: Add file_sanitizer — rename NTFS-illegal chars, remove
 
 - [ ] **Step 1: Write failing tests**
 
-Test cases covering:
+```python
+# tests/enforce/test_structure_validator.py
 
-- Movie with 2 NFOs → extra removed
-- Movie with duplicate artwork (same type, different names) → legacy removed
-- Series with torrent subdir still present (empty) → removed
-- Clean movie → no action
-- Clean series → no action
-- Idempotent: run 2 = no-op
+import pytest
+from pathlib import Path
+from personalscraper.enforce.structure_validator import validate_structure, StructureResult
+
+
+@pytest.fixture
+def settings(tmp_path):
+    from unittest.mock import MagicMock
+    s = MagicMock()
+    s.staging_dir = tmp_path
+    s.movies_dir_name = "001-MOVIES"
+    s.tvshows_dir_name = "002-TVSHOWS"
+    return s
+
+
+def test_movie_extra_nfo_removed(tmp_path, settings):
+    """Movie with 2 NFOs: residual removed, correct kept."""
+    movie = tmp_path / "001-MOVIES" / "Scream 7 (2026)"
+    movie.mkdir(parents=True)
+    good = movie / "Scream 7.nfo"
+    good.write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+    bad = movie / "Scream.7.2026.MULTI.nfo"
+    bad.write_text("<movie/>")
+    (movie / "Scream 7.mkv").write_bytes(b"\x00")
+
+    results = validate_structure(settings, dry_run=False)
+    repaired = [r for r in results if r.action == "repaired"]
+    assert len(repaired) == 1
+    assert good.exists()
+    assert not bad.exists()
+
+
+def test_movie_duplicate_artwork_legacy_removed(tmp_path, settings):
+    """Artwork with same type but different names: keep sanitized, delete legacy."""
+    movie = tmp_path / "001-MOVIES" / "Film (2025)"
+    movie.mkdir(parents=True)
+    (movie / "Film.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+    (movie / "Film.mkv").write_bytes(b"\x00")
+    (movie / "Film-poster.jpg").write_bytes(b"good")
+    (movie / "Film-poster (1).jpg").write_bytes(b"dup")  # duplicate poster
+
+    results = validate_structure(settings, dry_run=False)
+    repaired = [r for r in results if r.action == "repaired"]
+    assert len(repaired) == 1
+    assert not (movie / "Film-poster (1).jpg").exists()
+
+
+def test_tvshow_empty_torrent_subdir_removed(tmp_path, settings):
+    """Empty torrent subdirectory removed."""
+    show = tmp_path / "002-TVSHOWS" / "Show (2025)"
+    show.mkdir(parents=True)
+    (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
+    empty_dir = show / "Show.S01E01.MULTi.1080p"
+    empty_dir.mkdir()  # empty torrent dir (episodes already moved)
+
+    results = validate_structure(settings, dry_run=False)
+    assert not empty_dir.exists()
+
+
+def test_clean_movie_no_action(tmp_path, settings):
+    """Clean movie → validated, no fixes."""
+    movie = tmp_path / "001-MOVIES" / "Film (2025)"
+    movie.mkdir(parents=True)
+    (movie / "Film.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+    (movie / "Film.mkv").write_bytes(b"\x00")
+    (movie / "Film-poster.jpg").write_bytes(b"\x00")
+    (movie / "Film-landscape.jpg").write_bytes(b"\x00")
+
+    results = validate_structure(settings, dry_run=False)
+    validated = [r for r in results if r.action == "validated"]
+    assert len(validated) == 1
+
+
+def test_idempotent_second_run(tmp_path, settings):
+    """Run 2 after fixes → no more repairs."""
+    movie = tmp_path / "001-MOVIES" / "Film (2025)"
+    movie.mkdir(parents=True)
+    (movie / "Film.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+    (movie / "Film.mkv").write_bytes(b"\x00")
+    (movie / "Film.MULTI.nfo").write_text("<movie/>")
+
+    validate_structure(settings, dry_run=False)  # Run 1: fix
+    results2 = validate_structure(settings, dry_run=False)  # Run 2
+    repaired = [r for r in results2 if r.action == "repaired"]
+    assert len(repaired) == 0
+```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
+```bash
+python -m pytest tests/enforce/test_structure_validator.py -v
+```
+
 - [ ] **Step 3: Implement `structure_validator.py`**
 
-Module that validates film/series directory structure per the conventions in CLAUDE.md.
-For each item: check NFO count, artwork presence, season structure, torrent residuals.
-Fix what can be fixed, report what can't.
+```python
+# personalscraper/enforce/structure_validator.py
+"""Validate and fix directory structure for staging media items.
+
+Checks NFO count, artwork duplicates, season structure, and torrent
+residuals. Fixes what can be fixed, reports what can't.
+"""
+
+import logging
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from personalscraper.config import Settings
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.text_utils import sanitize_filename
+
+logger = logging.getLogger(__name__)
+
+_SEASON_DIR_RE = re.compile(r"^Saison \d+$")
+# Artwork type suffixes used in NamingPatterns
+_ARTWORK_SUFFIXES = {
+    "-poster", "-fanart", "-banner", "-landscape",
+    "-clearlogo", "-clearart", "-discart", "-thumb",
+}
+
+
+@dataclass
+class StructureResult:
+    """Result of validating/fixing structure for one media item."""
+
+    path: Path
+    media_type: str  # "movie" or "tvshow"
+    action: str  # "validated", "repaired", "error"
+    fixes: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+def validate_structure(
+    settings: Settings, dry_run: bool = False,
+) -> list[StructureResult]:
+    """Validate and fix directory structure for all staging items.
+
+    Args:
+        settings: Pipeline configuration.
+        dry_run: If True, log actions without modifying filesystem.
+
+    Returns:
+        List of StructureResult for each media item.
+    """
+    results: list[StructureResult] = []
+    staging = settings.staging_dir
+
+    movies_dir = staging / settings.movies_dir_name
+    if movies_dir.exists():
+        for folder in sorted(movies_dir.iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                results.append(_validate_movie(folder, dry_run))
+
+    tvshows_dir = staging / settings.tvshows_dir_name
+    if tvshows_dir.exists():
+        for folder in sorted(tvshows_dir.iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                results.append(_validate_tvshow(folder, dry_run))
+
+    return results
+
+
+def _validate_movie(movie_dir: Path, dry_run: bool) -> StructureResult:
+    """Validate a single movie directory."""
+    result = StructureResult(path=movie_dir, media_type="movie", action="validated")
+
+    # Extract expected title from folder name (strip year)
+    title = re.sub(r"\s*\(\d{4}\)\s*$", "", movie_dir.name).strip()
+    expected_nfo = sanitize_filename(title) + ".nfo"
+
+    # Check NFO count — remove extras
+    nfos = list(movie_dir.glob("*.nfo"))
+    for nfo in nfos:
+        if nfo.name != expected_nfo:
+            if not dry_run:
+                try:
+                    nfo.unlink()
+                except OSError as exc:
+                    logger.warning("Cannot delete extra NFO %s: %s", nfo.name, exc)
+                    continue
+            result.fixes.append(f"Removed extra NFO: {nfo.name}")
+
+    # Check artwork duplicates — same type, different names
+    artwork_by_type: dict[str, list[Path]] = {}
+    for f in movie_dir.iterdir():
+        if not f.is_file():
+            continue
+        for suffix in _ARTWORK_SUFFIXES:
+            if suffix in f.stem:
+                artwork_by_type.setdefault(suffix, []).append(f)
+                break
+
+    for art_type, files in artwork_by_type.items():
+        if len(files) > 1:
+            # Keep the one with the expected sanitized name
+            expected_stem = sanitize_filename(title) + art_type
+            keep = None
+            for f in files:
+                if f.stem == expected_stem:
+                    keep = f
+                    break
+            if keep is None:
+                keep = files[0]  # fallback: keep first
+            for f in files:
+                if f != keep:
+                    if not dry_run:
+                        try:
+                            f.unlink()
+                        except OSError:
+                            continue
+                    result.fixes.append(f"Removed duplicate artwork: {f.name}")
+
+    if result.fixes:
+        result.action = "repaired"
+    return result
+
+
+def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
+    """Validate a single TV show directory."""
+    result = StructureResult(path=show_dir, media_type="tvshow", action="validated")
+
+    # Remove empty non-season subdirs (leftover torrent dirs)
+    for subdir in list(show_dir.iterdir()):
+        if (
+            subdir.is_dir()
+            and not subdir.name.startswith(".")
+            and not _SEASON_DIR_RE.match(subdir.name)
+        ):
+            # Check if empty (no files recursively)
+            has_files = any(subdir.rglob("*"))
+            if not has_files:
+                if not dry_run:
+                    try:
+                        subdir.rmdir()
+                    except OSError:
+                        continue
+                result.fixes.append(f"Removed empty torrent dir: {subdir.name}")
+
+    # Check for missing tvshow.nfo
+    if not (show_dir / "tvshow.nfo").exists():
+        result.warnings.append("Missing tvshow.nfo")
+
+    if result.fixes:
+        result.action = "repaired"
+    return result
+```
 
 - [ ] **Step 4: Run tests**
+
+```bash
+python -m pytest tests/enforce/test_structure_validator.py -v
+```
+
+Expected: ALL PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -1050,22 +1290,227 @@ git commit -m "v13.2.2: Add structure_validator — enforce NFO/artwork/season c
 
 - [ ] **Step 1: Write failing tests**
 
-Test cases:
+```python
+# tests/enforce/test_coherence_checker.py
 
-- Series in 001-MOVIES → WARNING
-- Movie in 002-TVSHOWS → WARNING
-- NFO missing both TMDB and IMDB → WARNING
-- Clean items → no warnings
-- Genre "Reality" in series/ → WARNING about emissions
+import pytest
+from pathlib import Path
+from personalscraper.enforce.coherence_checker import check_coherence, CoherenceResult
+
+
+@pytest.fixture
+def settings(tmp_path):
+    from unittest.mock import MagicMock
+    s = MagicMock()
+    s.staging_dir = tmp_path
+    s.movies_dir_name = "001-MOVIES"
+    s.tvshows_dir_name = "002-TVSHOWS"
+    return s
+
+
+def test_tvshow_in_movies_warns(tmp_path, settings):
+    """tvshow.nfo in 001-MOVIES → warning."""
+    movie = tmp_path / "001-MOVIES" / "Fake Show (2026)"
+    movie.mkdir(parents=True)
+    (movie / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
+
+    results = check_coherence(settings, dry_run=False)
+    warns = [w for r in results for w in r.warnings if "wrong category" in w.lower()]
+    assert len(warns) >= 1
+
+
+def test_nfo_missing_both_ids_warns(tmp_path, settings):
+    """NFO without TMDB or IMDB ID → warning."""
+    movie = tmp_path / "001-MOVIES" / "Film (2025)"
+    movie.mkdir(parents=True)
+    (movie / "Film.nfo").write_text("<movie><title>Film</title></movie>")
+
+    results = check_coherence(settings, dry_run=False)
+    warns = [w for r in results for w in r.warnings if "missing" in w.lower() and "id" in w.lower()]
+    assert len(warns) >= 1
+
+
+def test_clean_items_no_warnings(tmp_path, settings):
+    """Properly structured items → no warnings."""
+    movie = tmp_path / "001-MOVIES" / "Film (2025)"
+    movie.mkdir(parents=True)
+    (movie / "Film.nfo").write_text(
+        '<movie><uniqueid type="tmdb">123</uniqueid>'
+        '<uniqueid type="imdb">tt123</uniqueid></movie>'
+    )
+
+    results = check_coherence(settings, dry_run=False)
+    warns = [w for r in results for w in r.warnings]
+    assert len(warns) == 0
+
+
+def test_genre_emission_in_series_warns(tmp_path, settings):
+    """NFO with genre 'Émission' in 002-TVSHOWS → warning about emissions category."""
+    show = tmp_path / "002-TVSHOWS" / "Show (2026)"
+    show.mkdir(parents=True)
+    (show / "tvshow.nfo").write_text(
+        '<tvshow><genre>Émission</genre>'
+        '<uniqueid type="tmdb">312697</uniqueid></tvshow>'
+    )
+
+    results = check_coherence(settings, dry_run=False)
+    warns = [w for r in results for w in r.warnings if "emission" in w.lower()]
+    assert len(warns) >= 1
+```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
+```bash
+python -m pytest tests/enforce/test_coherence_checker.py -v
+```
+
 - [ ] **Step 3: Implement `coherence_checker.py`**
 
-Read-only checker that parses NFOs, checks genre_mapper consistency, verifies
-sort↔process coherence. Produces warnings, never modifies filesystem.
+```python
+# personalscraper/enforce/coherence_checker.py
+"""Cross-step coherence checker for staging media.
+
+Read-only checker that parses NFOs, verifies genre_mapper consistency,
+and checks sort↔process coherence. Produces warnings, never modifies
+the filesystem.
+"""
+
+import logging
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from personalscraper.config import Settings
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CoherenceResult:
+    """Result of coherence check for one media item."""
+
+    path: Path
+    checks: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+
+def check_coherence(
+    settings: Settings, dry_run: bool = False,
+) -> list[CoherenceResult]:
+    """Check cross-step coherence for all staging items.
+
+    Args:
+        settings: Pipeline configuration.
+        dry_run: No effect (coherence check is read-only).
+
+    Returns:
+        List of CoherenceResult for each media item.
+    """
+    results: list[CoherenceResult] = []
+    staging = settings.staging_dir
+
+    movies_dir = staging / settings.movies_dir_name
+    if movies_dir.exists():
+        for folder in sorted(movies_dir.iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                results.append(_check_movie(folder))
+
+    tvshows_dir = staging / settings.tvshows_dir_name
+    if tvshows_dir.exists():
+        for folder in sorted(tvshows_dir.iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                results.append(_check_tvshow(folder))
+
+    return results
+
+
+def _check_movie(movie_dir: Path) -> CoherenceResult:
+    """Check coherence for a movie directory."""
+    result = CoherenceResult(path=movie_dir)
+
+    # Sort↔Process: movie dir should NOT have tvshow.nfo
+    if (movie_dir / "tvshow.nfo").exists():
+        result.warnings.append(
+            f"Wrong category: {movie_dir.name} has tvshow.nfo but is in MOVIES"
+        )
+    result.checks.append("sort_process_coherence")
+
+    # Find movie NFO and check IDs
+    nfos = list(movie_dir.glob("*.nfo"))
+    if nfos:
+        _check_nfo_ids(nfos[0], result)
+
+    return result
+
+
+def _check_tvshow(show_dir: Path) -> CoherenceResult:
+    """Check coherence for a TV show directory."""
+    result = CoherenceResult(path=show_dir)
+
+    # Sort↔Process: tvshow dir should have tvshow.nfo, not just {Title}.nfo
+    nfo_path = show_dir / "tvshow.nfo"
+    if not nfo_path.exists():
+        movie_nfos = [f for f in show_dir.glob("*.nfo") if f.name != "tvshow.nfo"]
+        if movie_nfos:
+            result.warnings.append(
+                f"Wrong category: {show_dir.name} has movie NFO but is in TVSHOWS"
+            )
+    else:
+        _check_nfo_ids(nfo_path, result)
+        _check_genre_coherence(nfo_path, result)
+
+    result.checks.append("sort_process_coherence")
+    return result
+
+
+def _check_nfo_ids(nfo_path: Path, result: CoherenceResult) -> None:
+    """Check that NFO has at least one valid ID (TMDB or IMDB)."""
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314
+    except (ET.ParseError, OSError):
+        result.warnings.append(f"Cannot parse NFO: {nfo_path.name}")
+        return
+
+    has_tmdb = False
+    has_imdb = False
+    for uid in root.findall("uniqueid"):
+        uid_type = uid.get("type", "")
+        if uid_type == "tmdb" and uid.text and uid.text.strip():
+            has_tmdb = True
+        elif uid_type == "imdb" and uid.text and uid.text.strip():
+            has_imdb = True
+
+    if not has_tmdb and not has_imdb:
+        result.warnings.append(f"Missing IDs: no TMDB or IMDB in {nfo_path.name}")
+
+    result.checks.append("nfo_ids")
+
+
+def _check_genre_coherence(nfo_path: Path, result: CoherenceResult) -> None:
+    """Check if genre suggests a different category (e.g., emissions vs series)."""
+    try:
+        from personalscraper.genre_mapper import GenreMapper
+
+        mapper = GenreMapper()
+        category = mapper.categorize_from_nfo(nfo_path, media_type="tvshow")
+        if category and category == "emissions":
+            result.warnings.append(
+                f"Genre suggests 'emissions' not 'series' for {result.path.name} "
+                f"— consider moving to emissions category"
+            )
+    except Exception as exc:
+        logger.debug("Genre check failed for %s: %s", nfo_path.name, exc)
+
+    result.checks.append("genre_coherence")
+```
 
 - [ ] **Step 4: Run tests**
+
+```bash
+python -m pytest tests/enforce/test_coherence_checker.py -v
+```
+
+Expected: ALL PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -1203,7 +1648,7 @@ git commit -m "v13.2.4: Add enforce orchestrator — sanitize → structure → 
 In `Pipeline.run()`, between `_run_process_phase()` and verify:
 
 ```python
-        # Phase 3.5: ENFORCE (validate and correct conventions)
+        # Phase 4: ENFORCE (validate and correct conventions)
         from personalscraper.enforce.run import run_enforce
 
         self._run_step(
@@ -1228,7 +1673,9 @@ Update `_step_icon()`:
         }
 ```
 
-Update module docstring and class docstring: "7 StepReports" → "8 StepReports".
+Update module docstring and class docstring: "5 phases producing 7 StepReports" → "6 phases producing 8 StepReports".
+Also update in `Pipeline.run()` docstring: "7 StepReports" → "8 StepReports".
+Also update in `cli.py`: comment "# 7-step sequential flow" → "8-step", "# 7 steps" → "8 steps" (lines 317, 333).
 
 - [ ] **Step 2: Add enforce icon to `models.py`**
 
@@ -1300,33 +1747,53 @@ git commit -m "v13.3.1: Integrate ENFORCE step — pipeline 7→8 steps, enforce
 
 - [ ] **Step 1: Write failing test for genre mapper**
 
-```python
-# tests/verify/test_genre_mapper.py — add test
+Root cause: TMDB returns genres in French (`language="fr-FR"` in tmdb_client.py).
+The NFO contains `<genre>Émission</genre>` (not "Reality"). `_normalize("Émission")`
+strips accents → `"emission"`, but "emission" is NOT in `_REALITY_NAMES`.
+The English `"reality"` IS in `_REALITY_NAMES` but TMDB never returns it in fr-FR locale.
 
-def test_categorize_from_nfo_reality_show_is_emissions(tmp_path):
-    """NFO with genre 'Reality' → emissions, not series."""
+```python
+# tests/verify/test_genre_mapper.py — add tests
+from personalscraper.genre_mapper import GenreMapper
+
+
+def test_categorize_from_nfo_french_emission_is_emissions(tmp_path):
+    """NFO with French TMDB genre 'Émission' → emissions, not series."""
     nfo = tmp_path / "tvshow.nfo"
     nfo.write_text(
-        '<tvshow><genre>Reality</genre>'
+        '<tvshow><genre>Émission</genre>'
         '<uniqueid type="tmdb">312697</uniqueid></tvshow>'
     )
     mapper = GenreMapper()
     result = mapper.categorize_from_nfo(nfo, media_type="tvshow")
     assert result == "emissions"
+
+
+def test_categorize_tvshow_french_divertissement(tmp_path):
+    """French genre 'Divertissement' → emissions."""
+    mapper = GenreMapper()
+    result = mapper.categorize_tvshow(["Divertissement"])
+    assert result == "emissions"
 ```
 
-- [ ] **Step 2: Fix `categorize_from_nfo()` in `genre_mapper.py`**
+- [ ] **Step 2: Fix `_REALITY_NAMES` in `genre_mapper.py`**
 
-The fix: add `"reality"` to `_REALITY_NAMES` or handle the string "Reality" explicitly
-in the categorize_tvshow string fallback path. Also add French variants.
+The fix: add French TMDB genre variants returned by `language="fr-FR"`.
+The existing `"reality"` and `"realite"` cover English and accented French,
+but TMDB fr-FR returns different genre names entirely.
+
+Look at the `_REALITY_NAMES` attribute on the `GenreMapper` class (it's a set attribute,
+not a frozenset). Add the French variants:
 
 ```python
-# In _REALITY_NAMES, add variants:
-_REALITY_NAMES = frozenset({
-    "reality", "realite", "réalité", "talk show", "talk", "news",
-    "game show", "jeu télévisé",
-})
+# In GenreMapper.__init__() or wherever _REALITY_NAMES is defined:
+# Add these French TMDB genre name variants:
+"emission",        # TMDB fr-FR: "Émission" → normalized "emission"
+"divertissement",  # TMDB fr-FR: entertainment/variety
+"jeu televise",    # TMDB fr-FR: game show
 ```
+
+Keep `"reality"`, `"realite"`, `"talk show"`, `"talk"`, `"news"` as they already are.
 
 - [ ] **Step 3: Add rsync exclude for .DS_Store in `dispatcher.py`**
 
@@ -1394,28 +1861,70 @@ git commit -m "v13.3.3: Update CLAUDE.md for V13, deprecate verify --fix"
 
 ## Phase 4 — E2E Idempotence Tests
 
-### Task 13: Idempotence fixture tests
+### Task 13: Idempotence fixture tests + E2E real tests
 
 **Files:**
 
 - Create: `tests/enforce/test_idempotence.py`
+- Modify: `pyproject.toml` (add `e2e_idempotence` marker)
 
-- [ ] **Step 1: Write idempotence tests**
+- [ ] **Step 1: Register `e2e_idempotence` marker**
 
-Each test: setup fixture → run ENFORCE → assert fixed → run again → assert no-op.
-Cover all 9 fixture types from the design.
+In `pyproject.toml`, add to `[tool.pytest.ini_options]` markers list:
 
-- [ ] **Step 2: Run tests**
-
-```bash
-python -m pytest tests/enforce/test_idempotence.py -v
+```toml
+"e2e_idempotence: E2E idempotence tests on real staging data (manual only)",
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Write idempotence fixture tests**
+
+Each test: setup fixture → run ENFORCE → assert fixed → run again → assert no-op.
+Cover all 9 fixture types from the design. Each test is self-contained with its
+own tmp_path fixture setup.
+
+- [ ] **Step 3: Write E2E real idempotence tests**
+
+```python
+# tests/enforce/test_idempotence.py — add at end of file
+
+import pytest
+from personalscraper.config import Settings
+from personalscraper.enforce.run import run_enforce
+
+
+@pytest.mark.e2e_idempotence
+class TestRealStagingIdempotence:
+    """Run enforce on actual staging data. Manual only."""
+
+    def test_enforce_detects_and_fixes(self):
+        """First run should fix known issues from staging."""
+        settings = Settings()
+        report = run_enforce(settings, dry_run=False)
+        # At least some actions should be taken on real staging
+        print(f"Run 1: {report.success_count} fixed, {report.skip_count} OK")
+        print(f"Details: {report.details}")
+
+    def test_enforce_second_run_noop(self):
+        """Second run should change nothing (idempotent)."""
+        settings = Settings()
+        report = run_enforce(settings, dry_run=False)
+        assert report.success_count == 0, (
+            f"Expected no-op on second run, got {report.success_count} fixes: "
+            f"{report.details}"
+        )
+```
+
+- [ ] **Step 4: Run fixture tests (NOT e2e_idempotence)**
 
 ```bash
-git add tests/enforce/test_idempotence.py
-git commit -m "v13.4.1: E2E idempotence fixture tests — run 1 fixes, run 2 no-op"
+python -m pytest tests/enforce/test_idempotence.py -v -m "not e2e_idempotence"
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add tests/enforce/test_idempotence.py pyproject.toml
+git commit -m "v13.4.1: E2E idempotence tests — fixtures + real staging with marker"
 ```
 
 ---
