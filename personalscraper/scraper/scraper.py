@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 # Regex for parsing "Title (Year)" folder names
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 
+# Regex for extracting SxxExx episode identifiers from filenames
+_SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
+
 
 def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     """Merge contents of source directory into target, then remove source.
@@ -546,6 +549,169 @@ class Scraper:
 
         return repaired
 
+    def _repair_tvshow_dir(self, show_dir: Path) -> bool:
+        """Repair a TV show directory with valid NFO.
+
+        1. Remove residual NFOs at root (keep only tvshow.nfo).
+        2. Remove root MKV duplicates (same SxxExx in Saison XX/).
+        3. Organize unstructured episodes into Saison XX/ (if TMDB ID available).
+
+        Args:
+            show_dir: Path to the TV show directory.
+
+        Returns:
+            True if any repair was applied.
+        """
+        repaired = False
+
+        # 1. Remove residual NFOs at root (keep tvshow.nfo)
+        for nfo in show_dir.glob("*.nfo"):
+            if nfo.name != "tvshow.nfo":
+                if not self.dry_run:
+                    try:
+                        nfo.unlink()
+                        logger.info(
+                            "Repair: removed residual NFO %s in %s",
+                            nfo.name, show_dir.name,
+                        )
+                        repaired = True
+                    except OSError as exc:
+                        logger.warning(
+                            "Repair: cannot delete %s: %s", nfo.name, exc,
+                        )
+                else:
+                    logger.info(
+                        "[DRY RUN] Would remove residual NFO %s", nfo.name,
+                    )
+                    repaired = True
+
+        # 2. Collect organized episodes (SxxExx → set of (season, episode))
+        organized: set[tuple[int, int]] = set()
+        for season_dir in show_dir.iterdir():
+            if season_dir.is_dir() and re.match(r"^Saison \d+$", season_dir.name):
+                for f in season_dir.iterdir():
+                    if f.is_file():
+                        m = _SXXEXX_RE.search(f.stem)
+                        if m:
+                            organized.add((int(m.group(1)), int(m.group(2))))
+
+        # 3. Remove root MKV duplicates that match organized episodes
+        if organized:
+            for f in list(show_dir.iterdir()):
+                if (
+                    not f.is_file()
+                    or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS
+                ):
+                    continue
+                m = _SXXEXX_RE.search(f.stem)
+                if m and (int(m.group(1)), int(m.group(2))) in organized:
+                    if not self.dry_run:
+                        try:
+                            f.unlink()
+                            logger.info(
+                                "Repair: removed root duplicate %s "
+                                "(in Saison already)",
+                                f.name,
+                            )
+                            repaired = True
+                        except OSError as exc:
+                            logger.warning(
+                                "Repair: cannot delete %s: %s", f.name, exc,
+                            )
+                    else:
+                        logger.info(
+                            "[DRY RUN] Would remove root duplicate %s",
+                            f.name,
+                        )
+                        repaired = True
+
+        # 4. Organize unstructured episodes (from raw torrent dirs)
+        # Finds video files in non-season subdirs (not root, not .actors)
+        unorganized = sorted(
+            f for f in show_dir.rglob("*")
+            if f.is_file()
+            and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+            and not re.match(r"^Saison \d+$", f.parent.name)
+            and f.parent != show_dir
+            and ".actors" not in str(f)
+        )
+
+        if unorganized:
+            nfo_path = show_dir / "tvshow.nfo"
+            tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
+            if tmdb_id:
+                try:
+                    show_data = self._tmdb.get_tv(tmdb_id)
+                    api_episodes: dict[tuple[int, int], str] = {}
+                    for season in show_data.get("seasons", []):
+                        s_num = season.get("season_number", 0)
+                        if s_num == 0:
+                            continue
+                        try:
+                            s_detail = self._tmdb.get_tv_season(
+                                tmdb_id, s_num,
+                            )
+                            for ep in s_detail.get("episodes", []):
+                                e_num = ep.get("episode_number", 0)
+                                api_episodes[(s_num, e_num)] = ep.get(
+                                    "name", f"Episode {e_num}",
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                "Repair: failed to get season %d: %s",
+                                s_num, e,
+                            )
+
+                    if api_episodes:
+                        ep_list = [
+                            {"season_number": s, "episode_number": e}
+                            for s, e in api_episodes
+                        ]
+                        create_season_dirs(
+                            show_dir, ep_list, self.patterns, self.dry_run,
+                        )
+                        matched = match_episode_files(
+                            unorganized, api_episodes,
+                        )
+                        if matched:
+                            count = rename_episodes(
+                                matched, show_dir, self.patterns,
+                                self.dry_run,
+                            )
+                            if count > 0:
+                                repaired = True
+                                logger.info(
+                                    "Repair: organized %d episodes in %s",
+                                    count, show_dir.name,
+                                )
+                            self._generate_episode_nfos(
+                                matched, show_dir, show_data,
+                            )
+
+                        # Clean empty release-group dirs after reorganization
+                        if not self.dry_run:
+                            try:
+                                _cleanup_empty_release_dirs(show_dir)
+                            except OSError as exc:
+                                logger.warning(
+                                    "Repair: failed to clean empty dirs "
+                                    "in %s: %s",
+                                    show_dir.name, exc,
+                                )
+                except Exception as e:
+                    logger.warning(
+                        "Repair: failed to organize episodes in %s: %s",
+                        show_dir.name, e,
+                    )
+            else:
+                logger.warning(
+                    "Repair: cannot organize episodes in %s "
+                    "— no TMDB ID in NFO",
+                    show_dir.name,
+                )
+
+        return repaired
+
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
         """Scrape a single movie: match → NFO → artwork.
 
@@ -820,7 +986,11 @@ class Scraper:
             missing_art = self._check_missing_tvshow_artwork(show_dir)
             if missing_art and not self.dry_run:
                 self._recover_tvshow_artwork(nfo_path, show_dir, result)
-            if result.action != "artwork_recovered":
+            # Repair pass: remove residual NFOs, root MKV duplicates, etc.
+            repaired = self._repair_tvshow_dir(show_dir)
+            if repaired and result.action != "artwork_recovered":
+                result.action = "repaired"
+            elif result.action != "artwork_recovered":
                 result.action = "skipped_already_done"
             logger.info("NFO valid, %s: %s", result.action, show_dir.name)
             return result
