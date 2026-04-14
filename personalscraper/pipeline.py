@@ -164,7 +164,10 @@ class Pipeline:
         report = PipelineReport(started_at=datetime.now())
 
         # Recover from previous interrupted run
-        self._recover_from_previous_run()
+        if not self.dry_run:
+            self._recover_from_previous_run()
+        else:
+            self._log.info("[DRY RUN] Crash recovery skipped")
 
         # Phase 1: INGEST — abort pipeline on fatal crash because
         # sort depends on ingest having deposited files into 097-TEMP
