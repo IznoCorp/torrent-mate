@@ -235,6 +235,9 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
             if r.artwork_downloaded:
                 parts.append(f"{len(r.artwork_downloaded)} artwork")
             details.append(" | ".join(parts))
+        elif r.action == "repaired":
+            success += 1
+            details.append(f"[repaired] {name}")
         elif r.action.startswith("skipped"):
             skipped += 1
             details.append(f"[skipped] {name} ({r.action})")

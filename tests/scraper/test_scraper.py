@@ -841,3 +841,122 @@ class TestRepairMovieDir:
 
         repaired = scraper._repair_movie_dir(movie_dir, "Scream 7")
         assert repaired is False
+
+
+# ---------------------------------------------------------------------------
+# _repair_tvshow_dir — residual NFO + root MKV duplicate removal
+# ---------------------------------------------------------------------------
+
+
+class TestRepairTvshowDir:
+    """Tests for Scraper._repair_tvshow_dir."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked API clients."""
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_removes_root_nfo_residuals(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """tvshow.nfo is kept, other .nfo at root are removed."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        tvshow_nfo = show_dir / "tvshow.nfo"
+        tvshow_nfo.write_text(
+            '<tvshow><uniqueid type="tmdb">123</uniqueid></tvshow>'
+        )
+        residual = show_dir / "random.nfo"
+        residual.write_text("<movie/>")
+
+        repaired = scraper._repair_tvshow_dir(show_dir)
+        assert repaired is True
+        assert tvshow_nfo.exists()
+        assert not residual.exists()
+
+    def test_removes_root_mkv_duplicates(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """MKV at root matching SxxExx in Saison XX/ is deleted."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
+        )
+        s02 = show_dir / "Saison 02"
+        s02.mkdir()
+        (s02 / "S02E01 - Episode Title.mkv").write_bytes(b"\x00" * 100)
+        root_dup = show_dir / "Show.S02E01.1080p.mkv"
+        root_dup.write_bytes(b"\x00" * 50)
+
+        repaired = scraper._repair_tvshow_dir(show_dir)
+        assert repaired is True
+        assert not root_dup.exists()
+        assert (s02 / "S02E01 - Episode Title.mkv").exists()
+
+    def test_noop_when_clean(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """Clean show dir with no issues returns False."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
+        )
+        (show_dir / "poster.jpg").write_bytes(b"\x00")
+        s01 = show_dir / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01 - Ep.mkv").write_bytes(b"\x00")
+
+        repaired = scraper._repair_tvshow_dir(show_dir)
+        assert repaired is False
+
+    def test_removes_multiple_residual_nfos(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """Multiple residual NFOs at root are all removed."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
+        )
+        (show_dir / "S01E01.nfo").write_text("<episodedetails/>")
+        (show_dir / "S01E02.nfo").write_text("<episodedetails/>")
+
+        repaired = scraper._repair_tvshow_dir(show_dir)
+        assert repaired is True
+        assert (show_dir / "tvshow.nfo").exists()
+        assert not (show_dir / "S01E01.nfo").exists()
+        assert not (show_dir / "S01E02.nfo").exists()
+
+    def test_root_video_not_matching_season_kept(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """Root video NOT matching any organized episode is kept (not deleted)."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
+        )
+        s01 = show_dir / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
+        # Root video with different episode number — should be kept
+        orphan = show_dir / "Show.S01E05.mkv"
+        orphan.write_bytes(b"\x00" * 50)
+
+        scraper._repair_tvshow_dir(show_dir)
+        assert orphan.exists()
