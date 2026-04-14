@@ -116,7 +116,8 @@ class Pipeline:
                                 self._log.warning(
                                     "Crash recovery: cannot clean %s: %s", item, exc,
                                 )
-            except OSError:
+            except OSError as exc:
+                self._log.warning("Crash recovery: cannot scan disk %s: %s", disk_config.path, exc)
                 continue
 
         # 2. Clean expired qBit lockout
@@ -129,8 +130,8 @@ class Pipeline:
                     lockout_path.unlink(missing_ok=True)
                     self._log.info("Crash recovery: cleaned expired lockout (%ds old)", int(age))
                     cleaned += 1
-            except OSError:
-                pass
+            except OSError as exc:
+                self._log.warning("Crash recovery: cannot clean lockout %s: %s", lockout_path, exc)
 
         # 3. Clean .ingest_tmp_* in staging
         ingest_dir = self.settings.ingest_dir

@@ -720,11 +720,13 @@ class Dispatcher:
         Returns:
             True if any file has illegal characters.
         """
-        for f in directory.rglob("*"):
-            if f.is_file() and _FILENAME_ILLEGAL.search(f.name):
-                logger.warning("NTFS-illegal filename: %s", f)
-                return True
-        return False
+        illegal = [
+            f for f in directory.rglob("*")
+            if f.is_file() and _FILENAME_ILLEGAL.search(f.name)
+        ]
+        for f in illegal:
+            logger.warning("NTFS-illegal filename: %s", f)
+        return len(illegal) > 0
 
     @staticmethod
     def _dir_size_gb(directory: Path) -> float:

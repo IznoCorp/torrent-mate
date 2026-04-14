@@ -283,8 +283,8 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
                 subdir.rmdir()
                 logger.info("Removed empty release dir: %s", subdir.name)
                 removed += 1
-        except OSError:
-            pass
+        except OSError as exc:
+            logger.warning("Cannot remove dir %s: %s", subdir.name, exc)
     return removed
 
 
