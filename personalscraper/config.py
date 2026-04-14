@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     scraper_language: str = "fr-FR"
     scraper_fallback_language: str = "en-US"
     scraper_prefer_local_title: bool = True
+    artwork_language: str = "en"
 
     # Telegram (optional)
     telegram_bot_token: str = ""

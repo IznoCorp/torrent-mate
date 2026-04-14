@@ -359,7 +359,9 @@ class Scraper:
 
         # Initialize helpers
         self._nfo = NFOGenerator()
-        self._artwork = ArtworkDownloader(dry_run=dry_run)
+        self._artwork = ArtworkDownloader(
+            dry_run=dry_run, artwork_language=settings.artwork_language,
+        )
 
     def _resolve_title(
         self,

@@ -28,13 +28,21 @@ class TestSelectBestImage:
         images = [{"file_path": "/poster.jpg", "iso_639_1": "en", "vote_average": 5.0}]
         assert select_best_image(images) == "/poster.jpg"
 
-    def test_french_preferred_over_english(self) -> None:
-        """French image should be selected over English."""
+    def test_english_preferred_over_french_by_default(self) -> None:
+        """Default artwork_language=en prefers English over French."""
+        images = [
+            {"file_path": "/fr.jpg", "iso_639_1": "fr", "vote_average": 8.0},
+            {"file_path": "/en.jpg", "iso_639_1": "en", "vote_average": 5.0},
+        ]
+        assert select_best_image(images) == "/en.jpg"
+
+    def test_french_preferred_with_fr_priority(self) -> None:
+        """French priority map prefers French over English."""
         images = [
             {"file_path": "/en.jpg", "iso_639_1": "en", "vote_average": 8.0},
             {"file_path": "/fr.jpg", "iso_639_1": "fr", "vote_average": 5.0},
         ]
-        assert select_best_image(images) == "/fr.jpg"
+        assert select_best_image(images, {"fr": 0, "en": 1}) == "/fr.jpg"
 
     def test_english_preferred_over_null(self) -> None:
         """English image should be selected over null/textless."""

@@ -35,26 +35,43 @@ logger = logging.getLogger(__name__)
 IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
 IMAGE_SIZE = "original"
 
-# Language priority for image selection (lower = better)
-_LANG_PRIORITY: dict[str | None, int] = {"fr": 0, "en": 1}
-
+# Default language priority for image selection (lower = better)
+_DEFAULT_LANG_PRIORITY: dict[str | None, int] = {"en": 0, "fr": 1}
 
 
 _is_retryable = make_retryable_predicate()
 
 
-def select_best_image(images: list[dict]) -> str | None:
+def build_lang_priority(preferred: str = "en") -> dict[str | None, int]:
+    """Build a language priority map with the preferred language first.
+
+    Args:
+        preferred: ISO 639-1 code for the preferred artwork language.
+
+    Returns:
+        Dict mapping language codes to priority (0 = best).
+    """
+    if preferred == "en":
+        return {"en": 0, "fr": 1}
+    return {preferred: 0, "en": 1}
+
+
+def select_best_image(
+    images: list[dict],
+    lang_priority: dict[str | None, int] | None = None,
+) -> str | None:
     """Select the best image by language priority then vote average.
 
-    Priority order:
-    1. French (iso_639_1 == "fr")
-    2. English (iso_639_1 == "en")
+    Priority order (default, artwork_language="en"):
+    1. English (iso_639_1 == "en")
+    2. French (iso_639_1 == "fr")
     3. Neutral/no language (iso_639_1 is None) — textless images
     4. Within same priority level, highest vote_average wins
 
     Args:
         images: List of image dicts from TMDB API (with iso_639_1,
             vote_average, file_path keys).
+        lang_priority: Language priority map. If None, uses default.
 
     Returns:
         Relative image path (file_path), or None if no images.
@@ -62,9 +79,11 @@ def select_best_image(images: list[dict]) -> str | None:
     if not images:
         return None
 
+    priority_map = lang_priority or _DEFAULT_LANG_PRIORITY
+
     def sort_key(img: dict) -> tuple:
         lang: str | None = img.get("iso_639_1")
-        priority = _LANG_PRIORITY.get(lang, 2)
+        priority = priority_map.get(lang, 2)
         vote = img.get("vote_average", 0.0)
         return (priority, -vote)
 
@@ -83,13 +102,15 @@ class ArtworkDownloader:
         dry_run: If True, log planned downloads without writing files.
     """
 
-    def __init__(self, dry_run: bool = False):
+    def __init__(self, dry_run: bool = False, artwork_language: str = "en"):
         """Initialize the artwork downloader.
 
         Args:
             dry_run: If True, only log what would be downloaded.
+            artwork_language: Preferred language for artwork selection (ISO 639-1).
         """
         self.dry_run = dry_run
+        self._lang_priority = build_lang_priority(artwork_language)
         self._session = requests.Session()
 
     @retry(
@@ -158,7 +179,7 @@ class ArtworkDownloader:
         title = movie_data.get("title", "")
 
         # Poster
-        poster_path = select_best_image(images.get("posters", []))
+        poster_path = select_best_image(images.get("posters", []), self._lang_priority)
         if poster_path:
             poster_name = patterns.format("movie_poster", Title=title)
             dest = movie_dir / poster_name
@@ -170,7 +191,7 @@ class ArtworkDownloader:
                 logger.warning("Failed to download movie poster: %s", poster_name)
 
         # Landscape (from backdrops)
-        landscape_path = select_best_image(images.get("backdrops", []))
+        landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
         if landscape_path:
             landscape_name = patterns.format("movie_landscape", Title=title)
             dest = movie_dir / landscape_name
@@ -205,7 +226,7 @@ class ArtworkDownloader:
         images = show_data.get("images", {})
 
         # Show poster (fixed name: poster.jpg)
-        poster_path = select_best_image(images.get("posters", []))
+        poster_path = select_best_image(images.get("posters", []), self._lang_priority)
         if poster_path:
             dest = show_dir / patterns.tvshow_poster
             url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
@@ -216,7 +237,7 @@ class ArtworkDownloader:
                 logger.warning("Failed to download show poster")
 
         # Show landscape (fixed name: landscape.jpg)
-        landscape_path = select_best_image(images.get("backdrops", []))
+        landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
         if landscape_path:
             dest = show_dir / patterns.tvshow_landscape
             url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{landscape_path}"
