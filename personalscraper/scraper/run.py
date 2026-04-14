@@ -116,18 +116,14 @@ def _needs_repair(category_dir: Path) -> bool:
                 ):
                     return True
 
-                # Non-season subdir with video files → raw torrent dir
+                # Any non-season, non-hidden subdir is a residual torrent dir
+                # (may contain videos, NFO residuals, or be empty)
                 if (
                     item.is_dir()
                     and not item.name.startswith(".")
                     and not _SEASON_DIR_RE.match(item.name)
                 ):
-                    for sub in item.rglob("*"):
-                        if (
-                            sub.is_file()
-                            and sub.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-                        ):
-                            return True
+                    return True
 
             # Residual episode NFOs at root (tvshow.nfo is expected)
             root_nfos = [

@@ -719,6 +719,18 @@ class Scraper:
                     show_dir.name,
                 )
 
+        # Always clean residual torrent dirs (even if no unorganized episodes)
+        if not self.dry_run:
+            try:
+                cleaned = _cleanup_empty_release_dirs(show_dir)
+                if cleaned > 0:
+                    repaired = True
+            except OSError as exc:
+                logger.warning(
+                    "Repair: failed to clean release dirs in %s: %s",
+                    show_dir.name, exc,
+                )
+
         return repaired
 
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
