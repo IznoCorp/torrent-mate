@@ -160,6 +160,7 @@ class TestPreCheck:
         mock_client.auth_log_in.assert_called_once()
 
 
+@pytest.mark.e2e_torrent
 def test_live_api():
     """Connect to the real qBittorrent API and list torrents.
 
@@ -169,8 +170,16 @@ def test_live_api():
     - State detection (seeding vs stopped) works
     - Content paths resolve to real filesystem paths
     """
+    from personalscraper.config import Settings
+
     try:
-        client = QBitClient(host="localhost", port=8081, username="izno", password="")
+        settings = Settings()
+        client = QBitClient(
+            host=settings.qbit_host,
+            port=settings.qbit_port,
+            username=settings.qbit_username,
+            password=settings.qbit_password,
+        )
         with client:
             torrents = client.get_completed_torrents()
             all_hashes = client.get_all_torrent_hashes()
