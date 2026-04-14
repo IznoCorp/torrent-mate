@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V10 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience).
+V0-V10, V13 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience, pipeline correctness).
 
 ## Commit Convention
 
@@ -67,6 +67,7 @@ personalscraper scrape              # Scrape metadata from TMDB/TVDB (V3)
 personalscraper verify              # Quality check before dispatch (V4)
 personalscraper dispatch            # Move to storage disks (V5)
 personalscraper process             # Reclean + dedup + scrape + cleanup (V9)
+personalscraper enforce              # Enforce staging conventions (V13)
 personalscraper run                 # Full pipeline (V6+V9)
 personalscraper run --dry-run       # Preview full pipeline
 
@@ -98,15 +99,16 @@ df -h /Volumes/Disk{1,2,3,4}
 
 ### Automated pipeline (`personalscraper run`)
 
-The full automated pipeline (V9+V10) executes 7 steps sequentially with idempotence (safe to re-run):
+The full automated pipeline (V9+V10+V13) executes 8 steps sequentially with idempotence (safe to re-run):
 
 ```
-INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE → CLEANUP → VERIFY → DISPATCH
+INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE → CLEANUP → ENFORCE → VERIFY → DISPATCH
 ```
 
 - Steps 1-2 (ingest, sort) are critical — a crash aborts the pipeline
 - Steps 3-5 (clean, scrape, cleanup) run with individual error isolation
-- Step 6 (verify) produces a dispatchable list; step 7 (dispatch) is skipped if verify fails
+- Step 6 (enforce) sanitizes filenames, validates structure, checks cross-step coherence
+- Step 7 (verify) produces a dispatchable list; step 8 (dispatch) is skipped if verify fails
 
 ### torrent-sort command
 
@@ -147,7 +149,7 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 
 ## Pipeline Automation
 
-All versions (V0–V10) are implemented. Documentation and plans live in `docs/`:
+All versions (V0–V10, V13) are implemented. Documentation and plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
 - `docs/v0-project-setup/` through `docs/v10-pipeline-resilience/` — Per-version brainstorming, design, and phased plans
@@ -155,20 +157,21 @@ All versions (V0–V10) are implemented. Documentation and plans live in `docs/`
 
 ### Pipeline Versions
 
-| Version | Name                | Role                                                              | Phases |
-| ------- | ------------------- | ----------------------------------------------------------------- | ------ |
-| V0      | PROJECT SETUP       | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
-| V1      | INGEST              | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
-| V2      | SORT+CLEAN          | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
-| V3      | SCRAPE              | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
-| V4      | VERIFY              | Quality gate: checker + fixer + genre categorization              | 4      |
-| V5      | DISPATCH            | Move to Disk1-4 (replace movies, merge series)                    | 3      |
-| V6      | LOG+NOTIFY          | JSON logging, Telegram notifications, launchd scheduling          | 3      |
-| V7      | E2E TESTS           | Real torrent tests with safe cleanup markers                      | 5      |
-| V7.x    | TEST AUDIT          | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
-| V8      | ROBUSTNESS          | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
-| V9      | PIPELINE INTEGRITY  | Sequential 7-step pipeline, reclean+dedup, verify reinforced      | 5      |
-| V10     | PIPELINE RESILIENCE | Idempotence, fast-skip, NFO validation, crash recovery, tests     | 5      |
+| Version | Name                 | Role                                                              | Phases |
+| ------- | -------------------- | ----------------------------------------------------------------- | ------ |
+| V0      | PROJECT SETUP        | pyproject.toml, CLI Typer, pydantic-settings, logger              | 4      |
+| V1      | INGEST               | qBittorrent → A TRIER/ (copy if seeding, move if done)            | 5      |
+| V2      | SORT+CLEAN           | guessit parsing + FileMate strategies → 001-MOVIES/, 002-TVSHOWS/ | 4      |
+| V3      | SCRAPE               | TMDB/TVDB matching, NFO XML, artwork, episode rename              | 13     |
+| V4      | VERIFY               | Quality gate: checker + fixer + genre categorization              | 4      |
+| V5      | DISPATCH             | Move to Disk1-4 (replace movies, merge series)                    | 3      |
+| V6      | LOG+NOTIFY           | JSON logging, Telegram notifications, launchd scheduling          | 3      |
+| V7      | E2E TESTS            | Real torrent tests with safe cleanup markers                      | 5      |
+| V7.x    | TEST AUDIT           | Golden files E2E, test reinforcement, coverage 79%→82%+           | 4      |
+| V8      | ROBUSTNESS           | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
+| V9      | PIPELINE INTEGRITY   | Sequential 7-step pipeline, reclean+dedup, verify reinforced      | 5      |
+| V10     | PIPELINE RESILIENCE  | Idempotence, fast-skip, NFO validation, crash recovery, tests     | 5      |
+| V13     | PIPELINE CORRECTNESS | Idempotent fast-skip, ENFORCE step, E2E idempotence tests         | 5      |
 
 ### Reference Documentation
 
@@ -212,9 +215,10 @@ A TRIER/
 │   ├── sorter/          # V2: guessit + strategies → category folders
 │   ├── scraper/         # V3: TMDB/TVDB matching, NFO, artwork, episodes + V8 circuit breaker
 │   ├── process/         # V9: reclean, dedup, cleanup (between sort and scrape)
+│   ├── enforce/         # V13: file sanitizer, structure validator, coherence checker
 │   ├── verify/          # V4+V9: quality gate, fixer, genre categorization, reinforced checks
 │   ├── dispatch/        # V5: disk scanner, media index, rsync transfer + V8 rollback/fallback
-│   ├── pipeline.py      # V9: Sequential 7-step pipeline orchestrator
+│   ├── pipeline.py      # V9+V13: Sequential 8-step pipeline orchestrator
 │   ├── cli.py           # Typer CLI entry point
 │   ├── config.py        # pydantic-settings
 │   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
@@ -360,4 +364,4 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 - Scrape fast-skip: `_all_nfos_valid()` checks all movie/show dirs before starting — if all have valid NFOs, the entire scrape step is skipped
 - Artwork recovery: if NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO and re-downloads artwork without re-scraping
 - Clean fast-skip: `_has_polluted_folders()` scans category dirs — if no polluted names found, skip reclean+dedup entirely
-- All 7 pipeline steps are idempotent: re-running the pipeline produces no changes if everything is already processed
+- All 8 pipeline steps are idempotent: re-running the pipeline produces no changes if everything is already processed
