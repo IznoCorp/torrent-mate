@@ -82,7 +82,15 @@ class GenreMapper:
     _ANIMATION_NAMES = {"animation"}
     _DOCUMENTARY_NAMES = {"documentary", "documentaire"}
     _ANIME_NAMES = {"anime"}
-    _REALITY_NAMES = {"reality", "realite", "talk show", "talk", "news"}
+    # French TMDB fr-FR variants: "Émission" → "emission", "Divertissement",
+    # "Jeu télévisé" → "jeu televise". English variants kept for TVDB/fallback.
+    _REALITY_NAMES = {
+        "reality", "realite",
+        "talk show", "talk", "news",
+        "emission",        # TMDB fr-FR: "Émission"
+        "divertissement",  # TMDB fr-FR: entertainment/variety
+        "jeu televise",    # TMDB fr-FR: game show ("Jeu télévisé")
+    }
 
     def categorize_movie(
         self,

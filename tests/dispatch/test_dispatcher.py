@@ -645,6 +645,48 @@ class TestRsync:
         cmd = mock_run.call_args[0][0]
         assert "--delete" in cmd
 
+    @patch("shutil.which", return_value="/usr/bin/rsync")
+    def test_rsync_excludes_ds_store(
+        self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Rsync command should exclude .DS_Store and ._* files (Bug #1)."""
+        idx = MediaIndex(tmp_path / "index.json")
+        d = Dispatcher(mock_settings, idx)
+
+        src = tmp_path / "src"
+        dst = tmp_path / "dst"
+        src.mkdir()
+
+        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            d._rsync(src, dst)
+
+        cmd = mock_run.call_args[0][0]
+        assert "--exclude=.DS_Store" in cmd
+        assert "--exclude=._*" in cmd
+
+    @patch("shutil.which", return_value="/usr/bin/rsync")
+    def test_rsync_merge_excludes_ds_store(
+        self, mock_which: MagicMock, mock_settings: MagicMock, tmp_path: Path,
+    ) -> None:
+        """Rsync merge command should also exclude .DS_Store and ._* files (Bug #1)."""
+        idx = MediaIndex(tmp_path / "index.json")
+        d = Dispatcher(mock_settings, idx)
+
+        src = tmp_path / "src"
+        dst = tmp_path / "dst"
+        src.mkdir()
+        dst.mkdir()
+        backup = dst / ".merge_backup"
+
+        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            d._rsync_merge(src, dst, backup)
+
+        cmd = mock_run.call_args[0][0]
+        assert "--exclude=.DS_Store" in cmd
+        assert "--exclude=._*" in cmd
+
 
 # ---------------------------------------------------------------------------
 # Dispatch with existing items (replace/merge paths)
