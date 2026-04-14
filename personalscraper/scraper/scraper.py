@@ -265,11 +265,12 @@ def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> i
 
 
 def _cleanup_empty_release_dirs(show_dir: Path) -> int:
-    """Remove empty release-group subdirectories from a TV show folder.
+    """Remove release-group subdirectories with no video files.
 
     After episodes are moved to Saison XX/ directories, the original
     release-group subdirectories (e.g., Show.S01E01.1080p.WEB-GROUP/)
-    may be left empty. This function removes them.
+    may be left empty or contain only residual NFOs. This function
+    removes them if they have no video files (recursively).
 
     Skips hidden directories (.actors/) and season directories (Saison XX/).
 
@@ -277,8 +278,10 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
         show_dir: Path to the TV show directory.
 
     Returns:
-        Number of empty directories removed.
+        Number of directories removed.
     """
+    import shutil
+
     removed = 0
     for subdir in list(show_dir.iterdir()):
         if not subdir.is_dir():
@@ -287,11 +290,17 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
             continue
         if re.match(r"^Saison \d+$", subdir.name):
             continue
+        # Check if subdir has any video files (recursively)
+        has_video = any(
+            f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+            for f in subdir.rglob("*")
+        )
+        if has_video:
+            continue
         try:
-            if not any(subdir.iterdir()):
-                subdir.rmdir()
-                logger.info("Removed empty release dir: %s", subdir.name)
-                removed += 1
+            shutil.rmtree(subdir)
+            logger.info("Removed release dir (no videos): %s", subdir.name)
+            removed += 1
         except OSError as exc:
             logger.warning("Cannot remove dir %s: %s", subdir.name, exc)
     return removed

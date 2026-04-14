@@ -249,16 +249,20 @@ class TestDownloadTvshowArtwork:
     def test_downloads_poster_landscape_and_season_posters(
         self, tmp_path: Path,
     ) -> None:
-        """Should download show poster + landscape + season posters."""
+        """Should download show poster + landscape + season posters for present seasons."""
         downloader = ArtworkDownloader()
         patterns = NamingPatterns()
+
+        # Create season dirs — season posters only downloaded for present seasons
+        (tmp_path / "Saison 01").mkdir()
+        (tmp_path / "Saison 02").mkdir()
 
         with patch.object(downloader, "download_image", return_value=True) as mock_dl:
             result = downloader.download_tvshow_artwork(
                 SAMPLE_TVSHOW_DATA, tmp_path, patterns,
             )
 
-        # poster + landscape + 2 season posters (season 0 skipped)
+        # poster + landscape + 2 season posters (season 0 skipped, S01+S02 present)
         assert len(result) == 4
         assert mock_dl.call_count == 4
 
@@ -289,6 +293,10 @@ class TestDownloadTvshowArtwork:
         downloader = ArtworkDownloader()
         patterns = NamingPatterns()
 
+        # Create season dirs so posters are downloaded
+        (tmp_path / "Saison 01").mkdir()
+        (tmp_path / "Saison 02").mkdir()
+
         with patch.object(downloader, "download_image", return_value=True) as mock_dl:
             downloader.download_tvshow_artwork(SAMPLE_TVSHOW_DATA, tmp_path, patterns)
 
@@ -300,6 +308,10 @@ class TestDownloadTvshowArtwork:
         """Season 0 (specials) should not get a poster."""
         downloader = ArtworkDownloader()
         patterns = NamingPatterns()
+
+        # Create non-special season dirs
+        (tmp_path / "Saison 01").mkdir()
+        (tmp_path / "Saison 02").mkdir()
 
         with patch.object(downloader, "download_image", return_value=True) as mock_dl:
             downloader.download_tvshow_artwork(SAMPLE_TVSHOW_DATA, tmp_path, patterns)
