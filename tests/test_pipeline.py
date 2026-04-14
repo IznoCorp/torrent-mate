@@ -79,13 +79,14 @@ class TestPipelineRun:
     def test_runs_all_phases_in_order(
         self, mock_ingest, mock_sort, pipeline_settings, quiet_console,
     ):
-        """Pipeline executes ingest→sort→gate→process→verify→dispatch."""
+        """Pipeline executes ingest→sort→gate→process→enforce→verify→dispatch."""
         mock_ingest.return_value = StepReport(name="ingest", success_count=2)
         mock_sort.return_value = StepReport(name="sort", success_count=2)
 
         with (
             patch("personalscraper.sorter.run.assert_temp_empty", return_value=[]),
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
+            patch("personalscraper.enforce.run.run_enforce", return_value=StepReport(name="enforce")),
             patch("personalscraper.verify.run.run_verify") as mock_verify,
             patch("personalscraper.dispatch.run.run_dispatch") as mock_dispatch,
         ):
@@ -98,9 +99,9 @@ class TestPipelineRun:
             pipeline = Pipeline(pipeline_settings, console=quiet_console)
             report = pipeline.run()
 
-        assert len(report.steps) == 7
+        assert len(report.steps) == 8
         assert list(report.steps.keys()) == [
-            "ingest", "sort", "clean", "scrape", "cleanup", "verify", "dispatch",
+            "ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch",
         ]
 
     @patch("personalscraper.sorter.run.run_sort")

@@ -214,6 +214,32 @@ def verify(
 
 @app.command()
 @handle_cli_errors
+def enforce(
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
+) -> None:
+    """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
+    from personalscraper.enforce.run import run_enforce
+
+    console = state["console"]
+    if not acquire_lock():
+        console.print("[red]Another instance is running. Exiting.[/red]")
+        raise typer.Exit(1)
+    try:
+        settings = get_settings()
+        report = run_enforce(settings, dry_run=dry_run)
+        console.print(
+            f"Enforce: {report.success_count} fixed, "
+            f"{report.skip_count} OK, {report.error_count} errors"
+        )
+        if state["verbose"]:
+            for detail in report.details:
+                console.print(f"  {detail}")
+    finally:
+        release_lock()
+
+
+@app.command()
+@handle_cli_errors
 def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
@@ -314,7 +340,7 @@ def run(
         )
         log.info("Pipeline started (dry_run=%s, run_id=%s)", dry_run, run_id)
 
-        # Delegate to Pipeline orchestrator (7-step sequential flow)
+        # Delegate to Pipeline orchestrator (8-step sequential flow)
         pipeline = Pipeline(
             settings,
             dry_run=dry_run,
@@ -330,7 +356,7 @@ def run(
         dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
         log.info("Pipeline finished (duration=%s)", dur_str)
 
-        # Final summary table (7 steps)
+        # Final summary table (8 steps)
         table = Table(show_header=True, header_style="bold")
         table.add_column("Step")
         table.add_column("OK", justify="right")

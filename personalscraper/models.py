@@ -45,7 +45,7 @@ class StepReport:
     into a StepReport before returning.
 
     Attributes:
-        name: Step identifier ("ingest", "sort", "clean", "scrape", "cleanup", "verify", "dispatch").
+        name: Step identifier ("ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch").
         success_count: Number of successfully processed items.
         skip_count: Number of skipped items.
         error_count: Number of failed items.
@@ -115,13 +115,14 @@ class PipelineReport:
         Returns:
             HTML string suitable for Telegram's parse_mode="HTML".
         """
-        # Step name → emoji mapping for visual identification (7 steps)
+        # Step name → emoji mapping for visual identification (8 steps)
         step_icons = {
             "ingest": "\U0001f4e5",    # 📥
             "sort": "\U0001f4c2",      # 📂
             "clean": "\U0001f9f9",     # 🧹
             "scrape": "\U0001f50d",    # 🔍
             "cleanup": "\U0001f5d1",   # 🗑
+            "enforce": "\U0001f527",   # 🔧
             "verify": "\u2705",        # ✅
             "dispatch": "\U0001f4be",  # 💾
         }
