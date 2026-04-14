@@ -34,7 +34,6 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
         structlog.stdlib.ExtraAdder(),
         structlog.processors.TimeStamper(fmt="iso", utc=False),
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
     ]
 
     logging.config.dictConfig({
@@ -45,6 +44,7 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
                 "()": structlog.stdlib.ProcessorFormatter,
                 "processors": [
                     structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                    structlog.processors.format_exc_info,
                     structlog.processors.JSONRenderer(),
                 ],
                 "foreign_pre_chain": shared_processors,
