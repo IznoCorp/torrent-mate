@@ -8,18 +8,15 @@ Lock is acquired at the CLI level, not here.
 """
 
 import logging
-import re
 from pathlib import Path
 
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
-from personalscraper.naming_patterns import PATTERNS
+from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, _is_nfo_complete
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
-
-_SEASON_DIR_RE = re.compile(r"^Saison \d+$")
 
 
 def _has_unscraped_items(settings: Settings) -> bool:
@@ -103,7 +100,7 @@ def _needs_repair(category_dir: Path) -> bool:
         else:
             # TV show checks
             has_season_dirs = any(
-                d.is_dir() and _SEASON_DIR_RE.match(d.name)
+                d.is_dir() and SEASON_DIR_RE.match(d.name)
                 for d in folder.iterdir()
             )
 
@@ -121,7 +118,7 @@ def _needs_repair(category_dir: Path) -> bool:
                 if (
                     item.is_dir()
                     and not item.name.startswith(".")
-                    and not _SEASON_DIR_RE.match(item.name)
+                    and not SEASON_DIR_RE.match(item.name)
                 ):
                     return True
 

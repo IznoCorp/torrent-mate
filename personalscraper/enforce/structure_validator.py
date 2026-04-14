@@ -10,11 +10,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from personalscraper.config import Settings
+from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.text_utils import sanitize_filename
 
 logger = logging.getLogger(__name__)
-
-_SEASON_DIR_RE = re.compile(r"^Saison \d+$")
 _ARTWORK_SUFFIXES = (
     "-poster",
     "-fanart",
@@ -175,7 +174,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
         if (
             not subdir.is_dir()
             or subdir.name.startswith(".")
-            or _SEASON_DIR_RE.match(subdir.name)
+            or SEASON_DIR_RE.match(subdir.name)
         ):
             continue
 
@@ -199,7 +198,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
     # Remove season posters for non-present seasons
     present_seasons = {
         d.name for d in show_dir.iterdir()
-        if d.is_dir() and _SEASON_DIR_RE.match(d.name)
+        if d.is_dir() and SEASON_DIR_RE.match(d.name)
     }
     for f in list(show_dir.iterdir()):
         if not f.is_file() or not f.name.startswith("season"):

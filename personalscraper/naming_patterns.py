@@ -128,3 +128,25 @@ class NamingPatterns:
 
 # Singleton — patterns are constants, no need for multiple instances
 PATTERNS = NamingPatterns()
+
+
+def _build_season_dir_regex(pattern: str) -> "re.Pattern[str]":
+    """Build a regex that matches season directories from the pattern.
+
+    Converts ``"Saison {Season:02d}"`` to ``re.compile(r"^Saison \\d+$")``.
+
+    Args:
+        pattern: A season directory format string containing ``{Season:02d}``
+            or ``{Season}`` as placeholder.
+
+    Returns:
+        Compiled regex matching any season directory produced by *pattern*.
+    """
+    import re
+
+    # Replace Python format placeholders with \d+ regex
+    regex_str = re.sub(r"\{Season(?::02d)?\}", r"\\d+", pattern)
+    return re.compile(f"^{regex_str}$")
+
+
+SEASON_DIR_RE = _build_season_dir_regex(PATTERNS.season_dir)
