@@ -196,6 +196,29 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
     if not (show_dir / "tvshow.nfo").exists():
         result.warnings.append("Missing tvshow.nfo")
 
+    # Remove season posters for non-present seasons
+    present_seasons = {
+        d.name for d in show_dir.iterdir()
+        if d.is_dir() and _SEASON_DIR_RE.match(d.name)
+    }
+    for f in list(show_dir.iterdir()):
+        if not f.is_file() or not f.name.startswith("season"):
+            continue
+        # Extract season number from "seasonNN-poster.jpg"
+        match = re.match(r"^season(\d+)-", f.name)
+        if not match:
+            continue
+        season_num = int(match.group(1))
+        season_dir_name = f"Saison {season_num:02d}"
+        if season_dir_name not in present_seasons:
+            if not dry_run:
+                try:
+                    f.unlink()
+                except OSError as exc:
+                    logger.warning("Cannot remove orphan season poster %s: %s", f.name, exc)
+                    continue
+            result.fixes.append(f"Removed orphan season poster: {f.name}")
+
     if result.fixes:
         result.action = "repaired"
     return result

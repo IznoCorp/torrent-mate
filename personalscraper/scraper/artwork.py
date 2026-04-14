@@ -226,11 +226,15 @@ class ArtworkDownloader:
             except requests.exceptions.RequestException:
                 logger.warning("Failed to download show landscape")
 
-        # Season posters (from seasons[] in get_tv() response)
+        # Season posters (only for seasons that exist on disk)
         for season in show_data.get("seasons", []):
             season_num = season.get("season_number", 0)
             # Skip specials (season 0)
             if season_num == 0:
+                continue
+            # Only download poster if Saison XX/ directory exists
+            season_dir_name = patterns.format("season_dir", Season=season_num)
+            if not (show_dir / season_dir_name).is_dir():
                 continue
             season_poster = season.get("poster_path", "")
             if season_poster:
