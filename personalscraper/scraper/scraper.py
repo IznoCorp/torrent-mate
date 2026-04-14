@@ -616,12 +616,15 @@ class Scraper:
                     title = resolved_title
                     nfo_name = self.patterns.format("movie_nfo", Title=title)
                     nfo_path = movie_dir / nfo_name
-                    # Remove stale artwork/NFO that used the old unsanitized title
-                    _cleanup_stale_files(movie_dir, old_title, resolved_title)
                 except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
                     logger.error("Failed to rename %s → %s: %s", movie_dir.name, clean_name, exc)
                     return result
+                # Non-critical: clean stale artwork/NFO from before rename
+                try:
+                    _cleanup_stale_files(movie_dir, old_title, resolved_title)
+                except OSError as exc:
+                    logger.warning("Stale file cleanup failed for %s: %s", movie_dir.name, exc)
             else:
                 action = "merge into" if new_path.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, movie_dir.name, clean_name)
@@ -858,16 +861,17 @@ class Scraper:
                         logger.info("Renamed folder: %s → %s", title, canonical)
                     show_dir = new_dir
                     result.media_path = new_dir
-                    # Remove stale files that used the old folder name as prefix.
-                    # TV show artwork uses fixed names (poster.jpg, tvshow.nfo),
-                    # so this is a no-op for standard shows. Kept as safety net
-                    # for edge cases where title-prefixed files may exist (e.g.,
-                    # from manual imports or prior scrape with different naming).
-                    _cleanup_stale_files(show_dir, old_dir_name, canonical)
                 except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
                     logger.error("Failed to rename %s → %s: %s", title, canonical, exc)
                     return result
+                # Non-critical: clean stale files from before rename.
+                # TV show artwork uses fixed names (poster.jpg, tvshow.nfo),
+                # so this is a no-op for standard shows. Kept as safety net.
+                try:
+                    _cleanup_stale_files(show_dir, old_dir_name, canonical)
+                except OSError as exc:
+                    logger.warning("Stale file cleanup failed for %s: %s", show_dir.name, exc)
             else:
                 action = "merge into" if new_dir.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, title, canonical)
@@ -929,7 +933,10 @@ class Scraper:
 
             # Clean empty release-group subdirectories left after episode moves
             if not self.dry_run:
-                _cleanup_empty_release_dirs(show_dir)
+                try:
+                    _cleanup_empty_release_dirs(show_dir)
+                except OSError as exc:
+                    logger.warning("Failed to clean empty release dirs in %s: %s", show_dir.name, exc)
 
         result.episodes_renamed = total_renamed
         result.action = "scraped"
