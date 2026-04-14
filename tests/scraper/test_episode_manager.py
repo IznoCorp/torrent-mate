@@ -123,8 +123,8 @@ class TestMatchEpisodeFiles:
         video2.touch()
 
         api_episodes = {
-            (1, 1): "La Fin",
-            (1, 2): "La Cible",
+            (1, 1): {"title": "La Fin", "still_path": ""},
+            (1, 2): {"title": "La Cible", "still_path": ""},
         }
 
         result = match_episode_files([video1, video2], api_episodes)
@@ -139,7 +139,7 @@ class TestMatchEpisodeFiles:
         video = tmp_path / "Show.S01E99.mkv"
         video.touch()
 
-        api_episodes = {(1, 1): "La Fin"}
+        api_episodes = {(1, 1): {"title": "La Fin", "still_path": ""}}
         result = match_episode_files([video], api_episodes)
 
         assert len(result) == 0
@@ -149,7 +149,7 @@ class TestMatchEpisodeFiles:
         video = tmp_path / "Movie.2024.mkv"
         video.touch()
 
-        api_episodes = {(1, 1): "La Fin"}
+        api_episodes = {(1, 1): {"title": "La Fin", "still_path": ""}}
         result = match_episode_files([video], api_episodes)
 
         assert len(result) == 0
@@ -262,10 +262,10 @@ class TestEpisodeRenameE2E:
 
         # API episode data
         api_episodes = {
-            (1, 1): "La Fin",
-            (1, 2): "La Cible",
-            (1, 3): "La Tête",
-            (1, 4): "Les Goules",
+            (1, 1): {"title": "La Fin", "still_path": ""},
+            (1, 2): {"title": "La Cible", "still_path": ""},
+            (1, 3): {"title": "La Tête", "still_path": ""},
+            (1, 4): {"title": "Les Goules", "still_path": ""},
         }
 
         # Step 1: Create season directories
@@ -315,7 +315,7 @@ class TestEpisodeRenameE2E:
         episodes = [{"season_number": 1, "episode_number": 1}]
         create_season_dirs(show_dir, episodes, patterns, dry_run=True)
 
-        api_episodes = {(1, 1): "Pilot"}
+        api_episodes = {(1, 1): {"title": "Pilot", "still_path": ""}}
         video_files = [video]
         matched = match_episode_files(video_files, api_episodes)
 
@@ -336,7 +336,7 @@ class TestEpisodeRenameE2E:
         video_missing = show_dir / "Show.S01E99.mkv"
         video_missing.write_text("ep99")
 
-        api_episodes = {(1, 1): "Pilot"}  # No S01E99
+        api_episodes = {(1, 1): {"title": "Pilot", "still_path": ""}}  # No S01E99
         matched = match_episode_files([video_found, video_missing], api_episodes)
 
         assert len(matched) == 1  # Only S01E01 matched

@@ -98,7 +98,7 @@ def create_season_dirs(
 
 def match_episode_files(
     video_files: list[Path],
-    api_episodes: dict[tuple[int, int], str],
+    api_episodes: dict[tuple[int, int], dict],
 ) -> dict[Path, dict]:
     """Match video files to API episode data by season/episode numbers.
 
@@ -107,12 +107,13 @@ def match_episode_files(
 
     Args:
         video_files: List of video file paths.
-        api_episodes: Mapping from (season, episode) to episode title
-            from the API.
+        api_episodes: Mapping from (season, episode) to episode info dict
+            with keys "title" and "still_path".
 
     Returns:
         Dict mapping video path to match info:
-        {path: {"season": int, "episode": int, "api_title": str}}.
+        {path: {"season": int, "episode": int, "api_title": str,
+                "still_path": str}}.
         Files with no S/E match or no API match are excluded.
     """
     matched: dict[Path, dict] = {}
@@ -127,10 +128,12 @@ def match_episode_files(
 
         key = (season, episode)
         if key in api_episodes:
+            ep_info = api_episodes[key]
             matched[video_path] = {
                 "season": season,
                 "episode": episode,
-                "api_title": api_episodes[key],
+                "api_title": ep_info["title"],
+                "still_path": ep_info.get("still_path", ""),
             }
         else:
             logger.warning(
