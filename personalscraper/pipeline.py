@@ -1,8 +1,8 @@
 """Sequential exhaustive pipeline orchestrator (V9).
 
-Executes 5 phases producing 7 StepReports:
+Executes 6 phases producing 8 StepReports:
 INGEST → SORT → (gate: 097-TEMP empty) → PROCESS (clean, scrape, cleanup)
-→ VERIFY → DISPATCH.
+→ ENFORCE → VERIFY → DISPATCH.
 
 Each phase must complete fully before the next one starts. The dispatch
 phase only runs if verified items exist. Phase 3 (PROCESS) runs 3
@@ -37,7 +37,7 @@ class _CriticalStepError(Exception):
 class Pipeline:
     """Sequential exhaustive pipeline orchestrator.
 
-    Executes 5 phases producing 7 StepReports. Each phase must
+    Executes 6 phases producing 8 StepReports. Each phase must
     complete fully before the next one starts. The dispatch phase
     only runs if verified items exist.
 
@@ -149,12 +149,13 @@ class Pipeline:
         Phase 2: SORT — 097-TEMP/ → 001-MOVIES/, 002-TVSHOWS/
         Gate: assert 097-TEMP empty
         Phase 3: PROCESS — re-clean + dedup + scrape + cleanup
-        Phase 4: VERIFY — coherence check
-        Phase 5: DISPATCH — only if verified items exist
+        Phase 4: ENFORCE — validate and correct conventions
+        Phase 5: VERIFY — coherence check
+        Phase 6: DISPATCH — only if verified items exist
 
         Returns:
-            PipelineReport with 7 StepReports (ingest, sort, clean,
-            scrape, cleanup, verify, dispatch).
+            PipelineReport with 8 StepReports (ingest, sort, clean,
+            scrape, cleanup, enforce, verify, dispatch).
         """
         from datetime import datetime
 
@@ -207,14 +208,23 @@ class Pipeline:
         # Returns 3 StepReports added individually
         self._run_process_phase(report)
 
-        # Phase 4: VERIFY
+        # Phase 4: ENFORCE (validate and correct conventions)
+        from personalscraper.enforce.run import run_enforce
+
+        self._run_step(
+            "enforce",
+            lambda: run_enforce(self.settings, dry_run=self.dry_run),
+            report,
+        )
+
+        # Phase 5: VERIFY
         verified = self._run_step(
             "verify",
             lambda: self._run_verify(),
             report,
         )
 
-        # Phase 5: DISPATCH (only if verified items exist)
+        # Phase 6: DISPATCH (only if verified items exist)
         if verified:
             from personalscraper.dispatch.run import run_dispatch
 
@@ -250,7 +260,7 @@ class Pipeline:
         """
         from personalscraper.verify.run import run_verify
 
-        return run_verify(self.settings, dry_run=self.dry_run)
+        return run_verify(self.settings, dry_run=self.dry_run, fix=False)
 
     def _run_process_phase(self, report: PipelineReport) -> None:
         """Execute Phase 3: PROCESS as 3 independent steps.
@@ -323,13 +333,14 @@ class Pipeline:
             Formatted step number string (e.g. "[cyan]1/7[/cyan]").
         """
         icons = {
-            "ingest": "[cyan]1/7[/cyan]",
-            "sort": "[cyan]2/7[/cyan]",
-            "clean": "[cyan]3/7[/cyan]",
-            "scrape": "[cyan]4/7[/cyan]",
-            "cleanup": "[cyan]5/7[/cyan]",
-            "verify": "[cyan]6/7[/cyan]",
-            "dispatch": "[cyan]7/7[/cyan]",
+            "ingest": "[cyan]1/8[/cyan]",
+            "sort": "[cyan]2/8[/cyan]",
+            "clean": "[cyan]3/8[/cyan]",
+            "scrape": "[cyan]4/8[/cyan]",
+            "cleanup": "[cyan]5/8[/cyan]",
+            "enforce": "[cyan]6/8[/cyan]",
+            "verify": "[cyan]7/8[/cyan]",
+            "dispatch": "[cyan]8/8[/cyan]",
         }
         return icons.get(name, "")
 

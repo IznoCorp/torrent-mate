@@ -1,4 +1,4 @@
-"""Integration tests for the 7-step pipeline — V9 sequential exhaustive flow.
+"""Integration tests for the 8-step pipeline — V9+V13 sequential exhaustive flow.
 
 These tests verify end-to-end behavior of the Pipeline class with
 mocked API calls but real filesystem operations (reclean, dedup, cleanup).
@@ -35,22 +35,24 @@ def quiet_console():
 
 
 class TestPipelineIntegration:
-    """Integration tests for the complete 7-step pipeline."""
+    """Integration tests for the complete 8-step pipeline."""
 
     @patch("personalscraper.dispatch.run.run_dispatch")
     @patch("personalscraper.verify.run.run_verify")
+    @patch("personalscraper.enforce.run.run_enforce")
     @patch("personalscraper.scraper.run.run_scrape")
     @patch("personalscraper.sorter.run.run_sort")
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
-    def test_full_pipeline_7_steps(
+    def test_full_pipeline_8_steps(
         self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_verify, mock_dispatch, integration_settings, quiet_console,
+        mock_enforce, mock_verify, mock_dispatch, integration_settings, quiet_console,
     ):
-        """Full pipeline produces 7 StepReports in correct order."""
+        """Full pipeline produces 8 StepReports in correct order."""
         mock_ingest.return_value = StepReport(name="ingest", success_count=2)
         mock_sort.return_value = StepReport(name="sort", success_count=2)
         mock_scrape.return_value = StepReport(name="scrape", success_count=2)
+        mock_enforce.return_value = StepReport(name="enforce", success_count=1)
         mock_verify.return_value = (
             StepReport(name="verify", success_count=2),
             [MagicMock()],
@@ -60,9 +62,9 @@ class TestPipelineIntegration:
         pipeline = Pipeline(integration_settings, console=quiet_console)
         report = pipeline.run()
 
-        assert len(report.steps) == 7
+        assert len(report.steps) == 8
         assert list(report.steps.keys()) == [
-            "ingest", "sort", "clean", "scrape", "cleanup", "verify", "dispatch",
+            "ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch",
         ]
 
     @patch("personalscraper.dispatch.run.run_dispatch")
