@@ -61,6 +61,7 @@ markers = [
     "e2e: End-to-end tests requiring storage disks and/or live APIs",
     "roundtrip: Roundtrip tests — torrentify disk media, re-match via API, compare",
     "e2e_torrent: Pipeline E2E with real torrent downloads (manual only, costs ratio)",
+    "e2e_idempotence: E2E idempotence tests on real staging data (manual only)",
 ]
 addopts = "-m 'not e2e and not e2e_torrent'"
 
