@@ -130,23 +130,29 @@ class NamingPatterns:
 PATTERNS = NamingPatterns()
 
 
-def _build_season_dir_regex(pattern: str) -> "re.Pattern[str]":
-    """Build a regex that matches season directories from the pattern.
+def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
+    """Build a regex from a Python format string pattern.
 
-    Converts ``"Saison {Season:02d}"`` to ``re.compile(r"^Saison \\d+$")``.
+    Replaces all ``{placeholder}`` and ``{placeholder:format}`` tokens
+    with ``\\d+`` (assumes numeric placeholders). The rest of the
+    pattern is escaped for safe regex use.
+
+    Example::
+
+        >>> _build_dir_regex("Saison {Season:02d}")
+        re.compile('^Saison \\\\d+$')
 
     Args:
-        pattern: A season directory format string containing ``{Season:02d}``
-            or ``{Season}`` as placeholder.
+        pattern: A Python format string (e.g. ``"Saison {Season:02d}"``).
 
     Returns:
-        Compiled regex matching any season directory produced by *pattern*.
+        Compiled regex matching any string produced by *pattern*.
     """
     import re
 
-    # Replace Python format placeholders with \d+ regex
-    regex_str = re.sub(r"\{Season(?::02d)?\}", r"\\d+", pattern)
+    # Replace any {Name} or {Name:format} placeholder with \d+
+    regex_str = re.sub(r"\{[^}]+\}", r"\\d+", pattern)
     return re.compile(f"^{regex_str}$")
 
 
-SEASON_DIR_RE = _build_season_dir_regex(PATTERNS.season_dir)
+SEASON_DIR_RE = _build_dir_regex(PATTERNS.season_dir)
