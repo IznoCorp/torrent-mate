@@ -671,7 +671,7 @@ class Scraper:
                                 api_episodes[(s_num, e_num)] = ep.get(
                                     "name", f"Episode {e_num}",
                                 )
-                        except (OSError, ConnectionError, requests.exceptions.RequestException) as e:
+                        except (OSError, ConnectionError, TimeoutError) as e:
                             logger.warning(
                                 "Repair: failed to get season %d: %s",
                                 s_num, e,
@@ -703,7 +703,7 @@ class Scraper:
                                 matched, show_dir, show_data,
                             )
 
-                except (OSError, ConnectionError, requests.exceptions.RequestException, ValueError, KeyError) as e:
+                except (OSError, ConnectionError, TimeoutError, ValueError, KeyError) as e:
                     logger.warning(
                         "Repair: failed to organize episodes in %s: %s",
                         show_dir.name, e,
