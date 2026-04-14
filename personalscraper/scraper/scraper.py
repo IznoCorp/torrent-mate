@@ -858,7 +858,11 @@ class Scraper:
                         logger.info("Renamed folder: %s → %s", title, canonical)
                     show_dir = new_dir
                     result.media_path = new_dir
-                    # Remove stale files that used the old folder name as prefix
+                    # Remove stale files that used the old folder name as prefix.
+                    # TV show artwork uses fixed names (poster.jpg, tvshow.nfo),
+                    # so this is a no-op for standard shows. Kept as safety net
+                    # for edge cases where title-prefixed files may exist (e.g.,
+                    # from manual imports or prior scrape with different naming).
                     _cleanup_stale_files(show_dir, old_dir_name, canonical)
                 except OSError as exc:
                     result.error = f"Rename/merge failed: {exc}"
