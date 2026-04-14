@@ -163,9 +163,12 @@ class Pipeline:
 
         report = PipelineReport(started_at=datetime.now())
 
-        # Recover from previous interrupted run
+        # Recover from previous interrupted run (best-effort, never blocks pipeline)
         if not self.dry_run:
-            self._recover_from_previous_run()
+            try:
+                self._recover_from_previous_run()
+            except Exception as exc:
+                self._log.error("Crash recovery failed (pipeline continues): %s", exc)
         else:
             self._log.info("[DRY RUN] Crash recovery skipped")
 
