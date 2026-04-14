@@ -250,7 +250,7 @@ class Dispatcher:
                 f"NTFS-illegal filenames in {movie_dir.name}. "
                 "Run 'personalscraper process' to sanitize."
             )
-            logger.error("dispatch_ntfs_illegal", source=str(movie_dir))
+            logger.error("dispatch_ntfs_illegal: %s", movie_dir)
             return result
 
         # Get disk statuses
@@ -340,7 +340,7 @@ class Dispatcher:
                 f"NTFS-illegal filenames in {show_dir.name}. "
                 "Run 'personalscraper process' to sanitize."
             )
-            logger.error("dispatch_ntfs_illegal", source=str(show_dir))
+            logger.error("dispatch_ntfs_illegal: %s", show_dir)
             return result
 
         disk_statuses = [get_disk_status(c) for c in self._disk_configs]
