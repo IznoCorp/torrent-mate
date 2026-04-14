@@ -218,7 +218,13 @@ def _find_video_file(directory: Path) -> Path | None:
     ]
     if not candidates:
         return None
-    return max(candidates, key=lambda f: f.stat().st_size)
+    try:
+        return max(candidates, key=lambda f: f.stat().st_size)
+    except OSError:
+        # stat() failed on a candidate (broken symlink, NTFS metadata issue)
+        # — fall back to first candidate rather than crashing the scrape
+        logger.warning("Cannot stat some video files in %s, using first candidate", directory.name)
+        return candidates[0]
 
 
 def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> int:
