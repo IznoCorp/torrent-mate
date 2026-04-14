@@ -161,3 +161,60 @@ class TestRunScrape:
 
         mock_scraper.process_movies.assert_not_called()
         mock_scraper.process_tvshows.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _needs_repair detection
+# ---------------------------------------------------------------------------
+
+
+def test_needs_repair_false_when_clean(tmp_path):
+    """Clean show dir (episodes in Saison XX/, no residuals) → False."""
+    from personalscraper.scraper.run import _needs_repair
+
+    show_dir = tmp_path / "002-TVSHOWS" / "The Boys (2019)"
+    show_dir.mkdir(parents=True)
+    (show_dir / "tvshow.nfo").write_text("<tvshow><title>The Boys</title></tvshow>")
+    s01 = show_dir / "Saison 01"
+    s01.mkdir()
+    (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
+    assert _needs_repair(tmp_path / "002-TVSHOWS") is False
+
+
+def test_needs_repair_true_raw_torrent_dir(tmp_path):
+    """Episode in raw torrent subdir → True."""
+    from personalscraper.scraper.run import _needs_repair
+
+    show_dir = tmp_path / "002-TVSHOWS" / "The Boys (2019)"
+    show_dir.mkdir(parents=True)
+    (show_dir / "tvshow.nfo").write_text("<tvshow><title>The Boys</title></tvshow>")
+    raw = show_dir / "The.Boys.S05E01.MULTi"
+    raw.mkdir()
+    (raw / "S05E01.mkv").write_bytes(b"\x00")
+    assert _needs_repair(tmp_path / "002-TVSHOWS") is True
+
+
+def test_needs_repair_true_duplicate_nfo(tmp_path):
+    """Movie with 2 NFOs → True."""
+    from personalscraper.scraper.run import _needs_repair
+
+    movie_dir = tmp_path / "001-MOVIES" / "Scream 7 (2026)"
+    movie_dir.mkdir(parents=True)
+    (movie_dir / "Scream 7.nfo").write_text("<movie><title>Scream 7</title></movie>")
+    (movie_dir / "Scream.7.2026.MULTI.nfo").write_text("<movie/>")
+    (movie_dir / "Scream 7.mkv").write_bytes(b"\x00")
+    assert _needs_repair(tmp_path / "001-MOVIES") is True
+
+
+def test_needs_repair_true_root_mkv_with_season(tmp_path):
+    """MKV at root when Saison XX/ exists → True."""
+    from personalscraper.scraper.run import _needs_repair
+
+    show_dir = tmp_path / "002-TVSHOWS" / "Show (2025)"
+    show_dir.mkdir(parents=True)
+    (show_dir / "tvshow.nfo").write_text("<tvshow/>")
+    s02 = show_dir / "Saison 02"
+    s02.mkdir()
+    (s02 / "S02E01 - Ep.mkv").write_bytes(b"\x00")
+    (show_dir / "Show.S02E01.mkv").write_bytes(b"\x00")
+    assert _needs_repair(tmp_path / "002-TVSHOWS") is True

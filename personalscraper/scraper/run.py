@@ -8,14 +8,18 @@ Lock is acquired at the CLI level, not here.
 """
 
 import logging
+import re
 from pathlib import Path
 
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, _is_nfo_complete
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)
+
+_SEASON_DIR_RE = re.compile(r"^Saison \d+$")
 
 
 def _has_unscraped_items(settings: Settings) -> bool:
@@ -69,6 +73,74 @@ def _has_unscraped_items(settings: Settings) -> bool:
     return False
 
 
+def _needs_repair(category_dir: Path) -> bool:
+    """Check if any item in category needs repair beyond NFO/artwork.
+
+    Quick filesystem-only check (no API calls). Returns True if any
+    item has unorganized episodes, residual NFOs, or root-level MKV
+    duplicates.
+
+    Args:
+        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+
+    Returns:
+        True if at least one item needs repair.
+    """
+    if not category_dir.exists():
+        return False
+
+    is_movies = "MOVIE" in category_dir.name.upper()
+
+    for folder in category_dir.iterdir():
+        if not folder.is_dir() or folder.name.startswith("."):
+            continue
+
+        if is_movies:
+            # Detect duplicate NFOs (e.g. clean + raw release-group NFO)
+            nfo_count = sum(1 for f in folder.iterdir() if f.suffix.lower() == ".nfo")
+            if nfo_count > 1:
+                return True
+        else:
+            # TV show checks
+            has_season_dirs = any(
+                d.is_dir() and _SEASON_DIR_RE.match(d.name)
+                for d in folder.iterdir()
+            )
+
+            for item in folder.iterdir():
+                # Root-level video when season dirs exist → misplaced episode
+                if (
+                    has_season_dirs
+                    and item.is_file()
+                    and item.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+                ):
+                    return True
+
+                # Non-season subdir with video files → raw torrent dir
+                if (
+                    item.is_dir()
+                    and not item.name.startswith(".")
+                    and not _SEASON_DIR_RE.match(item.name)
+                ):
+                    for sub in item.rglob("*"):
+                        if (
+                            sub.is_file()
+                            and sub.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+                        ):
+                            return True
+
+            # Residual episode NFOs at root (tvshow.nfo is expected)
+            root_nfos = [
+                f
+                for f in folder.iterdir()
+                if f.is_file() and f.suffix.lower() == ".nfo" and f.name != "tvshow.nfo"
+            ]
+            if root_nfos:
+                return True
+
+    return False
+
+
 def run_scrape(
     settings: Settings,
     dry_run: bool = False,
@@ -91,9 +163,15 @@ def run_scrape(
     Returns:
         StepReport with success/skip/error counts and details.
     """
-    # Fast-skip: nothing to scrape
-    if not _has_unscraped_items(settings):
-        logger.info("Scrape fast-skip: all NFOs valid and artwork present")
+    # Fast-skip: nothing to scrape and no structural repairs needed
+    if not _has_unscraped_items(settings) and not _needs_repair(
+        settings.staging_dir / settings.movies_dir_name
+    ) and not _needs_repair(
+        settings.staging_dir / settings.tvshows_dir_name
+    ):
+        logger.info(
+            "Scrape fast-skip: all NFOs valid, artwork present, no repairs needed"
+        )
         return StepReport(name="scrape")
 
     scraper = Scraper(
