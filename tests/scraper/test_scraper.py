@@ -787,3 +787,57 @@ class TestCleanupStaleFiles:
 
         from personalscraper.scraper.scraper import _cleanup_stale_files
         _cleanup_stale_files(movie_dir, "Old Name", "New Name")  # No crash
+
+
+# ---------------------------------------------------------------------------
+# _repair_movie_dir — residual NFO removal
+# ---------------------------------------------------------------------------
+
+
+class TestRepairMovieDir:
+    """Tests for Scraper._repair_movie_dir."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked API clients."""
+        with patch("personalscraper.scraper.scraper.TMDBClient"):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_repair_movie_dir_removes_residual_nfos(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """Movie with 2 NFOs: keep the correct one, delete residual."""
+        movie_dir = tmp_path / "Avatar De feu et de cendres (2025)"
+        movie_dir.mkdir()
+        good_nfo = movie_dir / "Avatar De feu et de cendres.nfo"
+        good_nfo.write_text('<movie><title>Avatar</title><uniqueid type="tmdb">83533</uniqueid></movie>')
+        bad_nfo = movie_dir / "Avatar de feu et de cendres 7 1 neostark (2025).nfo"
+        bad_nfo.write_text("<movie/>")
+        (movie_dir / "Avatar De feu et de cendres.mkv").write_bytes(b"\x00")
+
+        repaired = scraper._repair_movie_dir(movie_dir, "Avatar De feu et de cendres")
+        assert repaired is True
+        assert good_nfo.exists()
+        assert not bad_nfo.exists()
+
+    def test_repair_movie_dir_noop_when_clean(
+        self, tmp_path: Path, scraper: Scraper,
+    ) -> None:
+        """Movie with exactly 1 NFO → no repair needed."""
+        movie_dir = tmp_path / "Scream 7 (2026)"
+        movie_dir.mkdir()
+        (movie_dir / "Scream 7.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+        (movie_dir / "Scream 7.mkv").write_bytes(b"\x00")
+        (movie_dir / "Scream 7-poster.jpg").write_bytes(b"\x00")
+
+        repaired = scraper._repair_movie_dir(movie_dir, "Scream 7")
+        assert repaired is False

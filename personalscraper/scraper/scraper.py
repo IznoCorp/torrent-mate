@@ -515,6 +515,37 @@ class Scraper:
             logger.warning("Artwork recovery failed for %s: %s", show_dir.name, e)
             result.warnings.append(f"Artwork recovery failed: {e}")
 
+    def _repair_movie_dir(self, movie_dir: Path, title: str) -> bool:
+        """Repair a movie directory with valid NFO.
+
+        Removes residual NFOs (keeps only {sanitized_title}.nfo).
+        Does not re-scrape or re-match.
+
+        Args:
+            movie_dir: Path to the movie directory.
+            title: Parsed movie title from folder name.
+
+        Returns:
+            True if any repair was applied.
+        """
+        repaired = False
+        expected_nfo = sanitize_filename(title) + ".nfo"
+
+        for nfo in movie_dir.glob("*.nfo"):
+            if nfo.name != expected_nfo:
+                if not self.dry_run:
+                    try:
+                        nfo.unlink()
+                        logger.info("Repair: removed residual NFO %s", nfo.name)
+                        repaired = True
+                    except OSError as exc:
+                        logger.warning("Repair: cannot delete %s: %s", nfo.name, exc)
+                else:
+                    logger.info("[DRY RUN] Would remove residual NFO %s", nfo.name)
+                    repaired = True
+
+        return repaired
+
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
         """Scrape a single movie: match → NFO → artwork.
 
@@ -547,7 +578,11 @@ class Scraper:
             if missing and not self.dry_run:
                 self._recover_movie_artwork(nfo_path, movie_dir, result)
             # Set action: artwork_recovered if recovery succeeded, else skipped
-            if result.action != "artwork_recovered":
+            # Repair pass: remove residual NFOs
+            repaired = self._repair_movie_dir(movie_dir, title)
+            if repaired and result.action != "artwork_recovered":
+                result.action = "repaired"
+            elif result.action != "artwork_recovered":
                 result.action = "skipped_already_done"
             logger.info("NFO valid, %s: %s", result.action, movie_dir.name)
             return result
