@@ -87,31 +87,35 @@ def test_get_all_torrent_hashes(mock_client):
     assert result == {"abc123", "def456"}
 
 
-class TestPreCheckBan:
-    """Tests for qBit pre-check before auth_log_in."""
+class TestPreCheck:
+    """Tests for qBit reachability pre-check before auth_log_in."""
 
     @patch("personalscraper.ingest.qbit_client.requests.get")
     @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
     @patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE")
-    def test_403_pre_check_skips_login(self, mock_lockout, mock_client_cls, mock_get) -> None:
-        """When pre-check returns 403, auth_log_in should NOT be called."""
-        # Lockout file does not exist — isolate from any real lock on disk
+    def test_pre_check_uses_root_page_not_api(self, mock_lockout, mock_client_cls, mock_get) -> None:
+        """Pre-check should GET / (root page), not /api/v2/app/version.
+
+        The root page always returns 200 regardless of auth state.
+        API endpoints return 403 without auth and those 403s count
+        toward the ban threshold — so we must NOT use them.
+        """
         mock_lockout.exists.return_value = False
 
         mock_resp = MagicMock()
-        mock_resp.status_code = 403
+        mock_resp.status_code = 200
         mock_get.return_value = mock_resp
 
         mock_client = MagicMock()
         mock_client_cls.return_value = mock_client
 
         client = QBitClient(host="localhost", port=8081, username="u", password="p")
+        client.__enter__()
 
-        with pytest.raises(qbittorrentapi.Forbidden403Error):
-            client.__enter__()
-
-        # auth_log_in must NEVER be called when IP is already banned
-        mock_client.auth_log_in.assert_not_called()
+        # Verify the pre-check hit the root page, NOT an API endpoint
+        call_url = mock_get.call_args[0][0]
+        assert call_url.endswith("/"), f"Pre-check should use root page (/), not {call_url}"
+        assert "/api/" not in call_url, f"Pre-check must NOT use API endpoints: {call_url}"
 
     @patch("personalscraper.ingest.qbit_client.requests.get")
     @patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client")
