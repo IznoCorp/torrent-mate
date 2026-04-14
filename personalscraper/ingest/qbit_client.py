@@ -90,24 +90,17 @@ class QBitClient:
             except OSError as e:
                 log.warning("qbit_lockout_read_failed", error=str(e))
 
-        # Pre-check: detect IP ban without attempting auth.
-        # /api/v2/app/version requires no credentials — a 403 here means the
-        # IP is already banned, so we must not call auth_log_in() at all
-        # (each failed login attempt counts toward the ban threshold).
+        # Pre-check: verify qBit is reachable before attempting login.
+        # Uses the root page (/) which always returns 200 regardless of auth.
+        # API endpoints like /api/v2/app/version require auth and return 403
+        # WITHOUT auth — those 403s count as failed attempts toward the ban
+        # threshold, so we must NOT use them for pre-check.
         try:
             resp = requests.get(
-                f"http://{self._client.host}:{self._client.port}/api/v2/app/version",
+                f"http://{self._client.host}:{self._client.port}/",
                 timeout=5,
             )
-            if resp.status_code == 403:
-                log.error(
-                    "qbit_ip_banned_pre_check",
-                    hint="IP is already banned. Unban in qBit > Preferences > Web UI > IP Banning.",
-                )
-                raise qbittorrentapi.Forbidden403Error(
-                    "IP is already banned by qBittorrent. "
-                    "Unban in Preferences > Web UI > IP Banning, or restart qBit."
-                )
+            log.debug("qbit_pre_check_ok", status=resp.status_code)
         except (requests.ConnectionError, requests.Timeout) as exc:
             raise qbittorrentapi.APIConnectionError(
                 f"qBittorrent unreachable at {self._client.host}:{self._client.port}: {exc}"
