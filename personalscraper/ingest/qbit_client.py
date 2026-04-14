@@ -108,7 +108,7 @@ class QBitClient:
                     "IP is already banned by qBittorrent. "
                     "Unban in Preferences > Web UI > IP Banning, or restart qBit."
                 )
-        except requests.ConnectionError as exc:
+        except (requests.ConnectionError, requests.Timeout) as exc:
             raise qbittorrentapi.APIConnectionError(
                 f"qBittorrent unreachable at {self._client.host}:{self._client.port}: {exc}"
             ) from exc
