@@ -402,6 +402,24 @@ class Scraper:
 
         return local_title
 
+    @staticmethod
+    def _strip_trailing_year(title: str) -> str:
+        """Remove a trailing (YYYY) suffix from a title.
+
+        API sources (TVDB especially) include the year in the title as
+        disambiguation (e.g. "Invincible (2021)"). Since callers always
+        append the year separately via NamingPatterns, the trailing year
+        must be stripped to avoid duplication like "Invincible (2021) (2021)".
+
+        Args:
+            title: Title that may contain a trailing year.
+
+        Returns:
+            Title with trailing (YYYY) removed, if present.
+        """
+        import re
+        return re.sub(r"\s*\(\d{4}\)\s*$", "", title)
+
     def _check_missing_movie_artwork(self, movie_dir: Path, title: str) -> list[str]:
         """List missing essential artwork for a movie directory.
 
@@ -811,7 +829,9 @@ class Scraper:
             return result
 
         # Resolve title: use local FR title if preferred and available
-        resolved_title = self._resolve_title(match.api_title, movie_data, "movie")
+        resolved_title = self._strip_trailing_year(
+            self._resolve_title(match.api_title, movie_data, "movie")
+        )
         api_year = match.api_year or year
         clean_name = sanitize_filename(
             f"{resolved_title} ({api_year})" if api_year else resolved_title
@@ -1065,7 +1085,9 @@ class Scraper:
             return result
 
         # Resolve title: use local FR title if preferred and available
-        resolved_title = self._resolve_title(match.api_title, show_data, "tvshow")
+        resolved_title = self._strip_trailing_year(
+            self._resolve_title(match.api_title, show_data, "tvshow")
+        )
 
         # Rename folder to canonical name (V2→V3 handoff)
         old_dir_name = show_dir.name  # Save before potential rename
