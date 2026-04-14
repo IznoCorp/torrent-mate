@@ -66,11 +66,15 @@ def run_enforce(settings: Settings, dry_run: bool = False) -> StepReport:
         1 for r in structure_results if r.action == "validated"
     )
 
+    error_count = sum(1 for r in sanitize_results if r.action == "error") + sum(
+        1 for r in structure_results if r.action == "error"
+    )
+
     return StepReport(
         name="enforce",
         success_count=success,
         skip_count=skip_count,
-        error_count=0,
+        error_count=error_count,
         warnings=warnings_list,
         details=details,
     )

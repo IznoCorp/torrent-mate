@@ -134,8 +134,8 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
     """Build a regex from a Python format string pattern.
 
     Replaces all ``{placeholder}`` and ``{placeholder:format}`` tokens
-    with ``\\d+`` (assumes numeric placeholders). The rest of the
-    pattern is escaped for safe regex use.
+    with ``\\d+`` (assumes numeric placeholders). Literal portions are
+    escaped for safe regex use.
 
     Example::
 
@@ -150,8 +150,13 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
     """
     import re
 
-    # Replace any {Name} or {Name:format} placeholder with \d+
-    regex_str = re.sub(r"\{[^}]+\}", r"\\d+", pattern)
+    parts = re.split(r"(\{[^}]+\})", pattern)
+    regex_str = ""
+    for part in parts:
+        if re.match(r"^\{[^}]+\}$", part):
+            regex_str += r"\d+"
+        else:
+            regex_str += re.escape(part)
     return re.compile(f"^{regex_str}$")
 
 

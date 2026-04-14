@@ -134,6 +134,7 @@ def _check_nfo_ids(nfo_path: Path, result: CoherenceResult) -> None:
         root = ET.parse(nfo_path).getroot()  # noqa: S314
     except (ET.ParseError, OSError):
         result.warnings.append(f"Cannot parse NFO: {nfo_path.name}")
+        result.checks.append("nfo_ids")
         return
 
     has_tmdb = False
@@ -171,7 +172,8 @@ def _check_genre_coherence(nfo_path: Path, result: CoherenceResult) -> None:
             result.warnings.append(
                 f"Genre suggests 'emissions' not 'series' for {result.path.name}"
             )
-    except Exception as exc:
-        logger.debug("Genre check failed for %s: %s", nfo_path.name, exc)
+    except (ET.ParseError, OSError, ValueError, ImportError) as exc:
+        logger.warning("Genre check failed for %s: %s", nfo_path.name, exc)
+        result.warnings.append(f"Genre check failed: {exc}")
 
     result.checks.append("genre_coherence")

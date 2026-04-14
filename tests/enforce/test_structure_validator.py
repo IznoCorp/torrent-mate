@@ -1,4 +1,7 @@
+"""Tests for structure_validator module."""
+
 import pytest
+
 from personalscraper.enforce.structure_validator import validate_structure
 
 

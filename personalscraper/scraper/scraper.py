@@ -297,6 +297,12 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
         )
         if has_video:
             continue
+        non_video_files = [f.name for f in subdir.rglob("*") if f.is_file()]
+        if non_video_files:
+            logger.warning(
+                "Removing release dir %s with residual files: %s",
+                subdir.name, non_video_files,
+            )
         try:
             shutil.rmtree(subdir)
             logger.info("Removed release dir (no videos): %s", subdir.name)
@@ -642,7 +648,7 @@ class Scraper:
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
             and not SEASON_DIR_RE.match(f.parent.name)
             and f.parent != show_dir
-            and ".actors" not in str(f)
+            and ".actors" not in f.parts
         )
 
         if unorganized:
@@ -665,7 +671,7 @@ class Scraper:
                                 api_episodes[(s_num, e_num)] = ep.get(
                                     "name", f"Episode {e_num}",
                                 )
-                        except Exception as e:
+                        except (OSError, ConnectionError, requests.exceptions.RequestException) as e:
                             logger.warning(
                                 "Repair: failed to get season %d: %s",
                                 s_num, e,
@@ -697,17 +703,7 @@ class Scraper:
                                 matched, show_dir, show_data,
                             )
 
-                        # Clean empty release-group dirs after reorganization
-                        if not self.dry_run:
-                            try:
-                                _cleanup_empty_release_dirs(show_dir)
-                            except OSError as exc:
-                                logger.warning(
-                                    "Repair: failed to clean empty dirs "
-                                    "in %s: %s",
-                                    show_dir.name, exc,
-                                )
-                except Exception as e:
+                except (OSError, ConnectionError, requests.exceptions.RequestException, ValueError, KeyError) as e:
                     logger.warning(
                         "Repair: failed to organize episodes in %s: %s",
                         show_dir.name, e,
