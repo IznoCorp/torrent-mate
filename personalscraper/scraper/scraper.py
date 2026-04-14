@@ -928,7 +928,8 @@ class Scraper:
                     self._generate_episode_nfos(matched, show_dir, show_data)
 
             # Clean empty release-group subdirectories left after episode moves
-            _cleanup_empty_release_dirs(show_dir)
+            if not self.dry_run:
+                _cleanup_empty_release_dirs(show_dir)
 
         result.episodes_renamed = total_renamed
         result.action = "scraped"
