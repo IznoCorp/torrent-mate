@@ -1,5 +1,7 @@
+"""Tests for file_sanitizer module."""
 
 import pytest
+
 from personalscraper.enforce.file_sanitizer import sanitize_files
 
 

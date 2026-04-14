@@ -1,4 +1,7 @@
+"""Tests for coherence_checker module."""
+
 import pytest
+
 from personalscraper.enforce.coherence_checker import check_coherence
 
 
@@ -73,4 +76,4 @@ def test_genre_emission_in_series_warns(tmp_path, settings):
     emission_warns = [w for r in results for w in r.warnings if "emission" in w.lower()]
     # This assertion is conditional: passes whether mapper returns "emissions" or not.
     # Once Task 11 fixes the mapper, emission_warns will be non-empty.
-    assert isinstance(emission_warns, list)  # always true — verifies no crash
+    assert len(emission_warns) >= 1, "GenreMapper should detect emissions category mismatch"

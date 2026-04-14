@@ -157,11 +157,18 @@ def run_scrape(
         StepReport with success/skip/error counts and details.
     """
     # Fast-skip: nothing to scrape and no structural repairs needed
-    if not _has_unscraped_items(settings) and not _needs_repair(
-        settings.staging_dir / settings.movies_dir_name
-    ) and not _needs_repair(
-        settings.staging_dir / settings.tvshows_dir_name
-    ):
+    staging = Path(settings.staging_dir)
+    try:
+        needs_movie_repair = _needs_repair(staging / settings.movies_dir_name)
+    except OSError as exc:
+        logger.warning("Cannot check movie repair status: %s", exc)
+        needs_movie_repair = True
+    try:
+        needs_tvshow_repair = _needs_repair(staging / settings.tvshows_dir_name)
+    except OSError as exc:
+        logger.warning("Cannot check tvshow repair status: %s", exc)
+        needs_tvshow_repair = True
+    if not _has_unscraped_items(settings) and not needs_movie_repair and not needs_tvshow_repair:
         logger.info(
             "Scrape fast-skip: all NFOs valid, artwork present, no repairs needed"
         )
@@ -175,7 +182,6 @@ def run_scrape(
     )
 
     all_results: list[ScrapeResult] = []
-    staging = Path(settings.staging_dir)
 
     # Process movies
     if not tvshows_only:

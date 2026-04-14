@@ -101,8 +101,12 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             if not dry_run:
                 try:
                     f.unlink()
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.warning("Cannot delete %s: %s", f.name, exc)
+                    results.append(
+                        SanitizeResult(path=f, action="error", old_name=f.name)
+                    )
+                    continue
             results.append(
                 SanitizeResult(path=f, action="deleted_ds_store", old_name=f.name)
             )
@@ -112,8 +116,12 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             if not dry_run:
                 try:
                     f.unlink()
-                except OSError:
-                    pass
+                except OSError as exc:
+                    logger.warning("Cannot delete %s: %s", f.name, exc)
+                    results.append(
+                        SanitizeResult(path=f, action="error", old_name=f.name)
+                    )
+                    continue
             results.append(
                 SanitizeResult(
                     path=f, action="deleted_resource_fork", old_name=f.name
@@ -131,6 +139,15 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                         f.unlink()
                     except OSError as exc:
                         logger.warning("Cannot delete duplicate %s: %s", f.name, exc)
+                        results.append(
+                            SanitizeResult(
+                                path=f,
+                                action="error",
+                                old_name=f.name,
+                                new_name=sanitized,
+                            )
+                        )
+                        continue
                 results.append(
                     SanitizeResult(
                         path=f,
@@ -145,6 +162,15 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                         f.rename(target)
                     except OSError as exc:
                         logger.warning("Cannot rename %s: %s", f.name, exc)
+                        results.append(
+                            SanitizeResult(
+                                path=f,
+                                action="error",
+                                old_name=f.name,
+                                new_name=sanitized,
+                            )
+                        )
+                        continue
                 results.append(
                     SanitizeResult(
                         path=f,
