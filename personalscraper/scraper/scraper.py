@@ -677,7 +677,7 @@ class Scraper:
             if tmdb_id:
                 try:
                     show_data = self._tmdb.get_tv(tmdb_id)
-                    api_episodes: dict[tuple[int, int], str] = {}
+                    api_episodes: dict[tuple[int, int], dict] = {}
                     for season in show_data.get("seasons", []):
                         s_num = season.get("season_number", 0)
                         if s_num == 0:
@@ -688,9 +688,10 @@ class Scraper:
                             )
                             for ep in s_detail.get("episodes", []):
                                 e_num = ep.get("episode_number", 0)
-                                api_episodes[(s_num, e_num)] = ep.get(
-                                    "name", f"Episode {e_num}",
-                                )
+                                api_episodes[(s_num, e_num)] = {
+                                    "title": ep.get("name", f"Episode {e_num}"),
+                                    "still_path": ep.get("still_path", ""),
+                                }
                         except (OSError, ConnectionError, TimeoutError) as e:
                             logger.warning(
                                 "Repair: failed to get season %d: %s",
@@ -1162,7 +1163,7 @@ class Scraper:
         )
 
         if video_files:
-            api_episodes: dict[tuple[int, int], str] = {}
+            api_episodes: dict[tuple[int, int], dict] = {}
             for season in show_data.get("seasons", []):
                 s_num = season.get("season_number", 0)
                 if s_num == 0:
@@ -1171,7 +1172,10 @@ class Scraper:
                     s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
                     for ep in s_detail.get("episodes", []):
                         e_num = ep.get("episode_number", 0)
-                        api_episodes[(s_num, e_num)] = ep.get("name", f"Episode {e_num}")
+                        api_episodes[(s_num, e_num)] = {
+                            "title": ep.get("name", f"Episode {e_num}"),
+                            "still_path": ep.get("still_path", ""),
+                        }
                 except Exception as e:
                     logger.warning("Failed to get season %d: %s", s_num, e)
 
@@ -1216,6 +1220,7 @@ class Scraper:
             season = info["season"]
             episode = info["episode"]
             api_title = info["api_title"]
+            still_path = info.get("still_path", "")
 
             season_dir_name = self.patterns.format("season_dir", Season=season)
             new_stem = self.patterns.format(
@@ -1225,6 +1230,15 @@ class Scraper:
             nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
 
             if nfo_path.exists():
+                # Still download thumbnail if NFO exists but thumb doesn't
+                thumb_name = self.patterns.format(
+                    "episode_thumb",
+                    Season=season, Episode=episode, EpisodeTitle=api_title,
+                )
+                thumb_path = show_dir / season_dir_name / thumb_name
+                if still_path and not thumb_path.exists() and not self.dry_run:
+                    url = f"https://image.tmdb.org/t/p/original{still_path}"
+                    self._artwork.download_image(url, thumb_path)
                 continue
 
             episode_data = {
@@ -1238,6 +1252,7 @@ class Scraper:
                 "mpaa": mpaa,
                 "studio": studio,
                 "crew": [],
+                "still_path": still_path,
             }
 
             # Stream info from the renamed video
@@ -1256,6 +1271,17 @@ class Scraper:
                     "Episode NFO failed for S%02dE%02d: %s", season, episode, e,
                     exc_info=True,
                 )
+
+            # Download episode thumbnail
+            if still_path and not self.dry_run:
+                thumb_name = self.patterns.format(
+                    "episode_thumb",
+                    Season=season, Episode=episode, EpisodeTitle=api_title,
+                )
+                thumb_path = show_dir / season_dir_name / thumb_name
+                if not thumb_path.exists():
+                    url = f"https://image.tmdb.org/t/p/original{still_path}"
+                    self._artwork.download_image(url, thumb_path)
 
     def process_tvshows(self, tvshows_dir: Path) -> list[ScrapeResult]:
         """Scrape all TV shows in a directory.
