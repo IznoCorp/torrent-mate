@@ -82,6 +82,18 @@ def run_dispatch(
     index = MediaIndex()
     index.load()
 
+    # Rebuild index if empty (first run or corrupted) to detect existing media
+    # on all 4 disks. Without this, all items are treated as "new" and sent
+    # to the disk with most free space, ignoring existing series/movies.
+    if index.count == 0:
+        from personalscraper.dispatch.disk_scanner import get_disk_configs
+
+        disk_configs = get_disk_configs(settings)
+        count = index.rebuild(disk_configs)
+        logger.info("Index was empty — rebuilt from disk scan: %d entries", count)
+        if not dry_run:
+            index.save()
+
     dispatcher = Dispatcher(settings=settings, index=index, dry_run=dry_run)
 
     if verified is None:
