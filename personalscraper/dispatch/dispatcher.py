@@ -519,9 +519,11 @@ class Dispatcher:
         Returns:
             True if rsync succeeded.
         """
+        # Exclude macOS metadata files — same rationale as _rsync()
         cmd = [
             "rsync", "-a", "--no-perms", "--no-owner", "--no-group",
             "--partial", "--checksum",
+            "--exclude=.DS_Store", "--exclude=._*",
             "--backup", f"--backup-dir={backup_dir}",
             f"{source}/", str(dest),
         ]
@@ -658,8 +660,13 @@ class Dispatcher:
             True if rsync succeeded (returncode 0).
         """
         # -a minus -pgo: NTFS via macFUSE doesn't support Unix permissions
-        cmd = ["rsync", "-a", "--no-perms", "--no-owner", "--no-group",
-               "--partial", "--checksum"]
+        # Exclude macOS metadata files — .DS_Store and ._* AppleDouble files
+        # cause rsync errors on NTFS targets which don't support them.
+        cmd = [
+            "rsync", "-a", "--no-perms", "--no-owner", "--no-group",
+            "--partial", "--checksum",
+            "--exclude=.DS_Store", "--exclude=._*",
+        ]
         if delete:
             cmd.append("--delete")
         cmd.extend([f"{source}/", str(dest)])

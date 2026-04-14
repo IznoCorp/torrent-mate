@@ -254,6 +254,45 @@ class TestCategorizeFromNFO:
 
 
 # ---------------------------------------------------------------------------
+# French TMDB genre variants (Bug #12)
+# ---------------------------------------------------------------------------
+
+class TestFrenchTMDBGenres:
+    """Tests for French TMDB genre variants that were missing from _REALITY_NAMES."""
+
+    def test_categorize_from_nfo_french_emission_is_emissions(
+        self, tmp_path: Path,
+    ) -> None:
+        """NFO with French TMDB genre 'Émission' → emissions."""
+        nfo = tmp_path / "tvshow.nfo"
+        nfo.write_text(
+            '<tvshow><genre>Émission</genre>'
+            '<uniqueid type="tmdb">312697</uniqueid></tvshow>'
+        )
+        mapper = GenreMapper()
+        result = mapper.categorize_from_nfo(nfo, media_type="tvshow")
+        assert result == "emissions"
+
+    def test_categorize_tvshow_french_divertissement(self) -> None:
+        """French genre 'Divertissement' → emissions."""
+        mapper = GenreMapper()
+        result = mapper.categorize_tvshow(["Divertissement"])
+        assert result == "emissions"
+
+    def test_categorize_tvshow_french_jeu_televise(self) -> None:
+        """French genre 'Jeu télévisé' → emissions."""
+        mapper = GenreMapper()
+        result = mapper.categorize_tvshow(["Jeu télévisé"])
+        assert result == "emissions"
+
+    def test_categorize_tvshow_emission_normalized(self) -> None:
+        """'Emission' (no accent, already normalized) → emissions."""
+        mapper = GenreMapper()
+        result = mapper.categorize_tvshow(["Emission"])
+        assert result == "emissions"
+
+
+# ---------------------------------------------------------------------------
 # KNOWN_CATEGORIES validation
 # ---------------------------------------------------------------------------
 
