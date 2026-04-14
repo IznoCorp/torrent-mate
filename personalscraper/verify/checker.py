@@ -18,7 +18,7 @@ from enum import Enum
 from pathlib import Path
 
 from personalscraper.genre_mapper import GenreMapper
-from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 
@@ -29,9 +29,6 @@ _MIN_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
 
 # Regex for "Title (Year)" directory format
 _DIR_PATTERN = re.compile(r"^.+ \(\d{4}\)$")
-
-# Season directory pattern
-_SEASON_DIR_PATTERN = re.compile(r"^Saison \d{2}$")
 
 # Episode file pattern
 _EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
@@ -315,7 +312,7 @@ class MediaChecker:
         # season_structure
         season_dirs = [
             d for d in show_dir.iterdir()
-            if d.is_dir() and _SEASON_DIR_PATTERN.match(d.name)
+            if d.is_dir() and SEASON_DIR_RE.match(d.name)
         ]
         has_episodes_in_seasons = any(
             any(_EPISODE_PATTERN.match(f.name) for f in sd.iterdir() if f.is_file())

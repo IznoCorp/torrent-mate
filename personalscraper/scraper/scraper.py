@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from personalscraper.config import Settings
-from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.scraper.artwork import ArtworkDownloader
 from personalscraper.scraper.confidence import (
     LOW_CONFIDENCE,
@@ -288,7 +288,7 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
             continue
         if subdir.name.startswith("."):
             continue
-        if re.match(r"^Saison \d+$", subdir.name):
+        if SEASON_DIR_RE.match(subdir.name):
             continue
         # Check if subdir has any video files (recursively)
         has_video = any(
@@ -597,7 +597,7 @@ class Scraper:
         # 2. Collect organized episodes (SxxExx → set of (season, episode))
         organized: set[tuple[int, int]] = set()
         for season_dir in show_dir.iterdir():
-            if season_dir.is_dir() and re.match(r"^Saison \d+$", season_dir.name):
+            if season_dir.is_dir() and SEASON_DIR_RE.match(season_dir.name):
                 for f in season_dir.iterdir():
                     if f.is_file():
                         m = _SXXEXX_RE.search(f.stem)
@@ -640,7 +640,7 @@ class Scraper:
             f for f in show_dir.rglob("*")
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            and not re.match(r"^Saison \d+$", f.parent.name)
+            and not SEASON_DIR_RE.match(f.parent.name)
             and f.parent != show_dir
             and ".actors" not in str(f)
         )
@@ -1138,7 +1138,7 @@ class Scraper:
             f for f in show_dir.rglob("*")
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            and not re.match(r"^Saison \d+$", f.parent.name)
+            and not SEASON_DIR_RE.match(f.parent.name)
         )
 
         if video_files:
