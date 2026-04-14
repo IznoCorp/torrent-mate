@@ -193,6 +193,11 @@ def verify(
         raise typer.Exit(1)
     try:
         settings = get_settings()
+        if fix:
+            console.print(
+                "[yellow]Warning: --fix is deprecated. "
+                "Use 'personalscraper enforce' before verify instead.[/yellow]"
+            )
         report, dispatchable = run_verify(
             settings,
             dry_run=dry_run,
