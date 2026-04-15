@@ -128,6 +128,11 @@ logs/
 e2e-test-registry-*.json
 
 # ===========================================
+# Pipeline run logs (diagnostic output)
+# ===========================================
+docs/pipeline-runs/
+
+# ===========================================
 # Claude Code
 # ===========================================
 # .claude/ is its own git repo (shared config) — do NOT embed it
