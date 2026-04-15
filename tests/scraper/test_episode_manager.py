@@ -123,7 +123,7 @@ class TestMatchEpisodeFiles:
         video2.touch()
 
         api_episodes = {
-            (1, 1): {"title": "La Fin", "still_path": ""},
+            (1, 1): {"title": "La Fin", "still_path": "/abc123.jpg"},
             (1, 2): {"title": "La Cible", "still_path": ""},
         }
 
@@ -133,6 +133,8 @@ class TestMatchEpisodeFiles:
         assert result[video1]["season"] == 1
         assert result[video1]["episode"] == 1
         assert result[video1]["api_title"] == "La Fin"
+        assert result[video1]["still_path"] == "/abc123.jpg"
+        assert result[video2]["still_path"] == ""
 
     def test_unmatched_episode_excluded(self, tmp_path: Path) -> None:
         """Episodes not in API should be excluded from results."""

@@ -960,3 +960,35 @@ class TestRepairTvshowDir:
 
         scraper._repair_tvshow_dir(show_dir)
         assert orphan.exists()
+
+
+class TestStripTrailingYear:
+    """Tests for Scraper._strip_trailing_year — removes trailing (YYYY)."""
+
+    def test_strips_trailing_year(self) -> None:
+        """Should remove trailing (YYYY) from title."""
+        assert Scraper._strip_trailing_year("Invincible (2021)") == "Invincible"
+
+    def test_no_year_unchanged(self) -> None:
+        """Title without year suffix should be unchanged."""
+        assert Scraper._strip_trailing_year("The Matrix") == "The Matrix"
+
+    def test_year_in_middle_kept(self) -> None:
+        """Year in the middle should not be stripped."""
+        assert Scraper._strip_trailing_year("2001 A Space Odyssey (1968)") == "2001 A Space Odyssey"
+
+    def test_double_year_strips_only_trailing(self) -> None:
+        """Only the trailing year should be stripped."""
+        assert Scraper._strip_trailing_year("Show (2020) (2021)") == "Show (2020)"
+
+    def test_empty_string(self) -> None:
+        """Empty string should be handled without error."""
+        assert Scraper._strip_trailing_year("") == ""
+
+    def test_non_year_parenthetical_kept(self) -> None:
+        """Non-year parenthetical should not be stripped."""
+        assert Scraper._strip_trailing_year("Title (Director's Cut)") == "Title (Director's Cut)"
+
+    def test_trailing_whitespace_after_year(self) -> None:
+        """Trailing whitespace after year should be handled."""
+        assert Scraper._strip_trailing_year("Title (2020) ") == "Title"

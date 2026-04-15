@@ -1,7 +1,7 @@
 """Artwork downloader for movie and TV show images.
 
-Downloads poster and landscape images from TMDB. Uses language-priority
-selection (fr > en > null) and tenacity retry for reliability.
+Downloads poster and landscape images from TMDB. Uses configurable
+language-priority selection (default en > fr > null) and tenacity retry.
 
 Only poster + landscape are downloaded automatically for movies. TV shows
 also get season posters. Other artwork types (fanart, clearlogo, etc.)
@@ -45,6 +45,10 @@ _is_retryable = make_retryable_predicate()
 def build_lang_priority(preferred: str = "en") -> dict[str | None, int]:
     """Build a language priority map with the preferred language first.
 
+    English and French are always included as fallbacks (this project
+    targets French media). Languages not in the map get priority 3
+    (same as textless/null images).
+
     Args:
         preferred: ISO 639-1 code for the preferred artwork language.
 
@@ -53,7 +57,9 @@ def build_lang_priority(preferred: str = "en") -> dict[str | None, int]:
     """
     if preferred == "en":
         return {"en": 0, "fr": 1}
-    return {preferred: 0, "en": 1}
+    if preferred == "fr":
+        return {"fr": 0, "en": 1}
+    return {preferred: 0, "en": 1, "fr": 2}
 
 
 def select_best_image(

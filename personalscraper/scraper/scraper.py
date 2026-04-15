@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import requests
+
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.scraper.artwork import ArtworkDownloader
@@ -419,7 +421,6 @@ class Scraper:
         Returns:
             Title with trailing (YYYY) removed, if present.
         """
-        import re
         return re.sub(r"\s*\(\d{4}\)\s*$", "", title)
 
     def _check_missing_movie_artwork(self, movie_dir: Path, title: str) -> list[str]:
@@ -1198,13 +1199,46 @@ class Scraper:
         result.action = "scraped"
         return result
 
+    def _download_episode_thumb(
+        self,
+        still_path: str,
+        thumb_path: Path,
+        season: int,
+        episode: int,
+    ) -> None:
+        """Download an episode thumbnail from TMDB if available.
+
+        Skips if still_path is empty, thumb already exists, or dry_run.
+        Errors are logged and do not interrupt the caller.
+
+        Args:
+            still_path: TMDB still image path (e.g. "/abc123.jpg"), empty to skip.
+            thumb_path: Local destination path for the thumbnail.
+            season: Season number (for log messages).
+            episode: Episode number (for log messages).
+        """
+        if not still_path or thumb_path.exists() or self.dry_run:
+            return
+        url = f"https://image.tmdb.org/t/p/original{still_path}"
+        try:
+            self._artwork.download_image(url, thumb_path)
+        except requests.exceptions.RequestException:
+            logger.warning(
+                "Failed to download episode thumbnail: S%02dE%02d",
+                season, episode,
+            )
+
     def _generate_episode_nfos(
         self,
         matched: dict[Path, dict],
         show_dir: Path,
         show_data: dict,
     ) -> None:
-        """Generate NFO files for each matched/renamed episode.
+        """Generate NFO files and download episode thumbnails.
+
+        For each matched episode, creates an NFO file with metadata and
+        downloads the TMDB still image as a thumbnail file. Episodes with
+        existing NFOs only get thumbnail recovery (if missing).
 
         Args:
             matched: Dict from match_episode_files().
@@ -1228,17 +1262,15 @@ class Scraper:
                 Season=season, Episode=episode, EpisodeTitle=api_title,
             )
             nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
+            thumb_name = self.patterns.format(
+                "episode_thumb",
+                Season=season, Episode=episode, EpisodeTitle=api_title,
+            )
+            thumb_path = show_dir / season_dir_name / thumb_name
 
             if nfo_path.exists():
                 # Still download thumbnail if NFO exists but thumb doesn't
-                thumb_name = self.patterns.format(
-                    "episode_thumb",
-                    Season=season, Episode=episode, EpisodeTitle=api_title,
-                )
-                thumb_path = show_dir / season_dir_name / thumb_name
-                if still_path and not thumb_path.exists() and not self.dry_run:
-                    url = f"https://image.tmdb.org/t/p/original{still_path}"
-                    self._artwork.download_image(url, thumb_path)
+                self._download_episode_thumb(still_path, thumb_path, season, episode)
                 continue
 
             episode_data = {
@@ -1273,15 +1305,7 @@ class Scraper:
                 )
 
             # Download episode thumbnail
-            if still_path and not self.dry_run:
-                thumb_name = self.patterns.format(
-                    "episode_thumb",
-                    Season=season, Episode=episode, EpisodeTitle=api_title,
-                )
-                thumb_path = show_dir / season_dir_name / thumb_name
-                if not thumb_path.exists():
-                    url = f"https://image.tmdb.org/t/p/original{still_path}"
-                    self._artwork.download_image(url, thumb_path)
+            self._download_episode_thumb(still_path, thumb_path, season, episode)
 
     def process_tvshows(self, tvshows_dir: Path) -> list[ScrapeResult]:
         """Scrape all TV shows in a directory.
