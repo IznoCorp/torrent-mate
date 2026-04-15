@@ -93,6 +93,8 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | B. Implémentation V10                      | [x] 5 phases, 14 sous-phases                                    |
 | A. Modélisation V11 (CODE QUALITY)         | [x] Design + Plan                                               |
 | B. Implémentation V11                      | [x] 4 phases, 4 sous-phases                                     |
+| A. Modélisation V12 (PIPELINE HARDENING)   | [x] Design + Plan                                               |
+| B. Implémentation V12                      | [x] 9 phases, 22 bugs fixed, 1092 tests                         |
 | A. Modélisation V13 (PIPELINE CORRECTNESS) | [x] Audit + Design + Plan                                       |
 | B. Implémentation V13                      | [x] 5 phases (audit + repair + enforce + integration + backlog) |
 
@@ -306,9 +308,9 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 
 ---
 
-### V12 — PIPELINE HARDENING `[ ] En cours`
+### V12 — PIPELINE HARDENING `[x] Terminé`
 
-> Fix 17 bugs identified in comprehensive audit: NTFS-safe filenames, episode restructuring, stale path references, qBit pre-check, verify/dispatch safety, crash recovery, and minor improvements.
+> Fix 22 bugs identified in comprehensive audit: NTFS-safe filenames, episode restructuring, stale path references, qBit pre-check, verify/dispatch safety, crash recovery, and minor improvements.
 
 | Document | Fichier                                                                      | Status |
 | -------- | ---------------------------------------------------------------------------- | ------ |
@@ -322,16 +324,51 @@ Si un écart est détecté → mettre à jour le design/plan AVANT de continuer.
 | 3     | result.media_path stale (bug #11)                   | [x]    |
 | 4     | qBit auth pre-check (bug #12)                       | [x]    |
 | 5     | Verify/Dispatch NTFS-safe (bugs #14,15)             | [x]    |
-| 6     | Crash recovery pipeline (bug #17)                   | [ ]    |
-| 7     | Améliorations mineures                              | [ ]    |
-| 8     | pipeline-monitor skill                              | [ ]    |
-| 9     | Test audit final                                    | [ ]    |
+| 6     | Crash recovery pipeline (bug #17)                   | [x]    |
+| 7     | Améliorations mineures (bugs #21,22)                | [x]    |
+| 8     | pipeline-monitor skill (bug #14)                    | [x]    |
+| 9     | Test audit final                                    | [x]    |
 
 **Phase 1 complete** — `_cleanup_stale_files` + `sanitize_filename` in reclean — 1010 tests passing, 0 regressions
 
 **Phase 2 complete** — `_find_video_file` recursive (rglob + largest), `_cleanup_empty_release_dirs` after episode rename — 1014 tests passing, 0 regressions
 
 **Phase 5 complete** — `ntfs_safe_names` check in verify checker + `_has_ntfs_illegal_names` pre-scan in dispatcher — 1015 tests passing, 0 regressions
+
+**Phase 6 complete** — `_recover_from_previous_run()` cleans orphan `_tmp_dispatch_*`, expired lockout, `.ingest_tmp_*` at startup — 4 tests
+
+**Phase 7 complete** — `SEASON_DIR_RE` accepts any digit count (1, 01, 100) + `desktop.ini` in `_JUNK_FILES`
+
+**Phase 8 complete** — pipeline-monitor skill updated: QBitAuthLockoutError, NTFS rsync, INGEST abort rule
+
+**Phase 9 complete** — 22 bugs mapped to reproducer tests, 3 missing tests filled, 1092 tests passing
+
+### V12 Bug Traceability
+
+| Bug # | Description                     | Test file                      | Test name                                        | Phase |
+| ----- | ------------------------------- | ------------------------------ | ------------------------------------------------ | ----- |
+| 1     | qBit auth lockout               | test_qbit_client.py            | test_pre_check_uses_root_page_not_api            | 4     |
+| 2     | Torrents non ingérés            | (consequence of #1)            | —                                                | 4     |
+| 3     | Artwork doublons avec `:`       | test_scraper.py                | test_old_artwork_with_colon_removed_after_rename | 1     |
+| 4     | Spirale dossier garde `:`       | test_scraper.py                | test_old_artwork_with_colon_removed_after_rename | 1     |
+| 5     | Spirale mkv non renommé         | (TMDB no-match — not code bug) | —                                                | —     |
+| 6     | Jury Duty épisodes nested       | test_scraper.py                | test_finds_mkv_in_subdirectory                   | 2     |
+| 7     | The Boys épisodes nested        | (same root cause as #6)        | —                                                | 2     |
+| 8     | Pluribus épisodes nested        | (same root cause as #6)        | —                                                | 2     |
+| 9     | rsync `:` Invalid argument      | test_dispatcher.py             | test_item_with_colon_skipped                     | 5     |
+| 10    | sanitize pas appliqué           | test_scraper.py                | test_old_artwork_with_colon_removed_after_rename | 1     |
+| 11    | result.media_path stale         | test_scraper.py                | test_tvshow_media_path_updated_after_rename      | 3     |
+| 12    | qBit ban IP                     | test_qbit_client.py            | test_pre_check_uses_root_page_not_api            | 4     |
+| 13    | Anciens artwork non nettoyés    | test_scraper.py                | test_old_artwork_with_colon_removed_after_rename | 1     |
+| 14    | pipeline-monitor trop permissif | (skill file, no code)          | —                                                | 8     |
+| 15    | Pas de crash recovery           | test_pipeline.py               | TestCrashRecovery (4 tests)                      | 6     |
+| 16    | reclean sans sanitize           | test_reclean.py                | test_reclean_removes_colon_from_folder_name      | 1     |
+| 17    | Tests manquants                 | (this audit — Phase 9)         | —                                                | 9     |
+| 18    | Verify pas de check NTFS        | test_checker.py                | test_colon_in_artwork_fails_check                | 5     |
+| 19    | Dispatch pas de pre-scan        | test_dispatcher.py             | test_item_with_colon_skipped                     | 5     |
+| 20    | Pre-check qBit accessible       | test_qbit_client.py            | test_connection_refused_raises_api_error         | 4     |
+| 21    | Regex Saison trop strict        | test_naming_patterns.py        | TestSeasonDirRegex (5 tests)                     | 7     |
+| 22    | desktop.ini manquant            | test_cleanup.py                | test_desktop_ini_only_treated_as_empty           | 7     |
 
 ---
 

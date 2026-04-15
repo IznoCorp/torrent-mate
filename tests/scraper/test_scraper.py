@@ -992,3 +992,74 @@ class TestStripTrailingYear:
     def test_trailing_whitespace_after_year(self) -> None:
         """Trailing whitespace after year should be handled."""
         assert Scraper._strip_trailing_year("Title (2020) ") == "Title"
+
+
+# ---------------------------------------------------------------------------
+# media_path updated after folder rename (bug #17)
+# ---------------------------------------------------------------------------
+
+
+class TestMediaPathUpdatedAfterRename:
+    """Tests that result.media_path points to the new path after folder rename."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with mocked API clients."""
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            s = Scraper(mock_settings, NamingPatterns())
+        return s
+
+    def test_tvshow_media_path_updated_after_rename(
+        self, scraper: Scraper, tmp_path: Path,
+    ) -> None:
+        """After renaming 'Show' → 'Show (2024)', result.media_path must be the new path."""
+        show_dir = tmp_path / "Fallout"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=106379, api_title="Fallout",
+            api_year=2024, confidence=0.95, source="tmdb",
+        )
+        show_data = {
+            "id": 106379,
+            "name": "Fallout",
+            "original_name": "Fallout",
+            "overview": "Test",
+            "vote_average": 8.1,
+            "vote_count": 2000,
+            "genres": [],
+            "first_air_date": "2024-04-10",
+            "status": "Returning Series",
+            "networks": [{"name": "Prime Video"}],
+            "origin_country": ["US"],
+            "number_of_episodes": 8,
+            "number_of_seasons": 1,
+            "external_ids": {"imdb_id": "tt12637874", "tvdb_id": 416744},
+            "aggregate_credits": {"cast": []},
+            "images": {"posters": [], "backdrops": []},
+            "content_ratings": {"results": []},
+            "seasons": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        expected_path = tmp_path / "Fallout (2024)"
+        assert result.media_path == expected_path
+        assert expected_path.exists()
+        assert not show_dir.exists()
