@@ -275,7 +275,7 @@ After successful archiving (or if this is the first version with no archive need
 
 3. **Ask merge strategy** — prompt the user:
 
-   > La PR sera auto-mergée à l'archivage ou mergée manuellement ? (auto/manual)
+   > Stratégie de merge pour la PR ? (auto-merge / auto-squash / manual)
 
 4. **Create the branch:**
 
@@ -290,7 +290,7 @@ If branch already exists → ask user: switch to existing branch (`git checkout 
 
    ```markdown
    **Branch:** `{type}/{name}`
-   **PR merge:** auto | manual
+   **PR merge:** auto-merge | auto-squash | manual
    **PR:** _(created after last phase)_
    ```
 
