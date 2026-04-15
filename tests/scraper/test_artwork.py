@@ -10,11 +10,49 @@ from unittest.mock import MagicMock, patch
 import requests
 
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.scraper.artwork import ArtworkDownloader, select_best_image
+from personalscraper.scraper.artwork import (
+    ArtworkDownloader,
+    build_lang_priority,
+    select_best_image,
+)
+
+# ---------------------------------------------------------------------------
+# Language priority tests
+# ---------------------------------------------------------------------------
+
+
+class TestBuildLangPriority:
+    """Tests for build_lang_priority — configurable artwork language."""
+
+    def test_default_english(self) -> None:
+        """Default should prefer English over French."""
+        result = build_lang_priority("en")
+        assert result == {"en": 0, "fr": 1}
+
+    def test_french_preferred(self) -> None:
+        """French preferred should put French first."""
+        result = build_lang_priority("fr")
+        assert result == {"fr": 0, "en": 1}
+
+    def test_third_language_keeps_both_fallbacks(self) -> None:
+        """Non-en/fr language should keep both en and fr as fallbacks."""
+        result = build_lang_priority("de")
+        assert result == {"de": 0, "en": 1, "fr": 2}
+
+    def test_integration_with_select_best_image(self) -> None:
+        """build_lang_priority result should work with select_best_image."""
+        images = [
+            {"file_path": "/en.jpg", "iso_639_1": "en", "vote_average": 8.0},
+            {"file_path": "/fr.jpg", "iso_639_1": "fr", "vote_average": 5.0},
+        ]
+        priority = build_lang_priority("fr")
+        assert select_best_image(images, priority) == "/fr.jpg"
+
 
 # ---------------------------------------------------------------------------
 # Image selection tests
 # ---------------------------------------------------------------------------
+
 
 class TestSelectBestImage:
     """Tests for select_best_image language priority logic."""
