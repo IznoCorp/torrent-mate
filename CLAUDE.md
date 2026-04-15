@@ -149,11 +149,15 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 
 ## Pipeline Automation
 
-All versions (V0–V13) are implemented. Documentation and plans live in `docs/`:
+**Current status:** v14 in progress — awaiting spec and plan.
 
-- `docs/IMPLEMENTATION.md` — Master tracker with progress and links
-- `docs/v0-project-setup/` through `docs/v13-pipeline-correctness/` — Per-version brainstorming, design, and phased plans
-- Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
+**Archive v13:** `docs/archive/v13/IMPLEMENTATION.md`
+
+**New implementation:** Read `docs/IMPLEMENTATION.md` first. Update after each task (check, commit).
+Specs: `docs/superpowers/specs/`, plans: `docs/superpowers/plans/`.
+
+All versions (V0–V13) are implemented. Per-version docs live in `docs/v0-project-setup/` through `docs/v13-pipeline-correctness/`.
+Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
 
 ### Pipeline Versions
 
