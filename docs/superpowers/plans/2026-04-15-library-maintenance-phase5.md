@@ -220,6 +220,13 @@ is_default = bool(disposition.get("default", 0))
 
 Add `"is_atmos": is_atmos, "is_default": is_default` to each audio track dict.
 
+**IMPORTANT — Atmos codec conflict:** The existing `_map_audio_codec()` returns `"atmos"` as the codec, overwriting the underlying codec (eac3/truehd). Modify it to preserve the underlying codec:
+
+- Remove the `if "atmos" in profile.lower(): return "atmos"` line
+- The underlying codec (`eac3`, `truehd`) stays in the `"codec"` field
+- Atmos detection moves to the separate `is_atmos` bool field
+- For backward compat in NFO generation, the NFO writer should check `is_atmos` and write `<codec>atmos</codec>` for Kodi (this is an existing behavior — do NOT change NFO output format)
+
 3. **Subtitle format, forced, is_default** — in the subtitle track loop, add:
 
 ```python
@@ -463,20 +470,19 @@ def _analyze_video_file(
     )
 
 
-def _get_file_key(path: Path) -> tuple[int, float]:
-    """Get size + mtime for incremental skip check.
+def _file_size_bytes(path: Path) -> int:
+    """Get file size in bytes for incremental comparison.
 
     Args:
         path: File path.
 
     Returns:
-        Tuple of (size_bytes, mtime_timestamp).
+        File size in bytes, or 0 if inaccessible.
     """
     try:
-        st = path.stat()
-        return (st.st_size, st.st_mtime)
+        return path.stat().st_size
     except OSError:
-        return (0, 0.0)
+        return 0
 
 
 def analyze_library(
@@ -484,7 +490,7 @@ def analyze_library(
     disk_filter: str | None = None,
     category_filter: str | None = None,
     incremental: bool = False,
-    existing_analysis: dict[str, tuple[int, float]] | None = None,
+    existing_sizes: dict[str, int] | None = None,
     max_items: int | None = None,
 ) -> LibraryAnalysisResult:
     """Analyze all video files in the library with ffprobe.
@@ -493,8 +499,8 @@ def analyze_library(
         disk_configs: List of DiskConfig objects.
         disk_filter: Only analyze this disk. None = all.
         category_filter: Only analyze this category. None = all.
-        incremental: Skip files whose size+mtime haven't changed.
-        existing_analysis: Dict of path → (size, mtime) from previous analysis.
+        incremental: Skip files whose size hasn't changed since last analysis.
+        existing_sizes: Dict of path → size_bytes from previous analysis.
         max_items: Maximum number of media items to analyze. None = unlimited.
 
     Returns:
@@ -504,7 +510,7 @@ def analyze_library(
     file_count = 0
     items_processed = 0
     start = datetime.now(tz=timezone.utc).isoformat()
-    existing = existing_analysis or {}
+    existing = existing_sizes or {}
 
     for config in disk_configs:
         if disk_filter and config.name != disk_filter:
@@ -541,11 +547,11 @@ def analyze_library(
 
                 file_analyses: list[MediaFileAnalysis] = []
                 for vf in video_files:
-                    # Incremental: skip if unchanged
+                    # Incremental: skip if file size hasn't changed
                     if incremental:
-                        key = _get_file_key(vf)
-                        prev = existing.get(str(vf))
-                        if prev and prev == key:
+                        current_size = _file_size_bytes(vf)
+                        prev_size = existing.get(str(vf))
+                        if prev_size is not None and prev_size == current_size:
                             logger.debug("Skipping unchanged: %s", vf)
                             continue
 
@@ -639,13 +645,16 @@ def library_analyze(
         personalscraper library-analyze --disk Disk2 --category series
         personalscraper library-analyze --max-items 50
     """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.analyzer import analyze_library
     from personalscraper.library.models import read_json, write_json
 
     console = state["console"]
     settings = get_settings()
+    disk_configs = get_disk_configs(settings)
 
     # Load existing analysis for incremental mode
+    # Store analyzed_at timestamp as proxy for mtime (real mtime not available from JSON)
     existing = {}
     analysis_path = settings.data_dir / "library_analysis.json"
     if incremental and analysis_path.exists():
@@ -654,18 +663,19 @@ def library_analyze(
             for item in data.get("items", []):
                 for f in item.get("files", []):
                     path = f.get("path", "")
-                    size = int(f.get("size_gb", 0) * 1024 ** 3)
-                    existing[path] = (size, 0.0)  # mtime not stored yet, size-only check
+                    size_bytes = int(f.get("size_gb", 0) * 1024 ** 3)
+                    # Store size only — mtime checked live by _get_file_key
+                    existing[path] = size_bytes
         except (OSError, KeyError):
             pass
 
     console.print("[bold]Analyzing library (ffprobe)...[/bold]")
     result = analyze_library(
-        settings.disk_configs,
+        disk_configs,
         disk_filter=disk,
         category_filter=category,
         incremental=incremental,
-        existing_analysis=existing if incremental else None,
+        existing_sizes=existing if incremental else None,
         max_items=max_items,
     )
 

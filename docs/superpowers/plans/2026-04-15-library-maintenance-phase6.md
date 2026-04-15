@@ -182,10 +182,9 @@ class TestEncodingRules:
         assert result.items[0].priority == PRIORITY_HIGH
         assert result.items[0].matched_rule_index == 0
 
-    def test_rule_by_genre_substring(self) -> None:
-        """Rule matching genre substring should apply."""
-        # Genre matching requires NFO data — tested via title for now
-        items = [_make_movie(codec="hevc", title="Animation Movie")]
+    def test_rule_by_title_substring(self) -> None:
+        """Rule matching title substring should apply."""
+        items = [_make_movie(codec="hevc", title="Animation Movie", size_gb=3.0)]
         prefs = LibraryPreferences(encoding_rules=[
             EncodingRule(
                 criteria=RuleCriteria(title="Animation"),
@@ -193,8 +192,26 @@ class TestEncodingRules:
             ),
         ])
         result = generate_recommendations(items, prefs)
-        # Movie is 2.0 GB, rule max is 2.0 GB — no issue
-        assert result.total_recommendations == 0
+        assert result.total_recommendations == 1
+        assert result.items[0].matched_rule_index == 0
+
+    def test_genre_matching_deferred(self) -> None:
+        """Genre-based rules are deferred (V14 scope: title + ID only).
+
+        Genre matching requires cross-referencing NFO data, which is
+        not yet implemented. Rules with only genre criteria will not match.
+        """
+        items = [_make_movie(codec="h264")]
+        prefs = LibraryPreferences(encoding_rules=[
+            EncodingRule(
+                criteria=RuleCriteria(genre="Animation"),
+                codec="hevc",
+            ),
+        ])
+        result = generate_recommendations(items, prefs)
+        # Genre rule does NOT match — still picks up h264→hevc from default prefs
+        assert result.total_recommendations == 1
+        assert result.items[0].matched_rule_index is None  # default, not rule
 
 
 class TestDisparateSeries:
@@ -278,12 +295,14 @@ def _max_priority(*priorities: str) -> str:
 def _evaluate_movie(
     item: LibraryAnalysisItem,
     prefs: LibraryPreferences,
+    ids: tuple[str | None, str | None] = (None, None),
 ) -> Recommendation | None:
     """Evaluate a single movie against preferences.
 
     Args:
         item: Analyzed movie item.
         prefs: User preferences.
+        ids: Tuple of (tmdb_id, imdb_id) from scan data.
 
     Returns:
         Recommendation or None if item is conforming.
@@ -302,12 +321,14 @@ def _evaluate_movie(
     vp = prefs.video
 
     # Check encoding rules first (override defaults)
+    # IDs come from scan data via id_lookup parameter
+    item_tmdb, item_imdb = ids
     for i, rule in enumerate(prefs.encoding_rules):
         c = rule.criteria
         match = False
-        if c.imdb_id and _extract_imdb(item) == c.imdb_id:
+        if c.imdb_id and item_imdb == c.imdb_id:
             match = True
-        elif c.tmdb_id and _extract_tmdb(item) == c.tmdb_id:
+        elif c.tmdb_id and item_tmdb == c.tmdb_id:
             match = True
         elif c.title and c.title.lower() in item.title.lower():
             match = True
@@ -392,7 +413,7 @@ def _evaluate_movie(
     return Recommendation(
         path=item.path, title=item.title, media_type=item.media_type,
         disk=item.disk, category=item.category,
-        tmdb_id=_extract_tmdb(item), imdb_id=_extract_imdb(item),
+        tmdb_id=None, imdb_id=None,  # Enriched by generate_recommendations from scan data
         current=CurrentState(
             codec=f.video.codec, resolution=f.video.resolution,
             size_gb=f.size_gb, audio_profile=f.audio_profile,
@@ -465,7 +486,7 @@ def _evaluate_tvshow(
     return Recommendation(
         path=item.path, title=item.title, media_type=item.media_type,
         disk=item.disk, category=item.category,
-        tmdb_id=_extract_tmdb(item), imdb_id=_extract_imdb(item),
+        tmdb_id=None, imdb_id=None,  # Enriched by generate_recommendations from scan data
         current=CurrentState(
             codec=f.video.codec, resolution=f.video.resolution,
             size_gb=total_size, audio_profile=f.audio_profile,
@@ -476,37 +497,34 @@ def _evaluate_tvshow(
     )
 
 
-def _extract_tmdb(item: LibraryAnalysisItem) -> str | None:
-    """Extract TMDB ID from item path (placeholder — real ID from scan data)."""
-    return None  # Will be enriched from library_scan.json in integration
-
-
-def _extract_imdb(item: LibraryAnalysisItem) -> str | None:
-    """Extract IMDB ID from item path (placeholder — real ID from scan data)."""
-    return None  # Will be enriched from library_scan.json in integration
-
-
 def generate_recommendations(
     items: list[LibraryAnalysisItem],
     prefs: LibraryPreferences,
+    id_lookup: dict[str, tuple[str | None, str | None]] | None = None,
 ) -> LibraryRecommendationResult:
     """Generate re-download recommendations from analysis + preferences.
 
     Args:
         items: Analyzed library items.
         prefs: User preferences.
+        id_lookup: Optional dict of path → (tmdb_id, imdb_id) from scan data.
+            Used to enrich recommendations with IDs for future auto-download.
 
     Returns:
         LibraryRecommendationResult with prioritized recommendations.
     """
+    lookup = id_lookup or {}
     recommendations: list[Recommendation] = []
 
     for item in items:
+        ids = lookup.get(item.path, (None, None))
         if item.media_type == "movie":
-            rec = _evaluate_movie(item, prefs)
+            rec = _evaluate_movie(item, prefs, ids=ids)
         else:
             rec = _evaluate_tvshow(item, prefs)
         if rec:
+            rec.tmdb_id = ids[0]
+            rec.imdb_id = ids[1]
             recommendations.append(rec)
 
     total_savings = sum(r.estimated_savings_gb or 0 for r in recommendations)
@@ -551,9 +569,62 @@ class TestLibraryRecommend:
         assert result.exit_code == 0
         assert "--sort" in result.output
         assert "--export" in result.output
+        assert "--disk" in result.output
+        assert "--category" in result.output
 ```
 
-- [ ] **Step 2: Add command to cli.py**
+- [ ] **Step 2: Add `_reconstruct_analysis_items` helper to analyzer.py**
+
+Add to `personalscraper/library/analyzer.py` — this MUST exist before the CLI command imports it:
+
+```python
+def _reconstruct_analysis_items(data: dict) -> list[LibraryAnalysisItem]:
+    """Reconstruct LibraryAnalysisItem list from JSON data."""
+    items = []
+    for item_data in data.get("items", []):
+        files = []
+        for f_data in item_data.get("files", []):
+            vid = f_data.get("video", {})
+            files.append(MediaFileAnalysis(
+                path=f_data.get("path", ""),
+                size_gb=f_data.get("size_gb", 0),
+                duration_seconds=f_data.get("duration_seconds"),
+                video=VideoInfo(
+                    codec=vid.get("codec", ""), width=vid.get("width", 0),
+                    height=vid.get("height", 0),
+                    bitrate_kbps=vid.get("bitrate_kbps"),
+                    hdr=vid.get("hdr", False), hdr_type=vid.get("hdr_type"),
+                ),
+                audio_tracks=[
+                    AudioTrack(
+                        codec=a.get("codec", ""), language=a.get("language", "und"),
+                        channels=a.get("channels", 2), is_atmos=a.get("is_atmos", False),
+                        is_default=a.get("is_default", False),
+                    ) for a in f_data.get("audio_tracks", [])
+                ],
+                subtitle_tracks=[
+                    SubtitleTrack(
+                        language=s.get("language", "und"), format=s.get("format", "unknown"),
+                        forced=s.get("forced", False), is_default=s.get("is_default", False),
+                    ) for s in f_data.get("subtitle_tracks", [])
+                ],
+                audio_profile=f_data.get("audio_profile", "vo"),
+                subtitle_languages=f_data.get("subtitle_languages", []),
+                analyzed_at=f_data.get("analyzed_at", ""),
+            ))
+        items.append(LibraryAnalysisItem(
+            path=item_data.get("path", ""),
+            disk=item_data.get("disk", ""),
+            category=item_data.get("category", ""),
+            media_type=item_data.get("media_type", "movie"),
+            title=item_data.get("title", ""),
+            year=item_data.get("year"),
+            files=files,
+        ))
+    return items
+```
+
+- [ ] **Step 3: Add library-recommend command to cli.py**
 
 ```python
 @app.command()
@@ -640,64 +711,6 @@ def library_recommend(
         f"[green]Recommendations:[/green] {result.total_recommendations} items, "
         f"~{result.estimated_total_savings_gb:.1f} GB potential savings → {output_path}"
     )
-```
-
-- [ ] **Step 3: Add \_reconstruct_analysis_items helper to analyzer.py**
-
-Add to `personalscraper/library/analyzer.py`:
-
-```python
-def _reconstruct_analysis_items(data: dict) -> list[LibraryAnalysisItem]:
-    """Reconstruct LibraryAnalysisItem list from JSON data.
-
-    Args:
-        data: Parsed library_analysis.json dict.
-
-    Returns:
-        List of LibraryAnalysisItem dataclass instances.
-    """
-    items = []
-    for item_data in data.get("items", []):
-        files = []
-        for f_data in item_data.get("files", []):
-            vid = f_data.get("video", {})
-            files.append(MediaFileAnalysis(
-                path=f_data.get("path", ""),
-                size_gb=f_data.get("size_gb", 0),
-                duration_seconds=f_data.get("duration_seconds"),
-                video=VideoInfo(
-                    codec=vid.get("codec", ""), width=vid.get("width", 0),
-                    height=vid.get("height", 0),
-                    bitrate_kbps=vid.get("bitrate_kbps"),
-                    hdr=vid.get("hdr", False), hdr_type=vid.get("hdr_type"),
-                ),
-                audio_tracks=[
-                    AudioTrack(
-                        codec=a.get("codec", ""), language=a.get("language", "und"),
-                        channels=a.get("channels", 2), is_atmos=a.get("is_atmos", False),
-                        is_default=a.get("is_default", False),
-                    ) for a in f_data.get("audio_tracks", [])
-                ],
-                subtitle_tracks=[
-                    SubtitleTrack(
-                        language=s.get("language", "und"), format=s.get("format", "unknown"),
-                        forced=s.get("forced", False), is_default=s.get("is_default", False),
-                    ) for s in f_data.get("subtitle_tracks", [])
-                ],
-                audio_profile=f_data.get("audio_profile", "vo"),
-                subtitle_languages=f_data.get("subtitle_languages", []),
-                analyzed_at=f_data.get("analyzed_at", ""),
-            ))
-        items.append(LibraryAnalysisItem(
-            path=item_data.get("path", ""),
-            disk=item_data.get("disk", ""),
-            category=item_data.get("category", ""),
-            media_type=item_data.get("media_type", "movie"),
-            title=item_data.get("title", ""),
-            year=item_data.get("year"),
-            files=files,
-        ))
-    return items
 ```
 
 - [ ] **Step 4: Run tests and commit**

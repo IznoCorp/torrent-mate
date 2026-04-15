@@ -382,15 +382,14 @@ def _detect_issues(
             issues.append(ISSUE_JUNK_FILES)
             continue
 
-        # Empty subdirectories (skip season dirs for tvshows)
+        # Empty subdirectories
         if item.is_dir() and not any(item.iterdir()):
-            if is_tvshow and SEASON_DIR_RE.match(name):
-                issues.append(ISSUE_EMPTY_SUBDIR)
-            elif not is_tvshow:
-                issues.append(ISSUE_EMPTY_SUBDIR)
-            elif is_tvshow and not SEASON_DIR_RE.match(name):
-                # Non-season empty dir in a tvshow (release artifact)
+            if is_tvshow and not SEASON_DIR_RE.match(name):
+                # Non-season empty dir in a tvshow (likely release artifact)
                 issues.append(ISSUE_RELEASE_ARTIFACT)
+            else:
+                # Empty dir in a movie, or empty season dir in a tvshow
+                issues.append(ISSUE_EMPTY_SUBDIR)
 
         # NTFS-unsafe names
         if _NTFS_ILLEGAL.search(name):
@@ -810,12 +809,12 @@ class TestLibraryScan:
         )
 
         with (
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result) as mock_scan,
+            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
             patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.scan_library", return_value=mock_result),
-            patch("personalscraper.cli.write_json") as mock_write,
         ):
             settings = MagicMock()
-            settings.disk_configs = []
             settings.data_dir = tmp_path
             mock_settings.return_value = settings
 
@@ -851,15 +850,17 @@ def library_scan(
         personalscraper library-scan --disk Disk1
         personalscraper library-scan --category films
     """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.scanner import scan_library
 
     console = state["console"]
     settings = get_settings()
+    disk_configs = get_disk_configs(settings)
 
     console.print("[bold]Scanning library...[/bold]")
     result = scan_library(
-        settings.disk_configs,
+        disk_configs,
         disk_filter=disk,
         category_filter=category,
     )
