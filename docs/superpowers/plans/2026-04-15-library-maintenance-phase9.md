@@ -65,7 +65,7 @@ def mini_library(tmp_path: Path):
     # --- Movie: complete ---
     matrix = disk / "films" / "The Matrix (1999)"
     matrix.mkdir(parents=True)
-    (matrix / "The Matrix.mkv").write_bytes(b"\x00" * 200_000_000)
+    (matrix / "The Matrix.mkv").write_bytes(b"\x00" * 1000)
     (matrix / "The Matrix.nfo").write_text(
         '<movie><title>The Matrix</title><year>1999</year>'
         '<uniqueid type="tmdb">603</uniqueid>'
@@ -81,7 +81,7 @@ def mini_library(tmp_path: Path):
     # --- Movie: incomplete (no NFO, bad naming) ---
     incomplete = disk / "films" / "Incomplete Movie"
     incomplete.mkdir(parents=True)
-    (incomplete / "movie.mkv").write_bytes(b"\x00" * 200_000_000)
+    (incomplete / "movie.mkv").write_bytes(b"\x00" * 1000)
 
     # --- TV Show ---
     fallout = disk / "series" / "Fallout (2024)"
@@ -94,11 +94,11 @@ def mini_library(tmp_path: Path):
     (fallout / "season01-poster.jpg").write_bytes(b"\xff\xd8" + b"\x00" * 100)
     s01 = fallout / "Saison 01"
     s01.mkdir()
-    (s01 / "S01E01 - The Beginning.mkv").write_bytes(b"\x00" * 500_000_000)
+    (s01 / "S01E01 - The Beginning.mkv").write_bytes(b"\x00" * 2000)
     (s01 / "S01E01 - The Beginning.nfo").write_text(
         "<episodedetails><title>The Beginning</title></episodedetails>"
     )
-    (s01 / "S01E02 - The End.mkv").write_bytes(b"\x00" * 500_000_000)
+    (s01 / "S01E02 - The End.mkv").write_bytes(b"\x00" * 2000)
     show_actors = fallout / ".actors"
     show_actors.mkdir()
     (show_actors / "Ella Purnell.jpg").write_bytes(b"\x00" * 50)

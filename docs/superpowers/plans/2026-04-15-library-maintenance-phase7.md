@@ -169,7 +169,9 @@ class LibraryReport:
     estimated_savings_gb: float = 0.0
     recommendations_by_priority: dict[str, int] = field(default_factory=dict)
     validation_valid: int = 0
+    validation_fixable: int = 0
     validation_blocked: int = 0
+    disk_free_gb: dict[str, float] = field(default_factory=dict)
 
 
 def generate_report(
@@ -177,6 +179,7 @@ def generate_report(
     analysis_data: dict | None = None,
     validation_data: dict | None = None,
     recommendation_data: dict | None = None,
+    disk_statuses: list | None = None,
 ) -> LibraryReport:
     """Generate a library health report from JSON data.
 
@@ -257,9 +260,16 @@ def generate_report(
         report.codec_distribution = dict(codec_counter)
         report.audio_distribution = dict(audio_counter)
 
+    # --- Disk free space (from live DiskStatus objects) ---
+    if disk_statuses:
+        for ds in disk_statuses:
+            if hasattr(ds, "name") and hasattr(ds, "free_gb"):
+                report.disk_free_gb[ds.name] = round(ds.free_gb, 1)
+
     # --- Validation data ---
     if validation_data:
         report.validation_valid = validation_data.get("valid_count", 0)
+        report.validation_fixable = validation_data.get("fixed_count", 0)
         report.validation_blocked = validation_data.get("blocked_count", 0)
 
     # --- Recommendation data ---
@@ -392,6 +402,8 @@ class TestLibraryReport:
 @handle_cli_errors
 def library_report(
     format: str = typer.Option("text", "--format", help="Output format: text or json"),
+    disk: str = typer.Option(None, "--disk", help="Filter report to this disk"),
+    category: str = typer.Option(None, "--category", help="Filter report to this category"),
 ) -> None:
     """Display library statistics and health report.
 
@@ -401,7 +413,9 @@ def library_report(
     Examples:
         personalscraper library-report
         personalscraper library-report --format json
+        personalscraper library-report --disk Disk1
     """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
@@ -427,7 +441,14 @@ def library_report(
         console.print("[yellow]No library data found. Run library-scan or library-analyze first.[/yellow]")
         raise typer.Exit(1)
 
-    report = generate_report(scan_data, analysis_data, validation_data, recommendation_data)
+    # Get live disk free space
+    disk_configs = get_disk_configs(settings)
+    disk_statuses = [get_disk_status(dc) for dc in disk_configs]
+
+    report = generate_report(
+        scan_data, analysis_data, validation_data, recommendation_data,
+        disk_statuses=disk_statuses,
+    )
 
     if format == "json":
         output_path = settings.data_dir / "library_report.json"

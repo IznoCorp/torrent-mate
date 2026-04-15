@@ -514,10 +514,10 @@ class TestLibraryClean:
 
         with (
             patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.clean_library", return_value=mock_result),
+            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
         ):
             settings = MagicMock()
-            settings.disk_configs = []
+            settings.data_dir = tmp_path
             mock_settings.return_value = settings
 
             result = runner.invoke(app, ["library-clean"])
@@ -534,12 +534,12 @@ class TestLibraryClean:
 
         with (
             patch("personalscraper.cli.get_settings") as mock_settings,
-            patch("personalscraper.cli.clean_library", return_value=mock_result),
+            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
             patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
             patch("personalscraper.cli.release_lock"),
         ):
             settings = MagicMock()
-            settings.disk_configs = []
+            settings.data_dir = tmp_path
             mock_settings.return_value = settings
 
             result = runner.invoke(app, ["library-clean", "--apply"])
@@ -577,10 +577,12 @@ def library_clean(
         personalscraper library-clean --apply --only actors  # Only .actors/
         personalscraper library-clean --disk Disk1        # Only Disk1
     """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.disk_cleaner import clean_library
 
     console = state["console"]
     settings = get_settings()
+    disk_configs = get_disk_configs(settings)
 
     # Acquire lock only when applying changes
     if apply:
@@ -593,7 +595,7 @@ def library_clean(
         console.print(f"[bold]Cleaning library ({mode})...[/bold]")
 
         result = clean_library(
-            settings.disk_configs,
+            disk_configs,
             apply=apply,
             only=only,
             disk_filter=disk,

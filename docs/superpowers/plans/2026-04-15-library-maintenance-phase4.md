@@ -213,6 +213,7 @@ from personalscraper.library.models import (
     LibraryValidationResult,
     ValidationItem,
 )
+from personalscraper.genre_mapper import GenreMapper
 from personalscraper.library.scanner import _parse_title_year, _SERIES_CATEGORIES
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
@@ -253,7 +254,7 @@ def validate_library(
     Returns:
         LibraryValidationResult with per-item validation status.
     """
-    checker = MediaChecker(NamingPatterns())
+    checker = MediaChecker(NamingPatterns(), GenreMapper())
     items: list[ValidationItem] = []
     valid_count = 0
     blocked_count = 0
@@ -286,7 +287,7 @@ def validate_library(
                         checks = checker.check_tvshow(media_dir)
                     else:
                         checks = checker.check_movie(media_dir)
-                except OSError as exc:
+                except Exception as exc:
                     logger.warning("Error checking %s: %s", media_dir, exc)
                     items.append(ValidationItem(
                         path=str(media_dir), disk=config.name,
@@ -361,6 +362,66 @@ class TestLibraryValidate:
         assert "--disk" in result.output
         assert "--level" in result.output
         assert "--fix" in result.output
+
+    def test_validate_produces_json(self, runner, tmp_path, monkeypatch) -> None:
+        """library-validate should produce library_validation.json."""
+        from unittest.mock import patch, MagicMock
+        from personalscraper.library.models import LibraryValidationResult
+
+        mock_result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            total_items=0, valid_count=0, fixed_count=0, blocked_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-validate"])
+
+        assert result.exit_code == 0
+        mock_write.assert_called_once()
+
+    def test_apply_without_fix_errors(self, runner) -> None:
+        """--apply without --fix should error."""
+        with patch("personalscraper.cli.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+            result = runner.invoke(app, ["library-validate", "--apply"])
+        assert result.exit_code == 1
+
+    def test_fix_apply_acquires_lock(self, runner, tmp_path) -> None:
+        """--fix --apply should acquire pipeline lock."""
+        from unittest.mock import patch, MagicMock
+        from personalscraper.library.models import LibraryValidationResult
+
+        mock_result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            total_items=0, valid_count=0, fixed_count=0, blocked_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli.release_lock"),
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-validate", "--fix", "--apply"])
+
+        mock_lock.assert_called_once()
 ```
 
 - [ ] **Step 2: Add command to cli.py**
@@ -385,11 +446,13 @@ def library_validate(
         personalscraper library-validate --disk Disk1 --level quick
         personalscraper library-validate --fix --apply
     """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.validator import validate_library
 
     console = state["console"]
     settings = get_settings()
+    disk_configs = get_disk_configs(settings)
 
     if apply and not fix:
         console.print("[red]--apply requires --fix[/red]")
@@ -403,7 +466,7 @@ def library_validate(
     try:
         console.print("[bold]Validating library...[/bold]")
         result = validate_library(
-            settings.disk_configs,
+            disk_configs,
             disk_filter=disk,
             category_filter=category,
             level=level,
