@@ -84,6 +84,28 @@ class TestCleanupEmptyDirs:
         assert not empty.exists()
         assert movie.exists()
 
+    def test_desktop_ini_only_treated_as_empty(self, category_dir):
+        """Directory with only desktop.ini is treated as empty (NTFS junk)."""
+        folder = category_dir / "Empty Movie (2025)"
+        folder.mkdir()
+        (folder / "desktop.ini").write_text("[ViewState]\nMode=4\n")
+
+        report = cleanup_empty_dirs(category_dir)
+
+        assert report.success_count == 1
+        assert not folder.exists()
+
+    def test_thumbs_db_only_treated_as_empty(self, category_dir):
+        """Directory with only Thumbs.db is treated as empty (Windows junk)."""
+        folder = category_dir / "Empty Movie (2024)"
+        folder.mkdir()
+        (folder / "Thumbs.db").write_bytes(b"\x00" * 100)
+
+        report = cleanup_empty_dirs(category_dir)
+
+        assert report.success_count == 1
+        assert not folder.exists()
+
     def test_nonexistent_dir_returns_empty_report(self, tmp_path):
         """Non-existent directory returns empty report."""
         report = cleanup_empty_dirs(tmp_path / "nonexistent")

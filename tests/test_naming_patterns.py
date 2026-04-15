@@ -2,7 +2,7 @@
 
 import pytest
 
-from personalscraper.naming_patterns import PATTERNS, NamingPatterns
+from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE, NamingPatterns
 
 # --- NamingPatterns dataclass ---
 
@@ -166,3 +166,33 @@ class TestMediaElchConformity:
             "episode_thumb", Season=3, Episode=8, EpisodeTitle="Régime dépression"
         )
         assert result == "S03E08 - Régime dépression-thumb.jpg"
+
+
+# --- SEASON_DIR_RE regex ---
+
+
+class TestSeasonDirRegex:
+    """Tests for SEASON_DIR_RE — Saison directory matching with any digit count."""
+
+    def test_single_digit_saison(self):
+        """'Saison 1' (single digit) should match."""
+        assert SEASON_DIR_RE.match("Saison 1")
+
+    def test_two_digit_saison(self):
+        """'Saison 01' (standard two digits) should match."""
+        assert SEASON_DIR_RE.match("Saison 01")
+
+    def test_three_digit_saison(self):
+        """'Saison 100' (three digits, e.g. long-running anime) should match."""
+        assert SEASON_DIR_RE.match("Saison 100")
+
+    def test_non_saison_dir_rejected(self):
+        """Random directory names should not match."""
+        assert not SEASON_DIR_RE.match("Season 01")
+        assert not SEASON_DIR_RE.match("S01")
+        assert not SEASON_DIR_RE.match("Extras")
+
+    def test_saison_without_number_rejected(self):
+        """'Saison' alone (no number) should not match."""
+        assert not SEASON_DIR_RE.match("Saison")
+        assert not SEASON_DIR_RE.match("Saison ")

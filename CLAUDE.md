@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V10, V13 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience, pipeline correctness).
+V0-V13 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience, pipeline hardening, pipeline correctness).
 
 ## Commit Convention
 
@@ -149,10 +149,10 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 
 ## Pipeline Automation
 
-All versions (V0–V10, V13) are implemented. Documentation and plans live in `docs/`:
+All versions (V0–V13) are implemented. Documentation and plans live in `docs/`:
 
 - `docs/IMPLEMENTATION.md` — Master tracker with progress and links
-- `docs/v0-project-setup/` through `docs/v10-pipeline-resilience/` — Per-version brainstorming, design, and phased plans
+- `docs/v0-project-setup/` through `docs/v13-pipeline-correctness/` — Per-version brainstorming, design, and phased plans
 - Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase)
 
 ### Pipeline Versions
@@ -171,6 +171,8 @@ All versions (V0–V10, V13) are implemented. Documentation and plans live in `d
 | V8      | ROBUSTNESS           | Circuit breaker, fuzzy guards, dispatch rollback, disk fallback   | 5      |
 | V9      | PIPELINE INTEGRITY   | Sequential 7-step pipeline, reclean+dedup, verify reinforced      | 5      |
 | V10     | PIPELINE RESILIENCE  | Idempotence, fast-skip, NFO validation, crash recovery, tests     | 5      |
+| V11     | CODE QUALITY         | Error isolation, CLI UX, dead code, DRY extraction                | 4      |
+| V12     | PIPELINE HARDENING   | NTFS-safe names, episode restructuring, crash recovery, 22 bugs   | 9      |
 | V13     | PIPELINE CORRECTNESS | Idempotent fast-skip, ENFORCE step, E2E idempotence tests         | 5      |
 
 ### Reference Documentation
@@ -235,7 +237,9 @@ A TRIER/
 │   ├── scraper/         # V3 unit tests
 │   ├── process/         # V9 unit tests (reclean, dedup, cleanup, run)
 │   ├── verify/          # V4 unit tests
-│   └── dispatch/        # V5 unit tests
+│   ├── dispatch/        # V5 unit tests
+│   ├── enforce/         # V13 unit tests (file sanitizer, structure, coherence)
+│   └── resilience/      # V10 unit tests (idempotence, crash recovery)
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
 │   └── expected/        # V7.x: Golden files (expected results per torrent)
 ├── docs/                # Planning docs per version
@@ -243,7 +247,10 @@ A TRIER/
 │   ├── v7x-test-audit/  # V7.x: Test audit + golden files (implemented)
 │   ├── v8-robustness/   # V8: Robustness improvements (implemented)
 │   ├── v9-pipeline-integrity/  # V9: Pipeline integrity (implemented)
-│   └── v10-pipeline-resilience/ # V10: Idempotence + crash recovery (implemented)
+│   ├── v10-pipeline-resilience/ # V10: Idempotence + crash recovery (implemented)
+│   ├── v11-code-quality/  # V11: Code quality hardening (implemented)
+│   ├── v12-pipeline-hardening/  # V12: 22 bugs fixed, NTFS safety (implemented)
+│   └── v13-pipeline-correctness/ # V13: ENFORCE step, idempotence tests (implemented)
 ├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
