@@ -32,6 +32,7 @@ SUBTITLE_CODEC_MAP: dict[str, str] = {
     "hdmv_pgs_subtitle": "pgs",
     "dvd_subtitle": "vobsub",
     "mov_text": "tx3g",
+    "ass": "ass",
 }
 
 # ISO 639-2/B (ffprobe/MKV) -> ISO 639-2/T (Kodi) — only codes that differ
@@ -74,17 +75,18 @@ def _map_video_codec(codec_name: str) -> str:
 
 
 def _map_audio_codec(codec_name: str, profile: str = "") -> str:
-    """Map ffprobe audio codec name to Kodi NFO name, with Atmos detection.
+    """Map ffprobe audio codec name to Kodi NFO name.
 
-    Dolby Atmos is metadata on top of EAC3/TrueHD, detected via profile.
-    DTS-HD variants are also detected.
+    Dolby Atmos returns "atmos" for Kodi NFO compatibility.
+    DTS-HD variants are also detected. The separate is_atmos field
+    on audio tracks preserves the underlying codec for analysis.
 
     Args:
         codec_name: Raw ffprobe codec name (e.g. "eac3").
         profile: ffprobe profile string (e.g. "Dolby Digital Plus + Dolby Atmos").
 
     Returns:
-        Kodi-compatible codec name. "atmos" if Dolby Atmos detected.
+        Kodi-compatible codec name ("atmos", "dtshd_ma", or raw codec).
     """
     if "Atmos" in profile:
         return "atmos"
@@ -136,12 +138,15 @@ def extract_stream_info(video_path: Path) -> dict | None:
                 "aspect": 1.778,
                 "scantype": "progressive",
                 "hdr": {"is_hdr": True, "hdr_type": "hdr10"},
+                "bitrate_kbps": 15000,
             },
             "audio": [
-                {"codec": "eac3", "channels": 6, "language": "fra"},
+                {"codec": "eac3", "channels": 6, "language": "fra",
+                 "is_atmos": False, "is_default": True},
             ],
             "subtitle": [
-                {"language": "fra"},
+                {"language": "fra", "format": "srt",
+                 "forced": False, "is_default": True},
             ],
         }
 
@@ -229,6 +234,10 @@ def extract_stream_info(video_path: Path) -> dict | None:
         field_order = s.get("field_order", "progressive")
         scantype = "interlaced" if field_order in ("tt", "bb", "tb", "bt") else "progressive"
 
+        # Bitrate extraction (V14)
+        bitrate_raw = s.get("bit_rate", "")
+        bitrate_kbps = int(int(bitrate_raw) / 1000) if bitrate_raw and str(bitrate_raw).isdigit() else None
+
         video_info = {
             "codec": codec,
             "width": width,
@@ -236,6 +245,7 @@ def extract_stream_info(video_path: Path) -> dict | None:
             "aspect": aspect,
             "scantype": scantype,
             "hdr": {"is_hdr": is_hdr, "hdr_type": hdr_type},
+            "bitrate_kbps": bitrate_kbps,
         }
         break  # First real video stream only
 
@@ -253,7 +263,14 @@ def extract_stream_info(video_path: Path) -> dict | None:
         codec = _map_audio_codec(codec_name, profile)
         channels = s.get("channels", 0)
         language = _lang_to_kodi(s.get("tags", {}).get("language", "und"))
-        audio_tracks.append({"codec": codec, "channels": channels, "language": language})
+        # Atmos detection (separate from codec for analysis) and default flag
+        is_atmos = "atmos" in profile.lower() if profile else False
+        disposition = s.get("disposition", {})
+        is_default = bool(disposition.get("default", 0))
+        audio_tracks.append({
+            "codec": codec, "channels": channels, "language": language,
+            "is_atmos": is_atmos, "is_default": is_default,
+        })
 
     # --- Parse subtitle streams (all) ---
     subtitle_tracks = []
@@ -261,7 +278,15 @@ def extract_stream_info(video_path: Path) -> dict | None:
         if s.get("codec_type") != "subtitle":
             continue
         language = _lang_to_kodi(s.get("tags", {}).get("language", "und"))
-        subtitle_tracks.append({"language": language})
+        sub_codec_name = s.get("codec_name", "unknown")
+        sub_format = SUBTITLE_CODEC_MAP.get(sub_codec_name, sub_codec_name)
+        disposition = s.get("disposition", {})
+        forced = bool(disposition.get("forced", 0))
+        is_default = bool(disposition.get("default", 0))
+        subtitle_tracks.append({
+            "language": language, "format": sub_format,
+            "forced": forced, "is_default": is_default,
+        })
 
     return {
         "duration_seconds": duration_seconds,
