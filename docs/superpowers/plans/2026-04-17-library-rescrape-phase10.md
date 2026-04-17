@@ -141,7 +141,7 @@ class TestRescrapeAction:
         action = RescrapeAction(
             path="/tmp/X", title="X", media_type="movie",
             disk="Disk1", category="films",
-            actions_taken=[SKIP_NO_MATCH], actions_skipped=[SKIP_NO_MATCH], errors=[],
+            actions_taken=[], actions_skipped=[SKIP_NO_MATCH], errors=[],
             tmdb_id=None, id_source=None, match_confidence=0.5,
         )
         assert action.match_confidence is None

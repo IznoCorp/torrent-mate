@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans.
 
+**Prerequisite:** Phase 10 must be completed first (scanner functions promoted to public API).
+
 **Goal:** Implement `library-validate --fix --apply` — fix empty dirs, NTFS-unsafe names, and directory naming from existing NFO data. Dry-run by default.
 
 **Architecture:** Extend `validate_library()` with `fix`/`apply` parameters. Reuse `MediaFixer` for dir_naming, add `_fix_empty_dirs` and `_fix_ntfs_names` helpers. Forward existing CLI flags to the function.
@@ -165,7 +167,6 @@ Distinction with enforce: enforce = staging (A TRIER/), validate = library (Disk
 from __future__ import annotations
 
 import logging
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -360,12 +361,12 @@ def validate_library(
 
                 # Determine final status
                 remaining_errors = [e for e in errors if e not in fixed_error_names]
-                if not remaining_errors and not errors:
-                    status = "valid"
-                    valid_count += 1
-                elif not remaining_errors and fixes_applied:
+                if fixes_applied and not remaining_errors:
                     status = "fixed"
                     fixed_count += 1
+                elif not remaining_errors:
+                    status = "valid"
+                    valid_count += 1
                 else:
                     status = "issues"
                     issues_count += 1
