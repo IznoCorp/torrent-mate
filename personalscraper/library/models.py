@@ -148,6 +148,52 @@ class LibraryScanResult:
     items: list[LibraryScanItem] = field(default_factory=list)
 
 
+# --- Validation models ---
+
+
+@dataclass
+class ValidationItem:
+    """Validation result for a single library item.
+
+    Attributes:
+        path: Absolute path to media directory (str for JSON).
+        disk: Disk name.
+        category: Category name.
+        media_type: "movie" or "tvshow".
+        title: Media title.
+        year: Release year.
+        status: "valid", "fixed", or "blocked".
+        errors: List of error check names that failed.
+        warnings: List of warning check names that failed.
+        fixes_applied: List of fixes that were applied (if --fix --apply).
+    """
+
+    path: str
+    disk: str
+    category: str
+    media_type: str
+    title: str
+    year: int | None
+    status: str
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    fixes_applied: list[str] = field(default_factory=list)
+
+
+@dataclass
+class LibraryValidationResult:
+    """Top-level container for library_validation.json."""
+
+    validated_at: str
+    disk_filter: str | None
+    category_filter: str | None
+    total_items: int
+    valid_count: int
+    fixed_count: int
+    blocked_count: int
+    items: list[ValidationItem] = field(default_factory=list)
+
+
 # --- Priority constants ---
 
 PRIORITY_HIGH = "high"

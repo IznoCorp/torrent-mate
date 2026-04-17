@@ -18,6 +18,7 @@ from personalscraper.library.models import (
     Recommendation,
     SeasonInfo,
     TargetState,
+    ValidationItem,
     VideoInfo,
     read_json,
     serialize_to_json,
@@ -214,6 +215,32 @@ class TestRecommendation:
         )
         assert r.priority == PRIORITY_HIGH
         assert len(r.reasons) == 2
+
+
+class TestValidationItem:
+    """Tests for ValidationItem model."""
+
+    def test_valid_item(self) -> None:
+        """Item with all checks passed."""
+        item = ValidationItem(
+            path="/tmp/Movie (2024)", disk="Disk1", category="films",
+            media_type="movie", title="Movie", year=2024,
+            status="valid", errors=[], warnings=[], fixes_applied=[],
+        )
+        assert item.status == "valid"
+
+    def test_blocked_item(self) -> None:
+        """Item with errors should be blocked."""
+        item = ValidationItem(
+            path="/tmp/Movie", disk="Disk1", category="films",
+            media_type="movie", title="Movie", year=None,
+            status="blocked",
+            errors=["nfo_missing", "bad_dir_naming"],
+            warnings=["no_landscape"],
+            fixes_applied=[],
+        )
+        assert item.status == "blocked"
+        assert len(item.errors) == 2
 
 
 class TestJsonSerialization:
