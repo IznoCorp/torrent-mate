@@ -13,21 +13,21 @@
 
 ## Global Status
 
-| Phase | Name                                                | Status      | Last Update |
-| ----- | --------------------------------------------------- | ----------- | ----------- |
-| 1     | Foundation (models, preferences, config, nfo_utils) | DONE        | 2026-04-17  |
-| 2     | Scanner (library-scan)                              | DONE        | 2026-04-17  |
-| 3     | Disk Cleaner (library-clean)                        | DONE        | 2026-04-17  |
-| 4     | Validator (library-validate)                        | DONE        | 2026-04-17  |
-| 5     | Analyzer (library-analyze)                          | DONE        | 2026-04-17  |
-| 6     | Recommender (library-recommend)                     | DONE        | 2026-04-17  |
-| 7     | Reporter (library-report)                           | DONE        | 2026-04-17  |
-| 8     | Documentation (CLAUDE.md, MANUAL.md, --help)        | NOT STARTED |             |
-| 9     | E2E Tests (integration)                             | NOT STARTED |             |
+| Phase | Name                                                | Status | Last Update |
+| ----- | --------------------------------------------------- | ------ | ----------- |
+| 1     | Foundation (models, preferences, config, nfo_utils) | DONE   | 2026-04-17  |
+| 2     | Scanner (library-scan)                              | DONE   | 2026-04-17  |
+| 3     | Disk Cleaner (library-clean)                        | DONE   | 2026-04-17  |
+| 4     | Validator (library-validate)                        | DONE   | 2026-04-17  |
+| 5     | Analyzer (library-analyze)                          | DONE   | 2026-04-17  |
+| 6     | Recommender (library-recommend)                     | DONE   | 2026-04-17  |
+| 7     | Reporter (library-report)                           | DONE   | 2026-04-17  |
+| 8     | Documentation (CLAUDE.md, MANUAL.md, --help)        | DONE   | 2026-04-17  |
+| 9     | E2E Tests (integration)                             | DONE   | 2026-04-17  |
 
 ## Next Action
 
-**Phase 8, Task 8.1** — Update CLAUDE.md
+**V14 COMPLETE** — All 9 phases done, 1212 tests pass
 
 ## Detailed Tracking
 
@@ -81,17 +81,17 @@
 - [x] Task 7.2: Add library-report CLI command (text/json, --disk/--category)
 - [x] Task 7.3: Phase 7 gate — reporter tests pass, full suite green, no regression
 
-### Phase 8: Documentation (NOT STARTED)
+### Phase 8: Documentation (DONE)
 
-- [ ] Task 8.1: Update CLAUDE.md (commands, config, version table, directory structure)
-- [ ] Task 8.2: Update MANUAL.md (French "Maintenance médiathèque" section)
-- [ ] Task 8.3: Polish ROADMAP.md (V14 → Implemented)
-- [ ] Task 8.4: Add Rich help panels to CLI (Pipeline vs Library groups)
-- [ ] Task 8.5: Update docs/IMPLEMENTATION.md with final status
-- [ ] Task 8.6: Phase 8 gate — all docs consistent, --help renders correctly
+- [x] Task 8.1: Update CLAUDE.md (commands, config, version table, directory structure)
+- [x] Task 8.2: Update MANUAL.md (French "Maintenance médiathèque" section)
+- [x] Task 8.3: Polish ROADMAP.md (V14 → Implemented)
+- [x] Task 8.4: Add Rich help panels to CLI (Pipeline vs Library groups)
+- [x] Task 8.5: Update docs/IMPLEMENTATION.md with final status
+- [x] Task 8.6: Phase 8 gate — all docs consistent, --help renders correctly
 
-### Phase 9: E2E Tests (NOT STARTED)
+### Phase 9: E2E Tests (DONE)
 
-- [ ] Task 9.1: Create mini_library fixture and scan/clean/validate integration tests
-- [ ] Task 9.2: Recommend + report integration tests + full workflow chain test
-- [ ] Task 9.3: Phase 9 gate — all tests pass (~1130+), all 14 acceptance criteria verified
+- [x] Task 9.1: Create mini_library fixture and scan/clean/validate integration tests
+- [x] Task 9.2: Recommend + report integration tests + full workflow chain test
+- [x] Task 9.3: Phase 9 gate — all 1212 tests pass, all acceptance criteria verified
