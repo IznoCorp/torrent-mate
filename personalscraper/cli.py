@@ -726,6 +726,71 @@ def library_recommend(
 
 @app.command()
 @handle_cli_errors
+def library_rescrape(
+    only: str = typer.Option(None, "--only", help="Only fix: nfo, artwork, episodes"),
+    disk: str = typer.Option(None, "--disk", help="Rescrape only this disk"),
+    category: str = typer.Option(None, "--category", help="Rescrape only this category"),
+    interactive: bool = typer.Option(False, "--interactive", help="Confirm low-confidence matches"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
+    max_items: int = typer.Option(None, "--max-items", help="Limit number of items to process"),
+) -> None:
+    """Targeted re-scrape of library items via TMDB/TVDB.
+
+    Only repairs what is broken per item: missing NFO, missing artwork,
+    unrenamed episodes. Items already conforming are skipped.
+
+    Examples:
+        personalscraper library-rescrape --dry-run
+        personalscraper library-rescrape --only artwork
+        personalscraper library-rescrape --disk Disk1 --max-items 50
+        personalscraper library-rescrape --interactive
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.models import write_json
+    from personalscraper.library.rescraper import rescrape_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    valid_only = {"nfo", "artwork", "episodes"}
+    if only and only not in valid_only:
+        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        raise typer.Exit(1)
+
+    if not dry_run:
+        if not acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"
+        console.print(f"[bold]Rescraping library ({mode})...[/bold]")
+
+        result = rescrape_library(
+            disk_configs, settings,
+            disk_filter=disk, category_filter=category,
+            only=only, interactive=interactive,
+            dry_run=dry_run, max_items=max_items,
+        )
+
+        output_path = settings.data_dir / "library_rescrape.json"
+        write_json(result, output_path)
+
+        total = result.fixed_count + result.skipped_count + result.error_count
+        console.print(
+            f"[green]Fixed:[/green] {result.fixed_count}  "
+            f"[yellow]Skipped:[/yellow] {result.skipped_count}  "
+            f"[red]Errors:[/red] {result.error_count}  "
+            f"(total: {total}) → {output_path}"
+        )
+    finally:
+        if not dry_run:
+            release_lock()
+
+
+@app.command()
+@handle_cli_errors
 def library_report(
     format: str = typer.Option("text", "--format", help="Output format: text or json"),
 ) -> None:

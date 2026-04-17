@@ -596,6 +596,60 @@ class TestLibraryRecommend:
         assert "--category" in result.output
 
 
+class TestLibraryRescrape:
+    """Tests for library-rescrape CLI command."""
+
+    def test_help(self) -> None:
+        """library-rescrape --help should display usage."""
+        result = runner.invoke(app, ["library-rescrape", "--help"])
+        assert result.exit_code == 0
+        assert "--only" in result.output
+        assert "--disk" in result.output
+        assert "--interactive" in result.output
+        assert "--dry-run" in result.output
+        assert "--max-items" in result.output
+
+    def test_invalid_only_errors(self) -> None:
+        """--only with invalid value should error."""
+        from unittest.mock import MagicMock
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+        ):
+            mock_settings.return_value = MagicMock()
+            result = runner.invoke(app, ["library-rescrape", "--only", "invalid"])
+        assert result.exit_code == 1
+
+    def test_dry_run_no_lock(self, tmp_path) -> None:
+        """--dry-run should not acquire lock."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryRescrapeResult
+
+        mock_result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None, category_filter=None, only_filter=None,
+            dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.rescraper.rescrape_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli.acquire_lock") as mock_lock,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-rescrape", "--dry-run"])
+
+        assert result.exit_code == 0
+        mock_lock.assert_not_called()
+
+
 class TestLibraryReport:
     """Tests for library-report CLI command."""
 
