@@ -5,17 +5,23 @@ import json
 import pytest
 
 from personalscraper.library.models import (
+    ACTION_ARTWORK_DOWNLOADED,
+    ACTION_EPISODES_RENAMED,
+    ACTION_NFO_REGENERATED,
     ISSUE_ACTORS_DIR,
     ISSUE_EMPTY_SUBDIR,
     PRIORITY_HIGH,
+    SKIP_NO_MATCH,
     ArtworkStatus,
     AudioTrack,
     CurrentState,
+    LibraryRescrapeResult,
     LibraryScanItem,
     LibraryScanResult,
     MediaFileAnalysis,
     NfoStatus,
     Recommendation,
+    RescrapeAction,
     SeasonInfo,
     TargetState,
     ValidationItem,
@@ -272,3 +278,94 @@ class TestJsonSerialization:
         data = read_json(path)
         assert data["scanned_at"] == "2026-04-15T12:00:00"
         assert data["disk_filter"] == "Disk1"
+
+
+class TestRescrapeAction:
+    """Tests for RescrapeAction model."""
+
+    def test_valid_action(self) -> None:
+        """Action with valid fields should work."""
+        action = RescrapeAction(
+            path="/tmp/Movie (2024)", title="Movie", media_type="movie",
+            disk="Disk1", category="films",
+            actions_taken=[ACTION_NFO_REGENERATED],
+            actions_skipped=[], errors=[],
+            tmdb_id="123", id_source="nfo", match_confidence=None,
+            rescraped_at="2026-04-17T12:00:00",
+        )
+        assert action.tmdb_id == "123"
+        assert action.id_source == "nfo"
+
+    def test_invalid_media_type_raises(self) -> None:
+        """Invalid media_type should raise ValueError."""
+        with pytest.raises(ValueError, match="media_type"):
+            RescrapeAction(
+                path="/tmp/X", title="X", media_type="audiobook",
+                disk="Disk1", category="films",
+                actions_taken=["test"], actions_skipped=[], errors=[],
+                tmdb_id=None, id_source=None, match_confidence=None,
+            )
+
+    def test_confidence_out_of_range_raises(self) -> None:
+        """Confidence > 1.0 should raise ValueError."""
+        with pytest.raises(ValueError, match="match_confidence"):
+            RescrapeAction(
+                path="/tmp/X", title="X", media_type="movie",
+                disk="Disk1", category="films",
+                actions_taken=["test"], actions_skipped=[], errors=[],
+                tmdb_id="1", id_source="api_match", match_confidence=95.0,
+            )
+
+    def test_no_tmdb_clears_confidence(self) -> None:
+        """If tmdb_id is None, confidence should be cleared."""
+        action = RescrapeAction(
+            path="/tmp/X", title="X", media_type="movie",
+            disk="Disk1", category="films",
+            actions_taken=[], actions_skipped=[SKIP_NO_MATCH], errors=[],
+            tmdb_id=None, id_source=None, match_confidence=0.5,
+        )
+        assert action.match_confidence is None
+
+    def test_artwork_action_constant(self) -> None:
+        """ACTION_ARTWORK_DOWNLOADED and ACTION_EPISODES_RENAMED should be usable."""
+        action = RescrapeAction(
+            path="/tmp/X", title="X", media_type="tvshow",
+            disk="Disk1", category="series",
+            actions_taken=[ACTION_ARTWORK_DOWNLOADED, ACTION_EPISODES_RENAMED],
+            actions_skipped=[], errors=[],
+            tmdb_id="1", id_source="nfo", match_confidence=None,
+        )
+        assert ACTION_ARTWORK_DOWNLOADED in action.actions_taken
+        assert ACTION_EPISODES_RENAMED in action.actions_taken
+
+
+class TestLibraryRescrapeResult:
+    """Tests for LibraryRescrapeResult container."""
+
+    def test_valid_result(self) -> None:
+        """Result with valid fields."""
+        result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None, category_filter=None, only_filter=None,
+            dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+        )
+        assert result.dry_run is True
+
+    def test_invalid_only_filter_raises(self) -> None:
+        """Invalid only_filter should raise ValueError."""
+        with pytest.raises(ValueError, match="only_filter"):
+            LibraryRescrapeResult(
+                rescraped_at="2026-04-17T12:00:00",
+                disk_filter=None, category_filter=None, only_filter="invalid",
+                dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+            )
+
+    def test_valid_only_filters(self) -> None:
+        """Valid only_filter values should be accepted."""
+        for val in ("nfo", "artwork", "episodes"):
+            result = LibraryRescrapeResult(
+                rescraped_at="2026-04-17T12:00:00",
+                disk_filter=None, category_filter=None, only_filter=val,
+                dry_run=False, fixed_count=0, skipped_count=0, error_count=0,
+            )
+            assert result.only_filter == val

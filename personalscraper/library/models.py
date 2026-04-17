@@ -435,6 +435,92 @@ class LibraryRecommendationResult:
     items: list[Recommendation] = field(default_factory=list)
 
 
+# --- Rescrape action constants ---
+
+ACTION_NFO_REGENERATED = "nfo_regenerated"
+ACTION_ARTWORK_DOWNLOADED = "artwork_downloaded"
+ACTION_EPISODES_RENAMED = "episodes_renamed"
+SKIP_LOW_CONFIDENCE = "low_confidence_match"
+SKIP_NO_MATCH = "no_match"
+SKIP_ALREADY_OK = "already_conforming"
+
+_VALID_ONLY_FILTERS = {"nfo", "artwork", "episodes"}
+
+
+@dataclass
+class RescrapeAction:
+    """Single repair action taken on a media item.
+
+    Attributes:
+        path: Absolute path to media directory (str for JSON).
+        title: Media title.
+        media_type: "movie" or "tvshow".
+        disk: Disk name.
+        category: Category name.
+        actions_taken: List of action constants performed.
+        actions_skipped: List of skip reason constants.
+        errors: Per-item errors (API failure, NTFS write error, etc.).
+        tmdb_id: TMDB ID used for API calls (str for JSON, converted from int).
+        id_source: How the ID was obtained: "nfo" or "api_match".
+        match_confidence: Match confidence 0.0-1.0 (None if ID from NFO).
+        rescraped_at: ISO 8601 timestamp of this action.
+    """
+
+    path: str
+    title: str
+    media_type: str
+    disk: str
+    category: str
+    actions_taken: list[str]
+    actions_skipped: list[str]
+    errors: list[str]
+    tmdb_id: str | None
+    id_source: str | None
+    match_confidence: float | None
+    rescraped_at: str = ""
+
+    def __post_init__(self) -> None:
+        """Enforce media_type and confidence constraints."""
+        if self.media_type not in ("movie", "tvshow"):
+            raise ValueError(f"media_type must be 'movie' or 'tvshow', got '{self.media_type}'")
+        if self.match_confidence is not None and not (0.0 <= self.match_confidence <= 1.0):
+            raise ValueError(f"match_confidence must be 0.0-1.0, got {self.match_confidence}")
+        if self.tmdb_id is None and self.match_confidence is not None:
+            self.match_confidence = None
+
+
+@dataclass
+class LibraryRescrapeResult:
+    """Top-level container for library_rescrape.json.
+
+    Attributes:
+        rescraped_at: ISO 8601 timestamp of rescrape start.
+        disk_filter: Disk filter applied (None = all disks).
+        category_filter: Category filter applied (None = all).
+        only_filter: Action filter ("nfo", "artwork", "episodes", or None = all).
+        dry_run: Whether this was a dry-run (no actual changes).
+        fixed_count: Items successfully repaired.
+        skipped_count: Items skipped (low confidence, already OK, etc.).
+        error_count: Items with errors.
+        items: List of per-item rescrape actions.
+    """
+
+    rescraped_at: str
+    disk_filter: str | None
+    category_filter: str | None
+    only_filter: str | None
+    dry_run: bool
+    fixed_count: int
+    skipped_count: int
+    error_count: int
+    items: list[RescrapeAction] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Validate only_filter."""
+        if self.only_filter is not None and self.only_filter not in _VALID_ONLY_FILTERS:
+            raise ValueError(f"only_filter must be one of {_VALID_ONLY_FILTERS} or None")
+
+
 # --- JSON serialization helpers ---
 
 
