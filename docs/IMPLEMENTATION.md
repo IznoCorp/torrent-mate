@@ -20,14 +20,14 @@
 | 3     | Disk Cleaner (library-clean)                        | DONE        | 2026-04-17  |
 | 4     | Validator (library-validate)                        | DONE        | 2026-04-17  |
 | 5     | Analyzer (library-analyze)                          | DONE        | 2026-04-17  |
-| 6     | Recommender (library-recommend)                     | NOT STARTED |             |
-| 7     | Reporter (library-report)                           | NOT STARTED |             |
+| 6     | Recommender (library-recommend)                     | DONE        | 2026-04-17  |
+| 7     | Reporter (library-report)                           | DONE        | 2026-04-17  |
 | 8     | Documentation (CLAUDE.md, MANUAL.md, --help)        | NOT STARTED |             |
 | 9     | E2E Tests (integration)                             | NOT STARTED |             |
 
 ## Next Action
 
-**Phase 6, Task 6.1** — Implement recommendation engine
+**Phase 8, Task 8.1** — Update CLAUDE.md
 
 ## Detailed Tracking
 
@@ -68,18 +68,18 @@
 - [x] Task 5.3: Add library-analyze CLI command
 - [x] Task 5.4: Phase 5 gate — analyzer + mediainfo tests pass, full suite green, no regression
 
-### Phase 6: Recommender (NOT STARTED)
+### Phase 6: Recommender (DONE)
 
-- [ ] Task 6.1: Implement recommendation engine (priority, savings, encoding rules, id_lookup)
-- [ ] Task 6.2: Add \_reconstruct_analysis_items helper to analyzer.py
-- [ ] Task 6.3: Add library-recommend CLI command with CSV export
-- [ ] Task 6.4: Phase 6 gate — recommender tests pass, full suite green, no regression
+- [x] Task 6.1: Implement recommendation engine (priority, savings, encoding rules, id_lookup)
+- [x] Task 6.2: Add \_reconstruct_analysis_items helper to analyzer.py
+- [x] Task 6.3: Add library-recommend CLI command with CSV export
+- [x] Task 6.4: Phase 6 gate — recommender tests pass, full suite green, no regression
 
-### Phase 7: Reporter (NOT STARTED)
+### Phase 7: Reporter (DONE)
 
-- [ ] Task 7.1: Implement reporter (scan/analysis/validation/recommendation aggregation + disk free space)
-- [ ] Task 7.2: Add library-report CLI command (text/json, --disk/--category)
-- [ ] Task 7.3: Phase 7 gate — reporter tests pass, full suite green, no regression
+- [x] Task 7.1: Implement reporter (scan/analysis/validation/recommendation aggregation + disk free space)
+- [x] Task 7.2: Add library-report CLI command (text/json, --disk/--category)
+- [x] Task 7.3: Phase 7 gate — reporter tests pass, full suite green, no regression
 
 ### Phase 8: Documentation (NOT STARTED)
 
