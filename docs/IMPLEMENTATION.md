@@ -19,7 +19,7 @@
 | 2     | Scanner (library-scan)                              | DONE        | 2026-04-17  |
 | 3     | Disk Cleaner (library-clean)                        | DONE        | 2026-04-17  |
 | 4     | Validator (library-validate)                        | DONE        | 2026-04-17  |
-| 5     | Analyzer (library-analyze)                          | NOT STARTED |             |
+| 5     | Analyzer (library-analyze)                          | DONE        | 2026-04-17  |
 | 6     | Recommender (library-recommend)                     | NOT STARTED |             |
 | 7     | Reporter (library-report)                           | NOT STARTED |             |
 | 8     | Documentation (CLAUDE.md, MANUAL.md, --help)        | NOT STARTED |             |
@@ -27,7 +27,7 @@
 
 ## Next Action
 
-**Phase 5, Task 5.1** — Extend extract_stream_info
+**Phase 6, Task 6.1** — Implement recommendation engine
 
 ## Detailed Tracking
 
@@ -61,12 +61,12 @@
 - [x] Task 4.3: Add library-validate CLI command (quick/full/fix/apply)
 - [x] Task 4.4: Phase 4 gate — validator tests pass, full suite green, no regression
 
-### Phase 5: Analyzer (NOT STARTED)
+### Phase 5: Analyzer (DONE)
 
-- [ ] Task 5.1: Extend extract_stream_info (bitrate, is_atmos, forced, format, is_default)
-- [ ] Task 5.2: Implement analyzer with audio profile detection and incremental skip
-- [ ] Task 5.3: Add library-analyze CLI command
-- [ ] Task 5.4: Phase 5 gate — analyzer + mediainfo tests pass, full suite green, no regression
+- [x] Task 5.1: Extend extract_stream_info (bitrate, is_atmos, forced, format, is_default)
+- [x] Task 5.2: Implement analyzer with audio profile detection and incremental skip
+- [x] Task 5.3: Add library-analyze CLI command
+- [x] Task 5.4: Phase 5 gate — analyzer + mediainfo tests pass, full suite green, no regression
 
 ### Phase 6: Recommender (NOT STARTED)
 
