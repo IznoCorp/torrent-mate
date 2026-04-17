@@ -28,11 +28,11 @@
 | 9     | E2E Tests (integration)                             | DONE   | 2026-04-17  |
 | 10    | Foundation (public API, models, invariants)         | DONE   | 2026-04-17  |
 | 11    | Validate --fix (local fixes without API)            | DONE   | 2026-04-17  |
-| 12    | Rescraper (targeted API repairs)                    | TODO   |             |
+| 12    | Rescraper (targeted API repairs)                    | DONE   | 2026-04-17  |
 
 ## Next Action
 
-**Phase 12** — Implement rescraper core, CLI command, reporter integration
+**V14 COMPLETE** — All 12 phases done, 1248 tests pass
 
 ## Detailed Tracking
 
@@ -113,9 +113,9 @@
 - [x] Task 11.2: Wire --fix/--apply CLI flags to validate_library
 - [x] Task 11.3: Phase 11 gate — validate --fix complete, 1234 tests pass
 
-### Phase 12: Rescraper (TODO)
+### Phase 12: Rescraper (DONE)
 
-- [ ] Task 12.1: Implement rescraper core with ID resolution, detection, and targeted fixes
-- [ ] Task 12.2: Add library-rescrape CLI command
-- [ ] Task 12.3: Add rescrape section to library-report
-- [ ] Task 12.4: Phase 12 gate — rescraper complete, all tests pass
+- [x] Task 12.1: Implement rescraper core with ID resolution, detection, and targeted fixes
+- [x] Task 12.2: Add library-rescrape CLI command
+- [x] Task 12.3: Add rescrape section to library-report
+- [x] Task 12.4: Phase 12 gate — rescraper complete, 1248 tests pass
