@@ -502,3 +502,62 @@ def library_clean(
     finally:
         if apply:
             release_lock()
+
+
+@app.command()
+@handle_cli_errors
+def library_validate(
+    disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
+    category: str = typer.Option(None, "--category", help="Validate only this category"),
+    level: str = typer.Option("full", "--level", help="Validation level: quick or full"),
+    fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
+    apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
+) -> None:
+    """Validate NFO, artwork, naming conformity of library items.
+
+    Checks each media item on storage disks against quality rules.
+    Use --fix --apply to attempt automatic corrections.
+
+    Examples:
+        personalscraper library-validate
+        personalscraper library-validate --disk Disk1 --level quick
+        personalscraper library-validate --fix --apply
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.models import write_json
+    from personalscraper.library.validator import validate_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    if apply and not fix:
+        console.print("[red]--apply requires --fix[/red]")
+        raise typer.Exit(1)
+
+    if fix and apply:
+        if not acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        console.print("[bold]Validating library...[/bold]")
+        result = validate_library(
+            disk_configs,
+            disk_filter=disk,
+            category_filter=category,
+            level=level,
+        )
+
+        output_path = settings.data_dir / "library_validation.json"
+        write_json(result, output_path)
+
+        console.print(
+            f"[green]Valid:[/green] {result.valid_count}  "
+            f"[yellow]Fixed:[/yellow] {result.fixed_count}  "
+            f"[red]Blocked:[/red] {result.blocked_count}  "
+            f"→ {output_path}"
+        )
+    finally:
+        if fix and apply:
+            release_lock()
