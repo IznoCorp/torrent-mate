@@ -115,7 +115,7 @@ def _is_effectively_empty(directory: Path) -> bool:
     """Check if a directory is empty or contains only junk files."""
     try:
         for item in directory.iterdir():
-            if item.name not in _JUNK_FILES:
+            if item.name not in _JUNK_FILES and not item.name.startswith("._"):
                 return False
         return True
     except OSError:
@@ -211,8 +211,8 @@ def _clean_media_dir(
             _delete_dir(item, result, dry_run, ".actors")
             continue
 
-        # Junk files
-        if clean_junk and name in _JUNK_FILES and item.is_file():
+        # Junk files (including macOS resource forks "._*")
+        if clean_junk and (name in _JUNK_FILES or name.startswith("._")) and item.is_file():
             _delete_file(item, result, dry_run, "junk file")
             continue
 
