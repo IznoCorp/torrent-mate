@@ -41,7 +41,6 @@ def validate_library(
     disk_configs: list,
     disk_filter: str | None = None,
     category_filter: str | None = None,
-    level: str = "full",
 ) -> LibraryValidationResult:
     """Validate all library items on storage disks.
 
@@ -49,7 +48,6 @@ def validate_library(
         disk_configs: List of DiskConfig objects.
         disk_filter: Only validate this disk. None = all.
         category_filter: Only validate this category. None = all.
-        level: "quick" (NFO + poster only) or "full" (all checks).
 
     Returns:
         LibraryValidationResult with per-item validation status.
@@ -87,8 +85,8 @@ def validate_library(
                         checks = checker.check_tvshow(media_dir)
                     else:
                         checks = checker.check_movie(media_dir)
-                except Exception as exc:
-                    logger.warning("Error checking %s: %s", media_dir, exc)
+                except OSError as exc:
+                    logger.warning("Filesystem error checking %s: %s", media_dir, exc)
                     items.append(ValidationItem(
                         path=str(media_dir), disk=config.name,
                         category=category_dir.name,

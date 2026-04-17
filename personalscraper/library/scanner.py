@@ -1,8 +1,8 @@
 """Lightweight library scanner — structure, NFO, artwork inventory.
 
 Scans storage disks without ffprobe. Produces LibraryScanItem for each
-media directory found. Uses existing utilities: is_nfo_complete(),
-PATTERNS, SEASON_DIR_RE, _parse_folder_name().
+media directory found. Uses existing utilities: is_nfo_complete()
+and SEASON_DIR_RE.
 """
 
 from __future__ import annotations

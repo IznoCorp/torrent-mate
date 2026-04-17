@@ -443,7 +443,6 @@ class TestLibraryValidate:
         result = runner.invoke(app, ["library-validate", "--help"])
         assert result.exit_code == 0
         assert "--disk" in result.output
-        assert "--level" in result.output
         assert "--fix" in result.output
 
     def test_validate_produces_json(self, tmp_path) -> None:

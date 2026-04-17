@@ -5,8 +5,11 @@ pipeline (scraper, library scanner, verify). Moved from
 scraper/scraper.py to enable cross-module access.
 """
 
+import logging
 from pathlib import Path
 from xml.etree import ElementTree as ET
+
+logger = logging.getLogger(__name__)
 
 
 def is_nfo_complete(nfo_path: Path) -> bool:
@@ -31,11 +34,13 @@ def is_nfo_complete(nfo_path: Path) -> bool:
     try:
         tree = ET.parse(nfo_path)  # noqa: S314
         root = tree.getroot()
-        for uid in root.iter("uniqueid"):
+        for uid in root.findall("uniqueid"):
             if uid.text and uid.text.strip():
                 return True
         return False
     except ET.ParseError:
+        logger.debug("NFO not parsable as XML: %s", nfo_path.name)
         return False
-    except OSError:
+    except OSError as exc:
+        logger.warning("Cannot read NFO file %s: %s", nfo_path, exc)
         return False

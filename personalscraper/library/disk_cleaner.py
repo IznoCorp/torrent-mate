@@ -197,7 +197,10 @@ def _clean_media_dir(
     """
     try:
         entries = list(media_dir.iterdir())
-    except OSError:
+    except OSError as exc:
+        result.error_count += 1
+        result.errors.append(f"Cannot list directory: {media_dir} — {exc}")
+        logger.warning("Cannot list directory %s: %s", media_dir, exc)
         return
 
     for item in entries:

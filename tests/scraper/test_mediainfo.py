@@ -116,9 +116,9 @@ class TestMapVideoCodec:
 class TestMapAudioCodec:
     """Audio codec mapping with Atmos detection."""
 
-    def test_atmos_preserves_underlying_codec(self):
-        """EAC3 with Atmos profile preserves underlying codec (V14: is_atmos separate)."""
-        assert _map_audio_codec("eac3", "Dolby Digital Plus + Dolby Atmos") == "eac3"
+    def test_atmos_detection(self):
+        """EAC3 with Atmos profile returns 'atmos' for Kodi NFO compat."""
+        assert _map_audio_codec("eac3", "Dolby Digital Plus + Dolby Atmos") == "atmos"
 
     def test_dts_hd_ma(self):
         """DTS with DTS-HD MA profile."""
@@ -183,12 +183,12 @@ class TestExtractStreamInfo:
 
     @patch("personalscraper.scraper.mediainfo.subprocess.run")
     def test_atmos_detected(self, mock_run):
-        """Detects Dolby Atmos via is_atmos flag, preserving underlying codec."""
+        """Detects Dolby Atmos: codec='atmos' for NFO, is_atmos=True for analysis."""
         mock_run.return_value = _mock_run(
             _mock_ffprobe_output(audio_profile="Dolby Digital Plus + Dolby Atmos")
         )
         info = extract_stream_info(Path("test.mkv"))
-        assert info["audio"][0]["codec"] == "eac3"  # V14: underlying codec preserved
+        assert info["audio"][0]["codec"] == "atmos"
         assert info["audio"][0]["is_atmos"] is True
 
     @patch("personalscraper.scraper.mediainfo.subprocess.run")
