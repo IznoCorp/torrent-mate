@@ -9,7 +9,9 @@
 **PR merge:** auto-merge
 **PR:** https://github.com/LounisBou/personal-scraper/pull/1
 **Design spec:** `docs/superpowers/specs/2026-04-15-library-maintenance-design.md`
+**Design spec (rescrape):** `docs/superpowers/specs/2026-04-17-library-rescrape-design.md`
 **Master plan:** `docs/superpowers/plans/2026-04-15-library-maintenance.md`
+**Master plan (rescrape):** `docs/superpowers/plans/2026-04-17-library-rescrape.md`
 
 ## Global Status
 
@@ -24,10 +26,13 @@
 | 7     | Reporter (library-report)                           | DONE   | 2026-04-17  |
 | 8     | Documentation (CLAUDE.md, MANUAL.md, --help)        | DONE   | 2026-04-17  |
 | 9     | E2E Tests (integration)                             | DONE   | 2026-04-17  |
+| 10    | Foundation (public API, models, invariants)         | DONE   | 2026-04-17  |
+| 11    | Validate --fix (local fixes without API)            | DONE   | 2026-04-17  |
+| 12    | Rescraper (targeted API repairs)                    | TODO   |             |
 
 ## Next Action
 
-**V14 COMPLETE** — All 9 phases done, 1212 tests pass
+**Phase 12** — Implement rescraper core, CLI command, reporter integration
 
 ## Detailed Tracking
 
@@ -95,3 +100,22 @@
 - [x] Task 9.1: Create mini_library fixture and scan/clean/validate integration tests
 - [x] Task 9.2: Recommend + report integration tests + full workflow chain test
 - [x] Task 9.3: Phase 9 gate — all 1212 tests pass, all acceptance criteria verified
+
+### Phase 10: Foundation (DONE)
+
+- [x] Task 10.1: Promote scanner private functions to public API (parse_title_year, extract_nfo_ids)
+- [x] Task 10.2: Add RescrapeAction, LibraryRescrapeResult models with invariants
+- [x] Task 10.3: Add ValidationItem.**post_init** enforcement for status consistency
+
+### Phase 11: Validate --fix (DONE)
+
+- [x] Task 11.1: Implement fix logic in validator.py (empty dirs, NTFS names, dir naming)
+- [x] Task 11.2: Wire --fix/--apply CLI flags to validate_library
+- [x] Task 11.3: Phase 11 gate — validate --fix complete, 1234 tests pass
+
+### Phase 12: Rescraper (TODO)
+
+- [ ] Task 12.1: Implement rescraper core with ID resolution, detection, and targeted fixes
+- [ ] Task 12.2: Add library-rescrape CLI command
+- [ ] Task 12.3: Add rescrape section to library-report
+- [ ] Task 12.4: Phase 12 gate — rescraper complete, all tests pass
