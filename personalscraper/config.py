@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     apps_dir_name: str = "005-APPS"
     other_dir_name: str = "098-AUTRES"
 
+    # Library maintenance preferences
+    library_preferences_file: str = "library_preferences.json"
+
     # Circuit breaker (V8 — API outage detection)
     circuit_breaker_threshold: int = 5
     circuit_breaker_cooldown: int = 300
