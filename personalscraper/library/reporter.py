@@ -52,13 +52,13 @@ _ISSUE_FIXES: dict[str, str] = {
 }
 
 _VALIDATION_FIXES: dict[str, str] = {
-    "nfo_present": "Re-scraper les items sans NFO (futur: library-rescrape)",
-    "nfo_valid": "Re-scraper les items avec NFO cassé (futur: library-rescrape)",
-    "poster_present": "Re-scraper les items sans poster (futur: library-rescrape --artwork-only)",
+    "nfo_present": "personalscraper library-rescrape --only nfo",
+    "nfo_valid": "personalscraper library-rescrape --only nfo",
+    "poster_present": "personalscraper library-rescrape --only artwork",
     "no_empty_dirs": "personalscraper library-clean --only empty --apply",
-    "dir_naming": "Re-scraper pour renommer (futur: library-rescrape)",
-    "episode_renamed": "Re-scraper les épisodes (futur: library-rescrape)",
-    "nfo_ids": "Re-scraper pour ajouter les IDs (futur: library-rescrape)",
+    "dir_naming": "personalscraper library-validate --fix --apply",
+    "episode_renamed": "personalscraper library-rescrape --only episodes",
+    "nfo_ids": "personalscraper library-rescrape --only nfo",
 }
 
 
@@ -125,6 +125,12 @@ class LibraryReport:
     disk_free_gb: dict[str, float] = field(default_factory=dict)
     cleanable_count: int = 0
     cleanable_bytes: int = 0
+    rescrape_fixed: int = 0
+    rescrape_skipped: int = 0
+    rescrape_errors: int = 0
+    rescrape_nfo_count: int = 0
+    rescrape_artwork_count: int = 0
+    rescrape_episodes_count: int = 0
 
 
 def generate_report(
@@ -133,6 +139,7 @@ def generate_report(
     validation_data: dict | None = None,
     recommendation_data: dict | None = None,
     disk_statuses: list | None = None,
+    rescrape_data: dict | None = None,
 ) -> LibraryReport:
     """Generate a library health report from JSON data.
 
@@ -144,6 +151,7 @@ def generate_report(
         validation_data: Parsed library_validation.json.
         recommendation_data: Parsed library_recommendations.json.
         disk_statuses: List of DiskStatus objects for live free space.
+        rescrape_data: Parsed library_rescrape.json.
 
     Returns:
         LibraryReport with aggregated statistics.
@@ -264,6 +272,21 @@ def generate_report(
         report.recommendations_by_priority = dict(priority_counter)
         report.recommendation_details = details
 
+    # --- Rescrape data ---
+    if rescrape_data:
+        report.rescrape_fixed = rescrape_data.get("fixed_count", 0)
+        report.rescrape_skipped = rescrape_data.get("skipped_count", 0)
+        report.rescrape_errors = rescrape_data.get("error_count", 0)
+
+        for item in rescrape_data.get("items", []):
+            for action in item.get("actions_taken", []):
+                if action == "nfo_regenerated":
+                    report.rescrape_nfo_count += 1
+                elif action == "artwork_downloaded":
+                    report.rescrape_artwork_count += 1
+                elif action == "episodes_renamed":
+                    report.rescrape_episodes_count += 1
+
     return report
 
 
@@ -381,7 +404,7 @@ def format_report_text(report: LibraryReport) -> str:
         )
         if rescrape:
             lines.append(f"    ⚠ {rescrape} items auraient besoin d'un re-scrape (NFO manquant ou cassé)")
-            lines.append("      Futur: library-rescrape (pas encore implémenté)")
+            lines.append("      ✓ Corriger: personalscraper library-rescrape --dry-run")
             lines.append("")
 
     # === SECTION 3: ANALYSE ENCODING ===
@@ -450,6 +473,26 @@ def format_report_text(report: LibraryReport) -> str:
             lines.append(f"    {i:>2}. {size:>7.1f} GB  {title}")
         lines.append("")
 
+    # === SECTION 6: RESCRAPE ===
+    if report.rescrape_fixed or report.rescrape_skipped or report.rescrape_errors:
+        total_r = report.rescrape_fixed + report.rescrape_skipped + report.rescrape_errors
+        lines.append(sep)
+        lines.append("  6. RESCRAPE — Réparations API (TMDB/TVDB)")
+        lines.append(sep)
+        lines.append("")
+        lines.append(f"    Réparés: {report.rescrape_fixed}  Ignorés: {report.rescrape_skipped}  Erreurs: {report.rescrape_errors}  (total: {total_r})")
+        lines.append("")
+        if report.rescrape_nfo_count:
+            lines.append(f"    NFO régénérés: {report.rescrape_nfo_count}")
+        if report.rescrape_artwork_count:
+            lines.append(f"    Artwork téléchargé: {report.rescrape_artwork_count}")
+        if report.rescrape_episodes_count:
+            lines.append(f"    Épisodes renommés: {report.rescrape_episodes_count}")
+        if report.rescrape_skipped:
+            lines.append(f"    ⚠ {report.rescrape_skipped} items ignorés (confiance trop basse ou non trouvé)")
+            lines.append("      ✓ Réessayer: personalscraper library-rescrape --interactive")
+        lines.append("")
+
     # === ACTIONS SUGGÉRÉES ===
     lines.append(sep)
     lines.append("  ACTIONS SUGGÉRÉES")
@@ -471,7 +514,7 @@ def format_report_text(report: LibraryReport) -> str:
     )
     if rescrape:
         actions.append(f"  3. Re-scraper {rescrape} items (NFO manquant ou XML invalide)")
-        actions.append("     → Pas encore automatisé (futur: library-rescrape)")
+        actions.append("     → personalscraper library-rescrape --dry-run")
     if report.analysis_item_count and report.total_items and report.analysis_item_count < report.total_items:
         remaining = report.total_items - report.analysis_item_count
         actions.append(f"  4. Compléter l'analyse ffprobe ({remaining} items restants)")
