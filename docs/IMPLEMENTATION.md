@@ -7,7 +7,7 @@
 **Archive v13:** `docs/archive/v13/IMPLEMENTATION.md`
 **Branch:** `feat/library-maintenance`
 **PR merge:** auto-merge
-**PR:** _(created after last phase)_
+**PR:** https://github.com/LounisBou/personal-scraper/pull/1
 **Design spec:** `docs/superpowers/specs/2026-04-15-library-maintenance-design.md`
 **Master plan:** `docs/superpowers/plans/2026-04-15-library-maintenance.md`
 
