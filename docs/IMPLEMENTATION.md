@@ -15,7 +15,7 @@
 
 | Phase | Name                                                | Status      | Last Update |
 | ----- | --------------------------------------------------- | ----------- | ----------- |
-| 1     | Foundation (models, preferences, config, nfo_utils) | NOT STARTED |             |
+| 1     | Foundation (models, preferences, config, nfo_utils) | DONE        | 2026-04-17  |
 | 2     | Scanner (library-scan)                              | NOT STARTED |             |
 | 3     | Disk Cleaner (library-clean)                        | NOT STARTED |             |
 | 4     | Validator (library-validate)                        | NOT STARTED |             |
@@ -27,19 +27,19 @@
 
 ## Next Action
 
-**Phase 1, Task 1.1** — Create library package and NfoStatus/ArtworkStatus/SeasonInfo/LibraryScanItem models
+**Phase 2, Task 2.1** — Implement scan_movie_dir and scan_tvshow_dir
 
 ## Detailed Tracking
 
-### Phase 1: Foundation (NOT STARTED)
+### Phase 1: Foundation (DONE)
 
-- [ ] Task 1.1: Create library package + scan result models (@dataclass)
-- [ ] Task 1.2: Add analysis and recommendation models
-- [ ] Task 1.3: Create preferences models (pydantic)
-- [ ] Task 1.4: Extend Settings with library_preferences_file
-- [ ] Task 1.5: Refactor \_is_nfo_complete to shared nfo_utils module
-- [ ] Task 1.6: Add JSON serialization helpers
-- [ ] Task 1.7: Phase 1 gate — all model tests pass, full suite green, no regression
+- [x] Task 1.1: Create library package + scan result models (@dataclass)
+- [x] Task 1.2: Add analysis and recommendation models
+- [x] Task 1.3: Create preferences models (pydantic)
+- [x] Task 1.4: Extend Settings with library_preferences_file
+- [x] Task 1.5: Refactor \_is_nfo_complete to shared nfo_utils module
+- [x] Task 1.6: Add JSON serialization helpers
+- [x] Task 1.7: Phase 1 gate — all model tests pass, full suite green, no regression
 
 ### Phase 2: Scanner (NOT STARTED)
 
