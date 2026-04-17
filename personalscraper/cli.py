@@ -824,8 +824,9 @@ def library_report(
     analysis_data = _load("library_analysis.json")
     validation_data = _load("library_validation.json")
     recommendation_data = _load("library_recommendations.json")
+    rescrape_data = _load("library_rescrape.json")
 
-    if not any([scan_data, analysis_data, validation_data, recommendation_data]):
+    if not any([scan_data, analysis_data, validation_data, recommendation_data, rescrape_data]):
         console.print("[yellow]No library data found. Run library-scan or library-analyze first.[/yellow]")
         raise typer.Exit(1)
 
@@ -836,6 +837,7 @@ def library_report(
     report = generate_report(
         scan_data, analysis_data, validation_data, recommendation_data,
         disk_statuses=disk_statuses,
+        rescrape_data=rescrape_data,
     )
 
     if format == "json":
