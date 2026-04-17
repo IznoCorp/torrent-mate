@@ -99,6 +99,17 @@ class TestScanMovieDir:
         assert item.year is None
         assert ISSUE_BAD_DIR_NAME in item.issues
 
+    def test_macos_resource_forks_flagged(self, tmp_path: Path) -> None:
+        """MacOS resource fork files (._*) should be flagged as junk."""
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "._Movie.mkv").write_bytes(b"\x00" * 100)
+
+        item = scan_movie_dir(movie, disk="Disk1", category="films")
+
+        assert ISSUE_JUNK_FILES in item.issues
+
     def test_folder_size_calculated(self, tmp_path: Path) -> None:
         """Folder size should sum all files recursively."""
         movie = tmp_path / "Movie (2024)"

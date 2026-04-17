@@ -202,10 +202,12 @@ def analyze_library(
 
                 title, year = _parse_title_year(media_dir.name)
 
-                # Find all video files
+                # Find all video files (skip macOS resource forks "._*")
                 video_files = [
                     f for f in media_dir.rglob("*")
-                    if f.is_file() and f.suffix.lstrip(".").lower() in _VIDEO_EXTENSIONS
+                    if f.is_file()
+                    and f.suffix.lstrip(".").lower() in _VIDEO_EXTENSIONS
+                    and not f.name.startswith("._")
                 ]
 
                 if not video_files:

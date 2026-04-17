@@ -38,6 +38,7 @@ _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 
 # Junk files (same set as process/cleanup.py)
+# Includes .DS_Store, Thumbs.db, desktop.ini + macOS resource fork prefix "._"
 _JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
 
 # Video extensions (same set as sorter/file_type.py)
@@ -187,8 +188,8 @@ def _detect_issues(
             issues.append(ISSUE_ACTORS_DIR)
             continue
 
-        # Junk files
-        if name in _JUNK_FILES:
+        # Junk files (including macOS resource forks "._*")
+        if name in _JUNK_FILES or name.startswith("._"):
             issues.append(ISSUE_JUNK_FILES)
             continue
 
