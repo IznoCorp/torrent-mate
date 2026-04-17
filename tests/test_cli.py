@@ -335,3 +335,45 @@ def test_invalid_config_shows_friendly_error(mock_get_settings, mock_lock, mock_
     assert "ValidationError" not in result.output
 
 
+# --- Library maintenance CLI tests ---
+
+
+class TestLibraryScan:
+    """Tests for library-scan CLI command."""
+
+    def test_help(self) -> None:
+        """library-scan --help should display usage."""
+        result = runner.invoke(app, ["library-scan", "--help"])
+        assert result.exit_code == 0
+        assert "library-scan" in result.output
+        assert "--disk" in result.output
+        assert "--category" in result.output
+
+    def test_scan_produces_json(self, tmp_path, monkeypatch) -> None:
+        """library-scan should produce library_scan.json."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryScanResult
+
+        mock_result = LibraryScanResult(
+            scanned_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            item_count=0, items=[],
+        )
+
+        with (
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-scan"])
+
+        assert result.exit_code == 0
+        mock_write.assert_called_once()
+
+
