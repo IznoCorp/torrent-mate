@@ -1,6 +1,7 @@
 """Library validator — check NFO, artwork, naming, structure conformity.
 
 Wraps existing verify/checker.py checks for use on storage disks.
+Supports --fix mode for local corrections (empty dirs, NTFS names, dir naming).
 Distinction with enforce: enforce = staging (A TRIER/), validate = library (Disk1-4).
 """
 
@@ -8,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 
 from personalscraper.genre_mapper import GenreMapper
 from personalscraper.library.models import (
@@ -16,7 +18,9 @@ from personalscraper.library.models import (
 )
 from personalscraper.library.scanner import _SERIES_CATEGORIES, parse_title_year
 from personalscraper.naming_patterns import NamingPatterns
+from personalscraper.text_utils import sanitize_filename
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
+from personalscraper.verify.fixer import MediaFixer
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +41,68 @@ def _classify_results(
     return errors, warnings
 
 
+def _fix_empty_dirs(media_dir: Path, dry_run: bool) -> list[str]:
+    """Remove empty subdirectories from a media directory.
+
+    Args:
+        media_dir: Path to media directory.
+        dry_run: If True, only report without deleting.
+
+    Returns:
+        List of fix descriptions.
+    """
+    fixes = []
+    try:
+        for subdir in list(media_dir.iterdir()):
+            if subdir.is_dir() and not any(subdir.iterdir()):
+                if not dry_run:
+                    try:
+                        subdir.rmdir()
+                    except OSError as exc:
+                        logger.warning("Cannot remove empty dir %s: %s", subdir, exc)
+                        continue
+                prefix = "[DRY-RUN] Would remove" if dry_run else "Removed"
+                fixes.append(f"{prefix} empty dir: {subdir.name}")
+    except OSError:
+        pass
+    return fixes
+
+
+def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
+    """Rename files with NTFS-illegal characters.
+
+    Args:
+        media_dir: Path to media directory.
+        dry_run: If True, only report without renaming.
+
+    Returns:
+        List of fix descriptions.
+    """
+    fixes = []
+    try:
+        for item in media_dir.rglob("*"):
+            if item.is_file():
+                safe_name = sanitize_filename(item.name)
+                if safe_name != item.name:
+                    if not dry_run:
+                        try:
+                            item.rename(item.parent / safe_name)
+                        except OSError as exc:
+                            logger.warning("Cannot rename %s: %s", item, exc)
+                            continue
+                    prefix = "[DRY-RUN] Would rename" if dry_run else "Renamed"
+                    fixes.append(f"{prefix}: {item.name} → {safe_name}")
+    except OSError:
+        pass
+    return fixes
+
+
 def validate_library(
     disk_configs: list,
     disk_filter: str | None = None,
     category_filter: str | None = None,
+    fix: bool = False,
+    apply: bool = False,
 ) -> LibraryValidationResult:
     """Validate all library items on storage disks.
 
@@ -48,13 +110,18 @@ def validate_library(
         disk_configs: List of DiskConfig objects.
         disk_filter: Only validate this disk. None = all.
         category_filter: Only validate this category. None = all.
+        fix: If True, attempt to fix locally fixable issues.
+        apply: If True (with fix), actually execute fixes. False = dry-run.
 
     Returns:
         LibraryValidationResult with per-item validation status.
     """
-    checker = MediaChecker(NamingPatterns(), GenreMapper())
+    patterns = NamingPatterns()
+    checker = MediaChecker(patterns, GenreMapper())
+    fixer = MediaFixer(patterns, dry_run=not apply) if fix else None
     items: list[ValidationItem] = []
     valid_count = 0
+    fixed_count = 0
     issues_count = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
@@ -98,20 +165,59 @@ def validate_library(
                     continue
 
                 errors, warnings = _classify_results(checks)
+                fixes_applied: list[str] = []
+                fixed_error_names: set[str] = set()
 
-                if errors:
-                    status = "issues"
-                    issues_count += 1
-                else:
+                # --- Apply fixes if requested ---
+                if fix and errors:
+                    # Fix 1: dir_naming via MediaFixer (rename from NFO title+year)
+                    if "dir_naming" in errors and fixer:
+                        fixable_checks = [c for c in checks if not c.passed and c.fixable]
+                        if fixable_checks:
+                            if is_series:
+                                actions = fixer.fix_tvshow(media_dir, fixable_checks)
+                            else:
+                                actions = fixer.fix_movie(media_dir, fixable_checks)
+                            for a in actions:
+                                fixes_applied.append(a.description)
+                                fixed_error_names.add("dir_naming")
+                                # Update media_dir if renamed
+                                if a.new_path and apply:
+                                    media_dir = a.new_path
+
+                    # Fix 2: Empty subdirectories
+                    if "no_empty_dirs" in errors:
+                        empty_fixes = _fix_empty_dirs(media_dir, dry_run=not apply)
+                        fixes_applied.extend(empty_fixes)
+                        if empty_fixes:
+                            fixed_error_names.add("no_empty_dirs")
+
+                    # Fix 3: NTFS-unsafe filenames
+                    if "ntfs_safe_names" in errors:
+                        ntfs_fixes = _fix_ntfs_names(media_dir, dry_run=not apply)
+                        fixes_applied.extend(ntfs_fixes)
+                        if ntfs_fixes:
+                            fixed_error_names.add("ntfs_safe_names")
+
+                # Determine final status
+                remaining_errors = [e for e in errors if e not in fixed_error_names]
+                if fixes_applied and not remaining_errors:
+                    status = "fixed"
+                    fixed_count += 1
+                elif not remaining_errors:
                     status = "valid"
                     valid_count += 1
+                else:
+                    status = "issues"
+                    issues_count += 1
 
                 items.append(ValidationItem(
                     path=str(media_dir), disk=config.name,
                     category=category_dir.name,
                     media_type="tvshow" if is_series else "movie",
                     title=title, year=year, status=status,
-                    errors=errors, warnings=warnings,
+                    errors=remaining_errors, warnings=warnings,
+                    fixes_applied=fixes_applied,
                 ))
 
     return LibraryValidationResult(
@@ -120,7 +226,7 @@ def validate_library(
         category_filter=category_filter,
         total_items=len(items),
         valid_count=valid_count,
-        fixed_count=0,
+        fixed_count=fixed_count,
         issues_count=issues_count,
         items=items,
     )
