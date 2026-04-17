@@ -377,3 +377,61 @@ class TestLibraryScan:
         mock_write.assert_called_once()
 
 
+class TestLibraryClean:
+    """Tests for library-clean CLI command."""
+
+    def test_help(self) -> None:
+        """library-clean --help should display usage."""
+        result = runner.invoke(app, ["library-clean", "--help"])
+        assert result.exit_code == 0
+        assert "--apply" in result.output
+        assert "--only" in result.output
+        assert "--disk" in result.output
+
+    def test_dry_run_by_default(self, tmp_path) -> None:
+        """library-clean without --apply should be dry-run."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.disk_cleaner import CleanResult
+
+        mock_result = CleanResult(dry_run=True, deleted_count=5, freed_bytes=1024)
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-clean"])
+
+        assert result.exit_code == 0
+        assert "DRY-RUN" in result.output
+
+    def test_apply_acquires_lock(self, tmp_path) -> None:
+        """library-clean --apply should acquire pipeline lock."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.disk_cleaner import CleanResult
+
+        mock_result = CleanResult(dry_run=False, deleted_count=0)
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
+            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli.release_lock"),
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-clean", "--apply"])
+
+        assert result.exit_code == 0
+        mock_lock.assert_called_once()
+
+

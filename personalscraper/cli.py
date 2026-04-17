@@ -436,3 +436,69 @@ def library_scan(
     console.print(
         f"[green]Scan complete:[/green] {result.item_count} items → {output_path}"
     )
+
+
+@app.command()
+@handle_cli_errors
+def library_clean(
+    apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
+    only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
+    disk: str = typer.Option(None, "--disk", help="Clean only this disk (Disk1-4)"),
+    category: str = typer.Option(None, "--category", help="Clean only this category"),
+) -> None:
+    """Remove .actors/, empty dirs, junk files from storage disks.
+
+    Dry-run by default — shows what would be deleted without deleting.
+    Use --apply to actually execute deletions.
+    Use --only to target specific cleanup types.
+
+    Examples:
+        personalscraper library-clean
+        personalscraper library-clean --apply
+        personalscraper library-clean --apply --only actors
+        personalscraper library-clean --disk Disk1
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.disk_cleaner import clean_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    # Acquire lock only when applying changes
+    if apply:
+        if not acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        mode = "[bold red]APPLY[/bold red]" if apply else "[bold yellow]DRY-RUN[/bold yellow]"
+        console.print(f"[bold]Cleaning library ({mode})...[/bold]")
+
+        result = clean_library(
+            disk_configs,
+            apply=apply,
+            only=only,
+            disk_filter=disk,
+            category_filter=category,
+        )
+
+        if result.dry_run:
+            console.print(
+                f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
+                f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
+            )
+        else:
+            console.print(
+                f"[green]Deleted:[/green] {result.deleted_count} items "
+                f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
+            )
+            if result.error_count:
+                console.print(
+                    f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)"
+                )
+                for err in result.errors:
+                    console.print(f"  {err}")
+    finally:
+        if apply:
+            release_lock()
