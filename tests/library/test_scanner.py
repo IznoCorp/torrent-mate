@@ -110,6 +110,17 @@ class TestScanMovieDir:
 
         assert ISSUE_JUNK_FILES in item.issues
 
+    def test_audiobook_no_year_not_flagged(self, tmp_path: Path) -> None:
+        """Audiobooks by author name (no year) should NOT flag bad_dir_naming."""
+        book = tmp_path / "Isaac Asimov"
+        book.mkdir()
+        (book / "Foundation.mp3").write_bytes(b"\x00" * 1000)
+
+        item = scan_movie_dir(book, disk="Disk1", category="livres audios")
+
+        assert item.year is None
+        assert ISSUE_BAD_DIR_NAME not in item.issues
+
     def test_folder_size_calculated(self, tmp_path: Path) -> None:
         """Folder size should sum all files recursively."""
         movie = tmp_path / "Movie (2024)"

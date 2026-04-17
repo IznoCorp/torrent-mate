@@ -162,7 +162,7 @@ class ValidationItem:
         media_type: "movie" or "tvshow".
         title: Media title.
         year: Release year.
-        status: "valid", "fixed", or "blocked".
+        status: "valid", "fixed", or "issues" (has quality problems).
         errors: List of error check names that failed.
         warnings: List of warning check names that failed.
         fixes_applied: List of fixes that were applied (if --fix --apply).
@@ -190,7 +190,7 @@ class LibraryValidationResult:
     total_items: int
     valid_count: int
     fixed_count: int
-    blocked_count: int
+    issues_count: int
     items: list[ValidationItem] = field(default_factory=list)
 
 

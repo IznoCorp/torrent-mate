@@ -55,7 +55,7 @@ def validate_library(
     checker = MediaChecker(NamingPatterns(), GenreMapper())
     items: list[ValidationItem] = []
     valid_count = 0
-    blocked_count = 0
+    issues_count = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
     for config in disk_configs:
@@ -94,14 +94,14 @@ def validate_library(
                         title=title, year=year, status="blocked",
                         errors=[f"os_error: {exc}"],
                     ))
-                    blocked_count += 1
+                    issues_count += 1
                     continue
 
                 errors, warnings = _classify_results(checks)
 
                 if errors:
-                    status = "blocked"
-                    blocked_count += 1
+                    status = "issues"
+                    issues_count += 1
                 else:
                     status = "valid"
                     valid_count += 1
@@ -121,6 +121,6 @@ def validate_library(
         total_items=len(items),
         valid_count=valid_count,
         fixed_count=0,
-        blocked_count=blocked_count,
+        issues_count=issues_count,
         items=items,
     )

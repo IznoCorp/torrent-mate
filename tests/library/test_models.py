@@ -229,17 +229,17 @@ class TestValidationItem:
         )
         assert item.status == "valid"
 
-    def test_blocked_item(self) -> None:
-        """Item with errors should be blocked."""
+    def test_item_with_issues(self) -> None:
+        """Item with errors should have 'issues' status."""
         item = ValidationItem(
             path="/tmp/Movie", disk="Disk1", category="films",
             media_type="movie", title="Movie", year=None,
-            status="blocked",
+            status="issues",
             errors=["nfo_missing", "bad_dir_naming"],
             warnings=["no_landscape"],
             fixes_applied=[],
         )
-        assert item.status == "blocked"
+        assert item.status == "issues"
         assert len(item.errors) == 2
 
 
