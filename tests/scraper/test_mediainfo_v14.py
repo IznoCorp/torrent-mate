@@ -101,8 +101,8 @@ class TestAtmosDetection:
             result = extract_stream_info(video)
 
         assert result["audio"][0]["is_atmos"] is True
-        # Underlying codec preserved (not "atmos")
-        assert result["audio"][0]["codec"] == "eac3"
+        # Codec is "atmos" for Kodi NFO, is_atmos preserves detection for analysis
+        assert result["audio"][0]["codec"] == "atmos"
 
     def test_no_atmos(self, tmp_path: Path) -> None:
         """Regular audio should set is_atmos=False."""

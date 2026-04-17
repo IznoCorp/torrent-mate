@@ -463,6 +463,13 @@ def library_clean(
 
     console = state["console"]
     settings = get_settings()
+
+    # Validate --only parameter
+    valid_only = {"actors", "empty", "junk", "release"}
+    if only and only not in valid_only:
+        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        raise typer.Exit(1)
+
     disk_configs = get_disk_configs(settings)
 
     # Acquire lock only when applying changes
@@ -509,7 +516,6 @@ def library_clean(
 def library_validate(
     disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
     category: str = typer.Option(None, "--category", help="Validate only this category"),
-    level: str = typer.Option("full", "--level", help="Validation level: quick or full"),
     fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
     apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
 ) -> None:
@@ -520,7 +526,7 @@ def library_validate(
 
     Examples:
         personalscraper library-validate
-        personalscraper library-validate --disk Disk1 --level quick
+        personalscraper library-validate --disk Disk1
         personalscraper library-validate --fix --apply
     """
     from personalscraper.dispatch.disk_scanner import get_disk_configs
@@ -546,7 +552,6 @@ def library_validate(
             disk_configs,
             disk_filter=disk,
             category_filter=category,
-            level=level,
         )
 
         output_path = settings.data_dir / "library_validation.json"
@@ -589,8 +594,8 @@ def library_analyze(
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
 
-    # Load existing analysis for incremental mode
-    existing: dict[str, int] = {}
+    # Load existing analysis for incremental mode (compare size_gb with tolerance)
+    existing: dict[str, float] = {}
     analysis_path = settings.data_dir / "library_analysis.json"
     if incremental and analysis_path.exists():
         try:
@@ -598,10 +603,11 @@ def library_analyze(
             for item in data.get("items", []):
                 for f in item.get("files", []):
                     path = f.get("path", "")
-                    size_bytes = int(f.get("size_gb", 0) * 1024 ** 3)
-                    existing[path] = size_bytes
-        except (OSError, KeyError):
-            pass
+                    existing[path] = f.get("size_gb", 0.0)
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            logger.warning("Cannot load existing analysis for incremental mode: %s", exc)
+            console.print(f"[yellow]Warning:[/yellow] Cannot read existing analysis ({exc}), re-analyzing all files.")
+            existing = {}
 
     console.print("[bold]Analyzing library (ffprobe)...[/bold]")
     result = analyze_library(
@@ -648,6 +654,12 @@ def library_recommend(
 
     console = state["console"]
     settings = get_settings()
+
+    # Validate --sort parameter
+    valid_sorts = {"priority", "size", "codec"}
+    if sort not in valid_sorts:
+        console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
+        raise typer.Exit(1)
 
     # Load analysis
     analysis_path = settings.data_dir / "library_analysis.json"
@@ -708,8 +720,6 @@ def library_recommend(
 @handle_cli_errors
 def library_report(
     format: str = typer.Option("text", "--format", help="Output format: text or json"),
-    disk: str = typer.Option(None, "--disk", help="Filter report to this disk"),
-    category: str = typer.Option(None, "--category", help="Filter report to this category"),
 ) -> None:
     """Display library statistics and health report.
 
@@ -719,7 +729,6 @@ def library_report(
     Examples:
         personalscraper library-report
         personalscraper library-report --format json
-        personalscraper library-report --disk Disk1
     """
     from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
     from personalscraper.library.models import read_json, write_json

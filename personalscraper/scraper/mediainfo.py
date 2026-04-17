@@ -32,6 +32,7 @@ SUBTITLE_CODEC_MAP: dict[str, str] = {
     "hdmv_pgs_subtitle": "pgs",
     "dvd_subtitle": "vobsub",
     "mov_text": "tx3g",
+    "ass": "ass",
 }
 
 # ISO 639-2/B (ffprobe/MKV) -> ISO 639-2/T (Kodi) — only codes that differ
@@ -74,20 +75,21 @@ def _map_video_codec(codec_name: str) -> str:
 
 
 def _map_audio_codec(codec_name: str, profile: str = "") -> str:
-    """Map ffprobe audio codec name to Kodi NFO name, with Atmos detection.
+    """Map ffprobe audio codec name to Kodi NFO name.
 
-    Dolby Atmos is metadata on top of EAC3/TrueHD, detected via profile.
-    DTS-HD variants are also detected.
+    Dolby Atmos returns "atmos" for Kodi NFO compatibility.
+    DTS-HD variants are also detected. The separate is_atmos field
+    on audio tracks preserves the underlying codec for analysis.
 
     Args:
         codec_name: Raw ffprobe codec name (e.g. "eac3").
         profile: ffprobe profile string (e.g. "Dolby Digital Plus + Dolby Atmos").
 
     Returns:
-        Kodi-compatible codec name. "atmos" if Dolby Atmos detected.
+        Kodi-compatible codec name ("atmos", "dtshd_ma", or raw codec).
     """
-    # Atmos is now detected via separate is_atmos field (V14)
-    # Preserve underlying codec (eac3/truehd) instead of overwriting with "atmos"
+    if "Atmos" in profile:
+        return "atmos"
     if codec_name == "dts" and profile:
         if "DTS-HD MA" in profile:
             return "dtshd_ma"
@@ -136,12 +138,15 @@ def extract_stream_info(video_path: Path) -> dict | None:
                 "aspect": 1.778,
                 "scantype": "progressive",
                 "hdr": {"is_hdr": True, "hdr_type": "hdr10"},
+                "bitrate_kbps": 15000,
             },
             "audio": [
-                {"codec": "eac3", "channels": 6, "language": "fra"},
+                {"codec": "eac3", "channels": 6, "language": "fra",
+                 "is_atmos": False, "is_default": True},
             ],
             "subtitle": [
-                {"language": "fra"},
+                {"language": "fra", "format": "srt",
+                 "forced": False, "is_default": True},
             ],
         }
 
@@ -258,7 +263,7 @@ def extract_stream_info(video_path: Path) -> dict | None:
         codec = _map_audio_codec(codec_name, profile)
         channels = s.get("channels", 0)
         language = _lang_to_kodi(s.get("tags", {}).get("language", "und"))
-        # V14: Atmos detection and default flag
+        # Atmos detection (separate from codec for analysis) and default flag
         is_atmos = "atmos" in profile.lower() if profile else False
         disposition = s.get("disposition", {})
         is_default = bool(disposition.get("default", 0))
@@ -267,21 +272,14 @@ def extract_stream_info(video_path: Path) -> dict | None:
             "is_atmos": is_atmos, "is_default": is_default,
         })
 
-    # Subtitle codec normalization map (V14)
-    _sub_format_map = {
-        "subrip": "srt", "hdmv_pgs_subtitle": "pgs",
-        "ass": "ass", "dvd_subtitle": "dvd_subtitle",
-    }
-
     # --- Parse subtitle streams (all) ---
     subtitle_tracks = []
     for s in streams:
         if s.get("codec_type") != "subtitle":
             continue
         language = _lang_to_kodi(s.get("tags", {}).get("language", "und"))
-        # V14: format, forced, is_default
         sub_codec_name = s.get("codec_name", "unknown")
-        sub_format = _sub_format_map.get(sub_codec_name, sub_codec_name)
+        sub_format = SUBTITLE_CODEC_MAP.get(sub_codec_name, sub_codec_name)
         disposition = s.get("disposition", {})
         forced = bool(disposition.get("forced", 0))
         is_default = bool(disposition.get("default", 0))

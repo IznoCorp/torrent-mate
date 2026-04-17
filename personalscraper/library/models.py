@@ -208,8 +208,9 @@ PRIORITY_LOW = "low"
 class VideoInfo:
     """Video stream information extracted by ffprobe.
 
-    Resolution is a computed property derived from height to prevent
-    inconsistency between stored resolution and actual dimensions.
+    Resolution is derived from height in __post_init__ to ensure it is
+    included in JSON serialization via asdict() while preventing
+    inconsistency with actual dimensions.
 
     Attributes:
         codec: Video codec name ("hevc", "h264", "av1", etc.).
@@ -218,6 +219,7 @@ class VideoInfo:
         bitrate_kbps: Video bitrate in kbps (None if unavailable).
         hdr: Whether the video is HDR.
         hdr_type: HDR standard (only set when hdr=True).
+        resolution: Derived from height (e.g. "1080p"). Set automatically.
     """
 
     codec: str
@@ -226,11 +228,13 @@ class VideoInfo:
     bitrate_kbps: int | None
     hdr: bool
     hdr_type: str | None
+    resolution: str = ""
 
-    @property
-    def resolution(self) -> str:
-        """Derive resolution label from height."""
-        return f"{self.height}p"
+    def __post_init__(self) -> None:
+        """Derive resolution from height and enforce hdr/hdr_type consistency."""
+        self.resolution = f"{self.height}p"
+        if not self.hdr:
+            self.hdr_type = None
 
 
 @dataclass
@@ -411,6 +415,14 @@ class Recommendation:
     priority: str = PRIORITY_MEDIUM
     estimated_savings_gb: float | None = None
     matched_rule_index: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate that reasons is non-empty and priority is valid."""
+        if not self.reasons:
+            raise ValueError("Recommendation must have at least one reason")
+        valid = {PRIORITY_HIGH, PRIORITY_MEDIUM, PRIORITY_LOW}
+        if self.priority not in valid:
+            raise ValueError(f"Invalid priority '{self.priority}', must be one of {valid}")
 
 
 @dataclass

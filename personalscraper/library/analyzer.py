@@ -156,7 +156,7 @@ def analyze_library(
     disk_filter: str | None = None,
     category_filter: str | None = None,
     incremental: bool = False,
-    existing_sizes: dict[str, int] | None = None,
+    existing_sizes: dict[str, float] | None = None,
     max_items: int | None = None,
 ) -> LibraryAnalysisResult:
     """Analyze all video files in the library with ffprobe.
@@ -165,8 +165,8 @@ def analyze_library(
         disk_configs: List of DiskConfig objects.
         disk_filter: Only analyze this disk. None = all.
         category_filter: Only analyze this category. None = all.
-        incremental: Skip files whose size hasn't changed since last analysis.
-        existing_sizes: Dict of path -> size_bytes from previous analysis.
+        incremental: Skip files whose size_gb hasn't changed since last analysis.
+        existing_sizes: Dict of path -> size_gb from previous analysis.
         max_items: Maximum number of media items to analyze. None = unlimited.
 
     Returns:
@@ -213,11 +213,14 @@ def analyze_library(
 
                 file_analyses: list[MediaFileAnalysis] = []
                 for vf in video_files:
-                    # Incremental: skip if file size hasn't changed
+                    # Incremental: skip if file size_gb hasn't changed
                     if incremental:
-                        current_size = _file_size_bytes(vf)
-                        prev_size = existing.get(str(vf))
-                        if prev_size is not None and prev_size == current_size:
+                        try:
+                            current_size_gb = round(vf.stat().st_size / (1024 ** 3), 3)
+                        except OSError:
+                            current_size_gb = -1.0  # force re-analyze
+                        prev_size_gb = existing.get(str(vf))
+                        if prev_size_gb is not None and prev_size_gb == current_size_gb:
                             logger.debug("Skipping unchanged: %s", vf)
                             continue
 
