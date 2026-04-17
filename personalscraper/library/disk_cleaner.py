@@ -47,8 +47,8 @@ def _dir_size(path: Path) -> int:
                     total += f.stat().st_size
                 except OSError:
                     continue
-    except OSError:
-        pass
+    except OSError as exc:
+        logger.warning("Cannot measure directory size %s: %s", path, exc)
     return total
 
 
@@ -154,6 +154,7 @@ def clean_library(
         if disk_filter and config.name != disk_filter:
             continue
         if not config.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
             continue
 
         for category_dir in sorted(config.path.iterdir()):

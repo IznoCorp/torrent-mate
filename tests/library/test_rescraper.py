@@ -88,7 +88,6 @@ class TestResolveId:
     def test_rematch_when_no_nfo(self, tmp_path: Path) -> None:
         """Should re-match via API when no NFO exists."""
         from personalscraper.library.rescraper import _resolve_tmdb_id
-
         from personalscraper.scraper.confidence import MatchResult
 
         movie = tmp_path / "Movie (2024)"
@@ -110,7 +109,6 @@ class TestResolveId:
     def test_low_confidence_skipped(self, tmp_path: Path) -> None:
         """Low confidence match without --interactive should return None."""
         from personalscraper.library.rescraper import _resolve_tmdb_id
-
         from personalscraper.scraper.confidence import MatchResult
 
         movie = tmp_path / "Movie (2024)"
@@ -142,3 +140,87 @@ class TestResolveId:
 
         assert tmdb_id is None
         assert confidence is None
+
+
+class TestRescrapeItem:
+    """Tests for _rescrape_item — single item orchestrator."""
+
+    def test_already_ok_returns_none(self, tmp_path: Path) -> None:
+        """Item needing nothing should return None."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Movie.nfo").write_text(
+            '<movie><uniqueid type="tmdb">1</uniqueid></movie>'
+        )
+        (movie / "Movie-poster.jpg").write_bytes(b"\x00" * 100)
+
+        result = _rescrape_item(
+            media_dir=movie, media_type="movie", disk="Disk1",
+            category="films", title="Movie", year=2024,
+            tmdb_client=MagicMock(), tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(), artwork_dl=MagicMock(),
+            patterns=NamingPatterns(), only=None,
+            interactive=False, dry_run=True,
+        )
+
+        assert result is None
+
+    def test_no_match_returns_skipped(self, tmp_path: Path) -> None:
+        """Item with no API match should be skipped."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        # No NFO, no poster — needs repair but no match possible
+
+        with patch("personalscraper.library.rescraper.match_movie", return_value=None):
+            result = _rescrape_item(
+                media_dir=movie, media_type="movie", disk="Disk1",
+                category="films", title="Movie", year=2024,
+                tmdb_client=MagicMock(), tvdb_client=MagicMock(),
+                nfo_gen=MagicMock(), artwork_dl=MagicMock(),
+                patterns=NamingPatterns(), only=None,
+                interactive=False, dry_run=True,
+            )
+
+        assert result is not None
+        from personalscraper.library.models import SKIP_NO_MATCH
+        assert SKIP_NO_MATCH in result.actions_skipped
+        assert result.tmdb_id is None
+
+    def test_nfo_regenerated_in_dry_run(self, tmp_path: Path) -> None:
+        """Dry-run should report NFO regeneration without writing."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Movie.nfo").write_text(
+            '<movie><uniqueid type="tmdb">123</uniqueid></movie>'
+        )
+        # Has NFO (valid) but no poster — needs artwork
+
+        mock_artwork = MagicMock()
+        result = _rescrape_item(
+            media_dir=movie, media_type="movie", disk="Disk1",
+            category="films", title="Movie", year=2024,
+            tmdb_client=MagicMock(), tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(), artwork_dl=mock_artwork,
+            patterns=NamingPatterns(), only=None,
+            interactive=False, dry_run=True,
+        )
+
+        assert result is not None
+        from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
+        assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
+        assert result.tmdb_id == "123"
+        assert result.id_source == "nfo"
+        # Dry-run: artwork_dl methods should NOT have been called
+        mock_artwork.download_movie_artwork.assert_not_called()

@@ -21,6 +21,8 @@ from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging
 
+logger = logging.getLogger(__name__)
+
 # Rich tracebacks for readable error output
 install_traceback(show_locals=False)
 
@@ -816,7 +818,9 @@ def library_report(
         if path.exists():
             try:
                 return read_json(path)
-            except (OSError, ValueError):
+            except (OSError, ValueError) as exc:
+                logger.warning("Cannot load %s: %s", name, exc)
+                console.print(f"[yellow]Warning: {name} corrupted ({exc}), skipping.[/yellow]")
                 return None
         return None
 

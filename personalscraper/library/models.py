@@ -189,6 +189,8 @@ class ValidationItem:
             raise ValueError("status='fixed' requires non-empty fixes_applied")
         if self.status == "valid" and (self.errors or self.fixes_applied):
             raise ValueError("status='valid' must have empty errors and fixes_applied")
+        if self.status == "issues" and not (self.errors or self.warnings):
+            raise ValueError("status='issues' requires non-empty errors or warnings")
 
 
 @dataclass
@@ -456,6 +458,7 @@ SKIP_NO_MATCH = "no_match"
 SKIP_ALREADY_OK = "already_conforming"
 
 _VALID_ONLY_FILTERS = {"nfo", "artwork", "episodes"}
+_VALID_ID_SOURCES = {"nfo", "api_match"}
 
 
 @dataclass
@@ -496,6 +499,8 @@ class RescrapeAction:
             raise ValueError(f"media_type must be 'movie' or 'tvshow', got '{self.media_type}'")
         if self.match_confidence is not None and not (0.0 <= self.match_confidence <= 1.0):
             raise ValueError(f"match_confidence must be 0.0-1.0, got {self.match_confidence}")
+        if self.id_source is not None and self.id_source not in _VALID_ID_SOURCES:
+            raise ValueError(f"id_source must be one of {_VALID_ID_SOURCES} or None, got '{self.id_source}'")
         if self.tmdb_id is None and self.match_confidence is not None:
             self.match_confidence = None
 

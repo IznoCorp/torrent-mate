@@ -10,7 +10,11 @@ from personalscraper.library.models import (
     ISSUE_JUNK_FILES,
     LibraryScanResult,
 )
-from personalscraper.library.scanner import scan_library, scan_movie_dir, scan_tvshow_dir
+from personalscraper.library.scanner import (
+    scan_library,
+    scan_movie_dir,
+    scan_tvshow_dir,
+)
 
 
 class TestScanMovieDir:
@@ -278,3 +282,94 @@ class TestScanLibrary:
 
         assert result.items[0].media_type == "tvshow"
         assert result.items[0].seasons is not None
+
+
+class TestParseTitleYear:
+    """Direct tests for parse_title_year public API."""
+
+    def test_title_with_year(self) -> None:
+        """Standard 'Title (2024)' format."""
+        from personalscraper.library.scanner import parse_title_year
+        title, year = parse_title_year("The Matrix (1999)")
+        assert title == "The Matrix"
+        assert year == 1999
+
+    def test_title_without_year(self) -> None:
+        """No year in parentheses returns None."""
+        from personalscraper.library.scanner import parse_title_year
+        title, year = parse_title_year("Some Movie")
+        assert title == "Some Movie"
+        assert year is None
+
+    def test_title_with_spaces(self) -> None:
+        """Extra spaces around year should be handled."""
+        from personalscraper.library.scanner import parse_title_year
+        title, year = parse_title_year("Movie  (2024) ")
+        assert title == "Movie"
+        assert year == 2024
+
+    def test_title_with_non_year_parens(self) -> None:
+        """Non-4-digit parens should not match."""
+        from personalscraper.library.scanner import parse_title_year
+        title, year = parse_title_year("Movie (Extended)")
+        assert year is None
+
+
+class TestExtractNfoIds:
+    """Direct tests for extract_nfo_ids public API."""
+
+    def test_both_ids(self, tmp_path: Path) -> None:
+        """NFO with both TMDB and IMDB IDs."""
+        from personalscraper.library.scanner import extract_nfo_ids
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text(
+            '<movie><uniqueid type="tmdb">603</uniqueid>'
+            '<uniqueid type="imdb">tt0133093</uniqueid></movie>'
+        )
+        tmdb, imdb = extract_nfo_ids(nfo)
+        assert tmdb == "603"
+        assert imdb == "tt0133093"
+
+    def test_empty_uniqueid_text(self, tmp_path: Path) -> None:
+        """NFO with empty uniqueid text should return None."""
+        from personalscraper.library.scanner import extract_nfo_ids
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text(
+            '<movie><uniqueid type="tmdb"></uniqueid></movie>'
+        )
+        tmdb, imdb = extract_nfo_ids(nfo)
+        assert tmdb is None
+        assert imdb is None
+
+    def test_corrupt_xml(self, tmp_path: Path) -> None:
+        """Corrupt XML should return (None, None)."""
+        from personalscraper.library.scanner import extract_nfo_ids
+        nfo = tmp_path / "test.nfo"
+        nfo.write_text("<movie><broken")
+        tmdb, imdb = extract_nfo_ids(nfo)
+        assert tmdb is None
+        assert imdb is None
+
+    def test_nonexistent_file(self, tmp_path: Path) -> None:
+        """Missing file should return (None, None)."""
+        from personalscraper.library.scanner import extract_nfo_ids
+        tmdb, imdb = extract_nfo_ids(tmp_path / "missing.nfo")
+        assert tmdb is None
+        assert imdb is None
+
+
+class TestNtfsUnsafeDetection:
+    """Tests for NTFS-unsafe name detection in scanner."""
+
+    def test_ntfs_unsafe_filename_flagged(self, tmp_path: Path) -> None:
+        """File with NTFS-illegal ':' should flag ISSUE_NTFS_UNSAFE."""
+        from personalscraper.library.models import ISSUE_NTFS_UNSAFE
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        # Create file with colon (common in TMDB French titles)
+        (movie / "Spirale : L'Héritage.txt").write_bytes(b"\x00")
+
+        item = scan_movie_dir(movie, disk="Disk1", category="films")
+
+        assert ISSUE_NTFS_UNSAFE in item.issues
