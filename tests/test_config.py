@@ -71,6 +71,13 @@ def test_data_dir_absolute_override(tmp_path, monkeypatch):
     assert s.data_dir == custom
 
 
+def test_library_preferences_file_default(monkeypatch):
+    """library_preferences_file should default to 'library_preferences.json'."""
+    monkeypatch.setenv("STAGING_DIR", "/tmp/staging")
+    settings = Settings(_env_file=None)
+    assert settings.library_preferences_file == "library_preferences.json"
+
+
 def test_category_dir_names_configurable(monkeypatch):
     """Category directory names can be overridden via env vars."""
     monkeypatch.setenv("MOVIES_DIR_NAME", "films")
