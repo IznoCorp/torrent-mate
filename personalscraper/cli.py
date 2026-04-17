@@ -394,3 +394,45 @@ def run(
 
     finally:
         release_lock()
+
+
+# --- Library maintenance commands ---
+
+
+@app.command()
+@handle_cli_errors
+def library_scan(
+    disk: str = typer.Option(None, "--disk", help="Scan only this disk (Disk1-4)"),
+    category: str = typer.Option(None, "--category", help="Scan only this category"),
+) -> None:
+    """Scan library structure and metadata on storage disks.
+
+    Lightweight scan: reads directories and NFOs, no ffprobe.
+    Produces library_scan.json in .personalscraper/.
+
+    Examples:
+        personalscraper library-scan
+        personalscraper library-scan --disk Disk1
+        personalscraper library-scan --category films
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.models import write_json
+    from personalscraper.library.scanner import scan_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    console.print("[bold]Scanning library...[/bold]")
+    result = scan_library(
+        disk_configs,
+        disk_filter=disk,
+        category_filter=category,
+    )
+
+    output_path = settings.data_dir / "library_scan.json"
+    write_json(result, output_path)
+
+    console.print(
+        f"[green]Scan complete:[/green] {result.item_count} items → {output_path}"
+    )
