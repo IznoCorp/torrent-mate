@@ -280,6 +280,49 @@ class TestJsonSerialization:
         assert data["disk_filter"] == "Disk1"
 
 
+class TestValidationItemInvariant:
+    """Tests for ValidationItem.__post_init__ enforcement."""
+
+    def test_valid_status_accepted(self) -> None:
+        """Valid status values should be accepted."""
+        for status in ("valid", "fixed", "issues"):
+            item = ValidationItem(
+                path="/tmp/X", disk="Disk1", category="films",
+                media_type="movie", title="X", year=2024,
+                status=status,
+                errors=["err"] if status == "issues" else [],
+                fixes_applied=["fix"] if status == "fixed" else [],
+            )
+            assert item.status == status
+
+    def test_invalid_status_raises(self) -> None:
+        """Unknown status should raise ValueError."""
+        with pytest.raises(ValueError, match="status"):
+            ValidationItem(
+                path="/tmp/X", disk="Disk1", category="films",
+                media_type="movie", title="X", year=2024,
+                status="blocked",
+            )
+
+    def test_fixed_without_fixes_raises(self) -> None:
+        """status='fixed' with empty fixes_applied should raise."""
+        with pytest.raises(ValueError, match="fixes_applied"):
+            ValidationItem(
+                path="/tmp/X", disk="Disk1", category="films",
+                media_type="movie", title="X", year=2024,
+                status="fixed", fixes_applied=[],
+            )
+
+    def test_valid_with_errors_raises(self) -> None:
+        """status='valid' with errors should raise."""
+        with pytest.raises(ValueError, match="valid"):
+            ValidationItem(
+                path="/tmp/X", disk="Disk1", category="films",
+                media_type="movie", title="X", year=2024,
+                status="valid", errors=["nfo_present"],
+            )
+
+
 class TestRescrapeAction:
     """Tests for RescrapeAction model."""
 
