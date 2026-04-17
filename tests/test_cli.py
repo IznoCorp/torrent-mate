@@ -335,3 +335,326 @@ def test_invalid_config_shows_friendly_error(mock_get_settings, mock_lock, mock_
     assert "ValidationError" not in result.output
 
 
+# --- Library maintenance CLI tests ---
+
+
+class TestLibraryScan:
+    """Tests for library-scan CLI command."""
+
+    def test_help(self) -> None:
+        """library-scan --help should display usage."""
+        result = runner.invoke(app, ["library-scan", "--help"])
+        assert result.exit_code == 0
+        assert "library-scan" in result.output
+        assert "--disk" in result.output
+        assert "--category" in result.output
+
+    def test_scan_produces_json(self, tmp_path, monkeypatch) -> None:
+        """library-scan should produce library_scan.json."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryScanResult
+
+        mock_result = LibraryScanResult(
+            scanned_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            item_count=0, items=[],
+        )
+
+        with (
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-scan"])
+
+        assert result.exit_code == 0
+        mock_write.assert_called_once()
+
+
+class TestLibraryClean:
+    """Tests for library-clean CLI command."""
+
+    def test_help(self) -> None:
+        """library-clean --help should display usage."""
+        result = runner.invoke(app, ["library-clean", "--help"])
+        assert result.exit_code == 0
+        assert "--apply" in result.output
+        assert "--only" in result.output
+        assert "--disk" in result.output
+
+    def test_dry_run_by_default(self, tmp_path) -> None:
+        """library-clean without --apply should be dry-run."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.disk_cleaner import CleanResult
+
+        mock_result = CleanResult(dry_run=True, deleted_count=5, freed_bytes=1024)
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-clean"])
+
+        assert result.exit_code == 0
+        assert "DRY-RUN" in result.output
+
+    def test_apply_acquires_lock(self, tmp_path) -> None:
+        """library-clean --apply should acquire pipeline lock."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.disk_cleaner import CleanResult
+
+        mock_result = CleanResult(dry_run=False, deleted_count=0)
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.library.disk_cleaner.clean_library", return_value=mock_result),
+            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli.release_lock"),
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-clean", "--apply"])
+
+        assert result.exit_code == 0
+        mock_lock.assert_called_once()
+
+
+class TestLibraryValidate:
+    """Tests for library-validate CLI command."""
+
+    def test_help(self) -> None:
+        """library-validate --help should display usage."""
+        result = runner.invoke(app, ["library-validate", "--help"])
+        assert result.exit_code == 0
+        assert "--disk" in result.output
+        assert "--fix" in result.output
+
+    def test_validate_produces_json(self, tmp_path) -> None:
+        """library-validate should produce library_validation.json."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryValidationResult
+
+        mock_result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            total_items=0, valid_count=0, fixed_count=0, issues_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json") as mock_write,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-validate"])
+
+        assert result.exit_code == 0
+        mock_write.assert_called_once()
+
+    def test_apply_without_fix_errors(self) -> None:
+        """--apply without --fix should error."""
+        from unittest.mock import MagicMock
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+        ):
+            mock_settings.return_value = MagicMock()
+            result = runner.invoke(app, ["library-validate", "--apply"])
+        assert result.exit_code == 1
+
+    def test_fix_apply_acquires_lock(self, tmp_path) -> None:
+        """--fix --apply should acquire pipeline lock."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryValidationResult
+
+        mock_result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            total_items=0, valid_count=0, fixed_count=0, issues_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli.acquire_lock", return_value=True) as mock_lock,
+            patch("personalscraper.cli.release_lock"),
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-validate", "--fix", "--apply"])
+
+        assert result.exit_code == 0
+        mock_lock.assert_called_once()
+
+    def test_fix_forwards_params(self, tmp_path) -> None:
+        """--fix should forward fix=True to validate_library."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryValidationResult
+
+        mock_result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            total_items=1, valid_count=0, fixed_count=1, issues_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.validator.validate_library", return_value=mock_result) as mock_val,
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-validate", "--fix"])
+
+        assert result.exit_code == 0
+        mock_val.assert_called_once()
+        _, kwargs = mock_val.call_args
+        assert kwargs["fix"] is True
+        assert kwargs["apply"] is False
+
+    def test_fix_suggests_rescrape(self, tmp_path) -> None:
+        """--fix with remaining issues should suggest library-rescrape."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryValidationResult
+
+        mock_result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
+            disk_filter=None, category_filter=None,
+            total_items=2, valid_count=0, fixed_count=1, issues_count=1,
+        )
+
+        with (
+            patch("personalscraper.library.validator.validate_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-validate", "--fix"])
+
+        assert result.exit_code == 0
+        assert "library-rescrape" in result.output
+
+
+class TestLibraryAnalyze:
+    """Tests for library-analyze CLI command."""
+
+    def test_help(self) -> None:
+        """library-analyze --help should display usage."""
+        result = runner.invoke(app, ["library-analyze", "--help"])
+        assert result.exit_code == 0
+        assert "--disk" in result.output
+        assert "--incremental" in result.output
+        assert "--max-items" in result.output
+
+
+class TestLibraryRecommend:
+    """Tests for library-recommend CLI command."""
+
+    def test_help(self) -> None:
+        """library-recommend --help should display usage."""
+        result = runner.invoke(app, ["library-recommend", "--help"])
+        assert result.exit_code == 0
+        assert "--sort" in result.output
+        assert "--export" in result.output
+        assert "--disk" in result.output
+        assert "--category" in result.output
+
+
+class TestLibraryRescrape:
+    """Tests for library-rescrape CLI command."""
+
+    def test_help(self) -> None:
+        """library-rescrape --help should display usage."""
+        result = runner.invoke(app, ["library-rescrape", "--help"])
+        assert result.exit_code == 0
+        assert "--only" in result.output
+        assert "--disk" in result.output
+        assert "--interactive" in result.output
+        assert "--dry-run" in result.output
+        assert "--max-items" in result.output
+
+    def test_invalid_only_errors(self) -> None:
+        """--only with invalid value should error."""
+        from unittest.mock import MagicMock
+
+        with (
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+        ):
+            mock_settings.return_value = MagicMock()
+            result = runner.invoke(app, ["library-rescrape", "--only", "invalid"])
+        assert result.exit_code == 1
+
+    def test_dry_run_no_lock(self, tmp_path) -> None:
+        """--dry-run should not acquire lock."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryRescrapeResult
+
+        mock_result = LibraryRescrapeResult(
+            rescraped_at="2026-04-17T12:00:00",
+            disk_filter=None, category_filter=None, only_filter=None,
+            dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+        )
+
+        with (
+            patch("personalscraper.library.rescraper.rescrape_library", return_value=mock_result),
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+            patch("personalscraper.cli.acquire_lock") as mock_lock,
+        ):
+            settings = MagicMock()
+            settings.data_dir = tmp_path
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-rescrape", "--dry-run"])
+
+        assert result.exit_code == 0
+        mock_lock.assert_not_called()
+
+
+class TestLibraryReport:
+    """Tests for library-report CLI command."""
+
+    def test_help(self) -> None:
+        """library-report --help should display usage."""
+        result = runner.invoke(app, ["library-report", "--help"])
+        assert result.exit_code == 0
+        assert "--format" in result.output

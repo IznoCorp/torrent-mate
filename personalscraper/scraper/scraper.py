@@ -19,6 +19,7 @@ import requests
 
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
+from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper.artwork import ArtworkDownloader
 from personalscraper.scraper.confidence import (
     LOW_CONFIDENCE,
@@ -100,39 +101,6 @@ def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     return moved, failed
 
 
-def _is_nfo_complete(nfo_path: Path) -> bool:
-    """Check if an NFO file is complete and valid.
-
-    A complete NFO must:
-    1. Exist on disk
-    2. Be parsable as XML
-    3. Contain at least one <uniqueid> element with non-empty text
-
-    Used to distinguish valid NFOs from crash-truncated or incomplete
-    ones that should be re-scraped.
-
-    Args:
-        nfo_path: Path to the .nfo file.
-
-    Returns:
-        True if the NFO is complete and valid.
-    """
-    if not nfo_path.exists():
-        return False
-    try:
-        tree = ET.parse(nfo_path)  # noqa: S314
-        root = tree.getroot()
-        # Must have at least one uniqueid with non-empty text
-        for uid in root.findall("uniqueid"):
-            if uid.text and uid.text.strip():
-                return True
-        return False
-    except ET.ParseError:
-        logger.debug("NFO not parsable as XML: %s", nfo_path.name)
-        return False
-    except OSError as exc:
-        logger.warning("Cannot read NFO file %s: %s", nfo_path, exc)
-        return False
 
 
 @dataclass

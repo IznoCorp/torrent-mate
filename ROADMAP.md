@@ -21,12 +21,11 @@
 | V11     | CODE QUALITY         | Error isolation, CLI UX, dead code, DRY extraction       |
 | V12     | PIPELINE HARDENING   | 22 bugs fixed, NTFS safety, crash recovery               |
 | V13     | PIPELINE CORRECTNESS | ENFORCE step, idempotence E2E tests                      |
+| V14     | LIBRARY MAINTENANCE  | Scan, clean, validate, analyze, recommend, report        |
 
 ## In Progress
 
-| Version | Name                | Summary                                                        |
-| ------- | ------------------- | -------------------------------------------------------------- |
-| V14     | LIBRARY MAINTENANCE | Scan, clean, validate, analyze existing library across 4 disks |
+_(No version currently in progress)_
 
 ## Future Ideas
 
@@ -74,3 +73,16 @@ Move staging directories out of the git project root.
 - Staging path fully configurable (e.g. `/Volumes/IznoServer SSD/staging/`)
 - Auto-create staging directory tree on first pipeline run if missing
 - Currently staging dirs (001-MOVIES, 002-TVSHOWS, etc.) live inside the repo, mixing code and data
+
+### Library Indexer
+
+Persistent index of the media library with cache or database backend.
+
+- Index all media items across 4 disks (path, title, year, codec, size, NFO IDs, etc.)
+- Cache/BDD layer to avoid full disk scans on every command (V14 scans are read-heavy but slow on USB)
+- Scheduled nightly update (cron/launchd, 1x per night)
+- Auto-refresh on path error detection (desync between index and filesystem = stale entry)
+- Replaces ad-hoc JSON files (`library_scan.json`, `library_analysis.json`) with a single authoritative source
+- Study `/Users/izno/dev/FileMate` for potential integration or shared architecture patterns
+
+**Depends on:** V14 (scan/analyze data model), Config System Overhaul (configurable paths)

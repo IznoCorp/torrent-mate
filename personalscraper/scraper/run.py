@@ -13,7 +13,8 @@ from pathlib import Path
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
-from personalscraper.scraper.scraper import Scraper, ScrapeResult, _is_nfo_complete
+from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
+from personalscraper.scraper.scraper import Scraper, ScrapeResult
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
 logger = logging.getLogger(__name__)

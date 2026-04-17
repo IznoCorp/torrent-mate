@@ -21,6 +21,8 @@ from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging
 
+logger = logging.getLogger(__name__)
+
 # Rich tracebacks for readable error output
 install_traceback(show_locals=False)
 
@@ -394,3 +396,457 @@ def run(
 
     finally:
         release_lock()
+
+
+# --- Library maintenance commands ---
+
+
+@app.command()
+@handle_cli_errors
+def library_scan(
+    disk: str = typer.Option(None, "--disk", help="Scan only this disk (Disk1-4)"),
+    category: str = typer.Option(None, "--category", help="Scan only this category"),
+) -> None:
+    """Scan library structure and metadata on storage disks.
+
+    Lightweight scan: reads directories and NFOs, no ffprobe.
+    Produces library_scan.json in .personalscraper/.
+
+    Examples:
+        personalscraper library-scan
+        personalscraper library-scan --disk Disk1
+        personalscraper library-scan --category films
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.models import write_json
+    from personalscraper.library.scanner import scan_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    console.print("[bold]Scanning library...[/bold]")
+    result = scan_library(
+        disk_configs,
+        disk_filter=disk,
+        category_filter=category,
+    )
+
+    output_path = settings.data_dir / "library_scan.json"
+    write_json(result, output_path)
+
+    console.print(
+        f"[green]Scan complete:[/green] {result.item_count} items → {output_path}"
+    )
+
+
+@app.command()
+@handle_cli_errors
+def library_clean(
+    apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
+    only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
+    disk: str = typer.Option(None, "--disk", help="Clean only this disk (Disk1-4)"),
+    category: str = typer.Option(None, "--category", help="Clean only this category"),
+) -> None:
+    """Remove .actors/, empty dirs, junk files from storage disks.
+
+    Dry-run by default — shows what would be deleted without deleting.
+    Use --apply to actually execute deletions.
+    Use --only to target specific cleanup types.
+
+    Examples:
+        personalscraper library-clean
+        personalscraper library-clean --apply
+        personalscraper library-clean --apply --only actors
+        personalscraper library-clean --disk Disk1
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.disk_cleaner import clean_library
+
+    console = state["console"]
+    settings = get_settings()
+
+    # Validate --only parameter
+    valid_only = {"actors", "empty", "junk", "release"}
+    if only and only not in valid_only:
+        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        raise typer.Exit(1)
+
+    disk_configs = get_disk_configs(settings)
+
+    # Acquire lock only when applying changes
+    if apply:
+        if not acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        mode = "[bold red]APPLY[/bold red]" if apply else "[bold yellow]DRY-RUN[/bold yellow]"
+        console.print(f"[bold]Cleaning library ({mode})...[/bold]")
+
+        result = clean_library(
+            disk_configs,
+            apply=apply,
+            only=only,
+            disk_filter=disk,
+            category_filter=category,
+        )
+
+        if result.dry_run:
+            console.print(
+                f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
+                f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
+            )
+        else:
+            console.print(
+                f"[green]Deleted:[/green] {result.deleted_count} items "
+                f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
+            )
+            if result.error_count:
+                console.print(
+                    f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)"
+                )
+                for err in result.errors:
+                    console.print(f"  {err}")
+    finally:
+        if apply:
+            release_lock()
+
+
+@app.command()
+@handle_cli_errors
+def library_validate(
+    disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
+    category: str = typer.Option(None, "--category", help="Validate only this category"),
+    fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
+    apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
+) -> None:
+    """Validate NFO, artwork, naming conformity of library items.
+
+    Checks each media item on storage disks against quality rules.
+    Use --fix --apply to attempt automatic corrections.
+
+    Examples:
+        personalscraper library-validate
+        personalscraper library-validate --disk Disk1
+        personalscraper library-validate --fix --apply
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.models import write_json
+    from personalscraper.library.validator import validate_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    if apply and not fix:
+        console.print("[red]--apply requires --fix[/red]")
+        raise typer.Exit(1)
+
+    if fix and apply:
+        if not acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        console.print("[bold]Validating library...[/bold]")
+        result = validate_library(
+            disk_configs,
+            disk_filter=disk,
+            category_filter=category,
+            fix=fix,
+            apply=apply,
+        )
+
+        output_path = settings.data_dir / "library_validation.json"
+        write_json(result, output_path)
+
+        console.print(
+            f"[green]Valid:[/green] {result.valid_count}  "
+            f"[yellow]Fixed:[/yellow] {result.fixed_count}  "
+            f"[red]Issues:[/red] {result.issues_count}  "
+            f"→ {output_path}"
+        )
+
+        if fix and result.issues_count:
+            console.print(
+                f"\n[yellow]{result.issues_count} items have API-dependent issues.[/yellow]\n"
+                "  Use: personalscraper library-rescrape"
+            )
+    finally:
+        if fix and apply:
+            release_lock()
+
+
+@app.command()
+@handle_cli_errors
+def library_analyze(
+    disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
+    category: str = typer.Option(None, "--category", help="Analyze only this category"),
+    incremental: bool = typer.Option(False, "--incremental", help="Skip already-analyzed files"),
+    max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
+) -> None:
+    """Deep scan video files with ffprobe (codec, audio, subtitles).
+
+    Most I/O-intensive command — schedule during off-peak hours.
+    Use --incremental to skip files that haven't changed since last analysis.
+
+    Examples:
+        personalscraper library-analyze --incremental
+        personalscraper library-analyze --disk Disk2 --category series
+        personalscraper library-analyze --max-items 50
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.analyzer import analyze_library
+    from personalscraper.library.models import read_json, write_json
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    # Load existing analysis for incremental mode (compare size_gb with tolerance)
+    existing: dict[str, float] = {}
+    analysis_path = settings.data_dir / "library_analysis.json"
+    if incremental and analysis_path.exists():
+        try:
+            data = read_json(analysis_path)
+            for item in data.get("items", []):
+                for f in item.get("files", []):
+                    path = f.get("path", "")
+                    existing[path] = f.get("size_gb", 0.0)
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            logger.warning("Cannot load existing analysis for incremental mode: %s", exc)
+            console.print(f"[yellow]Warning:[/yellow] Cannot read existing analysis ({exc}), re-analyzing all files.")
+            existing = {}
+
+    console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+    result = analyze_library(
+        disk_configs,
+        disk_filter=disk,
+        category_filter=category,
+        incremental=incremental,
+        existing_sizes=existing if incremental else None,
+        max_items=max_items,
+    )
+
+    write_json(result, analysis_path)
+
+    console.print(
+        f"[green]Analysis complete:[/green] {result.item_count} items, "
+        f"{result.file_count} files → {analysis_path}"
+    )
+
+
+@app.command()
+@handle_cli_errors
+def library_recommend(
+    sort: str = typer.Option("priority", "--sort", help="Sort by: priority, size, codec"),
+    export: str = typer.Option(None, "--export", help="Export format: csv"),
+    disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
+    category: str = typer.Option(None, "--category", help="Filter to this category"),
+) -> None:
+    """Generate re-download recommendations from library analysis.
+
+    Requires library-analyze to have been run first.
+    Reads library_analysis.json and library_preferences.json.
+
+    Examples:
+        personalscraper library-recommend
+        personalscraper library-recommend --sort size
+        personalscraper library-recommend --export csv
+    """
+    import csv
+
+    from personalscraper.library.analyzer import _reconstruct_analysis_items
+    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.preferences import LibraryPreferences
+    from personalscraper.library.recommender import generate_recommendations
+
+    console = state["console"]
+    settings = get_settings()
+
+    # Validate --sort parameter
+    valid_sorts = {"priority", "size", "codec"}
+    if sort not in valid_sorts:
+        console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
+        raise typer.Exit(1)
+
+    # Load analysis
+    analysis_path = settings.data_dir / "library_analysis.json"
+    if not analysis_path.exists():
+        console.print("[red]No analysis found. Run library-analyze first.[/red]")
+        raise typer.Exit(1)
+
+    analysis_data = read_json(analysis_path)
+
+    # Load preferences
+    prefs_path = settings.data_dir / settings.library_preferences_file
+    if prefs_path.exists():
+        prefs = LibraryPreferences.model_validate_json(prefs_path.read_text())
+    else:
+        prefs = LibraryPreferences()
+        console.print("[yellow]No preferences file found, using defaults.[/yellow]")
+
+    items = _reconstruct_analysis_items(analysis_data)
+    result = generate_recommendations(items, prefs)
+
+    # Sort
+    sort_keys = {
+        "priority": lambda r: {"high": 0, "medium": 1, "low": 2}.get(r.priority, 3),
+        "size": lambda r: -(r.estimated_savings_gb or 0),
+        "codec": lambda r: r.current.codec,
+    }
+    if sort in sort_keys:
+        result.items.sort(key=sort_keys[sort])
+
+    # Write JSON
+    output_path = settings.data_dir / "library_recommendations.json"
+    write_json(result, output_path)
+
+    # CSV export
+    if export == "csv":
+        csv_path = settings.data_dir / "library_recommendations.csv"
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["title", "type", "disk", "codec", "resolution",
+                             "size_gb", "audio", "priority", "savings_gb", "reasons"])
+            for r in result.items:
+                writer.writerow([
+                    r.title, r.media_type, r.disk,
+                    r.current.codec, r.current.resolution,
+                    f"{r.current.size_gb:.1f}", r.current.audio_profile,
+                    r.priority, f"{r.estimated_savings_gb or 0:.1f}",
+                    "; ".join(r.reasons),
+                ])
+        console.print(f"[green]CSV exported:[/green] {csv_path}")
+
+    console.print(
+        f"[green]Recommendations:[/green] {result.total_recommendations} items, "
+        f"~{result.estimated_total_savings_gb:.1f} GB potential savings → {output_path}"
+    )
+
+
+@app.command()
+@handle_cli_errors
+def library_rescrape(
+    only: str = typer.Option(None, "--only", help="Only fix: nfo, artwork, episodes"),
+    disk: str = typer.Option(None, "--disk", help="Rescrape only this disk"),
+    category: str = typer.Option(None, "--category", help="Rescrape only this category"),
+    interactive: bool = typer.Option(False, "--interactive", help="Confirm low-confidence matches"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
+    max_items: int = typer.Option(None, "--max-items", help="Limit number of items to process"),
+) -> None:
+    """Targeted re-scrape of library items via TMDB/TVDB.
+
+    Only repairs what is broken per item: missing NFO, missing artwork,
+    unrenamed episodes. Items already conforming are skipped.
+
+    Examples:
+        personalscraper library-rescrape --dry-run
+        personalscraper library-rescrape --only artwork
+        personalscraper library-rescrape --disk Disk1 --max-items 50
+        personalscraper library-rescrape --interactive
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.models import write_json
+    from personalscraper.library.rescraper import rescrape_library
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    valid_only = {"nfo", "artwork", "episodes"}
+    if only and only not in valid_only:
+        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        raise typer.Exit(1)
+
+    if not dry_run:
+        if not acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"
+        console.print(f"[bold]Rescraping library ({mode})...[/bold]")
+
+        result = rescrape_library(
+            disk_configs, settings,
+            disk_filter=disk, category_filter=category,
+            only=only, interactive=interactive,
+            dry_run=dry_run, max_items=max_items,
+        )
+
+        output_path = settings.data_dir / "library_rescrape.json"
+        write_json(result, output_path)
+
+        total = result.fixed_count + result.skipped_count + result.error_count
+        console.print(
+            f"[green]Fixed:[/green] {result.fixed_count}  "
+            f"[yellow]Skipped:[/yellow] {result.skipped_count}  "
+            f"[red]Errors:[/red] {result.error_count}  "
+            f"(total: {total}) → {output_path}"
+        )
+    finally:
+        if not dry_run:
+            release_lock()
+
+
+@app.command()
+@handle_cli_errors
+def library_report(
+    format: str = typer.Option("text", "--format", help="Output format: text or json"),
+) -> None:
+    """Display library statistics and health report.
+
+    Aggregates data from scan, analysis, validation, and recommendations.
+    Run other library commands first to populate the data.
+
+    Examples:
+        personalscraper library-report
+        personalscraper library-report --format json
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
+    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.reporter import format_report_text, generate_report
+
+    console = state["console"]
+    settings = get_settings()
+
+    # Load available data
+    def _load(name: str) -> dict | None:
+        path = settings.data_dir / name
+        if path.exists():
+            try:
+                return read_json(path)
+            except (OSError, ValueError) as exc:
+                logger.warning("Cannot load %s: %s", name, exc)
+                console.print(f"[yellow]Warning: {name} corrupted ({exc}), skipping.[/yellow]")
+                return None
+        return None
+
+    scan_data = _load("library_scan.json")
+    analysis_data = _load("library_analysis.json")
+    validation_data = _load("library_validation.json")
+    recommendation_data = _load("library_recommendations.json")
+    rescrape_data = _load("library_rescrape.json")
+
+    if not any([scan_data, analysis_data, validation_data, recommendation_data, rescrape_data]):
+        console.print("[yellow]No library data found. Run library-scan or library-analyze first.[/yellow]")
+        raise typer.Exit(1)
+
+    # Get live disk free space
+    disk_configs = get_disk_configs(settings)
+    disk_statuses = [get_disk_status(dc) for dc in disk_configs]
+
+    report = generate_report(
+        scan_data, analysis_data, validation_data, recommendation_data,
+        disk_statuses=disk_statuses,
+        rescrape_data=rescrape_data,
+    )
+
+    if format == "json":
+        output_path = settings.data_dir / "library_report.json"
+        write_json(report, output_path)
+        console.print(f"[green]Report written to {output_path}[/green]")
+    else:
+        console.print(format_report_text(report))
