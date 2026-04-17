@@ -552,6 +552,8 @@ def library_validate(
             disk_configs,
             disk_filter=disk,
             category_filter=category,
+            fix=fix,
+            apply=apply,
         )
 
         output_path = settings.data_dir / "library_validation.json"
@@ -563,6 +565,12 @@ def library_validate(
             f"[red]Issues:[/red] {result.issues_count}  "
             f"→ {output_path}"
         )
+
+        if fix and result.issues_count:
+            console.print(
+                f"\n[yellow]{result.issues_count} items have API-dependent issues.[/yellow]\n"
+                "  Use: personalscraper library-rescrape"
+            )
     finally:
         if fix and apply:
             release_lock()
