@@ -18,7 +18,7 @@ from personalscraper.library.models import (
     SubtitleTrack,
     VideoInfo,
 )
-from personalscraper.library.scanner import _SERIES_CATEGORIES, _VIDEO_EXTENSIONS, _parse_title_year
+from personalscraper.library.scanner import _SERIES_CATEGORIES, _VIDEO_EXTENSIONS, parse_title_year
 from personalscraper.scraper.mediainfo import extract_stream_info
 
 logger = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ def analyze_library(
                 if max_items and items_processed >= max_items:
                     break
 
-                title, year = _parse_title_year(media_dir.name)
+                title, year = parse_title_year(media_dir.name)
 
                 # Find all video files (skip macOS resource forks "._*")
                 video_files = [
