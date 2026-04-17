@@ -26,11 +26,11 @@ Fix conformity issues that do NOT require API calls. Uses data already on disk (
 
 ### Supported Fixes
 
-| Fix ID            | Trigger                                                          | Action                                              | Risk                         |
-| ----------------- | ---------------------------------------------------------------- | --------------------------------------------------- | ---------------------------- |
-| `no_empty_dirs`   | Empty subdirectories detected                                    | Delete empty dirs                                   | None (empty = no data loss)  |
-| `ntfs_safe_names` | Filenames with `<>:"/\|?*` characters                            | Rename with safe characters                         | Low (character substitution) |
-| `dir_naming`      | Directory name missing `(Year)` but NFO has `<title>` + `<year>` | Rename directory to `Title (Year)` via `MediaFixer` | Low (NFO is source of truth) |
+| Fix ID            | Trigger                                                          | Action                                                 | Risk                         |
+| ----------------- | ---------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------- |
+| `no_empty_dirs`   | Empty subdirectories detected                                    | Delete empty dirs                                      | None (empty = no data loss)  |
+| `ntfs_safe_names` | Filenames with `<>:"/\|?*` characters                            | Rename with `sanitize_filename()` from `text_utils.py` | Low (character substitution) |
+| `dir_naming`      | Directory name missing `(Year)` but NFO has `<title>` + `<year>` | Rename directory to `Title (Year)` via `MediaFixer`    | Low (NFO is source of truth) |
 
 ### NOT fixed by --fix (requires API = library-rescrape)
 
@@ -50,13 +50,18 @@ personalscraper library-validate --fix --apply --disk Disk1  # Single disk
 - `--fix --apply` = execute fixes (acquires pipeline lock, same as library-clean --apply)
 - `--apply` without `--fix` = error (existing behavior preserved)
 
+**Note:** The CLI already defines `--fix` and `--apply` flags with lock handling. Only the forwarding to `validate_library()` and post-fix display need changes.
+
 ### Implementation
 
 **Modified files:**
 
-- `personalscraper/library/validator.py` — Add `fix` and `apply` parameters to `validate_library()`, call `MediaFixer` for fixable items
-- `personalscraper/cli.py` — Pass `fix`/`apply` to `validate_library()`
+- `personalscraper/library/validator.py` — Add `fix` and `apply` parameters to `validate_library()`, call `MediaFixer` for fixable items, handle `ntfs_safe_names` via `sanitize_filename()`
+- `personalscraper/verify/fixer.py` — Already handles `dir_naming`; no changes needed (NTFS fix handled in validator directly)
+- `personalscraper/cli.py` — Forward existing `fix`/`apply` parameters to `validate_library()` (flags already exist but are not yet passed to the function)
 - `tests/library/test_validator.py` — Tests for fix dry-run and apply
+
+**New dependency:** `personalscraper/text_utils.py` (specifically `sanitize_filename`) for NTFS name fix.
 
 **Logic:**
 
@@ -70,27 +75,66 @@ def validate_library(disk_configs, ..., fix=False, apply=False):
         errors, warnings = _classify_results(checks)
 
         fixes_applied = []
+        fixed_error_names = set()
+
         if fix and errors:
-            # Only fix what MediaFixer can handle
+            # Fix 1: MediaFixer handles dir_naming (rename from NFO title+year)
             fixable = [c for c in checks if not c.passed and c.fixable]
             if fixable:
                 actions = fixer.fix_movie(media_dir, fixable)
-                fixes_applied = [a.description for a in actions]
+                for a in actions:
+                    fixes_applied.append(a.description)
+                    fixed_error_names.add("dir_naming")
 
-            # Additional fixes: empty dirs
+            # Fix 2: Empty subdirectories
             if "no_empty_dirs" in errors:
                 _fix_empty_dirs(media_dir, dry_run=not apply)
                 fixes_applied.append("Removed empty subdirectories")
+                fixed_error_names.add("no_empty_dirs")
+
+            # Fix 3: NTFS-unsafe filenames
+            if "ntfs_safe_names" in errors:
+                _fix_ntfs_names(media_dir, dry_run=not apply)
+                fixes_applied.append("Renamed NTFS-unsafe filenames")
+                fixed_error_names.add("ntfs_safe_names")
 
         # Determine final status
-        remaining_errors = [e for e in errors if e not in fixed_errors]
+        remaining_errors = [e for e in errors if e not in fixed_error_names]
         if not remaining_errors:
             status = "fixed" if fixes_applied else "valid"
         else:
             status = "issues"
 ```
 
+**`_fix_ntfs_names` implementation:**
+
+```python
+from personalscraper.text_utils import sanitize_filename
+
+def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> None:
+    """Rename files with NTFS-illegal characters using sanitize_filename."""
+    for item in media_dir.rglob("*"):
+        safe_name = sanitize_filename(item.name)
+        if safe_name != item.name:
+            if not dry_run:
+                item.rename(item.parent / safe_name)
+```
+
 **Result:** `ValidationItem.status` can now be `"valid"`, `"fixed"`, or `"issues"`. `fixes_applied` list is populated. `LibraryValidationResult.fixed_count` is non-zero when fixes are applied.
+
+**`ValidationItem.__post_init__` enforcement (new):**
+
+```python
+_VALID_STATUSES = {"valid", "fixed", "issues"}
+
+def __post_init__(self) -> None:
+    if self.status not in _VALID_STATUSES:
+        raise ValueError(f"status must be one of {_VALID_STATUSES}")
+    if self.status == "fixed" and not self.fixes_applied:
+        raise ValueError("status='fixed' requires non-empty fixes_applied")
+    if self.status == "valid" and (self.errors or self.fixes_applied):
+        raise ValueError("status='valid' must have empty errors and fixes_applied")
+```
 
 ---
 
@@ -114,6 +158,8 @@ personalscraper library-rescrape --dry-run                    # Preview without 
 personalscraper library-rescrape --max-items 50               # Limit for testing/cron
 ```
 
+**Note:** `--only nfo` regenerates the entire NFO from API data (not just streamdetails). If the existing NFO has correct metadata but missing `<streamdetails>`, the NFO will be fully regenerated from the API, which may update other fields too.
+
 ### Detection Logic
 
 For each media item, determine what needs repair:
@@ -133,68 +179,139 @@ If `--only` is specified, only the matching flag is acted on (e.g., `--only artw
 
 ```
 1. Try to extract TMDB/TVDB ID from existing NFO (even partially valid ones)
-   → nfo_utils.is_nfo_complete() + scanner._extract_nfo_ids()
+   → nfo_utils.is_nfo_complete() + extract_nfo_ids()
+   → Returns str IDs — convert to int() before passing to API clients
 
 2. If no ID found, re-match via title + year from directory name:
    → confidence.match_movie(tmdb_client, title, year)
    → confidence.match_tvshow(tvdb_client, tmdb_client, title, year)
+   → MatchResult.api_id is int, MatchResult.source is "tmdb" or "tvdb"
 
-3. Match confidence check:
-   - >= 80% → auto-accept
-   - < 80% + --interactive → prompt user for confirmation
-   - < 80% without --interactive → skip, log as "needs manual attention"
+3. TVDB-to-TMDB cross-reference (when source="tvdb"):
+   → match_tvshow() may return a TVDB ID. The existing scraper.py handles
+     this by fetching TVDB remote IDs to find the TMDB ID, then using TMDB
+     for NFO/artwork generation. Rescraper must replicate this pattern:
+     tvdb_client.get_remote_ids(tvdb_id) → tmdb_id → tmdb_client.get_tv(tmdb_id)
+
+4. Match confidence check:
+   - >= 0.8 (80%) → auto-accept
+   - < 0.8 + --interactive → prompt user for confirmation
+   - < 0.8 without --interactive → skip, log as "needs manual attention"
 ```
 
-### Reused Components (zero rewrite)
+### Reused Components (no signature changes needed)
 
-| Component                                 | Import                                            | Used For                                                     |
-| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| `ArtworkDownloader`                       | `personalscraper.scraper.artwork`                 | Re-download poster, landscape, fanart (skips existing files) |
-| `NFOGenerator`                            | `personalscraper.scraper.nfo_generator`           | Generate movie/tvshow/episode NFO XML                        |
-| `extract_stream_info`                     | `personalscraper.scraper.mediainfo`               | Extract codec/resolution for `<streamdetails>`               |
-| `match_movie` / `match_tvshow`            | `personalscraper.scraper.confidence`              | Re-match items without IDs                                   |
-| `match_episode_files` / `rename_episodes` | `personalscraper.scraper.episode_manager`         | Match and rename TV episodes                                 |
-| `create_season_dirs`                      | `personalscraper.scraper.episode_manager`         | Create Saison XX/ directories                                |
-| `TMDBClient` / `TVDBClient`               | `personalscraper.scraper.tmdb_client/tvdb_client` | API calls for metadata                                       |
-| `_extract_nfo_ids`                        | `personalscraper.library.scanner`                 | Extract TMDB/IMDB IDs from NFO                               |
-| `_parse_title_year`                       | `personalscraper.library.scanner`                 | Parse title/year from directory name                         |
-| `NamingPatterns`                          | `personalscraper.naming_patterns`                 | Artwork/NFO file naming conventions                          |
-| `SEASON_DIR_RE`                           | `personalscraper.naming_patterns`                 | Season directory regex                                       |
+| Component                                 | Import                                            | Used For                                                                                                                    |
+| ----------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `ArtworkDownloader`                       | `personalscraper.scraper.artwork`                 | Re-download poster, landscape, fanart (skips existing files)                                                                |
+| `NFOGenerator`                            | `personalscraper.scraper.nfo_generator`           | Generate movie/tvshow/episode NFO XML                                                                                       |
+| `extract_stream_info`                     | `personalscraper.scraper.mediainfo`               | Extract codec/resolution for `<streamdetails>`                                                                              |
+| `match_movie` / `match_tvshow`            | `personalscraper.scraper.confidence`              | Re-match items without IDs                                                                                                  |
+| `match_episode_files` / `rename_episodes` | `personalscraper.scraper.episode_manager`         | Match and rename TV episodes                                                                                                |
+| `create_season_dirs`                      | `personalscraper.scraper.episode_manager`         | Create Saison XX/ directories                                                                                               |
+| `TMDBClient` / `TVDBClient`               | `personalscraper.scraper.tmdb_client/tvdb_client` | API calls (uses `settings.tmdb_api_key`, `settings.tvdb_api_key`, `settings.scraper_language`, `settings.artwork_language`) |
+| `extract_nfo_ids`                         | `personalscraper.library.scanner`                 | Extract TMDB/IMDB IDs from NFO (promoted to public API)                                                                     |
+| `parse_title_year`                        | `personalscraper.library.scanner`                 | Parse title/year from directory name (promoted to public API)                                                               |
+| `NamingPatterns`                          | `personalscraper.naming_patterns`                 | Artwork/NFO file naming conventions                                                                                         |
+| `SEASON_DIR_RE`                           | `personalscraper.naming_patterns`                 | Season directory regex                                                                                                      |
+| `sanitize_filename`                       | `personalscraper.text_utils`                      | NTFS-safe filename sanitization                                                                                             |
 
 ### Architecture
 
-**New file:** `personalscraper/library/rescraper.py`
+**New file:** `personalscraper/library/rescraper.py` — Core rescrape logic.
+
+**Models in `personalscraper/library/models.py`** (following codebase convention — all JSON-serialized result types live together):
 
 ```python
+# --- Rescrape action constants ---
+
+ACTION_NFO_REGENERATED = "nfo_regenerated"
+ACTION_ARTWORK_DOWNLOADED = "artwork_downloaded"
+ACTION_EPISODES_RENAMED = "episodes_renamed"
+SKIP_LOW_CONFIDENCE = "low_confidence_match"
+SKIP_NO_MATCH = "no_match"
+SKIP_ALREADY_OK = "already_conforming"
+
+_VALID_ACTIONS = {ACTION_NFO_REGENERATED, ACTION_ARTWORK_DOWNLOADED, ACTION_EPISODES_RENAMED}
+_VALID_SKIPS = {SKIP_LOW_CONFIDENCE, SKIP_NO_MATCH, SKIP_ALREADY_OK}
+_VALID_ONLY_FILTERS = {"nfo", "artwork", "episodes"}
+
+
 @dataclass
 class RescrapeAction:
-    """Single repair action taken on a media item."""
+    """Single repair action taken on a media item.
+
+    Attributes:
+        path: Absolute path to media directory (str for JSON).
+        title: Media title.
+        media_type: "movie" or "tvshow".
+        disk: Disk name.
+        category: Category name.
+        actions_taken: List of action constants performed.
+        actions_skipped: List of skip reason constants.
+        errors: Per-item errors (API failure, NTFS write error, etc.).
+        tmdb_id: TMDB ID used for API calls (str, converted from int for JSON).
+        id_source: How the ID was obtained: "nfo" (extracted) or "api_match" (re-matched).
+        match_confidence: Match confidence 0.0-1.0 (None if ID from NFO).
+        rescraped_at: ISO 8601 timestamp of this action.
+    """
+
     path: str
     title: str
-    media_type: str           # "movie" or "tvshow"
+    media_type: str
     disk: str
     category: str
-    actions_taken: list[str]  # ["nfo_regenerated", "artwork_downloaded", "episodes_renamed"]
-    actions_skipped: list[str]  # ["low_confidence_match"]
-    errors: list[str]         # Per-item errors (API failure, etc.)
+    actions_taken: list[str]
+    actions_skipped: list[str]
+    errors: list[str]
     tmdb_id: str | None
+    id_source: str | None       # "nfo" or "api_match"
     match_confidence: float | None
+    rescraped_at: str = ""
+
+    def __post_init__(self) -> None:
+        """Enforce media_type and confidence constraints."""
+        if self.media_type not in ("movie", "tvshow"):
+            raise ValueError(f"media_type must be 'movie' or 'tvshow', got '{self.media_type}'")
+        if self.match_confidence is not None and not (0.0 <= self.match_confidence <= 1.0):
+            raise ValueError(f"match_confidence must be 0.0-1.0, got {self.match_confidence}")
+        if self.tmdb_id is None and self.match_confidence is not None:
+            self.match_confidence = None
 
 
 @dataclass
-class RescrapeResult:
-    """Top-level container for library_rescrape.json."""
+class LibraryRescrapeResult:
+    """Top-level container for library_rescrape.json.
+
+    Attributes:
+        rescraped_at: ISO 8601 timestamp of rescrape start.
+        disk_filter: Disk filter applied (None = all disks).
+        category_filter: Category filter applied (None = all).
+        only_filter: Action filter ("nfo", "artwork", "episodes", or None = all).
+        dry_run: Whether this was a dry-run (no actual changes).
+        fixed_count: Items successfully repaired.
+        skipped_count: Items skipped (low confidence, already OK, etc.).
+        error_count: Items with errors.
+        items: List of per-item rescrape actions.
+    """
+
     rescraped_at: str
     disk_filter: str | None
     category_filter: str | None
-    only_filter: str | None       # "nfo", "artwork", "episodes", or None (all)
+    only_filter: str | None
     dry_run: bool
-    total_processed: int
     fixed_count: int
-    skipped_count: int            # Low confidence, already OK, etc.
+    skipped_count: int
     error_count: int
-    items: list[RescrapeAction]
+    items: list[RescrapeAction] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Validate only_filter."""
+        if self.only_filter is not None and self.only_filter not in _VALID_ONLY_FILTERS:
+            raise ValueError(f"only_filter must be one of {_VALID_ONLY_FILTERS} or None")
 ```
+
+**Note:** `total_processed` removed — it equals `fixed_count + skipped_count + error_count` and can be derived. Avoids consistency trap.
 
 **Core function:**
 
@@ -208,48 +325,100 @@ def rescrape_library(
     interactive: bool = False,
     dry_run: bool = True,
     max_items: int | None = None,
-) -> RescrapeResult:
+) -> LibraryRescrapeResult:
 ```
+
+**Settings fields used:** `settings.tmdb_api_key`, `settings.tvdb_api_key`, `settings.scraper_language`, `settings.scraper_fallback_language`, `settings.artwork_language`, `settings.data_dir`.
 
 **Per-item flow:**
 
 ```python
-def _rescrape_item(media_dir, media_type, disk, category, tmdb_client, tvdb_client,
-                   nfo_gen, artwork_dl, patterns, only, interactive, dry_run):
+def _rescrape_item(
+    media_dir: Path,
+    media_type: str,
+    disk: str,
+    category: str,
+    *,
+    tmdb_client: TMDBClient,
+    tvdb_client: TVDBClient,
+    nfo_gen: NFOGenerator,
+    artwork_dl: ArtworkDownloader,
+    patterns: NamingPatterns,
+    only: str | None,
+    interactive: bool,
+    dry_run: bool,
+) -> RescrapeAction | None:
+    title, year = parse_title_year(media_dir.name)
+
     # 1. Detect what needs repair
     needs_nfo, needs_artwork, needs_episodes = _detect_needs(media_dir, media_type, only)
 
     if not any([needs_nfo, needs_artwork, needs_episodes]):
         return None  # Item is OK, skip
 
-    # 2. Resolve TMDB/TVDB ID
-    tmdb_id, confidence = _resolve_id(media_dir, media_type, tmdb_client, tvdb_client, interactive)
-    if tmdb_id is None:
-        return RescrapeAction(..., actions_skipped=["no_match"], ...)
+    # 2. Resolve TMDB ID
+    tmdb_id, id_source, confidence = _resolve_tmdb_id(
+        media_dir, media_type, title, year,
+        tmdb_client, tvdb_client, interactive,
+    )
+    # _resolve_tmdb_id:
+    #   - Tries extract_nfo_ids() first → returns (str_id, "nfo", None)
+    #   - If no ID, calls match_movie/match_tvshow → returns (int_id, "api_match", confidence)
+    #   - If source="tvdb", cross-refs via tvdb_client.get_remote_ids() to get TMDB ID
+    #   - Returns (None, None, None) if no match
 
-    # 3. Fetch API data (once)
-    api_data = tmdb_client.get_movie(tmdb_id) or tmdb_client.get_tv(tmdb_id)
+    if tmdb_id is None:
+        return RescrapeAction(..., actions_skipped=[SKIP_NO_MATCH], ...)
+
+    # 3. Fetch API data (once) — tmdb_id is always a TMDB ID at this point
+    api_id = int(tmdb_id)  # Convert str→int for API client
+    if media_type == "movie":
+        api_data = tmdb_client.get_movie(api_id)
+    else:
+        api_data = tmdb_client.get_tv(api_id)
 
     # 4. Apply targeted fixes
     actions = []
+
     if needs_nfo:
-        stream_info = extract_stream_info(video_file) if video_file else None
-        xml = nfo_gen.generate_movie_nfo(api_data, stream_info)
+        # Construct NFO path using NamingPatterns
+        if media_type == "movie":
+            parsed_title = title  # from dir name or API title
+            nfo_name = patterns.format("movie_nfo", Title=parsed_title)
+            nfo_path = media_dir / nfo_name
+            video_file = _find_largest_video(media_dir)
+            stream_info = extract_stream_info(video_file) if video_file else None
+            xml = nfo_gen.generate_movie_nfo(api_data, stream_info)
+        else:
+            nfo_path = media_dir / "tvshow.nfo"
+            xml = nfo_gen.generate_tvshow_nfo(api_data)
         if not dry_run:
             nfo_gen.write_nfo(xml, nfo_path)
-        actions.append("nfo_regenerated")
+        actions.append(ACTION_NFO_REGENERATED)
 
     if needs_artwork:
         if not dry_run:
-            artwork_dl.download_movie_artwork(api_data, media_dir, patterns)
-        actions.append("artwork_downloaded")
+            if media_type == "movie":
+                artwork_dl.download_movie_artwork(api_data, media_dir, patterns)
+            else:
+                artwork_dl.download_tvshow_artwork(api_data, media_dir, patterns)
+        actions.append(ACTION_ARTWORK_DOWNLOADED)
 
     if needs_episodes and media_type == "tvshow":
-        # Fetch episode data, match, rename
-        ...
-        actions.append("episodes_renamed")
+        # Fetch season/episode data from TMDB, match files, rename
+        _rescrape_episodes(media_dir, api_data, api_id,
+                           tmdb_client, tvdb_client, nfo_gen, artwork_dl,
+                           patterns, dry_run)
+        actions.append(ACTION_EPISODES_RENAMED)
 
-    return RescrapeAction(..., actions_taken=actions, ...)
+    return RescrapeAction(
+        path=str(media_dir), title=title, media_type=media_type,
+        disk=disk, category=category,
+        actions_taken=actions, actions_skipped=[], errors=[],
+        tmdb_id=str(tmdb_id), id_source=id_source,
+        match_confidence=confidence,
+        rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+    )
 ```
 
 ### API Rate Limiting
@@ -278,6 +447,8 @@ The rescrape command makes TMDB/TVDB API calls. Existing `tenacity` retry decora
 ## Feature 3: `library-report` Integration
 
 ### Additional Section
+
+Inserted between section 5 (TOP 20) and the ACTIONS SUGGÉRÉES block:
 
 ```
 ======================================================================
@@ -314,11 +485,15 @@ After rescrape, the suggested actions update:
 
 ### Modified Files
 
-- `personalscraper/library/validator.py` — Add fix/apply logic
-- `personalscraper/library/reporter.py` — Add rescrape section
-- `personalscraper/cli.py` — Add `library-rescrape` command, pass fix/apply to validate
-- `tests/library/test_validator.py` — Fix tests
+- `personalscraper/library/models.py` — Add `RescrapeAction`, `LibraryRescrapeResult`, action constants, `ValidationItem.__post_init__`
+- `personalscraper/library/validator.py` — Add `fix` and `apply` parameters, call `MediaFixer` + `_fix_empty_dirs` + `_fix_ntfs_names`
+- `personalscraper/library/scanner.py` — Promote `_extract_nfo_ids` → `extract_nfo_ids` and `_parse_title_year` → `parse_title_year` (public API)
+- `personalscraper/library/reporter.py` — Add rescrape section (section 6, before ACTIONS SUGGÉRÉES)
+- `personalscraper/cli.py` — Add `library-rescrape` command, forward existing `fix`/`apply` to `validate_library()`
+- `tests/library/test_validator.py` — Fix dry-run and apply tests
+- `tests/library/test_models.py` �� `ValidationItem.__post_init__` tests, `RescrapeAction`/`LibraryRescrapeResult` tests
 - `tests/library/test_reporter.py` — Rescrape section test
+- `tests/library/test_scanner.py` — Update imports for renamed public functions
 - `tests/test_cli.py` — CLI tests for rescrape + validate --fix
 
 ### Unchanged (reused as-is)
@@ -330,23 +505,44 @@ After rescrape, the suggested actions update:
 - `personalscraper/scraper/mediainfo.py`
 - `personalscraper/scraper/tmdb_client.py`
 - `personalscraper/scraper/tvdb_client.py`
+- `personalscraper/verify/fixer.py`
+- `personalscraper/text_utils.py`
 
 ---
 
 ## Acceptance Criteria
 
+### Feature 1: library-validate --fix
+
 1. `library-validate --fix` shows fixable items in dry-run mode
 2. `library-validate --fix --apply` fixes empty dirs, NTFS names, directory naming
 3. `library-validate --fix --apply` acquires pipeline lock
 4. Fixed items show `status="fixed"` and populated `fixes_applied` list
-5. Non-fixable items suggest `library-rescrape`
-6. `library-rescrape --dry-run` previews repairs without modifying files
-7. `library-rescrape` regenerates missing/broken NFOs from TMDB/TVDB
-8. `library-rescrape` re-downloads missing artwork (skips existing)
-9. `library-rescrape --only artwork` only downloads artwork, skips NFO/episodes
-10. `library-rescrape --interactive` prompts for low-confidence matches
-11. Low-confidence matches without `--interactive` are skipped and reported
-12. Per-item error isolation (one failure does not abort the command)
-13. `library-rescrape` output saved as `library_rescrape.json`
-14. `library-report` includes rescrape section with fix details
-15. All existing tests still pass (0 regressions)
+5. Non-fixable items output message: "Use `personalscraper library-rescrape` to fix API-dependent issues"
+6. `ValidationItem.__post_init__` rejects `status="fixed"` with empty `fixes_applied`
+
+### Feature 2: library-rescrape
+
+7. `library-rescrape --dry-run` previews repairs without modifying files
+8. `library-rescrape` regenerates missing/broken NFOs from TMDB/TVDB using correct `NamingPatterns` paths
+9. `library-rescrape` re-downloads missing artwork (skips existing)
+10. `library-rescrape --only artwork` only downloads artwork, skips NFO/episodes
+11. `library-rescrape --only episodes` renames unrenamed episodes using TMDB/TVDB episode titles
+12. `library-rescrape --interactive` prompts for low-confidence matches (< 0.8)
+13. Low-confidence matches without `--interactive` are skipped and reported
+14. TVDB-sourced matches are cross-referenced to TMDB ID before API calls
+15. Per-item error isolation (one failure does not abort the command)
+16. Circuit breaker: 5 consecutive API failures → remaining items skipped with clear message
+17. `library-rescrape --max-items 5` processes at most 5 items
+18. `library-rescrape --category films` only processes items in the "films" category
+19. `library-rescrape` output saved as `library_rescrape.json`
+
+### Feature 3: library-report integration
+
+20. `library-report` includes rescrape section (section 6) with fix details
+21. After rescrape, ACTIONS SUGGÉRÉES section reflects remaining issues (not already-fixed ones)
+
+### General
+
+22. `extract_nfo_ids` and `parse_title_year` promoted to public API in scanner.py
+23. All existing tests still pass (0 regressions)
