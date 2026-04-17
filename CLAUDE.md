@@ -9,7 +9,7 @@ This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded medi
 ## Package
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V13 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience, pipeline hardening, pipeline correctness).
+V0-V14 implemented (ingest, sort, scrape, verify, dispatch, pipeline run + notifications, E2E tests, test audit, robustness, pipeline integrity, resilience, pipeline hardening, pipeline correctness, library maintenance).
 
 ## Commit Convention
 
@@ -70,6 +70,21 @@ personalscraper process             # Reclean + dedup + scrape + cleanup (V9)
 personalscraper enforce              # Enforce staging conventions (V13)
 personalscraper run                 # Full pipeline (V6+V9)
 personalscraper run --dry-run       # Preview full pipeline
+
+# Library maintenance (V14)
+personalscraper library-scan                      # Scan library structure/metadata
+personalscraper library-scan --disk Disk1         # Scan single disk
+personalscraper library-clean                     # Dry-run: show what would be cleaned
+personalscraper library-clean --apply             # Delete .actors/, empty dirs, junk
+personalscraper library-clean --only actors --apply  # Only .actors/ dirs
+personalscraper library-validate                  # Validate NFO/artwork/naming conformity
+personalscraper library-validate --fix --apply    # Auto-fix what's possible
+personalscraper library-analyze                   # Deep ffprobe scan (codec, audio, subs)
+personalscraper library-analyze --incremental     # Skip already-analyzed files
+personalscraper library-recommend                 # Generate re-download list
+personalscraper library-recommend --export csv    # Export to CSV
+personalscraper library-report                    # Library health statistics
+personalscraper library-report --format json      # Export as JSON
 
 # Alias
 media-ingest                        # → personalscraper ingest
@@ -178,6 +193,7 @@ Workflow: brainstorming → design → plan (INDEX + phases) → implementation 
 | V11     | CODE QUALITY         | Error isolation, CLI UX, dead code, DRY extraction                | 4      |
 | V12     | PIPELINE HARDENING   | NTFS-safe names, episode restructuring, crash recovery, 22 bugs   | 9      |
 | V13     | PIPELINE CORRECTNESS | Idempotent fast-skip, ENFORCE step, E2E idempotence tests         | 5      |
+| V14     | LIBRARY MAINTENANCE  | Library scan/clean/validate/analyze/recommend/report              | 9      |
 
 ### Reference Documentation
 
@@ -222,6 +238,7 @@ A TRIER/
 │   ├── scraper/         # V3: TMDB/TVDB matching, NFO, artwork, episodes + V8 circuit breaker
 │   ├── process/         # V9: reclean, dedup, cleanup (between sort and scrape)
 │   ├── enforce/         # V13: file sanitizer, structure validator, coherence checker
+│   ├── library/         # V14: scan, clean, validate, analyze, recommend, report
 │   ├── verify/          # V4+V9: quality gate, fixer, genre categorization, reinforced checks
 │   ├── dispatch/        # V5: disk scanner, media index, rsync transfer + V8 rollback/fallback
 │   ├── pipeline.py      # V9+V13: Sequential 8-step pipeline orchestrator
@@ -243,6 +260,7 @@ A TRIER/
 │   ├── verify/          # V4 unit tests
 │   ├── dispatch/        # V5 unit tests
 │   ├── enforce/         # V13 unit tests (file sanitizer, structure, coherence)
+│   ├── library/         # V14 unit tests (scan, clean, validate, analyze, recommend, report)
 │   └── resilience/      # V10 unit tests (idempotence, crash recovery)
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
 │   └── expected/        # V7.x: Golden files (expected results per torrent)

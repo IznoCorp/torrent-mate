@@ -21,12 +21,11 @@
 | V11     | CODE QUALITY         | Error isolation, CLI UX, dead code, DRY extraction       |
 | V12     | PIPELINE HARDENING   | 22 bugs fixed, NTFS safety, crash recovery               |
 | V13     | PIPELINE CORRECTNESS | ENFORCE step, idempotence E2E tests                      |
+| V14     | LIBRARY MAINTENANCE  | Scan, clean, validate, analyze, recommend, report        |
 
 ## In Progress
 
-| Version | Name                | Summary                                                        |
-| ------- | ------------------- | -------------------------------------------------------------- |
-| V14     | LIBRARY MAINTENANCE | Scan, clean, validate, analyze existing library across 4 disks |
+_(No version currently in progress)_
 
 ## Future Ideas
 
