@@ -89,8 +89,8 @@ def _dir_size_gb(path: Path) -> float:
                     total += f.stat().st_size
                 except OSError:
                     continue
-    except OSError:
-        pass
+    except OSError as exc:
+        logger.warning("Cannot measure directory size %s: %s", path, exc)
     return total / (1024 ** 3)
 
 
@@ -117,7 +117,8 @@ def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
             elif uid_type == "imdb":
                 imdb_id = text
         return tmdb_id, imdb_id
-    except (ET.ParseError, OSError):
+    except (ET.ParseError, OSError) as exc:
+        logger.debug("Cannot parse NFO IDs from %s: %s", nfo_path, exc)
         return None, None
 
 

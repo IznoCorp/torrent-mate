@@ -63,8 +63,8 @@ def _fix_empty_dirs(media_dir: Path, dry_run: bool) -> list[str]:
                         continue
                 prefix = "[DRY-RUN] Would remove" if dry_run else "Removed"
                 fixes.append(f"{prefix} empty dir: {subdir.name}")
-    except OSError:
-        pass
+    except OSError as exc:
+        logger.warning("Cannot list directory for empty dir fix %s: %s", media_dir, exc)
     return fixes
 
 
@@ -92,8 +92,8 @@ def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
                             continue
                     prefix = "[DRY-RUN] Would rename" if dry_run else "Renamed"
                     fixes.append(f"{prefix}: {item.name} → {safe_name}")
-    except OSError:
-        pass
+    except OSError as exc:
+        logger.warning("Cannot list directory for NTFS name fix %s: %s", media_dir, exc)
     return fixes
 
 
@@ -129,6 +129,7 @@ def validate_library(
         if disk_filter and config.name != disk_filter:
             continue
         if not config.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
             continue
 
         for category_dir in sorted(config.path.iterdir()):

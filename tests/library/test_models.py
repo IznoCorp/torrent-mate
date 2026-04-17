@@ -323,6 +323,25 @@ class TestValidationItemInvariant:
             )
 
 
+    def test_issues_without_errors_or_warnings_raises(self) -> None:
+        """status='issues' with no errors and no warnings should raise."""
+        with pytest.raises(ValueError, match="issues"):
+            ValidationItem(
+                path="/tmp/X", disk="Disk1", category="films",
+                media_type="movie", title="X", year=2024,
+                status="issues", errors=[], warnings=[],
+            )
+
+    def test_issues_with_only_warnings_accepted(self) -> None:
+        """status='issues' with only warnings should be accepted."""
+        item = ValidationItem(
+            path="/tmp/X", disk="Disk1", category="films",
+            media_type="movie", title="X", year=2024,
+            status="issues", errors=[], warnings=["no_landscape"],
+        )
+        assert item.status == "issues"
+
+
 class TestRescrapeAction:
     """Tests for RescrapeAction model."""
 
@@ -380,6 +399,26 @@ class TestRescrapeAction:
         )
         assert ACTION_ARTWORK_DOWNLOADED in action.actions_taken
         assert ACTION_EPISODES_RENAMED in action.actions_taken
+
+    def test_invalid_id_source_raises(self) -> None:
+        """Invalid id_source should raise ValueError."""
+        with pytest.raises(ValueError, match="id_source"):
+            RescrapeAction(
+                path="/tmp/X", title="X", media_type="movie",
+                disk="Disk1", category="films",
+                actions_taken=[], actions_skipped=[], errors=[],
+                tmdb_id="1", id_source="api", match_confidence=0.9,
+            )
+
+    def test_none_id_source_accepted(self) -> None:
+        """id_source=None should be accepted."""
+        action = RescrapeAction(
+            path="/tmp/X", title="X", media_type="movie",
+            disk="Disk1", category="films",
+            actions_taken=[], actions_skipped=[SKIP_NO_MATCH], errors=[],
+            tmdb_id=None, id_source=None, match_confidence=None,
+        )
+        assert action.id_source is None
 
 
 class TestLibraryRescrapeResult:

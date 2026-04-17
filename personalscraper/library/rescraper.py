@@ -284,7 +284,7 @@ def _rescrape_item(
             logger.info("%s NFO for %s", "Would regenerate" if dry_run else "Regenerated", title)
         except Exception as exc:
             errors.append(f"NFO generation failed: {exc}")
-            logger.warning("NFO generation failed for %s: %s", title, exc)
+            logger.error("NFO generation failed for %s: %s", title, exc)
 
     # Fix artwork
     if needs_artwork:
@@ -298,7 +298,7 @@ def _rescrape_item(
             logger.info("%s artwork for %s", "Would download" if dry_run else "Downloaded", title)
         except Exception as exc:
             errors.append(f"Artwork download failed: {exc}")
-            logger.warning("Artwork download failed for %s: %s", title, exc)
+            logger.error("Artwork download failed for %s: %s", title, exc)
 
     # Fix episodes (TV shows only)
     if needs_episodes and media_type == "tvshow":
@@ -308,7 +308,7 @@ def _rescrape_item(
             logger.info("%s episodes for %s", "Would rename" if dry_run else "Renamed", title)
         except Exception as exc:
             errors.append(f"Episode rename failed: {exc}")
-            logger.warning("Episode rename failed for %s: %s", title, exc)
+            logger.error("Episode rename failed for %s: %s", title, exc)
 
     return RescrapeAction(
         path=str(media_dir), title=title, media_type=media_type,
@@ -425,6 +425,7 @@ def rescrape_library(
         if disk_filter and config.name != disk_filter:
             continue
         if not config.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
             continue
 
         for category_dir in sorted(config.path.iterdir()):
@@ -464,7 +465,7 @@ def rescrape_library(
                         dry_run=dry_run,
                     )
                 except Exception as exc:
-                    logger.warning("Error rescaping %s: %s", media_dir, exc)
+                    logger.exception("Error rescaping %s", media_dir)
                     items.append(RescrapeAction(
                         path=str(media_dir), title=title, media_type=media_type,
                         disk=config.name, category=category_dir.name,

@@ -182,6 +182,7 @@ def analyze_library(
         if disk_filter and config.name != disk_filter:
             continue
         if not config.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
             continue
 
         for category_dir in sorted(config.path.iterdir()):
