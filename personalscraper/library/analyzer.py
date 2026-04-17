@@ -251,3 +251,56 @@ def analyze_library(
         file_count=file_count,
         items=items,
     )
+
+
+def _reconstruct_analysis_items(data: dict) -> list[LibraryAnalysisItem]:
+    """Reconstruct LibraryAnalysisItem list from JSON data.
+
+    Args:
+        data: Parsed library_analysis.json dict.
+
+    Returns:
+        List of LibraryAnalysisItem with full type structure.
+    """
+    items = []
+    for item_data in data.get("items", []):
+        files = []
+        for f_data in item_data.get("files", []):
+            vid = f_data.get("video", {})
+            files.append(MediaFileAnalysis(
+                path=f_data.get("path", ""),
+                size_gb=f_data.get("size_gb", 0),
+                duration_seconds=f_data.get("duration_seconds"),
+                video=VideoInfo(
+                    codec=vid.get("codec", ""), width=vid.get("width", 0),
+                    height=vid.get("height", 0),
+                    bitrate_kbps=vid.get("bitrate_kbps"),
+                    hdr=vid.get("hdr", False), hdr_type=vid.get("hdr_type"),
+                ),
+                audio_tracks=[
+                    AudioTrack(
+                        codec=a.get("codec", ""), language=a.get("language", "und"),
+                        channels=a.get("channels", 2), is_atmos=a.get("is_atmos", False),
+                        is_default=a.get("is_default", False),
+                    ) for a in f_data.get("audio_tracks", [])
+                ],
+                subtitle_tracks=[
+                    SubtitleTrack(
+                        language=s.get("language", "und"), format=s.get("format", "unknown"),
+                        forced=s.get("forced", False), is_default=s.get("is_default", False),
+                    ) for s in f_data.get("subtitle_tracks", [])
+                ],
+                audio_profile=f_data.get("audio_profile", "vo"),
+                subtitle_languages=f_data.get("subtitle_languages", []),
+                analyzed_at=f_data.get("analyzed_at", ""),
+            ))
+        items.append(LibraryAnalysisItem(
+            path=item_data.get("path", ""),
+            disk=item_data.get("disk", ""),
+            category=item_data.get("category", ""),
+            media_type=item_data.get("media_type", "movie"),
+            title=item_data.get("title", ""),
+            year=item_data.get("year"),
+            files=files,
+        ))
+    return items
