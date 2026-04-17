@@ -83,9 +83,10 @@ Least privilege — no write access needed.
 - **Runner:** ubuntu-latest
 - **Steps:**
   1. `actions/checkout@v4` with `fetch-depth: 0`
-  2. `gitleaks/gitleaks-action@v2` in PR diff mode
-  - Scans only commits in the PR (`base..head`)
+  2. Install gitleaks CLI (free, no license needed for private repos)
+  3. `gitleaks detect --log-opts="base..head"` — scans only PR commits
   - Config: `.gitleaks.toml` (allowlist for `.env.example`, `assets/torrents/`, `docs/`)
+  - Note: uses CLI directly instead of `gitleaks-action@v2` (which requires paid license for private repos)
 
 ### Job `licenses`
 
