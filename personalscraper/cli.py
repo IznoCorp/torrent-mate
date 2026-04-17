@@ -619,3 +619,146 @@ def library_analyze(
         f"[green]Analysis complete:[/green] {result.item_count} items, "
         f"{result.file_count} files → {analysis_path}"
     )
+
+
+@app.command()
+@handle_cli_errors
+def library_recommend(
+    sort: str = typer.Option("priority", "--sort", help="Sort by: priority, size, codec"),
+    export: str = typer.Option(None, "--export", help="Export format: csv"),
+    disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
+    category: str = typer.Option(None, "--category", help="Filter to this category"),
+) -> None:
+    """Generate re-download recommendations from library analysis.
+
+    Requires library-analyze to have been run first.
+    Reads library_analysis.json and library_preferences.json.
+
+    Examples:
+        personalscraper library-recommend
+        personalscraper library-recommend --sort size
+        personalscraper library-recommend --export csv
+    """
+    import csv
+
+    from personalscraper.library.analyzer import _reconstruct_analysis_items
+    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.preferences import LibraryPreferences
+    from personalscraper.library.recommender import generate_recommendations
+
+    console = state["console"]
+    settings = get_settings()
+
+    # Load analysis
+    analysis_path = settings.data_dir / "library_analysis.json"
+    if not analysis_path.exists():
+        console.print("[red]No analysis found. Run library-analyze first.[/red]")
+        raise typer.Exit(1)
+
+    analysis_data = read_json(analysis_path)
+
+    # Load preferences
+    prefs_path = settings.data_dir / settings.library_preferences_file
+    if prefs_path.exists():
+        prefs = LibraryPreferences.model_validate_json(prefs_path.read_text())
+    else:
+        prefs = LibraryPreferences()
+        console.print("[yellow]No preferences file found, using defaults.[/yellow]")
+
+    items = _reconstruct_analysis_items(analysis_data)
+    result = generate_recommendations(items, prefs)
+
+    # Sort
+    sort_keys = {
+        "priority": lambda r: {"high": 0, "medium": 1, "low": 2}.get(r.priority, 3),
+        "size": lambda r: -(r.estimated_savings_gb or 0),
+        "codec": lambda r: r.current.codec,
+    }
+    if sort in sort_keys:
+        result.items.sort(key=sort_keys[sort])
+
+    # Write JSON
+    output_path = settings.data_dir / "library_recommendations.json"
+    write_json(result, output_path)
+
+    # CSV export
+    if export == "csv":
+        csv_path = settings.data_dir / "library_recommendations.csv"
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["title", "type", "disk", "codec", "resolution",
+                             "size_gb", "audio", "priority", "savings_gb", "reasons"])
+            for r in result.items:
+                writer.writerow([
+                    r.title, r.media_type, r.disk,
+                    r.current.codec, r.current.resolution,
+                    f"{r.current.size_gb:.1f}", r.current.audio_profile,
+                    r.priority, f"{r.estimated_savings_gb or 0:.1f}",
+                    "; ".join(r.reasons),
+                ])
+        console.print(f"[green]CSV exported:[/green] {csv_path}")
+
+    console.print(
+        f"[green]Recommendations:[/green] {result.total_recommendations} items, "
+        f"~{result.estimated_total_savings_gb:.1f} GB potential savings → {output_path}"
+    )
+
+
+@app.command()
+@handle_cli_errors
+def library_report(
+    format: str = typer.Option("text", "--format", help="Output format: text or json"),
+    disk: str = typer.Option(None, "--disk", help="Filter report to this disk"),
+    category: str = typer.Option(None, "--category", help="Filter report to this category"),
+) -> None:
+    """Display library statistics and health report.
+
+    Aggregates data from scan, analysis, validation, and recommendations.
+    Run other library commands first to populate the data.
+
+    Examples:
+        personalscraper library-report
+        personalscraper library-report --format json
+        personalscraper library-report --disk Disk1
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
+    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.reporter import format_report_text, generate_report
+
+    console = state["console"]
+    settings = get_settings()
+
+    # Load available data
+    def _load(name: str) -> dict | None:
+        path = settings.data_dir / name
+        if path.exists():
+            try:
+                return read_json(path)
+            except (OSError, ValueError):
+                return None
+        return None
+
+    scan_data = _load("library_scan.json")
+    analysis_data = _load("library_analysis.json")
+    validation_data = _load("library_validation.json")
+    recommendation_data = _load("library_recommendations.json")
+
+    if not any([scan_data, analysis_data, validation_data, recommendation_data]):
+        console.print("[yellow]No library data found. Run library-scan or library-analyze first.[/yellow]")
+        raise typer.Exit(1)
+
+    # Get live disk free space
+    disk_configs = get_disk_configs(settings)
+    disk_statuses = [get_disk_status(dc) for dc in disk_configs]
+
+    report = generate_report(
+        scan_data, analysis_data, validation_data, recommendation_data,
+        disk_statuses=disk_statuses,
+    )
+
+    if format == "json":
+        output_path = settings.data_dir / "library_report.json"
+        write_json(report, output_path)
+        console.print(f"[green]Report written to {output_path}[/green]")
+    else:
+        console.print(format_report_text(report))

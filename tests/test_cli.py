@@ -525,3 +525,26 @@ class TestLibraryAnalyze:
         assert "--disk" in result.output
         assert "--incremental" in result.output
         assert "--max-items" in result.output
+
+
+class TestLibraryRecommend:
+    """Tests for library-recommend CLI command."""
+
+    def test_help(self) -> None:
+        """library-recommend --help should display usage."""
+        result = runner.invoke(app, ["library-recommend", "--help"])
+        assert result.exit_code == 0
+        assert "--sort" in result.output
+        assert "--export" in result.output
+        assert "--disk" in result.output
+        assert "--category" in result.output
+
+
+class TestLibraryReport:
+    """Tests for library-report CLI command."""
+
+    def test_help(self) -> None:
+        """library-report --help should display usage."""
+        result = runner.invoke(app, ["library-report", "--help"])
+        assert result.exit_code == 0
+        assert "--format" in result.output
