@@ -17,7 +17,7 @@
 | ----- | --------------------------------------------------- | ----------- | ----------- |
 | 1     | Foundation (models, preferences, config, nfo_utils) | DONE        | 2026-04-17  |
 | 2     | Scanner (library-scan)                              | DONE        | 2026-04-17  |
-| 3     | Disk Cleaner (library-clean)                        | NOT STARTED |             |
+| 3     | Disk Cleaner (library-clean)                        | DONE        | 2026-04-17  |
 | 4     | Validator (library-validate)                        | NOT STARTED |             |
 | 5     | Analyzer (library-analyze)                          | NOT STARTED |             |
 | 6     | Recommender (library-recommend)                     | NOT STARTED |             |
@@ -27,7 +27,7 @@
 
 ## Next Action
 
-**Phase 3, Task 3.1** — Implement cleaner core logic (NTFS-safe)
+**Phase 4, Task 4.1** — Add ValidationItem and LibraryValidationResult models
 
 ## Detailed Tracking
 
@@ -48,11 +48,11 @@
 - [x] Task 2.3: Add library-scan CLI command
 - [x] Task 2.4: Phase 2 gate — scanner tests pass, full suite green, no regression
 
-### Phase 3: Disk Cleaner (NOT STARTED)
+### Phase 3: Disk Cleaner (DONE)
 
-- [ ] Task 3.1: Implement cleaner core logic (NTFS-safe)
-- [ ] Task 3.2: Add library-clean CLI command (dry-run/apply/lock)
-- [ ] Task 3.3: Phase 3 gate — cleaner tests pass, full suite green, no regression
+- [x] Task 3.1: Implement cleaner core logic (NTFS-safe)
+- [x] Task 3.2: Add library-clean CLI command (dry-run/apply/lock)
+- [x] Task 3.3: Phase 3 gate — cleaner tests pass, full suite green, no regression
 
 ### Phase 4: Validator (NOT STARTED)
 
