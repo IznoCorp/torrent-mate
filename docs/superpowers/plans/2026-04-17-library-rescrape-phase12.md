@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans.
 
+**Prerequisite:** Phases 10+11 must be completed first.
+
 **Goal:** Implement `personalscraper library-rescrape` — targeted re-scraping of library items that need fresh metadata from TMDB/TVDB. Only repairs what is broken per item.
 
 **Architecture:** `rescraper.py` iterates library items, detects what needs repair, resolves TMDB/TVDB IDs (from NFO or re-matching), fetches API data once per item, then applies targeted fixes (NFO, artwork, episodes). Reuses existing scraper components with zero rewrites.
@@ -449,7 +451,7 @@ def rescrape_library(
                     continue
 
                 if action is None:
-                    skipped_count += 1
+                    pass  # Already OK — not counted (only items needing work are tracked)
                 elif action.errors:
                     items.append(action)
                     error_count += 1
@@ -598,7 +600,7 @@ def _rescrape_item(
     if needs_episodes and media_type == "tvshow":
         try:
             _rescrape_episodes(media_dir, api_data, api_id,
-                               tmdb_client, nfo_gen, patterns, dry_run)
+                               tmdb_client, patterns, dry_run)
             actions.append(ACTION_EPISODES_RENAMED)
             logger.info("%s episodes for %s", "Would rename" if dry_run else "Renamed", title)
         except Exception as exc:
@@ -642,11 +644,10 @@ def _rescrape_episodes(
     show_data: dict,
     tmdb_id: int,
     tmdb_client: object,
-    nfo_gen: object,
     patterns: NamingPatterns,
     dry_run: bool,
 ) -> None:
-    """Rescrape TV show episodes: match, rename, generate NFOs.
+    """Rescrape TV show episodes: create season dirs, match and rename.
 
     Args:
         show_dir: Path to TV show directory.
@@ -691,8 +692,9 @@ def _rescrape_episodes(
         and not f.name.startswith("._")
     ]
 
-    # Create season dirs, match, rename
-    create_season_dirs(show_dir, list(all_episodes.keys()), patterns, dry_run)
+    # Create season dirs (expects list[dict] with "season_number" key)
+    season_dicts = [{"season_number": s, "episode_number": e} for s, e in all_episodes]
+    create_season_dirs(show_dir, season_dicts, patterns, dry_run)
     matched = match_episode_files(video_files, all_episodes)
     rename_episodes(matched, show_dir, patterns, dry_run)
 ```
@@ -785,7 +787,7 @@ def library_rescrape(
 
     try:
         mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"
-        console.print(f"[bold]Rescaping library ({mode})...[/bold]")
+        console.print(f"[bold]Rescraping library ({mode})...[/bold]")
 
         result = rescrape_library(
             disk_configs, settings,
