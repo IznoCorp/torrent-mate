@@ -91,7 +91,7 @@ def validate_library(
                         path=str(media_dir), disk=config.name,
                         category=category_dir.name,
                         media_type="tvshow" if is_series else "movie",
-                        title=title, year=year, status="blocked",
+                        title=title, year=year, status="issues",
                         errors=[f"os_error: {exc}"],
                     ))
                     issues_count += 1

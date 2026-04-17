@@ -150,6 +150,8 @@ class LibraryScanResult:
 
 # --- Validation models ---
 
+_VALID_VALIDATION_STATUSES = {"valid", "fixed", "issues"}
+
 
 @dataclass
 class ValidationItem:
@@ -178,6 +180,15 @@ class ValidationItem:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     fixes_applied: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Enforce status/errors/fixes_applied consistency."""
+        if self.status not in _VALID_VALIDATION_STATUSES:
+            raise ValueError(f"status must be one of {_VALID_VALIDATION_STATUSES}, got '{self.status}'")
+        if self.status == "fixed" and not self.fixes_applied:
+            raise ValueError("status='fixed' requires non-empty fixes_applied")
+        if self.status == "valid" and (self.errors or self.fixes_applied):
+            raise ValueError("status='valid' must have empty errors and fixes_applied")
 
 
 @dataclass
