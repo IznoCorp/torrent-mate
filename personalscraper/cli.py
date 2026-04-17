@@ -561,3 +561,61 @@ def library_validate(
     finally:
         if fix and apply:
             release_lock()
+
+
+@app.command()
+@handle_cli_errors
+def library_analyze(
+    disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
+    category: str = typer.Option(None, "--category", help="Analyze only this category"),
+    incremental: bool = typer.Option(False, "--incremental", help="Skip already-analyzed files"),
+    max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
+) -> None:
+    """Deep scan video files with ffprobe (codec, audio, subtitles).
+
+    Most I/O-intensive command — schedule during off-peak hours.
+    Use --incremental to skip files that haven't changed since last analysis.
+
+    Examples:
+        personalscraper library-analyze --incremental
+        personalscraper library-analyze --disk Disk2 --category series
+        personalscraper library-analyze --max-items 50
+    """
+    from personalscraper.dispatch.disk_scanner import get_disk_configs
+    from personalscraper.library.analyzer import analyze_library
+    from personalscraper.library.models import read_json, write_json
+
+    console = state["console"]
+    settings = get_settings()
+    disk_configs = get_disk_configs(settings)
+
+    # Load existing analysis for incremental mode
+    existing: dict[str, int] = {}
+    analysis_path = settings.data_dir / "library_analysis.json"
+    if incremental and analysis_path.exists():
+        try:
+            data = read_json(analysis_path)
+            for item in data.get("items", []):
+                for f in item.get("files", []):
+                    path = f.get("path", "")
+                    size_bytes = int(f.get("size_gb", 0) * 1024 ** 3)
+                    existing[path] = size_bytes
+        except (OSError, KeyError):
+            pass
+
+    console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+    result = analyze_library(
+        disk_configs,
+        disk_filter=disk,
+        category_filter=category,
+        incremental=incremental,
+        existing_sizes=existing if incremental else None,
+        max_items=max_items,
+    )
+
+    write_json(result, analysis_path)
+
+    console.print(
+        f"[green]Analysis complete:[/green] {result.item_count} items, "
+        f"{result.file_count} files → {analysis_path}"
+    )
