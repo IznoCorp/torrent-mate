@@ -16,7 +16,7 @@
 | Phase | Name                                                | Status      | Last Update |
 | ----- | --------------------------------------------------- | ----------- | ----------- |
 | 1     | Foundation (models, preferences, config, nfo_utils) | DONE        | 2026-04-17  |
-| 2     | Scanner (library-scan)                              | NOT STARTED |             |
+| 2     | Scanner (library-scan)                              | DONE        | 2026-04-17  |
 | 3     | Disk Cleaner (library-clean)                        | NOT STARTED |             |
 | 4     | Validator (library-validate)                        | NOT STARTED |             |
 | 5     | Analyzer (library-analyze)                          | NOT STARTED |             |
@@ -27,7 +27,7 @@
 
 ## Next Action
 
-**Phase 2, Task 2.1** — Implement scan_movie_dir and scan_tvshow_dir
+**Phase 3, Task 3.1** — Implement cleaner core logic (NTFS-safe)
 
 ## Detailed Tracking
 
@@ -41,12 +41,12 @@
 - [x] Task 1.6: Add JSON serialization helpers
 - [x] Task 1.7: Phase 1 gate — all model tests pass, full suite green, no regression
 
-### Phase 2: Scanner (NOT STARTED)
+### Phase 2: Scanner (DONE)
 
-- [ ] Task 2.1: Implement scan_movie_dir and scan_tvshow_dir
-- [ ] Task 2.2: Implement scan_library with disk/category filters
-- [ ] Task 2.3: Add library-scan CLI command
-- [ ] Task 2.4: Phase 2 gate — scanner tests pass, full suite green, no regression
+- [x] Task 2.1: Implement scan_movie_dir and scan_tvshow_dir
+- [x] Task 2.2: Implement scan_library with disk/category filters
+- [x] Task 2.3: Add library-scan CLI command
+- [x] Task 2.4: Phase 2 gate — scanner tests pass, full suite green, no regression
 
 ### Phase 3: Disk Cleaner (NOT STARTED)
 
