@@ -57,7 +57,7 @@ _SERIES_CATEGORIES = frozenset({
 _AUTHOR_CATEGORIES = frozenset({"livres audios"})
 
 
-def _parse_title_year(dirname: str) -> tuple[str, int | None]:
+def parse_title_year(dirname: str) -> tuple[str, int | None]:
     """Parse 'Title (Year)' from a directory name.
 
     Args:
@@ -94,7 +94,7 @@ def _dir_size_gb(path: Path) -> float:
     return total / (1024 ** 3)
 
 
-def _extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
+def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
     """Extract TMDB and IMDB IDs from a valid NFO file.
 
     Args:
@@ -276,14 +276,14 @@ def scan_movie_dir(movie_dir: Path, disk: str, category: str) -> LibraryScanItem
     Returns:
         LibraryScanItem with all collected metadata.
     """
-    title, year = _parse_title_year(movie_dir.name)
+    title, year = parse_title_year(movie_dir.name)
 
     # NFO check
     nfo_path = movie_dir / f"{title}.nfo"
     nfo_valid = is_nfo_complete(nfo_path)
     tmdb_id, imdb_id = (None, None)
     if nfo_valid:
-        tmdb_id, imdb_id = _extract_nfo_ids(nfo_path)
+        tmdb_id, imdb_id = extract_nfo_ids(nfo_path)
 
     nfo = NfoStatus(
         present=nfo_path.exists(),
@@ -324,14 +324,14 @@ def scan_tvshow_dir(show_dir: Path, disk: str, category: str) -> LibraryScanItem
     Returns:
         LibraryScanItem with all collected metadata including seasons.
     """
-    title, year = _parse_title_year(show_dir.name)
+    title, year = parse_title_year(show_dir.name)
 
     # NFO check (tvshow.nfo is a fixed name)
     nfo_path = show_dir / "tvshow.nfo"
     nfo_valid = is_nfo_complete(nfo_path)
     tmdb_id, imdb_id = (None, None)
     if nfo_valid:
-        tmdb_id, imdb_id = _extract_nfo_ids(nfo_path)
+        tmdb_id, imdb_id = extract_nfo_ids(nfo_path)
 
     nfo = NfoStatus(
         present=nfo_path.exists(),

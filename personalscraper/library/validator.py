@@ -14,7 +14,7 @@ from personalscraper.library.models import (
     LibraryValidationResult,
     ValidationItem,
 )
-from personalscraper.library.scanner import _SERIES_CATEGORIES, _parse_title_year
+from personalscraper.library.scanner import _SERIES_CATEGORIES, parse_title_year
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 
@@ -78,7 +78,7 @@ def validate_library(
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
                     continue
 
-                title, year = _parse_title_year(media_dir.name)
+                title, year = parse_title_year(media_dir.name)
 
                 try:
                     if is_series:
