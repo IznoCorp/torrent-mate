@@ -18,7 +18,7 @@
 | 1     | Foundation (models, preferences, config, nfo_utils) | DONE        | 2026-04-17  |
 | 2     | Scanner (library-scan)                              | DONE        | 2026-04-17  |
 | 3     | Disk Cleaner (library-clean)                        | DONE        | 2026-04-17  |
-| 4     | Validator (library-validate)                        | NOT STARTED |             |
+| 4     | Validator (library-validate)                        | DONE        | 2026-04-17  |
 | 5     | Analyzer (library-analyze)                          | NOT STARTED |             |
 | 6     | Recommender (library-recommend)                     | NOT STARTED |             |
 | 7     | Reporter (library-report)                           | NOT STARTED |             |
@@ -27,7 +27,7 @@
 
 ## Next Action
 
-**Phase 4, Task 4.1** — Add ValidationItem and LibraryValidationResult models
+**Phase 5, Task 5.1** — Extend extract_stream_info
 
 ## Detailed Tracking
 
@@ -54,12 +54,12 @@
 - [x] Task 3.2: Add library-clean CLI command (dry-run/apply/lock)
 - [x] Task 3.3: Phase 3 gate — cleaner tests pass, full suite green, no regression
 
-### Phase 4: Validator (NOT STARTED)
+### Phase 4: Validator (DONE)
 
-- [ ] Task 4.1: Add ValidationItem and LibraryValidationResult models
-- [ ] Task 4.2: Implement validator core logic (checker + genre_mapper integration)
-- [ ] Task 4.3: Add library-validate CLI command (quick/full/fix/apply)
-- [ ] Task 4.4: Phase 4 gate — validator tests pass, full suite green, no regression
+- [x] Task 4.1: Add ValidationItem and LibraryValidationResult models
+- [x] Task 4.2: Implement validator core logic (checker + genre_mapper integration)
+- [x] Task 4.3: Add library-validate CLI command (quick/full/fix/apply)
+- [x] Task 4.4: Phase 4 gate — validator tests pass, full suite green, no regression
 
 ### Phase 5: Analyzer (NOT STARTED)
 
