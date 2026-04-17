@@ -86,8 +86,8 @@ def _map_audio_codec(codec_name: str, profile: str = "") -> str:
     Returns:
         Kodi-compatible codec name. "atmos" if Dolby Atmos detected.
     """
-    if "Atmos" in profile:
-        return "atmos"
+    # Atmos is now detected via separate is_atmos field (V14)
+    # Preserve underlying codec (eac3/truehd) instead of overwriting with "atmos"
     if codec_name == "dts" and profile:
         if "DTS-HD MA" in profile:
             return "dtshd_ma"
@@ -229,6 +229,10 @@ def extract_stream_info(video_path: Path) -> dict | None:
         field_order = s.get("field_order", "progressive")
         scantype = "interlaced" if field_order in ("tt", "bb", "tb", "bt") else "progressive"
 
+        # Bitrate extraction (V14)
+        bitrate_raw = s.get("bit_rate", "")
+        bitrate_kbps = int(int(bitrate_raw) / 1000) if bitrate_raw and str(bitrate_raw).isdigit() else None
+
         video_info = {
             "codec": codec,
             "width": width,
@@ -236,6 +240,7 @@ def extract_stream_info(video_path: Path) -> dict | None:
             "aspect": aspect,
             "scantype": scantype,
             "hdr": {"is_hdr": is_hdr, "hdr_type": hdr_type},
+            "bitrate_kbps": bitrate_kbps,
         }
         break  # First real video stream only
 
@@ -253,7 +258,20 @@ def extract_stream_info(video_path: Path) -> dict | None:
         codec = _map_audio_codec(codec_name, profile)
         channels = s.get("channels", 0)
         language = _lang_to_kodi(s.get("tags", {}).get("language", "und"))
-        audio_tracks.append({"codec": codec, "channels": channels, "language": language})
+        # V14: Atmos detection and default flag
+        is_atmos = "atmos" in profile.lower() if profile else False
+        disposition = s.get("disposition", {})
+        is_default = bool(disposition.get("default", 0))
+        audio_tracks.append({
+            "codec": codec, "channels": channels, "language": language,
+            "is_atmos": is_atmos, "is_default": is_default,
+        })
+
+    # Subtitle codec normalization map (V14)
+    _sub_format_map = {
+        "subrip": "srt", "hdmv_pgs_subtitle": "pgs",
+        "ass": "ass", "dvd_subtitle": "dvd_subtitle",
+    }
 
     # --- Parse subtitle streams (all) ---
     subtitle_tracks = []
@@ -261,7 +279,16 @@ def extract_stream_info(video_path: Path) -> dict | None:
         if s.get("codec_type") != "subtitle":
             continue
         language = _lang_to_kodi(s.get("tags", {}).get("language", "und"))
-        subtitle_tracks.append({"language": language})
+        # V14: format, forced, is_default
+        sub_codec_name = s.get("codec_name", "unknown")
+        sub_format = _sub_format_map.get(sub_codec_name, sub_codec_name)
+        disposition = s.get("disposition", {})
+        forced = bool(disposition.get("forced", 0))
+        is_default = bool(disposition.get("default", 0))
+        subtitle_tracks.append({
+            "language": language, "format": sub_format,
+            "forced": forced, "is_default": is_default,
+        })
 
     return {
         "duration_seconds": duration_seconds,

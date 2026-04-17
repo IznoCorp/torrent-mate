@@ -513,3 +513,15 @@ class TestLibraryValidate:
 
         assert result.exit_code == 0
         mock_lock.assert_called_once()
+
+
+class TestLibraryAnalyze:
+    """Tests for library-analyze CLI command."""
+
+    def test_help(self) -> None:
+        """library-analyze --help should display usage."""
+        result = runner.invoke(app, ["library-analyze", "--help"])
+        assert result.exit_code == 0
+        assert "--disk" in result.output
+        assert "--incremental" in result.output
+        assert "--max-items" in result.output
