@@ -53,6 +53,9 @@ _SERIES_CATEGORIES = frozenset({
     "series animes", "emissions",
 })
 
+# Categories where "Author Name" naming (no year) is normal
+_AUTHOR_CATEGORIES = frozenset({"livres audios"})
+
 
 def _parse_title_year(dirname: str) -> tuple[str, int | None]:
     """Parse 'Title (Year)' from a directory name.
@@ -164,6 +167,7 @@ def _detect_issues(
     title: str,
     year: int | None,
     is_tvshow: bool,
+    category: str = "",
 ) -> tuple[list[str], bool]:
     """Detect common issues in a media directory.
 
@@ -172,6 +176,7 @@ def _detect_issues(
         title: Parsed title.
         year: Parsed year (None if missing).
         is_tvshow: Whether this is a TV show.
+        category: Disk category name (used to skip year check for audiobooks).
 
     Returns:
         Tuple of (issues list, actors_dir_present bool).
@@ -206,8 +211,8 @@ def _detect_issues(
         if _NTFS_ILLEGAL.search(name):
             issues.append(ISSUE_NTFS_UNSAFE)
 
-    # Bad directory naming (no year)
-    if year is None:
+    # Bad directory naming (no year) — skip for audiobook categories
+    if year is None and category not in _AUTHOR_CATEGORIES:
         issues.append(ISSUE_BAD_DIR_NAME)
 
     # Deduplicate (e.g. multiple junk files -> one issue)
@@ -288,7 +293,7 @@ def scan_movie_dir(movie_dir: Path, disk: str, category: str) -> LibraryScanItem
     )
 
     artwork = _check_artwork_movie(movie_dir, title)
-    issues, actors_dir = _detect_issues(movie_dir, title, year, is_tvshow=False)
+    issues, actors_dir = _detect_issues(movie_dir, title, year, is_tvshow=False, category=category)
     size_gb = _dir_size_gb(movie_dir)
 
     return LibraryScanItem(
@@ -336,7 +341,7 @@ def scan_tvshow_dir(show_dir: Path, disk: str, category: str) -> LibraryScanItem
     )
 
     artwork = _check_artwork_tvshow(show_dir)
-    issues, actors_dir = _detect_issues(show_dir, title, year, is_tvshow=True)
+    issues, actors_dir = _detect_issues(show_dir, title, year, is_tvshow=True, category=category)
     seasons = _scan_seasons(show_dir)
     size_gb = _dir_size_gb(show_dir)
 

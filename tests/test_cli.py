@@ -454,7 +454,7 @@ class TestLibraryValidate:
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
             disk_filter=None, category_filter=None,
-            total_items=0, valid_count=0, fixed_count=0, blocked_count=0,
+            total_items=0, valid_count=0, fixed_count=0, issues_count=0,
         )
 
         with (
@@ -493,7 +493,7 @@ class TestLibraryValidate:
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
             disk_filter=None, category_filter=None,
-            total_items=0, valid_count=0, fixed_count=0, blocked_count=0,
+            total_items=0, valid_count=0, fixed_count=0, issues_count=0,
         )
 
         with (

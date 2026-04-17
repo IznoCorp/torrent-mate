@@ -560,7 +560,7 @@ def library_validate(
         console.print(
             f"[green]Valid:[/green] {result.valid_count}  "
             f"[yellow]Fixed:[/yellow] {result.fixed_count}  "
-            f"[red]Blocked:[/red] {result.blocked_count}  "
+            f"[red]Issues:[/red] {result.issues_count}  "
             f"→ {output_path}"
         )
     finally:

@@ -51,8 +51,8 @@ class TestValidateLibrary:
         assert result.valid_count == 1
         assert result.items[0].status == "valid"
 
-    def test_missing_nfo_blocked(self, tmp_path: Path) -> None:
-        """Movie without NFO should be blocked."""
+    def test_missing_nfo_has_issues(self, tmp_path: Path) -> None:
+        """Movie without NFO should have issues."""
         disk = tmp_path / "medias"
         movie = disk / "films" / "NoNfo (2024)"
         movie.mkdir(parents=True)
@@ -61,7 +61,7 @@ class TestValidateLibrary:
         config = _make_config(disk, "Disk1", ["films"])
         result = validate_library([config])
 
-        assert result.blocked_count == 1
+        assert result.issues_count == 1
         assert "nfo_present" in result.items[0].errors
 
     def test_disk_filter(self, tmp_path: Path) -> None:

@@ -37,7 +37,7 @@ class LibraryReport:
         recommendations_by_priority: Recommendation count per priority.
         validation_valid: Items passing validation.
         validation_fixable: Items that can be auto-fixed.
-        validation_blocked: Items failing validation.
+        validation_issues: Items failing validation.
         disk_free_gb: Free space per disk in GB.
     """
 
@@ -59,7 +59,7 @@ class LibraryReport:
     recommendations_by_priority: dict[str, int] = field(default_factory=dict)
     validation_valid: int = 0
     validation_fixable: int = 0
-    validation_blocked: int = 0
+    validation_issues: int = 0
     disk_free_gb: dict[str, float] = field(default_factory=dict)
 
 
@@ -158,7 +158,7 @@ def generate_report(
     if validation_data:
         report.validation_valid = validation_data.get("valid_count", 0)
         report.validation_fixable = validation_data.get("fixed_count", 0)
-        report.validation_blocked = validation_data.get("blocked_count", 0)
+        report.validation_issues = validation_data.get("issues_count", 0)
 
     # --- Recommendation data ---
     if recommendation_data:
@@ -239,12 +239,12 @@ def format_report_text(report: LibraryReport) -> str:
             lines.append(f"  {size:>7.1f} GB  {title}")
         lines.append("")
 
-    if report.validation_valid or report.validation_blocked:
-        total = report.validation_valid + report.validation_blocked
+    if report.validation_valid or report.validation_issues:
+        total = report.validation_valid + report.validation_issues
         pct = (report.validation_valid / total * 100) if total else 0
         lines.append("--- Validation ---")
         lines.append(f"  Valid: {report.validation_valid} ({pct:.0f}%)")
-        lines.append(f"  Blocked: {report.validation_blocked}")
+        lines.append(f"  Issues: {report.validation_issues}")
         lines.append("")
 
     return "\n".join(lines)
