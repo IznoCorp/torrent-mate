@@ -59,14 +59,20 @@ DISK_PATHS = {
 
 # Categories that go through TMDB movie matching
 MOVIE_CATEGORIES = [
-    "films", "films animations", "films documentaires",
-    "spectacles", "theatres",
+    "films",
+    "films animations",
+    "films documentaires",
+    "spectacles",
+    "theatres",
 ]
 
 # Categories that go through TVDB/TMDB TV show matching
 TVSHOW_CATEGORIES = [
-    "series", "series animations", "series documentaires",
-    "series animes", "emissions",
+    "series",
+    "series animations",
+    "series documentaires",
+    "series animes",
+    "emissions",
 ]
 
 # How many items to sample per category (evenly spaced)
@@ -81,6 +87,7 @@ MIN_SUCCESS_RATE = 0.6
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _discover_folders(category: str) -> list[str]:
     """Discover media folders for a category across all mounted disks.
@@ -158,7 +165,7 @@ def _format_result(r: dict) -> str:
     status = "\u2713" if r["success"] else "\u2717"
     lines = [f"  {status} {r['folder']}"]
     lines.append(f"    torrent: {r['torrent']}")
-    lines.append(f"    guessit: \"{r['parsed_title']}\" year={r.get('parsed_year')}")
+    lines.append(f'    guessit: "{r["parsed_title"]}" year={r.get("parsed_year")}')
     if "error" in r:
         lines.append(f"    error: {r['error']}")
     else:
@@ -173,6 +180,7 @@ def _format_result(r: dict) -> str:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def roundtrip_settings():
@@ -205,6 +213,7 @@ def tvdb(roundtrip_settings):
 # ---------------------------------------------------------------------------
 # Movie roundtrip tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.e2e
 @pytest.mark.roundtrip
@@ -265,18 +274,20 @@ class TestRoundtripMovies:
 
             # Step 4: Verify roundtrip — API match should correspond to original
             roundtrip = score_match(
-                orig_title, orig_year, match.api_title, match.api_year,
+                orig_title,
+                orig_year,
+                match.api_title,
+                match.api_year,
             )
-            result.update({
-                "api_title": match.api_title,
-                "api_year": match.api_year,
-                "confidence": match.confidence,
-                "roundtrip": roundtrip,
-                "success": (
-                    match.confidence >= LOW_CONFIDENCE
-                    and roundtrip >= LOW_CONFIDENCE
-                ),
-            })
+            result.update(
+                {
+                    "api_title": match.api_title,
+                    "api_year": match.api_year,
+                    "confidence": match.confidence,
+                    "roundtrip": roundtrip,
+                    "success": (match.confidence >= LOW_CONFIDENCE and roundtrip >= LOW_CONFIDENCE),
+                }
+            )
             results.append(result)
 
         # Report and assert
@@ -300,6 +311,7 @@ class TestRoundtripMovies:
 # ---------------------------------------------------------------------------
 # TV show roundtrip tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.e2e
 @pytest.mark.roundtrip
@@ -367,19 +379,21 @@ class TestRoundtripTVShows:
 
             # Step 4: Verify roundtrip
             roundtrip = score_match(
-                orig_title, orig_year, match.api_title, match.api_year,
+                orig_title,
+                orig_year,
+                match.api_title,
+                match.api_year,
             )
-            result.update({
-                "api_title": match.api_title,
-                "api_year": match.api_year,
-                "confidence": match.confidence,
-                "roundtrip": roundtrip,
-                "source": match.source,
-                "success": (
-                    match.confidence >= LOW_CONFIDENCE
-                    and roundtrip >= LOW_CONFIDENCE
-                ),
-            })
+            result.update(
+                {
+                    "api_title": match.api_title,
+                    "api_year": match.api_year,
+                    "confidence": match.confidence,
+                    "roundtrip": roundtrip,
+                    "source": match.source,
+                    "success": (match.confidence >= LOW_CONFIDENCE and roundtrip >= LOW_CONFIDENCE),
+                }
+            )
             results.append(result)
 
         # Report and assert

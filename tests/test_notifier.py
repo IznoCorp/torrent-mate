@@ -11,9 +11,7 @@ from personalscraper.models import PipelineReport, StepReport
 from personalscraper.notifier import TelegramNotifier, ping_healthcheck
 
 # Detect if real Telegram credentials are available for live tests
-_HAS_TELEGRAM = bool(
-    os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")
-)
+_HAS_TELEGRAM = bool(os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID"))
 
 
 @pytest.fixture()
@@ -58,6 +56,7 @@ class TestSend:
     def test_send_timeout(self, mock_post, notifier):
         """Timeout returns False without raising."""
         import requests
+
         mock_post.side_effect = requests.Timeout("timed out")
         assert notifier.send("hello") is False
 

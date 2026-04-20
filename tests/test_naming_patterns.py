@@ -42,13 +42,16 @@ class TestFormat:
         """Movie fanart: 'Title-fanart.jpg'."""
         assert PATTERNS.format("movie_fanart", Title="The Matrix") == "The Matrix-fanart.jpg"
 
-    @pytest.mark.parametrize("pattern_name,suffix", [
-        ("movie_banner", "-banner.jpg"),
-        ("movie_clearlogo", "-clearlogo.png"),
-        ("movie_clearart", "-clearart.png"),
-        ("movie_discart", "-discart.png"),
-        ("movie_landscape", "-landscape.jpg"),
-    ])
+    @pytest.mark.parametrize(
+        "pattern_name,suffix",
+        [
+            ("movie_banner", "-banner.jpg"),
+            ("movie_clearlogo", "-clearlogo.png"),
+            ("movie_clearart", "-clearart.png"),
+            ("movie_discart", "-discart.png"),
+            ("movie_landscape", "-landscape.jpg"),
+        ],
+    )
     def test_movie_artwork_patterns(self, pattern_name, suffix):
         """All movie artwork uses Title-suffix format."""
         result = PATTERNS.format(pattern_name, Title="Test Movie")
@@ -58,15 +61,18 @@ class TestFormat:
         """TV show NFO is a fixed name."""
         assert PATTERNS.tvshow_nfo == "tvshow.nfo"
 
-    @pytest.mark.parametrize("pattern_name,expected", [
-        ("tvshow_poster", "poster.jpg"),
-        ("tvshow_fanart", "fanart.jpg"),
-        ("tvshow_banner", "banner.jpg"),
-        ("tvshow_clearlogo", "clearlogo.png"),
-        ("tvshow_clearart", "clearart.png"),
-        ("tvshow_characterart", "characterart.png"),
-        ("tvshow_landscape", "landscape.jpg"),
-    ])
+    @pytest.mark.parametrize(
+        "pattern_name,expected",
+        [
+            ("tvshow_poster", "poster.jpg"),
+            ("tvshow_fanart", "fanart.jpg"),
+            ("tvshow_banner", "banner.jpg"),
+            ("tvshow_clearlogo", "clearlogo.png"),
+            ("tvshow_clearart", "clearart.png"),
+            ("tvshow_characterart", "characterart.png"),
+            ("tvshow_landscape", "landscape.jpg"),
+        ],
+    )
     def test_tvshow_fixed_names(self, pattern_name, expected):
         """TV show artwork uses fixed names (no title prefix)."""
         assert getattr(PATTERNS, pattern_name) == expected
@@ -103,9 +109,7 @@ class TestFormat:
 
     def test_format_base_filename_episode(self):
         """Base filename for episodes is S01E01 - Title."""
-        result = PATTERNS.format_base_filename(
-            is_episode=True, Season=3, Episode=7, EpisodeTitle="Test"
-        )
+        result = PATTERNS.format_base_filename(is_episode=True, Season=3, Episode=7, EpisodeTitle="Test")
         assert result == "S03E07 - Test"
 
     def test_invalid_pattern_raises(self):
@@ -156,15 +160,11 @@ class TestMediaElchConformity:
     def test_real_episode_shrinking(self):
         """Matches real episode files from Shrinking S03."""
         # Real file: "S03E07 - « I will be grape ».nfo"
-        result = PATTERNS.format(
-            "episode_nfo", Season=3, Episode=7, EpisodeTitle="« I will be grape »"
-        )
+        result = PATTERNS.format("episode_nfo", Season=3, Episode=7, EpisodeTitle="« I will be grape »")
         assert result == "S03E07 - « I will be grape ».nfo"
 
         # Real file: "S03E08 - Régime dépression-thumb.jpg"
-        result = PATTERNS.format(
-            "episode_thumb", Season=3, Episode=8, EpisodeTitle="Régime dépression"
-        )
+        result = PATTERNS.format("episode_thumb", Season=3, Episode=8, EpisodeTitle="Régime dépression")
         assert result == "S03E08 - Régime dépression-thumb.jpg"
 
 

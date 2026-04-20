@@ -84,6 +84,7 @@ def _make_tvshow_dir(tmp_path: Path, title: str = "Fallout", year: int = 2024) -
 # Movie checks
 # ---------------------------------------------------------------------------
 
+
 class TestCheckMovieBase:
     """Tests for basic movie checks."""
 
@@ -151,6 +152,7 @@ class TestCheckMovieNFO:
 # TV show checks
 # ---------------------------------------------------------------------------
 
+
 class TestCheckTvshow:
     """Tests for TV show checks."""
 
@@ -177,6 +179,7 @@ class TestCheckTvshow:
         d = _make_tvshow_dir(tmp_path)
         # Remove the season dir contents
         import shutil
+
         shutil.rmtree(d / "Saison 01")
         results = checker.check_tvshow(d)
         season_check = next(r for r in results if r.name == "season_structure")
@@ -197,6 +200,7 @@ class TestCheckTvshow:
 # NTFS-safe filename checks
 # ---------------------------------------------------------------------------
 
+
 class TestNtfsSafeNames:
     """Tests for NTFS-illegal character detection in verify checker."""
 
@@ -211,6 +215,7 @@ class TestNtfsSafeNames:
         (movie_dir / "Movie : Special-landscape.jpg").write_bytes(b"bad")
 
         from personalscraper.verify.checker import MediaChecker
+
         checker = MediaChecker(NamingPatterns(), GenreMapper())
         results = checker.check_movie(movie_dir)
 
@@ -228,6 +233,7 @@ class TestNtfsSafeNames:
         (movie_dir / "Movie-poster.jpg").write_bytes(b"poster")
 
         from personalscraper.verify.checker import MediaChecker
+
         checker = MediaChecker(NamingPatterns(), GenreMapper())
         results = checker.check_movie(movie_dir)
 
@@ -248,6 +254,7 @@ class TestNtfsSafeNames:
         (season_dir / "S01E01 : Title.nfo").write_bytes(b"bad_nfo")
 
         from personalscraper.verify.checker import MediaChecker
+
         checker = MediaChecker(NamingPatterns(), GenreMapper())
         results = checker.check_tvshow(show_dir)
 

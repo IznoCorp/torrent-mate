@@ -8,6 +8,7 @@ from personalscraper.enforce.coherence_checker import check_coherence
 @pytest.fixture
 def settings(tmp_path):
     from unittest.mock import MagicMock
+
     s = MagicMock()
     s.staging_dir = tmp_path
     s.movies_dir_name = "001-MOVIES"
@@ -42,8 +43,7 @@ def test_clean_items_no_warnings(tmp_path, settings):
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
     (movie / "Film.nfo").write_text(
-        '<movie><uniqueid type="tmdb">123</uniqueid>'
-        '<uniqueid type="imdb">tt123</uniqueid></movie>'
+        '<movie><uniqueid type="tmdb">123</uniqueid><uniqueid type="imdb">tt123</uniqueid></movie>'
     )
 
     results = check_coherence(settings, dry_run=False)
@@ -61,10 +61,7 @@ def test_genre_emission_in_series_warns(tmp_path, settings):
     """
     show = tmp_path / "002-TVSHOWS" / "Show (2026)"
     show.mkdir(parents=True)
-    (show / "tvshow.nfo").write_text(
-        '<tvshow><genre>Émission</genre>'
-        '<uniqueid type="tmdb">312697</uniqueid></tvshow>'
-    )
+    (show / "tvshow.nfo").write_text('<tvshow><genre>Émission</genre><uniqueid type="tmdb">312697</uniqueid></tvshow>')
 
     results = check_coherence(settings, dry_run=False)
 

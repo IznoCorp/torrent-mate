@@ -100,34 +100,21 @@ def _needs_repair(category_dir: Path) -> bool:
                 return True
         else:
             # TV show checks
-            has_season_dirs = any(
-                d.is_dir() and SEASON_DIR_RE.match(d.name)
-                for d in folder.iterdir()
-            )
+            has_season_dirs = any(d.is_dir() and SEASON_DIR_RE.match(d.name) for d in folder.iterdir())
 
             for item in folder.iterdir():
                 # Root-level video when season dirs exist → misplaced episode
-                if (
-                    has_season_dirs
-                    and item.is_file()
-                    and item.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-                ):
+                if has_season_dirs and item.is_file() and item.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS:
                     return True
 
                 # Any non-season, non-hidden subdir is a residual torrent dir
                 # (may contain videos, NFO residuals, or be empty)
-                if (
-                    item.is_dir()
-                    and not item.name.startswith(".")
-                    and not SEASON_DIR_RE.match(item.name)
-                ):
+                if item.is_dir() and not item.name.startswith(".") and not SEASON_DIR_RE.match(item.name):
                     return True
 
             # Residual episode NFOs at root (tvshow.nfo is expected)
             root_nfos = [
-                f
-                for f in folder.iterdir()
-                if f.is_file() and f.suffix.lower() == ".nfo" and f.name != "tvshow.nfo"
+                f for f in folder.iterdir() if f.is_file() and f.suffix.lower() == ".nfo" and f.name != "tvshow.nfo"
             ]
             if root_nfos:
                 return True
@@ -170,9 +157,7 @@ def run_scrape(
         logger.warning("Cannot check tvshow repair status: %s", exc)
         needs_tvshow_repair = True
     if not _has_unscraped_items(settings) and not needs_movie_repair and not needs_tvshow_repair:
-        logger.info(
-            "Scrape fast-skip: all NFOs valid, artwork present, no repairs needed"
-        )
+        logger.info("Scrape fast-skip: all NFOs valid, artwork present, no repairs needed")
         return StepReport(name="scrape")
 
     scraper = Scraper(

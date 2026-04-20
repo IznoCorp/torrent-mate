@@ -28,8 +28,7 @@ class TestIdempotenceMovies:
         movie = tmp_path / "001-MOVIES" / "Avatar (2025)"
         movie.mkdir(parents=True)
         (movie / "Avatar.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid>'
-            '<uniqueid type="imdb">tt1</uniqueid></movie>'
+            '<movie><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></movie>'
         )
         (movie / "Avatar.mkv").write_bytes(b"\x00")
         (movie / "Avatar : poster.jpg").write_bytes(b"\x00")
@@ -47,8 +46,7 @@ class TestIdempotenceMovies:
         movie = tmp_path / "001-MOVIES" / "Scream 7 (2026)"
         movie.mkdir(parents=True)
         (movie / "Scream 7.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid>'
-            '<uniqueid type="imdb">tt1</uniqueid></movie>'
+            '<movie><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></movie>'
         )
         (movie / "Scream 7.mkv").write_bytes(b"\x00")
         (movie / "Scream.7.MULTI.nfo").write_text("<movie/>")
@@ -66,8 +64,7 @@ class TestIdempotenceMovies:
         movie = tmp_path / "001-MOVIES" / "Film (2025)"
         movie.mkdir(parents=True)
         (movie / "Film.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid>'
-            '<uniqueid type="imdb">tt1</uniqueid></movie>'
+            '<movie><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></movie>'
         )
         (movie / "Film.mkv").write_bytes(b"\x00")
         (movie / ".DS_Store").write_bytes(b"\x00")
@@ -89,8 +86,7 @@ class TestIdempotenceMovies:
         bad = movies / "Spirale : Test (2021)"
         bad.mkdir()
         (bad / "Spirale Test.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid>'
-            '<uniqueid type="imdb">tt1</uniqueid></movie>'
+            '<movie><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></movie>'
         )
         (bad / "Spirale Test.mkv").write_bytes(b"\x00")
 
@@ -111,8 +107,7 @@ class TestIdempotenceTvshows:
         show = tmp_path / "002-TVSHOWS" / "Show (2025)"
         show.mkdir(parents=True)
         (show / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid>'
-            '<uniqueid type="imdb">tt1</uniqueid></tvshow>'
+            '<tvshow><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></tvshow>'
         )
         empty = show / "Show.S01E01.MULTI.1080p"
         empty.mkdir()
@@ -128,8 +123,7 @@ class TestIdempotenceTvshows:
         show = tmp_path / "002-TVSHOWS" / "Show (2025)"
         show.mkdir(parents=True)
         (show / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid>'
-            '<uniqueid type="imdb">tt1</uniqueid></tvshow>'
+            '<tvshow><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></tvshow>'
         )
         (show / "._poster.jpg").write_bytes(b"\x00")
 
@@ -163,6 +157,7 @@ class TestRealStagingIdempotence:
     def test_enforce_runs_without_error(self):
         """First run should complete without errors."""
         from personalscraper.config import Settings
+
         settings = Settings()
         report = run_enforce(settings, dry_run=False)
         print(f"Run 1: {report.success_count} fixed, {report.skip_count} OK")
@@ -173,8 +168,7 @@ class TestRealStagingIdempotence:
     def test_enforce_second_run_noop(self):
         """Second run should change nothing (idempotent)."""
         from personalscraper.config import Settings
+
         settings = Settings()
         report = run_enforce(settings, dry_run=False)
-        assert report.success_count == 0, (
-            f"Expected no-op, got {report.success_count} fixes: {report.details}"
-        )
+        assert report.success_count == 0, f"Expected no-op, got {report.success_count} fixes: {report.details}"

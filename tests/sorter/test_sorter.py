@@ -199,7 +199,10 @@ class TestErrorHandling:
         bad_file.touch()
         # Simulate permission error by monkeypatching shutil.move
         import personalscraper.sorter.sorter as sorter_mod
-        monkeypatch.setattr(sorter_mod.shutil, "move", lambda *a, **kw: (_ for _ in ()).throw(PermissionError("denied")))
+
+        monkeypatch.setattr(
+            sorter_mod.shutil, "move", lambda *a, **kw: (_ for _ in ()).throw(PermissionError("denied"))
+        )
         sorter = Sorter(dry_run=False)
         result = sorter.sort_item(bad_file, staging)
         assert result.status == "error"
@@ -220,6 +223,7 @@ class TestErrorHandling:
             return original_move(src, dst)
 
         import personalscraper.sorter.sorter as sorter_mod
+
         monkeypatch.setattr(sorter_mod.shutil, "move", flaky_move)
         sorter = Sorter(dry_run=False)
         results = sorter.process(staging)

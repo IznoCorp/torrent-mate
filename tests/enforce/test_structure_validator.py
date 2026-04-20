@@ -8,6 +8,7 @@ from personalscraper.enforce.structure_validator import validate_structure
 @pytest.fixture
 def settings(tmp_path):
     from unittest.mock import MagicMock
+
     s = MagicMock()
     s.staging_dir = tmp_path
     s.movies_dir_name = "001-MOVIES"

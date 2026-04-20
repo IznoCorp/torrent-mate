@@ -38,17 +38,33 @@ SUBTITLE_CODEC_MAP: dict[str, str] = {
 
 # ISO 639-2/B (ffprobe/MKV) -> ISO 639-2/T (Kodi) — only codes that differ
 ISO_639_2_B_TO_T: dict[str, str] = {
-    "fre": "fra", "ger": "deu", "dut": "nld", "chi": "zho",
-    "cze": "ces", "gre": "ell", "rum": "ron", "slo": "slk",
-    "per": "fas", "arm": "hye", "geo": "kat", "ice": "isl",
-    "mac": "mkd", "may": "msa", "baq": "eus", "bur": "mya",
-    "tib": "bod", "wel": "cym", "alb": "sqi", "mao": "mri",
+    "fre": "fra",
+    "ger": "deu",
+    "dut": "nld",
+    "chi": "zho",
+    "cze": "ces",
+    "gre": "ell",
+    "rum": "ron",
+    "slo": "slk",
+    "per": "fas",
+    "arm": "hye",
+    "geo": "kat",
+    "ice": "isl",
+    "mac": "mkd",
+    "may": "msa",
+    "baq": "eus",
+    "bur": "mya",
+    "tib": "bod",
+    "wel": "cym",
+    "alb": "sqi",
+    "mao": "mri",
 }
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _lang_to_kodi(code: str) -> str:
     """Convert ISO 639-2/B language code (ffprobe) to ISO 639-2/T (Kodi).
@@ -125,6 +141,7 @@ def _parse_aspect_ratio(dar_str: str | None, width: int, height: int) -> float:
 # Main function
 # ---------------------------------------------------------------------------
 
+
 def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
     """Extract stream details from a video file using ffprobe.
 
@@ -160,8 +177,10 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
     """
     cmd = [
         "ffprobe",
-        "-v", "quiet",
-        "-print_format", "json",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
         "-show_streams",
         "-show_format",
         str(video_path),
@@ -268,10 +287,15 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
         is_atmos = "atmos" in profile.lower() if profile else False
         disposition = s.get("disposition", {})
         is_default = bool(disposition.get("default", 0))
-        audio_tracks.append({
-            "codec": codec, "channels": channels, "language": language,
-            "is_atmos": is_atmos, "is_default": is_default,
-        })
+        audio_tracks.append(
+            {
+                "codec": codec,
+                "channels": channels,
+                "language": language,
+                "is_atmos": is_atmos,
+                "is_default": is_default,
+            }
+        )
 
     # --- Parse subtitle streams (all) ---
     subtitle_tracks = []
@@ -284,10 +308,14 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
         disposition = s.get("disposition", {})
         forced = bool(disposition.get("forced", 0))
         is_default = bool(disposition.get("default", 0))
-        subtitle_tracks.append({
-            "language": language, "format": sub_format,
-            "forced": forced, "is_default": is_default,
-        })
+        subtitle_tracks.append(
+            {
+                "language": language,
+                "format": sub_format,
+                "forced": forced,
+                "is_default": is_default,
+            }
+        )
 
     return {
         "duration_seconds": duration_seconds,

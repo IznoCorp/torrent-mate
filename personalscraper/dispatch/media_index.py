@@ -36,10 +36,15 @@ def _default_index_path() -> Path:
 _YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
 
 # Categories that represent TV-like content (episodic/serialized)
-_SERIES_CATEGORIES = frozenset({
-    "series", "series animations", "series documentaires",
-    "series animes", "emissions",
-})
+_SERIES_CATEGORIES = frozenset(
+    {
+        "series",
+        "series animations",
+        "series documentaires",
+        "series animes",
+        "emissions",
+    }
+)
 
 
 def _extract_year(name: str) -> int | None:
@@ -118,13 +123,12 @@ class MediaIndex:
 
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
-            self._entries = {
-                k: IndexEntry(**v) for k, v in data.items()
-            }
+            self._entries = {k: IndexEntry(**v) for k, v in data.items()}
         except (json.JSONDecodeError, TypeError, KeyError) as exc:
             logger.error(
                 "Corrupted index %s: %s — starting fresh (risk of duplicates on disks)",
-                self._path, exc,
+                self._path,
+                exc,
             )
             self._entries = {}
 
@@ -177,7 +181,8 @@ class MediaIndex:
                     continue
                 entry_year = _extract_year(entry.name)
                 score = fuzzy_match_score(
-                    name, entry.name,
+                    name,
+                    entry.name,
                     query_year=name_year,
                     candidate_year=entry_year,
                 )

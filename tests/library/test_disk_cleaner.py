@@ -50,6 +50,7 @@ class TestCleanActors:
     def test_ntfs_error_continues(self, tmp_path: Path, monkeypatch) -> None:
         """NTFS deletion failure should log error and continue."""
         import shutil
+
         disk = tmp_path / "medias"
         movie1 = disk / "films" / "Movie1 (2024)" / ".actors"
         movie2 = disk / "films" / "Movie2 (2024)" / ".actors"

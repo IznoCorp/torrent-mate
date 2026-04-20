@@ -25,7 +25,7 @@ _ISSUE_EXPLANATIONS: dict[str, str] = {
     "bad_dir_naming": "Nom de dossier sans (Année) — format attendu: Titre (2024)",
     "release_group_artifact": "Dossiers vides laissés par des releases torrent",
     "empty_subdir": "Sous-dossiers vides (saisons supprimées ou incomplètes)",
-    "ntfs_unsafe_name": "Noms contenant des caractères interdits sur NTFS (<>:\"/\\|?*)",
+    "ntfs_unsafe_name": 'Noms contenant des caractères interdits sur NTFS (<>:"/\\|?*)',
 }
 
 # Human-readable explanations for validation errors
@@ -263,16 +263,18 @@ def generate_report(
         details = []
         for rec in recommendation_data.get("items", []):
             priority_counter[rec.get("priority", "unknown")] += 1
-            details.append({
-                "title": rec.get("title", "?"),
-                "priority": rec.get("priority", "?"),
-                "codec": rec.get("current", {}).get("codec", "?"),
-                "resolution": rec.get("current", {}).get("resolution", "?"),
-                "size_gb": rec.get("current", {}).get("size_gb", 0),
-                "audio_profile": rec.get("current", {}).get("audio_profile", "?"),
-                "reasons": rec.get("reasons", []),
-                "savings_gb": rec.get("estimated_savings_gb", 0),
-            })
+            details.append(
+                {
+                    "title": rec.get("title", "?"),
+                    "priority": rec.get("priority", "?"),
+                    "codec": rec.get("current", {}).get("codec", "?"),
+                    "resolution": rec.get("current", {}).get("resolution", "?"),
+                    "size_gb": rec.get("current", {}).get("size_gb", 0),
+                    "audio_profile": rec.get("current", {}).get("audio_profile", "?"),
+                    "reasons": rec.get("reasons", []),
+                    "savings_gb": rec.get("estimated_savings_gb", 0),
+                }
+            )
         report.recommendations_by_priority = dict(priority_counter)
         report.recommendation_details = details
 
@@ -402,10 +404,7 @@ def format_report_text(report: LibraryReport) -> str:
             lines.append("")
 
         # Rescrape summary
-        rescrape = (
-            report.validation_errors.get("nfo_present", 0)
-            + report.validation_errors.get("nfo_valid", 0)
-        )
+        rescrape = report.validation_errors.get("nfo_present", 0) + report.validation_errors.get("nfo_valid", 0)
         if rescrape:
             lines.append(f"    ⚠ {rescrape} items auraient besoin d'un re-scrape (NFO manquant ou cassé)")
             lines.append("      ✓ Corriger: personalscraper library-rescrape --dry-run")
@@ -418,7 +417,9 @@ def format_report_text(report: LibraryReport) -> str:
         lines.append(sep)
         lines.append("")
         coverage = (report.analysis_item_count * 100 // report.total_items) if report.total_items else 0
-        lines.append(f"    Analysés: {report.analysis_item_count} items, {report.analysis_file_count} fichiers ({coverage}% de la bibliothèque)")
+        lines.append(
+            f"    Analysés: {report.analysis_item_count} items, {report.analysis_file_count} fichiers ({coverage}% de la bibliothèque)"
+        )
         if coverage < 100:
             lines.append("    ⚠ Analyse partielle. Compléter: personalscraper library-analyze --incremental")
         lines.append("")
@@ -434,7 +435,12 @@ def format_report_text(report: LibraryReport) -> str:
         if report.audio_distribution:
             lines.append("    Profils audio:")
             for profile, count in sorted(report.audio_distribution.items(), key=lambda x: -x[1]):
-                labels = {"multi": "MULTI (multi-langues)", "vf": "VF (français)", "vostfr": "VOSTFR (VO + sous-titres FR)", "vo": "VO (version originale)"}
+                labels = {
+                    "multi": "MULTI (multi-langues)",
+                    "vf": "VF (français)",
+                    "vostfr": "VOSTFR (VO + sous-titres FR)",
+                    "vo": "VO (version originale)",
+                }
                 label = labels.get(profile, profile)
                 lines.append(f"      {label}: {count} fichiers")
             lines.append("")
@@ -459,7 +465,9 @@ def format_report_text(report: LibraryReport) -> str:
         lines.append("    Détail:")
         for rec in report.recommendation_details:
             prio_mark = {"high": "🔴", "medium": "🟡", "low": "🔵"}.get(rec["priority"], "?")
-            lines.append(f"      {prio_mark} {rec['title']} — {rec['codec']} {rec['resolution']} {rec['size_gb']:.1f}GB {rec['audio_profile']}")
+            lines.append(
+                f"      {prio_mark} {rec['title']} — {rec['codec']} {rec['resolution']} {rec['size_gb']:.1f}GB {rec['audio_profile']}"
+            )
             for reason in rec["reasons"]:
                 lines.append(f"           → {reason}")
 
@@ -484,7 +492,9 @@ def format_report_text(report: LibraryReport) -> str:
         lines.append("  6. RESCRAPE — Réparations API (TMDB/TVDB)")
         lines.append(sep)
         lines.append("")
-        lines.append(f"    Réparés: {report.rescrape_fixed}  Ignorés: {report.rescrape_skipped}  Erreurs: {report.rescrape_errors}  (total: {total_r})")
+        lines.append(
+            f"    Réparés: {report.rescrape_fixed}  Ignorés: {report.rescrape_skipped}  Erreurs: {report.rescrape_errors}  (total: {total_r})"
+        )
         lines.append("")
         if report.rescrape_nfo_count:
             lines.append(f"    NFO régénérés: {report.rescrape_nfo_count}")
@@ -512,10 +522,7 @@ def format_report_text(report: LibraryReport) -> str:
         n = report.scan_issues["junk_files"]
         actions.append(f"  2. Supprimer {n} fichiers parasites (.DS_Store, ._*, Thumbs.db)")
         actions.append("     → personalscraper library-clean --only junk --apply")
-    rescrape = (
-        report.validation_errors.get("nfo_present", 0)
-        + report.validation_errors.get("nfo_valid", 0)
-    )
+    rescrape = report.validation_errors.get("nfo_present", 0) + report.validation_errors.get("nfo_valid", 0)
     if rescrape:
         actions.append(f"  3. Re-scraper {rescrape} items (NFO manquant ou XML invalide)")
         actions.append("     → personalscraper library-rescrape --dry-run")

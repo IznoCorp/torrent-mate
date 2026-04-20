@@ -117,13 +117,13 @@ class PipelineReport:
         """
         # Step name → emoji mapping for visual identification (8 steps)
         step_icons = {
-            "ingest": "\U0001f4e5",    # 📥
-            "sort": "\U0001f4c2",      # 📂
-            "clean": "\U0001f9f9",     # 🧹
-            "scrape": "\U0001f50d",    # 🔍
-            "cleanup": "\U0001f5d1",   # 🗑
-            "enforce": "\U0001f527",   # 🔧
-            "verify": "\u2705",        # ✅
+            "ingest": "\U0001f4e5",  # 📥
+            "sort": "\U0001f4c2",  # 📂
+            "clean": "\U0001f9f9",  # 🧹
+            "scrape": "\U0001f50d",  # 🔍
+            "cleanup": "\U0001f5d1",  # 🗑
+            "enforce": "\U0001f527",  # 🔧
+            "verify": "\u2705",  # ✅
             "dispatch": "\U0001f4be",  # 💾
         }
 
@@ -161,8 +161,6 @@ class PipelineReport:
         lines.append(f"\u23f1\ufe0f Dur\u00e9e : {dur_str}")
 
         if self.finished_at:
-            lines.append(
-                f"\U0001f4c5 {self.finished_at.strftime('%Y-%m-%d %H:%M:%S')}"
-            )
+            lines.append(f"\U0001f4c5 {self.finished_at.strftime('%Y-%m-%d %H:%M:%S')}")
 
         return "\n".join(lines)

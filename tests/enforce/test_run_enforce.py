@@ -7,6 +7,7 @@ and produces a valid StepReport.
 from unittest.mock import MagicMock
 
 import pytest
+
 from personalscraper.enforce.run import run_enforce
 
 
@@ -33,8 +34,7 @@ def test_clean_items_produces_skip_report(tmp_path, settings):
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
     (movie / "Film.nfo").write_text(
-        '<movie><uniqueid type="tmdb">1</uniqueid>'
-        '<uniqueid type="imdb">tt1</uniqueid></movie>'
+        '<movie><uniqueid type="tmdb">1</uniqueid><uniqueid type="imdb">tt1</uniqueid></movie>'
     )
     (movie / "Film.mkv").write_bytes(b"\x00")
     (movie / "Film-poster.jpg").write_bytes(b"\x00")

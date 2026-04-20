@@ -14,6 +14,7 @@ from personalscraper.scraper.scraper import ScrapeResult
 # StepReport conversion
 # ---------------------------------------------------------------------------
 
+
 class TestToStepReport:
     """Tests for _to_step_report conversion."""
 
@@ -47,8 +48,10 @@ class TestToStepReport:
         """Should count error items and add to warnings."""
         results = [
             ScrapeResult(
-                media_path=Path("bad"), media_type="movie",
-                action="error", error="API down",
+                media_path=Path("bad"),
+                media_type="movie",
+                action="error",
+                error="API down",
             ),
         ]
         report = _to_step_report(results)
@@ -60,8 +63,10 @@ class TestToStepReport:
         """Details should show artwork download count."""
         results = [
             ScrapeResult(
-                media_path=Path("Movie"), media_type="movie",
-                action="scraped", artwork_downloaded=["poster.jpg", "landscape.jpg"],
+                media_path=Path("Movie"),
+                media_type="movie",
+                action="scraped",
+                artwork_downloaded=["poster.jpg", "landscape.jpg"],
             ),
         ]
         report = _to_step_report(results)
@@ -71,8 +76,10 @@ class TestToStepReport:
         """Details should show renamed episode count."""
         results = [
             ScrapeResult(
-                media_path=Path("Show"), media_type="tvshow",
-                action="scraped", episodes_renamed=8,
+                media_path=Path("Show"),
+                media_type="tvshow",
+                action="scraped",
+                episodes_renamed=8,
             ),
         ]
         report = _to_step_report(results)
@@ -82,6 +89,7 @@ class TestToStepReport:
 # ---------------------------------------------------------------------------
 # run_scrape integration
 # ---------------------------------------------------------------------------
+
 
 class TestRunScrape:
     """Tests for run_scrape function."""

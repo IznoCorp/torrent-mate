@@ -153,15 +153,15 @@ def _resolve_tmdb_id(
     if match.confidence < HIGH_CONFIDENCE:
         if interactive:
             response = input(
-                f"  Match: '{title}' → '{match.api_title}' "
-                f"(confidence={match.confidence:.0%}). Accept? [y/N] "
+                f"  Match: '{title}' → '{match.api_title}' (confidence={match.confidence:.0%}). Accept? [y/N] "
             )
             if response.lower() != "y":
                 return None, None, match.confidence
         else:
             logger.info(
                 "Low confidence match for %s: %.0f%% — skipping",
-                title, match.confidence * 100,
+                title,
+                match.confidence * 100,
             )
             return None, None, match.confidence
 
@@ -180,11 +180,7 @@ def _find_largest_video(media_dir: Path) -> Path | None:
     largest = None
     largest_size = 0
     for f in media_dir.rglob("*"):
-        if (
-            f.is_file()
-            and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            and not f.name.startswith("._")
-        ):
+        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not f.name.startswith("._"):
             try:
                 size = f.stat().st_size
                 if size > largest_size:
@@ -240,17 +236,29 @@ def _rescrape_item(
 
     # Resolve TMDB ID
     tmdb_id, id_source, confidence = _resolve_tmdb_id(
-        media_dir, media_type, title, year,
-        tmdb_client, tvdb_client, interactive,
+        media_dir,
+        media_type,
+        title,
+        year,
+        tmdb_client,
+        tvdb_client,
+        interactive,
     )
 
     if tmdb_id is None:
         skip_reason = SKIP_LOW_CONFIDENCE if confidence is not None else SKIP_NO_MATCH
         return RescrapeAction(
-            path=str(media_dir), title=title, media_type=media_type,
-            disk=disk, category=category,
-            actions_taken=[], actions_skipped=[skip_reason], errors=[],
-            tmdb_id=None, id_source=None, match_confidence=confidence,
+            path=str(media_dir),
+            title=title,
+            media_type=media_type,
+            disk=disk,
+            category=category,
+            actions_taken=[],
+            actions_skipped=[skip_reason],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=confidence,
             rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
         )
 
@@ -263,10 +271,17 @@ def _rescrape_item(
             api_data = tmdb_client.get_tv(api_id)
     except Exception as exc:
         return RescrapeAction(
-            path=str(media_dir), title=title, media_type=media_type,
-            disk=disk, category=category,
-            actions_taken=[], actions_skipped=[], errors=[f"API error: {exc}"],
-            tmdb_id=tmdb_id, id_source=id_source, match_confidence=confidence,
+            path=str(media_dir),
+            title=title,
+            media_type=media_type,
+            disk=disk,
+            category=category,
+            actions_taken=[],
+            actions_skipped=[],
+            errors=[f"API error: {exc}"],
+            tmdb_id=tmdb_id,
+            id_source=id_source,
+            match_confidence=confidence,
             rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
         )
 
@@ -280,6 +295,7 @@ def _rescrape_item(
                 nfo_name = patterns.format("movie_nfo", Title=title)
                 nfo_path = media_dir / nfo_name
                 from personalscraper.scraper.mediainfo import extract_stream_info
+
                 video_file = _find_largest_video(media_dir)
                 stream_info = extract_stream_info(video_file) if video_file else None
                 xml = nfo_gen.generate_movie_nfo(api_data, stream_info)
@@ -319,10 +335,17 @@ def _rescrape_item(
             logger.error("Episode rename failed for %s: %s", title, exc)
 
     return RescrapeAction(
-        path=str(media_dir), title=title, media_type=media_type,
-        disk=disk, category=category,
-        actions_taken=actions, actions_skipped=[], errors=errors,
-        tmdb_id=tmdb_id, id_source=id_source, match_confidence=confidence,
+        path=str(media_dir),
+        title=title,
+        media_type=media_type,
+        disk=disk,
+        category=category,
+        actions_taken=actions,
+        actions_skipped=[],
+        errors=errors,
+        tmdb_id=tmdb_id,
+        id_source=id_source,
+        match_confidence=confidence,
         rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
     )
 
@@ -372,10 +395,9 @@ def _rescrape_episodes(
         return
 
     video_files = [
-        f for f in show_dir.rglob("*")
-        if f.is_file()
-        and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-        and not f.name.startswith("._")
+        f
+        for f in show_dir.rglob("*")
+        if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not f.name.startswith("._")
     ]
 
     season_dicts = [{"season_number": s, "episode_number": e} for s, e in all_episodes]
@@ -474,13 +496,22 @@ def rescrape_library(
                     )
                 except Exception as exc:
                     logger.exception("Error rescaping %s", media_dir)
-                    items.append(RescrapeAction(
-                        path=str(media_dir), title=title, media_type=media_type,
-                        disk=config.name, category=category_dir.name,
-                        actions_taken=[], actions_skipped=[], errors=[str(exc)],
-                        tmdb_id=None, id_source=None, match_confidence=None,
-                        rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
-                    ))
+                    items.append(
+                        RescrapeAction(
+                            path=str(media_dir),
+                            title=title,
+                            media_type=media_type,
+                            disk=config.name,
+                            category=category_dir.name,
+                            actions_taken=[],
+                            actions_skipped=[],
+                            errors=[str(exc)],
+                            tmdb_id=None,
+                            id_source=None,
+                            match_confidence=None,
+                            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+                        )
+                    )
                     error_count += 1
                     items_processed += 1
                     continue

@@ -52,14 +52,10 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
         dedup_merged, dedup_failed = dedup_folders(category_dir, dry_run=dry_run)
         if dedup_merged:
             clean_report.success_count += dedup_merged
-            clean_report.details.append(
-                f"Dedup: {dedup_merged} duplicates merged in {category_dir.name}"
-            )
+            clean_report.details.append(f"Dedup: {dedup_merged} duplicates merged in {category_dir.name}")
         if dedup_failed:
             clean_report.error_count += dedup_failed
-            clean_report.warnings.append(
-                f"Dedup: {dedup_failed} merge(s) failed in {category_dir.name}"
-            )
+            clean_report.warnings.append(f"Dedup: {dedup_failed} merge(s) failed in {category_dir.name}")
 
     logger.info(
         "Clean phase: %d re-cleaned/deduped, %d skipped, %d errors",
@@ -122,7 +118,8 @@ def run_process(
     except Exception as exc:
         logger.exception("Clean sub-step failed fatally")
         clean_report = StepReport(
-            name="clean", error_count=1,
+            name="clean",
+            error_count=1,
             details=[f"Fatal: {type(exc).__name__}: {exc}"],
         )
 
@@ -131,7 +128,8 @@ def run_process(
     except Exception as exc:
         logger.exception("Scrape sub-step failed fatally")
         scrape_report = StepReport(
-            name="scrape", error_count=1,
+            name="scrape",
+            error_count=1,
             details=[f"Fatal: {type(exc).__name__}: {exc}"],
         )
 
@@ -140,7 +138,8 @@ def run_process(
     except Exception as exc:
         logger.exception("Cleanup sub-step failed fatally")
         cleanup_report = StepReport(
-            name="cleanup", error_count=1,
+            name="cleanup",
+            error_count=1,
             details=[f"Fatal: {type(exc).__name__}: {exc}"],
         )
 

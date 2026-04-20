@@ -54,10 +54,7 @@ class CircuitOpenError(Exception):
         """
         self.provider = provider
         self.remaining_seconds = remaining_seconds
-        super().__init__(
-            f"Circuit breaker OPEN for {provider} "
-            f"({remaining_seconds:.0f}s remaining)"
-        )
+        super().__init__(f"Circuit breaker OPEN for {provider} ({remaining_seconds:.0f}s remaining)")
 
 
 class CircuitBreaker:
@@ -181,8 +178,7 @@ class CircuitBreaker:
             self._state = CircuitState.OPEN
             self._opened_at = time.monotonic()
             logger.warning(
-                "Circuit breaker %s: CLOSED → OPEN "
-                "(%d consecutive failures, cooldown %.0fs)",
+                "Circuit breaker %s: CLOSED → OPEN (%d consecutive failures, cooldown %.0fs)",
                 self.name,
                 self._failure_count,
                 self.cooldown_seconds,

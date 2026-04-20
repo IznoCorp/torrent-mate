@@ -25,9 +25,7 @@ class TestScanMovieDir:
         movie = tmp_path / "The Matrix (1999)"
         movie.mkdir()
         (movie / "The Matrix.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "The Matrix.nfo").write_text(
-            '<movie><uniqueid type="tmdb">603</uniqueid></movie>'
-        )
+        (movie / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
         (movie / "The Matrix-poster.jpg").write_bytes(b"\x00")
         (movie / "The Matrix-landscape.jpg").write_bytes(b"\x00")
 
@@ -48,9 +46,7 @@ class TestScanMovieDir:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "Movie.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid></movie>'
-        )
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
         (movie / ".actors").mkdir()
         (movie / ".actors" / "Actor.jpg").write_bytes(b"\x00")
 
@@ -144,9 +140,7 @@ class TestScanTvshowDir:
         """Show with NFO, poster, seasons, episodes."""
         show = tmp_path / "Fallout (2024)"
         show.mkdir()
-        (show / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">106379</uniqueid></tvshow>'
-        )
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">106379</uniqueid></tvshow>')
         (show / "poster.jpg").write_bytes(b"\x00")
         (show / "landscape.jpg").write_bytes(b"\x00")
 
@@ -173,9 +167,7 @@ class TestScanTvshowDir:
         """Show with 2 seasons."""
         show = tmp_path / "Show (2020)"
         show.mkdir()
-        (show / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
-        )
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         (show / "poster.jpg").write_bytes(b"\x00")
 
         for sn in (1, 2):
@@ -210,9 +202,7 @@ class TestScanLibrary:
         movie = films / "Test (2024)"
         movie.mkdir()
         (movie / "Test.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "Test.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid></movie>'
-        )
+        (movie / "Test.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
 
         config = self._make_disk_config(disk, "Disk1", ["films"])
         result = scan_library([config])
@@ -259,7 +249,9 @@ class TestScanLibrary:
     def test_unmounted_disk_skipped(self, tmp_path: Path) -> None:
         """Unmounted disk (path doesn't exist) should be skipped."""
         config = self._make_disk_config(
-            tmp_path / "nonexistent", "Disk3", ["films"],
+            tmp_path / "nonexistent",
+            "Disk3",
+            ["films"],
         )
         result = scan_library([config])
 
@@ -270,9 +262,7 @@ class TestScanLibrary:
         disk = tmp_path / "medias"
         show = disk / "series" / "Show (2024)"
         show.mkdir(parents=True)
-        (show / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
-        )
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s01 = show / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Ep.mkv").write_bytes(b"\x00" * 100)
@@ -290,6 +280,7 @@ class TestParseTitleYear:
     def test_title_with_year(self) -> None:
         """Standard 'Title (2024)' format."""
         from personalscraper.library.scanner import parse_title_year
+
         title, year = parse_title_year("The Matrix (1999)")
         assert title == "The Matrix"
         assert year == 1999
@@ -297,6 +288,7 @@ class TestParseTitleYear:
     def test_title_without_year(self) -> None:
         """No year in parentheses returns None."""
         from personalscraper.library.scanner import parse_title_year
+
         title, year = parse_title_year("Some Movie")
         assert title == "Some Movie"
         assert year is None
@@ -304,6 +296,7 @@ class TestParseTitleYear:
     def test_title_with_spaces(self) -> None:
         """Extra spaces around year should be handled."""
         from personalscraper.library.scanner import parse_title_year
+
         title, year = parse_title_year("Movie  (2024) ")
         assert title == "Movie"
         assert year == 2024
@@ -311,6 +304,7 @@ class TestParseTitleYear:
     def test_title_with_non_year_parens(self) -> None:
         """Non-4-digit parens should not match."""
         from personalscraper.library.scanner import parse_title_year
+
         title, year = parse_title_year("Movie (Extended)")
         assert year is None
 
@@ -321,11 +315,9 @@ class TestExtractNfoIds:
     def test_both_ids(self, tmp_path: Path) -> None:
         """NFO with both TMDB and IMDB IDs."""
         from personalscraper.library.scanner import extract_nfo_ids
+
         nfo = tmp_path / "test.nfo"
-        nfo.write_text(
-            '<movie><uniqueid type="tmdb">603</uniqueid>'
-            '<uniqueid type="imdb">tt0133093</uniqueid></movie>'
-        )
+        nfo.write_text('<movie><uniqueid type="tmdb">603</uniqueid><uniqueid type="imdb">tt0133093</uniqueid></movie>')
         tmdb, imdb = extract_nfo_ids(nfo)
         assert tmdb == "603"
         assert imdb == "tt0133093"
@@ -333,10 +325,9 @@ class TestExtractNfoIds:
     def test_empty_uniqueid_text(self, tmp_path: Path) -> None:
         """NFO with empty uniqueid text should return None."""
         from personalscraper.library.scanner import extract_nfo_ids
+
         nfo = tmp_path / "test.nfo"
-        nfo.write_text(
-            '<movie><uniqueid type="tmdb"></uniqueid></movie>'
-        )
+        nfo.write_text('<movie><uniqueid type="tmdb"></uniqueid></movie>')
         tmdb, imdb = extract_nfo_ids(nfo)
         assert tmdb is None
         assert imdb is None
@@ -344,6 +335,7 @@ class TestExtractNfoIds:
     def test_corrupt_xml(self, tmp_path: Path) -> None:
         """Corrupt XML should return (None, None)."""
         from personalscraper.library.scanner import extract_nfo_ids
+
         nfo = tmp_path / "test.nfo"
         nfo.write_text("<movie><broken")
         tmdb, imdb = extract_nfo_ids(nfo)
@@ -353,6 +345,7 @@ class TestExtractNfoIds:
     def test_nonexistent_file(self, tmp_path: Path) -> None:
         """Missing file should return (None, None)."""
         from personalscraper.library.scanner import extract_nfo_ids
+
         tmdb, imdb = extract_nfo_ids(tmp_path / "missing.nfo")
         assert tmdb is None
         assert imdb is None
@@ -364,6 +357,7 @@ class TestNtfsUnsafeDetection:
     def test_ntfs_unsafe_filename_flagged(self, tmp_path: Path) -> None:
         """File with NTFS-illegal ':' should flag ISSUE_NTFS_UNSAFE."""
         from personalscraper.library.models import ISSUE_NTFS_UNSAFE
+
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)

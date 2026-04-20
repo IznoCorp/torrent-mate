@@ -97,11 +97,12 @@ def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     if failed:
         logger.warning(
             "Merge %s → %s: %d moved, %d failed — source dir preserved",
-            source.name, target.name, moved, failed,
+            source.name,
+            target.name,
+            moved,
+            failed,
         )
     return moved, failed
-
-
 
 
 @dataclass
@@ -184,7 +185,8 @@ def _find_video_file(directory: Path) -> Path | None:
         Path to the largest video file, or None if no video found.
     """
     candidates = [
-        f for f in directory.rglob("*")
+        f
+        for f in directory.rglob("*")
         if f.is_file()
         and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
         and not f.name.startswith(".")
@@ -224,7 +226,7 @@ def _cleanup_stale_files(directory: Path, old_prefix: str, new_prefix: str) -> i
         if not f.is_file() or not f.name.startswith(old_prefix):
             continue
         # Build the expected sanitized equivalent
-        new_name = new_prefix + f.name[len(old_prefix):]
+        new_name = new_prefix + f.name[len(old_prefix) :]
         if (directory / new_name).exists():
             try:
                 f.unlink()
@@ -262,17 +264,15 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
         if SEASON_DIR_RE.match(subdir.name):
             continue
         # Check if subdir has any video files (recursively)
-        has_video = any(
-            f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-            for f in subdir.rglob("*")
-        )
+        has_video = any(f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS for f in subdir.rglob("*"))
         if has_video:
             continue
         non_video_files = [f.name for f in subdir.rglob("*") if f.is_file()]
         if non_video_files:
             logger.warning(
                 "Removing release dir %s with residual files: %s",
-                subdir.name, non_video_files,
+                subdir.name,
+                non_video_files,
             )
         try:
             shutil.rmtree(subdir)
@@ -331,7 +331,8 @@ class Scraper:
         # Initialize helpers
         self._nfo = NFOGenerator()
         self._artwork = ArtworkDownloader(
-            dry_run=dry_run, artwork_language=settings.artwork_language,
+            dry_run=dry_run,
+            artwork_language=settings.artwork_language,
         )
 
     def _resolve_title(
@@ -462,7 +463,10 @@ class Scraper:
         return None
 
     def _recover_movie_artwork(
-        self, nfo_path: Path, movie_dir: Path, result: ScrapeResult,
+        self,
+        nfo_path: Path,
+        movie_dir: Path,
+        result: ScrapeResult,
     ) -> None:
         """Re-download missing artwork using TMDB ID from existing NFO.
 
@@ -480,20 +484,27 @@ class Scraper:
         try:
             movie_data = self._tmdb.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
-                movie_data, movie_dir, self.patterns,
+                movie_data,
+                movie_dir,
+                self.patterns,
             )
             if downloaded:
                 result.action = "artwork_recovered"
                 result.artwork_downloaded = [p.name for p in downloaded]
                 logger.info(
-                    "Recovered %d artwork(s) for %s", len(downloaded), movie_dir.name,
+                    "Recovered %d artwork(s) for %s",
+                    len(downloaded),
+                    movie_dir.name,
                 )
         except Exception as e:
             logger.warning("Artwork recovery failed for %s: %s", movie_dir.name, e)
             result.warnings.append(f"Artwork recovery failed: {e}")
 
     def _recover_tvshow_artwork(
-        self, nfo_path: Path, show_dir: Path, result: ScrapeResult,
+        self,
+        nfo_path: Path,
+        show_dir: Path,
+        result: ScrapeResult,
     ) -> None:
         """Re-download missing artwork for a TV show using NFO TMDB ID.
 
@@ -511,13 +522,17 @@ class Scraper:
         try:
             show_data = self._tmdb.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
-                show_data, show_dir, self.patterns,
+                show_data,
+                show_dir,
+                self.patterns,
             )
             if downloaded:
                 result.action = "artwork_recovered"
                 result.artwork_downloaded = [p.name for p in downloaded]
                 logger.info(
-                    "Recovered %d artwork(s) for %s", len(downloaded), show_dir.name,
+                    "Recovered %d artwork(s) for %s",
+                    len(downloaded),
+                    show_dir.name,
                 )
         except Exception as e:
             logger.warning("Artwork recovery failed for %s: %s", show_dir.name, e)
@@ -577,16 +592,20 @@ class Scraper:
                         nfo.unlink()
                         logger.info(
                             "Repair: removed residual NFO %s in %s",
-                            nfo.name, show_dir.name,
+                            nfo.name,
+                            show_dir.name,
                         )
                         repaired = True
                     except OSError as exc:
                         logger.warning(
-                            "Repair: cannot delete %s: %s", nfo.name, exc,
+                            "Repair: cannot delete %s: %s",
+                            nfo.name,
+                            exc,
                         )
                 else:
                     logger.info(
-                        "[DRY RUN] Would remove residual NFO %s", nfo.name,
+                        "[DRY RUN] Would remove residual NFO %s",
+                        nfo.name,
                     )
                     repaired = True
 
@@ -603,10 +622,7 @@ class Scraper:
         # 3. Remove root MKV duplicates that match organized episodes
         if organized:
             for f in list(show_dir.iterdir()):
-                if (
-                    not f.is_file()
-                    or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS
-                ):
+                if not f.is_file() or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
                     continue
                 m = _SXXEXX_RE.search(f.stem)
                 if m and (int(m.group(1)), int(m.group(2))) in organized:
@@ -614,14 +630,15 @@ class Scraper:
                         try:
                             f.unlink()
                             logger.info(
-                                "Repair: removed root duplicate %s "
-                                "(in Saison already)",
+                                "Repair: removed root duplicate %s (in Saison already)",
                                 f.name,
                             )
                             repaired = True
                         except OSError as exc:
                             logger.warning(
-                                "Repair: cannot delete %s: %s", f.name, exc,
+                                "Repair: cannot delete %s: %s",
+                                f.name,
+                                exc,
                             )
                     else:
                         logger.info(
@@ -633,7 +650,8 @@ class Scraper:
         # 4. Organize unstructured episodes (from raw torrent dirs)
         # Finds video files in non-season subdirs (not root, not .actors)
         unorganized = sorted(
-            f for f in show_dir.rglob("*")
+            f
+            for f in show_dir.rglob("*")
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
             and not SEASON_DIR_RE.match(f.parent.name)
@@ -654,7 +672,8 @@ class Scraper:
                             continue
                         try:
                             s_detail = self._tmdb.get_tv_season(
-                                tmdb_id, s_num,
+                                tmdb_id,
+                                s_num,
                             )
                             for ep in s_detail.get("episodes", []):
                                 e_num = ep.get("episode_number", 0)
@@ -665,44 +684,51 @@ class Scraper:
                         except (OSError, ConnectionError, TimeoutError) as e:
                             logger.warning(
                                 "Repair: failed to get season %d: %s",
-                                s_num, e,
+                                s_num,
+                                e,
                             )
 
                     if api_episodes:
-                        ep_list = [
-                            {"season_number": s, "episode_number": e}
-                            for s, e in api_episodes
-                        ]
+                        ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
                         create_season_dirs(
-                            show_dir, ep_list, self.patterns, self.dry_run,
+                            show_dir,
+                            ep_list,
+                            self.patterns,
+                            self.dry_run,
                         )
                         matched = match_episode_files(
-                            unorganized, api_episodes,
+                            unorganized,
+                            api_episodes,
                         )
                         if matched:
                             count = rename_episodes(
-                                matched, show_dir, self.patterns,
+                                matched,
+                                show_dir,
+                                self.patterns,
                                 self.dry_run,
                             )
                             if count > 0:
                                 repaired = True
                                 logger.info(
                                     "Repair: organized %d episodes in %s",
-                                    count, show_dir.name,
+                                    count,
+                                    show_dir.name,
                                 )
                             self._generate_episode_nfos(
-                                matched, show_dir, show_data,
+                                matched,
+                                show_dir,
+                                show_data,
                             )
 
                 except (OSError, ConnectionError, TimeoutError, ValueError, KeyError) as e:
                     logger.warning(
                         "Repair: failed to organize episodes in %s: %s",
-                        show_dir.name, e,
+                        show_dir.name,
+                        e,
                     )
             else:
                 logger.warning(
-                    "Repair: cannot organize episodes in %s "
-                    "— no TMDB ID in NFO",
+                    "Repair: cannot organize episodes in %s — no TMDB ID in NFO",
                     show_dir.name,
                 )
 
@@ -715,7 +741,8 @@ class Scraper:
             except OSError as exc:
                 logger.warning(
                     "Repair: failed to clean release dirs in %s: %s",
-                    show_dir.name, exc,
+                    show_dir.name,
+                    exc,
                 )
 
         return repaired
@@ -783,14 +810,18 @@ class Scraper:
             result.action = "skipped_low_confidence"
             logger.info(
                 "No confident match for: %s (score=%.2f)",
-                title, match.confidence if match else 0.0,
+                title,
+                match.confidence if match else 0.0,
             )
             return result
 
         result.match = match
         logger.info(
             "Matched: %s → %s (%s, confidence=%.2f)",
-            title, match.api_title, match.source, match.confidence,
+            title,
+            match.api_title,
+            match.source,
+            match.confidence,
         )
 
         # Get full movie details (needed for local title resolution)
@@ -802,13 +833,9 @@ class Scraper:
             return result
 
         # Resolve title: use local FR title if preferred and available
-        resolved_title = self._strip_trailing_year(
-            self._resolve_title(match.api_title, movie_data, "movie")
-        )
+        resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, movie_data, "movie"))
         api_year = match.api_year or year
-        clean_name = sanitize_filename(
-            f"{resolved_title} ({api_year})" if api_year else resolved_title
-        )
+        clean_name = sanitize_filename(f"{resolved_title} ({api_year})" if api_year else resolved_title)
 
         # Save old title before rename for stale file cleanup
         old_title = title
@@ -822,9 +849,7 @@ class Scraper:
                         moved, merge_failed = _merge_dirs(movie_dir, new_path)
                         logger.info("Merged duplicate: %s → %s (%d items)", movie_dir.name, clean_name, moved)
                         if merge_failed:
-                            result.warnings.append(
-                                f"Partial merge: {merge_failed} item(s) failed"
-                            )
+                            result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
                     else:
                         movie_dir.rename(new_path)
                         logger.info("Renamed folder: %s → %s", movie_dir.name, clean_name)
@@ -850,9 +875,13 @@ class Scraper:
         video_file = _find_video_file(movie_dir)
         stream_info = None
         if video_file:
-            clean_video_name = self.patterns.format(
-                "movie_video", Title=title,
-            ) + video_file.suffix
+            clean_video_name = (
+                self.patterns.format(
+                    "movie_video",
+                    Title=title,
+                )
+                + video_file.suffix
+            )
             if video_file.name != clean_video_name:
                 new_video = movie_dir / clean_video_name
                 if not self.dry_run:
@@ -863,11 +892,12 @@ class Scraper:
                     except OSError as exc:
                         logger.warning(
                             "Failed to rename video %s → %s in %s: %s",
-                            video_file.name, clean_video_name, movie_dir.name, exc,
+                            video_file.name,
+                            clean_video_name,
+                            movie_dir.name,
+                            exc,
                         )
-                        result.warnings.append(
-                            f"Video rename failed: {video_file.name}: {exc}"
-                        )
+                        result.warnings.append(f"Video rename failed: {video_file.name}: {exc}")
                 else:
                     logger.info("[DRY RUN] Would rename video: %s → %s", video_file.name, clean_video_name)
             stream_info = extract_stream_info(video_file)
@@ -889,7 +919,9 @@ class Scraper:
         # Download artwork
         try:
             downloaded = self._artwork.download_movie_artwork(
-                movie_data, movie_dir, self.patterns,
+                movie_data,
+                movie_dir,
+                self.patterns,
             )
             result.artwork_downloaded = [p.name for p in downloaded]
         except Exception as e:
@@ -921,10 +953,7 @@ class Scraper:
             return results
 
         # Each subdirectory is a movie
-        subdirs = sorted(
-            d for d in movies_dir.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
+        subdirs = sorted(d for d in movies_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
 
         logger.info("Processing %d movies in %s", len(subdirs), movies_dir.name)
 
@@ -932,14 +961,17 @@ class Scraper:
             # Skip if TMDB circuit is OPEN (primary provider for movies)
             if not self._tmdb.circuit.can_proceed():
                 logger.warning(
-                    "TMDB circuit OPEN, skipping movie: %s", movie_dir.name,
+                    "TMDB circuit OPEN, skipping movie: %s",
+                    movie_dir.name,
                 )
-                results.append(ScrapeResult(
-                    media_path=movie_dir,
-                    media_type="movie",
-                    action="error",
-                    error="TMDB circuit breaker OPEN",
-                ))
+                results.append(
+                    ScrapeResult(
+                        media_path=movie_dir,
+                        media_type="movie",
+                        action="error",
+                        error="TMDB circuit breaker OPEN",
+                    )
+                )
                 continue
 
             try:
@@ -949,22 +981,27 @@ class Scraper:
                 # Circuit opened during this item's processing
                 logger.warning(
                     "TMDB circuit opened while processing %s: %s",
-                    movie_dir.name, e,
+                    movie_dir.name,
+                    e,
                 )
-                results.append(ScrapeResult(
-                    media_path=movie_dir,
-                    media_type="movie",
-                    action="error",
-                    error=str(e),
-                ))
+                results.append(
+                    ScrapeResult(
+                        media_path=movie_dir,
+                        media_type="movie",
+                        action="error",
+                        error=str(e),
+                    )
+                )
             except Exception as e:
                 logger.error("Unexpected error processing %s: %s", movie_dir.name, e)
-                results.append(ScrapeResult(
-                    media_path=movie_dir,
-                    media_type="movie",
-                    action="error",
-                    error=str(e),
-                ))
+                results.append(
+                    ScrapeResult(
+                        media_path=movie_dir,
+                        media_type="movie",
+                        action="error",
+                        error=str(e),
+                    )
+                )
 
         # Summary
         scraped = sum(1 for r in results if r.action == "scraped")
@@ -972,7 +1009,9 @@ class Scraper:
         errors = sum(1 for r in results if r.action == "error")
         logger.info(
             "Movies done: %d scraped, %d skipped, %d errors",
-            scraped, skipped, errors,
+            scraped,
+            skipped,
+            errors,
         )
 
         return results
@@ -1027,14 +1066,18 @@ class Scraper:
             result.action = "skipped_low_confidence"
             logger.info(
                 "No confident match for show: %s (score=%.2f)",
-                title, match.confidence if match else 0.0,
+                title,
+                match.confidence if match else 0.0,
             )
             return result
 
         result.match = match
         logger.info(
             "Matched show: %s → %s (%s, confidence=%.2f)",
-            title, match.api_title, match.source, match.confidence,
+            title,
+            match.api_title,
+            match.source,
+            match.confidence,
         )
 
         # Get full TMDB details (even if matched via TVDB)
@@ -1058,14 +1101,13 @@ class Scraper:
             return result
 
         # Resolve title: use local FR title if preferred and available
-        resolved_title = self._strip_trailing_year(
-            self._resolve_title(match.api_title, show_data, "tvshow")
-        )
+        resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, show_data, "tvshow"))
 
         # Rename folder to canonical name (V2→V3 handoff)
         old_dir_name = show_dir.name  # Save before potential rename
         canonical = self.patterns.format(
-            "movie_dir", Title=resolved_title,
+            "movie_dir",
+            Title=resolved_title,
             Year=match.api_year or year or "",
         )
         if show_dir.name != canonical:
@@ -1076,9 +1118,7 @@ class Scraper:
                         moved, merge_failed = _merge_dirs(show_dir, new_dir)
                         logger.info("Merged duplicate: %s → %s (%d items)", title, canonical, moved)
                         if merge_failed:
-                            result.warnings.append(
-                                f"Partial merge: {merge_failed} item(s) failed"
-                            )
+                            result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
                     else:
                         show_dir.rename(new_dir)
                         logger.info("Renamed folder: %s → %s", title, canonical)
@@ -1115,7 +1155,9 @@ class Scraper:
         # Download artwork
         try:
             downloaded = self._artwork.download_tvshow_artwork(
-                show_data, show_dir, self.patterns,
+                show_data,
+                show_dir,
+                self.patterns,
             )
             result.artwork_downloaded = [p.name for p in downloaded]
         except Exception as e:
@@ -1126,7 +1168,8 @@ class Scraper:
         # but skip files already organized in Saison XX/ directories
         total_renamed = 0
         video_files = sorted(
-            f for f in show_dir.rglob("*")
+            f
+            for f in show_dir.rglob("*")
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
             and not SEASON_DIR_RE.match(f.parent.name)
@@ -1194,7 +1237,8 @@ class Scraper:
         except requests.exceptions.RequestException:
             logger.warning(
                 "Failed to download episode thumbnail: S%02dE%02d",
-                season, episode,
+                season,
+                episode,
             )
 
     def _generate_episode_nfos(
@@ -1228,12 +1272,16 @@ class Scraper:
             season_dir_name = self.patterns.format("season_dir", Season=season)
             new_stem = self.patterns.format(
                 "episode_video",
-                Season=season, Episode=episode, EpisodeTitle=api_title,
+                Season=season,
+                Episode=episode,
+                EpisodeTitle=api_title,
             )
             nfo_path = show_dir / season_dir_name / f"{new_stem}.nfo"
             thumb_name = self.patterns.format(
                 "episode_thumb",
-                Season=season, Episode=episode, EpisodeTitle=api_title,
+                Season=season,
+                Episode=episode,
+                EpisodeTitle=api_title,
             )
             thumb_path = show_dir / season_dir_name / thumb_name
 
@@ -1269,7 +1317,10 @@ class Scraper:
                     self._nfo.write_nfo(xml, nfo_path)
             except Exception as e:
                 logger.warning(
-                    "Episode NFO failed for S%02dE%02d: %s", season, episode, e,
+                    "Episode NFO failed for S%02dE%02d: %s",
+                    season,
+                    episode,
+                    e,
                     exc_info=True,
                 )
 
@@ -1297,29 +1348,25 @@ class Scraper:
             logger.warning("TV shows directory not found: %s", tvshows_dir)
             return results
 
-        subdirs = sorted(
-            d for d in tvshows_dir.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
+        subdirs = sorted(d for d in tvshows_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
 
         logger.info("Processing %d TV shows in %s", len(subdirs), tvshows_dir.name)
 
         for show_dir in subdirs:
             # Skip if both circuits are OPEN (no provider available)
-            if (
-                not self._tvdb.circuit.can_proceed()
-                and not self._tmdb.circuit.can_proceed()
-            ):
+            if not self._tvdb.circuit.can_proceed() and not self._tmdb.circuit.can_proceed():
                 logger.warning(
                     "Both TVDB and TMDB circuits OPEN, skipping show: %s",
                     show_dir.name,
                 )
-                results.append(ScrapeResult(
-                    media_path=show_dir,
-                    media_type="tvshow",
-                    action="error",
-                    error="Both TVDB and TMDB circuit breakers OPEN",
-                ))
+                results.append(
+                    ScrapeResult(
+                        media_path=show_dir,
+                        media_type="tvshow",
+                        action="error",
+                        error="Both TVDB and TMDB circuit breakers OPEN",
+                    )
+                )
                 continue
 
             try:
@@ -1329,29 +1376,36 @@ class Scraper:
                 # Both providers went down during this item
                 logger.warning(
                     "Circuit opened while processing %s: %s",
-                    show_dir.name, e,
+                    show_dir.name,
+                    e,
                 )
-                results.append(ScrapeResult(
-                    media_path=show_dir,
-                    media_type="tvshow",
-                    action="error",
-                    error=str(e),
-                ))
+                results.append(
+                    ScrapeResult(
+                        media_path=show_dir,
+                        media_type="tvshow",
+                        action="error",
+                        error=str(e),
+                    )
+                )
             except Exception as e:
                 logger.error("Unexpected error processing %s: %s", show_dir.name, e)
-                results.append(ScrapeResult(
-                    media_path=show_dir,
-                    media_type="tvshow",
-                    action="error",
-                    error=str(e),
-                ))
+                results.append(
+                    ScrapeResult(
+                        media_path=show_dir,
+                        media_type="tvshow",
+                        action="error",
+                        error=str(e),
+                    )
+                )
 
         scraped = sum(1 for r in results if r.action == "scraped")
         skipped = sum(1 for r in results if r.action.startswith("skipped"))
         errors = sum(1 for r in results if r.action == "error")
         logger.info(
             "TV shows done: %d scraped, %d skipped, %d errors",
-            scraped, skipped, errors,
+            scraped,
+            skipped,
+            errors,
         )
 
         return results

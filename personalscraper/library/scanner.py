@@ -46,16 +46,38 @@ _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 _JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
 
 # Video extensions (same set as sorter/file_type.py)
-_VIDEO_EXTENSIONS = frozenset({
-    "mp4", "mkv", "avi", "mov", "wmv", "flv", "mpg", "mpeg",
-    "m4v", "webm", "ts", "m2ts", "mts", "3gp", "vob", "ogv", "rmvb",
-})
+_VIDEO_EXTENSIONS = frozenset(
+    {
+        "mp4",
+        "mkv",
+        "avi",
+        "mov",
+        "wmv",
+        "flv",
+        "mpg",
+        "mpeg",
+        "m4v",
+        "webm",
+        "ts",
+        "m2ts",
+        "mts",
+        "3gp",
+        "vob",
+        "ogv",
+        "rmvb",
+    }
+)
 
 # Categories that contain TV shows (matching dispatch/media_index.py convention)
-_SERIES_CATEGORIES = frozenset({
-    "series", "series animations", "series documentaires",
-    "series animes", "emissions",
-})
+_SERIES_CATEGORIES = frozenset(
+    {
+        "series",
+        "series animations",
+        "series documentaires",
+        "series animes",
+        "emissions",
+    }
+)
 
 # Categories where "Author Name" naming (no year) is normal
 _AUTHOR_CATEGORIES = frozenset({"livres audios"})
@@ -95,7 +117,7 @@ def _dir_size_gb(path: Path) -> float:
                     continue
     except OSError as exc:
         logger.warning("Cannot measure directory size %s: %s", path, exc)
-    return total / (1024 ** 3)
+    return total / (1024**3)
 
 
 def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
@@ -259,13 +281,15 @@ def _scan_seasons(show_dir: Path) -> list[SeasonInfo]:
         poster_name = f"season{season_num:02d}-poster.jpg"
         has_poster = (show_dir / poster_name).exists()
 
-        seasons.append(SeasonInfo(
-            number=season_num,
-            path=str(subdir),
-            episode_count=episode_count,
-            has_poster=has_poster,
-            episodes_with_nfo=nfo_count,
-        ))
+        seasons.append(
+            SeasonInfo(
+                number=season_num,
+                path=str(subdir),
+                episode_count=episode_count,
+                has_poster=has_poster,
+                episodes_with_nfo=nfo_count,
+            )
+        )
 
     return seasons
 

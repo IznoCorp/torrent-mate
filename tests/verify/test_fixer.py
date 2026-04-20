@@ -42,6 +42,7 @@ def _make_nfo(directory: Path, title: str, year: str, filename: str = "") -> Pat
 # Movie fixer
 # ---------------------------------------------------------------------------
 
+
 class TestFixMovieDirNaming:
     """Tests for movie directory rename fix."""
 
@@ -104,6 +105,7 @@ class TestFixMovieDirNaming:
 # TV show fixer
 # ---------------------------------------------------------------------------
 
+
 class TestFixTvshowDirNaming:
     """Tests for TV show directory rename fix."""
 
@@ -129,11 +131,15 @@ class TestFixTvshowDirNaming:
 # Integration: fix → re-check
 # ---------------------------------------------------------------------------
 
+
 class TestFixThenRecheck:
     """Integration tests: fix a broken dir, then re-check."""
 
     def test_movie_fix_recheck(
-        self, fixer: MediaFixer, checker: MediaChecker, tmp_path: Path,
+        self,
+        fixer: MediaFixer,
+        checker: MediaChecker,
+        tmp_path: Path,
     ) -> None:
         """Fixing a badly named movie should make dir_naming pass on re-check."""
         bad_dir = tmp_path / "fight.club"
@@ -174,7 +180,10 @@ class TestFixThenRecheck:
         assert naming2.passed
 
     def test_unfixable_stays_broken(
-        self, fixer: MediaFixer, checker: MediaChecker, tmp_path: Path,
+        self,
+        fixer: MediaFixer,
+        checker: MediaChecker,
+        tmp_path: Path,
     ) -> None:
         """Non-fixable issues should remain after fix attempt."""
         empty_dir = tmp_path / "Empty (2024)"

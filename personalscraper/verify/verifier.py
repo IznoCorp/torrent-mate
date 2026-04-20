@@ -145,20 +145,21 @@ class Verifier:
         if not movies_dir.exists():
             return results
 
-        subdirs = sorted(
-            d for d in movies_dir.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
+        subdirs = sorted(d for d in movies_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
 
         for d in subdirs:
             try:
                 results.append(self.verify_movie(d))
             except Exception as e:
                 logger.error("Error verifying movie %s: %s", d.name, e)
-                results.append(VerifyResult(
-                    media_path=d, media_type="movie",
-                    status="blocked", errors=[str(e)],
-                ))
+                results.append(
+                    VerifyResult(
+                        media_path=d,
+                        media_type="movie",
+                        status="blocked",
+                        errors=[str(e)],
+                    )
+                )
 
         return results
 
@@ -175,20 +176,21 @@ class Verifier:
         if not tvshows_dir.exists():
             return results
 
-        subdirs = sorted(
-            d for d in tvshows_dir.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        )
+        subdirs = sorted(d for d in tvshows_dir.iterdir() if d.is_dir() and not d.name.startswith("."))
 
         for d in subdirs:
             try:
                 results.append(self.verify_tvshow(d))
             except Exception as e:
                 logger.error("Error verifying show %s: %s", d.name, e)
-                results.append(VerifyResult(
-                    media_path=d, media_type="tvshow",
-                    status="blocked", errors=[str(e)],
-                ))
+                results.append(
+                    VerifyResult(
+                        media_path=d,
+                        media_type="tvshow",
+                        status="blocked",
+                        errors=[str(e)],
+                    )
+                )
 
         return results
 
@@ -223,14 +225,8 @@ class Verifier:
             media_dir: Current media directory path.
             media_type: "movie" or "tvshow".
         """
-        result.errors = [
-            c.message for c in checks
-            if not c.passed and c.severity == Severity.ERROR
-        ]
-        result.warnings = [
-            c.message for c in checks
-            if not c.passed and c.severity == Severity.WARNING
-        ]
+        result.errors = [c.message for c in checks if not c.passed and c.severity == Severity.ERROR]
+        result.warnings = [c.message for c in checks if not c.passed and c.severity == Severity.WARNING]
 
         # Determine category
         cat_check = next((c for c in checks if c.name == "category"), None)

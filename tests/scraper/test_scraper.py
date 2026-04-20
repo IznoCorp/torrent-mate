@@ -23,6 +23,7 @@ from personalscraper.scraper.scraper import (
 # Folder name parsing
 # ---------------------------------------------------------------------------
 
+
 class TestParseFolderName:
     """Tests for _parse_folder_name."""
 
@@ -55,6 +56,7 @@ class TestParseFolderName:
 # Video file finding
 # ---------------------------------------------------------------------------
 
+
 class TestFindVideoFile:
     """Tests for _find_video_file."""
 
@@ -77,6 +79,7 @@ class TestFindVideoFile:
 # Video file finding — nested torrent structures (bug #6)
 # ---------------------------------------------------------------------------
 
+
 class TestFindVideoFileNested:
     """Tests for _find_video_file with nested torrent structures."""
 
@@ -90,6 +93,7 @@ class TestFindVideoFileNested:
         video.write_bytes(b"\x00" * 1000)
 
         from personalscraper.scraper.scraper import _find_video_file
+
         result = _find_video_file(movie_dir)
 
         assert result is not None
@@ -106,6 +110,7 @@ class TestFindVideoFileNested:
         main.write_bytes(b"\x00" * 10000)
 
         from personalscraper.scraper.scraper import _find_video_file
+
         result = _find_video_file(movie_dir)
 
         assert result == main
@@ -120,6 +125,7 @@ class TestFindVideoFileNested:
         video.write_bytes(b"\x00" * 1000)
 
         from personalscraper.scraper.scraper import _find_video_file
+
         result = _find_video_file(movie_dir)
 
         assert result == video
@@ -128,6 +134,7 @@ class TestFindVideoFileNested:
 # ---------------------------------------------------------------------------
 # Empty release-group dir cleanup (bug #7, #8)
 # ---------------------------------------------------------------------------
+
 
 class TestCleanupEmptyReleaseDirs:
     """Tests for empty release-group directory cleanup after episode rename."""
@@ -155,6 +162,7 @@ class TestCleanupEmptyReleaseDirs:
         (show_dir / ".actors").mkdir()
 
         from personalscraper.scraper.scraper import _cleanup_empty_release_dirs
+
         removed = _cleanup_empty_release_dirs(show_dir)
 
         assert removed == 2
@@ -168,6 +176,7 @@ class TestCleanupEmptyReleaseDirs:
 # ---------------------------------------------------------------------------
 # Movie scraping orchestration
 # ---------------------------------------------------------------------------
+
 
 class TestScrapeMovie:
     """Tests for Scraper.scrape_movie."""
@@ -188,21 +197,23 @@ class TestScrapeMovie:
         return s
 
     def test_skip_if_nfo_exists(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should skip movie if valid .nfo already exists."""
         movie_dir = tmp_path / "The Matrix (1999)"
         movie_dir.mkdir()
         # Valid NFO must have <uniqueid> to pass _is_nfo_complete
-        (movie_dir / "The Matrix.nfo").write_text(
-            '<movie><uniqueid type="tmdb">603</uniqueid></movie>'
-        )
+        (movie_dir / "The Matrix.nfo").write_text('<movie><uniqueid type="tmdb">603</uniqueid></movie>')
 
         result = scraper.scrape_movie(movie_dir)
         assert result.action == "skipped_already_done"
 
     def test_skip_low_confidence(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should skip if no confident match found."""
         movie_dir = tmp_path / "Unknown Movie (2024)"
@@ -214,7 +225,9 @@ class TestScrapeMovie:
         assert result.action == "skipped_low_confidence"
 
     def test_full_scrape_flow(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should complete full scrape: match → details → NFO → artwork."""
         movie_dir = tmp_path / "The Matrix (1999)"
@@ -222,8 +235,11 @@ class TestScrapeMovie:
         (movie_dir / "The Matrix.mkv").write_text("video")
 
         match = MatchResult(
-            api_id=603, api_title="The Matrix",
-            api_year=1999, confidence=0.95, source="tmdb",
+            api_id=603,
+            api_title="The Matrix",
+            api_year=1999,
+            confidence=0.95,
+            source="tmdb",
         )
         movie_data = {
             "id": 603,
@@ -256,7 +272,9 @@ class TestScrapeMovie:
         assert (movie_dir / "The Matrix.nfo").exists()
 
     def test_error_on_match_failure(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should return error result on match exception."""
         movie_dir = tmp_path / "Bad Movie (2024)"
@@ -275,6 +293,7 @@ class TestScrapeMovie:
 # ---------------------------------------------------------------------------
 # Batch movie processing
 # ---------------------------------------------------------------------------
+
 
 class TestProcessMovies:
     """Tests for Scraper.process_movies."""
@@ -295,7 +314,9 @@ class TestProcessMovies:
         return s
 
     def test_processes_all_subdirs(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should call scrape_movie for each subdirectory."""
         movies_dir = tmp_path / "001-MOVIES"
@@ -307,7 +328,9 @@ class TestProcessMovies:
 
         with patch.object(scraper, "scrape_movie") as mock_scrape:
             mock_scrape.return_value = ScrapeResult(
-                media_path=Path("."), media_type="movie", action="scraped",
+                media_path=Path("."),
+                media_type="movie",
+                action="scraped",
             )
             results = scraper.process_movies(movies_dir)
 
@@ -320,7 +343,9 @@ class TestProcessMovies:
         assert results == []
 
     def test_handles_scrape_error(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should catch exceptions and add error results."""
         movies_dir = tmp_path / "001-MOVIES"
@@ -328,7 +353,8 @@ class TestProcessMovies:
         (movies_dir / "Bad Movie (2024)").mkdir()
 
         with patch.object(
-            scraper, "scrape_movie",
+            scraper,
+            "scrape_movie",
             side_effect=RuntimeError("unexpected"),
         ):
             results = scraper.process_movies(movies_dir)
@@ -340,6 +366,7 @@ class TestProcessMovies:
 # ---------------------------------------------------------------------------
 # TV show scraping orchestration
 # ---------------------------------------------------------------------------
+
 
 class TestScrapeTvshow:
     """Tests for Scraper.scrape_tvshow."""
@@ -363,21 +390,23 @@ class TestScrapeTvshow:
         return s
 
     def test_skip_if_tvshow_nfo_exists(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should skip show if valid tvshow.nfo already exists."""
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
         # Valid NFO must have <uniqueid> to pass _is_nfo_complete
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tvdb">123</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">123</uniqueid></tvshow>')
 
         result = scraper.scrape_tvshow(show_dir)
         assert result.action == "skipped_already_done"
 
     def test_skip_low_confidence(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should skip if no confident match found."""
         show_dir = tmp_path / "Unknown Show (2024)"
@@ -389,15 +418,20 @@ class TestScrapeTvshow:
         assert result.action == "skipped_low_confidence"
 
     def test_full_scrape_flow(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should complete full scrape: match → details → NFO → artwork."""
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
 
         match = MatchResult(
-            api_id=106379, api_title="Fallout",
-            api_year=2024, confidence=0.95, source="tmdb",
+            api_id=106379,
+            api_title="Fallout",
+            api_year=2024,
+            confidence=0.95,
+            source="tmdb",
         )
         show_data = {
             "id": 106379,
@@ -437,6 +471,7 @@ class TestScrapeTvshow:
 # Batch TV show processing
 # ---------------------------------------------------------------------------
 
+
 class TestProcessTvshows:
     """Tests for Scraper.process_tvshows."""
 
@@ -459,7 +494,9 @@ class TestProcessTvshows:
         return s
 
     def test_processes_all_subdirs(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Should call scrape_tvshow for each subdirectory."""
         tvshows_dir = tmp_path / "002-TVSHOWS"
@@ -470,7 +507,9 @@ class TestProcessTvshows:
 
         with patch.object(scraper, "scrape_tvshow") as mock_scrape:
             mock_scrape.return_value = ScrapeResult(
-                media_path=Path("."), media_type="tvshow", action="scraped",
+                media_path=Path("."),
+                media_type="tvshow",
+                action="scraped",
             )
             results = scraper.process_tvshows(tvshows_dir)
 
@@ -507,7 +546,9 @@ class TestScrapeMovieExtra:
         return s
 
     def test_process_movie_api_failure(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """API failure should return error result, pipeline continues."""
         movie_dir = tmp_path / "ApiDown (2024)"
@@ -523,15 +564,20 @@ class TestScrapeMovieExtra:
         assert "TMDB unreachable" in (result.error or "")
 
     def test_process_movie_low_confidence_returns_match(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Low confidence match should return MatchResult with low score."""
         movie_dir = tmp_path / "Ambiguous (2024)"
         movie_dir.mkdir()
 
         low_match = MatchResult(
-            api_id=1, api_title="Something Else",
-            api_year=2024, confidence=0.3, source="tmdb",
+            api_id=1,
+            api_title="Something Else",
+            api_year=2024,
+            confidence=0.3,
+            source="tmdb",
         )
         with patch("personalscraper.scraper.scraper.match_movie", return_value=low_match):
             result = scraper.scrape_movie(movie_dir)
@@ -539,14 +585,14 @@ class TestScrapeMovieExtra:
         assert result.action == "skipped_low_confidence"
 
     def test_scraper_already_scraped_skip(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Valid NFO exists should skip (tested via scrape_movie, not process)."""
         movie_dir = tmp_path / "Already (2024)"
         movie_dir.mkdir()
-        (movie_dir / "Already.nfo").write_text(
-            '<movie><uniqueid type="tmdb">999</uniqueid></movie>'
-        )
+        (movie_dir / "Already.nfo").write_text('<movie><uniqueid type="tmdb">999</uniqueid></movie>')
 
         result = scraper.scrape_movie(movie_dir)
         assert result.action == "skipped_already_done"
@@ -574,7 +620,9 @@ class TestScrapeTvshowExtra:
         return s
 
     def test_process_tvshow_api_failure(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """API failure for TV show should return error result."""
         show_dir = tmp_path / "ApiDown (2024)"
@@ -590,7 +638,9 @@ class TestScrapeTvshowExtra:
         assert "TVDB unreachable" in (result.error or "")
 
     def test_process_tvshows_handles_error(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Exception in scrape_tvshow should produce error result in batch."""
         tvshows_dir = tmp_path / "002-TVSHOWS"
@@ -598,7 +648,8 @@ class TestScrapeTvshowExtra:
         (tvshows_dir / "Crash Show (2024)").mkdir()
 
         with patch.object(
-            scraper, "scrape_tvshow",
+            scraper,
+            "scrape_tvshow",
             side_effect=RuntimeError("unexpected"),
         ):
             results = scraper.process_tvshows(tvshows_dir)
@@ -631,7 +682,9 @@ class TestCircuitBreakerFallback:
         return s
 
     def test_process_movies_skips_when_tmdb_circuit_open(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """Movies are skipped when TMDB circuit is OPEN."""
         from personalscraper.scraper.tmdb_client import TMDBError
@@ -653,7 +706,9 @@ class TestCircuitBreakerFallback:
         assert all("circuit breaker OPEN" in (r.error or "") for r in results)
 
     def test_process_movies_catches_circuit_open_during_scrape(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """CircuitOpenError during scrape_movie is caught gracefully."""
         from personalscraper.scraper.circuit_breaker import CircuitOpenError
@@ -663,7 +718,8 @@ class TestCircuitBreakerFallback:
         (movies_dir / "Movie A (2024)").mkdir()
 
         with patch.object(
-            scraper, "scrape_movie",
+            scraper,
+            "scrape_movie",
             side_effect=CircuitOpenError("TMDB", 120.0),
         ):
             results = scraper.process_movies(movies_dir)
@@ -673,7 +729,9 @@ class TestCircuitBreakerFallback:
         assert "TMDB" in (results[0].error or "")
 
     def test_process_tvshows_skips_when_both_circuits_open(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """TV shows are skipped when both TVDB and TMDB circuits are OPEN."""
         from personalscraper.scraper.tmdb_client import TMDBError
@@ -697,7 +755,9 @@ class TestCircuitBreakerFallback:
         assert "Both" in (results[0].error or "")
 
     def test_process_tvshows_continues_when_only_tvdb_open(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """TV shows still process when only TVDB is OPEN (TMDB fallback)."""
         from personalscraper.scraper.tvdb_client import TVDBError
@@ -751,6 +811,7 @@ class TestCleanupStaleFiles:
         (movie_dir / "Title Subtitle.mkv").write_bytes(b"video")
 
         from personalscraper.scraper.scraper import _cleanup_stale_files
+
         _cleanup_stale_files(movie_dir, "Title : Subtitle", "Title Subtitle")
 
         # Old files should be gone
@@ -775,6 +836,7 @@ class TestCleanupStaleFiles:
         (movie_dir / "Title : Subtitle-poster.jpg").write_bytes(b"old_poster")
 
         from personalscraper.scraper.scraper import _cleanup_stale_files
+
         _cleanup_stale_files(movie_dir, "Title : Subtitle", "Title Subtitle")
 
         # Should NOT be deleted (no replacement exists)
@@ -786,6 +848,7 @@ class TestCleanupStaleFiles:
         movie_dir.mkdir()
 
         from personalscraper.scraper.scraper import _cleanup_stale_files
+
         _cleanup_stale_files(movie_dir, "Old Name", "New Name")  # No crash
 
 
@@ -813,7 +876,9 @@ class TestRepairMovieDir:
         return s
 
     def test_repair_movie_dir_removes_residual_nfos(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """Movie with 2 NFOs: keep the correct one, delete residual."""
         movie_dir = tmp_path / "Avatar De feu et de cendres (2025)"
@@ -830,7 +895,9 @@ class TestRepairMovieDir:
         assert not bad_nfo.exists()
 
     def test_repair_movie_dir_noop_when_clean(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """Movie with exactly 1 NFO → no repair needed."""
         movie_dir = tmp_path / "Scream 7 (2026)"
@@ -870,15 +937,15 @@ class TestRepairTvshowDir:
         return s
 
     def test_removes_root_nfo_residuals(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """tvshow.nfo is kept, other .nfo at root are removed."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
         tvshow_nfo = show_dir / "tvshow.nfo"
-        tvshow_nfo.write_text(
-            '<tvshow><uniqueid type="tmdb">123</uniqueid></tvshow>'
-        )
+        tvshow_nfo.write_text('<tvshow><uniqueid type="tmdb">123</uniqueid></tvshow>')
         residual = show_dir / "random.nfo"
         residual.write_text("<movie/>")
 
@@ -888,14 +955,14 @@ class TestRepairTvshowDir:
         assert not residual.exists()
 
     def test_removes_root_mkv_duplicates(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """MKV at root matching SxxExx in Saison XX/ is deleted."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s02 = show_dir / "Saison 02"
         s02.mkdir()
         (s02 / "S02E01 - Episode Title.mkv").write_bytes(b"\x00" * 100)
@@ -908,14 +975,14 @@ class TestRepairTvshowDir:
         assert (s02 / "S02E01 - Episode Title.mkv").exists()
 
     def test_noop_when_clean(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """Clean show dir with no issues returns False."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         (show_dir / "poster.jpg").write_bytes(b"\x00")
         s01 = show_dir / "Saison 01"
         s01.mkdir()
@@ -925,14 +992,14 @@ class TestRepairTvshowDir:
         assert repaired is False
 
     def test_removes_multiple_residual_nfos(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """Multiple residual NFOs at root are all removed."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         (show_dir / "S01E01.nfo").write_text("<episodedetails/>")
         (show_dir / "S01E02.nfo").write_text("<episodedetails/>")
 
@@ -943,14 +1010,14 @@ class TestRepairTvshowDir:
         assert not (show_dir / "S01E02.nfo").exists()
 
     def test_root_video_not_matching_season_kept(
-        self, tmp_path: Path, scraper: Scraper,
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
     ) -> None:
         """Root video NOT matching any organized episode is kept (not deleted)."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s01 = show_dir / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
@@ -1021,15 +1088,20 @@ class TestMediaPathUpdatedAfterRename:
         return s
 
     def test_tvshow_media_path_updated_after_rename(
-        self, scraper: Scraper, tmp_path: Path,
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
     ) -> None:
         """After renaming 'Show' → 'Show (2024)', result.media_path must be the new path."""
         show_dir = tmp_path / "Fallout"
         show_dir.mkdir()
 
         match = MatchResult(
-            api_id=106379, api_title="Fallout",
-            api_year=2024, confidence=0.95, source="tmdb",
+            api_id=106379,
+            api_title="Fallout",
+            api_year=2024,
+            confidence=0.95,
+            source="tmdb",
         )
         show_data = {
             "id": 106379,

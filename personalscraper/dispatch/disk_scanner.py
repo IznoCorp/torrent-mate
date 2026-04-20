@@ -23,19 +23,37 @@ logger = logging.getLogger(__name__)
 # Disk → category mapping (matches CLAUDE.md "Storage Disks" table)
 DISK_CATEGORIES: dict[str, list[str]] = {
     "Disk1": [
-        "films", "films animations", "films documentaires", "livres audios",
-        "series", "series animations", "series documentaires",
-        "spectacles", "theatres", "emissions",
+        "films",
+        "films animations",
+        "films documentaires",
+        "livres audios",
+        "series",
+        "series animations",
+        "series documentaires",
+        "spectacles",
+        "theatres",
+        "emissions",
     ],
     "Disk2": ["series", "series animes"],
     "Disk3": [
-        "films", "films animations", "films documentaires", "livres audios",
-        "series", "series animations", "series documentaires",
-        "spectacles", "theatres", "emissions",
+        "films",
+        "films animations",
+        "films documentaires",
+        "livres audios",
+        "series",
+        "series animations",
+        "series documentaires",
+        "spectacles",
+        "theatres",
+        "emissions",
     ],
     "Disk4": [
-        "films", "films animations", "series", "series animations",
-        "series documentaires", "emissions",
+        "films",
+        "films animations",
+        "series",
+        "series animations",
+        "series documentaires",
+        "emissions",
     ],
 }
 
@@ -96,11 +114,13 @@ def get_disk_configs(settings: Settings) -> list[DiskConfig]:
 
     configs = []
     for name, path in disk_paths.items():
-        configs.append(DiskConfig(
-            name=name,
-            path=path,
-            categories=DISK_CATEGORIES[name],
-        ))
+        configs.append(
+            DiskConfig(
+                name=name,
+                path=path,
+                categories=DISK_CATEGORIES[name],
+            )
+        )
 
     return configs
 
@@ -120,7 +140,7 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
     if is_mounted:
         try:
             usage = shutil.disk_usage(config.path)
-            free_space_gb = usage.free / (1024 ** 3)
+            free_space_gb = usage.free / (1024**3)
         except OSError as exc:
             # Can't read disk usage — treat as unmounted to avoid
             # dispatching to an unusable disk
@@ -166,12 +186,7 @@ def choose_disk(
     threshold = max(min_free_gb, item_size_gb * 1.5)
 
     # Pass 1: disks with the category and enough space
-    eligible = [
-        d for d in disks
-        if d.is_mounted
-        and category in d.config.categories
-        and d.free_space_gb >= threshold
-    ]
+    eligible = [d for d in disks if d.is_mounted and category in d.config.categories and d.free_space_gb >= threshold]
 
     if eligible:
         eligible.sort(key=lambda d: d.free_space_gb, reverse=True)
@@ -179,26 +194,22 @@ def choose_disk(
 
     # Pass 2: any mounted disk with enough space (create category)
     if allow_create_category:
-        fallback = [
-            d for d in disks
-            if d.is_mounted
-            and d.free_space_gb >= threshold
-        ]
+        fallback = [d for d in disks if d.is_mounted and d.free_space_gb >= threshold]
         if fallback:
             fallback.sort(key=lambda d: d.free_space_gb, reverse=True)
             chosen = fallback[0]
             # Warn if the chosen disk is not configured for this category
             if category not in chosen.config.categories:
                 logger.warning(
-                    "Category '%s' not in %s config — creating anyway "
-                    "(overflow: no configured disk has space)",
-                    category, chosen.config.name,
+                    "Category '%s' not in %s config — creating anyway (overflow: no configured disk has space)",
+                    category,
+                    chosen.config.name,
                 )
             else:
                 logger.info(
-                    "No disk has category '%s' with space — "
-                    "falling back to %s (most free)",
-                    category, chosen.config.name,
+                    "No disk has category '%s' with space — falling back to %s (most free)",
+                    category,
+                    chosen.config.name,
                 )
             return chosen
 

@@ -3,7 +3,6 @@
 All tests use real filesystem operations. API calls are mocked.
 """
 
-
 from personalscraper.process.reclean import reclean_folders
 from personalscraper.sorter.run import run_sort
 

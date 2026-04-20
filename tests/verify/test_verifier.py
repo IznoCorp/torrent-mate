@@ -40,6 +40,7 @@ def _make_valid_movie(parent: Path, title: str = "Movie", year: int = 2024) -> P
 # Verifier orchestrator
 # ---------------------------------------------------------------------------
 
+
 class TestVerifyMovie:
     """Tests for Verifier.verify_movie."""
 
@@ -107,6 +108,7 @@ class TestGetDispatchable:
 # StepReport conversion
 # ---------------------------------------------------------------------------
 
+
 class TestToStepReport:
     """Tests for _to_step_report."""
 
@@ -114,10 +116,8 @@ class TestToStepReport:
         """Should count valid+fixed as success, blocked as error."""
         results = [
             VerifyResult(Path("a"), "movie", status="valid", category="films"),
-            VerifyResult(Path("b"), "movie", status="fixed", category="films",
-                         fixes_applied=["Fixed dir"]),
-            VerifyResult(Path("c"), "movie", status="blocked",
-                         errors=["No video"]),
+            VerifyResult(Path("b"), "movie", status="fixed", category="films", fixes_applied=["Fixed dir"]),
+            VerifyResult(Path("c"), "movie", status="blocked", errors=["No video"]),
         ]
         report = _to_step_report(results)
         assert report.success_count == 2
@@ -127,6 +127,7 @@ class TestToStepReport:
 # ---------------------------------------------------------------------------
 # run_verify integration
 # ---------------------------------------------------------------------------
+
 
 class TestVerifyCheckFixCycle:
     """Tests for the check → fix → re-check cycle."""
