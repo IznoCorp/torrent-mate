@@ -70,6 +70,7 @@ def e2e_qbit_client():
 
     try:
         from personalscraper.config import get_settings
+
         settings = get_settings()
         client = qbittorrentapi.Client(
             host=settings.qbit_host,
@@ -108,4 +109,5 @@ def e2e_settings():
         A Settings instance.
     """
     from personalscraper.config import get_settings
+
     return get_settings()

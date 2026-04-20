@@ -23,6 +23,7 @@ def mapper() -> GenreMapper:
 # Movie categorization — ID-based
 # ---------------------------------------------------------------------------
 
+
 class TestCategorizeMovieIds:
     """Tests for categorize_movie with genre IDs."""
 
@@ -46,6 +47,7 @@ class TestCategorizeMovieIds:
 # ---------------------------------------------------------------------------
 # Movie categorization — string fallback
 # ---------------------------------------------------------------------------
+
 
 class TestCategorizeMovieStrings:
     """Tests for categorize_movie with genre name strings."""
@@ -75,87 +77,147 @@ class TestCategorizeMovieStrings:
 # TV show categorization — TMDB IDs
 # ---------------------------------------------------------------------------
 
+
 class TestCategorizeTvshowTMDB:
     """Tests for categorize_tvshow with TMDB genre IDs."""
 
     def test_animation_jp(self, mapper: GenreMapper) -> None:
         """Animation + JP origin → 'series animes'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[16], origin_country="JP", source="tmdb",
-        ) == "series animes"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[16],
+                origin_country="JP",
+                source="tmdb",
+            )
+            == "series animes"
+        )
 
     def test_animation_non_jp(self, mapper: GenreMapper) -> None:
         """Animation without JP → 'series animations'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[16], origin_country="US", source="tmdb",
-        ) == "series animations"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[16],
+                origin_country="US",
+                source="tmdb",
+            )
+            == "series animations"
+        )
 
     def test_documentary(self, mapper: GenreMapper) -> None:
         """Documentary → 'series documentaires'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[99], source="tmdb",
-        ) == "series documentaires"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[99],
+                source="tmdb",
+            )
+            == "series documentaires"
+        )
 
     def test_reality(self, mapper: GenreMapper) -> None:
         """Reality → 'emissions'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[10764], source="tmdb",
-        ) == "emissions"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[10764],
+                source="tmdb",
+            )
+            == "emissions"
+        )
 
     def test_talk(self, mapper: GenreMapper) -> None:
         """Talk → 'emissions'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[10767], source="tmdb",
-        ) == "emissions"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[10767],
+                source="tmdb",
+            )
+            == "emissions"
+        )
 
     def test_news(self, mapper: GenreMapper) -> None:
         """News → 'emissions'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[10763], source="tmdb",
-        ) == "emissions"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[10763],
+                source="tmdb",
+            )
+            == "emissions"
+        )
 
     def test_default(self, mapper: GenreMapper) -> None:
         """Other genres → 'series'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[18, 80], source="tmdb",
-        ) == "series"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[18, 80],
+                source="tmdb",
+            )
+            == "series"
+        )
 
 
 # ---------------------------------------------------------------------------
 # TV show categorization — TVDB IDs
 # ---------------------------------------------------------------------------
 
+
 class TestCategorizeTvshowTVDB:
     """Tests for categorize_tvshow with TVDB genre IDs."""
 
     def test_anime_tvdb(self, mapper: GenreMapper) -> None:
         """TVDB Anime genre (27) → 'series animes'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[27], source="tvdb",
-        ) == "series animes"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[27],
+                source="tvdb",
+            )
+            == "series animes"
+        )
 
     def test_animation_tvdb(self, mapper: GenreMapper) -> None:
         """TVDB Animation (17) → 'series animations'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[17], source="tvdb",
-        ) == "series animations"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[17],
+                source="tvdb",
+            )
+            == "series animations"
+        )
 
     def test_documentary_tvdb(self, mapper: GenreMapper) -> None:
         """TVDB Documentary (3) → 'series documentaires'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[3], source="tvdb",
-        ) == "series documentaires"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[3],
+                source="tvdb",
+            )
+            == "series documentaires"
+        )
 
     def test_reality_tvdb(self, mapper: GenreMapper) -> None:
         """TVDB Reality (8) → 'emissions'."""
-        assert mapper.categorize_tvshow(
-            [], genre_ids=[8], source="tvdb",
-        ) == "emissions"
+        assert (
+            mapper.categorize_tvshow(
+                [],
+                genre_ids=[8],
+                source="tvdb",
+            )
+            == "emissions"
+        )
 
 
 # ---------------------------------------------------------------------------
 # TV show categorization — string fallback
 # ---------------------------------------------------------------------------
+
 
 class TestCategorizeTvshowStrings:
     """Tests for categorize_tvshow with genre name strings."""
@@ -166,9 +228,13 @@ class TestCategorizeTvshowStrings:
 
     def test_animation_jp_string(self, mapper: GenreMapper) -> None:
         """'Animation' + JP → 'series animes'."""
-        assert mapper.categorize_tvshow(
-            ["Animation"], origin_country="JP",
-        ) == "series animes"
+        assert (
+            mapper.categorize_tvshow(
+                ["Animation"],
+                origin_country="JP",
+            )
+            == "series animes"
+        )
 
     def test_animation_non_jp_string(self, mapper: GenreMapper) -> None:
         """'Animation' without JP → 'series animations'."""
@@ -178,6 +244,7 @@ class TestCategorizeTvshowStrings:
 # ---------------------------------------------------------------------------
 # NFO-based categorization
 # ---------------------------------------------------------------------------
+
 
 class TestCategorizeFromNFO:
     """Tests for categorize_from_nfo."""
@@ -257,18 +324,17 @@ class TestCategorizeFromNFO:
 # French TMDB genre variants (Bug #12)
 # ---------------------------------------------------------------------------
 
+
 class TestFrenchTMDBGenres:
     """Tests for French TMDB genre variants that were missing from _REALITY_NAMES."""
 
     def test_categorize_from_nfo_french_emission_is_emissions(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """NFO with French TMDB genre 'Émission' → emissions."""
         nfo = tmp_path / "tvshow.nfo"
-        nfo.write_text(
-            '<tvshow><genre>Émission</genre>'
-            '<uniqueid type="tmdb">312697</uniqueid></tvshow>'
-        )
+        nfo.write_text('<tvshow><genre>Émission</genre><uniqueid type="tmdb">312697</uniqueid></tvshow>')
         mapper = GenreMapper()
         result = mapper.categorize_from_nfo(nfo, media_type="tvshow")
         assert result == "emissions"
@@ -296,16 +362,24 @@ class TestFrenchTMDBGenres:
 # KNOWN_CATEGORIES validation
 # ---------------------------------------------------------------------------
 
+
 class TestKnownCategories:
     """Tests for KNOWN_CATEGORIES constant."""
 
     def test_all_disk_categories_present(self) -> None:
         """All categories from storage disks should be in KNOWN_CATEGORIES."""
         disk_categories = {
-            "films", "films animations", "films documentaires",
-            "livres audios", "series", "series animations",
-            "series documentaires", "spectacles", "theatres",
-            "emissions", "series animes",
+            "films",
+            "films animations",
+            "films documentaires",
+            "livres audios",
+            "series",
+            "series animations",
+            "series documentaires",
+            "spectacles",
+            "theatres",
+            "emissions",
+            "series animes",
         }
         assert disk_categories <= KNOWN_CATEGORIES
 

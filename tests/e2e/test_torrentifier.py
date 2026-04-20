@@ -4,7 +4,6 @@ Tests folder name parsing, dot-conversion, deterministic seeding,
 and torrent name generation for both movies and TV shows.
 """
 
-
 from tests.e2e.torrentifier import (
     _deterministic_seed,
     _to_dots,

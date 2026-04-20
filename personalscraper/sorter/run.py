@@ -82,10 +82,7 @@ def _has_unsorted_items(settings: Settings) -> bool:
     ingest_dir = settings.ingest_dir
     if not ingest_dir.exists():
         return False
-    return any(
-        not item.name.startswith(".")
-        for item in ingest_dir.iterdir()
-    )
+    return any(not item.name.startswith(".") for item in ingest_dir.iterdir())
 
 
 def assert_temp_empty(settings: Settings) -> list[str]:
@@ -103,11 +100,7 @@ def assert_temp_empty(settings: Settings) -> list[str]:
     ingest_dir = settings.ingest_dir
     if not ingest_dir.exists():
         return []
-    remaining = [
-        item.name
-        for item in ingest_dir.iterdir()
-        if not item.name.startswith(".")
-    ]
+    remaining = [item.name for item in ingest_dir.iterdir() if not item.name.startswith(".")]
     if remaining:
         logger.warning(
             "097-TEMP not empty after sort: %d items remain",

@@ -7,7 +7,9 @@ from personalscraper.enforce.structure_validator import validate_structure
 
 @pytest.fixture
 def settings(tmp_path):
+    """Build a mocked Settings object pointing at ``tmp_path`` for isolation."""
     from unittest.mock import MagicMock
+
     s = MagicMock()
     s.staging_dir = tmp_path
     s.movies_dir_name = "001-MOVIES"
@@ -55,7 +57,7 @@ def test_tvshow_empty_torrent_subdir_removed(tmp_path, settings):
     empty_dir = show / "Show.S01E01.MULTi.1080p"
     empty_dir.mkdir()
 
-    results = validate_structure(settings, dry_run=False)
+    validate_structure(settings, dry_run=False)
     assert not empty_dir.exists()
 
 

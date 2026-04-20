@@ -159,13 +159,18 @@ def validate_library(
                         checks = checker.check_movie(media_dir)
                 except OSError as exc:
                     logger.warning("Filesystem error checking %s: %s", media_dir, exc)
-                    items.append(ValidationItem(
-                        path=str(media_dir), disk=config.name,
-                        category=category_dir.name,
-                        media_type="tvshow" if is_series else "movie",
-                        title=title, year=year, status="issues",
-                        errors=[f"os_error: {exc}"],
-                    ))
+                    items.append(
+                        ValidationItem(
+                            path=str(media_dir),
+                            disk=config.name,
+                            category=category_dir.name,
+                            media_type="tvshow" if is_series else "movie",
+                            title=title,
+                            year=year,
+                            status="issues",
+                            errors=[f"os_error: {exc}"],
+                        )
+                    )
                     issues_count += 1
                     continue
 
@@ -216,14 +221,20 @@ def validate_library(
                     status = "issues"
                     issues_count += 1
 
-                items.append(ValidationItem(
-                    path=str(media_dir), disk=config.name,
-                    category=category_dir.name,
-                    media_type="tvshow" if is_series else "movie",
-                    title=title, year=year, status=status,
-                    errors=remaining_errors, warnings=warnings,
-                    fixes_applied=fixes_applied,
-                ))
+                items.append(
+                    ValidationItem(
+                        path=str(media_dir),
+                        disk=config.name,
+                        category=category_dir.name,
+                        media_type="tvshow" if is_series else "movie",
+                        title=title,
+                        year=year,
+                        status=status,
+                        errors=remaining_errors,
+                        warnings=warnings,
+                        fixes_applied=fixes_applied,
+                    )
+                )
 
     return LibraryValidationResult(
         validated_at=start,

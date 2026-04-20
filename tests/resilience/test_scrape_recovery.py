@@ -42,7 +42,11 @@ class TestNfoCorruptRecovery:
     @patch("personalscraper.scraper.run._has_unscraped_items", return_value=True)
     @patch("personalscraper.scraper.run.Scraper")
     def test_scrape_rescrapes_corrupt_nfo(
-        self, MockScraper, mock_unscraped, staging, resilience_settings,
+        self,
+        MockScraper,
+        mock_unscraped,
+        staging,
+        resilience_settings,
     ):
         """Scrape step detects corrupt NFO and triggers re-scrape."""
         from personalscraper.scraper.run import run_scrape
@@ -62,7 +66,7 @@ class TestNfoCorruptRecovery:
         ]
         mock_scraper.process_tvshows.return_value = []
 
-        report = run_scrape(resilience_settings)
+        run_scrape(resilience_settings)
 
         # Scraper was called (not skipped) because NFO is corrupt
         mock_scraper.process_movies.assert_called_once()

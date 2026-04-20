@@ -25,9 +25,7 @@ class TestDetectNeeds:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "Movie.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid></movie>'
-        )
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
 
         needs_nfo, needs_artwork, needs_episodes = _detect_needs(movie, "movie", None)
         assert needs_nfo is False
@@ -40,9 +38,7 @@ class TestDetectNeeds:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "Movie.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid></movie>'
-        )
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
         (movie / "Movie-poster.jpg").write_bytes(b"\x00" * 100)
 
         needs_nfo, needs_artwork, needs_episodes = _detect_needs(movie, "movie", None)
@@ -72,13 +68,16 @@ class TestResolveId:
 
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
-        (movie / "Movie.nfo").write_text(
-            '<movie><uniqueid type="tmdb">12345</uniqueid></movie>'
-        )
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">12345</uniqueid></movie>')
 
         tmdb_id, id_source, confidence = _resolve_tmdb_id(
-            movie, "movie", "Movie", 2024,
-            tmdb_client=MagicMock(), tvdb_client=MagicMock(), interactive=False,
+            movie,
+            "movie",
+            "Movie",
+            2024,
+            tmdb_client=MagicMock(),
+            tvdb_client=MagicMock(),
+            interactive=False,
         )
 
         assert tmdb_id == "12345"
@@ -93,13 +92,17 @@ class TestResolveId:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
 
-        mock_match = MatchResult(api_id=999, api_title="Movie", api_year=2024,
-                                  confidence=0.95, source="tmdb")
+        mock_match = MatchResult(api_id=999, api_title="Movie", api_year=2024, confidence=0.95, source="tmdb")
 
         with patch("personalscraper.library.rescraper.match_movie", return_value=mock_match):
             tmdb_id, id_source, confidence = _resolve_tmdb_id(
-                movie, "movie", "Movie", 2024,
-                tmdb_client=MagicMock(), tvdb_client=MagicMock(), interactive=False,
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=False,
             )
 
         assert tmdb_id == "999"
@@ -114,13 +117,17 @@ class TestResolveId:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
 
-        mock_match = MatchResult(api_id=999, api_title="Movie?", api_year=2024,
-                                  confidence=0.4, source="tmdb")
+        mock_match = MatchResult(api_id=999, api_title="Movie?", api_year=2024, confidence=0.4, source="tmdb")
 
         with patch("personalscraper.library.rescraper.match_movie", return_value=mock_match):
             tmdb_id, id_source, confidence = _resolve_tmdb_id(
-                movie, "movie", "Movie", 2024,
-                tmdb_client=MagicMock(), tvdb_client=MagicMock(), interactive=False,
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=False,
             )
 
         assert tmdb_id is None
@@ -134,8 +141,13 @@ class TestResolveId:
 
         with patch("personalscraper.library.rescraper.match_movie", return_value=None):
             tmdb_id, id_source, confidence = _resolve_tmdb_id(
-                movie, "movie", "Movie", 2024,
-                tmdb_client=MagicMock(), tvdb_client=MagicMock(), interactive=False,
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=False,
             )
 
         assert tmdb_id is None
@@ -153,18 +165,24 @@ class TestRescrapeItem:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "Movie.nfo").write_text(
-            '<movie><uniqueid type="tmdb">1</uniqueid></movie>'
-        )
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
         (movie / "Movie-poster.jpg").write_bytes(b"\x00" * 100)
 
         result = _rescrape_item(
-            media_dir=movie, media_type="movie", disk="Disk1",
-            category="films", title="Movie", year=2024,
-            tmdb_client=MagicMock(), tvdb_client=MagicMock(),
-            nfo_gen=MagicMock(), artwork_dl=MagicMock(),
-            patterns=NamingPatterns(), only=None,
-            interactive=False, dry_run=True,
+            media_dir=movie,
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            title="Movie",
+            year=2024,
+            tmdb_client=MagicMock(),
+            tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(),
+            artwork_dl=MagicMock(),
+            patterns=NamingPatterns(),
+            only=None,
+            interactive=False,
+            dry_run=True,
         )
 
         assert result is None
@@ -181,16 +199,25 @@ class TestRescrapeItem:
 
         with patch("personalscraper.library.rescraper.match_movie", return_value=None):
             result = _rescrape_item(
-                media_dir=movie, media_type="movie", disk="Disk1",
-                category="films", title="Movie", year=2024,
-                tmdb_client=MagicMock(), tvdb_client=MagicMock(),
-                nfo_gen=MagicMock(), artwork_dl=MagicMock(),
-                patterns=NamingPatterns(), only=None,
-                interactive=False, dry_run=True,
+                media_dir=movie,
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                title="Movie",
+                year=2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                nfo_gen=MagicMock(),
+                artwork_dl=MagicMock(),
+                patterns=NamingPatterns(),
+                only=None,
+                interactive=False,
+                dry_run=True,
             )
 
         assert result is not None
         from personalscraper.library.models import SKIP_NO_MATCH
+
         assert SKIP_NO_MATCH in result.actions_skipped
         assert result.tmdb_id is None
 
@@ -202,23 +229,30 @@ class TestRescrapeItem:
         movie = tmp_path / "Movie (2024)"
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
-        (movie / "Movie.nfo").write_text(
-            '<movie><uniqueid type="tmdb">123</uniqueid></movie>'
-        )
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">123</uniqueid></movie>')
         # Has NFO (valid) but no poster — needs artwork
 
         mock_artwork = MagicMock()
         result = _rescrape_item(
-            media_dir=movie, media_type="movie", disk="Disk1",
-            category="films", title="Movie", year=2024,
-            tmdb_client=MagicMock(), tvdb_client=MagicMock(),
-            nfo_gen=MagicMock(), artwork_dl=mock_artwork,
-            patterns=NamingPatterns(), only=None,
-            interactive=False, dry_run=True,
+            media_dir=movie,
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            title="Movie",
+            year=2024,
+            tmdb_client=MagicMock(),
+            tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(),
+            artwork_dl=mock_artwork,
+            patterns=NamingPatterns(),
+            only=None,
+            interactive=False,
+            dry_run=True,
         )
 
         assert result is not None
         from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
+
         assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
         assert result.tmdb_id == "123"
         assert result.id_source == "nfo"

@@ -39,7 +39,9 @@ class TorrentSetup:
         self.registry = registry
 
     def add_torrent_files(
-        self, torrent_files: list[Path], category: str = "e2e-test",
+        self,
+        torrent_files: list[Path],
+        category: str = "e2e-test",
     ) -> list[str]:
         """Add .torrent files to qBittorrent with a dedicated test category.
 
@@ -92,13 +94,15 @@ class TorrentSetup:
             if t.hash in hashes:
                 total_bytes += t.total_size
 
-        total_gb = total_bytes / (1024 ** 3)
+        total_gb = total_bytes / (1024**3)
         timeout_minutes = max(math.ceil(total_gb) * 3, 10)
         timeout_seconds = timeout_minutes * 60
 
         logger.info(
             "Waiting for %d torrents (%.1f GB), timeout=%d min",
-            len(hashes), total_gb, timeout_minutes,
+            len(hashes),
+            total_gb,
+            timeout_minutes,
         )
 
         pending = set(hashes)
@@ -128,11 +132,17 @@ class TorrentSetup:
                     speed = t.dlspeed / (1024 * 1024)
                     logger.info(
                         "  %s: %.1f%% (%.1f MB/s) [%s]",
-                        t.name[:50], pct, speed, t.state_enum.name,
+                        t.name[:50],
+                        pct,
+                        speed,
+                        t.state_enum.name,
                     )
             logger.info(
                 "Waiting... %d/%d remaining (%dm/%dm elapsed/timeout)",
-                len(pending), len(hashes), elapsed // 60, timeout_minutes,
+                len(pending),
+                len(hashes),
+                elapsed // 60,
+                timeout_minutes,
             )
             time.sleep(_POLL_INTERVAL)
             elapsed += _POLL_INTERVAL

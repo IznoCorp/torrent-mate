@@ -43,6 +43,7 @@ def _make_pipeline_report(has_errors: bool = False) -> PipelineReport:
     report.finished_at = datetime(2026, 1, 1) + timedelta(seconds=30)
     return report
 
+
 # Mock run_ingest for all tests that invoke the ingest command
 _mock_report = StepReport(name="ingest", success_count=2, skip_count=1)
 
@@ -199,8 +200,12 @@ def test_quiet_mode(mock_lock, mock_release, mock_run):
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_run_delegates_to_pipeline(
-    mock_lock, mock_release, mock_pipeline_run,
-    mock_ping, mock_cleanup, mock_notifier_cfg,
+    mock_lock,
+    mock_release,
+    mock_pipeline_run,
+    mock_ping,
+    mock_cleanup,
+    mock_notifier_cfg,
 ):
     """Run command delegates to Pipeline and shows 7-step summary panel."""
     mock_pipeline_run.return_value = _make_pipeline_report()
@@ -219,8 +224,12 @@ def test_run_delegates_to_pipeline(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_run_dry_run_and_interactive_flags(
-    mock_lock, mock_release, mock_pipeline_run,
-    mock_ping, mock_cleanup, mock_notifier_cfg,
+    mock_lock,
+    mock_release,
+    mock_pipeline_run,
+    mock_ping,
+    mock_cleanup,
+    mock_notifier_cfg,
 ):
     """--dry-run and --interactive flags are passed to Pipeline."""
     mock_pipeline_run.return_value = _make_pipeline_report()
@@ -248,8 +257,13 @@ def test_run_lock_blocked(mock_lock):
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_run_sends_telegram_when_configured(
-    mock_lock, mock_release, mock_pipeline_run,
-    mock_ping, mock_cleanup, mock_post, mock_notifier_cfg,
+    mock_lock,
+    mock_release,
+    mock_pipeline_run,
+    mock_ping,
+    mock_cleanup,
+    mock_post,
+    mock_notifier_cfg,
 ):
     """Telegram notification is sent when configured."""
     from unittest.mock import MagicMock
@@ -268,8 +282,12 @@ def test_run_sends_telegram_when_configured(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_run_no_telegram_when_not_configured(
-    mock_lock, mock_release, mock_pipeline_run,
-    mock_ping, mock_cleanup, mock_notifier_cfg,
+    mock_lock,
+    mock_release,
+    mock_pipeline_run,
+    mock_ping,
+    mock_cleanup,
+    mock_notifier_cfg,
 ):
     """No Telegram call when not configured (no error)."""
     mock_pipeline_run.return_value = _make_pipeline_report()
@@ -284,8 +302,12 @@ def test_run_no_telegram_when_not_configured(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_run_exit_code_1_on_errors(
-    mock_lock, mock_release, mock_pipeline_run,
-    mock_ping, mock_cleanup, mock_notifier_cfg,
+    mock_lock,
+    mock_release,
+    mock_pipeline_run,
+    mock_ping,
+    mock_cleanup,
+    mock_notifier_cfg,
 ):
     """Run exits with code 1 when pipeline has errors."""
     mock_pipeline_run.return_value = _make_pipeline_report(has_errors=True)
@@ -300,8 +322,12 @@ def test_run_exit_code_1_on_errors(
 @patch("personalscraper.cli.release_lock")
 @patch("personalscraper.cli.acquire_lock", return_value=True)
 def test_run_releases_lock_on_pipeline_crash(
-    mock_lock, mock_release, mock_pipeline_run,
-    mock_ping, mock_cleanup, mock_notifier_cfg,
+    mock_lock,
+    mock_release,
+    mock_pipeline_run,
+    mock_ping,
+    mock_cleanup,
+    mock_notifier_cfg,
 ):
     """Lock is released even when Pipeline.run() crashes."""
     runner.invoke(app, ["run"])
@@ -357,8 +383,10 @@ class TestLibraryScan:
 
         mock_result = LibraryScanResult(
             scanned_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            item_count=0, items=[],
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
         )
 
         with (
@@ -453,8 +481,12 @@ class TestLibraryValidate:
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            total_items=0, valid_count=0, fixed_count=0, issues_count=0,
+            disk_filter=None,
+            category_filter=None,
+            total_items=0,
+            valid_count=0,
+            fixed_count=0,
+            issues_count=0,
         )
 
         with (
@@ -492,8 +524,12 @@ class TestLibraryValidate:
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            total_items=0, valid_count=0, fixed_count=0, issues_count=0,
+            disk_filter=None,
+            category_filter=None,
+            total_items=0,
+            valid_count=0,
+            fixed_count=0,
+            issues_count=0,
         )
 
         with (
@@ -521,8 +557,12 @@ class TestLibraryValidate:
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            total_items=1, valid_count=0, fixed_count=1, issues_count=0,
+            disk_filter=None,
+            category_filter=None,
+            total_items=1,
+            valid_count=0,
+            fixed_count=1,
+            issues_count=0,
         )
 
         with (
@@ -551,8 +591,12 @@ class TestLibraryValidate:
 
         mock_result = LibraryValidationResult(
             validated_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            total_items=2, valid_count=0, fixed_count=1, issues_count=1,
+            disk_filter=None,
+            category_filter=None,
+            total_items=2,
+            valid_count=0,
+            fixed_count=1,
+            issues_count=1,
         )
 
         with (
@@ -629,8 +673,13 @@ class TestLibraryRescrape:
 
         mock_result = LibraryRescrapeResult(
             rescraped_at="2026-04-17T12:00:00",
-            disk_filter=None, category_filter=None, only_filter=None,
-            dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+            disk_filter=None,
+            category_filter=None,
+            only_filter=None,
+            dry_run=True,
+            fixed_count=0,
+            skipped_count=0,
+            error_count=0,
         )
 
         with (

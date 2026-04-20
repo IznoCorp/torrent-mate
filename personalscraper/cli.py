@@ -93,9 +93,7 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
         except ValidationError as exc:
             msg = _format_validation(exc)
             logging.getLogger("cli").error("Configuration error: %s", msg)
-            state["console"].print(
-                f"[red]Configuration error:[/red] {msg}"
-            )
+            state["console"].print(f"[red]Configuration error:[/red] {msg}")
             raise typer.Exit(1)
 
     return wrapper
@@ -129,8 +127,7 @@ def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview withou
         settings = get_settings()
         report = run_ingest(settings, dry_run=dry_run)
         console.print(
-            f"[bold]Ingest:[/bold] {report.success_count} OK, "
-            f"{report.skip_count} skipped, {report.error_count} errors"
+            f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
     finally:
         release_lock()
@@ -150,8 +147,7 @@ def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without 
         settings = get_settings()
         report = run_sort(settings, dry_run=dry_run)
         console.print(
-            f"[bold]Sort:[/bold] {report.success_count} OK, "
-            f"{report.skip_count} skipped, {report.error_count} errors"
+            f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
         if state["verbose"]:
             for detail in report.details:
@@ -185,8 +181,7 @@ def scrape(
             tvshows_only=tvshows_only,
         )
         console.print(
-            f"[bold]Scrape:[/bold] {report.success_count} OK, "
-            f"{report.skip_count} skipped, {report.error_count} errors"
+            f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
         if state["verbose"]:
             for detail in report.details:
@@ -214,8 +209,7 @@ def verify(
         settings = get_settings()
         if fix:
             console.print(
-                "[yellow]Warning: --fix is deprecated. "
-                "Use 'personalscraper enforce' before verify instead.[/yellow]"
+                "[yellow]Warning: --fix is deprecated. Use 'personalscraper enforce' before verify instead.[/yellow]"
             )
         report, dispatchable = run_verify(
             settings,
@@ -224,10 +218,7 @@ def verify(
             movies_only=movies_only,
             tvshows_only=tvshows_only,
         )
-        console.print(
-            f"[bold]Verify:[/bold] {report.success_count} OK, "
-            f"{report.error_count} blocked"
-        )
+        console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.error_count} blocked")
         console.print(f"  {len(dispatchable)} ready for dispatch")
         if state["verbose"]:
             for detail in report.details:
@@ -251,10 +242,7 @@ def enforce(
     try:
         settings = get_settings()
         report = run_enforce(settings, dry_run=dry_run)
-        console.print(
-            f"Enforce: {report.success_count} fixed, "
-            f"{report.skip_count} OK, {report.error_count} errors"
-        )
+        console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
         if state["verbose"]:
             for detail in report.details:
                 console.print(f"  {detail}")
@@ -452,9 +440,7 @@ def library_scan(
     output_path = settings.data_dir / "library_scan.json"
     write_json(result, output_path)
 
-    console.print(
-        f"[green]Scan complete:[/green] {result.item_count} items → {output_path}"
-    )
+    console.print(f"[green]Scan complete:[/green] {result.item_count} items → {output_path}")
 
 
 @app.command()
@@ -520,9 +506,7 @@ def library_clean(
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
             )
             if result.error_count:
-                console.print(
-                    f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)"
-                )
+                console.print(f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)")
                 for err in result.errors:
                     console.print(f"  {err}")
     finally:
@@ -649,8 +633,7 @@ def library_analyze(
     write_json(result, analysis_path)
 
     console.print(
-        f"[green]Analysis complete:[/green] {result.item_count} items, "
-        f"{result.file_count} files → {analysis_path}"
+        f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files → {analysis_path}"
     )
 
 
@@ -725,16 +708,35 @@ def library_recommend(
         csv_path = settings.data_dir / "library_recommendations.csv"
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["title", "type", "disk", "codec", "resolution",
-                             "size_gb", "audio", "priority", "savings_gb", "reasons"])
+            writer.writerow(
+                [
+                    "title",
+                    "type",
+                    "disk",
+                    "codec",
+                    "resolution",
+                    "size_gb",
+                    "audio",
+                    "priority",
+                    "savings_gb",
+                    "reasons",
+                ]
+            )
             for r in result.items:
-                writer.writerow([
-                    r.title, r.media_type, r.disk,
-                    r.current.codec, r.current.resolution,
-                    f"{r.current.size_gb:.1f}", r.current.audio_profile,
-                    r.priority, f"{r.estimated_savings_gb or 0:.1f}",
-                    "; ".join(r.reasons),
-                ])
+                writer.writerow(
+                    [
+                        r.title,
+                        r.media_type,
+                        r.disk,
+                        r.current.codec,
+                        r.current.resolution,
+                        f"{r.current.size_gb:.1f}",
+                        r.current.audio_profile,
+                        r.priority,
+                        f"{r.estimated_savings_gb or 0:.1f}",
+                        "; ".join(r.reasons),
+                    ]
+                )
         console.print(f"[green]CSV exported:[/green] {csv_path}")
 
     console.print(
@@ -787,10 +789,14 @@ def library_rescrape(
         console.print(f"[bold]Rescraping library ({mode})...[/bold]")
 
         result = rescrape_library(
-            disk_configs, settings,
-            disk_filter=disk, category_filter=category,
-            only=only, interactive=interactive,
-            dry_run=dry_run, max_items=max_items,
+            disk_configs,
+            settings,
+            disk_filter=disk,
+            category_filter=category,
+            only=only,
+            interactive=interactive,
+            dry_run=dry_run,
+            max_items=max_items,
         )
 
         output_path = settings.data_dir / "library_rescrape.json"
@@ -856,7 +862,10 @@ def library_report(
     disk_statuses = [get_disk_status(dc) for dc in disk_configs]
 
     report = generate_report(
-        scan_data, analysis_data, validation_data, recommendation_data,
+        scan_data,
+        analysis_data,
+        validation_data,
+        recommendation_data,
         disk_statuses=disk_statuses,
         rescrape_data=rescrape_data,
     )

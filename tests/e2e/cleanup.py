@@ -101,9 +101,7 @@ class TestCleanup:
 
             # Triple check — all three must pass
             if not verify_marker(path, self.registry.session_id, self.registry):
-                logger.error(
-                    "SAFETY BLOCK: refusing to delete %s — marker verification failed", path
-                )
+                logger.error("SAFETY BLOCK: refusing to delete %s — marker verification failed", path)
                 continue
 
             if self.dry_run:

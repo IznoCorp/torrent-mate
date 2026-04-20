@@ -24,8 +24,16 @@ _SOURCES_TV = ["WEB-DL", "WEBRip", "HDTV", "AMZN.WEB-DL", "NF.WEB-DL"]
 _CODECS = ["x264", "x265", "H265", "H.264"]
 _LANGS = ["MULTi", "FRENCH", "TRUEFRENCH", "VFF"]
 _GROUPS = [
-    "FiDELiO", "SiGMA", "EXTREME", "LOST", "FRATERNiTY",
-    "CiELOS", "ALLDAYiN", "mHDgz", "VENUE", "QTZ",
+    "FiDELiO",
+    "SiGMA",
+    "EXTREME",
+    "LOST",
+    "FRATERNiTY",
+    "CiELOS",
+    "ALLDAYiN",
+    "mHDgz",
+    "VENUE",
+    "QTZ",
 ]
 
 
@@ -104,7 +112,10 @@ def torrentify_movie(title: str, year: int, seed: int | None = None) -> str:
 
 
 def torrentify_tvshow(
-    title: str, year: int, season: int = 1, seed: int | None = None,
+    title: str,
+    year: int,
+    season: int = 1,
+    seed: int | None = None,
 ) -> str:
     """Generate a realistic torrent name for a TV show season pack.
 

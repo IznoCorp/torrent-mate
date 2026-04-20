@@ -267,7 +267,10 @@ class TestAssertDispatchGolden:
         result.reason = None
 
         golden = GoldenFile(
-            name="test", nfo={}, artwork={}, structure={},
+            name="test",
+            nfo={},
+            artwork={},
+            structure={},
             dispatch={
                 "action": "moved",
                 "eligible_disks": ["Disk1", "Disk3"],
@@ -285,7 +288,10 @@ class TestAssertDispatchGolden:
         result.reason = None
 
         golden = GoldenFile(
-            name="test", nfo={}, artwork={}, structure={},
+            name="test",
+            nfo={},
+            artwork={},
+            structure={},
             dispatch={"action": "moved"},
         )
         with pytest.raises(AssertionError, match="moved"):
@@ -300,7 +306,10 @@ class TestAssertDispatchGolden:
         result.reason = None
 
         golden = GoldenFile(
-            name="test", nfo={}, artwork={}, structure={},
+            name="test",
+            nfo={},
+            artwork={},
+            structure={},
             dispatch={"eligible_disks": ["Disk1", "Disk3"]},
         )
         with pytest.raises(AssertionError, match="Disk4"):
@@ -315,7 +324,10 @@ class TestAssertDispatchGolden:
         result.reason = "rsync failed"
 
         golden = GoldenFile(
-            name="test", nfo={}, artwork={}, structure={},
+            name="test",
+            nfo={},
+            artwork={},
+            structure={},
             dispatch={"action": "moved"},
         )
         with pytest.raises(AssertionError, match="error"):
@@ -342,7 +354,9 @@ class TestAssertStructureGolden:
         media_dir = tmp_path / "Empty (2024)"
         media_dir.mkdir()
         golden = GoldenFile(
-            name="test", nfo={}, artwork={},
+            name="test",
+            nfo={},
+            artwork={},
             structure={"required_files": ["*.mkv"]},
             dispatch={},
         )
@@ -354,7 +368,9 @@ class TestAssertStructureGolden:
         media_dir = tmp_path / "Show (2024)"
         media_dir.mkdir()
         golden = GoldenFile(
-            name="test", nfo={}, artwork={},
+            name="test",
+            nfo={},
+            artwork={},
             structure={"required_dirs": ["Saison 01"]},
             dispatch={},
         )
@@ -439,9 +455,7 @@ class TestFindDispatchResult:
         r1 = MagicMock()
         r1.source = Path("/staging/Jumanji")
 
-        result = find_dispatch_result(
-            [r1], "[LaCale]-Jumanji.1995.BluRay"
-        )
+        result = find_dispatch_result([r1], "[LaCale]-Jumanji.1995.BluRay")
         assert result is r1
 
     def test_not_found_returns_none(self):

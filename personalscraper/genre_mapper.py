@@ -19,13 +19,21 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # All valid destination categories (used by V5 for validation)
-KNOWN_CATEGORIES: frozenset[str] = frozenset({
-    "films", "films animations", "films documentaires",
-    "spectacles", "theatres",
-    "series", "series animations", "series documentaires",
-    "series animes", "emissions",
-    "livres audios",
-})
+KNOWN_CATEGORIES: frozenset[str] = frozenset(
+    {
+        "films",
+        "films animations",
+        "films documentaires",
+        "spectacles",
+        "theatres",
+        "series",
+        "series animations",
+        "series documentaires",
+        "series animes",
+        "emissions",
+        "livres audios",
+    }
+)
 
 
 def _normalize(s: str) -> str:
@@ -41,10 +49,7 @@ def _normalize(s: str) -> str:
         Normalized lowercase string without accents.
     """
     s = s.lower().strip()
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s)
-        if unicodedata.category(c) != "Mn"
-    )
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
 class GenreMapper:
@@ -85,11 +90,14 @@ class GenreMapper:
     # French TMDB fr-FR variants: "Émission" → "emission", "Divertissement",
     # "Jeu télévisé" → "jeu televise". English variants kept for TVDB/fallback.
     _REALITY_NAMES = {
-        "reality", "realite",
-        "talk show", "talk", "news",
-        "emission",        # TMDB fr-FR: "Émission"
+        "reality",
+        "realite",
+        "talk show",
+        "talk",
+        "news",
+        "emission",  # TMDB fr-FR: "Émission"
         "divertissement",  # TMDB fr-FR: entertainment/variety
-        "jeu televise",    # TMDB fr-FR: game show ("Jeu télévisé")
+        "jeu televise",  # TMDB fr-FR: game show ("Jeu télévisé")
     }
 
     def categorize_movie(
@@ -194,7 +202,9 @@ class GenreMapper:
             if content in KNOWN_CATEGORIES:
                 return content
             logger.warning(
-                "Invalid .category content '%s' in %s", content, parent.name,
+                "Invalid .category content '%s' in %s",
+                content,
+                parent.name,
             )
 
         # Priority 2: parse NFO
@@ -242,9 +252,14 @@ class GenreMapper:
             return "series animes" if is_jp else "series animations"
         if self.TMDB_TV_DOCUMENTARY in genre_ids:
             return "series documentaires"
-        if any(gid in genre_ids for gid in (
-            self.TMDB_TV_REALITY, self.TMDB_TV_TALK, self.TMDB_TV_NEWS,
-        )):
+        if any(
+            gid in genre_ids
+            for gid in (
+                self.TMDB_TV_REALITY,
+                self.TMDB_TV_TALK,
+                self.TMDB_TV_NEWS,
+            )
+        ):
             return "emissions"
         return "series"
 
@@ -265,8 +280,13 @@ class GenreMapper:
             return "series animations"
         if self.TVDB_DOCUMENTARY in genre_ids:
             return "series documentaires"
-        if any(gid in genre_ids for gid in (
-            self.TVDB_REALITY, self.TVDB_TALK_SHOW, self.TVDB_NEWS,
-        )):
+        if any(
+            gid in genre_ids
+            for gid in (
+                self.TVDB_REALITY,
+                self.TVDB_TALK_SHOW,
+                self.TVDB_NEWS,
+            )
+        ):
             return "emissions"
         return "series"

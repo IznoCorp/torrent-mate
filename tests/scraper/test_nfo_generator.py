@@ -93,6 +93,7 @@ def generator() -> NFOGenerator:
 # Movie NFO — base structure
 # ---------------------------------------------------------------------------
 
+
 class TestMovieNFOBase:
     """Tests for basic movie NFO structure."""
 
@@ -138,6 +139,7 @@ class TestMovieNFOBase:
 # Movie NFO — IDs and ratings
 # ---------------------------------------------------------------------------
 
+
 class TestMovieNFOIds:
     """Tests for uniqueids and ratings in movie NFO."""
 
@@ -180,6 +182,7 @@ class TestMovieNFOIds:
 # Movie NFO — credits and actors
 # ---------------------------------------------------------------------------
 
+
 class TestMovieNFOCredits:
     """Tests for credits, actors, and genres."""
 
@@ -221,6 +224,7 @@ class TestMovieNFOCredits:
 # Movie NFO — inline images
 # ---------------------------------------------------------------------------
 
+
 class TestMovieNFOImages:
     """Tests for inline poster and fanart images."""
 
@@ -248,6 +252,7 @@ class TestMovieNFOImages:
 # ---------------------------------------------------------------------------
 # Movie NFO — streamdetails
 # ---------------------------------------------------------------------------
+
 
 class TestMovieNFOStreamdetails:
     """Tests for streamdetails integration."""
@@ -302,6 +307,7 @@ class TestMovieNFOStreamdetails:
 # Movie NFO — generator tag
 # ---------------------------------------------------------------------------
 
+
 class TestMovieNFOGenerator:
     """Tests for the generator tag."""
 
@@ -323,6 +329,7 @@ class TestMovieNFOGenerator:
 # ---------------------------------------------------------------------------
 # write_nfo
 # ---------------------------------------------------------------------------
+
 
 class TestWriteNFO:
     """Tests for write_nfo file output."""
@@ -451,6 +458,7 @@ SAMPLE_MULTISEASON_DATA = {
 # TV show NFO — base structure
 # ---------------------------------------------------------------------------
 
+
 class TestTvshowNFOBase:
     """Tests for basic tvshow NFO structure."""
 
@@ -488,6 +496,7 @@ class TestTvshowNFOBase:
 # ---------------------------------------------------------------------------
 # TV show NFO — IDs
 # ---------------------------------------------------------------------------
+
 
 class TestTvshowNFOIds:
     """Tests for uniqueids in tvshow NFO (TMDB is default)."""
@@ -534,6 +543,7 @@ class TestTvshowNFOIds:
 # ---------------------------------------------------------------------------
 # TV show NFO — ratings and metadata
 # ---------------------------------------------------------------------------
+
 
 class TestTvshowNFOMetadata:
     """Tests for ratings, counts, and metadata fields."""
@@ -600,6 +610,7 @@ class TestTvshowNFOMetadata:
 # TV show NFO — actors and images
 # ---------------------------------------------------------------------------
 
+
 class TestTvshowNFOActorsImages:
     """Tests for actors and inline images in tvshow NFO."""
 
@@ -641,6 +652,7 @@ class TestTvshowNFOActorsImages:
 # TV show NFO — multi-season
 # ---------------------------------------------------------------------------
 
+
 class TestTvshowNFOMultiSeason:
     """Tests with multi-season show data."""
 
@@ -663,6 +675,7 @@ class TestTvshowNFOMultiSeason:
 # TV show NFO — MediaElch conformity
 # ---------------------------------------------------------------------------
 
+
 class TestTvshowMediaElchConformity:
     """Verify our tvshow NFO structure matches MediaElch output.
 
@@ -673,13 +686,31 @@ class TestTvshowMediaElchConformity:
 
     # Tags present in a real MediaElch tvshow.nfo (Fallout 2024)
     MEDIAELCH_TAGS = {
-        "title", "showtitle", "originaltitle",
-        "uniqueid", "id", "ratings", "userrating", "top250",
-        "episode", "season", "plot", "mpaa",
-        "premiered", "year", "dateadded", "status",
-        "studio", "trailer", "episodeguide",
-        "genre", "tag", "thumb", "fanart",
-        "actor", "generator",
+        "title",
+        "showtitle",
+        "originaltitle",
+        "uniqueid",
+        "id",
+        "ratings",
+        "userrating",
+        "top250",
+        "episode",
+        "season",
+        "plot",
+        "mpaa",
+        "premiered",
+        "year",
+        "dateadded",
+        "status",
+        "studio",
+        "trailer",
+        "episodeguide",
+        "genre",
+        "tag",
+        "thumb",
+        "fanart",
+        "actor",
+        "generator",
     }
 
     def test_all_mediaelch_tags_present(self, generator: NFOGenerator) -> None:
@@ -706,6 +737,7 @@ class TestTvshowMediaElchConformity:
 # ---------------------------------------------------------------------------
 # Episode NFO — base structure
 # ---------------------------------------------------------------------------
+
 
 class TestEpisodeNFOBase:
     """Tests for basic episodedetails NFO structure."""
@@ -737,6 +769,7 @@ class TestEpisodeNFOBase:
 # ---------------------------------------------------------------------------
 # Episode NFO — IDs and ratings
 # ---------------------------------------------------------------------------
+
 
 class TestEpisodeNFOIds:
     """Tests for uniqueids and ratings in episode NFO."""
@@ -772,6 +805,7 @@ class TestEpisodeNFOIds:
 # Episode NFO — metadata
 # ---------------------------------------------------------------------------
 
+
 class TestEpisodeNFOMetadata:
     """Tests for episode metadata fields."""
 
@@ -805,6 +839,7 @@ class TestEpisodeNFOMetadata:
 # Episode NFO — credits and director
 # ---------------------------------------------------------------------------
 
+
 class TestEpisodeNFOCredits:
     """Tests for writers and director in episode NFO."""
 
@@ -837,6 +872,7 @@ class TestEpisodeNFOCredits:
 # Episode NFO — streamdetails
 # ---------------------------------------------------------------------------
 
+
 class TestEpisodeNFOStreamdetails:
     """Tests for streamdetails in episode NFO."""
 
@@ -868,6 +904,7 @@ class TestEpisodeNFOStreamdetails:
 # Episode NFO — MediaElch conformity
 # ---------------------------------------------------------------------------
 
+
 class TestEpisodeMediaElchConformity:
     """Verify our episode NFO structure matches MediaElch output.
 
@@ -877,12 +914,25 @@ class TestEpisodeMediaElchConformity:
 
     # Tags present in a real MediaElch episode NFO (Fallout S01E01)
     MEDIAELCH_TAGS = {
-        "title", "showtitle",
-        "uniqueid", "ratings", "userrating", "top250",
-        "season", "episode", "plot", "mpaa",
-        "playcount", "lastplayed", "aired",
-        "studio", "credits", "director", "thumb",
-        "fileinfo", "generator",
+        "title",
+        "showtitle",
+        "uniqueid",
+        "ratings",
+        "userrating",
+        "top250",
+        "season",
+        "episode",
+        "plot",
+        "mpaa",
+        "playcount",
+        "lastplayed",
+        "aired",
+        "studio",
+        "credits",
+        "director",
+        "thumb",
+        "fileinfo",
+        "generator",
     }
 
     def test_all_mediaelch_tags_present(self, generator: NFOGenerator) -> None:

@@ -8,8 +8,7 @@ class TestGenerateReport:
 
     def test_empty_report(self) -> None:
         """Report with no data should have zero counts."""
-        report = generate_report(scan_data=None, analysis_data=None,
-                                  validation_data=None, recommendation_data=None)
+        report = generate_report(scan_data=None, analysis_data=None, validation_data=None, recommendation_data=None)
         assert report.total_items == 0
         assert report.total_size_gb == 0.0
 
@@ -19,17 +18,36 @@ class TestGenerateReport:
             "scanned_at": "2026-04-15T12:00:00",
             "item_count": 3,
             "items": [
-                {"disk": "Disk1", "category": "films", "media_type": "movie",
-                 "folder_size_gb": 2.0, "actors_dir": True,
-                 "issues": ["actors_dir_present", "junk_files"],
-                 "nfo": {"present": True, "valid": True}, "artwork": {"poster": True}},
-                {"disk": "Disk1", "category": "films", "media_type": "movie",
-                 "folder_size_gb": 3.5, "actors_dir": False, "issues": [],
-                 "nfo": {"present": True, "valid": True}, "artwork": {"poster": True}},
-                {"disk": "Disk2", "category": "series", "media_type": "tvshow",
-                 "folder_size_gb": 15.0, "actors_dir": True,
-                 "issues": ["actors_dir_present"],
-                 "nfo": {"present": True, "valid": False}, "artwork": {"poster": False}},
+                {
+                    "disk": "Disk1",
+                    "category": "films",
+                    "media_type": "movie",
+                    "folder_size_gb": 2.0,
+                    "actors_dir": True,
+                    "issues": ["actors_dir_present", "junk_files"],
+                    "nfo": {"present": True, "valid": True},
+                    "artwork": {"poster": True},
+                },
+                {
+                    "disk": "Disk1",
+                    "category": "films",
+                    "media_type": "movie",
+                    "folder_size_gb": 3.5,
+                    "actors_dir": False,
+                    "issues": [],
+                    "nfo": {"present": True, "valid": True},
+                    "artwork": {"poster": True},
+                },
+                {
+                    "disk": "Disk2",
+                    "category": "series",
+                    "media_type": "tvshow",
+                    "folder_size_gb": 15.0,
+                    "actors_dir": True,
+                    "issues": ["actors_dir_present"],
+                    "nfo": {"present": True, "valid": False},
+                    "artwork": {"poster": False},
+                },
             ],
         }
         report = generate_report(scan_data=scan_data)
@@ -48,15 +66,20 @@ class TestGenerateReport:
     def test_report_from_analysis(self) -> None:
         """Report should aggregate codec distribution from analysis."""
         analysis_data = {
-            "item_count": 2, "file_count": 3,
+            "item_count": 2,
+            "file_count": 3,
             "items": [
-                {"files": [
-                    {"video": {"codec": "hevc"}, "audio_profile": "multi", "size_gb": 2.0},
-                ]},
-                {"files": [
-                    {"video": {"codec": "h264"}, "audio_profile": "vf", "size_gb": 5.0},
-                    {"video": {"codec": "h264"}, "audio_profile": "vo", "size_gb": 4.0},
-                ]},
+                {
+                    "files": [
+                        {"video": {"codec": "hevc"}, "audio_profile": "multi", "size_gb": 2.0},
+                    ]
+                },
+                {
+                    "files": [
+                        {"video": {"codec": "h264"}, "audio_profile": "vf", "size_gb": 5.0},
+                        {"video": {"codec": "h264"}, "audio_profile": "vo", "size_gb": 4.0},
+                    ]
+                },
             ],
         }
         report = generate_report(analysis_data=analysis_data)
@@ -71,7 +94,9 @@ class TestGenerateReport:
     def test_report_from_validation(self) -> None:
         """Report should include validation error breakdown."""
         validation_data = {
-            "valid_count": 10, "fixed_count": 0, "issues_count": 5,
+            "valid_count": 10,
+            "fixed_count": 0,
+            "issues_count": 5,
             "items": [
                 {"status": "issues", "errors": ["nfo_present", "poster_present"], "warnings": ["artwork_landscape"]},
                 {"status": "issues", "errors": ["nfo_valid"], "warnings": ["artwork_landscape"]},
@@ -93,15 +118,24 @@ class TestGenerateReport:
             "total_recommendations": 3,
             "estimated_total_savings_gb": 12.5,
             "items": [
-                {"priority": "high", "title": "Movie A",
-                 "current": {"codec": "mpeg2", "resolution": "1080p", "size_gb": 8.0, "audio_profile": "vf"},
-                 "reasons": ["rejected codec mpeg2"]},
-                {"priority": "medium", "title": "Movie B",
-                 "current": {"codec": "h264", "resolution": "720p", "size_gb": 5.0, "audio_profile": "vo"},
-                 "reasons": ["non-preferred codec"]},
-                {"priority": "low", "title": "Movie C",
-                 "current": {"codec": "hevc", "resolution": "1080p", "size_gb": 2.0, "audio_profile": "multi"},
-                 "reasons": ["missing subtitles"]},
+                {
+                    "priority": "high",
+                    "title": "Movie A",
+                    "current": {"codec": "mpeg2", "resolution": "1080p", "size_gb": 8.0, "audio_profile": "vf"},
+                    "reasons": ["rejected codec mpeg2"],
+                },
+                {
+                    "priority": "medium",
+                    "title": "Movie B",
+                    "current": {"codec": "h264", "resolution": "720p", "size_gb": 5.0, "audio_profile": "vo"},
+                    "reasons": ["non-preferred codec"],
+                },
+                {
+                    "priority": "low",
+                    "title": "Movie C",
+                    "current": {"codec": "hevc", "resolution": "1080p", "size_gb": 2.0, "audio_profile": "multi"},
+                    "reasons": ["missing subtitles"],
+                },
             ],
         }
         report = generate_report(recommendation_data=rec_data)
@@ -149,7 +183,9 @@ class TestRescrapeSection:
         """Report should include rescrape summary when data is present."""
         rescrape_data = {
             "rescraped_at": "2026-04-17T14:00:00",
-            "fixed_count": 10, "skipped_count": 5, "error_count": 2,
+            "fixed_count": 10,
+            "skipped_count": 5,
+            "error_count": 2,
             "items": [
                 {"actions_taken": ["nfo_regenerated"]},
                 {"actions_taken": ["artwork_downloaded"]},
@@ -167,8 +203,11 @@ class TestRescrapeSection:
         """Formatted report should include RESCRAPE section."""
         report = LibraryReport(
             generated_at="2026-04-17T12:00:00",
-            rescrape_fixed=10, rescrape_skipped=5, rescrape_errors=2,
-            rescrape_nfo_count=6, rescrape_artwork_count=4,
+            rescrape_fixed=10,
+            rescrape_skipped=5,
+            rescrape_errors=2,
+            rescrape_nfo_count=6,
+            rescrape_artwork_count=4,
         )
         text = format_report_text(report)
         assert "RESCRAPE" in text

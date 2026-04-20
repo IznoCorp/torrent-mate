@@ -7,9 +7,8 @@ configuration that benefits from validation.
 
 from __future__ import annotations
 
-from typing_extensions import Self
-
 from pydantic import BaseModel, Field, model_validator
+from typing_extensions import Self
 
 
 class VideoPreferences(BaseModel):

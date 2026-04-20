@@ -34,14 +34,17 @@ class TestDetectFileType:
         """Video files without S/E markers are classified as MOVIE."""
         assert detect_file_type(Path(f"Your.Friends.H265-TFA.{ext}")) == FileType.MOVIE
 
-    @pytest.mark.parametrize("name", [
-        "Shrinking.S03.MULTi.1080p.mkv",
-        "The.Boys.S05E01.MULTi.1080p.mkv",
-        "show.1x04.episode.mkv",
-        "Show.Saison.3.MULTi.mkv",
-        "Show.Season.2.1080p.mkv",
-        "show.s01e04.mkv",
-    ])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Shrinking.S03.MULTi.1080p.mkv",
+            "The.Boys.S05E01.MULTi.1080p.mkv",
+            "show.1x04.episode.mkv",
+            "Show.Saison.3.MULTi.mkv",
+            "Show.Season.2.1080p.mkv",
+            "show.s01e04.mkv",
+        ],
+    )
     def test_video_with_markers_is_tvshow(self, name):
         """Video files with season/episode markers are classified as TVSHOW."""
         assert detect_file_type(Path(name)) == FileType.TVSHOW
@@ -82,16 +85,19 @@ class TestDetectFileType:
 class TestHasTvshowMarkers:
     """TV show pattern detection in filenames."""
 
-    @pytest.mark.parametrize("name,expected", [
-        ("Show.S01E04.1080p.mkv", True),
-        ("Show.s03.MULTi.mkv", True),
-        ("Show.1x04.mkv", True),
-        ("Show.Saison.1.mkv", True),
-        ("Show.Season.2.mkv", True),
-        ("Show.S01-S08.Complete.mkv", True),
-        ("Movie.2024.1080p.mkv", False),
-        ("Your.Friends.H265.mkv", False),
-    ])
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            ("Show.S01E04.1080p.mkv", True),
+            ("Show.s03.MULTi.mkv", True),
+            ("Show.1x04.mkv", True),
+            ("Show.Saison.1.mkv", True),
+            ("Show.Season.2.mkv", True),
+            ("Show.S01-S08.Complete.mkv", True),
+            ("Movie.2024.1080p.mkv", False),
+            ("Your.Friends.H265.mkv", False),
+        ],
+    )
     def test_tvshow_marker_detection(self, name, expected):
         """Detects various TV show naming conventions."""
         assert _has_tvshow_markers(name) is expected

@@ -25,7 +25,7 @@ _MULTI_SPACE = re.compile(r" {2,}")
 
 
 def sanitize_filename(name: str) -> str:
-    """Remove characters that are illegal or problematic in filenames.
+    r"""Remove characters that are illegal or problematic in filenames.
 
     Strips characters forbidden on NTFS/Windows (<>:"/\\|?*) and that
     display incorrectly on macOS Finder (: shows as /). Also normalizes
@@ -63,10 +63,7 @@ def media_processor(s: str) -> str:
     s = utils.default_process(s)
     # NFD decomposition splits accented chars (é → e + combining accent)
     # then we strip the combining marks (category 'Mn')
-    return "".join(
-        c for c in unicodedata.normalize("NFD", s)
-        if unicodedata.category(c) != "Mn"
-    )
+    return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
 def fuzzy_match_score(

@@ -62,7 +62,6 @@ class TMDBError(Exception):
         super().__init__(f"TMDB {http_status} (code {tmdb_code}): {message}")
 
 
-
 _is_retryable = make_retryable_predicate(TMDBError)
 
 
@@ -112,10 +111,12 @@ class TMDBClient:
 
         self._session = requests.Session()
         self._session.mount("https://", adapter)
-        self._session.headers.update({
-            "Authorization": f"Bearer {api_key}",
-            "Accept": "application/json",
-        })
+        self._session.headers.update(
+            {
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+            }
+        )
 
         # Circuit breaker for sustained outage detection (above tenacity)
         from personalscraper.scraper.circuit_breaker import CircuitBreaker
@@ -257,21 +258,25 @@ class TMDBClient:
 
         # Posters
         for img in images.get("posters", []):
-            artworks.append({
-                "type": "poster",
-                "url": self.get_image_url(img["file_path"]),
-                "language": img.get("iso_639_1"),
-                "season": None,
-            })
+            artworks.append(
+                {
+                    "type": "poster",
+                    "url": self.get_image_url(img["file_path"]),
+                    "language": img.get("iso_639_1"),
+                    "season": None,
+                }
+            )
 
         # Backdrops → landscape equivalent
         for img in images.get("backdrops", []):
-            artworks.append({
-                "type": "landscape",
-                "url": self.get_image_url(img["file_path"]),
-                "language": img.get("iso_639_1"),
-                "season": None,
-            })
+            artworks.append(
+                {
+                    "type": "landscape",
+                    "url": self.get_image_url(img["file_path"]),
+                    "language": img.get("iso_639_1"),
+                    "season": None,
+                }
+            )
 
         return artworks
 
@@ -330,10 +335,13 @@ class TMDBClient:
             Dict with full movie metadata including credits, images,
             external_ids, and release_dates (for FR certification).
         """
-        return self._get(f"/movie/{movie_id}", {
-            "append_to_response": "credits,images,external_ids,release_dates",
-            "include_image_language": "fr,en,null",
-        })
+        return self._get(
+            f"/movie/{movie_id}",
+            {
+                "append_to_response": "credits,images,external_ids,release_dates",
+                "include_image_language": "fr,en,null",
+            },
+        )
 
     def get_tv(self, tv_id: int) -> dict[str, Any]:
         """Get full TV show details with credits, images, IDs, and ratings.
@@ -349,10 +357,13 @@ class TMDBClient:
             Dict with full TV show metadata including aggregate_credits,
             images, external_ids, and content_ratings.
         """
-        return self._get(f"/tv/{tv_id}", {
-            "append_to_response": "aggregate_credits,images,external_ids,content_ratings",
-            "include_image_language": "fr,en,null",
-        })
+        return self._get(
+            f"/tv/{tv_id}",
+            {
+                "append_to_response": "aggregate_credits,images,external_ids,content_ratings",
+                "include_image_language": "fr,en,null",
+            },
+        )
 
     def get_tv_season(self, tv_id: int, season: int) -> dict[str, Any]:
         """Get season details with episodes and images.
@@ -368,9 +379,12 @@ class TMDBClient:
         Returns:
             Dict with season details, episodes list, and images.
         """
-        return self._get(f"/tv/{tv_id}/season/{season}", {
-            "append_to_response": "images",
-        })
+        return self._get(
+            f"/tv/{tv_id}/season/{season}",
+            {
+                "append_to_response": "images",
+            },
+        )
 
     def get_image_url(self, path: str, size: str = "original") -> str:
         """Build a full TMDB image URL.
@@ -383,4 +397,3 @@ class TMDBClient:
             Full HTTPS URL to the image.
         """
         return f"{self.IMAGE_BASE_URL}/{size}{path}"
-

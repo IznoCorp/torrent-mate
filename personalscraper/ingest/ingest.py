@@ -237,9 +237,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                             settings.staging_dir / settings.tvshows_dir_name,
                             settings.ingest_dir,
                         ]
-                        found_in_staging = any(
-                            (d / source.name).exists() for d in staging_dirs
-                        )
+                        found_in_staging = any((d / source.name).exists() for d in staging_dirs)
                         if found_in_staging:
                             log.info("already_in_staging", name=name)
                             tracker.mark_ingested(torrent_hash, name, "found_in_staging")
@@ -262,12 +260,8 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
 
                     # Check disk space
                     source_size = _get_dir_size(source)
-                    if not _check_disk_space(
-                        ingest_dir, source_size, settings.min_free_space_staging_gb
-                    ):
-                        log.warning(
-                            "insufficient_space", name=name, size_mb=source_size // (1024 * 1024)
-                        )
+                    if not _check_disk_space(ingest_dir, source_size, settings.min_free_space_staging_gb):
+                        log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
                         report.skip_count += 1
                         report.warnings.append(f"{name}: insufficient disk space")
                         continue
@@ -312,21 +306,19 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                             error_type=err_key,
                             count=consecutive_errors,
                         )
-                        report.details.append(
-                            f"Aborted: {consecutive_errors} consecutive {err_key} failures"
-                        )
+                        report.details.append(f"Aborted: {consecutive_errors} consecutive {err_key} failures")
                         break
 
             # Escalate if ALL completed torrents had missing content paths
             # — likely means the source volume is unmounted
             if content_missing_count and content_missing_count == len(torrents):
                 log.error(
-                    "all_content_missing", count=content_missing_count,
+                    "all_content_missing",
+                    count=content_missing_count,
                 )
                 report.error_count += 1
                 report.details.append(
-                    f"ALL {content_missing_count} torrents have missing content. "
-                    "Check: is the source volume mounted?"
+                    f"ALL {content_missing_count} torrents have missing content. Check: is the source volume mounted?"
                 )
 
     except QBitAuthLockoutError as e:
@@ -336,10 +328,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     except qbittorrentapi.LoginFailed as e:
         log.exception("ingest_failed", error=str(e))
         report.error_count += 1
-        report.details.append(
-            f"qBittorrent login failed: {e}. "
-            "Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env"
-        )
+        report.details.append(f"qBittorrent login failed: {e}. Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env")
     except qbittorrentapi.Forbidden403Error as e:
         # Must come before APIConnectionError (Forbidden403Error is a subclass)
         log.exception("ingest_failed", error=str(e))
@@ -352,10 +341,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
         log.exception("ingest_failed", error=str(e))
         report.error_count += 1
-        report.details.append(
-            f"qBittorrent unreachable: {e}. "
-            "Fix: verify qBit is running and Web UI is enabled."
-        )
+        report.details.append(f"qBittorrent unreachable: {e}. Fix: verify qBit is running and Web UI is enabled.")
     except Exception as e:
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
         log.exception("ingest_failed", error=str(e))

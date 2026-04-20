@@ -38,8 +38,12 @@ class TestMovieFullPipeline:
     """
 
     def test_movie_full_pipeline(
-        self, e2e_session_id, e2e_registry, e2e_qbit_client,
-        e2e_torrent_files, e2e_settings,
+        self,
+        e2e_session_id,
+        e2e_registry,
+        e2e_qbit_client,
+        e2e_torrent_files,
+        e2e_settings,
     ):
         """Single movie traverses the full pipeline from torrent to verified.
 
@@ -47,10 +51,7 @@ class TestMovieFullPipeline:
         → dispatch (dry-run) → cleanup.
         """
         # Filter movie torrents (heuristic: no "S01" or "S02" in filename)
-        movie_torrents = [
-            f for f in e2e_torrent_files
-            if not any(f"S{s:02d}" in f.name for s in range(1, 30))
-        ]
+        movie_torrents = [f for f in e2e_torrent_files if not any(f"S{s:02d}" in f.name for s in range(1, 30))]
         if not movie_torrents:
             pytest.skip("No movie .torrent files in assets/torrents/")
 
@@ -77,9 +78,12 @@ class TestMovieFullPipeline:
 
             # ── 2. V1 Ingest (REAL) ──
             from personalscraper.ingest.ingest import run_ingest
+
             ingest_report = run_ingest(settings, dry_run=False)
-            print(f"  V1 Ingest: {ingest_report.success_count} ingested, "
-                  f"{ingest_report.skip_count} skipped, {ingest_report.error_count} errors")
+            print(
+                f"  V1 Ingest: {ingest_report.success_count} ingested, "
+                f"{ingest_report.skip_count} skipped, {ingest_report.error_count} errors"
+            )
 
             # Build expected list from torrent names for assertions
             expected = [{"name": n, "type": "movie"} for n in names.values()]
@@ -87,6 +91,7 @@ class TestMovieFullPipeline:
 
             # ── 3. V2 Sort (REAL) ──
             from personalscraper.sorter.run import run_sort
+
             sort_report = run_sort(settings, dry_run=False)
             print(f"  V2 Sort: {sort_report.success_count} sorted")
             assert_sort_complete(movies_dir, staging / "002-TVSHOWS", expected)
@@ -100,6 +105,7 @@ class TestMovieFullPipeline:
 
             # ── 4. V3 Scrape (REAL — calls TMDB API) ──
             from personalscraper.scraper.run import run_scrape
+
             scrape_report = run_scrape(settings, dry_run=False, movies_only=True)
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(movies_dir, staging / "002-TVSHOWS", expected)
@@ -126,17 +132,16 @@ class TestMovieFullPipeline:
 
             # ── 5. V4 Verify (REAL) ──
             from personalscraper.verify.run import run_verify
+
             verify_report, verified = run_verify(settings, dry_run=False, movies_only=True)
-            print(f"  V4 Verify: {verify_report.success_count} valid, "
-                  f"{verify_report.error_count} errors")
+            print(f"  V4 Verify: {verify_report.success_count} valid, {verify_report.error_count} errors")
             # Filter verified results to test movies only
-            test_results = [v for v in verified if any(
-                n.lower() in str(v.media_path).lower() for n in names.values()
-            )]
+            test_results = [v for v in verified if any(n.lower() in str(v.media_path).lower() for n in names.values())]
             assert_verify_complete(test_results)
 
             # ── 6. V5 Dispatch (DRY-RUN — disks are NEVER modified) ──
             from personalscraper.dispatch.run import run_dispatch
+
             dispatch_report = run_dispatch(settings, dry_run=True, verified=verified)
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
 
@@ -149,5 +154,4 @@ class TestMovieFullPipeline:
         finally:
             # ── 7. Cleanup: staging + qBit torrents ──
             result = cleanup.cleanup_all(client=e2e_qbit_client, force=True)
-            print(f"\n  Cleanup: {result['staging']} staging, "
-                  f"{result['torrents']} torrents removed")
+            print(f"\n  Cleanup: {result['staging']} staging, {result['torrents']} torrents removed")

@@ -192,7 +192,10 @@ class TestRunIngest:
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_no_completed_torrents(
-        self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """No completed torrents should return success_count=0."""
         settings = MagicMock()
@@ -215,7 +218,10 @@ class TestRunIngest:
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_already_ingested_skip(
-        self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Already-ingested torrents should be skipped."""
         settings = MagicMock()
@@ -402,7 +408,10 @@ class TestRunIngest:
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_dry_run(
-        self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Dry run should not call _cleanup_orphan_temps or mark ingested."""
         settings = MagicMock()
@@ -436,7 +445,10 @@ class TestRunIngest:
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_step_report_counts(
-        self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """StepReport should have correct name and initial counts."""
         settings = MagicMock()
@@ -505,7 +517,9 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_qbit_init_failure(
-        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """QBitClient init failure should return error report."""
         settings = MagicMock()
@@ -521,7 +535,10 @@ class TestRunIngest:
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_content_path_missing(
-        self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Missing content path should increment skip_count (file likely already processed)."""
         settings = MagicMock()
@@ -657,7 +674,9 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_forbidden_403_actionable_message(
-        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Forbidden403Error should produce IP-banned message, not generic unreachable."""
         import qbittorrentapi
@@ -667,9 +686,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(
-            side_effect=qbittorrentapi.Forbidden403Error()
-        )
+        mock_client.__enter__ = MagicMock(side_effect=qbittorrentapi.Forbidden403Error())
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
@@ -683,7 +700,9 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_login_failed_actionable_message(
-        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """LoginFailed should produce an actionable message mentioning auth or login."""
         import qbittorrentapi
@@ -705,7 +724,9 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_api_connection_error_actionable_message(
-        self, mock_qbit_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """APIConnectionError should produce an actionable message mentioning unreachable or running."""
         import qbittorrentapi
@@ -715,9 +736,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(
-            side_effect=qbittorrentapi.APIConnectionError("Connection refused")
-        )
+        mock_client.__enter__ = MagicMock(side_effect=qbittorrentapi.APIConnectionError("Connection refused"))
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
@@ -730,7 +749,10 @@ class TestRunIngest:
     @patch("personalscraper.ingest.ingest.IngestTracker")
     @patch("personalscraper.ingest.ingest.QBitClient")
     def test_dest_already_exists_skip(
-        self, mock_qbit_cls: MagicMock, mock_tracker_cls: MagicMock, tmp_path: Path,
+        self,
+        mock_qbit_cls: MagicMock,
+        mock_tracker_cls: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """If destination already exists in staging, skip and mark ingested."""
         settings = MagicMock()

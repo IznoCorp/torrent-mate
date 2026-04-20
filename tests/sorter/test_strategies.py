@@ -1,6 +1,5 @@
 """Tests for personalscraper.sorter.strategies — sorting strategies."""
 
-
 import pytest
 
 from personalscraper.sorter.cleaner import NameCleaner
@@ -98,9 +97,7 @@ class TestTVShowStrategy:
         existing = staging / "002-TVSHOWS" / "The Boys"
         existing.mkdir()
         strategy = TVShowStrategy()
-        dest = strategy.get_destination(
-            "The.Boys.S05E01.MULTi.DV.HDR.2160p.AMZN.WEBRiP-R3MiX", staging, cleaner
-        )
+        dest = strategy.get_destination("The.Boys.S05E01.MULTi.DV.HDR.2160p.AMZN.WEBRiP-R3MiX", staging, cleaner)
         assert dest == existing
 
 
@@ -110,12 +107,15 @@ class TestTVShowStrategy:
 class TestDefaultStrategy:
     """DefaultStrategy — places items in type-specific directories."""
 
-    @pytest.mark.parametrize("file_type,expected_dir", [
-        (FileType.EBOOK, "003-EBOOKS"),
-        (FileType.AUDIO, "004-AUDIO"),
-        (FileType.APP, "005-APPS"),
-        (FileType.OTHER, "098-AUTRES"),
-    ])
+    @pytest.mark.parametrize(
+        "file_type,expected_dir",
+        [
+            (FileType.EBOOK, "003-EBOOKS"),
+            (FileType.AUDIO, "004-AUDIO"),
+            (FileType.APP, "005-APPS"),
+            (FileType.OTHER, "098-AUTRES"),
+        ],
+    )
     def test_type_directory_mapping(self, staging, cleaner, file_type, expected_dir):
         """Each type maps to its correct directory."""
         strategy = DefaultStrategy(file_type)

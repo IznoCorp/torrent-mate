@@ -77,7 +77,11 @@ class TestPipelineRun:
     @patch("personalscraper.sorter.run.run_sort")
     @patch("personalscraper.ingest.ingest.run_ingest")
     def test_runs_all_phases_in_order(
-        self, mock_ingest, mock_sort, pipeline_settings, quiet_console,
+        self,
+        mock_ingest,
+        mock_sort,
+        pipeline_settings,
+        quiet_console,
     ):
         """Pipeline executes ingest→sort→gate→process→enforce→verify→dispatch."""
         mock_ingest.return_value = StepReport(name="ingest", success_count=2)
@@ -101,13 +105,24 @@ class TestPipelineRun:
 
         assert len(report.steps) == 8
         assert list(report.steps.keys()) == [
-            "ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch",
+            "ingest",
+            "sort",
+            "clean",
+            "scrape",
+            "cleanup",
+            "enforce",
+            "verify",
+            "dispatch",
         ]
 
     @patch("personalscraper.sorter.run.run_sort")
     @patch("personalscraper.ingest.ingest.run_ingest")
     def test_dispatch_skipped_when_no_verified(
-        self, mock_ingest, mock_sort, pipeline_settings, quiet_console,
+        self,
+        mock_ingest,
+        mock_sort,
+        pipeline_settings,
+        quiet_console,
     ):
         """Dispatch is skipped when verify returns no dispatchable items."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -132,7 +147,11 @@ class TestPipelineRun:
     @patch("personalscraper.sorter.run.run_sort")
     @patch("personalscraper.ingest.ingest.run_ingest")
     def test_dispatch_skipped_when_verify_crashes(
-        self, mock_ingest, mock_sort, pipeline_settings, quiet_console,
+        self,
+        mock_ingest,
+        mock_sort,
+        pipeline_settings,
+        quiet_console,
     ):
         """Dispatch is skipped when verify step crashes (returns None)."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -153,7 +172,11 @@ class TestPipelineRun:
     @patch("personalscraper.sorter.run.run_sort")
     @patch("personalscraper.ingest.ingest.run_ingest")
     def test_gate_warning_does_not_block(
-        self, mock_ingest, mock_sort, pipeline_settings, quiet_console,
+        self,
+        mock_ingest,
+        mock_sort,
+        pipeline_settings,
+        quiet_console,
     ):
         """Gate 097-TEMP not empty logs warning but pipeline continues."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -231,9 +254,7 @@ class TestCrashRecovery:
         settings.ingest_dir.mkdir()
 
         pipeline = Pipeline(settings, dry_run=False)
-        pipeline._recover_from_previous_run(
-            lockout_path=tmp_path / "nonexistent_lockout"
-        )
+        pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
 
@@ -250,8 +271,6 @@ class TestCrashRecovery:
         settings.ingest_dir = ingest_dir
 
         pipeline = Pipeline(settings, dry_run=False)
-        pipeline._recover_from_previous_run(
-            lockout_path=tmp_path / "nonexistent_lockout"
-        )
+        pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
