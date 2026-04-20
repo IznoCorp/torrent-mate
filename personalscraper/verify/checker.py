@@ -485,7 +485,7 @@ class MediaChecker:
         Returns:
             List of video file paths.
         """
-        results = []
+        results: list[Path] = []
         for ext in VIDEO_EXTENSIONS:
             results.extend(directory.rglob(f"*.{ext}"))
         return results

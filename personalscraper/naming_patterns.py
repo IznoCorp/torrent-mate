@@ -8,6 +8,7 @@ Shared across V3 (NFO/artwork generation), V4 (verification), and V5 (dispatch).
 Patterns are MediaElch defaults — no config file needed (YAGNI).
 """
 
+import re
 from dataclasses import dataclass
 
 from personalscraper.text_utils import sanitize_filename

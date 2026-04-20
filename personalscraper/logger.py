@@ -3,8 +3,10 @@
 import logging
 import logging.config
 from pathlib import Path
+from typing import cast
 
 import structlog
+from structlog.types import Processor
 
 LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
 
@@ -28,7 +30,7 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
     else:
         log_level = "INFO"
 
-    shared_processors = [
+    shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.ExtraAdder(),
@@ -109,7 +111,8 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
     Returns:
         A BoundLogger instance with the given name.
     """
-    return structlog.get_logger(name)
+    # structlog.get_logger() returns Any; cast to the concrete wrapper we configure above.
+    return cast(structlog.stdlib.BoundLogger, structlog.get_logger(name))
 
 
 def cleanup_old_logs(logs_dir: Path = LOGS_DIR, retention_days: int = 30) -> int:
