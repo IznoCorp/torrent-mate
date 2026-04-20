@@ -16,6 +16,7 @@ Mapping notes (from docs/TVDB-API.md):
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import requests
 from tenacity import (
@@ -63,7 +64,7 @@ def build_lang_priority(preferred: str = "en") -> dict[str | None, int]:
 
 
 def select_best_image(
-    images: list[dict],
+    images: list[dict[str, Any]],
     lang_priority: dict[str | None, int] | None = None,
 ) -> str | None:
     """Select the best image by language priority then vote average.
@@ -87,7 +88,7 @@ def select_best_image(
 
     priority_map = lang_priority or _DEFAULT_LANG_PRIORITY
 
-    def sort_key(img: dict) -> tuple:
+    def sort_key(img: dict[str, Any]) -> tuple[int, float]:
         lang: str | None = img.get("iso_639_1")
         priority = priority_map.get(lang, 2)
         vote = img.get("vote_average", 0.0)
@@ -164,7 +165,7 @@ class ArtworkDownloader:
         return True
 
     def download_movie_artwork(
-        self, movie_data: dict, movie_dir: Path, patterns: NamingPatterns,
+        self, movie_data: dict[str, Any], movie_dir: Path, patterns: NamingPatterns,
     ) -> list[Path]:
         """Download poster + landscape for a movie.
 
@@ -211,7 +212,7 @@ class ArtworkDownloader:
         return downloaded
 
     def download_tvshow_artwork(
-        self, show_data: dict, show_dir: Path, patterns: NamingPatterns,
+        self, show_data: dict[str, Any], show_dir: Path, patterns: NamingPatterns,
     ) -> list[Path]:
         """Download poster + landscape + season posters for a TV show.
 

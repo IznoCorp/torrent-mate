@@ -10,6 +10,7 @@ from the 001-MOVIES/ directory.
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any, cast
 
 # Preview image sizes for inline thumbs
 POSTER_PREVIEW_SIZE = "w342"
@@ -65,7 +66,7 @@ class NFOGenerator:
     including ratings, uniqueids, inline thumbs, streamdetails, and actors.
     """
 
-    def generate_movie_nfo(self, movie_data: dict, stream_info: dict | None = None) -> str:
+    def generate_movie_nfo(self, movie_data: dict[str, Any], stream_info: dict[str, Any] | None = None) -> str:
         """Generate a <movie> NFO XML string.
 
         Produces XML matching MediaElch output structure. Fields are mapped
@@ -158,7 +159,7 @@ class NFOGenerator:
             root, encoding="unicode",
         )
 
-    def generate_tvshow_nfo(self, show_data: dict) -> str:
+    def generate_tvshow_nfo(self, show_data: dict[str, Any]) -> str:
         """Generate a <tvshow> NFO XML string matching MediaElch format.
 
         Produces XML with the same tag structure and ordering as MediaElch.
@@ -258,7 +259,7 @@ class NFOGenerator:
             root, encoding="unicode",
         )
 
-    def generate_episode_nfo(self, episode_data: dict, stream_info: dict | None = None) -> str:
+    def generate_episode_nfo(self, episode_data: dict[str, Any], stream_info: dict[str, Any] | None = None) -> str:
         """Generate an <episodedetails> NFO XML string matching MediaElch format.
 
         Produces XML with the same tag structure and ordering as MediaElch.
@@ -355,7 +356,7 @@ class NFOGenerator:
     # --- Private helpers ---
 
     def _add_ratings(
-        self, root: ET.Element, data: dict, rating_name: str = "themoviedb",
+        self, root: ET.Element, data: dict[str, Any], rating_name: str = "themoviedb",
     ) -> None:
         """Add <ratings> element with rating data.
 
@@ -373,7 +374,7 @@ class NFOGenerator:
         _sub(rating, "value", str(data.get("vote_average", 0)))
         _sub(rating, "votes", str(data.get("vote_count", 0)))
 
-    def _add_inline_images(self, root: ET.Element, data: dict) -> None:
+    def _add_inline_images(self, root: ET.Element, data: dict[str, Any]) -> None:
         """Add inline <thumb> and <fanart> elements.
 
         Args:
@@ -398,7 +399,7 @@ class NFOGenerator:
                 thumb = _sub(fanart, "thumb", f"{IMAGE_BASE}/original{path}")
                 thumb.set("preview", f"{IMAGE_BASE}/{BACKDROP_PREVIEW_SIZE}{path}")
 
-    def _add_inline_images_tv(self, root: ET.Element, data: dict) -> None:
+    def _add_inline_images_tv(self, root: ET.Element, data: dict[str, Any]) -> None:
         """Add inline <thumb> and <fanart> elements for TV shows.
 
         MediaElch uses original-size URLs for TV show image previews
@@ -436,7 +437,7 @@ class NFOGenerator:
                 thumb = _sub(fanart, "thumb", url)
                 thumb.set("preview", url)
 
-    def _add_streamdetails(self, root: ET.Element, stream_info: dict) -> None:
+    def _add_streamdetails(self, root: ET.Element, stream_info: dict[str, Any]) -> None:
         """Add <fileinfo><streamdetails> element.
 
         Args:
@@ -468,7 +469,7 @@ class NFOGenerator:
             subtitle = ET.SubElement(sd, "subtitle")
             _sub(subtitle, "language", track.get("language", ""))
 
-    def _add_actor(self, root: ET.Element, actor: dict) -> None:
+    def _add_actor(self, root: ET.Element, actor: dict[str, Any]) -> None:
         """Add an <actor> element for movie credits.
 
         Args:
@@ -483,7 +484,7 @@ class NFOGenerator:
         thumb_url = f"{IMAGE_BASE}/{ACTOR_THUMB_SIZE}{profile}" if profile else ""
         _sub(actor_elem, "thumb", thumb_url)
 
-    def _add_actor_tv(self, root: ET.Element, actor: dict) -> None:
+    def _add_actor_tv(self, root: ET.Element, actor: dict[str, Any]) -> None:
         """Add an <actor> element for TV show aggregate credits.
 
         Handles aggregate_credits format where roles[] replaces character.
@@ -504,7 +505,7 @@ class NFOGenerator:
         _sub(actor_elem, "thumb", thumb_url)
 
     @staticmethod
-    def _extract_certification_fr(movie_data: dict) -> str:
+    def _extract_certification_fr(movie_data: dict[str, Any]) -> str:
         """Extract French theatrical certification from release_dates.
 
         Looks for iso_3166_1=="FR" with type==3 (theatrical release).
@@ -519,11 +520,11 @@ class NFOGenerator:
             if release.get("iso_3166_1") == "FR":
                 for rd in release.get("release_dates", []):
                     if rd.get("type") == 3:
-                        return rd.get("certification", "")
+                        return cast(str, rd.get("certification", ""))
         return ""
 
     @staticmethod
-    def _extract_content_rating_fr(show_data: dict) -> str:
+    def _extract_content_rating_fr(show_data: dict[str, Any]) -> str:
         """Extract French content rating for TV shows.
 
         Args:
@@ -534,5 +535,5 @@ class NFOGenerator:
         """
         for rating in show_data.get("content_ratings", {}).get("results", []):
             if rating.get("iso_3166_1") == "FR":
-                return rating.get("rating", "")
+                return cast(str, rating.get("rating", ""))
         return ""
