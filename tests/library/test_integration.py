@@ -169,7 +169,7 @@ class TestCleanIntegration:
         """Clean should remove .DS_Store files."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        result = clean_library([mini_library["config"]], apply=True, only="junk")
+        clean_library([mini_library["config"]], apply=True, only="junk")
 
         assert not (mini_library["matrix"] / ".DS_Store").exists()
 

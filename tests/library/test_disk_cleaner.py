@@ -92,7 +92,7 @@ class TestCleanEmpty:
         empty.mkdir()
 
         config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=True, only="empty")
+        clean_library([config], apply=True, only="empty")
 
         assert not empty.exists()
         assert movie.exists()  # parent not deleted
@@ -107,7 +107,7 @@ class TestCleanEmpty:
         artifact.mkdir()  # empty
 
         config = _make_config(disk, "Disk1", ["series"])
-        result = clean_library([config], apply=True, only="release")
+        clean_library([config], apply=True, only="release")
 
         assert not artifact.exists()
 
@@ -184,7 +184,7 @@ class TestCleanAll:
             _make_config(disk1, "Disk1", ["films"]),
             _make_config(disk2, "Disk2", ["films"]),
         ]
-        result = clean_library(configs, apply=True, only="actors", disk_filter="Disk1")
+        clean_library(configs, apply=True, only="actors", disk_filter="Disk1")
 
         assert not (m1 / ".actors").exists()
         assert (m2 / ".actors").exists()  # untouched

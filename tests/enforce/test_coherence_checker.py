@@ -7,6 +7,7 @@ from personalscraper.enforce.coherence_checker import check_coherence
 
 @pytest.fixture
 def settings(tmp_path):
+    """Build a mocked Settings object pointing at ``tmp_path`` for isolation."""
     from unittest.mock import MagicMock
 
     s = MagicMock()

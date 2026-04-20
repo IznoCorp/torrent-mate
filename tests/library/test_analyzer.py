@@ -173,6 +173,6 @@ class TestAnalyzeLibrary:
         with patch(
             "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
         ) as mock_extract:
-            result = analyze_library([config])
+            analyze_library([config])
 
         assert mock_extract.call_count == 1

@@ -461,7 +461,7 @@ class TestTVDBClientDetails:
         )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
-            result = logged_in_client.get_series(81189)
+            logged_in_client.get_series(81189)
 
         _, kwargs = mock_get.call_args
         assert "/series/81189/extended" in mock_get.call_args[0][0]

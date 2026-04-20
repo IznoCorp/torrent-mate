@@ -440,7 +440,7 @@ class MediaChecker:
     # --- NTFS safety helpers ---
 
     def _check_ntfs_safe_names(self, media_dir: Path) -> CheckResult:
-        """Check all filenames for NTFS-illegal characters.
+        r"""Check all filenames for NTFS-illegal characters.
 
         Scans recursively for files containing <>:"/\\|?* in their names.
         These characters cause rsync failures on NTFS storage disks.
