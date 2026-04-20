@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path as PathLib
+from typing import Any, cast
 
 
 @dataclass
@@ -559,7 +560,8 @@ def serialize_to_json(obj: object) -> str:
     Returns:
         JSON string with 2-space indentation.
     """
-    return json.dumps(asdict(obj), default=_json_default, indent=2, ensure_ascii=False)
+    # mypy: asdict requires DataclassInstance; callers always pass a dataclass instance.
+    return json.dumps(asdict(obj), default=_json_default, indent=2, ensure_ascii=False)  # type: ignore[call-overload]
 
 
 def write_json(obj: object, path: PathLib) -> None:
@@ -577,7 +579,7 @@ def write_json(obj: object, path: PathLib) -> None:
     tmp_path.rename(path)
 
 
-def read_json(path: PathLib) -> dict:
+def read_json(path: PathLib) -> dict[str, Any]:
     """Read a JSON file and return parsed dict.
 
     Args:
@@ -586,4 +588,4 @@ def read_json(path: PathLib) -> dict:
     Returns:
         Parsed dictionary.
     """
-    return json.loads(path.read_text(encoding="utf-8"))
+    return cast("dict[str, Any]", json.loads(path.read_text(encoding="utf-8")))

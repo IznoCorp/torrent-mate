@@ -11,6 +11,14 @@ import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskConfig
+    from personalscraper.scraper.artwork import ArtworkDownloader
+    from personalscraper.scraper.nfo_generator import NFOGenerator
+    from personalscraper.scraper.tmdb_client import TMDBClient
+    from personalscraper.scraper.tvdb_client import TVDBClient
 
 from personalscraper.config import Settings
 from personalscraper.library.models import (
@@ -97,8 +105,8 @@ def _resolve_tmdb_id(
     media_type: str,
     title: str,
     year: int | None,
-    tmdb_client: object,
-    tvdb_client: object,
+    tmdb_client: TMDBClient,
+    tvdb_client: TVDBClient,
     interactive: bool,
 ) -> tuple[str | None, str | None, float | None]:
     """Resolve TMDB ID for a media item.
@@ -195,10 +203,10 @@ def _rescrape_item(
     title: str,
     year: int | None,
     *,
-    tmdb_client: object,
-    tvdb_client: object,
-    nfo_gen: object,
-    artwork_dl: object,
+    tmdb_client: TMDBClient,
+    tvdb_client: TVDBClient,
+    nfo_gen: NFOGenerator,
+    artwork_dl: ArtworkDownloader,
     patterns: NamingPatterns,
     only: str | None,
     interactive: bool,
@@ -321,9 +329,9 @@ def _rescrape_item(
 
 def _rescrape_episodes(
     show_dir: Path,
-    show_data: dict,
+    show_data: dict[str, Any],
     tmdb_id: int,
-    tmdb_client: object,
+    tmdb_client: TMDBClient,
     patterns: NamingPatterns,
     dry_run: bool,
 ) -> None:
@@ -377,7 +385,7 @@ def _rescrape_episodes(
 
 
 def rescrape_library(
-    disk_configs: list,
+    disk_configs: list[DiskConfig],
     settings: Settings,
     disk_filter: str | None = None,
     category_filter: str | None = None,

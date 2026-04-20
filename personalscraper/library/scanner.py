@@ -11,7 +11,11 @@ import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskConfig
 
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
@@ -364,7 +368,7 @@ def scan_tvshow_dir(show_dir: Path, disk: str, category: str) -> LibraryScanItem
 
 
 def scan_library(
-    disk_configs: list,
+    disk_configs: list[DiskConfig],
     disk_filter: str | None = None,
     category_filter: str | None = None,
 ) -> LibraryScanResult:
