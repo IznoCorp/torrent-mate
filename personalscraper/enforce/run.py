@@ -40,34 +40,34 @@ def run_enforce(settings: Settings, dry_run: bool = False) -> StepReport:
     details: list[str] = []
 
     # Sanitize actions
-    for r in sanitize_results:
-        if r.action not in ("skipped",):
+    for sanitize_result in sanitize_results:
+        if sanitize_result.action not in ("skipped",):
             success += 1
             details.append(
-                f"[sanitize:{r.action}] {r.old_name}"
-                + (f" → {r.new_name}" if r.new_name else "")
+                f"[sanitize:{sanitize_result.action}] {sanitize_result.old_name}"
+                + (f" → {sanitize_result.new_name}" if sanitize_result.new_name else "")
             )
 
     # Structure fixes
-    for r in structure_results:
-        if r.action == "repaired":
+    for structure_result in structure_results:
+        if structure_result.action == "repaired":
             success += 1
-            for fix in r.fixes:
-                details.append(f"[structure:fix] {r.path.name}: {fix}")
-        for w in r.warnings:
-            warnings_list.append(f"{r.path.name}: {w}")
+            for fix in structure_result.fixes:
+                details.append(f"[structure:fix] {structure_result.path.name}: {fix}")
+        for w in structure_result.warnings:
+            warnings_list.append(f"{structure_result.path.name}: {w}")
 
     # Coherence warnings
-    for r in coherence_results:
-        for w in r.warnings:
-            warnings_list.append(f"[coherence] {r.path.name}: {w}")
+    for coherence_result in coherence_results:
+        for w in coherence_result.warnings:
+            warnings_list.append(f"[coherence] {coherence_result.path.name}: {w}")
 
-    skip_count = sum(1 for r in sanitize_results if r.action == "skipped") + sum(
-        1 for r in structure_results if r.action == "validated"
+    skip_count = sum(1 for sr in sanitize_results if sr.action == "skipped") + sum(
+        1 for sr in structure_results if sr.action == "validated"
     )
 
-    error_count = sum(1 for r in sanitize_results if r.action == "error") + sum(
-        1 for r in structure_results if r.action == "error"
+    error_count = sum(1 for sr in sanitize_results if sr.action == "error") + sum(
+        1 for sr in structure_results if sr.action == "error"
     )
 
     return StepReport(

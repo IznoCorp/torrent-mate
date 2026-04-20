@@ -14,12 +14,16 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
 from personalscraper.config import Settings
 from personalscraper.models import PipelineReport, StepReport
+
+if TYPE_CHECKING:
+    from personalscraper.verify.verifier import VerifyResult
 
 
 class PipelineGateError(Exception):
@@ -252,7 +256,7 @@ class Pipeline:
         report.finished_at = datetime.now()
         return report
 
-    def _run_verify(self) -> tuple[StepReport, list]:
+    def _run_verify(self) -> tuple[StepReport, list["VerifyResult"]]:
         """Run verify and return (StepReport, dispatchable list).
 
         Returns:
@@ -347,7 +351,7 @@ class Pipeline:
     def _run_step(
         self,
         name: str,
-        fn: Callable,
+        fn: Callable[[], Any],
         report: PipelineReport,
         *,
         critical: bool = False,
