@@ -418,7 +418,8 @@ def format_report_text(report: LibraryReport) -> str:
         lines.append("")
         coverage = (report.analysis_item_count * 100 // report.total_items) if report.total_items else 0
         lines.append(
-            f"    Analysés: {report.analysis_item_count} items, {report.analysis_file_count} fichiers ({coverage}% de la bibliothèque)"
+            f"    Analysés: {report.analysis_item_count} items, "
+            f"{report.analysis_file_count} fichiers ({coverage}% de la bibliothèque)"
         )
         if coverage < 100:
             lines.append("    ⚠ Analyse partielle. Compléter: personalscraper library-analyze --incremental")
@@ -466,7 +467,8 @@ def format_report_text(report: LibraryReport) -> str:
         for rec in report.recommendation_details:
             prio_mark = {"high": "🔴", "medium": "🟡", "low": "🔵"}.get(rec["priority"], "?")
             lines.append(
-                f"      {prio_mark} {rec['title']} — {rec['codec']} {rec['resolution']} {rec['size_gb']:.1f}GB {rec['audio_profile']}"
+                f"      {prio_mark} {rec['title']} — {rec['codec']} {rec['resolution']} "
+                f"{rec['size_gb']:.1f}GB {rec['audio_profile']}"
             )
             for reason in rec["reasons"]:
                 lines.append(f"           → {reason}")
@@ -493,7 +495,8 @@ def format_report_text(report: LibraryReport) -> str:
         lines.append(sep)
         lines.append("")
         lines.append(
-            f"    Réparés: {report.rescrape_fixed}  Ignorés: {report.rescrape_skipped}  Erreurs: {report.rescrape_errors}  (total: {total_r})"
+            f"    Réparés: {report.rescrape_fixed}  Ignorés: {report.rescrape_skipped}  "
+            f"Erreurs: {report.rescrape_errors}  (total: {total_r})"
         )
         lines.append("")
         if report.rescrape_nfo_count:

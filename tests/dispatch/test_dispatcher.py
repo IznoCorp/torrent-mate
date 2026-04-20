@@ -367,8 +367,6 @@ class TestReplace:
         dest.mkdir()
         (dest / "original.mkv").write_bytes(b"\x00" * 512)
 
-        tmp_new = dest.parent / f"{dest.name}.new.tmp"
-
         def fake_rsync(src: Path, dst: Path, delete: bool = False) -> bool:
             dst.mkdir(parents=True, exist_ok=True)
             (dst / "new.mkv").write_bytes(b"\x00" * 1024)
@@ -1124,7 +1122,7 @@ class TestRestoreMergeBackup:
         read_only_target.chmod(0o000)
 
         try:
-            restored = Dispatcher._restore_merge_backup(dest, backup)
+            Dispatcher._restore_merge_backup(dest, backup)
             # At least the good file should be restored
             assert (dest / "good.mkv").read_bytes() == b"good-data"
             # Backup NOT removed because some files failed

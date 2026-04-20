@@ -112,7 +112,7 @@ class TestIdempotenceTvshows:
         empty = show / "Show.S01E01.MULTI.1080p"
         empty.mkdir()
 
-        r1 = run_enforce(settings, dry_run=False)
+        run_enforce(settings, dry_run=False)
         assert not empty.exists()
 
         r2 = run_enforce(settings, dry_run=False)

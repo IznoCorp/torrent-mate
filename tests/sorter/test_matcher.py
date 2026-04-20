@@ -74,8 +74,7 @@ class TestFindMatchingDirectory:
         assert result is None
 
     def test_year_mismatch_rejected_even_when_disabled(self, tmp_path):
-        """Year guard is skipped with respect_year=False, but adaptive
-        threshold still rejects low scores from digit differences.
+        """Year guard is skipped with respect_year=False, but adaptive threshold rejects low scores.
 
         V8: fuzzy_match_score's adaptive threshold (90%) means that
         different year digits lower the WRatio score below the cutoff.

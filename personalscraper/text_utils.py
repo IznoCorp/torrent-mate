@@ -25,7 +25,7 @@ _MULTI_SPACE = re.compile(r" {2,}")
 
 
 def sanitize_filename(name: str) -> str:
-    """Remove characters that are illegal or problematic in filenames.
+    r"""Remove characters that are illegal or problematic in filenames.
 
     Strips characters forbidden on NTFS/Windows (<>:"/\\|?*) and that
     display incorrectly on macOS Finder (: shows as /). Also normalizes

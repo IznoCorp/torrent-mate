@@ -2,7 +2,7 @@
 
 import pytest
 
-from personalscraper.text_utils import media_processor
+from personalscraper.text_utils import fuzzy_match_score, media_processor
 
 
 class TestMediaProcessor:
@@ -50,8 +50,6 @@ class TestMediaProcessor:
 # ---------------------------------------------------------------------------
 # fuzzy_match_score — anti-false-positive guards
 # ---------------------------------------------------------------------------
-
-from personalscraper.text_utils import fuzzy_match_score
 
 
 class TestFuzzyMatchScore:

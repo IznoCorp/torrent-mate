@@ -132,7 +132,7 @@ PATTERNS = NamingPatterns()
 
 
 def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
-    """Build a regex from a Python format string pattern.
+    r"""Build a regex from a Python format string pattern.
 
     Replaces all ``{placeholder}`` and ``{placeholder:format}`` tokens
     with ``\\d+`` (assumes numeric placeholders). Literal portions are

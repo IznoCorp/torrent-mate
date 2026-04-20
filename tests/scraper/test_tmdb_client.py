@@ -12,7 +12,6 @@ import requests
 from personalscraper.scraper.tmdb_client import (
     TMDB_INVALID_KEY,
     TMDB_NOT_FOUND,
-    TMDB_RATE_LIMIT,
     TMDBClient,
     TMDBError,
     _is_retryable,
@@ -191,7 +190,6 @@ class TestTMDBClientGet:
 
     def test_retry_on_429_then_success(self, client: TMDBClient) -> None:
         """A 429 followed by success should return the successful response."""
-        resp_429 = _mock_response(429, {"status_code": TMDB_RATE_LIMIT, "status_message": "Rate limit."})
         resp_200 = _mock_response(200, {"id": 42})
 
         # First call raises 429 (TMDBError), but TMDBError is not retryable by _is_retryable
@@ -482,7 +480,7 @@ class TestTMDBClientDetails:
         mock_resp = _mock_response(200, SAMPLE_MOVIE)
 
         with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
-            result = client.get_movie(1049112)
+            client.get_movie(1049112)
 
         _, kwargs = mock_get.call_args
         append = kwargs["params"]["append_to_response"]

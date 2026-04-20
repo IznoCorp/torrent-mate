@@ -19,6 +19,15 @@ from pathlib import Path
 from typing import Any
 
 from personalscraper.config import Settings
+from personalscraper.dispatch.disk_scanner import (
+    choose_disk,
+    get_disk_configs,
+    get_disk_status,
+)
+from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
+from personalscraper.genre_mapper import GenreMapper
+from personalscraper.text_utils import _FILENAME_ILLEGAL
+from personalscraper.verify.verifier import VerifyResult
 
 
 def _force_rmtree(path: Path) -> None:
@@ -66,16 +75,6 @@ def _force_rmtree(path: Path) -> None:
             )
         raise OSError(f"_force_rmtree incomplete for {path}: {len(errors)} file(s) could not be removed")
 
-
-from personalscraper.dispatch.disk_scanner import (
-    choose_disk,
-    get_disk_configs,
-    get_disk_status,
-)
-from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
-from personalscraper.genre_mapper import GenreMapper
-from personalscraper.text_utils import _FILENAME_ILLEGAL
-from personalscraper.verify.verifier import VerifyResult
 
 logger = logging.getLogger(__name__)
 
