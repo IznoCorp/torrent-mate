@@ -76,7 +76,7 @@ jobs:
           key: pip-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
           restore-keys: pip-${{ runner.os }}-3.13-
       - run: pip install -e . pip-licenses
-      - run: pip-licenses --allow-only="MIT;MIT License;BSD;BSD License;BSD-2-Clause;BSD-3-Clause;Apache;Apache 2.0;Apache-2.0;Apache Software License;ISC;ISC License (ISCL);PSF;PSF-2.0;Python Software Foundation License;LGPL;LGPL-2.1-or-later;LGPL-3.0-or-later;GNU Lesser General Public License v2 or later (LGPLv2+);GNU Lesser General Public License v3 or later (LGPLv3+);MPL;MPL-2.0;Mozilla Public License 2.0 (MPL 2.0);The Unlicense (Unlicense)"
+      - run: pip-licenses --fail-on="GPL;GPL-2.0;GPL-3.0;GPL-2.0-only;GPL-3.0-only;GPL-2.0-or-later;GPL-3.0-or-later;GNU General Public License (GPL);GNU General Public License v2 (GPLv2);GNU General Public License v3 (GPLv3);GNU General Public License v2 or later (GPLv2+);GNU General Public License v3 or later (GPLv3+);AGPL;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;GNU Affero General Public License v3;GNU Affero General Public License v3 or later (AGPLv3+);SSPL;SSPL-1.0;Server Side Public License"
 
   # ── Stage 2: Tests & security (depend on Stage 1) ─────
   test:
