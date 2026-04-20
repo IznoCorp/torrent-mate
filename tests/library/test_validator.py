@@ -17,16 +17,16 @@ def _make_config(path: Path, name: str, categories: list[str]):
 
 # Minimal valid NFO with genres for category check to pass
 _VALID_MOVIE_NFO = (
-    '<movie>'
-    '<title>Test</title><year>2024</year>'
+    "<movie>"
+    "<title>Test</title><year>2024</year>"
     '<uniqueid type="tmdb">1</uniqueid>'
     '<uniqueid type="imdb">tt0000001</uniqueid>'
-    '<genre>Action</genre>'
-    '<fileinfo><streamdetails>'
-    '<video><codec>h264</codec><width>1920</width><height>1080</height></video>'
-    '<audio><codec>ac3</codec><language>fra</language><channels>6</channels></audio>'
-    '</streamdetails></fileinfo>'
-    '</movie>'
+    "<genre>Action</genre>"
+    "<fileinfo><streamdetails>"
+    "<video><codec>h264</codec><width>1920</width><height>1080</height></video>"
+    "<audio><codec>ac3</codec><language>fra</language><channels>6</channels></audio>"
+    "</streamdetails></fileinfo>"
+    "</movie>"
 )
 
 

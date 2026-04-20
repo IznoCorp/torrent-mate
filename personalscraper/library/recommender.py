@@ -149,16 +149,25 @@ def _evaluate_movie(
         savings = round(f.size_gb * 0.4, 1)
 
     return Recommendation(
-        path=item.path, title=item.title, media_type=item.media_type,
-        disk=item.disk, category=item.category,
-        tmdb_id=None, imdb_id=None,
+        path=item.path,
+        title=item.title,
+        media_type=item.media_type,
+        disk=item.disk,
+        category=item.category,
+        tmdb_id=None,
+        imdb_id=None,
         current=CurrentState(
-            codec=f.video.codec, resolution=f.video.resolution,
-            size_gb=f.size_gb, audio_profile=f.audio_profile,
+            codec=f.video.codec,
+            resolution=f.video.resolution,
+            size_gb=f.size_gb,
+            audio_profile=f.audio_profile,
             subtitle_languages=f.subtitle_languages,
         ),
-        target=target, reasons=reasons, priority=priority,
-        estimated_savings_gb=savings, matched_rule_index=matched_rule,
+        target=target,
+        reasons=reasons,
+        priority=priority,
+        estimated_savings_gb=savings,
+        matched_rule_index=matched_rule,
     )
 
 
@@ -191,8 +200,9 @@ def _evaluate_tvshow(
         priority = _max_priority(priority, PRIORITY_MEDIUM)
 
     # Check individual episodes
-    non_preferred = [f for f in item.files if f.video.codec != vp.preferred_codec
-                     and f.video.codec not in vp.fallback_codecs]
+    non_preferred = [
+        f for f in item.files if f.video.codec != vp.preferred_codec and f.video.codec not in vp.fallback_codecs
+    ]
     rejected = [f for f in item.files if f.video.codec in vp.rejected_codecs]
     oversized = [f for f in item.files if f.size_gb > vp.max_size_episode_gb]
 
@@ -222,16 +232,25 @@ def _evaluate_tvshow(
         target = TargetState(codec=vp.preferred_codec, resolution=None, max_size_gb=None)
 
     return Recommendation(
-        path=item.path, title=item.title, media_type=item.media_type,
-        disk=item.disk, category=item.category,
-        tmdb_id=None, imdb_id=None,
+        path=item.path,
+        title=item.title,
+        media_type=item.media_type,
+        disk=item.disk,
+        category=item.category,
+        tmdb_id=None,
+        imdb_id=None,
         current=CurrentState(
-            codec=f.video.codec, resolution=f.video.resolution,
-            size_gb=total_size, audio_profile=f.audio_profile,
+            codec=f.video.codec,
+            resolution=f.video.resolution,
+            size_gb=total_size,
+            audio_profile=f.audio_profile,
             subtitle_languages=f.subtitle_languages,
         ),
-        target=target, reasons=reasons, priority=priority,
-        estimated_savings_gb=savings, matched_rule_index=None,
+        target=target,
+        reasons=reasons,
+        priority=priority,
+        estimated_savings_gb=savings,
+        matched_rule_index=None,
     )
 
 

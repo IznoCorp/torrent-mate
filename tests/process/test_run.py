@@ -23,7 +23,12 @@ class TestRunProcess:
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_returns_three_step_reports(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup, tmp_path,
+        self,
+        mock_reclean,
+        mock_dedup,
+        mock_scrape,
+        mock_cleanup,
+        tmp_path,
     ):
         """run_process returns (clean, scrape, cleanup) StepReports."""
         mock_reclean.return_value = StepReport(name="reclean")
@@ -45,8 +50,13 @@ class TestRunProcess:
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_calls_reclean_for_both_categories(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup,
-        mock_polluted, tmp_path,
+        self,
+        mock_reclean,
+        mock_dedup,
+        mock_scrape,
+        mock_cleanup,
+        mock_polluted,
+        tmp_path,
     ):
         """reclean_folders is called for both movies and tvshows dirs."""
         mock_reclean.return_value = StepReport(name="reclean")
@@ -69,8 +79,13 @@ class TestRunProcess:
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_dedup_count_added_to_clean_report(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup,
-        mock_polluted, tmp_path,
+        self,
+        mock_reclean,
+        mock_dedup,
+        mock_scrape,
+        mock_cleanup,
+        mock_polluted,
+        tmp_path,
     ):
         """Dedup merge count is added to clean_report.success_count."""
         mock_reclean.return_value = StepReport(name="reclean", success_count=1)
@@ -89,7 +104,12 @@ class TestRunProcess:
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_dry_run_passed_through(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup, tmp_path,
+        self,
+        mock_reclean,
+        mock_dedup,
+        mock_scrape,
+        mock_cleanup,
+        tmp_path,
     ):
         """dry_run flag is passed to all sub-functions."""
         mock_reclean.return_value = StepReport(name="reclean")
@@ -113,7 +133,12 @@ class TestRunProcess:
     @patch("personalscraper.process.dedup.dedup_folders")
     @patch("personalscraper.process.reclean.reclean_folders")
     def test_interactive_passed_to_scrape(
-        self, mock_reclean, mock_dedup, mock_scrape, mock_cleanup, tmp_path,
+        self,
+        mock_reclean,
+        mock_dedup,
+        mock_scrape,
+        mock_cleanup,
+        tmp_path,
     ):
         """Interactive flag is passed to run_scrape."""
         mock_reclean.return_value = StepReport(name="reclean")

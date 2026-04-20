@@ -9,6 +9,7 @@ from personalscraper.enforce.file_sanitizer import sanitize_files
 def settings(tmp_path):
     """Minimal settings pointing to tmp_path as staging."""
     from unittest.mock import MagicMock
+
     s = MagicMock()
     s.staging_dir = tmp_path
     s.movies_dir_name = "001-MOVIES"

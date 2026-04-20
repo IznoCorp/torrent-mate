@@ -156,7 +156,8 @@ class NFOGenerator:
 
         _indent(root)
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + ET.tostring(
-            root, encoding="unicode",
+            root,
+            encoding="unicode",
         )
 
     def generate_tvshow_nfo(self, show_data: dict[str, Any]) -> str:
@@ -177,9 +178,14 @@ class NFOGenerator:
         title = show_data.get("name", show_data.get("title", ""))
         _sub(root, "title", title)
         _sub(root, "showtitle", "")
-        _sub(root, "originaltitle", show_data.get(
-            "original_name", show_data.get("originalName", ""),
-        ))
+        _sub(
+            root,
+            "originaltitle",
+            show_data.get(
+                "original_name",
+                show_data.get("originalName", ""),
+            ),
+        )
 
         # --- IDs (TMDB default for TV shows, unlike movies) ---
         external_ids = show_data.get("external_ids", {})
@@ -256,7 +262,8 @@ class NFOGenerator:
 
         _indent(root)
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + ET.tostring(
-            root, encoding="unicode",
+            root,
+            encoding="unicode",
         )
 
     def generate_episode_nfo(self, episode_data: dict[str, Any], stream_info: dict[str, Any] | None = None) -> str:
@@ -295,12 +302,26 @@ class NFOGenerator:
         _sub(root, "top250", "0")
 
         # --- Season and episode ---
-        _sub(root, "season", str(episode_data.get(
-            "season_number", episode_data.get("seasonNumber", 0),
-        )))
-        _sub(root, "episode", str(episode_data.get(
-            "episode_number", episode_data.get("number", 0),
-        )))
+        _sub(
+            root,
+            "season",
+            str(
+                episode_data.get(
+                    "season_number",
+                    episode_data.get("seasonNumber", 0),
+                )
+            ),
+        )
+        _sub(
+            root,
+            "episode",
+            str(
+                episode_data.get(
+                    "episode_number",
+                    episode_data.get("number", 0),
+                )
+            ),
+        )
 
         # --- Plot ---
         _sub(root, "plot", episode_data.get("overview", ""))
@@ -341,7 +362,8 @@ class NFOGenerator:
 
         _indent(root)
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + ET.tostring(
-            root, encoding="unicode",
+            root,
+            encoding="unicode",
         )
 
     def write_nfo(self, xml_content: str, path: Path) -> None:
@@ -356,7 +378,10 @@ class NFOGenerator:
     # --- Private helpers ---
 
     def _add_ratings(
-        self, root: ET.Element, data: dict[str, Any], rating_name: str = "themoviedb",
+        self,
+        root: ET.Element,
+        data: dict[str, Any],
+        rating_name: str = "themoviedb",
     ) -> None:
         """Add <ratings> element with rating data.
 

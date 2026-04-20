@@ -14,33 +14,82 @@ from enum import Enum
 from pathlib import Path
 
 # Video extensions handled by the pipeline (matches CLAUDE.md list + extras from FileMate)
-VIDEO_EXTENSIONS: frozenset[str] = frozenset({
-    "avi", "mkv", "mp4", "mpg", "mpeg", "mov", "wmv", "flv", "webm", "m4v",
-    "ts", "m2ts", "mts", "3gp", "vob", "ogv", "rmvb",
-})
+VIDEO_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        "avi",
+        "mkv",
+        "mp4",
+        "mpg",
+        "mpeg",
+        "mov",
+        "wmv",
+        "flv",
+        "webm",
+        "m4v",
+        "ts",
+        "m2ts",
+        "mts",
+        "3gp",
+        "vob",
+        "ogv",
+        "rmvb",
+    }
+)
 
-AUDIO_EXTENSIONS: frozenset[str] = frozenset({
-    "mp3", "wav", "flac", "ogg", "m4a", "wma", "aac", "ac3", "dts",
-    "mka", "opus", "m4b", "m4r",
-})
+AUDIO_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        "mp3",
+        "wav",
+        "flac",
+        "ogg",
+        "m4a",
+        "wma",
+        "aac",
+        "ac3",
+        "dts",
+        "mka",
+        "opus",
+        "m4b",
+        "m4r",
+    }
+)
 
-EBOOK_EXTENSIONS: frozenset[str] = frozenset({
-    "pdf", "epub", "mobi", "azw", "azw3", "djvu", "cbz", "cbr", "fb2", "lit",
-})
+EBOOK_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        "pdf",
+        "epub",
+        "mobi",
+        "azw",
+        "azw3",
+        "djvu",
+        "cbz",
+        "cbr",
+        "fb2",
+        "lit",
+    }
+)
 
-APP_EXTENSIONS: frozenset[str] = frozenset({
-    "exe", "msi", "dmg", "pkg", "deb", "rpm", "apk",
-})
+APP_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        "exe",
+        "msi",
+        "dmg",
+        "pkg",
+        "deb",
+        "rpm",
+        "apk",
+    }
+)
 
 # Regex for season/episode markers in filenames (case-insensitive)
 # Matches: S01E04, s01e04, S03, 1x04, Saison 1, Season 1
 _TVSHOW_PATTERN: re.Pattern[str] = re.compile(
     r"(?i)"
-    r"(?:s\d{1,2}e\d{1,2})"       # S01E04
-    r"|(?:s\d{1,2}(?!\d))"         # S03 (season pack, not followed by digit)
-    r"|(?:\d{1,2}x\d{2,3})"       # 1x04
-    r"|(?:saison[\s.]*\d{1,2})"   # Saison 01, Saison.01
-    r"|(?:season[\s.]*\d{1,2})"   # Season 01, Season.01
+    r"(?:s\d{1,2}e\d{1,2})"  # S01E04
+    r"|(?:s\d{1,2}(?!\d))"  # S03 (season pack, not followed by digit)
+    r"|(?:\d{1,2}x\d{2,3})"  # 1x04
+    r"|(?:saison[\s.]*\d{1,2})"  # Saison 01, Saison.01
+    r"|(?:season[\s.]*\d{1,2})"  # Season 01, Season.01
 )
 
 

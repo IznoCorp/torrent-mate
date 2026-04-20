@@ -165,7 +165,10 @@ class ArtworkDownloader:
         return True
 
     def download_movie_artwork(
-        self, movie_data: dict[str, Any], movie_dir: Path, patterns: NamingPatterns,
+        self,
+        movie_data: dict[str, Any],
+        movie_dir: Path,
+        patterns: NamingPatterns,
     ) -> list[Path]:
         """Download poster + landscape for a movie.
 
@@ -212,7 +215,10 @@ class ArtworkDownloader:
         return downloaded
 
     def download_tvshow_artwork(
-        self, show_data: dict[str, Any], show_dir: Path, patterns: NamingPatterns,
+        self,
+        show_data: dict[str, Any],
+        show_dir: Path,
+        patterns: NamingPatterns,
     ) -> list[Path]:
         """Download poster + landscape + season posters for a TV show.
 
@@ -274,7 +280,8 @@ class ArtworkDownloader:
                         downloaded.append(dest)
                 except requests.exceptions.RequestException:
                     logger.warning(
-                        "Failed to download season %d poster", season_num,
+                        "Failed to download season %d poster",
+                        season_num,
                     )
 
         return downloaded

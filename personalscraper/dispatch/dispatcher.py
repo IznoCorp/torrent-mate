@@ -60,12 +60,11 @@ def _force_rmtree(path: Path) -> None:
     if errors and path.exists():
         for fpath, err in errors[:5]:
             logging.getLogger(__name__).warning(
-                "rmtree: could not remove %s: %s", fpath, err,
+                "rmtree: could not remove %s: %s",
+                fpath,
+                err,
             )
-        raise OSError(
-            f"_force_rmtree incomplete for {path}: "
-            f"{len(errors)} file(s) could not be removed"
-        )
+        raise OSError(f"_force_rmtree incomplete for {path}: {len(errors)} file(s) could not be removed")
 
 
 from personalscraper.dispatch.disk_scanner import (
@@ -79,7 +78,6 @@ from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
 logger = logging.getLogger(__name__)
-
 
 
 class DispatchError(Exception):
@@ -162,7 +160,9 @@ class Dispatcher:
                 category_dirs = list(config.path.iterdir())
             except OSError as e:
                 logger.warning(
-                    "Cannot scan %s for orphans: %s", config.name, e,
+                    "Cannot scan %s for orphans: %s",
+                    config.name,
+                    e,
                 )
                 continue
             for category_dir in category_dirs:
@@ -172,7 +172,9 @@ class Dispatcher:
                     items = list(category_dir.iterdir())
                 except OSError as e:
                     logger.warning(
-                        "Cannot scan %s for orphans: %s", category_dir, e,
+                        "Cannot scan %s for orphans: %s",
+                        category_dir,
+                        e,
                     )
                     continue
                 for item in items:
@@ -221,10 +223,13 @@ class Dispatcher:
 
         for vr in verified:
             if not vr.category:
-                results.append(DispatchResult(
-                    source=vr.media_path, action="skipped",
-                    reason="No category assigned",
-                ))
+                results.append(
+                    DispatchResult(
+                        source=vr.media_path,
+                        action="skipped",
+                        reason="No category assigned",
+                    )
+                )
                 continue
             if vr.media_type == "movie":
                 results.append(self.dispatch_movie(vr.media_path, vr.category))
@@ -248,10 +253,7 @@ class Dispatcher:
         # Pre-scan for NTFS-illegal filenames before any rsync operation
         if self._has_ntfs_illegal_names(movie_dir):
             result.action = "skipped"
-            result.reason = (
-                f"NTFS-illegal filenames in {movie_dir.name}. "
-                "Run 'personalscraper process' to sanitize."
-            )
+            result.reason = f"NTFS-illegal filenames in {movie_dir.name}. Run 'personalscraper process' to sanitize."
             logger.error("dispatch_ntfs_illegal: %s", movie_dir)
             return result
 
@@ -272,11 +274,13 @@ class Dispatcher:
 
             # Check if disk has enough space for the replacement
             existing_disk = next(
-                (d for d in disk_statuses if d.config.name == existing.disk), None,
+                (d for d in disk_statuses if d.config.name == existing.disk),
+                None,
             )
             if existing_disk:
                 threshold = max(
-                    self.settings.min_free_space_disk_gb, item_size_gb * 1.5,
+                    self.settings.min_free_space_disk_gb,
+                    item_size_gb * 1.5,
                 )
                 if existing_disk.free_space_gb < threshold:
                     result.action = "skipped"
@@ -292,8 +296,10 @@ class Dispatcher:
         else:
             # Move to best disk (allow creating category dir on new disk)
             target = choose_disk(
-                disk_statuses, category,
-                self.settings.min_free_space_disk_gb, item_size_gb,
+                disk_statuses,
+                category,
+                self.settings.min_free_space_disk_gb,
+                item_size_gb,
                 allow_create_category=True,
             )
             if not target:
@@ -313,13 +319,15 @@ class Dispatcher:
 
         # Update index
         if result.action in ("replaced", "moved") and result.destination:
-            self.index.add(IndexEntry(
-                name=movie_dir.name,
-                disk=result.disk or "",
-                category=category,
-                path=str(result.destination),
-                media_type="movie",
-            ))
+            self.index.add(
+                IndexEntry(
+                    name=movie_dir.name,
+                    disk=result.disk or "",
+                    category=category,
+                    path=str(result.destination),
+                    media_type="movie",
+                )
+            )
 
         return result
 
@@ -338,10 +346,7 @@ class Dispatcher:
         # Pre-scan for NTFS-illegal filenames before any rsync operation
         if self._has_ntfs_illegal_names(show_dir):
             result.action = "skipped"
-            result.reason = (
-                f"NTFS-illegal filenames in {show_dir.name}. "
-                "Run 'personalscraper process' to sanitize."
-            )
+            result.reason = f"NTFS-illegal filenames in {show_dir.name}. Run 'personalscraper process' to sanitize."
             logger.error("dispatch_ntfs_illegal: %s", show_dir)
             return result
 
@@ -357,11 +362,13 @@ class Dispatcher:
 
             # Check if disk has enough space for the merge
             existing_disk = next(
-                (d for d in disk_statuses if d.config.name == existing.disk), None,
+                (d for d in disk_statuses if d.config.name == existing.disk),
+                None,
             )
             if existing_disk:
                 threshold = max(
-                    self.settings.min_free_space_disk_gb, item_size_gb * 1.5,
+                    self.settings.min_free_space_disk_gb,
+                    item_size_gb * 1.5,
                 )
                 if existing_disk.free_space_gb < threshold:
                     result.action = "skipped"
@@ -377,8 +384,10 @@ class Dispatcher:
         else:
             # Move to best disk (allow creating category dir on new disk)
             target = choose_disk(
-                disk_statuses, category,
-                self.settings.min_free_space_disk_gb, item_size_gb,
+                disk_statuses,
+                category,
+                self.settings.min_free_space_disk_gb,
+                item_size_gb,
                 allow_create_category=True,
             )
             if not target:
@@ -397,13 +406,15 @@ class Dispatcher:
             result.action = "moved" if success else "error"
 
         if result.action in ("merged", "moved") and result.destination:
-            self.index.add(IndexEntry(
-                name=show_dir.name,
-                disk=result.disk or "",
-                category=category,
-                path=str(result.destination),
-                media_type="tvshow",
-            ))
+            self.index.add(
+                IndexEntry(
+                    name=show_dir.name,
+                    disk=result.disk or "",
+                    category=category,
+                    path=str(result.destination),
+                    media_type="tvshow",
+                )
+            )
 
         return result
 
@@ -444,7 +455,10 @@ class Dispatcher:
             os.rename(tmp_new, dest)
         except OSError as e:
             logger.error(
-                "Replace failed: %s (tmp_old=%s, tmp_new=%s)", e, tmp_old, tmp_new,
+                "Replace failed: %s (tmp_old=%s, tmp_new=%s)",
+                e,
+                tmp_old,
+                tmp_new,
             )
             # Attempt to restore original from backup
             try:
@@ -506,7 +520,10 @@ class Dispatcher:
             return False
 
     def _rsync_merge(
-        self, source: Path, dest: Path, backup_dir: Path,
+        self,
+        source: Path,
+        dest: Path,
+        backup_dir: Path,
     ) -> bool:
         """Execute rsync with backup for merge operations.
 
@@ -523,18 +540,30 @@ class Dispatcher:
         """
         # Exclude macOS metadata files — same rationale as _rsync()
         cmd = [
-            "rsync", "-a", "--no-perms", "--no-owner", "--no-group",
-            "--partial", "--checksum",
-            "--exclude=.DS_Store", "--exclude=._*",
-            "--backup", f"--backup-dir={backup_dir}",
-            f"{source}/", str(dest),
+            "rsync",
+            "-a",
+            "--no-perms",
+            "--no-owner",
+            "--no-group",
+            "--partial",
+            "--checksum",
+            "--exclude=.DS_Store",
+            "--exclude=._*",
+            "--backup",
+            f"--backup-dir={backup_dir}",
+            f"{source}/",
+            str(dest),
         ]
 
         logger.info("rsync merge: %s → %s (backup: %s)", source.name, dest, backup_dir)
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=3600,
-                encoding="utf-8", errors="replace",
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                encoding="utf-8",
+                errors="replace",
             )
             if proc.returncode != 0:
                 logger.error("rsync merge failed (rc=%d): %s", proc.returncode, proc.stderr)
@@ -580,7 +609,9 @@ class Dispatcher:
 
         if failed:
             logger.error(
-                "Merge backup restore: %d restored, %d failed", restored, failed,
+                "Merge backup restore: %d restored, %d failed",
+                restored,
+                failed,
             )
         else:
             # All files restored — safe to remove backup
@@ -665,9 +696,15 @@ class Dispatcher:
         # Exclude macOS metadata files — .DS_Store and ._* AppleDouble files
         # cause rsync errors on NTFS targets which don't support them.
         cmd = [
-            "rsync", "-a", "--no-perms", "--no-owner", "--no-group",
-            "--partial", "--checksum",
-            "--exclude=.DS_Store", "--exclude=._*",
+            "rsync",
+            "-a",
+            "--no-perms",
+            "--no-owner",
+            "--no-group",
+            "--partial",
+            "--checksum",
+            "--exclude=.DS_Store",
+            "--exclude=._*",
         ]
         if delete:
             cmd.append("--delete")
@@ -676,8 +713,12 @@ class Dispatcher:
         logger.info("rsync: %s → %s", source.name, dest)
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=3600,
-                encoding="utf-8", errors="replace",
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                encoding="utf-8",
+                errors="replace",
             )
             if proc.returncode != 0:
                 logger.error("rsync failed (rc=%d): %s", proc.returncode, proc.stderr)
@@ -729,10 +770,7 @@ class Dispatcher:
         Returns:
             True if any file has illegal characters.
         """
-        illegal = [
-            f for f in directory.rglob("*")
-            if f.is_file() and _FILENAME_ILLEGAL.search(f.name)
-        ]
+        illegal = [f for f in directory.rglob("*") if f.is_file() and _FILENAME_ILLEGAL.search(f.name)]
         for f in illegal:
             logger.warning("NTFS-illegal filename: %s", f)
         return len(illegal) > 0
@@ -754,4 +792,4 @@ class Dispatcher:
                     total += f.stat().st_size
             except OSError:
                 pass  # Broken symlinks, NTFS metadata permission errors
-        return total / (1024 ** 3)
+        return total / (1024**3)

@@ -18,6 +18,7 @@ from personalscraper.scraper.mediainfo import (
 
 # --- Helper: mock ffprobe output ---
 
+
 def _mock_ffprobe_output(
     video_codec="hevc",
     width=1920,
@@ -74,12 +75,15 @@ def _mock_run(stdout, returncode=0):
 class TestLangToKodi:
     """ISO 639-2/B to 639-2/T conversion."""
 
-    @pytest.mark.parametrize("b_code,t_code", [
-        ("fre", "fra"),
-        ("ger", "deu"),
-        ("dut", "nld"),
-        ("chi", "zho"),
-    ])
+    @pytest.mark.parametrize(
+        "b_code,t_code",
+        [
+            ("fre", "fra"),
+            ("ger", "deu"),
+            ("dut", "nld"),
+            ("chi", "zho"),
+        ],
+    )
     def test_codes_that_differ(self, b_code, t_code):
         """Codes that differ between B and T are converted."""
         assert _lang_to_kodi(b_code) == t_code
@@ -184,9 +188,7 @@ class TestExtractStreamInfo:
     @patch("personalscraper.scraper.mediainfo.subprocess.run")
     def test_atmos_detected(self, mock_run):
         """Detects Dolby Atmos: codec='atmos' for NFO, is_atmos=True for analysis."""
-        mock_run.return_value = _mock_run(
-            _mock_ffprobe_output(audio_profile="Dolby Digital Plus + Dolby Atmos")
-        )
+        mock_run.return_value = _mock_run(_mock_ffprobe_output(audio_profile="Dolby Digital Plus + Dolby Atmos"))
         info = extract_stream_info(Path("test.mkv"))
         assert info["audio"][0]["codec"] == "atmos"
         assert info["audio"][0]["is_atmos"] is True
@@ -194,9 +196,7 @@ class TestExtractStreamInfo:
     @patch("personalscraper.scraper.mediainfo.subprocess.run")
     def test_hdr10_detected(self, mock_run):
         """Detects HDR10 via color_transfer."""
-        mock_run.return_value = _mock_run(
-            _mock_ffprobe_output(color_transfer="smpte2084")
-        )
+        mock_run.return_value = _mock_run(_mock_ffprobe_output(color_transfer="smpte2084"))
         info = extract_stream_info(Path("test.mkv"))
         assert info["video"]["hdr"]["is_hdr"] is True
         assert info["video"]["hdr"]["hdr_type"] == "hdr10"
@@ -211,9 +211,7 @@ class TestExtractStreamInfo:
     @patch("personalscraper.scraper.mediainfo.subprocess.run")
     def test_interlaced_detected(self, mock_run):
         """Interlaced content detected via field_order."""
-        mock_run.return_value = _mock_run(
-            _mock_ffprobe_output(field_order="tt")
-        )
+        mock_run.return_value = _mock_run(_mock_ffprobe_output(field_order="tt"))
         info = extract_stream_info(Path("test.mkv"))
         assert info["video"]["scantype"] == "interlaced"
 
@@ -229,7 +227,10 @@ class TestGracefulFallbacks:
         """Returns None if ffprobe is not found."""
         assert extract_stream_info(Path("test.mkv")) is None
 
-    @patch("personalscraper.scraper.mediainfo.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="ffprobe", timeout=30))
+    @patch(
+        "personalscraper.scraper.mediainfo.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(cmd="ffprobe", timeout=30),
+    )
     def test_ffprobe_timeout(self, mock_run):
         """Returns None on timeout."""
         assert extract_stream_info(Path("test.mkv")) is None

@@ -63,9 +63,7 @@ class TelegramNotifier:
             if resp.ok:
                 logger.info("Telegram message sent to %s", self.chat_id)
                 return True
-            logger.warning(
-                "Telegram API error %d: %s", resp.status_code, resp.text[:200]
-            )
+            logger.warning("Telegram API error %d: %s", resp.status_code, resp.text[:200])
             return False
         except requests.Timeout:
             logger.warning("Telegram request timed out (%ds)", _TIMEOUT)

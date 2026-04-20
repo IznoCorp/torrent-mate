@@ -45,8 +45,16 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_full_pipeline_8_steps(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_enforce, mock_verify, mock_dispatch, integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        mock_enforce,
+        mock_verify,
+        mock_dispatch,
+        integration_settings,
+        quiet_console,
     ):
         """Full pipeline produces 8 StepReports in correct order."""
         mock_ingest.return_value = StepReport(name="ingest", success_count=2)
@@ -64,7 +72,14 @@ class TestPipelineIntegration:
 
         assert len(report.steps) == 8
         assert list(report.steps.keys()) == [
-            "ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch",
+            "ingest",
+            "sort",
+            "clean",
+            "scrape",
+            "cleanup",
+            "enforce",
+            "verify",
+            "dispatch",
         ]
 
     @patch("personalscraper.dispatch.run.run_dispatch")
@@ -74,8 +89,15 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=["leftover.mkv"])
     def test_gate_warning_pipeline_continues(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_verify, mock_dispatch, integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        mock_verify,
+        mock_dispatch,
+        integration_settings,
+        quiet_console,
     ):
         """Gate warning (097-TEMP not empty) does not block pipeline."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -96,8 +118,14 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_dispatch_skipped_no_verified(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_verify, integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        mock_verify,
+        integration_settings,
+        quiet_console,
     ):
         """Dispatch is skipped when verify returns no dispatchable items."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -117,8 +145,15 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_dry_run_propagates_to_all_phases(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_verify, mock_dispatch, integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        mock_verify,
+        mock_dispatch,
+        integration_settings,
+        quiet_console,
     ):
         """--dry-run flag propagates to all pipeline steps."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -141,8 +176,15 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_interactive_propagates_to_scrape(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_verify, mock_dispatch, integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        mock_verify,
+        mock_dispatch,
+        integration_settings,
+        quiet_console,
     ):
         """--interactive flag propagates to scrape via run_process."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -152,7 +194,9 @@ class TestPipelineIntegration:
         mock_dispatch.return_value = StepReport(name="dispatch")
 
         pipeline = Pipeline(
-            integration_settings, interactive=True, console=quiet_console,
+            integration_settings,
+            interactive=True,
+            console=quiet_console,
         )
         pipeline.run()
 
@@ -163,8 +207,13 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_reclean_runs_on_polluted_folder(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        integration_settings,
+        quiet_console,
     ):
         """Polluted folder in 001-MOVIES gets re-cleaned during process phase."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -193,8 +242,13 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_clean_crash_does_not_block_scrape(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        integration_settings,
+        quiet_console,
     ):
         """If clean phase crashes, scrape and cleanup still run."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -220,8 +274,13 @@ class TestPipelineIntegration:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_reclean_oserror_counted_not_crash(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        integration_settings, quiet_console,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        integration_settings,
+        quiet_console,
     ):
         """OSError in reclean_folders is counted as error, not a crash."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -240,7 +299,8 @@ class TestPipelineIntegration:
         ):
             # reclean returns a report with errors (not a crash)
             mock_reclean.return_value = StepReport(
-                name="reclean", error_count=1,
+                name="reclean",
+                error_count=1,
                 warnings=["permission denied"],
             )
             mock_verify.return_value = (StepReport(name="verify"), [])

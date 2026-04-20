@@ -78,7 +78,8 @@ class Pipeline:
         self._log = logging.getLogger("pipeline")
 
     def _recover_from_previous_run(
-        self, lockout_path: Path | None = None,
+        self,
+        lockout_path: Path | None = None,
     ) -> int:
         """Clean up artifacts from a previous interrupted pipeline run.
 
@@ -118,7 +119,9 @@ class Pipeline:
                                 cleaned += 1
                             except OSError as exc:
                                 self._log.warning(
-                                    "Crash recovery: cannot clean %s: %s", item, exc,
+                                    "Crash recovery: cannot clean %s: %s",
+                                    item,
+                                    exc,
                                 )
             except OSError as exc:
                 self._log.warning("Crash recovery: cannot scan disk %s: %s", disk_config.path, exc)
@@ -249,8 +252,7 @@ class Pipeline:
             )
             report.add_step(
                 "dispatch",
-                StepReport(name="dispatch", skip_count=1,
-                           details=["Skipped: no verified items"]),
+                StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"]),
             )
 
         report.finished_at = datetime.now()
@@ -396,7 +398,8 @@ class Pipeline:
             self._log.exception("Step %s failed fatally", name)
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
-                name=name, error_count=1,
+                name=name,
+                error_count=1,
                 details=[f"Fatal: {error_msg}"],
             )
             report.add_step(name, step_report)
@@ -430,7 +433,11 @@ class Pipeline:
 
         self._log.info(
             "Step %s finished: ok=%d skip=%d err=%d (%.1fs)",
-            name, ok, skip, err, elapsed,
+            name,
+            ok,
+            skip,
+            err,
+            elapsed,
         )
 
         if crashed and critical:

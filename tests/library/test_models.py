@@ -79,8 +79,7 @@ class TestSeasonInfo:
 
     def test_basic_season(self) -> None:
         """Season with basic info."""
-        s = SeasonInfo(number=1, path="/tmp/Saison 01", episode_count=8,
-                       has_poster=True, episodes_with_nfo=6)
+        s = SeasonInfo(number=1, path="/tmp/Saison 01", episode_count=8, has_poster=True, episodes_with_nfo=6)
         assert s.number == 1
         assert s.episode_count == 8
         assert s.episodes_with_nfo == 6
@@ -93,11 +92,17 @@ class TestLibraryScanItem:
         """Movie scan item should have seasons=None."""
         item = LibraryScanItem(
             path="/Volumes/Disk1/medias/films/Movie (2024)",
-            disk="Disk1", category="films", media_type="movie",
-            title="Movie", year=2024, folder_size_gb=2.5,
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="Movie",
+            year=2024,
+            folder_size_gb=2.5,
             nfo=NfoStatus(present=True, valid=True, tmdb_id="1", imdb_id=None),
             artwork=ArtworkStatus(poster=True, landscape=True),
-            actors_dir=False, issues=[], seasons=None,
+            actors_dir=False,
+            issues=[],
+            seasons=None,
             scanned_at="2026-04-15T12:00:00",
         )
         assert item.seasons is None
@@ -107,15 +112,19 @@ class TestLibraryScanItem:
         """TV show scan item should have populated seasons list."""
         item = LibraryScanItem(
             path="/Volumes/Disk1/medias/series/Show (2024)",
-            disk="Disk1", category="series", media_type="tvshow",
-            title="Show", year=2024, folder_size_gb=15.0,
+            disk="Disk1",
+            category="series",
+            media_type="tvshow",
+            title="Show",
+            year=2024,
+            folder_size_gb=15.0,
             nfo=NfoStatus(present=True, valid=True, tmdb_id="1", imdb_id=None),
             artwork=ArtworkStatus(poster=True),
             actors_dir=True,
             issues=[ISSUE_ACTORS_DIR, ISSUE_EMPTY_SUBDIR],
-            seasons=[SeasonInfo(number=1, path="/tmp/Saison 01",
-                                episode_count=10, has_poster=True,
-                                episodes_with_nfo=10)],
+            seasons=[
+                SeasonInfo(number=1, path="/tmp/Saison 01", episode_count=10, has_poster=True, episodes_with_nfo=10)
+            ],
             scanned_at="2026-04-15T12:00:00",
         )
         assert len(item.seasons) == 1
@@ -129,8 +138,10 @@ class TestLibraryScanResult:
         """Empty scan result."""
         result = LibraryScanResult(
             scanned_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            item_count=0, items=[],
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
         )
         assert result.item_count == 0
 
@@ -140,26 +151,22 @@ class TestVideoInfo:
 
     def test_resolution_1080p(self) -> None:
         """1080 height should give '1080p' resolution."""
-        v = VideoInfo(codec="hevc", width=1920, height=1080,
-                      bitrate_kbps=5000, hdr=False, hdr_type=None)
+        v = VideoInfo(codec="hevc", width=1920, height=1080, bitrate_kbps=5000, hdr=False, hdr_type=None)
         assert v.resolution == "1080p"
 
     def test_resolution_2160p(self) -> None:
         """2160 height should give '2160p' (4K)."""
-        v = VideoInfo(codec="hevc", width=3840, height=2160,
-                      bitrate_kbps=15000, hdr=True, hdr_type="hdr10")
+        v = VideoInfo(codec="hevc", width=3840, height=2160, bitrate_kbps=15000, hdr=True, hdr_type="hdr10")
         assert v.resolution == "2160p"
 
     def test_resolution_720p(self) -> None:
         """720 height should give '720p'."""
-        v = VideoInfo(codec="h264", width=1280, height=720,
-                      bitrate_kbps=3000, hdr=False, hdr_type=None)
+        v = VideoInfo(codec="h264", width=1280, height=720, bitrate_kbps=3000, hdr=False, hdr_type=None)
         assert v.resolution == "720p"
 
     def test_resolution_non_standard(self) -> None:
         """Non-standard height should still produce '{height}p'."""
-        v = VideoInfo(codec="h264", width=1920, height=800,
-                      bitrate_kbps=4000, hdr=False, hdr_type=None)
+        v = VideoInfo(codec="h264", width=1920, height=800, bitrate_kbps=4000, hdr=False, hdr_type=None)
         assert v.resolution == "800p"
 
 
@@ -169,14 +176,13 @@ class TestMediaFileAnalysis:
     def test_multi_audio_profile(self) -> None:
         """File with 2 languages should be 'multi'."""
         f = MediaFileAnalysis(
-            path="/tmp/movie.mkv", size_gb=2.5, duration_seconds=7200,
-            video=VideoInfo(codec="hevc", width=1920, height=1080,
-                            bitrate_kbps=5000, hdr=False, hdr_type=None),
+            path="/tmp/movie.mkv",
+            size_gb=2.5,
+            duration_seconds=7200,
+            video=VideoInfo(codec="hevc", width=1920, height=1080, bitrate_kbps=5000, hdr=False, hdr_type=None),
             audio_tracks=[
-                AudioTrack(codec="eac3", language="fra", channels=6,
-                           is_atmos=False, is_default=True),
-                AudioTrack(codec="eac3", language="eng", channels=6,
-                           is_atmos=False, is_default=False),
+                AudioTrack(codec="eac3", language="fra", channels=6, is_atmos=False, is_default=True),
+                AudioTrack(codec="eac3", language="eng", channels=6, is_atmos=False, is_default=False),
             ],
             subtitle_tracks=[],
             audio_profile="multi",
@@ -207,12 +213,16 @@ class TestRecommendation:
     def test_high_priority(self) -> None:
         """High priority recommendation."""
         r = Recommendation(
-            path="/tmp/movie", title="Movie", media_type="movie",
-            disk="Disk1", category="films",
-            tmdb_id="123", imdb_id="tt123",
-            current=CurrentState(codec="mpeg2", resolution="1080p",
-                                 size_gb=8.0, audio_profile="vf",
-                                 subtitle_languages=["fra"]),
+            path="/tmp/movie",
+            title="Movie",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            tmdb_id="123",
+            imdb_id="tt123",
+            current=CurrentState(
+                codec="mpeg2", resolution="1080p", size_gb=8.0, audio_profile="vf", subtitle_languages=["fra"]
+            ),
             target=TargetState(codec="hevc", resolution=None, max_size_gb=4.0),
             reasons=["rejected codec mpeg2", "oversized 8.0 GB > 4.0 GB"],
             priority=PRIORITY_HIGH,
@@ -229,17 +239,28 @@ class TestValidationItem:
     def test_valid_item(self) -> None:
         """Item with all checks passed."""
         item = ValidationItem(
-            path="/tmp/Movie (2024)", disk="Disk1", category="films",
-            media_type="movie", title="Movie", year=2024,
-            status="valid", errors=[], warnings=[], fixes_applied=[],
+            path="/tmp/Movie (2024)",
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="Movie",
+            year=2024,
+            status="valid",
+            errors=[],
+            warnings=[],
+            fixes_applied=[],
         )
         assert item.status == "valid"
 
     def test_item_with_issues(self) -> None:
         """Item with errors should have 'issues' status."""
         item = ValidationItem(
-            path="/tmp/Movie", disk="Disk1", category="films",
-            media_type="movie", title="Movie", year=None,
+            path="/tmp/Movie",
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="Movie",
+            year=None,
             status="issues",
             errors=["nfo_missing", "bad_dir_naming"],
             warnings=["no_landscape"],
@@ -256,8 +277,10 @@ class TestJsonSerialization:
         """Serialize and deserialize a scan result."""
         result = LibraryScanResult(
             scanned_at="2026-04-15T12:00:00",
-            disk_filter=None, category_filter=None,
-            item_count=0, items=[],
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
         )
         json_str = serialize_to_json(result)
         parsed = json.loads(json_str)
@@ -268,8 +291,10 @@ class TestJsonSerialization:
         """Write to file atomically and read back."""
         result = LibraryScanResult(
             scanned_at="2026-04-15T12:00:00",
-            disk_filter="Disk1", category_filter=None,
-            item_count=0, items=[],
+            disk_filter="Disk1",
+            category_filter=None,
+            item_count=0,
+            items=[],
         )
         path = tmp_path / "test.json"
         write_json(result, path)
@@ -287,8 +312,12 @@ class TestValidationItemInvariant:
         """Valid status values should be accepted."""
         for status in ("valid", "fixed", "issues"):
             item = ValidationItem(
-                path="/tmp/X", disk="Disk1", category="films",
-                media_type="movie", title="X", year=2024,
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
                 status=status,
                 errors=["err"] if status == "issues" else [],
                 fixes_applied=["fix"] if status == "fixed" else [],
@@ -299,8 +328,12 @@ class TestValidationItemInvariant:
         """Unknown status should raise ValueError."""
         with pytest.raises(ValueError, match="status"):
             ValidationItem(
-                path="/tmp/X", disk="Disk1", category="films",
-                media_type="movie", title="X", year=2024,
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
                 status="blocked",
             )
 
@@ -308,36 +341,57 @@ class TestValidationItemInvariant:
         """status='fixed' with empty fixes_applied should raise."""
         with pytest.raises(ValueError, match="fixes_applied"):
             ValidationItem(
-                path="/tmp/X", disk="Disk1", category="films",
-                media_type="movie", title="X", year=2024,
-                status="fixed", fixes_applied=[],
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="fixed",
+                fixes_applied=[],
             )
 
     def test_valid_with_errors_raises(self) -> None:
         """status='valid' with errors should raise."""
         with pytest.raises(ValueError, match="valid"):
             ValidationItem(
-                path="/tmp/X", disk="Disk1", category="films",
-                media_type="movie", title="X", year=2024,
-                status="valid", errors=["nfo_present"],
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="valid",
+                errors=["nfo_present"],
             )
-
 
     def test_issues_without_errors_or_warnings_raises(self) -> None:
         """status='issues' with no errors and no warnings should raise."""
         with pytest.raises(ValueError, match="issues"):
             ValidationItem(
-                path="/tmp/X", disk="Disk1", category="films",
-                media_type="movie", title="X", year=2024,
-                status="issues", errors=[], warnings=[],
+                path="/tmp/X",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="X",
+                year=2024,
+                status="issues",
+                errors=[],
+                warnings=[],
             )
 
     def test_issues_with_only_warnings_accepted(self) -> None:
         """status='issues' with only warnings should be accepted."""
         item = ValidationItem(
-            path="/tmp/X", disk="Disk1", category="films",
-            media_type="movie", title="X", year=2024,
-            status="issues", errors=[], warnings=["no_landscape"],
+            path="/tmp/X",
+            disk="Disk1",
+            category="films",
+            media_type="movie",
+            title="X",
+            year=2024,
+            status="issues",
+            errors=[],
+            warnings=["no_landscape"],
         )
         assert item.status == "issues"
 
@@ -348,11 +402,17 @@ class TestRescrapeAction:
     def test_valid_action(self) -> None:
         """Action with valid fields should work."""
         action = RescrapeAction(
-            path="/tmp/Movie (2024)", title="Movie", media_type="movie",
-            disk="Disk1", category="films",
+            path="/tmp/Movie (2024)",
+            title="Movie",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
             actions_taken=[ACTION_NFO_REGENERATED],
-            actions_skipped=[], errors=[],
-            tmdb_id="123", id_source="nfo", match_confidence=None,
+            actions_skipped=[],
+            errors=[],
+            tmdb_id="123",
+            id_source="nfo",
+            match_confidence=None,
             rescraped_at="2026-04-17T12:00:00",
         )
         assert action.tmdb_id == "123"
@@ -362,40 +422,67 @@ class TestRescrapeAction:
         """Invalid media_type should raise ValueError."""
         with pytest.raises(ValueError, match="media_type"):
             RescrapeAction(
-                path="/tmp/X", title="X", media_type="audiobook",
-                disk="Disk1", category="films",
-                actions_taken=["test"], actions_skipped=[], errors=[],
-                tmdb_id=None, id_source=None, match_confidence=None,
+                path="/tmp/X",
+                title="X",
+                media_type="audiobook",
+                disk="Disk1",
+                category="films",
+                actions_taken=["test"],
+                actions_skipped=[],
+                errors=[],
+                tmdb_id=None,
+                id_source=None,
+                match_confidence=None,
             )
 
     def test_confidence_out_of_range_raises(self) -> None:
         """Confidence > 1.0 should raise ValueError."""
         with pytest.raises(ValueError, match="match_confidence"):
             RescrapeAction(
-                path="/tmp/X", title="X", media_type="movie",
-                disk="Disk1", category="films",
-                actions_taken=["test"], actions_skipped=[], errors=[],
-                tmdb_id="1", id_source="api_match", match_confidence=95.0,
+                path="/tmp/X",
+                title="X",
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                actions_taken=["test"],
+                actions_skipped=[],
+                errors=[],
+                tmdb_id="1",
+                id_source="api_match",
+                match_confidence=95.0,
             )
 
     def test_no_tmdb_clears_confidence(self) -> None:
         """If tmdb_id is None, confidence should be cleared."""
         action = RescrapeAction(
-            path="/tmp/X", title="X", media_type="movie",
-            disk="Disk1", category="films",
-            actions_taken=[], actions_skipped=[SKIP_NO_MATCH], errors=[],
-            tmdb_id=None, id_source=None, match_confidence=0.5,
+            path="/tmp/X",
+            title="X",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            actions_taken=[],
+            actions_skipped=[SKIP_NO_MATCH],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=0.5,
         )
         assert action.match_confidence is None
 
     def test_artwork_action_constant(self) -> None:
         """ACTION_ARTWORK_DOWNLOADED and ACTION_EPISODES_RENAMED should be usable."""
         action = RescrapeAction(
-            path="/tmp/X", title="X", media_type="tvshow",
-            disk="Disk1", category="series",
+            path="/tmp/X",
+            title="X",
+            media_type="tvshow",
+            disk="Disk1",
+            category="series",
             actions_taken=[ACTION_ARTWORK_DOWNLOADED, ACTION_EPISODES_RENAMED],
-            actions_skipped=[], errors=[],
-            tmdb_id="1", id_source="nfo", match_confidence=None,
+            actions_skipped=[],
+            errors=[],
+            tmdb_id="1",
+            id_source="nfo",
+            match_confidence=None,
         )
         assert ACTION_ARTWORK_DOWNLOADED in action.actions_taken
         assert ACTION_EPISODES_RENAMED in action.actions_taken
@@ -404,19 +491,33 @@ class TestRescrapeAction:
         """Invalid id_source should raise ValueError."""
         with pytest.raises(ValueError, match="id_source"):
             RescrapeAction(
-                path="/tmp/X", title="X", media_type="movie",
-                disk="Disk1", category="films",
-                actions_taken=[], actions_skipped=[], errors=[],
-                tmdb_id="1", id_source="api", match_confidence=0.9,
+                path="/tmp/X",
+                title="X",
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                actions_taken=[],
+                actions_skipped=[],
+                errors=[],
+                tmdb_id="1",
+                id_source="api",
+                match_confidence=0.9,
             )
 
     def test_none_id_source_accepted(self) -> None:
         """id_source=None should be accepted."""
         action = RescrapeAction(
-            path="/tmp/X", title="X", media_type="movie",
-            disk="Disk1", category="films",
-            actions_taken=[], actions_skipped=[SKIP_NO_MATCH], errors=[],
-            tmdb_id=None, id_source=None, match_confidence=None,
+            path="/tmp/X",
+            title="X",
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            actions_taken=[],
+            actions_skipped=[SKIP_NO_MATCH],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=None,
         )
         assert action.id_source is None
 
@@ -428,8 +529,13 @@ class TestLibraryRescrapeResult:
         """Result with valid fields."""
         result = LibraryRescrapeResult(
             rescraped_at="2026-04-17T12:00:00",
-            disk_filter=None, category_filter=None, only_filter=None,
-            dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+            disk_filter=None,
+            category_filter=None,
+            only_filter=None,
+            dry_run=True,
+            fixed_count=0,
+            skipped_count=0,
+            error_count=0,
         )
         assert result.dry_run is True
 
@@ -438,8 +544,13 @@ class TestLibraryRescrapeResult:
         with pytest.raises(ValueError, match="only_filter"):
             LibraryRescrapeResult(
                 rescraped_at="2026-04-17T12:00:00",
-                disk_filter=None, category_filter=None, only_filter="invalid",
-                dry_run=True, fixed_count=0, skipped_count=0, error_count=0,
+                disk_filter=None,
+                category_filter=None,
+                only_filter="invalid",
+                dry_run=True,
+                fixed_count=0,
+                skipped_count=0,
+                error_count=0,
             )
 
     def test_valid_only_filters(self) -> None:
@@ -447,7 +558,12 @@ class TestLibraryRescrapeResult:
         for val in ("nfo", "artwork", "episodes"):
             result = LibraryRescrapeResult(
                 rescraped_at="2026-04-17T12:00:00",
-                disk_filter=None, category_filter=None, only_filter=val,
-                dry_run=False, fixed_count=0, skipped_count=0, error_count=0,
+                disk_filter=None,
+                category_filter=None,
+                only_filter=val,
+                dry_run=False,
+                fixed_count=0,
+                skipped_count=0,
+                error_count=0,
             )
             assert result.only_filter == val

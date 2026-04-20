@@ -28,7 +28,8 @@ class TestAddTorrentFiles:
         hashes = setup.add_torrent_files(files, category="e2e-test")
 
         mock_client.torrents_add.assert_called_once_with(
-            torrent_files=files[0], category="e2e-test",
+            torrent_files=files[0],
+            category="e2e-test",
         )
         assert "abc123" in hashes
         assert "abc123" in setup.registry.torrent_hashes
@@ -64,7 +65,7 @@ class TestWaitForCompletion:
         mock_torrent = MagicMock()
         mock_torrent.hash = "abc123"
         mock_torrent.name = "Test Movie"
-        mock_torrent.total_size = 2 * 1024 ** 3  # 2 GB
+        mock_torrent.total_size = 2 * 1024**3  # 2 GB
         mock_torrent.state_enum.is_complete = True
         mock_torrent.progress = 1.0
         mock_torrent.dlspeed = 0
@@ -85,13 +86,13 @@ class TestWaitForCompletion:
         mock_torrent = MagicMock()
         mock_torrent.hash = "abc123"
         mock_torrent.name = "Big Movie"
-        mock_torrent.total_size = int(12.6 * 1024 ** 3)  # 12.6 GB
+        mock_torrent.total_size = int(12.6 * 1024**3)  # 12.6 GB
         mock_torrent.state_enum.is_complete = False
         mock_torrent.progress = 0.5
         mock_torrent.dlspeed = 1024 * 1024
         mock_client.torrents_info.return_value = [mock_torrent]
 
-        total_gb = mock_torrent.total_size / (1024 ** 3)
+        total_gb = mock_torrent.total_size / (1024**3)
         expected_minutes = max(math.ceil(total_gb) * 3, 10)
         assert expected_minutes == 39
 
@@ -111,13 +112,13 @@ class TestWaitForCompletion:
         mock_torrent = MagicMock()
         mock_torrent.hash = "abc123"
         mock_torrent.name = "Small Movie"
-        mock_torrent.total_size = int(0.5 * 1024 ** 3)  # 0.5 GB
+        mock_torrent.total_size = int(0.5 * 1024**3)  # 0.5 GB
         mock_torrent.state_enum.is_complete = False
         mock_torrent.progress = 0.0
         mock_torrent.dlspeed = 0
         mock_client.torrents_info.return_value = [mock_torrent]
 
-        total_gb = mock_torrent.total_size / (1024 ** 3)
+        total_gb = mock_torrent.total_size / (1024**3)
         expected_minutes = max(math.ceil(total_gb) * 3, 10)
         assert expected_minutes == 10
 

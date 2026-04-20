@@ -23,8 +23,16 @@ class TestPipelineDoubleRun:
     @patch("personalscraper.ingest.ingest.run_ingest")
     @patch("personalscraper.sorter.run.assert_temp_empty", return_value=[])
     def test_second_run_mostly_skips(
-        self, mock_gate, mock_ingest, mock_sort, mock_scrape,
-        mock_enforce, mock_verify, mock_dispatch, staging, resilience_settings,
+        self,
+        mock_gate,
+        mock_ingest,
+        mock_sort,
+        mock_scrape,
+        mock_enforce,
+        mock_verify,
+        mock_dispatch,
+        staging,
+        resilience_settings,
     ):
         """Second pipeline run produces mostly skip/zero counts."""
         # First run: normal processing

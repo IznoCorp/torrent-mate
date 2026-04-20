@@ -173,8 +173,13 @@ def clean_library(
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
                     continue
                 _clean_media_dir(
-                    media_dir, result, not apply,
-                    clean_actors, clean_empty, clean_junk, clean_release,
+                    media_dir,
+                    result,
+                    not apply,
+                    clean_actors,
+                    clean_empty,
+                    clean_junk,
+                    clean_release,
                 )
 
     return result
@@ -224,9 +229,7 @@ def _clean_media_dir(
         # Empty directories and release-group artifacts
         if item.is_dir() and _is_effectively_empty(item):
             # Detect release-group style names (contain dots + group suffix)
-            is_release = "." in name and any(
-                c.isupper() for c in name.split(".")[-1] if c.isalpha()
-            )
+            is_release = "." in name and any(c.isupper() for c in name.split(".")[-1] if c.isalpha())
             if clean_release and is_release:
                 _delete_dir(item, result, dry_run, "release artifact")
             elif clean_empty:

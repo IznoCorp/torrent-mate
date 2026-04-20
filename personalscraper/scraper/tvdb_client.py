@@ -73,7 +73,6 @@ class TVDBError(Exception):
         super().__init__(f"TVDB {http_status}: {message}")
 
 
-
 _is_retryable = make_retryable_predicate(TVDBError)
 
 
@@ -93,10 +92,18 @@ class TVDBClient:
     # Pipeline uses 2-char codes internally; TVDB API requires 3-char
     # shortCode in /languages is always null — manual mapping required
     LANG_MAP: dict[str, str] = {
-        "fr": "fra", "en": "eng", "es": "spa",
-        "de": "deu", "it": "ita", "ja": "jpn",
-        "ko": "kor", "pt": "por", "ru": "rus",
-        "zh": "zho", "ar": "ara", "nl": "nld",
+        "fr": "fra",
+        "en": "eng",
+        "es": "spa",
+        "de": "deu",
+        "it": "ita",
+        "ja": "jpn",
+        "ko": "kor",
+        "pt": "por",
+        "ru": "rus",
+        "zh": "zho",
+        "ar": "ara",
+        "nl": "nld",
     }
 
     def __init__(
@@ -324,12 +331,14 @@ class TVDBClient:
             else:
                 continue  # Skip other types
 
-            result.append({
-                "type": art_type,
-                "url": art.get("image", ""),
-                "language": art.get("language"),
-                "season": art.get("season"),
-            })
+            result.append(
+                {
+                    "type": art_type,
+                    "url": art.get("image", ""),
+                    "language": art.get("language"),
+                    "season": art.get("season"),
+                }
+            )
         return result
 
     # -- Type-specific methods --

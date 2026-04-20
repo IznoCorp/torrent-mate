@@ -78,9 +78,7 @@ def _check_movie(movie_dir: Path) -> CoherenceResult:
 
     # A tvshow.nfo in MOVIES indicates a mis-sorted TV show
     if (movie_dir / "tvshow.nfo").exists():
-        result.warnings.append(
-            f"Wrong category: {movie_dir.name} has tvshow.nfo but is in MOVIES"
-        )
+        result.warnings.append(f"Wrong category: {movie_dir.name} has tvshow.nfo but is in MOVIES")
     result.checks.append("sort_process_coherence")
 
     nfos = list(movie_dir.glob("*.nfo"))
@@ -109,9 +107,7 @@ def _check_tvshow(show_dir: Path) -> CoherenceResult:
         # A movie-style NFO in TVSHOWS indicates a mis-sorted movie
         movie_nfos = [f for f in show_dir.glob("*.nfo") if f.name != "tvshow.nfo"]
         if movie_nfos:
-            result.warnings.append(
-                f"Wrong category: {show_dir.name} has movie NFO but is in TVSHOWS"
-            )
+            result.warnings.append(f"Wrong category: {show_dir.name} has movie NFO but is in TVSHOWS")
     else:
         _check_nfo_ids(nfo_path, result)
         _check_genre_coherence(nfo_path, result)
@@ -169,9 +165,7 @@ def _check_genre_coherence(nfo_path: Path, result: CoherenceResult) -> None:
         mapper = GenreMapper()
         category = mapper.categorize_from_nfo(nfo_path, media_type="tvshow")
         if category and category == "emissions":
-            result.warnings.append(
-                f"Genre suggests 'emissions' not 'series' for {result.path.name}"
-            )
+            result.warnings.append(f"Genre suggests 'emissions' not 'series' for {result.path.name}")
     except (ET.ParseError, OSError, ValueError, ImportError) as exc:
         logger.warning("Genre check failed for %s: %s", nfo_path.name, exc)
         result.warnings.append(f"Genre check failed: {exc}")

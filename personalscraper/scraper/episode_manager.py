@@ -71,10 +71,7 @@ def create_season_dirs(
     Returns:
         List of created (or would-be-created) directory paths.
     """
-    season_nums = sorted({
-        ep.get("season_number", ep.get("seasonNumber", 0))
-        for ep in episodes
-    })
+    season_nums = sorted({ep.get("season_number", ep.get("seasonNumber", 0)) for ep in episodes})
 
     created: list[Path] = []
     for season_num in season_nums:
@@ -123,7 +120,8 @@ def match_episode_files(
         season, episode = _extract_season_episode(video_path.name)
         if season is None or episode is None:
             logger.warning(
-                "Could not extract S/E from filename: %s", video_path.name,
+                "Could not extract S/E from filename: %s",
+                video_path.name,
             )
             continue
 
@@ -139,7 +137,9 @@ def match_episode_files(
         else:
             logger.warning(
                 "Episode S%02dE%02d not found in API data: %s",
-                season, episode, video_path.name,
+                season,
+                episode,
+                video_path.name,
             )
 
     return matched
@@ -180,7 +180,9 @@ def rename_episodes(
 
         new_stem = patterns.format(
             "episode_video",
-            Season=season, Episode=episode, EpisodeTitle=api_title,
+            Season=season,
+            Episode=episode,
+            EpisodeTitle=api_title,
         )
         new_video_name = f"{new_stem}{video_path.suffix}"
         dest = season_dir / new_video_name
@@ -242,7 +244,7 @@ def _rename_subtitles(
             continue
 
         # Preserve language suffix if present (e.g. ".en", ".fra")
-        lang_suffix = sub_stem[len(video_stem):]
+        lang_suffix = sub_stem[len(video_stem) :]
         new_sub_name = f"{new_stem}{lang_suffix}.{ext}"
         dest = dest_dir / new_sub_name
 

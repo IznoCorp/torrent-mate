@@ -24,6 +24,7 @@ from personalscraper.scraper.tvdb_client import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def client() -> TVDBClient:
     """Create a TVDBClient with a fake API key (not logged in)."""
@@ -75,6 +76,7 @@ def _mock_response(
 # _is_retryable
 # ---------------------------------------------------------------------------
 
+
 class TestIsRetryable:
     """Tests for the _is_retryable predicate."""
 
@@ -114,15 +116,19 @@ class TestIsRetryable:
 # TVDBClient — login
 # ---------------------------------------------------------------------------
 
+
 class TestTVDBClientLogin:
     """Tests for TVDB authentication."""
 
     def test_successful_login(self, client: TVDBClient) -> None:
         """Login should store the JWT token."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"token": "jwt-token-123"},
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"token": "jwt-token-123"},
+            },
+        )
 
         with patch.object(client._session, "post", return_value=mock_resp):
             client.login()
@@ -132,10 +138,13 @@ class TestTVDBClientLogin:
 
     def test_login_posts_apikey_only(self, client: TVDBClient) -> None:
         """Login should send apikey only (no PIN for Negotiated Contract)."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"token": "jwt-token"},
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"token": "jwt-token"},
+            },
+        )
 
         with patch.object(client._session, "post", return_value=mock_resp) as mock_post:
             client.login()
@@ -146,11 +155,14 @@ class TestTVDBClientLogin:
 
     def test_login_invalid_key(self, client: TVDBClient) -> None:
         """Invalid API key should raise TVDBError."""
-        mock_resp = _mock_response(401, {
-            "status": "failure",
-            "message": "InvalidAPIKey: apikey invalid",
-            "data": None,
-        })
+        mock_resp = _mock_response(
+            401,
+            {
+                "status": "failure",
+                "message": "InvalidAPIKey: apikey invalid",
+                "data": None,
+            },
+        )
 
         with patch.object(client._session, "post", return_value=mock_resp):
             with pytest.raises(TVDBError) as exc_info:
@@ -161,11 +173,14 @@ class TestTVDBClientLogin:
 
     def test_login_pin_required(self, client: TVDBClient) -> None:
         """PIN required error should raise TVDBError."""
-        mock_resp = _mock_response(400, {
-            "status": "failure",
-            "message": "InvalidValueType: pin required",
-            "data": None,
-        })
+        mock_resp = _mock_response(
+            400,
+            {
+                "status": "failure",
+                "message": "InvalidValueType: pin required",
+                "data": None,
+            },
+        )
 
         with patch.object(client._session, "post", return_value=mock_resp):
             with pytest.raises(TVDBError) as exc_info:
@@ -178,22 +193,31 @@ class TestTVDBClientLogin:
 # TVDBClient._get — base HTTP with auto-login
 # ---------------------------------------------------------------------------
 
+
 class TestTVDBClientGet:
     """Tests for the base _get() HTTP method."""
 
     def test_auto_login_on_first_request(self, client: TVDBClient) -> None:
         """First _get() should trigger login() automatically."""
-        login_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"token": "auto-token"},
-        })
-        data_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"name": "Test Series"},
-        })
+        login_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"token": "auto-token"},
+            },
+        )
+        data_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"name": "Test Series"},
+            },
+        )
 
-        with patch.object(client._session, "post", return_value=login_resp), \
-             patch.object(client._session, "get", return_value=data_resp):
+        with (
+            patch.object(client._session, "post", return_value=login_resp),
+            patch.object(client._session, "get", return_value=data_resp),
+        ):
             result = client._get("/series/1")
 
         assert result == {"name": "Test Series"}
@@ -202,20 +226,29 @@ class TestTVDBClientGet:
     def test_relogin_on_401(self, logged_in_client: TVDBClient) -> None:
         """401 should trigger re-login and retry."""
         resp_401 = _mock_response(401, {"message": "Unauthorized"})
-        login_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"token": "new-token"},
-        })
-        resp_200 = _mock_response(200, {
-            "status": "success",
-            "data": {"name": "Success"},
-        })
+        login_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"token": "new-token"},
+            },
+        )
+        resp_200 = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"name": "Success"},
+            },
+        )
 
-        with patch.object(logged_in_client._session, "post", return_value=login_resp), \
-             patch.object(
-                 logged_in_client._session, "get",
-                 side_effect=[resp_401, resp_200],
-             ):
+        with (
+            patch.object(logged_in_client._session, "post", return_value=login_resp),
+            patch.object(
+                logged_in_client._session,
+                "get",
+                side_effect=[resp_401, resp_200],
+            ),
+        ):
             result = logged_in_client._get("/series/1")
 
         assert result == {"name": "Success"}
@@ -233,10 +266,13 @@ class TestTVDBClientGet:
 
     def test_successful_get(self, logged_in_client: TVDBClient) -> None:
         """Successful GET should return the data field."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"id": 42, "name": "Test"},
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"id": 42, "name": "Test"},
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp):
             result = logged_in_client._get("/test")
@@ -247,6 +283,7 @@ class TestTVDBClientGet:
 # ---------------------------------------------------------------------------
 # TVDBClient — language mapping
 # ---------------------------------------------------------------------------
+
 
 class TestTVDBClientLangMap:
     """Tests for language code mapping."""
@@ -272,17 +309,21 @@ class TestTVDBClientLangMap:
 # TVDBClient — search
 # ---------------------------------------------------------------------------
 
+
 class TestTVDBClientSearch:
     """Tests for search_series()."""
 
     def test_search_series_basic(self, logged_in_client: TVDBClient) -> None:
         """search_series should query /search with type=series."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": [
-                {"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"},
-            ],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": [
+                    {"tvdb_id": "81189", "name": "Breaking Bad", "year": "2008"},
+                ],
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             results = logged_in_client.search_series("Breaking Bad")
@@ -295,10 +336,13 @@ class TestTVDBClientSearch:
 
     def test_search_series_with_year(self, logged_in_client: TVDBClient) -> None:
         """Year parameter should be passed to the API."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": [{"tvdb_id": "356882", "name": "Lupin"}],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": [{"tvdb_id": "356882", "name": "Lupin"}],
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             logged_in_client.search_series("Lupin", year=2021)
@@ -308,10 +352,13 @@ class TestTVDBClientSearch:
 
     def test_search_series_empty(self, logged_in_client: TVDBClient) -> None:
         """Empty search should return empty list."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": [],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": [],
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp):
             results = logged_in_client.search_series("xyznonexistent")
@@ -320,10 +367,13 @@ class TestTVDBClientSearch:
 
     def test_search_protocol_dispatches(self, logged_in_client: TVDBClient) -> None:
         """Protocol search() should use search_series."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": [{"tvdb_id": "81189"}],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": [{"tvdb_id": "81189"}],
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             results = logged_in_client.search("Breaking Bad", media_type="tv")
@@ -402,10 +452,13 @@ class TestTVDBClientDetails:
 
     def test_get_series_short_mode(self, logged_in_client: TVDBClient) -> None:
         """get_series should request extended with short=true."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_SERIES,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_SERIES,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             result = logged_in_client.get_series(81189)
@@ -416,10 +469,13 @@ class TestTVDBClientDetails:
 
     def test_get_series_returns_genres(self, logged_in_client: TVDBClient) -> None:
         """get_series should include genres."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_SERIES,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_SERIES,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp):
             result = logged_in_client.get_series(81189)
@@ -429,10 +485,13 @@ class TestTVDBClientDetails:
 
     def test_get_series_short_null_arrays(self, logged_in_client: TVDBClient) -> None:
         """short=true should set artworks/characters/trailers to null."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_SERIES,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_SERIES,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp):
             result = logged_in_client.get_series(81189)
@@ -443,10 +502,13 @@ class TestTVDBClientDetails:
 
     def test_get_season_episodes(self, logged_in_client: TVDBClient) -> None:
         """get_season_episodes should return filtered episodes."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_EPISODES,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_EPISODES,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             episodes = logged_in_client.get_season_episodes(81189, 1)
@@ -460,10 +522,13 @@ class TestTVDBClientDetails:
 
     def test_get_episode_translation_fr(self, logged_in_client: TVDBClient) -> None:
         """get_episode_translation should return translated title/overview."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_TRANSLATION,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_TRANSLATION,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             result = logged_in_client.get_episode_translation(349232, "fra")
@@ -473,10 +538,13 @@ class TestTVDBClientDetails:
 
     def test_get_episode_translation_2char_code(self, logged_in_client: TVDBClient) -> None:
         """2-char language codes should be auto-converted to 3-char."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_TRANSLATION,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_TRANSLATION,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             logged_in_client.get_episode_translation(349232, "fr")
@@ -499,9 +567,30 @@ class TestTVDBClientDetails:
 
 SAMPLE_ARTWORKS_RESPONSE = {
     "artworks": [
-        {"id": 1, "image": "https://artworks.thetvdb.com/poster1.jpg", "type": ARTWORK_POSTER_SERIES, "language": "eng", "score": 10, "season": None},
-        {"id": 2, "image": "https://artworks.thetvdb.com/bg1.jpg", "type": ARTWORK_BACKGROUND_SERIES, "language": None, "score": 8, "season": None},
-        {"id": 3, "image": "https://artworks.thetvdb.com/s1_poster.jpg", "type": ARTWORK_POSTER_SEASON, "language": "eng", "score": 5, "season": 1},
+        {
+            "id": 1,
+            "image": "https://artworks.thetvdb.com/poster1.jpg",
+            "type": ARTWORK_POSTER_SERIES,
+            "language": "eng",
+            "score": 10,
+            "season": None,
+        },
+        {
+            "id": 2,
+            "image": "https://artworks.thetvdb.com/bg1.jpg",
+            "type": ARTWORK_BACKGROUND_SERIES,
+            "language": None,
+            "score": 8,
+            "season": None,
+        },
+        {
+            "id": 3,
+            "image": "https://artworks.thetvdb.com/s1_poster.jpg",
+            "type": ARTWORK_POSTER_SEASON,
+            "language": "eng",
+            "score": 5,
+            "season": 1,
+        },
     ],
 }
 
@@ -511,10 +600,13 @@ class TestTVDBClientArtworks:
 
     def test_get_series_artworks(self, logged_in_client: TVDBClient) -> None:
         """get_series_artworks should extract artworks from extended record."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_ARTWORKS_RESPONSE,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_ARTWORKS_RESPONSE,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp):
             artworks = logged_in_client.get_series_artworks(81189)
@@ -524,10 +616,13 @@ class TestTVDBClientArtworks:
 
     def test_get_series_artworks_with_type_filter(self, logged_in_client: TVDBClient) -> None:
         """get_series_artworks should pass type filter to API."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": {"artworks": [{"id": 1, "type": ARTWORK_POSTER_SERIES}]},
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": {"artworks": [{"id": 1, "type": ARTWORK_POSTER_SERIES}]},
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             logged_in_client.get_series_artworks(81189, type_id=ARTWORK_POSTER_SERIES)
@@ -537,13 +632,16 @@ class TestTVDBClientArtworks:
 
     def test_get_artwork_types_cached(self, logged_in_client: TVDBClient) -> None:
         """get_artwork_types should cache results after first call."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": [
-                {"id": 2, "name": "Poster"},
-                {"id": 3, "name": "Background"},
-            ],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": [
+                    {"id": 2, "name": "Poster"},
+                    {"id": 3, "name": "Background"},
+                ],
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             types1 = logged_in_client.get_artwork_types()
@@ -576,10 +674,13 @@ class TestTVDBClientArtworks:
 
     def test_get_artwork_urls_protocol(self, logged_in_client: TVDBClient) -> None:
         """Protocol get_artwork_urls should map TVDB types to standard types."""
-        mock_resp = _mock_response(200, {
-            "status": "success",
-            "data": SAMPLE_ARTWORKS_RESPONSE,
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_ARTWORKS_RESPONSE,
+            },
+        )
 
         with patch.object(logged_in_client._session, "get", return_value=mock_resp):
             artworks = logged_in_client.get_artwork_urls(81189)
@@ -646,14 +747,17 @@ class TestTVDBCircuitBreaker:
         login_resp.ok = True
         login_resp.json.return_value = {"data": {"token": "new-token"}}
 
-        with patch.object(
-            logged_in_client._session,
-            "get",
-            side_effect=[resp_401, resp_ok],
-        ), patch.object(
-            logged_in_client._session,
-            "post",
-            return_value=login_resp,
+        with (
+            patch.object(
+                logged_in_client._session,
+                "get",
+                side_effect=[resp_401, resp_ok],
+            ),
+            patch.object(
+                logged_in_client._session,
+                "post",
+                return_value=login_resp,
+            ),
         ):
             logged_in_client._get("/search", {"query": "test"})
 

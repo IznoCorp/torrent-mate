@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Confidence thresholds
 HIGH_CONFIDENCE = 0.8  # Auto-accept in automatic mode
-LOW_CONFIDENCE = 0.5   # Skip in automatic mode (no match)
+LOW_CONFIDENCE = 0.5  # Skip in automatic mode (no match)
 # Between LOW and HIGH: caller decides (skip in auto, prompt in interactive)
 
 
@@ -69,9 +69,14 @@ def score_match(
         Confidence score between 0.0 and 1.0.
     """
     # Title similarity via WRatio with accent-stripping processor
-    title_score = fuzz.WRatio(
-        local_title, api_title, processor=media_processor,
-    ) / 100.0
+    title_score = (
+        fuzz.WRatio(
+            local_title,
+            api_title,
+            processor=media_processor,
+        )
+        / 100.0
+    )
 
     # Year adjustment
     year_bonus = 0.0
@@ -137,7 +142,10 @@ def match_movie(
     if best_match:
         logger.info(
             "Best TMDB match for '%s': '%s' (%s) — confidence %.2f",
-            title, best_match.api_title, best_match.api_year, best_match.confidence,
+            title,
+            best_match.api_title,
+            best_match.api_year,
+            best_match.confidence,
         )
 
     return best_match
@@ -193,7 +201,10 @@ def match_tvshow_tvdb(
     if best_match:
         logger.info(
             "Best TVDB match for '%s': '%s' (%s) — confidence %.2f",
-            title, best_match.api_title, best_match.api_year, best_match.confidence,
+            title,
+            best_match.api_title,
+            best_match.api_year,
+            best_match.confidence,
         )
 
     return best_match
@@ -253,7 +264,10 @@ def match_tvshow(
     if tmdb_match:
         logger.info(
             "TMDB fallback for '%s': '%s' (%s) — confidence %.2f",
-            title, tmdb_match.api_title, tmdb_match.api_year, tmdb_match.confidence,
+            title,
+            tmdb_match.api_title,
+            tmdb_match.api_year,
+            tmdb_match.confidence,
         )
 
     # Return whichever is better (TVDB preferred at equal confidence)

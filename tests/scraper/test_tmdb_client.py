@@ -22,6 +22,7 @@ from personalscraper.scraper.tmdb_client import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def client() -> TMDBClient:
     """Create a TMDBClient with a fake API key."""
@@ -65,6 +66,7 @@ def _mock_response(
 # ---------------------------------------------------------------------------
 # _is_retryable
 # ---------------------------------------------------------------------------
+
 
 class TestIsRetryable:
     """Tests for the _is_retryable predicate."""
@@ -110,6 +112,7 @@ class TestIsRetryable:
 # ---------------------------------------------------------------------------
 # TMDBClient._get — base HTTP
 # ---------------------------------------------------------------------------
+
 
 class TestTMDBClientGet:
     """Tests for the base _get() HTTP method."""
@@ -174,7 +177,8 @@ class TestTMDBClientGet:
     def test_timeout_on_request(self, client: TMDBClient) -> None:
         """Request timeout should propagate after retries."""
         with patch.object(
-            client._session, "get",
+            client._session,
+            "get",
             side_effect=requests.exceptions.Timeout("timeout"),
         ):
             with pytest.raises(requests.exceptions.Timeout):
@@ -212,7 +216,8 @@ class TestTMDBClientGet:
         error_resp.raise_for_status = raise_429
 
         with patch.object(
-            client._session, "get",
+            client._session,
+            "get",
             side_effect=[error_resp, resp_200],
         ):
             result = client._get("/test")
@@ -223,6 +228,7 @@ class TestTMDBClientGet:
 # ---------------------------------------------------------------------------
 # TMDBClient — session setup
 # ---------------------------------------------------------------------------
+
 
 class TestTMDBClientInit:
     """Tests for TMDBClient initialization."""
@@ -247,16 +253,20 @@ class TestTMDBClientInit:
 # TMDBClient — search methods
 # ---------------------------------------------------------------------------
 
+
 class TestTMDBClientSearch:
     """Tests for search_movie() and search_tv()."""
 
     def test_search_movie_basic(self, client: TMDBClient) -> None:
         """search_movie should call /search/movie with query param."""
-        mock_resp = _mock_response(200, {
-            "results": [
-                {"id": 1049112, "title": "Le Comte de Monte-Cristo", "release_date": "2024-06-28"},
-            ],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "results": [
+                    {"id": 1049112, "title": "Le Comte de Monte-Cristo", "release_date": "2024-06-28"},
+                ],
+            },
+        )
 
         with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
             results = client.search_movie("Le Comte de Monte-Cristo", year=2024)
@@ -290,9 +300,12 @@ class TestTMDBClientSearch:
 
     def test_search_tv_uses_first_air_date_year(self, client: TMDBClient) -> None:
         """search_tv should use first_air_date_year, not year."""
-        mock_resp = _mock_response(200, {
-            "results": [{"id": 67195, "name": "Lupin", "first_air_date": "2021-01-08"}],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "results": [{"id": 67195, "name": "Lupin", "first_air_date": "2021-01-08"}],
+            },
+        )
 
         with patch.object(client._session, "get", return_value=mock_resp) as mock_get:
             results = client.search_tv("Lupin", year=2021)
@@ -334,13 +347,16 @@ class TestTMDBClientSearch:
 
     def test_search_movie_multiple_results(self, client: TMDBClient) -> None:
         """Search should return all results from the API."""
-        mock_resp = _mock_response(200, {
-            "results": [
-                {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
-                {"id": 604, "title": "The Matrix Reloaded", "release_date": "2003-05-15"},
-                {"id": 605, "title": "The Matrix Revolutions", "release_date": "2003-11-05"},
-            ],
-        })
+        mock_resp = _mock_response(
+            200,
+            {
+                "results": [
+                    {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
+                    {"id": 604, "title": "The Matrix Reloaded", "release_date": "2003-05-15"},
+                    {"id": 605, "title": "The Matrix Revolutions", "release_date": "2003-11-05"},
+                ],
+            },
+        )
 
         with patch.object(client._session, "get", return_value=mock_resp):
             results = client.search_movie("Matrix")
@@ -507,10 +523,7 @@ class TestTMDBClientDetails:
             result = client.get_movie(1049112)
 
         # Extract FR certification (type=3 = theatrical)
-        fr_releases = [
-            r for r in result["release_dates"]["results"]
-            if r["iso_3166_1"] == "FR"
-        ]
+        fr_releases = [r for r in result["release_dates"]["results"] if r["iso_3166_1"] == "FR"]
         assert len(fr_releases) == 1
         theatrical = [rd for rd in fr_releases[0]["release_dates"] if rd["type"] == 3]
         assert theatrical[0]["certification"] == "Tous publics"
@@ -538,10 +551,7 @@ class TestTMDBClientDetails:
         _, kwargs = mock_get.call_args
         assert "content_ratings" in kwargs["params"]["append_to_response"]
         # FR rating extraction
-        fr_rating = [
-            r for r in result["content_ratings"]["results"]
-            if r["iso_3166_1"] == "FR"
-        ]
+        fr_rating = [r for r in result["content_ratings"]["results"] if r["iso_3166_1"] == "FR"]
         assert fr_rating[0]["rating"] == "10"
 
     def test_get_tv_include_image_language(self, client: TMDBClient) -> None:
@@ -601,6 +611,7 @@ class TestTMDBClientDetails:
 # ---------------------------------------------------------------------------
 # TMDBClient — image selection and URL building
 # ---------------------------------------------------------------------------
+
 
 class TestTMDBClientImages:
     """Tests for get_image_url() and get_artwork_urls()."""

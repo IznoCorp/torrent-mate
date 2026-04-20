@@ -1,6 +1,5 @@
 """Tests for personalscraper.library.analyzer — ffprobe deep scan."""
 
-
 from personalscraper.library.analyzer import deduce_audio_profile
 
 
@@ -69,6 +68,7 @@ class TestAnalyzeLibrary:
     def _make_config(self, path, name, categories):
         """Create a mock DiskConfig."""
         from unittest.mock import MagicMock
+
         config = MagicMock()
         config.path = path
         config.name = name
@@ -78,10 +78,14 @@ class TestAnalyzeLibrary:
     def _make_stream_info(self):
         """Create a minimal stream info dict for mocking extract_stream_info."""
         return {
-            "video": {"codec": "hevc", "width": 1920, "height": 1080,
-                      "bitrate_kbps": 5000, "hdr": {"is_hdr": False, "hdr_type": None}},
-            "audio": [{"codec": "aac", "language": "fra", "channels": 2,
-                       "is_atmos": False, "is_default": True}],
+            "video": {
+                "codec": "hevc",
+                "width": 1920,
+                "height": 1080,
+                "bitrate_kbps": 5000,
+                "hdr": {"is_hdr": False, "hdr_type": None},
+            },
+            "audio": [{"codec": "aac", "language": "fra", "channels": 2, "is_atmos": False, "is_default": True}],
             "subtitle": [],
             "duration_seconds": 7200.0,
         }
@@ -104,8 +108,7 @@ class TestAnalyzeLibrary:
             self._make_config(disk2, "Disk2", ["films"]),
         ]
 
-        with patch("personalscraper.library.analyzer.extract_stream_info",
-                    return_value=self._make_stream_info()):
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
             result = analyze_library(configs, disk_filter="Disk1")
 
         assert result.item_count == 1
@@ -124,8 +127,7 @@ class TestAnalyzeLibrary:
 
         config = self._make_config(disk, "Disk1", ["films"])
 
-        with patch("personalscraper.library.analyzer.extract_stream_info",
-                    return_value=self._make_stream_info()):
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
             result = analyze_library([config], max_items=2)
 
         assert result.item_count == 2
@@ -141,13 +143,14 @@ class TestAnalyzeLibrary:
         movie.mkdir(parents=True)
         video = movie / "Movie.mkv"
         video.write_bytes(b"\x00" * 1000)
-        size_gb = round(video.stat().st_size / (1024 ** 3), 3)
+        size_gb = round(video.stat().st_size / (1024**3), 3)
 
         config = self._make_config(disk, "Disk1", ["films"])
         existing = {str(video): size_gb}
 
-        with patch("personalscraper.library.analyzer.extract_stream_info",
-                    return_value=self._make_stream_info()) as mock_extract:
+        with patch(
+            "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
+        ) as mock_extract:
             result = analyze_library([config], incremental=True, existing_sizes=existing)
 
         mock_extract.assert_not_called()
@@ -167,8 +170,9 @@ class TestAnalyzeLibrary:
 
         config = self._make_config(disk, "Disk1", ["films"])
 
-        with patch("personalscraper.library.analyzer.extract_stream_info",
-                    return_value=self._make_stream_info()) as mock_extract:
+        with patch(
+            "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
+        ) as mock_extract:
             result = analyze_library([config])
 
         assert mock_extract.call_count == 1

@@ -26,15 +26,10 @@ def assert_ingest_complete(staging_dir: Path, expected: list[dict]) -> None:
         name = entry["name"]
         # Check if any item in staging contains the expected name (partial match)
         found = any(name.lower() in item.lower() for item in staging_items)
-        assert found, (
-            f"Ingest: '{name}' not found in staging dir. "
-            f"Available: {sorted(staging_items)}"
-        )
+        assert found, f"Ingest: '{name}' not found in staging dir. Available: {sorted(staging_items)}"
 
 
-def assert_sort_complete(
-    movies_dir: Path, tvshows_dir: Path, expected: list[dict]
-) -> None:
+def assert_sort_complete(movies_dir: Path, tvshows_dir: Path, expected: list[dict]) -> None:
     """Verify media was sorted into correct subdirectories.
 
     Args:
@@ -61,15 +56,10 @@ def assert_sort_complete(
 
         items = {p.name for p in target.iterdir() if not p.name.startswith(".")}
         found = any(name.lower() in item.lower() for item in items)
-        assert found, (
-            f"Sort: '{name}' ({media_type}) not found in {target.name}. "
-            f"Available: {sorted(items)}"
-        )
+        assert found, f"Sort: '{name}' ({media_type}) not found in {target.name}. Available: {sorted(items)}"
 
 
-def assert_scrape_complete(
-    movies_dir: Path, tvshows_dir: Path, expected: list[dict]
-) -> None:
+def assert_scrape_complete(movies_dir: Path, tvshows_dir: Path, expected: list[dict]) -> None:
     """Verify metadata scraping produced valid NFOs and artwork.
 
     Checks:
@@ -139,9 +129,7 @@ def _validate_nfo(nfo_path: Path, required_fields: list[str]) -> None:
 
     for field_xpath in required_fields:
         elem = root.find(field_xpath)
-        assert elem is not None, (
-            f"Scrape: field '{field_xpath}' missing in {nfo_path.name}"
-        )
+        assert elem is not None, f"Scrape: field '{field_xpath}' missing in {nfo_path.name}"
 
 
 def _find_dir(parent: Path, name: str) -> Path | None:
@@ -165,12 +153,9 @@ def assert_verify_complete(results: list) -> None:
     """
     for r in results:
         assert r.status in ("valid", "fixed"), (
-            f"Verify: {r.media_path.name} has status '{r.status}', expected valid/fixed. "
-            f"Issues: {r.issues}"
+            f"Verify: {r.media_path.name} has status '{r.status}', expected valid/fixed. Issues: {r.issues}"
         )
-        assert r.category is not None, (
-            f"Verify: {r.media_path.name} has no category assigned"
-        )
+        assert r.category is not None, f"Verify: {r.media_path.name} has no category assigned"
 
 
 def assert_dispatch_complete(disk_paths: list[Path], expected: list[dict]) -> None:
@@ -200,14 +185,11 @@ def assert_dispatch_complete(disk_paths: list[Path], expected: list[dict]) -> No
                 found = True
                 # Verify marker survived dispatch (rsync)
                 marker = match / MARKER_FILENAME
-                assert marker.exists(), (
-                    f"Dispatch: marker missing after dispatch for '{name}' at {match}"
-                )
+                assert marker.exists(), f"Dispatch: marker missing after dispatch for '{name}' at {match}"
                 break
 
         assert found, (
-            f"Dispatch: '{name}' not found in '{category}' on any disk. "
-            f"Checked: {[str(d) for d in disk_paths]}"
+            f"Dispatch: '{name}' not found in '{category}' on any disk. Checked: {[str(d) for d in disk_paths]}"
         )
 
 
@@ -253,8 +235,7 @@ def assert_scrape_golden(media_dir: Path, golden) -> None:
     # 1. Folder name pattern
     if "folder_name_pattern" in nfo:
         assert nfo["folder_name_pattern"].lower() in media_dir.name.lower(), (
-            f"Golden: folder name '{media_dir.name}' doesn't match "
-            f"pattern '{nfo['folder_name_pattern']}'"
+            f"Golden: folder name '{media_dir.name}' doesn't match pattern '{nfo['folder_name_pattern']}'"
         )
 
     # 2-4. NFO validation
@@ -271,37 +252,27 @@ def assert_scrape_golden(media_dir: Path, golden) -> None:
 
         # 3. Required tags
         for tag in nfo.get("required_nfo_tags", []):
-            assert root.find(tag) is not None, (
-                f"Golden: required NFO tag '{tag}' missing in {nfo_path.name}"
-            )
+            assert root.find(tag) is not None, f"Golden: required NFO tag '{tag}' missing in {nfo_path.name}"
 
         # 4. Invariants (exact value match)
         for key, expected_value in nfo.get("nfo_invariants", {}).items():
             elem = root.find(key)
-            assert elem is not None, (
-                f"Golden: invariant tag '{key}' missing in {nfo_path.name}"
-            )
-            assert elem.text == str(expected_value), (
-                f"Golden: NFO '{key}' = '{elem.text}', "
-                f"expected '{expected_value}'"
-            )
+            assert elem is not None, f"Golden: invariant tag '{key}' missing in {nfo_path.name}"
+            assert elem.text == str(expected_value), f"Golden: NFO '{key}' = '{elem.text}', expected '{expected_value}'"
 
     # 5-6. Artwork
     artwork = golden.artwork
     if artwork:
         for filename in artwork.get("required", []):
             art_path = media_dir / filename
-            assert art_path.exists(), (
-                f"Golden: required artwork '{filename}' missing in {media_dir.name}"
-            )
+            assert art_path.exists(), f"Golden: required artwork '{filename}' missing in {media_dir.name}"
 
         min_size = artwork.get("min_poster_size_bytes", 0)
         if min_size:
             posters = list(media_dir.glob("*poster*"))
             for poster in posters:
                 assert poster.stat().st_size >= min_size, (
-                    f"Golden: poster '{poster.name}' too small "
-                    f"({poster.stat().st_size} < {min_size})"
+                    f"Golden: poster '{poster.name}' too small ({poster.stat().st_size} < {min_size})"
                 )
 
     # 7. TV show seasons
@@ -309,16 +280,13 @@ def assert_scrape_golden(media_dir: Path, golden) -> None:
     for season_num, season_data in seasons.items():
         season_dir_name = season_data.get("season_dir", f"Saison {int(season_num):02d}")
         season_dir = media_dir / season_dir_name
-        assert season_dir.is_dir(), (
-            f"Golden: season dir '{season_dir_name}' missing in {media_dir.name}"
-        )
+        assert season_dir.is_dir(), f"Golden: season dir '{season_dir_name}' missing in {media_dir.name}"
 
         expected_count = season_data.get("episode_count", 0)
         if expected_count:
             mkv_files = list(season_dir.glob("*.mkv"))
             assert len(mkv_files) >= expected_count, (
-                f"Golden: season {season_num} has {len(mkv_files)} episodes, "
-                f"expected {expected_count}"
+                f"Golden: season {season_num} has {len(mkv_files)} episodes, expected {expected_count}"
             )
 
 
@@ -346,22 +314,18 @@ def assert_dispatch_golden(result, golden) -> None:
     # 2. Disk in eligible list
     eligible = dispatch.get("eligible_disks", [])
     if eligible and result.disk:
-        assert result.disk in eligible, (
-            f"Golden: disk '{result.disk}' not in eligible {eligible}"
-        )
+        assert result.disk in eligible, f"Golden: disk '{result.disk}' not in eligible {eligible}"
 
     # 3. Destination contains expected substring
     dest_contains = dispatch.get("destination_contains")
     if dest_contains and result.destination:
         assert dest_contains in str(result.destination), (
-            f"Golden: destination '{result.destination}' doesn't contain "
-            f"'{dest_contains}'"
+            f"Golden: destination '{result.destination}' doesn't contain '{dest_contains}'"
         )
 
     # 4. No error/skipped
     assert result.action not in ("error", "skipped"), (
-        f"Golden: dispatch failed with action '{result.action}', "
-        f"reason: {result.reason}"
+        f"Golden: dispatch failed with action '{result.action}', reason: {result.reason}"
     )
 
 
@@ -382,23 +346,18 @@ def assert_structure_golden(media_dir: Path, golden) -> None:
     # 1. Required files (glob patterns)
     for pattern in structure.get("required_files", []):
         matches = list(media_dir.glob(pattern))
-        assert matches, (
-            f"Golden: required file pattern '{pattern}' not found in {media_dir.name}"
-        )
+        assert matches, f"Golden: required file pattern '{pattern}' not found in {media_dir.name}"
 
     # 2. Required dirs
     for dir_name in structure.get("required_dirs", []):
         dir_path = media_dir / dir_name
-        assert dir_path.is_dir(), (
-            f"Golden: required directory '{dir_name}' missing in {media_dir.name}"
-        )
+        assert dir_path.is_dir(), f"Golden: required directory '{dir_name}' missing in {media_dir.name}"
 
     # 3. Forbidden patterns
     for pattern in structure.get("forbidden_patterns", []):
         matches = list(media_dir.glob(pattern))
         assert not matches, (
-            f"Golden: forbidden pattern '{pattern}' found in {media_dir.name}: "
-            f"{[m.name for m in matches]}"
+            f"Golden: forbidden pattern '{pattern}' found in {media_dir.name}: {[m.name for m in matches]}"
         )
 
     # 4. Season files
@@ -412,8 +371,7 @@ def assert_structure_golden(media_dir: Path, golden) -> None:
             ep_pattern = season_data.get("episode_pattern", "*.mkv")
             episodes = list(season_dir.glob(ep_pattern))
             assert len(episodes) >= min_count, (
-                f"Golden: {season_name} has {len(episodes)} episodes matching "
-                f"'{ep_pattern}', expected >= {min_count}"
+                f"Golden: {season_name} has {len(episodes)} episodes matching '{ep_pattern}', expected >= {min_count}"
             )
 
 
@@ -442,8 +400,7 @@ def find_media_dir(parent_dir: Path, folder_pattern: str) -> Path:
 
     available = sorted(d.name for d in parent_dir.iterdir() if d.is_dir())
     raise AssertionError(
-        f"find_media_dir: no directory matching '{folder_pattern}' in {parent_dir.name}. "
-        f"Available: {available}"
+        f"find_media_dir: no directory matching '{folder_pattern}' in {parent_dir.name}. Available: {available}"
     )
 
 

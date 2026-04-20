@@ -16,15 +16,17 @@ logger = logging.getLogger(__name__)
 
 # guessit keys that indicate a folder name is still "polluted"
 # with release artifacts (not a clean media title)
-_POLLUTION_KEYS = frozenset({
-    "screen_size",
-    "video_codec",
-    "release_group",
-    "source",
-    "audio_codec",
-    "video_profile",
-    "streaming_service",
-})
+_POLLUTION_KEYS = frozenset(
+    {
+        "screen_size",
+        "video_codec",
+        "release_group",
+        "source",
+        "audio_codec",
+        "video_profile",
+        "streaming_service",
+    }
+)
 
 
 def _has_polluted_folders(category_dir: Path) -> bool:
@@ -145,9 +147,7 @@ def reclean_folders(
                 logger.info("Reclean+merge: %s → %s (%d items)", folder.name, clean_name, moved)
                 report.details.append(f"{folder.name} → {clean_name} (merged {moved} items)")
                 if merge_failed:
-                    report.warnings.append(
-                        f"{folder.name}: {merge_failed} item(s) failed during merge"
-                    )
+                    report.warnings.append(f"{folder.name}: {merge_failed} item(s) failed during merge")
             else:
                 folder.rename(target)
                 logger.info("Reclean: %s → %s", folder.name, clean_name)

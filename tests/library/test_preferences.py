@@ -3,6 +3,7 @@
 import json
 
 import pytest
+
 from personalscraper.library.preferences import (
     AudioPreferences,
     EncodingRule,

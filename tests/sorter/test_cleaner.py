@@ -17,30 +17,36 @@ def cleaner():
 class TestClean:
     """NameCleaner.clean() — title extraction with season/episode preserved."""
 
-    @pytest.mark.parametrize("raw,expected", [
-        # Real torrent names from torrents/complete/
-        ("Shrinking.S03.MULTi.1080p.WEBRiP.DDP5.1.x265-R3MiX", "Shrinking S03"),
-        ("The.Boys.S05E01.MULTi.DV.HDR.2160p.AMZN.WEBRiP.DDP5.1.x265-R3MiX", "The Boys S05E01"),
-        ("The.Boys.S05E02.MULTi.DV.HDR.2160p.AMZN.WEBRiP.DDP5.1.x265-R3MiX", "The Boys S05E02"),
-        (
-            "Your.Friends.and.Neighbours.S02E01.MULTi.VFF.1080p.WEB.EAC3.5.1.Atmos.H265-TFA.mkv",
-            "Your Friends and Neighbours S02E01",
-        ),
-        (
-            "Jury.Duty.Presents.Company.Retreat.S01.MULTi.1080p.WEB.H264-FW",
-            "Jury Duty Presents Company Retreat S01",
-        ),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            # Real torrent names from torrents/complete/
+            ("Shrinking.S03.MULTi.1080p.WEBRiP.DDP5.1.x265-R3MiX", "Shrinking S03"),
+            ("The.Boys.S05E01.MULTi.DV.HDR.2160p.AMZN.WEBRiP.DDP5.1.x265-R3MiX", "The Boys S05E01"),
+            ("The.Boys.S05E02.MULTi.DV.HDR.2160p.AMZN.WEBRiP.DDP5.1.x265-R3MiX", "The Boys S05E02"),
+            (
+                "Your.Friends.and.Neighbours.S02E01.MULTi.VFF.1080p.WEB.EAC3.5.1.Atmos.H265-TFA.mkv",
+                "Your Friends and Neighbours S02E01",
+            ),
+            (
+                "Jury.Duty.Presents.Company.Retreat.S01.MULTi.1080p.WEB.H264-FW",
+                "Jury Duty Presents Company Retreat S01",
+            ),
+        ],
+    )
     def test_real_torrent_names(self, cleaner, raw, expected):
         """Clean real torrent names from torrents/complete/."""
         assert cleaner.clean(raw) == expected
 
-    @pytest.mark.parametrize("raw,expected", [
-        # Movie with no season/episode
-        ("Movie.Title.2024.1080p.BluRay.x264-GROUP", "Movie Title"),
-        # Simple title
-        ("Some.Movie.mkv", "Some Movie"),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            # Movie with no season/episode
+            ("Movie.Title.2024.1080p.BluRay.x264-GROUP", "Movie Title"),
+            # Simple title
+            ("Some.Movie.mkv", "Some Movie"),
+        ],
+    )
     def test_movie_names(self, cleaner, raw, expected):
         """Movies return title only (no S/E code)."""
         assert cleaner.clean(raw) == expected
@@ -58,12 +64,15 @@ class TestClean:
 class TestExtractYear:
     """NameCleaner.extract_year() — year detection via guessit."""
 
-    @pytest.mark.parametrize("raw,expected", [
-        ("Movie.Title.2024.1080p.BluRay", 2024),
-        ("Blade.Runner.2049.2017.1080p", 2017),
-        ("The.Piano.Lesson.2024.mkv", 2024),
-        ("La.Femme.de.menage.2025.FRENCH", 2025),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("Movie.Title.2024.1080p.BluRay", 2024),
+            ("Blade.Runner.2049.2017.1080p", 2017),
+            ("The.Piano.Lesson.2024.mkv", 2024),
+            ("La.Femme.de.menage.2025.FRENCH", 2025),
+        ],
+    )
     def test_year_extraction(self, cleaner, raw, expected):
         """Extracts release year from various naming formats."""
         assert cleaner.extract_year(raw) == expected
@@ -85,12 +94,15 @@ class TestExtractYear:
 class TestExtractSeasonEpisode:
     """NameCleaner.extract_season_episode() — S/E detection."""
 
-    @pytest.mark.parametrize("raw,expected_season,expected_episode", [
-        ("Show.S01E04.1080p.mkv", 1, 4),
-        ("Show.s03e12.mkv", 3, 12),
-        ("Show.1x04.mkv", 1, 4),
-        ("Show.S03.MULTi.1080p", 3, None),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected_season,expected_episode",
+        [
+            ("Show.S01E04.1080p.mkv", 1, 4),
+            ("Show.s03e12.mkv", 3, 12),
+            ("Show.1x04.mkv", 1, 4),
+            ("Show.S03.MULTi.1080p", 3, None),
+        ],
+    )
     def test_standard_patterns(self, cleaner, raw, expected_season, expected_episode):
         """Detects standard S01E04, 1x04, and S03 patterns."""
         season, episode = cleaner.extract_season_episode(raw)
@@ -122,11 +134,14 @@ class TestExtractSeasonEpisode:
 class TestCleanForFolder:
     """NameCleaner.clean_for_folder() — folder name creation."""
 
-    @pytest.mark.parametrize("raw,expected", [
-        ("Movie.Title.2024.1080p.BluRay.x264-GROUP", "Movie Title (2024)"),
-        ("Shrinking.S03.MULTi.1080p", "Shrinking"),
-        ("Some.Movie.Without.Year.1080p", "Some Movie Without Year"),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("Movie.Title.2024.1080p.BluRay.x264-GROUP", "Movie Title (2024)"),
+            ("Shrinking.S03.MULTi.1080p", "Shrinking"),
+            ("Some.Movie.Without.Year.1080p", "Some Movie Without Year"),
+        ],
+    )
     def test_folder_names(self, cleaner, raw, expected):
         """Creates 'Title (Year)' for movies, 'Title' for shows."""
         assert cleaner.clean_for_folder(raw) == expected
@@ -144,11 +159,14 @@ class TestCleanForFolder:
 class TestGetMediaType:
     """NameCleaner.get_media_type() — guessit type detection."""
 
-    @pytest.mark.parametrize("raw,expected", [
-        ("Show.S01E04.1080p.mkv", "episode"),
-        ("Show.S03.MULTi.1080p", "episode"),
-        ("Movie.2024.1080p.BluRay.mkv", "movie"),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("Show.S01E04.1080p.mkv", "episode"),
+            ("Show.S03.MULTi.1080p", "episode"),
+            ("Movie.2024.1080p.BluRay.mkv", "movie"),
+        ],
+    )
     def test_media_type_detection(self, cleaner, raw, expected):
         """Detects 'movie' vs 'episode' from filename patterns."""
         assert cleaner.get_media_type(raw) == expected
@@ -160,12 +178,15 @@ class TestGetMediaType:
 class TestFrenchConventions:
     """French-specific naming conventions handled by guessit."""
 
-    @pytest.mark.parametrize("raw", [
-        "Show.S01E01.MULTi.VFF.1080p.mkv",
-        "Movie.VOSTFR.1080p.mkv",
-        "Movie.TRUEFRENCH.BluRay.mkv",
-        "Show.MULTi.1080p.WEB.mkv",
-    ])
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "Show.S01E01.MULTi.VFF.1080p.mkv",
+            "Movie.VOSTFR.1080p.mkv",
+            "Movie.TRUEFRENCH.BluRay.mkv",
+            "Show.MULTi.1080p.WEB.mkv",
+        ],
+    )
     def test_french_tags_stripped(self, cleaner, raw):
         """French audio tags (VFF, VOSTFR, TRUEFRENCH, MULTi) are stripped from title."""
         result = cleaner.clean(raw)
@@ -179,10 +200,13 @@ class TestFrenchConventions:
 class TestEdgeCases:
     """Edge cases for the cleaner."""
 
-    @pytest.mark.parametrize("raw", [
-        "24.S01E01.1080p.mkv",
-        "300.2006.BluRay.mkv",
-    ])
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "24.S01E01.1080p.mkv",
+            "300.2006.BluRay.mkv",
+        ],
+    )
     def test_numeric_titles(self, cleaner, raw):
         """Titles that are numbers are handled correctly."""
         result = cleaner.clean(raw)

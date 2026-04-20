@@ -104,32 +104,40 @@ class MediaChecker:
 
         # video_present
         video_files = self._find_video_files(movie_dir)
-        results.append(CheckResult(
-            name="video_present",
-            passed=len(video_files) > 0,
-            severity=Severity.ERROR,
-            message="" if video_files else "No video file found",
-        ))
+        results.append(
+            CheckResult(
+                name="video_present",
+                passed=len(video_files) > 0,
+                severity=Severity.ERROR,
+                message="" if video_files else "No video file found",
+            )
+        )
 
         # not_sample
         if video_files:
             largest = max(f.stat().st_size for f in video_files)
             is_sample = largest < _MIN_VIDEO_SIZE
-            results.append(CheckResult(
-                name="not_sample",
-                passed=not is_sample,
-                severity=Severity.WARNING,
-                message=f"Largest video is {largest // (1024*1024)} MB (possible sample)" if is_sample else "",
-            ))
+            results.append(
+                CheckResult(
+                    name="not_sample",
+                    passed=not is_sample,
+                    severity=Severity.WARNING,
+                    message=f"Largest video is {largest // (1024 * 1024)} MB (possible sample)" if is_sample else "",
+                )
+            )
 
         # dir_naming
-        results.append(CheckResult(
-            name="dir_naming",
-            passed=bool(_DIR_PATTERN.match(title)),
-            severity=Severity.ERROR,
-            message=f"Directory name '{title}' doesn't match 'Title (Year)' format" if not _DIR_PATTERN.match(title) else "",
-            fixable=True,
-        ))
+        results.append(
+            CheckResult(
+                name="dir_naming",
+                passed=bool(_DIR_PATTERN.match(title)),
+                severity=Severity.ERROR,
+                message=f"Directory name '{title}' doesn't match 'Title (Year)' format"
+                if not _DIR_PATTERN.match(title)
+                else "",
+                fixable=True,
+            )
+        )
 
         # Parse title for NamingPatterns lookups
         parsed_title = self._extract_title_from_dir(title)
@@ -138,12 +146,14 @@ class MediaChecker:
         nfo_name = self.patterns.format("movie_nfo", Title=parsed_title)
         nfo_path = movie_dir / nfo_name
         nfo_exists = nfo_path.exists()
-        results.append(CheckResult(
-            name="nfo_present",
-            passed=nfo_exists,
-            severity=Severity.ERROR,
-            message=f"NFO not found: {nfo_name}" if not nfo_exists else "",
-        ))
+        results.append(
+            CheckResult(
+                name="nfo_present",
+                passed=nfo_exists,
+                severity=Severity.ERROR,
+                message=f"NFO not found: {nfo_name}" if not nfo_exists else "",
+            )
+        )
 
         # Parse NFO for further checks
         nfo_root = self._parse_nfo(nfo_path) if nfo_exists else None
@@ -153,12 +163,14 @@ class MediaChecker:
             has_title = nfo_root is not None and nfo_root.findtext("title")
             has_year = nfo_root is not None and nfo_root.findtext("year")
             nfo_valid = has_title and has_year
-            results.append(CheckResult(
-                name="nfo_valid",
-                passed=bool(nfo_valid),
-                severity=Severity.ERROR,
-                message="" if nfo_valid else "NFO missing <title> or <year>",
-            ))
+            results.append(
+                CheckResult(
+                    name="nfo_valid",
+                    passed=bool(nfo_valid),
+                    severity=Severity.ERROR,
+                    message="" if nfo_valid else "NFO missing <title> or <year>",
+                )
+            )
 
         # nfo_ids — at least one of TMDB or IMDB required (ERROR if neither; WARNING if only one)
         if nfo_root is not None:
@@ -167,60 +179,72 @@ class MediaChecker:
             has_imdb = bool(ids.get("imdb"))
             has_both = has_tmdb and has_imdb
             has_any = has_tmdb or has_imdb
-            results.append(CheckResult(
-                name="nfo_ids",
-                passed=has_both,
-                severity=Severity.ERROR if not has_any else Severity.WARNING,
-                message="" if has_both else f"Missing IDs: tmdb={has_tmdb}, imdb={has_imdb}",
-            ))
+            results.append(
+                CheckResult(
+                    name="nfo_ids",
+                    passed=has_both,
+                    severity=Severity.ERROR if not has_any else Severity.WARNING,
+                    message="" if has_both else f"Missing IDs: tmdb={has_tmdb}, imdb={has_imdb}",
+                )
+            )
 
         # poster_present (blocking — dispatch requires poster)
         poster_name = self.patterns.format("movie_poster", Title=parsed_title)
-        results.append(CheckResult(
-            name="poster_present",
-            passed=(movie_dir / poster_name).exists(),
-            severity=Severity.ERROR,
-            message=f"Poster not found: {poster_name}" if not (movie_dir / poster_name).exists() else "",
-        ))
+        results.append(
+            CheckResult(
+                name="poster_present",
+                passed=(movie_dir / poster_name).exists(),
+                severity=Severity.ERROR,
+                message=f"Poster not found: {poster_name}" if not (movie_dir / poster_name).exists() else "",
+            )
+        )
 
         # artwork_landscape
         landscape_name = self.patterns.format("movie_landscape", Title=parsed_title)
-        results.append(CheckResult(
-            name="artwork_landscape",
-            passed=(movie_dir / landscape_name).exists(),
-            severity=Severity.WARNING,
-            message=f"Landscape not found: {landscape_name}" if not (movie_dir / landscape_name).exists() else "",
-        ))
+        results.append(
+            CheckResult(
+                name="artwork_landscape",
+                passed=(movie_dir / landscape_name).exists(),
+                severity=Severity.WARNING,
+                message=f"Landscape not found: {landscape_name}" if not (movie_dir / landscape_name).exists() else "",
+            )
+        )
 
         # streamdetails
         if nfo_root is not None:
             has_sd = nfo_root.find(".//streamdetails") is not None
-            results.append(CheckResult(
-                name="streamdetails",
-                passed=has_sd,
-                severity=Severity.WARNING,
-                message="" if has_sd else "No <streamdetails> in NFO",
-            ))
+            results.append(
+                CheckResult(
+                    name="streamdetails",
+                    passed=has_sd,
+                    severity=Severity.WARNING,
+                    message="" if has_sd else "No <streamdetails> in NFO",
+                )
+            )
 
         # no_empty_dirs (check for empty subdirectories)
         empty_dirs = self._find_empty_dirs(movie_dir)
-        results.append(CheckResult(
-            name="no_empty_dirs",
-            passed=len(empty_dirs) == 0,
-            severity=Severity.ERROR,
-            message=f"Empty subdirs: {', '.join(d.name for d in empty_dirs[:3])}" if empty_dirs else "",
-            fixable=True,
-        ))
+        results.append(
+            CheckResult(
+                name="no_empty_dirs",
+                passed=len(empty_dirs) == 0,
+                severity=Severity.ERROR,
+                message=f"Empty subdirs: {', '.join(d.name for d in empty_dirs[:3])}" if empty_dirs else "",
+                fixable=True,
+            )
+        )
 
         # category
         if nfo_exists:
             category = self.genre_mapper.categorize_from_nfo(nfo_path, "movie")
-            results.append(CheckResult(
-                name="category",
-                passed=category is not None,
-                severity=Severity.ERROR,
-                message="" if category else "Cannot determine category from genres",
-            ))
+            results.append(
+                CheckResult(
+                    name="category",
+                    passed=category is not None,
+                    severity=Severity.ERROR,
+                    message="" if category else "Cannot determine category from genres",
+                )
+            )
 
         # ntfs_safe_names
         results.append(self._check_ntfs_safe_names(movie_dir))
@@ -246,141 +270,167 @@ class MediaChecker:
 
         # video_present (check recursively in season dirs)
         all_videos = self._find_video_files_recursive(show_dir)
-        results.append(CheckResult(
-            name="video_present",
-            passed=len(all_videos) > 0,
-            severity=Severity.ERROR,
-            message="" if all_videos else "No video files found",
-        ))
+        results.append(
+            CheckResult(
+                name="video_present",
+                passed=len(all_videos) > 0,
+                severity=Severity.ERROR,
+                message="" if all_videos else "No video files found",
+            )
+        )
 
         # dir_naming
-        results.append(CheckResult(
-            name="dir_naming",
-            passed=bool(_DIR_PATTERN.match(title)),
-            severity=Severity.ERROR,
-            message=f"'{title}' doesn't match 'Title (Year)'" if not _DIR_PATTERN.match(title) else "",
-            fixable=True,
-        ))
+        results.append(
+            CheckResult(
+                name="dir_naming",
+                passed=bool(_DIR_PATTERN.match(title)),
+                severity=Severity.ERROR,
+                message=f"'{title}' doesn't match 'Title (Year)'" if not _DIR_PATTERN.match(title) else "",
+                fixable=True,
+            )
+        )
 
         # nfo_present (tvshow.nfo)
         nfo_path = show_dir / self.patterns.tvshow_nfo
         nfo_exists = nfo_path.exists()
-        results.append(CheckResult(
-            name="nfo_present",
-            passed=nfo_exists,
-            severity=Severity.ERROR,
-            message="tvshow.nfo not found" if not nfo_exists else "",
-        ))
+        results.append(
+            CheckResult(
+                name="nfo_present",
+                passed=nfo_exists,
+                severity=Severity.ERROR,
+                message="tvshow.nfo not found" if not nfo_exists else "",
+            )
+        )
 
         # nfo_valid
         nfo_root = self._parse_nfo(nfo_path) if nfo_exists else None
         if nfo_exists:
             has_title = nfo_root is not None and nfo_root.findtext("title")
             nfo_valid = bool(has_title)
-            results.append(CheckResult(
-                name="nfo_valid",
-                passed=nfo_valid,
-                severity=Severity.ERROR,
-                message="" if nfo_valid else "tvshow.nfo invalid or missing <title>",
-            ))
+            results.append(
+                CheckResult(
+                    name="nfo_valid",
+                    passed=nfo_valid,
+                    severity=Severity.ERROR,
+                    message="" if nfo_valid else "tvshow.nfo invalid or missing <title>",
+                )
+            )
 
         # nfo_ids (TVDB minimum for TV shows)
         if nfo_root is not None:
             ids = self._extract_ids(nfo_root)
             has_tvdb = bool(ids.get("tvdb")) or bool(ids.get("tmdb"))
-            results.append(CheckResult(
-                name="nfo_ids",
-                passed=has_tvdb,
-                severity=Severity.ERROR,
-                message="" if has_tvdb else "No TVDB or TMDB uniqueid",
-            ))
+            results.append(
+                CheckResult(
+                    name="nfo_ids",
+                    passed=has_tvdb,
+                    severity=Severity.ERROR,
+                    message="" if has_tvdb else "No TVDB or TMDB uniqueid",
+                )
+            )
 
         # poster_present (blocking — dispatch requires poster)
-        results.append(CheckResult(
-            name="poster_present",
-            passed=(show_dir / self.patterns.tvshow_poster).exists(),
-            severity=Severity.ERROR,
-            message="poster.jpg not found" if not (show_dir / self.patterns.tvshow_poster).exists() else "",
-        ))
-        results.append(CheckResult(
-            name="artwork_landscape",
-            passed=(show_dir / self.patterns.tvshow_landscape).exists(),
-            severity=Severity.WARNING,
-            message="landscape.jpg not found" if not (show_dir / self.patterns.tvshow_landscape).exists() else "",
-        ))
+        results.append(
+            CheckResult(
+                name="poster_present",
+                passed=(show_dir / self.patterns.tvshow_poster).exists(),
+                severity=Severity.ERROR,
+                message="poster.jpg not found" if not (show_dir / self.patterns.tvshow_poster).exists() else "",
+            )
+        )
+        results.append(
+            CheckResult(
+                name="artwork_landscape",
+                passed=(show_dir / self.patterns.tvshow_landscape).exists(),
+                severity=Severity.WARNING,
+                message="landscape.jpg not found" if not (show_dir / self.patterns.tvshow_landscape).exists() else "",
+            )
+        )
 
         # season_structure
-        season_dirs = [
-            d for d in show_dir.iterdir()
-            if d.is_dir() and SEASON_DIR_RE.match(d.name)
-        ]
-        has_episodes_in_seasons = any(
-            any(_EPISODE_PATTERN.match(f.name) for f in sd.iterdir() if f.is_file())
-            for sd in season_dirs
-        ) if season_dirs else False
-        results.append(CheckResult(
-            name="season_structure",
-            passed=has_episodes_in_seasons,
-            severity=Severity.ERROR,
-            message="" if has_episodes_in_seasons else "No Saison XX/ with properly named episodes",
-        ))
+        season_dirs = [d for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)]
+        has_episodes_in_seasons = (
+            any(any(_EPISODE_PATTERN.match(f.name) for f in sd.iterdir() if f.is_file()) for sd in season_dirs)
+            if season_dirs
+            else False
+        )
+        results.append(
+            CheckResult(
+                name="season_structure",
+                passed=has_episodes_in_seasons,
+                severity=Severity.ERROR,
+                message="" if has_episodes_in_seasons else "No Saison XX/ with properly named episodes",
+            )
+        )
 
         # season_posters
         for sd in season_dirs:
             season_num = int(sd.name.split()[-1])
             poster_name = self.patterns.format("season_poster", Season=season_num)
             if not (show_dir / poster_name).exists():
-                results.append(CheckResult(
-                    name="season_posters",
-                    passed=False,
-                    severity=Severity.WARNING,
-                    message=f"Missing {poster_name}",
-                ))
+                results.append(
+                    CheckResult(
+                        name="season_posters",
+                        passed=False,
+                        severity=Severity.WARNING,
+                        message=f"Missing {poster_name}",
+                    )
+                )
         if not any(r.name == "season_posters" for r in results):
-            results.append(CheckResult(
-                name="season_posters",
-                passed=True,
-                severity=Severity.WARNING,
-                message="",
-            ))
+            results.append(
+                CheckResult(
+                    name="season_posters",
+                    passed=True,
+                    severity=Severity.WARNING,
+                    message="",
+                )
+            )
 
         # episode_renamed (all videos in Saison XX/ must match SxxExx pattern)
         unrenamed = self._find_unrenamed_episodes(season_dirs)
-        results.append(CheckResult(
-            name="episode_renamed",
-            passed=len(unrenamed) == 0,
-            severity=Severity.ERROR,
-            message=f"Unrenamed episodes: {', '.join(f.name for f in unrenamed[:3])}" if unrenamed else "",
-        ))
+        results.append(
+            CheckResult(
+                name="episode_renamed",
+                passed=len(unrenamed) == 0,
+                severity=Severity.ERROR,
+                message=f"Unrenamed episodes: {', '.join(f.name for f in unrenamed[:3])}" if unrenamed else "",
+            )
+        )
 
         # episode_nfo (spot check: at least some episodes have NFOs)
         episode_nfos = list(show_dir.rglob("S??E??*.nfo"))
-        results.append(CheckResult(
-            name="episode_nfo",
-            passed=len(episode_nfos) > 0,
-            severity=Severity.WARNING,
-            message="" if episode_nfos else "No episode NFO files found",
-        ))
+        results.append(
+            CheckResult(
+                name="episode_nfo",
+                passed=len(episode_nfos) > 0,
+                severity=Severity.WARNING,
+                message="" if episode_nfos else "No episode NFO files found",
+            )
+        )
 
         # no_empty_dirs (recursive check for empty subdirectories)
         empty_dirs = self._find_empty_dirs(show_dir)
-        results.append(CheckResult(
-            name="no_empty_dirs",
-            passed=len(empty_dirs) == 0,
-            severity=Severity.ERROR,
-            message=f"Empty subdirs: {', '.join(d.name for d in empty_dirs[:3])}" if empty_dirs else "",
-            fixable=True,
-        ))
+        results.append(
+            CheckResult(
+                name="no_empty_dirs",
+                passed=len(empty_dirs) == 0,
+                severity=Severity.ERROR,
+                message=f"Empty subdirs: {', '.join(d.name for d in empty_dirs[:3])}" if empty_dirs else "",
+                fixable=True,
+            )
+        )
 
         # category
         if nfo_exists:
             category = self.genre_mapper.categorize_from_nfo(nfo_path, "tvshow")
-            results.append(CheckResult(
-                name="category",
-                passed=category is not None,
-                severity=Severity.ERROR,
-                message="" if category else "Cannot determine category from genres",
-            ))
+            results.append(
+                CheckResult(
+                    name="category",
+                    passed=category is not None,
+                    severity=Severity.ERROR,
+                    message="" if category else "Cannot determine category from genres",
+                )
+            )
 
         # ntfs_safe_names
         results.append(self._check_ntfs_safe_names(show_dir))
@@ -438,7 +488,9 @@ class MediaChecker:
             return tree.getroot()
         except (ET.ParseError, OSError) as e:
             logging.getLogger(__name__).warning(
-                "NFO parse failed for %s: %s", nfo_path.name, e,
+                "NFO parse failed for %s: %s",
+                nfo_path.name,
+                e,
             )
             return None
 
@@ -470,10 +522,7 @@ class MediaChecker:
         Returns:
             List of video file paths.
         """
-        return [
-            f for f in directory.iterdir()
-            if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
-        ]
+        return [f for f in directory.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS]
 
     @staticmethod
     def _find_video_files_recursive(directory: Path) -> list[Path]:
@@ -522,10 +571,7 @@ class MediaChecker:
             if not d.is_dir():
                 continue
             contents = list(d.iterdir())
-            has_real_content = any(
-                item.is_file() and item.name not in junk
-                for item in contents
-            )
+            has_real_content = any(item.is_file() and item.name not in junk for item in contents)
             if not has_real_content and not any(item.is_dir() for item in contents):
                 empty.append(d)
         return empty

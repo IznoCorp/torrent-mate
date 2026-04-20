@@ -12,6 +12,7 @@ from personalscraper.dispatch.disk_scanner import (
 # choose_disk
 # ---------------------------------------------------------------------------
 
+
 class TestChooseDisk:
     """Tests for choose_disk selection logic."""
 
@@ -118,7 +119,10 @@ class TestChooseDiskCreateCategory:
         ]
         # "spectacles" not on any disk — fallback picks most free
         result = choose_disk(
-            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+            disks,
+            "spectacles",
+            min_free_gb=10,
+            allow_create_category=True,
         )
         assert result is not None
         assert result.config.name == "Disk2"
@@ -130,7 +134,10 @@ class TestChooseDiskCreateCategory:
             self._disk("Disk2", 500, ["series"]),
         ]
         result = choose_disk(
-            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+            disks,
+            "spectacles",
+            min_free_gb=10,
+            allow_create_category=True,
         )
         assert result is not None
         assert result.config.name == "Disk1"
@@ -142,7 +149,10 @@ class TestChooseDiskCreateCategory:
             self._disk("Disk2", 500, ["series"]),
         ]
         result = choose_disk(
-            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+            disks,
+            "spectacles",
+            min_free_gb=10,
+            allow_create_category=True,
         )
         assert result is not None
         assert result.config.name == "Disk2"
@@ -154,6 +164,9 @@ class TestChooseDiskCreateCategory:
             self._disk("Disk2", 3, ["series"]),
         ]
         result = choose_disk(
-            disks, "spectacles", min_free_gb=10, allow_create_category=True,
+            disks,
+            "spectacles",
+            min_free_gb=10,
+            allow_create_category=True,
         )
         assert result is None
