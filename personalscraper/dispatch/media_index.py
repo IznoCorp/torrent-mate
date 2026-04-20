@@ -14,6 +14,10 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskConfig
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +200,7 @@ class MediaIndex:
         entry.last_updated = datetime.now(timezone.utc).isoformat()
         self._entries[key] = entry
 
-    def rebuild(self, disk_configs: list) -> int:
+    def rebuild(self, disk_configs: list["DiskConfig"]) -> int:
         """Rebuild the index by scanning all mounted disks.
 
         Scans each disk's media directory for subdirectories and
@@ -242,7 +246,7 @@ class MediaIndex:
         logger.info("Index rebuilt: %d entries", len(self._entries))
         return len(self._entries)
 
-    def remove_stale(self, disk_configs: list) -> int:
+    def remove_stale(self, disk_configs: list["DiskConfig"]) -> int:
         """Remove entries for paths that no longer exist.
 
         Args:

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import functools
 import logging
+from collections.abc import Callable
+from typing import Any, TypedDict
 
 import typer
 from pydantic import ValidationError
@@ -28,8 +30,23 @@ install_traceback(show_locals=False)
 
 app = typer.Typer(help="PersonalScraper — Media pipeline automation.", invoke_without_command=True)
 
+
+class _State(TypedDict):
+    """Typed shape of the global CLI state dict.
+
+    Attributes:
+        console: Rich console used for all CLI output.
+        verbose: Whether verbose (DEBUG) logging is enabled.
+        quiet: Whether console output is suppressed.
+    """
+
+    console: Console
+    verbose: bool
+    quiet: bool
+
+
 # Global state shared between commands (set by the callback)
-state = {"console": Console(), "verbose": False, "quiet": False}
+state: _State = {"console": Console(), "verbose": False, "quiet": False}
 
 
 def _format_validation(exc: ValidationError) -> str:
@@ -44,14 +61,14 @@ def _format_validation(exc: ValidationError) -> str:
     Returns:
         Formatted string like "qbit_port: Input should be a valid integer".
     """
-    parts = []
+    parts: list[str] = []
     for err in exc.errors():
         field = " → ".join(str(loc) for loc in err["loc"])
         parts.append(f"{field}: {err['msg']}")
     return "; ".join(parts)
 
 
-def handle_cli_errors(func):
+def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     """Catch configuration errors, display user-friendly messages.
 
     Wraps CLI commands to intercept pydantic ValidationError (from
@@ -70,7 +87,7 @@ def handle_cli_errors(func):
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
         except ValidationError as exc:
@@ -813,7 +830,7 @@ def library_report(
     settings = get_settings()
 
     # Load available data
-    def _load(name: str) -> dict | None:
+    def _load(name: str) -> dict[str, Any] | None:
         path = settings.data_dir / name
         if path.exists():
             try:

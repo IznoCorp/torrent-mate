@@ -14,6 +14,7 @@ import json
 import logging
 import subprocess
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,7 @@ def _parse_aspect_ratio(dar_str: str | None, width: int, height: int) -> float:
 # Main function
 # ---------------------------------------------------------------------------
 
-def extract_stream_info(video_path: Path) -> dict | None:
+def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
     """Extract stream details from a video file using ffprobe.
 
     Returns a dict ready for Kodi NFO <streamdetails> generation::

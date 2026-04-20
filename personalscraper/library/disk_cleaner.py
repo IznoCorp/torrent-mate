@@ -10,6 +10,10 @@ import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskConfig
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +127,7 @@ def _is_effectively_empty(directory: Path) -> bool:
 
 
 def clean_library(
-    disk_configs: list,
+    disk_configs: list[DiskConfig],
     apply: bool = False,
     only: str | None = None,
     disk_filter: str | None = None,

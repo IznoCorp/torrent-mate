@@ -14,6 +14,7 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 import requests
 
@@ -336,7 +337,7 @@ class Scraper:
     def _resolve_title(
         self,
         match_title: str,
-        api_data: dict,
+        api_data: dict[str, Any],
         media_type: str,
     ) -> str:
         """Pick the best title for folder renaming.
@@ -372,7 +373,7 @@ class Scraper:
             logger.debug("No translation for '%s', using match title '%s'", local_title, match_title)
             return match_title
 
-        return local_title
+        return cast(str, local_title)
 
     @staticmethod
     def _strip_trailing_year(title: str) -> str:
@@ -646,7 +647,7 @@ class Scraper:
             if tmdb_id:
                 try:
                     show_data = self._tmdb.get_tv(tmdb_id)
-                    api_episodes: dict[tuple[int, int], dict] = {}
+                    api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
                     for season in show_data.get("seasons", []):
                         s_num = season.get("season_number", 0)
                         if s_num == 0:
@@ -1132,7 +1133,7 @@ class Scraper:
         )
 
         if video_files:
-            api_episodes: dict[tuple[int, int], dict] = {}
+            api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
             for season in show_data.get("seasons", []):
                 s_num = season.get("season_number", 0)
                 if s_num == 0:
@@ -1198,9 +1199,9 @@ class Scraper:
 
     def _generate_episode_nfos(
         self,
-        matched: dict[Path, dict],
+        matched: dict[Path, dict[str, Any]],
         show_dir: Path,
-        show_data: dict,
+        show_data: dict[str, Any],
     ) -> None:
         """Generate NFO files and download episode thumbnails.
 

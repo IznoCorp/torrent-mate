@@ -9,12 +9,13 @@ See docs/guessit-evaluation.md for the full evaluation.
 """
 
 from functools import lru_cache
+from typing import Any
 
 from guessit import guessit as guess
 
 
 @lru_cache(maxsize=512)
-def _guess_cached(name: str) -> dict:
+def _guess_cached(name: str) -> dict[str, Any]:
     """Run guessit on a name, caching the result.
 
     guessit does significant work (regex chains, rebulk matching),
@@ -53,7 +54,7 @@ class NameCleaner:
             Cleaned string: title only, or title + season/episode code.
         """
         r = _guess_cached(name)
-        title = r.get("title", name)
+        title: str = r.get("title", name)
         season = r.get("season")
         episode = r.get("episode")
 

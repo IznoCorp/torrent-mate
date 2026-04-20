@@ -12,6 +12,7 @@ to organize episodes after metadata matching.
 import logging
 import re
 from pathlib import Path
+from typing import Any
 
 from personalscraper.naming_patterns import NamingPatterns
 
@@ -51,7 +52,7 @@ def _extract_season_episode(name: str) -> tuple[int | None, int | None]:
 
 def create_season_dirs(
     show_dir: Path,
-    episodes: list[dict],
+    episodes: list[dict[str, Any]],
     patterns: NamingPatterns,
     dry_run: bool = False,
 ) -> list[Path]:
@@ -98,8 +99,8 @@ def create_season_dirs(
 
 def match_episode_files(
     video_files: list[Path],
-    api_episodes: dict[tuple[int, int], dict],
-) -> dict[Path, dict]:
+    api_episodes: dict[tuple[int, int], dict[str, Any]],
+) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
     Uses V2 NameCleaner to extract S/E numbers from filenames, then
@@ -116,7 +117,7 @@ def match_episode_files(
                 "still_path": str}}.
         Files with no S/E match or no API match are excluded.
     """
-    matched: dict[Path, dict] = {}
+    matched: dict[Path, dict[str, Any]] = {}
 
     for video_path in video_files:
         season, episode = _extract_season_episode(video_path.name)
@@ -145,7 +146,7 @@ def match_episode_files(
 
 
 def rename_episodes(
-    matched: dict[Path, dict],
+    matched: dict[Path, dict[str, Any]],
     show_dir: Path,
     patterns: NamingPatterns,
     dry_run: bool = False,

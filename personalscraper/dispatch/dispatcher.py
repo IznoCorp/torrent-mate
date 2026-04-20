@@ -13,8 +13,10 @@ import shutil
 import stat
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from personalscraper.config import Settings
 
@@ -34,7 +36,7 @@ def _force_rmtree(path: Path) -> None:
     """
     errors: list[tuple[str, OSError]] = []
 
-    def _on_error(func, fpath, exc):
+    def _on_error(func: Callable[..., Any], fpath: str, exc: Any) -> None:
         """Add owner rwx permissions and retry deletion.
 
         Args:

@@ -8,7 +8,7 @@ Each client adds type-specific methods (search_movie, get_tv_season, etc.)
 beyond this minimal shared contract.
 """
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -20,7 +20,7 @@ class MetadataProvider(Protocol):
     to their type-specific implementations internally.
     """
 
-    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict]:
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict[str, Any]]:
         """Search for a media item by title.
 
         Args:
@@ -33,7 +33,7 @@ class MetadataProvider(Protocol):
         """
         ...
 
-    def get_details(self, media_id: int, media_type: str = "movie") -> dict:
+    def get_details(self, media_id: int, media_type: str = "movie") -> dict[str, Any]:
         """Get full details for a media item (metadata + images + cross IDs).
 
         Args:
@@ -45,7 +45,7 @@ class MetadataProvider(Protocol):
         """
         ...
 
-    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict]:
+    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict[str, Any]]:
         """Get available artwork URLs for a media item.
 
         Args:
