@@ -22,6 +22,7 @@ from personalscraper.scraper.confidence import (
 # score_match — parametrized tests
 # ---------------------------------------------------------------------------
 
+
 class TestScoreMatch:
     """Tests for the confidence scoring algorithm."""
 
@@ -71,8 +72,10 @@ class TestScoreMatch:
     def test_french_title_complex(self) -> None:
         """Complex French title with accents and special chars."""
         score = score_match(
-            "Les Misérables", 2019,
-            "Les Misérables", 2019,
+            "Les Misérables",
+            2019,
+            "Les Misérables",
+            2019,
         )
         assert score >= HIGH_CONFIDENCE
 
@@ -91,8 +94,10 @@ class TestScoreMatch:
         """WRatio should handle extra tokens in titles well."""
         # WRatio uses partial matching strategies
         score = score_match(
-            "Interstellar", 2014,
-            "Interstellar", 2014,
+            "Interstellar",
+            2014,
+            "Interstellar",
+            2014,
         )
         assert score >= HIGH_CONFIDENCE
 
@@ -112,6 +117,7 @@ class TestScoreMatch:
 # match_movie — mocked TMDB
 # ---------------------------------------------------------------------------
 
+
 class TestMatchMovie:
     """Tests for match_movie() with mocked TMDB client."""
 
@@ -123,9 +129,11 @@ class TestMatchMovie:
 
     def test_match_found(self) -> None:
         """Should return the best match when results exist."""
-        client = self._make_tmdb_client([
-            {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
-        ])
+        client = self._make_tmdb_client(
+            [
+                {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
+            ]
+        )
         result = match_movie(client, "The Matrix", 1999)
 
         assert result is not None
@@ -143,11 +151,13 @@ class TestMatchMovie:
 
     def test_best_match_selected(self) -> None:
         """Should pick the best-scoring result from multiple candidates."""
-        client = self._make_tmdb_client([
-            {"id": 1, "title": "Matrix", "release_date": "1993-01-01"},
-            {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
-            {"id": 2, "title": "Matrix Reloaded", "release_date": "2003-05-15"},
-        ])
+        client = self._make_tmdb_client(
+            [
+                {"id": 1, "title": "Matrix", "release_date": "1993-01-01"},
+                {"id": 603, "title": "The Matrix", "release_date": "1999-03-31"},
+                {"id": 2, "title": "Matrix Reloaded", "release_date": "2003-05-15"},
+            ]
+        )
         result = match_movie(client, "The Matrix", 1999)
 
         assert result is not None
@@ -155,9 +165,11 @@ class TestMatchMovie:
 
     def test_year_from_release_date(self) -> None:
         """Year should be extracted from release_date field."""
-        client = self._make_tmdb_client([
-            {"id": 42, "title": "Test", "release_date": "2024-06-28"},
-        ])
+        client = self._make_tmdb_client(
+            [
+                {"id": 42, "title": "Test", "release_date": "2024-06-28"},
+            ]
+        )
         result = match_movie(client, "Test", 2024)
 
         assert result is not None
@@ -165,9 +177,11 @@ class TestMatchMovie:
 
     def test_missing_release_date(self) -> None:
         """Missing release_date should result in None year."""
-        client = self._make_tmdb_client([
-            {"id": 42, "title": "Test", "release_date": ""},
-        ])
+        client = self._make_tmdb_client(
+            [
+                {"id": 42, "title": "Test", "release_date": ""},
+            ]
+        )
         result = match_movie(client, "Test", None)
 
         assert result is not None
@@ -183,6 +197,7 @@ class TestMatchMovie:
 # ---------------------------------------------------------------------------
 # match_tvshow — TVDB + TMDB fallback
 # ---------------------------------------------------------------------------
+
 
 class TestMatchTvshow:
     """Tests for TV show matching with TVDB/TMDB fallback."""
@@ -268,6 +283,7 @@ class TestMatchTvshow:
 # get_episode_titles
 # ---------------------------------------------------------------------------
 
+
 class TestGetEpisodeTitles:
     """Tests for episode title fetching."""
 
@@ -347,6 +363,7 @@ class TestGetEpisodeTitles:
 # prompt_user_choice — mocked input
 # ---------------------------------------------------------------------------
 
+
 class TestPromptUserChoice:
     """Tests for the interactive prompt."""
 
@@ -379,6 +396,7 @@ class TestPromptUserChoice:
 # ---------------------------------------------------------------------------
 # Malformed API responses (V7.x)
 # ---------------------------------------------------------------------------
+
 
 class TestMalformedResponses:
     """Tests for resilience to malformed API responses."""

@@ -2,7 +2,7 @@
 
 import pytest
 
-from personalscraper.text_utils import media_processor
+from personalscraper.text_utils import fuzzy_match_score, media_processor
 
 
 class TestMediaProcessor:
@@ -32,13 +32,16 @@ class TestMediaProcessor:
         """Numbers in titles are preserved."""
         assert "2001" in media_processor("2001: A Space Odyssey")
 
-    @pytest.mark.parametrize("title_a,title_b", [
-        ("Amélie", "Amelie"),
-        ("Les Évadés", "Les Evades"),
-        ("Ça", "Ca"),
-        ("Hôtel Rwanda", "Hotel Rwanda"),
-        ("Pêle-Mêle", "Pele Mele"),
-    ])
+    @pytest.mark.parametrize(
+        "title_a,title_b",
+        [
+            ("Amélie", "Amelie"),
+            ("Les Évadés", "Les Evades"),
+            ("Ça", "Ca"),
+            ("Hôtel Rwanda", "Hotel Rwanda"),
+            ("Pêle-Mêle", "Pele Mele"),
+        ],
+    )
     def test_french_accent_pairs_match(self, title_a, title_b):
         """French accented and non-accented versions produce the same output."""
         assert media_processor(title_a) == media_processor(title_b)
@@ -47,8 +50,6 @@ class TestMediaProcessor:
 # ---------------------------------------------------------------------------
 # fuzzy_match_score — anti-false-positive guards
 # ---------------------------------------------------------------------------
-
-from personalscraper.text_utils import fuzzy_match_score
 
 
 class TestFuzzyMatchScore:
@@ -69,8 +70,10 @@ class TestFuzzyMatchScore:
     def test_exact_match_accepted(self):
         """Identical titles with same year produce a high score."""
         result = fuzzy_match_score(
-            "The Matrix", "The Matrix",
-            query_year=1999, candidate_year=1999,
+            "The Matrix",
+            "The Matrix",
+            query_year=1999,
+            candidate_year=1999,
         )
         assert result is not None
         assert result >= 95.0
@@ -78,8 +81,10 @@ class TestFuzzyMatchScore:
     def test_year_off_by_one_accepted(self):
         """±1 year tolerance allows late-year releases."""
         result = fuzzy_match_score(
-            "Jumanji", "Jumanji",
-            query_year=1995, candidate_year=1996,
+            "Jumanji",
+            "Jumanji",
+            query_year=1995,
+            candidate_year=1996,
         )
         assert result is not None
         assert result >= 95.0
@@ -87,8 +92,10 @@ class TestFuzzyMatchScore:
     def test_year_mismatch_rejected(self):
         """Year difference > 1 rejects the match (e.g. remakes)."""
         result = fuzzy_match_score(
-            "Jumanji", "Jumanji",
-            query_year=1995, candidate_year=2017,
+            "Jumanji",
+            "Jumanji",
+            query_year=1995,
+            candidate_year=2017,
         )
         assert result is None
 
@@ -106,8 +113,10 @@ class TestFuzzyMatchScore:
     def test_one_year_only_skips_year_guard(self):
         """If only one has a year, the year guard is skipped."""
         result = fuzzy_match_score(
-            "Jumanji", "Jumanji",
-            query_year=1995, candidate_year=None,
+            "Jumanji",
+            "Jumanji",
+            query_year=1995,
+            candidate_year=None,
         )
         assert result is not None
 

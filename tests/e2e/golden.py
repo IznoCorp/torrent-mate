@@ -22,15 +22,15 @@ EXPECTED_DIR = Path(__file__).parents[2] / "assets" / "torrents" / "expected"
 
 # Regex to strip release group tags and technical info from torrent names
 _STRIP_PATTERNS = [
-    r"\[.*?\]",               # [LaCale], [720p], etc.
-    r"\b\d{3,4}p\b",          # 720p, 1080p
+    r"\[.*?\]",  # [LaCale], [720p], etc.
+    r"\b\d{3,4}p\b",  # 720p, 1080p
     r"\bBluRay\b",
     r"\bWEBRip\b",
     r"\bWEB-?DL\b",
     r"\bHDLight\b",
     r"\bHDRip\b",
     r"\bMULTi\b",
-    r"\bVF\d*\b",             # VF, VF2
+    r"\bVF\d*\b",  # VF, VF2
     r"\bVFI\b",
     r"\bNOST\b",
     r"\bDD5\.1\b",
@@ -38,7 +38,7 @@ _STRIP_PATTERNS = [
     r"\bx26[45]\b",
     r"\bHEVC\b",
     r"\bH\.?26[45]\b",
-    r"-\w+$",                  # -PopHD, -Papaya at end
+    r"-\w+$",  # -PopHD, -Papaya at end
 ]
 
 
@@ -144,10 +144,7 @@ def match_torrent_to_golden(torrent_name: str) -> GoldenFile | None:
     if not EXPECTED_DIR.exists():
         return None
 
-    slugs = [
-        d.name for d in EXPECTED_DIR.iterdir()
-        if d.is_dir() and not d.name.startswith(".")
-    ]
+    slugs = [d.name for d in EXPECTED_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
     if not slugs:
         return None
 
@@ -166,13 +163,17 @@ def match_torrent_to_golden(torrent_name: str) -> GoldenFile | None:
     if best_slug and best_score >= 80:
         logger.info(
             "Golden match: '%s' → '%s' (score=%.1f)",
-            torrent_name, best_slug, best_score,
+            torrent_name,
+            best_slug,
+            best_score,
         )
         return load_golden_file(best_slug)
 
     logger.debug(
         "No golden match for '%s' (best: '%s' score=%.1f)",
-        torrent_name, best_slug, best_score,
+        torrent_name,
+        best_slug,
+        best_score,
     )
     return None
 

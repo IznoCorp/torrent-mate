@@ -12,14 +12,17 @@ from personalscraper.sorter.matcher import _extract_year, find_matching_director
 class TestExtractYear:
     """Year extraction from directory names."""
 
-    @pytest.mark.parametrize("name,expected", [
-        ("The Matrix (1999)", 1999),
-        ("Amélie 2001", 2001),
-        ("2024", 2024),
-        ("Show Name", None),
-        ("S01E04", None),
-        ("1080p", None),  # Not a valid year
-    ])
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            ("The Matrix (1999)", 1999),
+            ("Amélie 2001", 2001),
+            ("2024", 2024),
+            ("Show Name", None),
+            ("S01E04", None),
+            ("1080p", None),  # Not a valid year
+        ],
+    )
     def test_year_extraction(self, name, expected):
         """Extracts 19xx/20xx years, ignores non-year numbers."""
         assert _extract_year(name) == expected
@@ -71,16 +74,13 @@ class TestFindMatchingDirectory:
         assert result is None
 
     def test_year_mismatch_rejected_even_when_disabled(self, tmp_path):
-        """Year guard is skipped with respect_year=False, but adaptive
-        threshold still rejects low scores from digit differences.
+        """Year guard is skipped with respect_year=False, but adaptive threshold rejects low scores.
 
         V8: fuzzy_match_score's adaptive threshold (90%) means that
         different year digits lower the WRatio score below the cutoff.
         """
         dirs = self._make_dirs(tmp_path, ["The Matrix (1999)"])
-        result = find_matching_directory(
-            "The Matrix (2003)", dirs, respect_year=False, threshold=70.0
-        )
+        result = find_matching_directory("The Matrix (2003)", dirs, respect_year=False, threshold=70.0)
         # V8: rejected by adaptive threshold — year digits differ too much
         assert result is None
 
@@ -92,11 +92,14 @@ class TestFindMatchingDirectory:
 
     def test_picks_best_match_among_multiple(self, tmp_path):
         """Picks the best scoring match from multiple candidates."""
-        dirs = self._make_dirs(tmp_path, [
-            "The Matrix (1999)",
-            "The Matrix Reloaded (2003)",
-            "The Matrix Revolutions (2003)",
-        ])
+        dirs = self._make_dirs(
+            tmp_path,
+            [
+                "The Matrix (1999)",
+                "The Matrix Reloaded (2003)",
+                "The Matrix Revolutions (2003)",
+            ],
+        )
         result = find_matching_directory("The Matrix (1999)", dirs)
         assert result == dirs[0]
 

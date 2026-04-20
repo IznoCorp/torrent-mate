@@ -3,7 +3,6 @@
 All tests use real filesystem operations. API calls are mocked.
 """
 
-
 from personalscraper.process.reclean import reclean_folders
 from personalscraper.sorter.run import run_sort
 
@@ -14,7 +13,6 @@ class TestSortDoubleRun:
     def test_sort_double_run_idempotent(self, staging, resilience_settings):
         """Second sort run skips all items (nothing left in 097-TEMP)."""
         temp = staging / "097-TEMP"
-        movies = staging / "001-MOVIES"
 
         # Create item to sort
         item = temp / "Movie.Title.2024.1080p"

@@ -50,7 +50,7 @@ def mini_library(tmp_path: Path):
     matrix.mkdir(parents=True)
     (matrix / "The Matrix.mkv").write_bytes(b"\x00" * 1000)
     (matrix / "The Matrix.nfo").write_text(
-        '<movie><title>The Matrix</title><year>1999</year>'
+        "<movie><title>The Matrix</title><year>1999</year>"
         '<uniqueid type="tmdb">603</uniqueid>'
         '<uniqueid type="imdb">tt0133093</uniqueid></movie>'
     )
@@ -70,17 +70,14 @@ def mini_library(tmp_path: Path):
     fallout = disk / "series" / "Fallout (2024)"
     fallout.mkdir(parents=True)
     (fallout / "tvshow.nfo").write_text(
-        '<tvshow><title>Fallout</title>'
-        '<uniqueid type="tmdb">106379</uniqueid></tvshow>'
+        '<tvshow><title>Fallout</title><uniqueid type="tmdb">106379</uniqueid></tvshow>'
     )
     (fallout / "poster.jpg").write_bytes(b"\xff\xd8" + b"\x00" * 100)
     (fallout / "season01-poster.jpg").write_bytes(b"\xff\xd8" + b"\x00" * 100)
     s01 = fallout / "Saison 01"
     s01.mkdir()
     (s01 / "S01E01 - The Beginning.mkv").write_bytes(b"\x00" * 2000)
-    (s01 / "S01E01 - The Beginning.nfo").write_text(
-        "<episodedetails><title>The Beginning</title></episodedetails>"
-    )
+    (s01 / "S01E01 - The Beginning.nfo").write_text("<episodedetails><title>The Beginning</title></episodedetails>")
     (s01 / "S01E02 - The End.mkv").write_bytes(b"\x00" * 2000)
     show_actors = fallout / ".actors"
     show_actors.mkdir()
@@ -172,7 +169,7 @@ class TestCleanIntegration:
         """Clean should remove .DS_Store files."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        result = clean_library([mini_library["config"]], apply=True, only="junk")
+        clean_library([mini_library["config"]], apply=True, only="junk")
 
         assert not (mini_library["matrix"] / ".DS_Store").exists()
 
@@ -203,21 +200,33 @@ class TestRecommendIntegration:
         from personalscraper.library.recommender import generate_recommendations
 
         # H.264 movie at 8 GB — should trigger codec + size recommendations
-        items = [LibraryAnalysisItem(
-            path="/tmp/BigMovie (2024)", disk="Disk1", category="films",
-            media_type="movie", title="BigMovie", year=2024,
-            files=[MediaFileAnalysis(
-                path="/tmp/BigMovie (2024)/BigMovie.mkv",
-                size_gb=8.0, duration_seconds=7200,
-                video=VideoInfo(codec="h264", width=1920, height=1080,
-                                bitrate_kbps=10000, hdr=False, hdr_type=None),
-                audio_tracks=[AudioTrack(codec="ac3", language="fra", channels=6,
-                                         is_atmos=False, is_default=True)],
-                subtitle_tracks=[],
-                audio_profile="vf", subtitle_languages=[],
-                analyzed_at="2026-04-15T12:00:00",
-            )],
-        )]
+        items = [
+            LibraryAnalysisItem(
+                path="/tmp/BigMovie (2024)",
+                disk="Disk1",
+                category="films",
+                media_type="movie",
+                title="BigMovie",
+                year=2024,
+                files=[
+                    MediaFileAnalysis(
+                        path="/tmp/BigMovie (2024)/BigMovie.mkv",
+                        size_gb=8.0,
+                        duration_seconds=7200,
+                        video=VideoInfo(
+                            codec="h264", width=1920, height=1080, bitrate_kbps=10000, hdr=False, hdr_type=None
+                        ),
+                        audio_tracks=[
+                            AudioTrack(codec="ac3", language="fra", channels=6, is_atmos=False, is_default=True)
+                        ],
+                        subtitle_tracks=[],
+                        audio_profile="vf",
+                        subtitle_languages=[],
+                        analyzed_at="2026-04-15T12:00:00",
+                    )
+                ],
+            )
+        ]
 
         prefs = LibraryPreferences(video=VideoPreferences(max_size_movie_gb=4.0))
         result = generate_recommendations(items, prefs)

@@ -34,23 +34,31 @@ def _make_movie(
     """Helper to build a movie analysis item."""
     return LibraryAnalysisItem(
         path=f"/Volumes/Disk1/medias/films/{title} (2024)",
-        disk="Disk1", category="films", media_type="movie",
-        title=title, year=2024,
-        files=[MediaFileAnalysis(
-            path=f"/Volumes/Disk1/medias/films/{title} (2024)/{title}.mkv",
-            size_gb=size_gb, duration_seconds=7200,
-            video=VideoInfo(codec=codec, width=int(height * 16 / 9),
-                            height=height, bitrate_kbps=5000,
-                            hdr=False, hdr_type=None),
-            audio_tracks=[AudioTrack(codec="eac3", language=audio_lang,
-                                     channels=6, is_atmos=False, is_default=True)],
-            subtitle_tracks=[SubtitleTrack(language=lang, format="srt",
-                                           forced=False, is_default=False)
-                             for lang in (sub_languages or [])],
-            audio_profile=audio_profile,
-            subtitle_languages=sorted(sub_languages or []),
-            analyzed_at="2026-04-15T12:00:00",
-        )],
+        disk="Disk1",
+        category="films",
+        media_type="movie",
+        title=title,
+        year=2024,
+        files=[
+            MediaFileAnalysis(
+                path=f"/Volumes/Disk1/medias/films/{title} (2024)/{title}.mkv",
+                size_gb=size_gb,
+                duration_seconds=7200,
+                video=VideoInfo(
+                    codec=codec, width=int(height * 16 / 9), height=height, bitrate_kbps=5000, hdr=False, hdr_type=None
+                ),
+                audio_tracks=[
+                    AudioTrack(codec="eac3", language=audio_lang, channels=6, is_atmos=False, is_default=True)
+                ],
+                subtitle_tracks=[
+                    SubtitleTrack(language=lang, format="srt", forced=False, is_default=False)
+                    for lang in (sub_languages or [])
+                ],
+                audio_profile=audio_profile,
+                subtitle_languages=sorted(sub_languages or []),
+                analyzed_at="2026-04-15T12:00:00",
+            )
+        ],
     )
 
 
@@ -152,12 +160,14 @@ class TestEncodingRules:
     def test_rule_by_imdb_id(self) -> None:
         """Rule matching IMDB ID should override target."""
         items = [_make_movie(codec="hevc", imdb_id="tt4154796")]
-        prefs = LibraryPreferences(encoding_rules=[
-            EncodingRule(
-                criteria=RuleCriteria(imdb_id="tt4154796"),
-                resolution="2160p",
-            ),
-        ])
+        prefs = LibraryPreferences(
+            encoding_rules=[
+                EncodingRule(
+                    criteria=RuleCriteria(imdb_id="tt4154796"),
+                    resolution="2160p",
+                ),
+            ]
+        )
         id_lookup = {items[0].path: ("1", "tt4154796")}
         result = generate_recommendations(items, prefs, id_lookup=id_lookup)
         assert result.total_recommendations == 1
@@ -168,12 +178,14 @@ class TestEncodingRules:
     def test_rule_by_title_substring(self) -> None:
         """Rule matching title substring should apply."""
         items = [_make_movie(codec="hevc", title="Animation Movie", size_gb=3.0)]
-        prefs = LibraryPreferences(encoding_rules=[
-            EncodingRule(
-                criteria=RuleCriteria(title="Animation"),
-                max_size_gb=2.0,
-            ),
-        ])
+        prefs = LibraryPreferences(
+            encoding_rules=[
+                EncodingRule(
+                    criteria=RuleCriteria(title="Animation"),
+                    max_size_gb=2.0,
+                ),
+            ]
+        )
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 1
         assert result.items[0].matched_rule_index == 0
@@ -185,25 +197,33 @@ class TestDisparateSeries:
     def test_mixed_codec_series(self) -> None:
         """Series with mixed h264/hevc episodes should be flagged."""
         item = LibraryAnalysisItem(
-            path="/tmp/Show (2024)", disk="Disk1", category="series",
-            media_type="tvshow", title="Show", year=2024,
+            path="/tmp/Show (2024)",
+            disk="Disk1",
+            category="series",
+            media_type="tvshow",
+            title="Show",
+            year=2024,
             files=[
                 MediaFileAnalysis(
                     path="/tmp/Show (2024)/Saison 01/S01E01.mkv",
-                    size_gb=1.0, duration_seconds=3600,
-                    video=VideoInfo(codec="h264", width=1920, height=1080,
-                                    bitrate_kbps=5000, hdr=False, hdr_type=None),
-                    audio_tracks=[], subtitle_tracks=[],
-                    audio_profile="vf", subtitle_languages=[],
+                    size_gb=1.0,
+                    duration_seconds=3600,
+                    video=VideoInfo(codec="h264", width=1920, height=1080, bitrate_kbps=5000, hdr=False, hdr_type=None),
+                    audio_tracks=[],
+                    subtitle_tracks=[],
+                    audio_profile="vf",
+                    subtitle_languages=[],
                     analyzed_at="2026-04-15T12:00:00",
                 ),
                 MediaFileAnalysis(
                     path="/tmp/Show (2024)/Saison 01/S01E02.mkv",
-                    size_gb=0.5, duration_seconds=3600,
-                    video=VideoInfo(codec="hevc", width=1920, height=1080,
-                                    bitrate_kbps=3000, hdr=False, hdr_type=None),
-                    audio_tracks=[], subtitle_tracks=[],
-                    audio_profile="vf", subtitle_languages=[],
+                    size_gb=0.5,
+                    duration_seconds=3600,
+                    video=VideoInfo(codec="hevc", width=1920, height=1080, bitrate_kbps=3000, hdr=False, hdr_type=None),
+                    audio_tracks=[],
+                    subtitle_tracks=[],
+                    audio_profile="vf",
+                    subtitle_languages=[],
                     analyzed_at="2026-04-15T12:00:00",
                 ),
             ],
@@ -211,5 +231,4 @@ class TestDisparateSeries:
         prefs = LibraryPreferences()
         result = generate_recommendations([item], prefs)
         assert result.total_recommendations == 1
-        assert any("disparate" in r.lower() or "mixed" in r.lower()
-                    for r in result.items[0].reasons)
+        assert any("disparate" in r.lower() or "mixed" in r.lower() for r in result.items[0].reasons)

@@ -128,9 +128,7 @@ class TestMatchTorrentToGolden:
         (golden_dir / "expected_nfo.json").write_text(json.dumps({"title": "Jumanji"}))
 
         with patch("tests.e2e.golden.EXPECTED_DIR", tmp_path):
-            gf = match_torrent_to_golden(
-                "[LaCale]-Jumanji.1995.MULTi.VF2.1080p.BluRay.HDLight.DD5.1.x264-PopHD"
-            )
+            gf = match_torrent_to_golden("[LaCale]-Jumanji.1995.MULTi.VF2.1080p.BluRay.HDLight.DD5.1.x264-PopHD")
 
         assert gf is not None
         assert gf.name == slug

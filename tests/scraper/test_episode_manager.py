@@ -28,6 +28,7 @@ def patterns() -> NamingPatterns:
 # S/E extraction tests
 # ---------------------------------------------------------------------------
 
+
 class TestExtractSeasonEpisode:
     """Tests for _extract_season_episode regex parsing."""
 
@@ -63,6 +64,7 @@ class TestExtractSeasonEpisode:
 # ---------------------------------------------------------------------------
 # Season directory creation tests
 # ---------------------------------------------------------------------------
+
 
 class TestCreateSeasonDirs:
     """Tests for create_season_dirs."""
@@ -111,6 +113,7 @@ class TestCreateSeasonDirs:
 # ---------------------------------------------------------------------------
 # Episode file matching tests
 # ---------------------------------------------------------------------------
+
 
 class TestMatchEpisodeFiles:
     """Tests for match_episode_files."""
@@ -161,11 +164,14 @@ class TestMatchEpisodeFiles:
 # Episode renaming tests
 # ---------------------------------------------------------------------------
 
+
 class TestRenameEpisodes:
     """Tests for rename_episodes."""
 
     def test_renames_and_moves_to_season_dir(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Should rename and move file to Saison XX/."""
         video = tmp_path / "Show.S01E01.720p.mkv"
@@ -183,7 +189,9 @@ class TestRenameEpisodes:
         assert not video.exists()
 
     def test_renames_subtitles(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Should rename associated subtitle files."""
         video = tmp_path / "Show.S01E01.720p.mkv"
@@ -207,7 +215,9 @@ class TestRenameEpisodes:
         assert expected_en.exists()
 
     def test_dry_run_no_rename(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Dry run should not move or rename files."""
         video = tmp_path / "Show.S01E01.720p.mkv"
@@ -224,7 +234,9 @@ class TestRenameEpisodes:
         assert not (tmp_path / "Saison 01").exists()
 
     def test_already_correctly_named(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Should count already-renamed episodes without moving them."""
         season_dir = tmp_path / "Saison 01"
@@ -245,11 +257,14 @@ class TestRenameEpisodes:
 # End-to-end test with realistic structure
 # ---------------------------------------------------------------------------
 
+
 class TestEpisodeRenameE2E:
     """End-to-end test with realistic TV show directory structure."""
 
     def test_full_rename_workflow(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Test complete workflow: season dirs → match → rename."""
         # Set up: show directory with torrent-named files
@@ -277,10 +292,7 @@ class TestEpisodeRenameE2E:
         assert (show_dir / "Saison 01").exists()
 
         # Step 2: Collect video files
-        video_files = sorted(
-            f for f in show_dir.iterdir()
-            if f.is_file() and f.suffix.lower() == ".mkv"
-        )
+        video_files = sorted(f for f in show_dir.iterdir() if f.is_file() and f.suffix.lower() == ".mkv")
         assert len(video_files) == 4
 
         # Step 3: Match files to API
@@ -306,7 +318,9 @@ class TestEpisodeRenameE2E:
         assert not any(f.suffix == ".mkv" for f in show_dir.iterdir() if f.is_file())
 
     def test_dry_run_no_changes(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Dry run should leave everything untouched."""
         show_dir = tmp_path / "Show"
@@ -328,7 +342,9 @@ class TestEpisodeRenameE2E:
         assert not (show_dir / "Saison 01").exists()  # Not created
 
     def test_missing_api_episode_kept(
-        self, tmp_path: Path, patterns: NamingPatterns,
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
     ) -> None:
         """Episode not in API should keep original name."""
         show_dir = tmp_path / "Show"

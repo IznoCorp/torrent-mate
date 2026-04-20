@@ -141,11 +141,7 @@ class Sorter:
                 dest_path = dest_dir / item.name
 
             # Movie dirs replace existing; everything else skips
-            is_movie_dir_replace = (
-                item.is_dir()
-                and file_type == FileType.MOVIE
-                and dest_path.exists()
-            )
+            is_movie_dir_replace = item.is_dir() and file_type == FileType.MOVIE and dest_path.exists()
             if dest_path.exists() and not is_movie_dir_replace:
                 logger.warning("Already exists at destination: %s", dest_path)
                 return SortResult(

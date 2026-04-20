@@ -103,13 +103,9 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     f.unlink()
                 except OSError as exc:
                     logger.warning("Cannot delete %s: %s", f.name, exc)
-                    results.append(
-                        SanitizeResult(path=f, action="error", old_name=f.name)
-                    )
+                    results.append(SanitizeResult(path=f, action="error", old_name=f.name))
                     continue
-            results.append(
-                SanitizeResult(path=f, action="deleted_ds_store", old_name=f.name)
-            )
+            results.append(SanitizeResult(path=f, action="deleted_ds_store", old_name=f.name))
             continue
 
         if f.name.startswith("._"):
@@ -118,15 +114,9 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     f.unlink()
                 except OSError as exc:
                     logger.warning("Cannot delete %s: %s", f.name, exc)
-                    results.append(
-                        SanitizeResult(path=f, action="error", old_name=f.name)
-                    )
+                    results.append(SanitizeResult(path=f, action="error", old_name=f.name))
                     continue
-            results.append(
-                SanitizeResult(
-                    path=f, action="deleted_resource_fork", old_name=f.name
-                )
-            )
+            results.append(SanitizeResult(path=f, action="deleted_resource_fork", old_name=f.name))
             continue
 
         if _has_illegal_chars(f.name):
@@ -189,9 +179,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             sanitized = sanitize_filename(d.name)
             target = d.parent / sanitized
             if target.exists():
-                logger.warning(
-                    "Cannot rename dir %s → %s: target exists", d.name, sanitized
-                )
+                logger.warning("Cannot rename dir %s → %s: target exists", d.name, sanitized)
             else:
                 if not dry_run:
                     try:

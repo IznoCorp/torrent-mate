@@ -16,37 +16,39 @@ def _mock_ffprobe_output(
     sub_default: int = 0,
 ) -> str:
     """Build a realistic ffprobe JSON output with V14 fields."""
-    return json.dumps({
-        "streams": [
-            {
-                "codec_type": "video",
-                "codec_name": "hevc",
-                "width": 1920,
-                "height": 1080,
-                "display_aspect_ratio": "16:9",
-                "field_order": "progressive",
-                "bit_rate": video_bitrate,
-                "color_transfer": "bt709",
-                "color_primaries": "bt709",
-                "side_data_list": [],
-            },
-            {
-                "codec_type": "audio",
-                "codec_name": "eac3",
-                "channels": 6,
-                "tags": {"language": "fre"},
-                "profile": audio_profile,
-                "disposition": {"default": audio_default},
-            },
-            {
-                "codec_type": "subtitle",
-                "codec_name": sub_codec,
-                "tags": {"language": "fre"},
-                "disposition": {"default": sub_default, "forced": sub_forced},
-            },
-        ],
-        "format": {"duration": "7200.000"},
-    })
+    return json.dumps(
+        {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "hevc",
+                    "width": 1920,
+                    "height": 1080,
+                    "display_aspect_ratio": "16:9",
+                    "field_order": "progressive",
+                    "bit_rate": video_bitrate,
+                    "color_transfer": "bt709",
+                    "color_primaries": "bt709",
+                    "side_data_list": [],
+                },
+                {
+                    "codec_type": "audio",
+                    "codec_name": "eac3",
+                    "channels": 6,
+                    "tags": {"language": "fre"},
+                    "profile": audio_profile,
+                    "disposition": {"default": audio_default},
+                },
+                {
+                    "codec_type": "subtitle",
+                    "codec_name": sub_codec,
+                    "tags": {"language": "fre"},
+                    "disposition": {"default": sub_default, "forced": sub_forced},
+                },
+            ],
+            "format": {"duration": "7200.000"},
+        }
+    )
 
 
 class TestBitrateExtraction:

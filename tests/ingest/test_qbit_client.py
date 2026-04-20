@@ -27,9 +27,11 @@ def mock_client(tmp_path):
     fake_lockout = tmp_path / "qbit_auth_lockout"
     mock_200 = MagicMock()
     mock_200.status_code = 200
-    with patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE", fake_lockout), \
-         patch("personalscraper.ingest.qbit_client.requests.get", return_value=mock_200), \
-         patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client") as mock_cls:
+    with (
+        patch("personalscraper.ingest.qbit_client._LOCKOUT_FILE", fake_lockout),
+        patch("personalscraper.ingest.qbit_client.requests.get", return_value=mock_200),
+        patch("personalscraper.ingest.qbit_client.qbittorrentapi.Client") as mock_cls,
+    ):
         client = QBitClient(host="localhost", port=8081, username="test", password="test")
         client._client = mock_cls.return_value
         yield client

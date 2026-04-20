@@ -68,7 +68,8 @@ def find_matching_directory(
     for cand in candidates:
         cand_year = _extract_year(cand.name) if respect_year else None
         score = fuzzy_match_score(
-            name, cand.name,
+            name,
+            cand.name,
             query_year=name_year,
             candidate_year=cand_year,
         )

@@ -171,11 +171,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
     # Remove empty non-season subdirs left behind by torrent extractors.
     # Season dirs match ``Saison \d+`` and are always preserved.
     for subdir in list(show_dir.iterdir()):
-        if (
-            not subdir.is_dir()
-            or subdir.name.startswith(".")
-            or SEASON_DIR_RE.match(subdir.name)
-        ):
+        if not subdir.is_dir() or subdir.name.startswith(".") or SEASON_DIR_RE.match(subdir.name):
             continue
 
         # ``rglob("*")`` yields any file or sub-directory — an empty dir
@@ -186,9 +182,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
                 try:
                     subdir.rmdir()
                 except OSError as exc:
-                    logger.warning(
-                        "Cannot remove empty torrent dir %s: %s", subdir.name, exc
-                    )
+                    logger.warning("Cannot remove empty torrent dir %s: %s", subdir.name, exc)
                     continue
             result.fixes.append(f"Removed empty torrent dir: {subdir.name}")
 
@@ -196,10 +190,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
         result.warnings.append("Missing tvshow.nfo")
 
     # Remove season posters for non-present seasons
-    present_seasons = {
-        d.name for d in show_dir.iterdir()
-        if d.is_dir() and SEASON_DIR_RE.match(d.name)
-    }
+    present_seasons = {d.name for d in show_dir.iterdir() if d.is_dir() and SEASON_DIR_RE.match(d.name)}
     for f in list(show_dir.iterdir()):
         if not f.is_file() or not f.name.startswith("season"):
             continue

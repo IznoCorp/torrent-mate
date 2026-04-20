@@ -38,62 +38,65 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
         structlog.processors.StackInfoRenderer(),
     ]
 
-    logging.config.dictConfig({
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "json": {
-                "()": structlog.stdlib.ProcessorFormatter,
-                "processors": [
-                    structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                    structlog.processors.format_exc_info,
-                    structlog.processors.JSONRenderer(),
-                ],
-                "foreign_pre_chain": shared_processors,
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "json": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processors": [
+                        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                        structlog.processors.format_exc_info,
+                        structlog.processors.JSONRenderer(),
+                    ],
+                    "foreign_pre_chain": shared_processors,
+                },
+                "colored": {
+                    "()": structlog.stdlib.ProcessorFormatter,
+                    "processors": [
+                        structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                        structlog.dev.ConsoleRenderer(colors=True),
+                    ],
+                    "foreign_pre_chain": shared_processors,
+                },
             },
-            "colored": {
-                "()": structlog.stdlib.ProcessorFormatter,
-                "processors": [
-                    structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-                    structlog.dev.ConsoleRenderer(colors=True),
-                ],
-                "foreign_pre_chain": shared_processors,
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "colored",
+                    "level": log_level,
+                },
+                "file": {
+                    "class": "logging.handlers.TimedRotatingFileHandler",
+                    "filename": str(LOGS_DIR / "personalscraper.json"),
+                    "when": "midnight",
+                    "backupCount": 30,
+                    "formatter": "json",
+                    "level": "DEBUG",
+                },
             },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "colored",
-                "level": log_level,
+            "loggers": {
+                "": {
+                    "handlers": ["console", "file"],
+                    "level": "DEBUG",
+                    "propagate": True,
+                },
+                # Silence noisy third-party loggers unless --verbose is active
+                "rebulk": {"level": "DEBUG" if verbose else "WARNING"},
+                "guessit": {"level": "DEBUG" if verbose else "WARNING"},
+                "urllib3": {"level": "DEBUG" if verbose else "WARNING"},
+                "requests": {"level": "DEBUG" if verbose else "WARNING"},
+                "qbittorrentapi": {"level": "DEBUG" if verbose else "INFO"},
+                "httpcore": {"level": "DEBUG" if verbose else "WARNING"},
+                "httpx": {"level": "DEBUG" if verbose else "WARNING"},
             },
-            "file": {
-                "class": "logging.handlers.TimedRotatingFileHandler",
-                "filename": str(LOGS_DIR / "personalscraper.json"),
-                "when": "midnight",
-                "backupCount": 30,
-                "formatter": "json",
-                "level": "DEBUG",
-            },
-        },
-        "loggers": {
-            "": {
-                "handlers": ["console", "file"],
-                "level": "DEBUG",
-                "propagate": True,
-            },
-            # Silence noisy third-party loggers unless --verbose is active
-            "rebulk": {"level": "DEBUG" if verbose else "WARNING"},
-            "guessit": {"level": "DEBUG" if verbose else "WARNING"},
-            "urllib3": {"level": "DEBUG" if verbose else "WARNING"},
-            "requests": {"level": "DEBUG" if verbose else "WARNING"},
-            "qbittorrentapi": {"level": "DEBUG" if verbose else "INFO"},
-            "httpcore": {"level": "DEBUG" if verbose else "WARNING"},
-            "httpx": {"level": "DEBUG" if verbose else "WARNING"},
-        },
-    })
+        }
+    )
 
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),

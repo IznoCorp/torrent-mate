@@ -86,14 +86,16 @@ def dedup_folders(
             continue
         year_a = _extract_year(folder_a.name)
 
-        for folder_b in folders[i + 1:]:
+        for folder_b in folders[i + 1 :]:
             if folder_b.name in removed:
                 continue
             year_b = _extract_year(folder_b.name)
 
             score = fuzzy_match_score(
-                folder_a.name, folder_b.name,
-                query_year=year_a, candidate_year=year_b,
+                folder_a.name,
+                folder_b.name,
+                query_year=year_a,
+                candidate_year=year_b,
             )
             if score is None:
                 continue
@@ -110,25 +112,34 @@ def dedup_folders(
             if dry_run:
                 logger.info(
                     "[DRY-RUN] Would merge duplicate: %s → %s (score=%.0f)",
-                    source.name, target.name, score,
+                    source.name,
+                    target.name,
+                    score,
                 )
             else:
                 try:
                     moved, merge_failed = _merge_dirs(source, target)
                     logger.info(
                         "Dedup merge: %s → %s (%d items, score=%.0f)",
-                        source.name, target.name, moved, score,
+                        source.name,
+                        target.name,
+                        moved,
+                        score,
                     )
                     if merge_failed:
                         failed += 1
                         logger.warning(
                             "Dedup partial merge: %s → %s: %d items failed",
-                            source.name, target.name, merge_failed,
+                            source.name,
+                            target.name,
+                            merge_failed,
                         )
                 except OSError as exc:
                     logger.warning(
                         "Dedup merge failed: %s → %s: %s",
-                        source.name, target.name, exc,
+                        source.name,
+                        target.name,
+                        exc,
                     )
                     failed += 1
                     continue

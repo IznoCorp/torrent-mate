@@ -34,8 +34,12 @@ class TestTVShowFullPipeline:
     """
 
     def test_tvshow_full_pipeline(
-        self, e2e_session_id, e2e_registry, e2e_qbit_client,
-        e2e_torrent_files, e2e_settings,
+        self,
+        e2e_session_id,
+        e2e_registry,
+        e2e_qbit_client,
+        e2e_torrent_files,
+        e2e_settings,
     ):
         """TV show traverses the full pipeline from torrent to verified.
 
@@ -43,10 +47,7 @@ class TestTVShowFullPipeline:
         tvshow.nfo, and season posters.
         """
         # Filter TV show torrents (heuristic: contains "S01" or similar)
-        tvshow_torrents = [
-            f for f in e2e_torrent_files
-            if any(f"S{s:02d}" in f.name for s in range(1, 30))
-        ]
+        tvshow_torrents = [f for f in e2e_torrent_files if any(f"S{s:02d}" in f.name for s in range(1, 30))]
         if not tvshow_torrents:
             pytest.skip("No TV show .torrent files in assets/torrents/")
 
@@ -72,6 +73,7 @@ class TestTVShowFullPipeline:
 
             # ── 2. V1 Ingest (REAL) ──
             from personalscraper.ingest.ingest import run_ingest
+
             ingest_report = run_ingest(settings, dry_run=False)
             print(f"  V1 Ingest: {ingest_report.success_count} ingested")
 
@@ -80,6 +82,7 @@ class TestTVShowFullPipeline:
 
             # ── 3. V2 Sort (REAL) ──
             from personalscraper.sorter.run import run_sort
+
             sort_report = run_sort(settings, dry_run=False)
             print(f"  V2 Sort: {sort_report.success_count} sorted")
             assert_sort_complete(staging / "001-MOVIES", tvshows_dir, expected)
@@ -93,6 +96,7 @@ class TestTVShowFullPipeline:
 
             # ── 4. V3 Scrape (REAL — calls TVDB/TMDB APIs) ──
             from personalscraper.scraper.run import run_scrape
+
             scrape_report = run_scrape(settings, dry_run=False, tvshows_only=True)
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(staging / "001-MOVIES", tvshows_dir, expected)
@@ -128,15 +132,15 @@ class TestTVShowFullPipeline:
 
             # ── 5. V4 Verify (REAL) ──
             from personalscraper.verify.run import run_verify
+
             verify_report, verified = run_verify(settings, dry_run=False, tvshows_only=True)
             print(f"  V4 Verify: {verify_report.success_count} valid")
-            test_results = [v for v in verified if any(
-                n.lower() in str(v.media_path).lower() for n in names.values()
-            )]
+            test_results = [v for v in verified if any(n.lower() in str(v.media_path).lower() for n in names.values())]
             assert_verify_complete(test_results)
 
             # ── 6. V5 Dispatch (DRY-RUN — disks are NEVER modified) ──
             from personalscraper.dispatch.run import run_dispatch
+
             dispatch_report = run_dispatch(settings, dry_run=True, verified=verified)
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
 
@@ -145,8 +149,7 @@ class TestTVShowFullPipeline:
         finally:
             # ── 7. Cleanup: staging + qBit torrents ──
             result = cleanup.cleanup_all(client=e2e_qbit_client, force=True)
-            print(f"\n  Cleanup: {result['staging']} staging, "
-                  f"{result['torrents']} torrents removed")
+            print(f"\n  Cleanup: {result['staging']} staging, {result['torrents']} torrents removed")
 
 
 @pytest.mark.e2e_torrent
@@ -157,8 +160,12 @@ class TestFullPipelineMixed:
     """
 
     def test_full_pipeline_via_run_command(
-        self, e2e_session_id, e2e_registry, e2e_qbit_client,
-        e2e_torrent_files, e2e_settings,
+        self,
+        e2e_session_id,
+        e2e_registry,
+        e2e_qbit_client,
+        e2e_torrent_files,
+        e2e_settings,
     ):
         """Run `personalscraper run --dry-run` on real downloaded data.
 
@@ -188,6 +195,7 @@ class TestFullPipelineMixed:
 
             # 2. Ingest first so there's data in staging for the run command
             from personalscraper.ingest.ingest import run_ingest
+
             run_ingest(settings, dry_run=False)
 
             # Register ingested items for cleanup
@@ -204,16 +212,12 @@ class TestFullPipelineMixed:
             cli_result = runner.invoke(app, ["run", "--dry-run"])
 
             assert cli_result.exit_code in (0, 1), (
-                f"CLI `run --dry-run` crashed (exit={cli_result.exit_code}):\n"
-                f"{cli_result.output}"
+                f"CLI `run --dry-run` crashed (exit={cli_result.exit_code}):\n{cli_result.output}"
             )
-            assert "Pipeline" in cli_result.output, (
-                f"Missing pipeline summary:\n{cli_result.output}"
-            )
+            assert "Pipeline" in cli_result.output, f"Missing pipeline summary:\n{cli_result.output}"
             print(f"\n  CLI `run --dry-run` completed (exit={cli_result.exit_code})")
             print(f"  Output preview: {cli_result.output[:500]}")
 
         finally:
             result = cleanup.cleanup_all(client=e2e_qbit_client, force=True)
-            print(f"\n  Cleanup: {result['staging']} staging, "
-                  f"{result['torrents']} torrents removed")
+            print(f"\n  Cleanup: {result['staging']} staging, {result['torrents']} torrents removed")

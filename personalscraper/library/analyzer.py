@@ -123,7 +123,7 @@ def _analyze_video_file(
     sub_languages = sorted({t["language"] for t in info.get("subtitle", [])})
 
     try:
-        size_gb = video_path.stat().st_size / (1024 ** 3)
+        size_gb = video_path.stat().st_size / (1024**3)
     except OSError:
         size_gb = 0.0
 
@@ -209,10 +209,9 @@ def analyze_library(
 
                 # Find all video files (skip macOS resource forks "._*")
                 video_files = [
-                    f for f in media_dir.rglob("*")
-                    if f.is_file()
-                    and f.suffix.lstrip(".").lower() in _VIDEO_EXTENSIONS
-                    and not f.name.startswith("._")
+                    f
+                    for f in media_dir.rglob("*")
+                    if f.is_file() and f.suffix.lstrip(".").lower() in _VIDEO_EXTENSIONS and not f.name.startswith("._")
                 ]
 
                 if not video_files:
@@ -223,7 +222,7 @@ def analyze_library(
                     # Incremental: skip if file size_gb hasn't changed
                     if incremental:
                         try:
-                            current_size_gb = round(vf.stat().st_size / (1024 ** 3), 3)
+                            current_size_gb = round(vf.stat().st_size / (1024**3), 3)
                         except OSError:
                             current_size_gb = -1.0  # force re-analyze
                         prev_size_gb = existing.get(str(vf))
@@ -237,15 +236,17 @@ def analyze_library(
                         file_count += 1
 
                 if file_analyses:
-                    items.append(LibraryAnalysisItem(
-                        path=str(media_dir),
-                        disk=config.name,
-                        category=category_dir.name,
-                        media_type="tvshow" if is_series else "movie",
-                        title=title,
-                        year=year,
-                        files=file_analyses,
-                    ))
+                    items.append(
+                        LibraryAnalysisItem(
+                            path=str(media_dir),
+                            disk=config.name,
+                            category=category_dir.name,
+                            media_type="tvshow" if is_series else "movie",
+                            title=title,
+                            year=year,
+                            files=file_analyses,
+                        )
+                    )
                     items_processed += 1
 
             if max_items and items_processed >= max_items:
@@ -277,40 +278,52 @@ def _reconstruct_analysis_items(data: dict[str, Any]) -> list[LibraryAnalysisIte
         files = []
         for f_data in item_data.get("files", []):
             vid = f_data.get("video", {})
-            files.append(MediaFileAnalysis(
-                path=f_data.get("path", ""),
-                size_gb=f_data.get("size_gb", 0),
-                duration_seconds=f_data.get("duration_seconds"),
-                video=VideoInfo(
-                    codec=vid.get("codec", ""), width=vid.get("width", 0),
-                    height=vid.get("height", 0),
-                    bitrate_kbps=vid.get("bitrate_kbps"),
-                    hdr=vid.get("hdr", False), hdr_type=vid.get("hdr_type"),
-                ),
-                audio_tracks=[
-                    AudioTrack(
-                        codec=a.get("codec", ""), language=a.get("language", "und"),
-                        channels=a.get("channels", 2), is_atmos=a.get("is_atmos", False),
-                        is_default=a.get("is_default", False),
-                    ) for a in f_data.get("audio_tracks", [])
-                ],
-                subtitle_tracks=[
-                    SubtitleTrack(
-                        language=s.get("language", "und"), format=s.get("format", "unknown"),
-                        forced=s.get("forced", False), is_default=s.get("is_default", False),
-                    ) for s in f_data.get("subtitle_tracks", [])
-                ],
-                audio_profile=f_data.get("audio_profile", "vo"),
-                subtitle_languages=f_data.get("subtitle_languages", []),
-                analyzed_at=f_data.get("analyzed_at", ""),
-            ))
-        items.append(LibraryAnalysisItem(
-            path=item_data.get("path", ""),
-            disk=item_data.get("disk", ""),
-            category=item_data.get("category", ""),
-            media_type=item_data.get("media_type", "movie"),
-            title=item_data.get("title", ""),
-            year=item_data.get("year"),
-            files=files,
-        ))
+            files.append(
+                MediaFileAnalysis(
+                    path=f_data.get("path", ""),
+                    size_gb=f_data.get("size_gb", 0),
+                    duration_seconds=f_data.get("duration_seconds"),
+                    video=VideoInfo(
+                        codec=vid.get("codec", ""),
+                        width=vid.get("width", 0),
+                        height=vid.get("height", 0),
+                        bitrate_kbps=vid.get("bitrate_kbps"),
+                        hdr=vid.get("hdr", False),
+                        hdr_type=vid.get("hdr_type"),
+                    ),
+                    audio_tracks=[
+                        AudioTrack(
+                            codec=a.get("codec", ""),
+                            language=a.get("language", "und"),
+                            channels=a.get("channels", 2),
+                            is_atmos=a.get("is_atmos", False),
+                            is_default=a.get("is_default", False),
+                        )
+                        for a in f_data.get("audio_tracks", [])
+                    ],
+                    subtitle_tracks=[
+                        SubtitleTrack(
+                            language=s.get("language", "und"),
+                            format=s.get("format", "unknown"),
+                            forced=s.get("forced", False),
+                            is_default=s.get("is_default", False),
+                        )
+                        for s in f_data.get("subtitle_tracks", [])
+                    ],
+                    audio_profile=f_data.get("audio_profile", "vo"),
+                    subtitle_languages=f_data.get("subtitle_languages", []),
+                    analyzed_at=f_data.get("analyzed_at", ""),
+                )
+            )
+        items.append(
+            LibraryAnalysisItem(
+                path=item_data.get("path", ""),
+                disk=item_data.get("disk", ""),
+                category=item_data.get("category", ""),
+                media_type=item_data.get("media_type", "movie"),
+                title=item_data.get("title", ""),
+                year=item_data.get("year"),
+                files=files,
+            )
+        )
     return items

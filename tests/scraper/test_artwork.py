@@ -110,6 +110,7 @@ class TestSelectBestImage:
 # Download image tests (mocked HTTP)
 # ---------------------------------------------------------------------------
 
+
 class TestDownloadImage:
     """Tests for download_image with mocked HTTP."""
 
@@ -194,7 +195,8 @@ class TestDownloadImage:
 
             downloader.download_image("https://example.com/img.jpg", dest)
             mock_session.get.assert_called_once_with(
-                "https://example.com/img.jpg", timeout=30,
+                "https://example.com/img.jpg",
+                timeout=30,
             )
 
 
@@ -225,7 +227,9 @@ class TestDownloadMovieArtwork:
 
         with patch.object(downloader, "download_image", return_value=True) as mock_dl:
             result = downloader.download_movie_artwork(
-                SAMPLE_MOVIE_DATA, tmp_path, patterns,
+                SAMPLE_MOVIE_DATA,
+                tmp_path,
+                patterns,
             )
 
         assert len(result) == 2
@@ -260,7 +264,9 @@ class TestDownloadMovieArtwork:
                 True,
             ]
             result = downloader.download_movie_artwork(
-                SAMPLE_MOVIE_DATA, tmp_path, patterns,
+                SAMPLE_MOVIE_DATA,
+                tmp_path,
+                patterns,
             )
 
         # Only landscape succeeded
@@ -293,7 +299,8 @@ class TestDownloadTvshowArtwork:
     """Tests for download_tvshow_artwork."""
 
     def test_downloads_poster_landscape_and_season_posters(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """Should download show poster + landscape + season posters for present seasons."""
         downloader = ArtworkDownloader()
@@ -305,7 +312,9 @@ class TestDownloadTvshowArtwork:
 
         with patch.object(downloader, "download_image", return_value=True) as mock_dl:
             result = downloader.download_tvshow_artwork(
-                SAMPLE_TVSHOW_DATA, tmp_path, patterns,
+                SAMPLE_TVSHOW_DATA,
+                tmp_path,
+                patterns,
             )
 
         # poster + landscape + 2 season posters (season 0 skipped, S01+S02 present)
