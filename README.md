@@ -1,5 +1,8 @@
 # PersonalScraper
 
+![CI](https://github.com/LounisBou/personal-scraper/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/LounisBou/personal-scraper/badge.svg)](https://codecov.io/gh/LounisBou/personal-scraper)
+
 Pipeline d'automatisation media — ingestion, tri, scraping, verification, dispatch.
 
 Les torrents terminés sont automatiquement triés, enrichis de métadonnées (TMDB/TVDB), puis déplacés vers les disques de stockage, prêts pour Kodi/Plex.
