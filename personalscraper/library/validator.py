@@ -10,6 +10,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskConfig
 
 from personalscraper.genre_mapper import GenreMapper
 from personalscraper.library.models import (
@@ -98,7 +102,7 @@ def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
 
 
 def validate_library(
-    disk_configs: list,
+    disk_configs: list[DiskConfig],
     disk_filter: str | None = None,
     category_filter: str | None = None,
     fix: bool = False,

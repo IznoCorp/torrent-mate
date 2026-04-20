@@ -9,6 +9,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskConfig
 
 from personalscraper.library.models import (
     AudioTrack,
@@ -28,8 +32,8 @@ _FRENCH_CODES = frozenset({"fra", "fre"})
 
 
 def deduce_audio_profile(
-    audio_tracks: list[dict],
-    subtitle_tracks: list[dict],
+    audio_tracks: list[dict[str, Any]],
+    subtitle_tracks: list[dict[str, Any]],
 ) -> str:
     """Deduce audio profile from track information.
 
@@ -152,7 +156,7 @@ def _file_size_bytes(path: Path) -> int:
 
 
 def analyze_library(
-    disk_configs: list,
+    disk_configs: list[DiskConfig],
     disk_filter: str | None = None,
     category_filter: str | None = None,
     incremental: bool = False,
@@ -259,7 +263,7 @@ def analyze_library(
     )
 
 
-def _reconstruct_analysis_items(data: dict) -> list[LibraryAnalysisItem]:
+def _reconstruct_analysis_items(data: dict[str, Any]) -> list[LibraryAnalysisItem]:
     """Reconstruct LibraryAnalysisItem list from JSON data.
 
     Args:

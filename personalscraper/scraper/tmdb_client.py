@@ -12,6 +12,7 @@ See docs/tenacity-reference.md for retry strategy details.
 """
 
 import logging
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -25,6 +26,9 @@ from tenacity import (
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.scraper.http_retry import make_retryable_predicate
+
+if TYPE_CHECKING:
+    from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +133,7 @@ class TMDBClient:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
-    def _get(self, endpoint: str, params: dict | None = None) -> dict:
+    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send a GET request to the TMDB API with automatic retry.
 
         Adds the language parameter automatically. Retries on 429/5xx
@@ -183,7 +187,7 @@ class TMDBClient:
                 resp.raise_for_status()
 
             self._circuit.record_success()
-            return resp.json()
+            return cast(dict[str, Any], resp.json())
         except CircuitOpenError:
             raise
         except Exception as exc:
@@ -191,7 +195,7 @@ class TMDBClient:
             raise
 
     @property
-    def circuit(self):
+    def circuit(self) -> "CircuitBreaker":
         """Expose circuit breaker for scraper fallback logic.
 
         Returns:
@@ -201,7 +205,7 @@ class TMDBClient:
 
     # -- Protocol methods (MetadataProvider) --
 
-    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict]:
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict[str, Any]]:
         """Search for a media item by title (Protocol method).
 
         Dispatches to search_movie() or search_tv() based on media_type.
@@ -218,7 +222,7 @@ class TMDBClient:
             return self.search_tv(title, year)
         return self.search_movie(title, year)
 
-    def get_details(self, media_id: int, media_type: str = "movie") -> dict:
+    def get_details(self, media_id: int, media_type: str = "movie") -> dict[str, Any]:
         """Get full details for a media item (Protocol method).
 
         Dispatches to get_movie() or get_tv() based on media_type.
@@ -234,7 +238,7 @@ class TMDBClient:
             return self.get_tv(media_id)
         return self.get_movie(media_id)
 
-    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict]:
+    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict[str, Any]]:
         """Get artwork URLs from already-fetched details (Protocol method).
 
         Images are embedded in get_movie()/get_tv() responses via
@@ -273,7 +277,7 @@ class TMDBClient:
 
     # -- Type-specific methods --
 
-    def search_movie(self, title: str, year: int | None = None) -> list[dict]:
+    def search_movie(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
         """Search for movies by title.
 
         The year parameter boosts relevance but does NOT exclude other years.
@@ -287,13 +291,13 @@ class TMDBClient:
         Returns:
             List of movie result dicts from the API.
         """
-        params: dict = {"query": title}
+        params: dict[str, Any] = {"query": title}
         if year is not None:
             params["year"] = year
         data = self._get("/search/movie", params)
-        return data.get("results", [])
+        return cast(list[dict[str, Any]], data.get("results", []))
 
-    def search_tv(self, title: str, year: int | None = None) -> list[dict]:
+    def search_tv(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
         """Search for TV shows by title.
 
         Uses first_air_date_year (not year) for TV show searches.
@@ -305,14 +309,14 @@ class TMDBClient:
         Returns:
             List of TV show result dicts from the API.
         """
-        params: dict = {"query": title}
+        params: dict[str, Any] = {"query": title}
         if year is not None:
             # TMDB uses first_air_date_year for TV, not year
             params["first_air_date_year"] = year
         data = self._get("/search/tv", params)
-        return data.get("results", [])
+        return cast(list[dict[str, Any]], data.get("results", []))
 
-    def get_movie(self, movie_id: int) -> dict:
+    def get_movie(self, movie_id: int) -> dict[str, Any]:
         """Get full movie details with credits, images, IDs, and certifications.
 
         Uses append_to_response to fetch everything in a single API call.
@@ -331,7 +335,7 @@ class TMDBClient:
             "include_image_language": "fr,en,null",
         })
 
-    def get_tv(self, tv_id: int) -> dict:
+    def get_tv(self, tv_id: int) -> dict[str, Any]:
         """Get full TV show details with credits, images, IDs, and ratings.
 
         Uses aggregate_credits (not credits) for TV shows — it groups
@@ -350,7 +354,7 @@ class TMDBClient:
             "include_image_language": "fr,en,null",
         })
 
-    def get_tv_season(self, tv_id: int, season: int) -> dict:
+    def get_tv_season(self, tv_id: int, season: int) -> dict[str, Any]:
         """Get season details with episodes and images.
 
         Returns all episodes with crew, guest_stars, and per-episode

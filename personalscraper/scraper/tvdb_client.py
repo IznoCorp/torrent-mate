@@ -17,6 +17,7 @@ See docs/tenacity-reference.md for retry strategy details.
 """
 
 import logging
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -30,6 +31,9 @@ from tenacity import (
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.scraper.http_retry import make_retryable_predicate
+
+if TYPE_CHECKING:
+    from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +177,7 @@ class TVDBClient:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
-    def _get(self, endpoint: str, params: dict | None = None) -> dict:
+    def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
         """Send a GET request to the TVDB API with automatic retry.
 
         Auto-login on first call or re-login on 401 (expired token).
@@ -233,7 +237,7 @@ class TVDBClient:
                 raise TVDBError(resp.status_code, msg)
 
             self._circuit.record_success()
-            return resp.json().get("data", {})
+            return cast("dict[str, Any] | list[Any]", resp.json().get("data", {}))
         except CircuitOpenError:
             raise
         except Exception as exc:
@@ -241,7 +245,7 @@ class TVDBClient:
             raise
 
     @property
-    def circuit(self):
+    def circuit(self) -> "CircuitBreaker":
         """Expose circuit breaker for scraper fallback logic.
 
         Returns:
@@ -265,7 +269,7 @@ class TVDBClient:
 
     # -- Protocol methods (MetadataProvider) --
 
-    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict]:
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict[str, Any]]:
         """Search for a media item by title (Protocol method).
 
         Dispatches to search_series() for TV shows.
@@ -280,7 +284,7 @@ class TVDBClient:
         """
         return self.search_series(title, year)
 
-    def get_details(self, media_id: int, media_type: str = "movie") -> dict:
+    def get_details(self, media_id: int, media_type: str = "movie") -> dict[str, Any]:
         """Get full details for a media item (Protocol method).
 
         Dispatches to get_series().
@@ -294,7 +298,7 @@ class TVDBClient:
         """
         return self.get_series(media_id)
 
-    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict]:
+    def get_artwork_urls(self, media_id: int, media_type: str = "movie") -> list[dict[str, Any]]:
         """Get artwork URLs for a series (Protocol method).
 
         Fetches all artworks and maps TVDB types to our standard types.
@@ -307,7 +311,7 @@ class TVDBClient:
             List of artwork dicts with type, url, language, season keys.
         """
         artworks_data = self.get_series_artworks(media_id)
-        result = []
+        result: list[dict[str, Any]] = []
         for art in artworks_data:
             art_type_id = art.get("type", 0)
             # Map TVDB artwork types to our standard types
@@ -330,7 +334,7 @@ class TVDBClient:
 
     # -- Type-specific methods --
 
-    def search_series(self, title: str, year: int | None = None) -> list[dict]:
+    def search_series(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
         """Search for TV series by title.
 
         Uses /search endpoint with type=series. Results use snake_case
@@ -343,14 +347,14 @@ class TVDBClient:
         Returns:
             List of search result dicts.
         """
-        params: dict = {"query": title, "type": "series"}
+        params: dict[str, Any] = {"query": title, "type": "series"}
         if year is not None:
             params["year"] = year
         data = self._get("/search", params)
-        # /search returns a list directly in data
-        return data if isinstance(data, list) else []
+        # /search returns a list directly in data (envelope flattened via cast in _get)
+        return cast(list[dict[str, Any]], data) if isinstance(data, list) else []
 
-    def get_series(self, series_id: int) -> dict:
+    def get_series(self, series_id: int) -> dict[str, Any]:
         """Get extended series details.
 
         Uses short=true to exclude artworks/characters/trailers
@@ -365,9 +369,10 @@ class TVDBClient:
         Returns:
             Dict with extended series data.
         """
-        return self._get(f"/series/{series_id}/extended", {"short": "true"})
+        data = self._get(f"/series/{series_id}/extended", {"short": "true"})
+        return data if isinstance(data, dict) else {}
 
-    def get_season_episodes(self, series_id: int, season: int) -> list[dict]:
+    def get_season_episodes(self, series_id: int, season: int) -> list[dict[str, Any]]:
         """Get episodes for a specific season.
 
         Uses /series/{id}/episodes/default with season filter.
@@ -388,10 +393,10 @@ class TVDBClient:
         )
         # Response wraps episodes in data.episodes
         if isinstance(data, dict):
-            return data.get("episodes", [])
+            return cast(list[dict[str, Any]], data.get("episodes", []))
         return []
 
-    def get_episode_translation(self, episode_id: int, lang: str = "fra") -> dict | None:
+    def get_episode_translation(self, episode_id: int, lang: str = "fra") -> dict[str, Any] | None:
         """Get translated title and overview for an episode.
 
         Uses 3-char language codes (fra, eng, spa).
@@ -407,14 +412,15 @@ class TVDBClient:
         """
         lang_3 = self._map_lang(lang)
         try:
-            return self._get(f"/episodes/{episode_id}/translations/{lang_3}")
+            data = self._get(f"/episodes/{episode_id}/translations/{lang_3}")
+            return data if isinstance(data, dict) else None
         except TVDBError as e:
             if e.http_status == 404:
                 logger.debug("No %s translation for episode %d", lang_3, episode_id)
                 return None
             raise
 
-    def get_series_artworks(self, series_id: int, type_id: int | None = None) -> list[dict]:
+    def get_series_artworks(self, series_id: int, type_id: int | None = None) -> list[dict[str, Any]]:
         """Get artworks for a series.
 
         Returns a SeriesExtendedRecord — artworks are in data.artworks.
@@ -430,13 +436,13 @@ class TVDBClient:
         Returns:
             List of artwork dicts with image URL, language, type, etc.
         """
-        params: dict = {}
+        params: dict[str, Any] = {}
         if type_id is not None:
             params["type"] = type_id
         data = self._get(f"/series/{series_id}/artworks", params)
         # Artworks are nested in the extended record
         if isinstance(data, dict):
-            return data.get("artworks") or []
+            return cast(list[dict[str, Any]], data.get("artworks") or [])
         return []
 
     def get_artwork_types(self) -> dict[int, str]:
@@ -459,7 +465,7 @@ class TVDBClient:
         return self._artwork_types
 
     @staticmethod
-    def get_remote_ids(series_data: dict) -> dict[str, str | None]:
+    def get_remote_ids(series_data: dict[str, Any]) -> dict[str, str | None]:
         """Extract IMDB and TMDB IDs from series remoteIds.
 
         TMDB source types: 10=movies, 12=TV series, 15=people, 28=collections.

@@ -11,6 +11,10 @@ import logging
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from personalscraper.dispatch.disk_scanner import DiskStatus
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +122,7 @@ class LibraryReport:
     recommendation_count: int = 0
     estimated_savings_gb: float = 0.0
     recommendations_by_priority: dict[str, int] = field(default_factory=dict)
-    recommendation_details: list[dict] = field(default_factory=list)
+    recommendation_details: list[dict[str, Any]] = field(default_factory=list)
     validation_valid: int = 0
     validation_fixable: int = 0
     validation_issues: int = 0
@@ -134,12 +138,12 @@ class LibraryReport:
 
 
 def generate_report(
-    scan_data: dict | None = None,
-    analysis_data: dict | None = None,
-    validation_data: dict | None = None,
-    recommendation_data: dict | None = None,
-    disk_statuses: list | None = None,
-    rescrape_data: dict | None = None,
+    scan_data: dict[str, Any] | None = None,
+    analysis_data: dict[str, Any] | None = None,
+    validation_data: dict[str, Any] | None = None,
+    recommendation_data: dict[str, Any] | None = None,
+    disk_statuses: list[DiskStatus] | None = None,
+    rescrape_data: dict[str, Any] | None = None,
 ) -> LibraryReport:
     """Generate a library health report from JSON data.
 
@@ -347,8 +351,8 @@ def format_report_text(report: LibraryReport) -> str:
         lines.append("")
         for issue, count in report.scan_issues.items():
             explanation = _ISSUE_EXPLANATIONS.get(issue, issue)
-            pct = f" ({count * 100 // report.total_items}%)" if report.total_items else ""
-            lines.append(f"    {issue}: {count}{pct}")
+            pct_str = f" ({count * 100 // report.total_items}%)" if report.total_items else ""
+            lines.append(f"    {issue}: {count}{pct_str}")
             lines.append(f"      → {explanation}")
             fix = _ISSUE_FIXES.get(issue)
             if fix:

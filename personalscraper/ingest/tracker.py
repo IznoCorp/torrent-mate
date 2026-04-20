@@ -9,6 +9,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from personalscraper.logger import get_logger
 
@@ -46,10 +47,10 @@ class IngestTracker:
         if tracker_path is None:
             tracker_path = _default_tracker_file()
         self.tracker_path = tracker_path
-        self._data: dict[str, dict] = {}
+        self._data: dict[str, dict[str, Any]] = {}
         self.load()
 
-    def load(self) -> dict[str, dict]:
+    def load(self) -> dict[str, dict[str, Any]]:
         """Load tracker data from the JSON file.
 
         Creates parent directory if missing. Handles missing or corrupted files
