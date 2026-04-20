@@ -43,6 +43,8 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "types-requests>=2.31.0",
 ]
 
 [project.scripts]
@@ -75,3 +77,13 @@ ignore = ["D100", "D104"]  # D100=module docstring (enforced manually), D104=__i
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["personalscraper"]
+exclude = ["tests/"]
+
+[[tool.mypy.overrides]]
+module = ["guessit.*", "qbittorrent_api.*", "rapidfuzz.*"]
+ignore_missing_imports = true
