@@ -817,7 +817,18 @@ class TestDispatchExisting:
         movie_dir.mkdir()
         (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
 
-        result = d.dispatch_movie(movie_dir, "films")
+        with patch(
+            "personalscraper.dispatch.dispatcher.get_disk_status",
+        ) as mock_status:
+            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+
+            mock_status.return_value = DiskStatus(
+                config=DiskConfig("Disk1", tmp_path, ["films"]),
+                free_space_gb=500,
+                is_mounted=True,
+            )
+
+            result = d.dispatch_movie(movie_dir, "films")
 
         assert result.action == "replaced"
         assert result.disk == "Disk1"
@@ -850,7 +861,18 @@ class TestDispatchExisting:
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
 
-        result = d.dispatch_tvshow(show_dir, "series")
+        with patch(
+            "personalscraper.dispatch.dispatcher.get_disk_status",
+        ) as mock_status:
+            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+
+            mock_status.return_value = DiskStatus(
+                config=DiskConfig("Disk1", tmp_path, ["series"]),
+                free_space_gb=500,
+                is_mounted=True,
+            )
+
+            result = d.dispatch_tvshow(show_dir, "series")
 
         assert result.action == "merged"
         assert result.disk == "Disk1"
