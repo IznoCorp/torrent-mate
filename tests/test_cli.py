@@ -795,5 +795,47 @@ def test_callback_help_works_without_config() -> None:
     assert "PersonalScraper" in result.output
 
 
-# NOTE: test_callback_init_config_bypasses_load is in the 5.3 section below,
-# after the init-config command is registered.
+# ── 5.3 init-config Typer command ───────────────────────────────────────────
+
+
+def test_init_config_help_shows_flags() -> None:
+    """init-config --help displays all expected flags."""
+    result = runner.invoke(app, ["init-config", "--help"])
+    assert result.exit_code == 0
+    assert "--yes" in result.output
+    assert "--from-current" in result.output
+    assert "--force" in result.output
+    assert "--output" in result.output
+    assert "--example" in result.output
+
+
+def test_callback_init_config_bypasses_load() -> None:
+    """init-config subcommand bypasses eager config load (config may not exist yet).
+
+    Overrides autouse to simulate missing config; init-config must not exit 2.
+    """
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=Path("/nonexistent/config.json5")),
+        patch(_PATCH_LOAD_CONFIG, side_effect=ConfigNotFoundError("No config")),
+        patch("personalscraper.commands.init_config.init_config") as mock_init,
+    ):
+        result = runner.invoke(app, ["init-config"])
+
+    # Must not fail with exit 2 (config error) — init_config itself exits 0
+    assert result.exit_code != 2
+    mock_init.assert_called_once()
+
+
+def test_init_config_cmd_passes_flags() -> None:
+    """init-config forwards --yes, --from-current, --force to init_config()."""
+    with patch("personalscraper.commands.init_config.init_config") as mock_init:
+        result = runner.invoke(app, ["init-config", "--yes", "--from-current", "--force"])
+
+    assert result.exit_code == 0
+    mock_init.assert_called_once()
+    _, kwargs = mock_init.call_args
+    assert kwargs["interactive"] is False
+    assert kwargs["from_current"] is True
+    assert kwargs["force"] is True

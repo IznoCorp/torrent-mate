@@ -923,3 +923,48 @@ def library_report(
         console.print(f"[green]Report written to {output_path}[/green]")
     else:
         console.print(format_report_text(report))
+
+
+# ── Setup commands ────────────────────────────────────────────────────────────
+
+
+@app.command("init-config")
+def init_config_cmd(
+    example: Path = typer.Option(
+        Path("config.example.json5"),
+        help="Path to the example template to read from.",
+    ),
+    output: Path = typer.Option(
+        Path("config.json5"),
+        help="Destination path for the generated config.json5.",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--yes",
+        help="Skip interactive prompts and accept all defaults.",
+    ),
+    from_current: bool = typer.Option(
+        False,
+        "--from-current",
+        help="Bootstrap config from the existing V14 .env file.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite output file if it already exists.",
+    ),
+) -> None:
+    """Create config.json5 from the example template or from a V14 .env migration.
+
+    Run without arguments for interactive mode (prompts for each value).
+    Use --from-current to migrate an existing V14 .env automatically.
+    Use --yes to skip all prompts and accept defaults.
+
+    Examples:
+        personalscraper init-config
+        personalscraper init-config --from-current --yes
+        personalscraper init-config --output /custom/path/config.json5 --force
+    """
+    from personalscraper.commands.init_config import init_config
+
+    init_config(example, output, interactive=not non_interactive, from_current=from_current, force=force)
