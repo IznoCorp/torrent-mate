@@ -73,45 +73,40 @@ class TestIsNfoComplete:
 
 
 class TestHasUnsortedItems:
-    """Tests for sort fast-skip check."""
+    """Tests for sort fast-skip check.
 
-    def _make_settings(self, tmp_path):
-        """Create mock settings with ingest_dir."""
-        from unittest.mock import MagicMock
-
-        s = MagicMock()
-        s.staging_dir = tmp_path
-        s.ingest_dir = tmp_path / "097-TEMP"
-        return s
+    _has_unsorted_items now takes an ingest_dir Path directly
+    (V15 P6.5: no longer accepts a Settings object).
+    """
 
     def test_empty_dir(self, tmp_path):
         """Empty 097-TEMP returns False."""
-        settings = self._make_settings(tmp_path)
-        settings.ingest_dir.mkdir()
+        ingest_dir = tmp_path / "097-TEMP"
+        ingest_dir.mkdir()
 
-        assert _has_unsorted_items(settings) is False
+        assert _has_unsorted_items(ingest_dir) is False
 
     def test_with_files(self, tmp_path):
         """097-TEMP with files returns True."""
-        settings = self._make_settings(tmp_path)
-        settings.ingest_dir.mkdir()
-        (settings.ingest_dir / "movie.mkv").write_text("video")
+        ingest_dir = tmp_path / "097-TEMP"
+        ingest_dir.mkdir()
+        (ingest_dir / "movie.mkv").write_text("video")
 
-        assert _has_unsorted_items(settings) is True
+        assert _has_unsorted_items(ingest_dir) is True
 
     def test_hidden_only(self, tmp_path):
         """097-TEMP with only hidden files returns False."""
-        settings = self._make_settings(tmp_path)
-        settings.ingest_dir.mkdir()
-        (settings.ingest_dir / ".DS_Store").write_bytes(b"\x00")
-        (settings.ingest_dir / ".gitkeep").write_text("")
+        ingest_dir = tmp_path / "097-TEMP"
+        ingest_dir.mkdir()
+        (ingest_dir / ".DS_Store").write_bytes(b"\x00")
+        (ingest_dir / ".gitkeep").write_text("")
 
-        assert _has_unsorted_items(settings) is False
+        assert _has_unsorted_items(ingest_dir) is False
 
     def test_dir_missing(self, tmp_path):
         """Non-existent 097-TEMP returns False."""
-        settings = self._make_settings(tmp_path)
-        assert _has_unsorted_items(settings) is False
+        ingest_dir = tmp_path / "097-TEMP"
+        assert _has_unsorted_items(ingest_dir) is False
 
 
 # ── _has_polluted_folders ─────────────────────────────

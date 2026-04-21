@@ -193,14 +193,14 @@ def sort(
     """Sort and clean media files."""
     from personalscraper.sorter.run import run_sort
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_sort(settings, dry_run=dry_run)
+        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run)
         console.print(
             f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -320,14 +320,14 @@ def dispatch(
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_dispatch(settings, dry_run=dry_run)
+        report = run_dispatch(settings, config=config, dry_run=dry_run)
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"
@@ -422,7 +422,9 @@ def run(
         log.info("Pipeline started (dry_run=%s, run_id=%s)", dry_run, run_id)
 
         # Delegate to Pipeline orchestrator (8-step sequential flow)
+        config = ctx.obj.config
         pipeline = Pipeline(
+            config,
             settings,
             dry_run=dry_run,
             interactive=interactive,
@@ -530,8 +532,8 @@ def library_scan(
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    config = ctx.obj.config
+    disk_configs = get_disk_configs(config)
 
     console.print("[bold]Scanning library...[/bold]")
     result = scan_library(
@@ -540,7 +542,7 @@ def library_scan(
         category_filter=category_id,
     )
 
-    output_path = settings.data_dir / "library_scan.json"
+    output_path = config.paths.data_dir / "library_scan.json"
     write_json(result, output_path)
 
     console.print(f"[green]Scan complete:[/green] {result.item_count} items → {output_path}")
@@ -572,7 +574,7 @@ def library_clean(
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
+    config = ctx.obj.config
 
     # Validate --only parameter
     valid_only = {"actors", "empty", "junk", "release"}
@@ -580,7 +582,7 @@ def library_clean(
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
 
-    disk_configs = get_disk_configs(settings)
+    disk_configs = get_disk_configs(config)
 
     # Acquire lock only when applying changes
     if apply:
@@ -644,8 +646,8 @@ def library_validate(
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    config = ctx.obj.config
+    disk_configs = get_disk_configs(config)
 
     if apply and not fix:
         console.print("[red]--apply requires --fix[/red]")
@@ -666,7 +668,7 @@ def library_validate(
             apply=apply,
         )
 
-        output_path = settings.data_dir / "library_validation.json"
+        output_path = config.paths.data_dir / "library_validation.json"
         write_json(result, output_path)
 
         console.print(
@@ -711,12 +713,12 @@ def library_analyze(
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    config = ctx.obj.config
+    disk_configs = get_disk_configs(config)
 
     # Load existing analysis for incremental mode (compare size_gb with tolerance)
     existing: dict[str, float] = {}
-    analysis_path = settings.data_dir / "library_analysis.json"
+    analysis_path = config.paths.data_dir / "library_analysis.json"
     if incremental and analysis_path.exists():
         try:
             data = read_json(analysis_path)
@@ -775,6 +777,7 @@ def library_recommend(
     # Resolve alias now so unknown --category values fail fast (Phase 7 will wire it downstream).
     _resolve_category(ctx, category)
     console = state["console"]
+    config = ctx.obj.config
     settings = get_settings()
 
     # Validate --sort parameter
@@ -784,7 +787,7 @@ def library_recommend(
         raise typer.Exit(1)
 
     # Load analysis
-    analysis_path = settings.data_dir / "library_analysis.json"
+    analysis_path = config.paths.data_dir / "library_analysis.json"
     if not analysis_path.exists():
         console.print("[red]No analysis found. Run library-analyze first.[/red]")
         raise typer.Exit(1)
@@ -792,7 +795,7 @@ def library_recommend(
     analysis_data = read_json(analysis_path)
 
     # Load preferences
-    prefs_path = settings.data_dir / settings.library_preferences_file
+    prefs_path = config.paths.data_dir / settings.library_preferences_file
     if prefs_path.exists():
         prefs = LibraryPreferences.model_validate_json(prefs_path.read_text())
     else:
@@ -812,12 +815,12 @@ def library_recommend(
         result.items.sort(key=sort_keys[sort])
 
     # Write JSON
-    output_path = settings.data_dir / "library_recommendations.json"
+    output_path = config.paths.data_dir / "library_recommendations.json"
     write_json(result, output_path)
 
     # CSV export
     if export == "csv":
-        csv_path = settings.data_dir / "library_recommendations.csv"
+        csv_path = config.paths.data_dir / "library_recommendations.csv"
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(
@@ -885,8 +888,9 @@ def library_rescrape(
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
+    config = ctx.obj.config
     settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    disk_configs = get_disk_configs(config)
 
     valid_only = {"nfo", "artwork", "episodes"}
     if only and only not in valid_only:
@@ -913,7 +917,7 @@ def library_rescrape(
             max_items=max_items,
         )
 
-        output_path = settings.data_dir / "library_rescrape.json"
+        output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)
 
         total = result.fixed_count + result.skipped_count + result.error_count
@@ -947,13 +951,12 @@ def library_report(
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config
     console = state["console"]
-    settings = get_settings()
 
     # Load available data
     def _load(name: str) -> dict[str, Any] | None:
-        path = settings.data_dir / name
+        path = config.paths.data_dir / name
         if path.exists():
             try:
                 return read_json(path)
@@ -974,7 +977,7 @@ def library_report(
         raise typer.Exit(1)
 
     # Get live disk free space
-    disk_configs = get_disk_configs(settings)
+    disk_configs = get_disk_configs(config)
     disk_statuses = [get_disk_status(dc) for dc in disk_configs]
 
     report = generate_report(
@@ -987,7 +990,7 @@ def library_report(
     )
 
     if format == "json":
-        output_path = settings.data_dir / "library_report.json"
+        output_path = config.paths.data_dir / "library_report.json"
         write_json(report, output_path)
         console.print(f"[green]Report written to {output_path}[/green]")
     else:

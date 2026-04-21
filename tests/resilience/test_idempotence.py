@@ -20,11 +20,11 @@ class TestSortDoubleRun:
         (item / "movie.mkv").write_text("video")
 
         # First sort
-        report1 = run_sort(resilience_settings)
+        report1 = run_sort(resilience_settings, staging_dir=staging)
         assert report1.success_count >= 1
 
         # Second sort — 097-TEMP should be empty
-        report2 = run_sort(resilience_settings)
+        report2 = run_sort(resilience_settings, staging_dir=staging)
         assert report2.success_count == 0
         assert report2.error_count == 0
 
@@ -87,7 +87,7 @@ class TestDispatchOrphanCleanup:
         orphan.mkdir()
         (orphan / "file.mkv").write_text("data")
 
-        cleaned = _cleanup_staging_orphans(resilience_settings)
+        cleaned = _cleanup_staging_orphans(resilience_settings, staging_dir=staging)
 
         assert cleaned >= 1
         assert not orphan.exists()
@@ -103,7 +103,7 @@ class TestDispatchOrphanCleanup:
         backup.mkdir()
         (backup / "old_file.mkv").write_text("backup")
 
-        cleaned = _cleanup_staging_orphans(resilience_settings)
+        cleaned = _cleanup_staging_orphans(resilience_settings, staging_dir=staging)
 
         assert cleaned >= 1
         assert not backup.exists()

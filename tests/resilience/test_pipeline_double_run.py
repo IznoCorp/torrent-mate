@@ -46,8 +46,13 @@ class TestPipelineDoubleRun:
         )
         mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
+        config = MagicMock()
+        config.paths.staging_dir = staging
+        config.paths.data_dir = staging / ".data"
+        config.disks = []
+
         console = Console(quiet=True)
-        pipeline = Pipeline(resilience_settings, console=console)
+        pipeline = Pipeline(config, resilience_settings, console=console)
         report1 = pipeline.run()
 
         assert len(report1.steps) == 8

@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from rich.console import Console
 
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.models import PipelineReport, StepReport
 
@@ -46,7 +47,8 @@ class Pipeline:
     only runs if verified items exist.
 
     Attributes:
-        settings: Pipeline configuration.
+        config: V15 config (paths, disks).
+        settings: Pipeline configuration (secrets, thresholds).
         dry_run: Preview mode — no filesystem changes.
         interactive: Prompt user for ambiguous matches.
         verbose: Show per-item details in console output.
@@ -55,6 +57,7 @@ class Pipeline:
 
     def __init__(
         self,
+        config: Config,
         settings: Settings,
         dry_run: bool = False,
         interactive: bool = False,
@@ -64,12 +67,14 @@ class Pipeline:
         """Initialize the pipeline.
 
         Args:
-            settings: Pipeline configuration.
+            config: V15 config with paths and disk layout.
+            settings: Pipeline configuration (secrets, thresholds).
             dry_run: If True, preview operations without modifying files.
             interactive: If True, prompt for ambiguous matches.
             verbose: If True, show per-item details.
             console: Rich console. Created if not provided.
         """
+        self.config = config
         self.settings = settings
         self.dry_run = dry_run
         self.interactive = interactive
@@ -104,7 +109,7 @@ class Pipeline:
         cleaned = 0
 
         # 1. Clean _tmp_dispatch_* on ALL storage disks
-        for disk_config in get_disk_configs(self.settings):
+        for disk_config in get_disk_configs(self.config):
             if not disk_config.path.exists():
                 continue
             try:
@@ -141,7 +146,7 @@ class Pipeline:
                 self._log.warning("Crash recovery: cannot clean lockout %s: %s", lockout_path, exc)
 
         # 3. Clean .ingest_tmp_* in staging
-        ingest_dir = self.settings.ingest_dir
+        ingest_dir = self.settings.ingest_dir(self.config.paths.staging_dir)
         if ingest_dir.exists():
             cleaned += _cleanup_orphan_temps(ingest_dir)
 
@@ -199,7 +204,11 @@ class Pipeline:
         try:
             self._run_step(
                 "sort",
-                lambda: run_sort(self.settings, dry_run=self.dry_run),
+                lambda: run_sort(
+                    self.settings,
+                    staging_dir=self.config.paths.staging_dir,
+                    dry_run=self.dry_run,
+                ),
                 report,
                 critical=True,
             )
@@ -237,7 +246,12 @@ class Pipeline:
 
             self._run_step(
                 "dispatch",
-                lambda: run_dispatch(self.settings, dry_run=self.dry_run, verified=verified),
+                lambda: run_dispatch(
+                    self.settings,
+                    config=self.config,
+                    dry_run=self.dry_run,
+                    verified=verified,
+                ),
                 report,
             )
         else:
@@ -296,6 +310,7 @@ class Pipeline:
             "scrape",
             lambda: run_scrape(
                 self.settings,
+                staging_dir=self.config.paths.staging_dir,
                 dry_run=self.dry_run,
                 interactive=self.interactive,
             ),
@@ -317,7 +332,7 @@ class Pipeline:
         """
         from personalscraper.sorter.run import assert_temp_empty
 
-        remaining = assert_temp_empty(self.settings)
+        remaining = assert_temp_empty(self.settings, staging_dir=self.config.paths.staging_dir)
         if remaining:
             self._log.warning(
                 "Gate 097-TEMP: %d unsorted files remain: %s",
