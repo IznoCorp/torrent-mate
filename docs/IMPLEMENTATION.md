@@ -18,7 +18,7 @@
 | 1     | Bootstrap — golden table + conf foundation          | [x]    | 2026-04-21  |
 | 2     | Classifier pipeline + équivalence V14↔V15           | [x]    | 2026-04-21  |
 | 3     | Resolver + Example Parser                           | [x]    | 2026-04-21  |
-| 4     | Migration module + init-config command              | [ ]    |             |
+| 4     | Migration module + init-config command              | [x]    | 2026-04-21  |
 | 5     | CLI integration — top-level --config + eager load   | [ ]    |             |
 | 6     | Settings allégé + Dispatch refactor                 | [ ]    |             |
 | 7     | Scraper refactor — classifier + TMDB keywords + NFO | [ ]    |             |
@@ -28,7 +28,7 @@
 
 ## Next Action
 
-**Phase 4 — Migration module + init-config command** : lire `docs/v15-config-driven/plan/phase-04-migration-init-config.md`, implémenter `conf/migration.py` (V14→V15) + `commands/init_config.py` (commande CLI).
+**Phase 5 — CLI integration** : lire `docs/v15-config-driven/plan/phase-05-cli-integration.md`, intégrer top-level `--config` option et eager `load_config` dans `cli.py`, brancher `init-config` command.
 
 ## Detailed Tracking
 
@@ -57,6 +57,22 @@
 **Deviations:** `_OBJECT_OPEN_RE` requires `{` at end of line — inline one-liner objects (e.g. `movies: { folder_name: "movies" }`) are matched as leaf key-value with the full inline object as default_value. This is correct for `init-config` prompting.
 
 **Test counts:** 16 (test_resolver.py) + 38 (test_example_parser.py) = 54 new tests. Full suite: 1560 passed.
+
+### Phase 4 — Migration module + init-config command (DONE 2026-04-21)
+
+- [x] 4.1 `conf/migration.py` — V14 genre maps inlined (V14_TMDB_MOVIE_GENRE_MAP, V14_TMDB_TV_GENRE_MAP, V14_TVDB_GENRE_MAP, V14_KNOWN_CATEGORIES, \_V14_DISK_CATEGORIES), all function signatures + implementations
+- [x] 4.2 `generate_config_from_env` — DISK\*\_DIR → disks[], categories with V14 folder_names, genre_mapping, anime_rule, data_dir inside staging
+- [x] 4.3 `migrate_library_preferences` — V14 library_preferences.json → LibraryPrefs dict, backup lifecycle in caller
+- [x] 4.4 `migrate_library_json` — items[].category rewrite, .v14.bak backup, unknown label WARN, preferences skip
+- [x] 4.5 `migrate_category_files` — .category → NFO <category source="personalscraper">, lock file check, idempotent
+- [x] 4.6 `migrate_data_dir` — os.rename atomicity, lock check, same-fs check, target exists check
+- [x] 4.7 `commands/init_config.py` — init_config() with --force backup (.v15.bak idempotent), --from-current full migration chain, non-interactive example-based creation
+- [x] 4.8 `--from-current --yes` validation — exit 2 + explicit message when DISK1_DIR/STAGING_DIR/TORRENT_COMPLETE_DIR absent
+- [x] 4.9 E2E test — 13 tests covering full migration: data_dir move, library rewrite, .category → NFO, load_config() passes, semantic equivalence
+
+**Deviation:** 4.1-4.6 committed together (v15.4.1), 4.7-4.8 together (v15.4.7, 4.8 validation included), 4.9 separately. Sub-phase discipline maintained for 4.7 and 4.9; earlier sub-phases batched due to tight interdependencies in a single file.
+
+**Test counts:** 60 (test_migration.py) + 17 (test_init_config.py) + 13 (test_init_config_e2e.py) = 90 new tests. Full suite: 1650 passed (+ 3 skipped).
 
 ---
 
