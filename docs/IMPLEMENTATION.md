@@ -7,7 +7,7 @@
 **Archive v14:** `docs/archive/v14/IMPLEMENTATION.md`
 **Branch:** `feat/config-driven`
 **PR merge:** manual
-**PR:** _(created after last phase)_
+**PR:** https://github.com/LounisBou/personal-scraper/pull/5
 **Design spec:** `docs/v15-config-driven/DESIGN.md`
 **Master plan:** `docs/v15-config-driven/plan/INDEX.md`
 
