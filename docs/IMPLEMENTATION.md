@@ -15,7 +15,7 @@
 
 | Phase | Name                                                | Status | Last Update |
 | ----- | --------------------------------------------------- | ------ | ----------- |
-| 1     | Bootstrap — golden table + conf foundation          | [ ]    |             |
+| 1     | Bootstrap — golden table + conf foundation          | [x]    | 2026-04-21  |
 | 2     | Classifier pipeline + équivalence V14↔V15           | [ ]    |             |
 | 3     | Resolver + Example Parser                           | [ ]    |             |
 | 4     | Migration module + init-config command              | [ ]    |             |
@@ -28,7 +28,7 @@
 
 ## Next Action
 
-**Phase 1 — Bootstrap** : lire `docs/v15-config-driven/plan/phase-01-bootstrap.md`, lancer `/implement-version` pour créer la branch et démarrer l'implémentation.
+**Phase 2 — Classifier pipeline + équivalence** : lire `docs/v15-config-driven/plan/phase-02-classifier.md`, implémenter `conf/classifier.py` 6 niveaux + faire passer la golden table.
 
 ## Detailed Tracking
 
