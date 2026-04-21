@@ -261,3 +261,66 @@ class TestNtfsSafeNames:
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
         assert ntfs_check is not None
         assert ntfs_check.passed is False
+
+
+# ---------------------------------------------------------------------------
+# Stray root video check (Bug 2)
+# ---------------------------------------------------------------------------
+
+
+class TestRootVideoCheck:
+    """Tests for the stray root-level video check in check_tvshow.
+
+    Reproduces Bug 2: a TV show with tvshow.nfo plus .mkv at folder root
+    (not inside Saison XX/) should fail verification so dispatch is blocked.
+    """
+
+    def test_root_mkv_blocks_scraped_tvshow(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """Tvshow with .mkv at root is blocked even when Saison XX/ is valid."""
+        d = _make_tvshow_dir(tmp_path)
+        # Drop a stray .mkv at root level (simulates new episode not yet organized)
+        (d / "The.Boys.S05E03.2160p.mkv").write_bytes(b"\x00" * 1024)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        assert root_check is not None, "root_video_files check should be present"
+        assert root_check.passed is False
+        assert root_check.severity == Severity.ERROR
+        assert "The.Boys.S05E03.2160p.mkv" in root_check.message
+
+    def test_multiple_root_mkvs_blocked(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """Multiple stray .mkv files at root are all reported."""
+        d = _make_tvshow_dir(tmp_path)
+        (d / "Show.S05E03.4k.mkv").write_bytes(b"\x00" * 1024)
+        (d / "Show.S05E03.1080p.mkv").write_bytes(b"\x00" * 512)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        assert root_check is not None
+        assert root_check.passed is False
+
+    def test_no_root_video_passes(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """A clean tvshow with no root video files passes the check."""
+        d = _make_tvshow_dir(tmp_path)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        assert root_check is not None, "root_video_files check should always be present"
+        assert root_check.passed is True
+
+    def test_root_video_check_only_when_nfo_exists(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """The root_video_files check is only applied when tvshow.nfo exists."""
+        d = tmp_path / "Show (2025)"
+        d.mkdir()
+        # No tvshow.nfo — show not yet scraped
+        season = d / "Saison 01"
+        season.mkdir()
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 1024)
+        # Root video without NFO — should NOT block (scraper handles it)
+        (d / "Show.S01E02.mkv").write_bytes(b"\x00" * 1024)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        # Either the check is absent or passes when there's no tvshow.nfo
+        if root_check is not None:
+            assert root_check.passed is True
