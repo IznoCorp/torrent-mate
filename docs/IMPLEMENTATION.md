@@ -22,13 +22,13 @@
 | 5     | CLI integration — top-level --config + eager load   | [x]    | 2026-04-21  |
 | 6     | Settings allégé + Dispatch refactor                 | [x]    | 2026-04-21  |
 | 7     | Scraper refactor — classifier + TMDB keywords + NFO | [x]    | 2026-04-21  |
-| 8     | Library refactor — prefs fusion + IDs               | [ ]    |             |
+| 8     | Library refactor — prefs fusion + IDs               | [x]    | 2026-04-21  |
 | 9     | Verify/Enforce/Sorter + Tests refactor              | [ ]    |             |
 | 10    | Documentation + finalization + PR                   | [ ]    |             |
 
 ## Next Action
 
-**Phase 8 — sous-phase 8.1** : Supprimer `library/preferences.py` (fusionné dans `conf/models.py::LibraryPrefs`). Phases 5, 6, 7 toutes complètes (1712 tests passent). Commencer P8.1 selon `docs/v15-config-driven/plan/phase-08-library.md`.
+**Phase 9 — sous-phase 9.1** : Verify/Enforce/Sorter refactor + tests. 1698 tests passent. Commencer selon `docs/v15-config-driven/plan/phase-09-verify.md`.
 
 ## Detailed Tracking
 
@@ -94,6 +94,17 @@
 - [x] 6.5 Migrate all Settings.disk/paths consumers to Config — `pipeline.py`, `dispatch/run.py`, `scraper/run.py`, `sorter/run.py`, `cli.py` (library commands) — commit `v15.6.5`
 
 **Test counts:** 1670 passed (suite complète stable). mypy: 0 erreurs sur les 5 modules touchés; 42 erreurs restantes dans des modules hors-scope P6.5.
+
+### Phase 8 — Library refactor : prefs fusion + IDs (DONE 2026-04-21)
+
+- [x] 8.1 Supprimer `library/preferences.py` — fusionné dans `conf/models.py::LibraryPrefs` + imports réécrits
+- [x] 8.2 `library/scanner.py` : V15 Config-driven, category_id IDs, `TV_CATEGORY_IDS` + `MOVIE_CATEGORY_IDS` dans `conf/ids.py`
+- [x] 8.3 `library/{validator,analyzer,recommender}` : `_SERIES_FOLDER_NAMES` local, TODO P8.3 annotations
+- [x] 8.4 `library/rescraper.py` : `_SERIES_FOLDER_NAMES` local, TODO P8.4 annotation
+- [x] 8.5 `library/disk_cleaner.py` : itère `config.disks`, `clean_library(config, ...)` V15 API, tests réécrits
+- [x] 8.6 Suppression `library_preferences.json` usage — tout via `config.library` (déjà fait en P8.1/cli.py)
+
+**Test counts:** 1698 passed, 3 skipped (full suite).
 
 ---
 
