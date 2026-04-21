@@ -25,7 +25,7 @@ class VerifyResult:
     Attributes:
         media_path: Path to the media directory.
         media_type: "movie" or "tvshow".
-        category: Dispatch category (e.g. "films", "series animes").
+        category: Dispatch category ID (e.g. ``"movies"``, ``"anime"``).
         status: "valid" (no issues), "fixed" (issues corrected),
             or "blocked" (unresolvable errors).
         errors: Remaining blocking error messages.

@@ -152,20 +152,24 @@ def _check_genre_coherence(nfo_path: Path, result: CoherenceResult) -> None:
     """Check whether the NFO genre suggests a different target category.
 
     Uses GenreMapper.categorize_from_nfo() to determine the implied category.
-    If the genre implies "emissions" but the item is in TVSHOWS (series), a
-    warning is emitted so the operator can review and re-categorise manually.
+    If the genre implies a TV_PROGRAMS category (V14: "emissions") but the item
+    is in the default TVSHOWS bucket, a warning is emitted so the operator can
+    review and re-categorise manually.
 
     Args:
         nfo_path: Path to the tvshow NFO file.
         result: CoherenceResult to append warnings and checks to (mutated).
     """
+    # V14 label returned by genre_mapper; mapped to CID.TV_PROGRAMS in V15.
+    _V14_TV_PROGRAMS_LABEL = "emissions"
+
     try:
         from personalscraper.genre_mapper import GenreMapper
 
         mapper = GenreMapper()
         category = mapper.categorize_from_nfo(nfo_path, media_type="tvshow")
-        if category and category == "emissions":
-            result.warnings.append(f"Genre suggests 'emissions' not 'series' for {result.path.name}")
+        if category and category == _V14_TV_PROGRAMS_LABEL:
+            result.warnings.append(f"Genre suggests TV program (emissions) not series for {result.path.name}")
     except (ET.ParseError, OSError, ValueError, ImportError) as exc:
         logger.warning("Genre check failed for %s: %s", nfo_path.name, exc)
         result.warnings.append(f"Genre check failed: {exc}")

@@ -526,18 +526,16 @@ def library_scan(
         personalscraper library-scan --disk Disk1
         personalscraper library-scan --category films
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.scanner import scan_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
-    disk_configs = get_disk_configs(config)
 
     console.print("[bold]Scanning library...[/bold]")
     result = scan_library(
-        disk_configs,
+        config.disks,
         config=config,
         disk_filter=disk,
         category_filter=category_id,
@@ -570,7 +568,6 @@ def library_clean(
         personalscraper library-clean --apply --only actors
         personalscraper library-clean --disk Disk1
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.disk_cleaner import clean_library
 
     category_id = _resolve_category(ctx, category)
@@ -583,8 +580,6 @@ def library_clean(
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
 
-    disk_configs = get_disk_configs(config)
-
     # Acquire lock only when applying changes
     if apply:
         if not acquire_lock():
@@ -596,7 +591,7 @@ def library_clean(
         console.print(f"[bold]Cleaning library ({mode})...[/bold]")
 
         result = clean_library(
-            disk_configs,
+            config,
             apply=apply,
             only=only,
             disk_filter=disk,
@@ -641,14 +636,12 @@ def library_validate(
         personalscraper library-validate --disk Disk1
         personalscraper library-validate --fix --apply
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.validator import validate_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
-    disk_configs = get_disk_configs(config)
 
     if apply and not fix:
         console.print("[red]--apply requires --fix[/red]")
@@ -662,7 +655,7 @@ def library_validate(
     try:
         console.print("[bold]Validating library...[/bold]")
         result = validate_library(
-            disk_configs,
+            config,
             disk_filter=disk,
             category_filter=category_id,
             fix=fix,
@@ -708,14 +701,12 @@ def library_analyze(
         personalscraper library-analyze --disk Disk2 --category series
         personalscraper library-analyze --max-items 50
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.analyzer import analyze_library
     from personalscraper.library.models import read_json, write_json
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
-    disk_configs = get_disk_configs(config)
 
     # Load existing analysis for incremental mode (compare size_gb with tolerance)
     existing: dict[str, float] = {}
@@ -734,7 +725,7 @@ def library_analyze(
 
     console.print("[bold]Analyzing library (ffprobe)...[/bold]")
     result = analyze_library(
-        disk_configs,
+        config,
         disk_filter=disk,
         category_filter=category_id,
         incremental=incremental,
@@ -876,7 +867,6 @@ def library_rescrape(
         personalscraper library-rescrape --disk Disk1 --max-items 50
         personalscraper library-rescrape --interactive
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.rescraper import rescrape_library
 
@@ -884,7 +874,6 @@ def library_rescrape(
     console = state["console"]
     config = ctx.obj.config
     settings = get_settings()
-    disk_configs = get_disk_configs(config)
 
     valid_only = {"nfo", "artwork", "episodes"}
     if only and only not in valid_only:
@@ -901,7 +890,7 @@ def library_rescrape(
         console.print(f"[bold]Rescraping library ({mode})...[/bold]")
 
         result = rescrape_library(
-            disk_configs,
+            config,
             settings,
             disk_filter=disk,
             category_filter=category_id,

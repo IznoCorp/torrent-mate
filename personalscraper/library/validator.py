@@ -3,6 +3,9 @@
 Wraps existing verify/checker.py checks for use on storage disks.
 Supports --fix mode for local corrections (empty dirs, NTFS names, dir naming).
 Distinction with enforce: enforce = staging (A TRIER/), validate = library (Disk1-4).
+
+In V15, ``validate_library`` accepts a ``Config`` object and resolves folder names
+from ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
 """
 
 from __future__ import annotations
@@ -13,8 +16,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from personalscraper.dispatch.disk_scanner import DiskConfig
+    from personalscraper.conf.models import Config
 
+from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.genre_mapper import GenreMapper
 from personalscraper.library.models import (
     LibraryValidationResult,
@@ -102,7 +106,7 @@ def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
 
 
 def validate_library(
-    disk_configs: list[DiskConfig],
+    config: Config,
     disk_filter: str | None = None,
     category_filter: str | None = None,
     fix: bool = False,
@@ -110,10 +114,14 @@ def validate_library(
 ) -> LibraryValidationResult:
     """Validate all library items on storage disks.
 
+    Iterates ``config.disks``, resolves folder names from
+    ``config.category(id).folder_name``, and validates media directories.
+    TV detection uses ``TV_CATEGORY_IDS`` from ``conf/ids``.
+
     Args:
-        disk_configs: List of DiskConfig objects.
-        disk_filter: Only validate this disk. None = all.
-        category_filter: Only validate this category. None = all.
+        config: V15 Config with disk and category definitions.
+        disk_filter: Only validate this disk (by disk.id). None = all.
+        category_filter: Only validate this category_id. None = all.
         fix: If True, attempt to fix locally fixable issues.
         apply: If True (with fix), actually execute fixes. False = dry-run.
 
@@ -129,26 +137,25 @@ def validate_library(
     issues_count = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
-    for config in disk_configs:
-        if disk_filter and config.name != disk_filter:
+    for disk in config.disks:
+        if disk_filter and disk.id != disk_filter:
             continue
-        if not config.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
+        if not disk.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
             continue
 
-        for category_dir in sorted(config.path.iterdir()):
+        for category_id in disk.categories:
+            if category_filter and category_id != category_filter:
+                continue
+
+            # Resolve physical folder name from config
+            cat_cfg = config.category(category_id)
+            category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                continue
-            if category_dir.name not in config.categories:
-                continue
-            if category_filter and category_dir.name != category_filter:
+                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
                 continue
 
-            # TODO P8.3: replace with TV_CATEGORY_IDS check once validator is migrated to V15 Config
-            _series_folder_names = frozenset(
-                {"series", "series animations", "series documentaires", "series animes", "emissions"}
-            )
-            is_series = category_dir.name in _series_folder_names
+            is_series = category_id in TV_CATEGORY_IDS
 
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
@@ -166,8 +173,8 @@ def validate_library(
                     items.append(
                         ValidationItem(
                             path=str(media_dir),
-                            disk=config.name,
-                            category=category_dir.name,
+                            disk=disk.id,
+                            category=category_id,
                             media_type="tvshow" if is_series else "movie",
                             title=title,
                             year=year,
@@ -228,8 +235,8 @@ def validate_library(
                 items.append(
                     ValidationItem(
                         path=str(media_dir),
-                        disk=config.name,
-                        category=category_dir.name,
+                        disk=disk.id,
+                        category=category_id,
                         media_type="tvshow" if is_series else "movie",
                         title=title,
                         year=year,

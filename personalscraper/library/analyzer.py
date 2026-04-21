@@ -2,6 +2,10 @@
 
 Most I/O-intensive library command. Designed for off-peak scheduling.
 Supports --incremental to skip already-analyzed files.
+
+In V15, ``analyze_library`` accepts a ``Config`` object and resolves folder
+names from ``config.category(id).folder_name``. TV detection uses
+``TV_CATEGORY_IDS`` from ``conf/ids``.
 """
 
 from __future__ import annotations
@@ -12,8 +16,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from personalscraper.dispatch.disk_scanner import DiskConfig
+    from personalscraper.conf.models import Config
 
+from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.library.models import (
     AudioTrack,
     LibraryAnalysisItem,
@@ -24,21 +29,6 @@ from personalscraper.library.models import (
 )
 from personalscraper.library.scanner import _VIDEO_EXTENSIONS, parse_title_year
 from personalscraper.scraper.mediainfo import extract_stream_info
-
-# TODO P8.3: analyzer.py still uses V14 DiskConfig mocks with folder-name categories.
-# _SERIES_CATEGORIES (V14 FR labels) was removed from scanner.py in P8.2.
-# Replaced by TV_CATEGORY_IDS (IDs) — analyzer.py will be fully migrated in P8.3.
-# For now, keep the category_dir-based logic working by checking the folder name
-# against a hardcoded set mirroring V14 series categories.
-_SERIES_FOLDER_NAMES = frozenset(
-    {
-        "series",
-        "series animations",
-        "series documentaires",
-        "series animes",
-        "emissions",
-    }
-)
 
 logger = logging.getLogger(__name__)
 
@@ -79,78 +69,95 @@ def deduce_audio_profile(
     if lang in _FRENCH_CODES:
         return "vf"
 
-    # Non-French audio — check subtitles for VOSTFR
-    sub_langs = {t.get("language", "und") for t in subtitle_tracks}
-    if sub_langs & _FRENCH_CODES:
+    # Check subtitles for VOSTFR
+    sub_languages = {s.get("language", "und") for s in subtitle_tracks}
+    if sub_languages & _FRENCH_CODES:
         return "vostfr"
 
     return "vo"
 
 
-def _analyze_video_file(
-    video_path: Path,
-) -> MediaFileAnalysis | None:
-    """Analyze a single video file with ffprobe.
+def _analyze_video_file(path: Path) -> MediaFileAnalysis | None:
+    """Run ffprobe on a single video file and return analysis.
 
     Args:
-        video_path: Path to the video file.
+        path: Path to the video file.
 
     Returns:
-        MediaFileAnalysis or None if ffprobe fails.
+        MediaFileAnalysis if ffprobe succeeds, None on failure.
     """
-    info = extract_stream_info(video_path)
-    if info is None:
-        logger.warning("ffprobe failed for %s", video_path)
-        return None
-
-    vid = info["video"]
-    video = VideoInfo(
-        codec=vid["codec"],
-        width=vid["width"],
-        height=vid["height"],
-        bitrate_kbps=vid.get("bitrate_kbps"),
-        hdr=vid.get("hdr", {}).get("is_hdr", False),
-        hdr_type=vid.get("hdr", {}).get("hdr_type"),
-    )
-
-    audio_tracks = [
-        AudioTrack(
-            codec=t["codec"],
-            language=t["language"],
-            channels=t["channels"],
-            is_atmos=t.get("is_atmos", False),
-            is_default=t.get("is_default", False),
-        )
-        for t in info.get("audio", [])
-    ]
-
-    subtitle_tracks = [
-        SubtitleTrack(
-            language=t["language"],
-            format=t.get("format", "unknown"),
-            forced=t.get("forced", False),
-            is_default=t.get("is_default", False),
-        )
-        for t in info.get("subtitle", [])
-    ]
-
-    audio_profile = deduce_audio_profile(info.get("audio", []), info.get("subtitle", []))
-    sub_languages = sorted({t["language"] for t in info.get("subtitle", [])})
-
     try:
-        size_gb = video_path.stat().st_size / (1024**3)
+        size_gb = round(path.stat().st_size / (1024**3), 3)
     except OSError:
         size_gb = 0.0
 
+    try:
+        info = extract_stream_info(path)
+    except Exception as exc:
+        logger.warning("ffprobe failed for %s: %s", path, exc)
+        return None
+
+    if not info:
+        return None
+
+    video_stream = info.get("video")
+    audio_streams = info.get("audio", [])
+    subtitle_streams = info.get("subtitles", [])
+
+    if not video_stream:
+        return None
+
+    # Build AudioTrack objects
+    audio_tracks = []
+    for a in audio_streams:
+        audio_tracks.append(
+            AudioTrack(
+                codec=a.get("codec", ""),
+                language=a.get("language", "und"),
+                channels=a.get("channels", 2),
+                is_atmos=a.get("is_atmos", False),
+                is_default=a.get("is_default", False),
+            )
+        )
+
+    # Build SubtitleTrack objects
+    subtitle_tracks = []
+    for s in subtitle_streams:
+        subtitle_tracks.append(
+            SubtitleTrack(
+                language=s.get("language", "und"),
+                format=s.get("format", "unknown"),
+                forced=s.get("forced", False),
+                is_default=s.get("is_default", False),
+            )
+        )
+
+    raw_audio = [{"language": a.language} for a in audio_tracks]
+    raw_subs = [{"language": s.language} for s in subtitle_tracks]
+    audio_profile = deduce_audio_profile(raw_audio, raw_subs)
+
+    duration_seconds = info.get("duration_seconds")
+
+    hdr_info = video_stream.get("hdr", {})
+    hdr = bool(hdr_info)
+    hdr_type = hdr_info.get("type") if isinstance(hdr_info, dict) else None
+
     return MediaFileAnalysis(
-        path=str(video_path),
-        size_gb=round(size_gb, 3),
-        duration_seconds=info.get("duration_seconds"),
-        video=video,
+        path=str(path),
+        size_gb=size_gb,
+        duration_seconds=duration_seconds,
+        video=VideoInfo(
+            codec=video_stream.get("codec", ""),
+            width=video_stream.get("width", 0),
+            height=video_stream.get("height", 0),
+            bitrate_kbps=video_stream.get("bitrate_kbps"),
+            hdr=hdr,
+            hdr_type=hdr_type,
+        ),
         audio_tracks=audio_tracks,
         subtitle_tracks=subtitle_tracks,
         audio_profile=audio_profile,
-        subtitle_languages=sub_languages,
+        subtitle_languages=[s.language for s in subtitle_tracks],
         analyzed_at=datetime.now(tz=timezone.utc).isoformat(),
     )
 
@@ -171,7 +178,7 @@ def _file_size_bytes(path: Path) -> int:
 
 
 def analyze_library(
-    disk_configs: list[DiskConfig],
+    config: Config,
     disk_filter: str | None = None,
     category_filter: str | None = None,
     incremental: bool = False,
@@ -180,10 +187,14 @@ def analyze_library(
 ) -> LibraryAnalysisResult:
     """Analyze all video files in the library with ffprobe.
 
+    Iterates ``config.disks``, resolves folder names from
+    ``config.category(id).folder_name``, and analyzes media files.
+    TV detection uses ``TV_CATEGORY_IDS`` from ``conf/ids``.
+
     Args:
-        disk_configs: List of DiskConfig objects.
-        disk_filter: Only analyze this disk. None = all.
-        category_filter: Only analyze this category. None = all.
+        config: V15 Config with disk and category definitions.
+        disk_filter: Only analyze this disk (by disk.id). None = all.
+        category_filter: Only analyze this category_id. None = all.
         incremental: Skip files whose size_gb hasn't changed since last analysis.
         existing_sizes: Dict of path -> size_gb from previous analysis.
         max_items: Maximum number of media items to analyze. None = unlimited.
@@ -197,22 +208,25 @@ def analyze_library(
     start = datetime.now(tz=timezone.utc).isoformat()
     existing = existing_sizes or {}
 
-    for config in disk_configs:
-        if disk_filter and config.name != disk_filter:
+    for disk in config.disks:
+        if disk_filter and disk.id != disk_filter:
             continue
-        if not config.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
+        if not disk.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
             continue
 
-        for category_dir in sorted(config.path.iterdir()):
+        for category_id in disk.categories:
+            if category_filter and category_id != category_filter:
+                continue
+
+            # Resolve physical folder name from config
+            cat_cfg = config.category(category_id)
+            category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                continue
-            if category_dir.name not in config.categories:
-                continue
-            if category_filter and category_dir.name != category_filter:
+                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
                 continue
 
-            is_series = category_dir.name in _SERIES_FOLDER_NAMES  # TODO P8.3: use TV_CATEGORY_IDS
+            is_series = category_id in TV_CATEGORY_IDS
 
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
@@ -254,8 +268,8 @@ def analyze_library(
                     items.append(
                         LibraryAnalysisItem(
                             path=str(media_dir),
-                            disk=config.name,
-                            category=category_dir.name,
+                            disk=disk.id,
+                            category=category_id,
                             media_type="tvshow" if is_series else "movie",
                             title=title,
                             year=year,
