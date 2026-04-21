@@ -18,6 +18,8 @@ from typing import Any, cast
 
 import requests
 
+from personalscraper.conf import classifier as _classifier
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -33,6 +35,7 @@ from personalscraper.scraper.episode_manager import (
     match_episode_files,
     rename_episodes,
 )
+from personalscraper.scraper.keywords_cache import KeywordsCache
 from personalscraper.scraper.mediainfo import extract_stream_info
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
@@ -113,11 +116,13 @@ class ScrapeResult:
         media_path: Path to the media directory.
         media_type: Type of media ("movie" or "tvshow").
         match: Matched API result, or None if no match.
+        category_id: V15 category ID from classifier.classify(), or None.
         nfo_written: Whether an NFO file was written.
         artwork_downloaded: List of downloaded artwork filenames.
         episodes_renamed: Number of episodes renamed (0 for movies).
         action: Result action ("scraped", "skipped_low_confidence",
-            "skipped_already_done", "artwork_recovered", "error").
+            "skipped_already_done", "artwork_recovered", "error",
+            "skipped_no_category").
         error: Error message if action is "error".
         warnings: Non-fatal issues (e.g. artwork download failure).
     """
@@ -125,6 +130,7 @@ class ScrapeResult:
     media_path: Path
     media_type: str
     match: MatchResult | None = None
+    category_id: str | None = None
     nfo_written: bool = False
     artwork_downloaded: list[str] = field(default_factory=list)
     episodes_renamed: int = 0
@@ -291,6 +297,7 @@ class Scraper:
 
     Attributes:
         settings: Pipeline configuration.
+        config: V15 Config for classification and keyword rules.
         patterns: Naming patterns for file generation.
         dry_run: If True, log operations without writing files.
         interactive: If True, prompt user for ambiguous matches.
@@ -302,6 +309,7 @@ class Scraper:
         patterns: NamingPatterns,
         dry_run: bool = False,
         interactive: bool = False,
+        config: Config | None = None,
     ):
         """Initialize the scraper with API clients and helpers.
 
@@ -310,8 +318,12 @@ class Scraper:
             patterns: MediaElch-compatible naming patterns.
             dry_run: If True, preview operations without writing.
             interactive: If True, prompt for ambiguous matches.
+            config: V15 Config for classification rules and paths. When provided,
+                classifier.classify() is called for every scraped item to assign
+                a category_id. When None, classification is skipped (legacy mode).
         """
         self.settings = settings
+        self.config = config
         self.patterns = patterns
         self.dry_run = dry_run
         self.interactive = interactive
@@ -334,6 +346,101 @@ class Scraper:
             dry_run=dry_run,
             artwork_language=settings.artwork_language,
         )
+
+        # Classification helpers — only set up when config is provided.
+        # _needs_keywords caches whether any category_rule uses tmdb_keyword so
+        # the /keywords endpoint is only called when actually required.
+        if config is not None:
+            self._keywords_cache: KeywordsCache | None = KeywordsCache(config.paths.data_dir)
+            self._needs_keywords: bool = any(rule.tmdb_keyword is not None for rule in config.category_rules)
+        else:
+            self._keywords_cache = None
+            self._needs_keywords = False
+
+    def _classify_item(
+        self,
+        media_type: str,
+        path: Path,
+        title: str,
+        api_data: dict[str, Any],
+        tmdb_id: int | None,
+        nfo_path: Path | None = None,
+    ) -> str | None:
+        """Classify a media item using the V15 classifier pipeline.
+
+        Fetches TMDB keywords first (using cache) when any category_rule uses
+        ``tmdb_keyword``, then delegates to ``classifier.classify()``.
+
+        Returns ``None`` when no config is set (legacy mode — classification
+        is skipped) or when ``classify()`` returns ``None`` (unreachable in
+        practice since defaults are always configured).
+
+        Args:
+            media_type: ``"movie"`` or ``"tv"`` (TMDB API convention).
+            path: Source path of the media item.
+            title: Resolved media title string.
+            api_data: Full TMDB movie/show details dict.
+            tmdb_id: TMDB numeric ID (used for /keywords fetch).
+            nfo_path: Optional path to an existing NFO for priority-1 override.
+
+        Returns:
+            category_id string, or ``None`` if classification was skipped or
+            produced no result.
+        """
+        if self.config is None:
+            return None
+
+        # Fetch TMDB keywords (via cache) only when needed
+        tmdb_keywords: list[str] = []
+        if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
+            cached = self._keywords_cache.get(tmdb_id, media_type)  # type: ignore[arg-type]
+            if cached is None:
+                fetched = self._tmdb.get_keywords(tmdb_id, media_type)  # type: ignore[arg-type]
+                self._keywords_cache.set(tmdb_id, media_type, fetched)  # type: ignore[arg-type]
+                tmdb_keywords = fetched
+            else:
+                tmdb_keywords = cached
+
+        # Extract genre data from TMDB API response
+        genres_raw = api_data.get("genres", [])
+        tmdb_genres = [g["name"] for g in genres_raw if isinstance(g, dict) and g.get("name")]
+        tmdb_genre_ids = [g["id"] for g in genres_raw if isinstance(g, dict) and g.get("id") is not None]
+
+        # Origin country (list for movies, list for TV shows)
+        origin_country: list[str] = []
+        raw_oc = api_data.get("origin_country") or api_data.get("production_countries") or []
+        if isinstance(raw_oc, list):
+            for item in raw_oc:
+                if isinstance(item, str):
+                    origin_country.append(item)
+                elif isinstance(item, dict):
+                    code = item.get("iso_3166_1") or item.get("iso_639_1")
+                    if code:
+                        origin_country.append(str(code))
+
+        category_id, reason = _classifier.classify(
+            self.config,
+            media_type=media_type,  # type: ignore[arg-type]
+            path=path,
+            title=title,
+            tmdb_genres=tmdb_genres or None,
+            tmdb_genre_ids=tmdb_genre_ids or None,
+            tmdb_keywords=tmdb_keywords or None,
+            origin_country=origin_country or None,
+            nfo_path=nfo_path,
+        )
+
+        if category_id is None:
+            logger.warning(
+                "No category matched for %s (%s) — reason: %s",
+                title,
+                media_type,
+                reason,
+            )
+            return None
+
+        logger.debug("Classified %s as %s (via %s)", title, category_id, reason)
+        return category_id
 
     def _resolve_title(
         self,
@@ -902,6 +1009,22 @@ class Scraper:
                     logger.info("[DRY RUN] Would rename video: %s → %s", video_file.name, clean_video_name)
             stream_info = extract_stream_info(video_file)
 
+        # Classify item (V15 pipeline) — must run before NFO write so the
+        # category_id can be embedded in the NFO by nfo_generator (P7.4).
+        category_id = self._classify_item(
+            media_type="movie",
+            path=movie_dir,
+            title=title,
+            api_data=movie_data,
+            tmdb_id=match.api_id,
+            nfo_path=nfo_path if nfo_path.exists() else None,
+        )
+        result.category_id = category_id
+        if category_id is None and self.config is not None:
+            # Config is present but no category matched — skip this item
+            result.action = "skipped_no_category"
+            return result
+
         # Generate and write NFO
         try:
             xml = self._nfo.generate_movie_nfo(movie_data, stream_info)
@@ -1139,10 +1262,28 @@ class Scraper:
                 action = "merge into" if new_dir.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, title, canonical)
 
+        # Classify item (V15 pipeline) — must run before NFO write so the
+        # category_id can be embedded in the NFO by nfo_generator (P7.4).
+        # For TV shows matched via TVDB the source TMDB ID may differ from
+        # match.api_id — use tmdb_id which was resolved above.
+        nfo_path = show_dir / self.patterns.tvshow_nfo
+        category_id = self._classify_item(
+            media_type="tv",
+            path=show_dir,
+            title=resolved_title,
+            api_data=show_data,
+            tmdb_id=tmdb_id,
+            nfo_path=nfo_path if nfo_path.exists() else None,
+        )
+        result.category_id = category_id
+        if category_id is None and self.config is not None:
+            # Config is present but no category matched — skip this item
+            result.action = "skipped_no_category"
+            return result
+
         # Generate tvshow.nfo
         try:
             xml = self._nfo.generate_tvshow_nfo(show_data)
-            nfo_path = show_dir / self.patterns.tvshow_nfo
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True

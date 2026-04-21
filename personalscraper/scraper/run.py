@@ -10,6 +10,7 @@ Lock is acquired at the CLI level, not here.
 import logging
 from pathlib import Path
 
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
@@ -131,6 +132,7 @@ def run_scrape(
     interactive: bool = False,
     movies_only: bool = False,
     tvshows_only: bool = False,
+    config: Config | None = None,
 ) -> StepReport:
     """Run the scrape pipeline step.
 
@@ -145,6 +147,10 @@ def run_scrape(
         interactive: If True, prompt user for ambiguous matches.
         movies_only: If True, process only 001-MOVIES/.
         tvshows_only: If True, process only 002-TVSHOWS/.
+        config: Optional V15 Config for classifier-based categorisation. When
+            provided, each scraped item is classified and ``ScrapeResult.category_id``
+            is set. Items with no matching category are skipped. When None, the
+            scraper runs in legacy mode (no classification).
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -170,6 +176,7 @@ def run_scrape(
         patterns=PATTERNS,
         dry_run=dry_run,
         interactive=interactive,
+        config=config,
     )
 
     all_results: list[ScrapeResult] = []
