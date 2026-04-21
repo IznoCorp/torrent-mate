@@ -157,6 +157,82 @@ def classify(
     return None, "no_match"
 
 
+def classify_from_nfo(
+    config: Config,
+    nfo_path: Path,
+    media_type: str,
+) -> tuple[str | None, str]:
+    """Classify a media item by parsing its NFO file.
+
+    This is the V15 replacement for V14's ``GenreMapper.categorize_from_nfo``.
+    It extracts genres and origin_country from the NFO, then delegates to
+    :func:`classify`. The ``media_type`` argument accepts the V14 convention
+    ``"tvshow"`` in addition to V15's ``"tv"`` for a drop-in migration.
+
+    A legacy sibling ``.category`` file is also honored — its content is
+    translated from a V14 label (e.g. ``"films"``) to a V15 ID (``"movies"``)
+    via :data:`conf.migration.V14_LABEL_TO_ID`. The ``.category`` mechanism
+    remains supported so existing user-tagged folders (spectacles, théâtre)
+    keep their manual classification without requiring NFO edits.
+
+    Args:
+        config: Validated Config instance.
+        nfo_path: Path to the NFO file to classify from.
+        media_type: ``"movie"`` or ``"tvshow"`` (V14) or ``"tv"`` (V15).
+
+    Returns:
+        A ``(category_id, reason)`` tuple. ``category_id`` is either a V15 ID
+        present in ``config.all_category_ids`` or ``None``. ``reason`` is a
+        short human-readable tag (``"category_file"``, ``"nfo_parse_error"``,
+        or the reason produced by :func:`classify`).
+    """
+    # Legacy V14 .category override — translate to V15 ID if needed.
+    category_file = nfo_path.parent / ".category"
+    if category_file.is_file():
+        try:
+            content = category_file.read_text(encoding="utf-8").strip().lower()
+        except OSError as exc:
+            logger.warning("Failed to read .category in %s: %s", nfo_path.parent.name, exc)
+            content = ""
+        if content:
+            # Import locally to avoid cycle (migration imports from conf).
+            from personalscraper.conf.migration import V14_LABEL_TO_ID
+
+            v15_id = V14_LABEL_TO_ID.get(content, content)
+            if v15_id in config.all_category_ids:
+                return v15_id, "category_file"
+            logger.warning(
+                "Invalid .category content '%s' in %s (not a V14 label nor V15 ID)",
+                content,
+                nfo_path.parent.name,
+            )
+
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314
+    except (ET.ParseError, OSError) as exc:
+        logger.warning("Failed to parse NFO %s: %s", nfo_path.name, exc)
+        return None, "nfo_parse_error"
+
+    genres = [g.text for g in root.findall("genre") if g.text]
+    country_elem = root.find("country")
+    country = country_elem.text if country_elem is not None and country_elem.text else None
+    origin_country = [country] if country else None
+    title_elem = root.find("title")
+    title = title_elem.text if title_elem is not None and title_elem.text else None
+
+    normalized: MediaType = "tv" if media_type == "tvshow" else "movie"
+
+    return classify(
+        config,
+        media_type=normalized,
+        path=nfo_path.parent,
+        title=title,
+        tmdb_genres=genres,
+        origin_country=origin_country,
+        nfo_path=nfo_path,
+    )
+
+
 def _read_nfo_category(nfo_path: Path) -> str | None:
     """Read a ``<category>`` element from an NFO file.
 
