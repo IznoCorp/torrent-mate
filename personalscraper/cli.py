@@ -478,6 +478,7 @@ def run(
 @app.command()
 @handle_cli_errors
 def library_scan(
+    ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Scan only this disk (Disk1-4)"),
     category: str = typer.Option(None, "--category", help="Scan only this category"),
 ) -> None:
@@ -495,6 +496,7 @@ def library_scan(
     from personalscraper.library.models import write_json
     from personalscraper.library.scanner import scan_library
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -515,6 +517,7 @@ def library_scan(
 @app.command()
 @handle_cli_errors
 def library_clean(
+    ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
     only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
     disk: str = typer.Option(None, "--disk", help="Clean only this disk (Disk1-4)"),
@@ -535,6 +538,7 @@ def library_clean(
     from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.disk_cleaner import clean_library
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
 
@@ -586,6 +590,7 @@ def library_clean(
 @app.command()
 @handle_cli_errors
 def library_validate(
+    ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
     category: str = typer.Option(None, "--category", help="Validate only this category"),
     fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
@@ -605,6 +610,7 @@ def library_validate(
     from personalscraper.library.models import write_json
     from personalscraper.library.validator import validate_library
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -651,6 +657,7 @@ def library_validate(
 @app.command()
 @handle_cli_errors
 def library_analyze(
+    ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
     category: str = typer.Option(None, "--category", help="Analyze only this category"),
     incremental: bool = typer.Option(False, "--incremental", help="Skip already-analyzed files"),
@@ -670,6 +677,7 @@ def library_analyze(
     from personalscraper.library.analyzer import analyze_library
     from personalscraper.library.models import read_json, write_json
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -709,6 +717,7 @@ def library_analyze(
 @app.command()
 @handle_cli_errors
 def library_recommend(
+    ctx: typer.Context,
     sort: str = typer.Option("priority", "--sort", help="Sort by: priority, size, codec"),
     export: str = typer.Option(None, "--export", help="Export format: csv"),
     disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
@@ -731,6 +740,7 @@ def library_recommend(
     from personalscraper.library.preferences import LibraryPreferences
     from personalscraper.library.recommender import generate_recommendations
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
 
@@ -817,6 +827,7 @@ def library_recommend(
 @app.command()
 @handle_cli_errors
 def library_rescrape(
+    ctx: typer.Context,
     only: str = typer.Option(None, "--only", help="Only fix: nfo, artwork, episodes"),
     disk: str = typer.Option(None, "--disk", help="Rescrape only this disk"),
     category: str = typer.Option(None, "--category", help="Rescrape only this category"),
@@ -839,6 +850,7 @@ def library_rescrape(
     from personalscraper.library.models import write_json
     from personalscraper.library.rescraper import rescrape_library
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -886,6 +898,7 @@ def library_rescrape(
 @app.command()
 @handle_cli_errors
 def library_report(
+    ctx: typer.Context,
     format: str = typer.Option("text", "--format", help="Output format: text or json"),
 ) -> None:
     """Display library statistics and health report.
@@ -901,6 +914,7 @@ def library_report(
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
+    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
     console = state["console"]
     settings = get_settings()
 
