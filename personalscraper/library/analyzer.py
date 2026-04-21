@@ -22,8 +22,23 @@ from personalscraper.library.models import (
     SubtitleTrack,
     VideoInfo,
 )
-from personalscraper.library.scanner import _SERIES_CATEGORIES, _VIDEO_EXTENSIONS, parse_title_year
+from personalscraper.library.scanner import _VIDEO_EXTENSIONS, parse_title_year
 from personalscraper.scraper.mediainfo import extract_stream_info
+
+# TODO P8.3: analyzer.py still uses V14 DiskConfig mocks with folder-name categories.
+# _SERIES_CATEGORIES (V14 FR labels) was removed from scanner.py in P8.2.
+# Replaced by TV_CATEGORY_IDS (IDs) — analyzer.py will be fully migrated in P8.3.
+# For now, keep the category_dir-based logic working by checking the folder name
+# against a hardcoded set mirroring V14 series categories.
+_SERIES_FOLDER_NAMES = frozenset(
+    {
+        "series",
+        "series animations",
+        "series documentaires",
+        "series animes",
+        "emissions",
+    }
+)
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +212,7 @@ def analyze_library(
             if category_filter and category_dir.name != category_filter:
                 continue
 
-            is_series = category_dir.name in _SERIES_CATEGORIES
+            is_series = category_dir.name in _SERIES_FOLDER_NAMES  # TODO P8.3: use TV_CATEGORY_IDS
 
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):

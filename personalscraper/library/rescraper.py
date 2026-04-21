@@ -31,9 +31,13 @@ from personalscraper.library.models import (
     RescrapeAction,
 )
 from personalscraper.library.scanner import (
-    _SERIES_CATEGORIES,
     extract_nfo_ids,
     parse_title_year,
+)
+
+# TODO P8.3/P8.4: replace with TV_CATEGORY_IDS once rescraper is migrated to V15 Config
+_SERIES_FOLDER_NAMES = frozenset(
+    {"series", "series animations", "series documentaires", "series animes", "emissions"}
 )
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import is_nfo_complete
@@ -466,7 +470,7 @@ def rescrape_library(
             if category_filter and category_dir.name != category_filter:
                 continue
 
-            is_series = category_dir.name in _SERIES_CATEGORIES
+            is_series = category_dir.name in _SERIES_FOLDER_NAMES  # TODO P8.4: use TV_CATEGORY_IDS
             media_type = "tvshow" if is_series else "movie"
 
             for media_dir in sorted(category_dir.iterdir()):

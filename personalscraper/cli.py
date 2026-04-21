@@ -538,6 +538,7 @@ def library_scan(
     console.print("[bold]Scanning library...[/bold]")
     result = scan_library(
         disk_configs,
+        config=config,
         disk_filter=disk,
         category_filter=category_id,
     )

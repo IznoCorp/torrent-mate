@@ -20,6 +20,28 @@ STANDUP: Final[str] = "standup"
 THEATER: Final[str] = "theater"
 TV_PROGRAMS: Final[str] = "tv_programs"
 
+MOVIE_CATEGORY_IDS: Final[frozenset[str]] = frozenset(
+    {
+        MOVIES,
+        MOVIES_ANIMATION,
+        MOVIES_DOCUMENTARY,
+        STANDUP,
+        THEATER,
+    }
+)
+"""Category IDs that contain movie-type media (one video file per item)."""
+
+TV_CATEGORY_IDS: Final[frozenset[str]] = frozenset(
+    {
+        TV_SHOWS,
+        TV_SHOWS_ANIMATION,
+        TV_SHOWS_DOCUMENTARY,
+        ANIME,
+        TV_PROGRAMS,
+    }
+)
+"""Category IDs that contain TV show-type media (season/episode structure)."""
+
 BUILTIN_CATEGORY_IDS: Final[frozenset[str]] = frozenset(
     {
         MOVIES,

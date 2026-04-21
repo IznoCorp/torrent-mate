@@ -20,7 +20,7 @@ from personalscraper.library.models import (
     LibraryValidationResult,
     ValidationItem,
 )
-from personalscraper.library.scanner import _SERIES_CATEGORIES, parse_title_year
+from personalscraper.library.scanner import parse_title_year
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.text_utils import sanitize_filename
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
@@ -144,7 +144,11 @@ def validate_library(
             if category_filter and category_dir.name != category_filter:
                 continue
 
-            is_series = category_dir.name in _SERIES_CATEGORIES
+            # TODO P8.3: replace with TV_CATEGORY_IDS check once validator is migrated to V15 Config
+            _series_folder_names = frozenset(
+                {"series", "series animations", "series documentaires", "series animes", "emissions"}
+            )
+            is_series = category_dir.name in _series_folder_names
 
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):

@@ -84,15 +84,35 @@ def mini_library(tmp_path: Path):
     (show_actors / "Ella Purnell.jpg").write_bytes(b"\x00" * 50)
     (fallout / "empty_release_dir").mkdir()
 
-    # Build config
-    config = MagicMock()
-    config.path = disk
-    config.name = "Disk1"
-    config.categories = ["films", "series"]
+    # Build V15 DiskConfig + Config for scan operations
+    from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
+
+    disk_cfg = DiskConfig(id="disk1", path=disk, categories=["movies", "tv_shows"])
+    v15_config = Config(
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "torrents",
+            staging_dir=tmp_path / "staging",
+            data_dir=tmp_path / ".data",
+        ),
+        disks=[disk_cfg],
+        categories={
+            "movies": CategoryConfig(folder_name="films"),
+            "tv_shows": CategoryConfig(folder_name="series"),
+        },
+    )
+
+    # Build V14-style mock DiskConfig for disk_cleaner / disk_scanner calls
+    # (will be migrated in P8.5)
+    legacy_config = MagicMock()
+    legacy_config.path = disk
+    legacy_config.name = "Disk1"
+    legacy_config.categories = ["films", "series"]
 
     return {
         "disk": disk,
-        "config": config,
+        "config": legacy_config,
+        "v15_config": v15_config,
+        "disk_cfg": disk_cfg,
         "matrix": matrix,
         "incomplete": incomplete,
         "fallout": fallout,
@@ -106,7 +126,7 @@ class TestScanIntegration:
         """Scan should find 2 movies + 1 TV show = 3 items."""
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library([mini_library["config"]])
+        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
 
         assert result.item_count == 3
         titles = {i.title for i in result.items}
@@ -118,7 +138,7 @@ class TestScanIntegration:
         """Scan should detect .actors, junk files, bad naming."""
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library([mini_library["config"]])
+        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
 
         # Matrix: .actors + .DS_Store
         matrix_item = next(i for i in result.items if i.title == "The Matrix")
@@ -129,7 +149,7 @@ class TestScanIntegration:
         """TV show scan should find season structure."""
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library([mini_library["config"]])
+        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
 
         fallout = next(i for i in result.items if i.title == "Fallout")
         assert fallout.seasons is not None
@@ -143,7 +163,7 @@ class TestScanIntegration:
         from personalscraper.library.models import read_json, write_json
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library([mini_library["config"]])
+        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
         json_path = tmp_path / "scan.json"
         write_json(result, json_path)
         data = read_json(json_path)
@@ -248,7 +268,7 @@ class TestReportIntegration:
         from personalscraper.library.scanner import scan_library
 
         # Scan first
-        scan_result = scan_library([mini_library["config"]])
+        scan_result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
         scan_path = tmp_path / "scan.json"
         write_json(scan_result, scan_path)
         scan_data = read_json(scan_path)
@@ -257,7 +277,7 @@ class TestReportIntegration:
         report = generate_report(scan_data=scan_data)
 
         assert report.total_items == 3
-        assert report.items_per_disk["Disk1"] == 3
+        assert report.items_per_disk["disk1"] == 3
         assert report.actors_dir_count == 2  # Matrix + Fallout
         assert report.nfo_valid_count >= 2  # Matrix + Fallout have valid NFOs
 
@@ -271,14 +291,14 @@ class TestFullWorkflow:
         from personalscraper.library.scanner import scan_library
 
         # Initial scan
-        scan1 = scan_library([mini_library["config"]])
+        scan1 = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
         issues1 = sum(len(i.issues) for i in scan1.items)
 
         # Clean
         clean_library([mini_library["config"]], apply=True)
 
         # Rescan
-        scan2 = scan_library([mini_library["config"]])
+        scan2 = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
         issues2 = sum(len(i.issues) for i in scan2.items)
 
         # .actors and .DS_Store issues should be gone
