@@ -23,12 +23,12 @@
 | 6     | Settings allégé + Dispatch refactor                 | [x]    | 2026-04-21  |
 | 7     | Scraper refactor — classifier + TMDB keywords + NFO | [x]    | 2026-04-21  |
 | 8     | Library refactor — prefs fusion + IDs               | [x]    | 2026-04-21  |
-| 9     | Verify/Enforce/Sorter + Tests refactor              | [ ]    |             |
+| 9     | Verify/Enforce/Sorter + Tests refactor              | [x]    | 2026-04-21  |
 | 10    | Documentation + finalization + PR                   | [ ]    |             |
 
 ## Next Action
 
-**Phase 9 — sous-phase 9.1** : Verify/Enforce/Sorter refactor + tests. 1698 tests passent. Commencer selon `docs/v15-config-driven/plan/phase-09-verify.md`.
+**Phase 10 — sous-phase 10.1** : Docs + finalisation + PR. 1702 tests passent.
 
 ## Detailed Tracking
 
@@ -105,6 +105,19 @@
 - [x] 8.6 Suppression `library_preferences.json` usage — tout via `config.library` (déjà fait en P8.1/cli.py)
 
 **Test counts:** 1698 passed, 3 skipped (full suite).
+
+### Phase 9 — Verify/Enforce/Sorter + Tests refactor (DONE 2026-04-21)
+
+- [x] 9.1 `verify/verifier.py` docstring updated; `enforce/coherence_checker.py` V14 label isolated as `_V14_TV_PROGRAMS_LABEL`
+- [x] 9.2 `pipeline.py` uses `config.disks` directly (no `get_disk_configs`); tests updated
+- [x] 9.3 `library/analyzer.py` migrated to V15 Config API (iterate config.disks, TV_CATEGORY_IDS)
+- [x] 9.4 `library/validator.py` migrated to V15 Config API
+- [x] 9.5 `library/rescraper.py` migrated to V15 Config API
+- [x] 9.6 `conftest.py` already exposes `test_config` via `pytest_plugins`
+- [x] 9.7-9.11 Tests migrated for analyzer, validator, validator_fix; pipeline patches removed
+- [x] 9.12 Audit: runtime code (excl. genre_mapper.py, migration.py) has only API params + V14 mapping constants
+
+**Test counts:** 1702 passed, 3 skipped (full suite).
 
 ---
 
