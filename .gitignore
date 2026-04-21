@@ -140,3 +140,6 @@ docs/pipeline-runs/
 # .claude-old/ is a backup — ignore
 .claude-old/
 .personalscraper/
+
+# V15: personal config (paths + preferences, no secrets but gitignored for privacy)
+config.json5
