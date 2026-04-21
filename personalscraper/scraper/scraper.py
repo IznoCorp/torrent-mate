@@ -1027,7 +1027,7 @@ class Scraper:
 
         # Generate and write NFO
         try:
-            xml = self._nfo.generate_movie_nfo(movie_data, stream_info)
+            xml = self._nfo.generate_movie_nfo(movie_data, stream_info, category_id=category_id)
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True
@@ -1283,7 +1283,7 @@ class Scraper:
 
         # Generate tvshow.nfo
         try:
-            xml = self._nfo.generate_tvshow_nfo(show_data)
+            xml = self._nfo.generate_tvshow_nfo(show_data, category_id=category_id)
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True

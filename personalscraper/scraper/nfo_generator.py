@@ -66,15 +66,27 @@ class NFOGenerator:
     including ratings, uniqueids, inline thumbs, streamdetails, and actors.
     """
 
-    def generate_movie_nfo(self, movie_data: dict[str, Any], stream_info: dict[str, Any] | None = None) -> str:
+    def generate_movie_nfo(
+        self,
+        movie_data: dict[str, Any],
+        stream_info: dict[str, Any] | None = None,
+        category_id: str | None = None,
+    ) -> str:
         """Generate a <movie> NFO XML string.
 
         Produces XML matching MediaElch output structure. Fields are mapped
         from TMDB API response format to Kodi NFO format.
 
+        When ``category_id`` is provided, inserts
+        ``<category source="personalscraper">{category_id}</category>``
+        immediately after all ``<genre>`` elements. This element is used by
+        ``classifier._read_nfo_category`` for priority-1 NFO override on
+        subsequent pipeline runs.
+
         Args:
             movie_data: TMDB movie details dict (from get_movie()).
             stream_info: Stream details dict from extract_stream_info(), or None.
+            category_id: V15 category ID to embed in NFO, or None to omit.
 
         Returns:
             UTF-8 XML string with <?xml?> declaration.
@@ -114,6 +126,11 @@ class NFOGenerator:
         # --- Genres ---
         for genre in movie_data.get("genres", []):
             _sub(root, "genre", genre.get("name", ""))
+
+        # --- V15 category (classifier output, written after genres for readability) ---
+        if category_id is not None:
+            cat_elem = _sub(root, "category", category_id)
+            cat_elem.set("source", "personalscraper")
 
         # --- Country ---
         for country in movie_data.get("production_countries", []):
@@ -160,14 +177,23 @@ class NFOGenerator:
             encoding="unicode",
         )
 
-    def generate_tvshow_nfo(self, show_data: dict[str, Any]) -> str:
+    def generate_tvshow_nfo(
+        self,
+        show_data: dict[str, Any],
+        category_id: str | None = None,
+    ) -> str:
         """Generate a <tvshow> NFO XML string matching MediaElch format.
 
         Produces XML with the same tag structure and ordering as MediaElch.
         For TV shows, TMDB is the default uniqueid (unlike movies which use IMDB).
 
+        When ``category_id`` is provided, inserts
+        ``<category source="personalscraper">{category_id}</category>``
+        immediately after all ``<genre>`` elements.
+
         Args:
             show_data: TMDB TV show details dict (from get_tv()).
+            category_id: V15 category ID to embed in NFO, or None to omit.
 
         Returns:
             UTF-8 XML string with <?xml?> declaration.
@@ -240,6 +266,11 @@ class NFOGenerator:
         # --- Genres ---
         for genre in show_data.get("genres", []):
             _sub(root, "genre", genre.get("name", ""))
+
+        # --- V15 category (classifier output, written after genres for readability) ---
+        if category_id is not None:
+            cat_elem = _sub(root, "category", category_id)
+            cat_elem.set("source", "personalscraper")
 
         # --- Tags (from TMDB keywords) ---
         keywords = show_data.get("keywords", {})
