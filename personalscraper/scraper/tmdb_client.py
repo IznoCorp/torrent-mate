@@ -12,7 +12,7 @@ See docs/tenacity-reference.md for retry strategy details.
 """
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -397,3 +397,55 @@ class TMDBClient:
             Full HTTPS URL to the image.
         """
         return f"{self.IMAGE_BASE_URL}/{size}{path}"
+
+    def get_keywords(self, tmdb_id: int, media_type: Literal["movie", "tv"]) -> list[str]:
+        """Fetch keyword names from the TMDB /keywords endpoint.
+
+        Endpoints:
+        - ``GET /movie/{id}/keywords`` → response ``{"id": N, "keywords": [...]}``
+        - ``GET /tv/{id}/keywords``    → response ``{"id": N, "results":  [...]}``
+
+        Each keyword object has the shape ``{"id": N, "name": "..."}``.
+
+        Fail-soft policy:
+        - HTTP 404 (item not found): returns ``[]`` silently.
+        - Timeout / 5xx after retries: returns ``[]`` and logs a warning.
+        - Any other unexpected exception: returns ``[]`` and logs a warning.
+
+        This means callers never need to guard against exceptions from this
+        method, and a TMDB keywords outage does not block the scrape pipeline.
+
+        Args:
+            tmdb_id: TMDB numeric identifier.
+            media_type: ``"movie"`` or ``"tv"``.
+
+        Returns:
+            List of keyword name strings. Empty list on any error or when the
+            item has no keywords.
+        """
+        endpoint = f"/{media_type}/{tmdb_id}/keywords"
+        try:
+            data = self._get(endpoint)
+        except TMDBError as exc:
+            if exc.http_status == 404:
+                return []
+            logger.warning(
+                "TMDB keywords fetch failed for %s/%d (HTTP %d): %s — using empty list",
+                media_type,
+                tmdb_id,
+                exc.http_status,
+                exc.message,
+            )
+            return []
+        except Exception as exc:
+            logger.warning(
+                "TMDB keywords fetch failed for %s/%d: %s — using empty list",
+                media_type,
+                tmdb_id,
+                exc,
+            )
+            return []
+
+        # Movies use "keywords" key; TV shows use "results" key.
+        raw_list = data.get("keywords") or data.get("results") or []
+        return [str(kw["name"]) for kw in raw_list if isinstance(kw, dict) and kw.get("name")]
