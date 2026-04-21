@@ -261,3 +261,136 @@ class TestParserFull:
         prompts = parse_example(FIXTURES_DIR / "example_full.json5")
         for p in prompts:
             assert p.default_value, f"Empty default_value in prompt: {p}"
+
+
+# ---------------------------------------------------------------------------
+# 3.4 — Integration tests: parse_example(config.example.json5) validation
+# ---------------------------------------------------------------------------
+
+
+class TestIntegrationConfigExample:
+    """Integration tests against config.example.json5 (read-only, never modified).
+
+    These tests validate:
+    1. parse_example returns a Prompt per leaf key.
+    2. Each Prompt has a non-empty key_path.
+    3. Documented keys have non-empty comments (majority — not every key in
+       example.json5 has an inline comment; categories without individual
+       comments and some shared-comment genre_mapping keys produce empty
+       comments, which is correct parser behaviour, not a bug).
+    4. Each default_value is a valid JSON5 literal (round-trips via json5.loads).
+    """
+
+    _EXAMPLE_PATH = Path(__file__).parent.parent.parent / "config.example.json5"
+
+    def test_parses_config_example_without_error(self) -> None:
+        """parse_example(config.example.json5) raises no exception."""
+        prompts = parse_example(self._EXAMPLE_PATH)
+        assert isinstance(prompts, list)
+        assert len(prompts) > 0
+
+    def test_produces_prompt_per_leaf_key(self) -> None:
+        """At least one Prompt per top-level section of config.example.json5."""
+        prompts = parse_example(self._EXAMPLE_PATH)
+        paths = {p.key_path for p in prompts}
+        # All top-level leaf keys and representative nested keys must be present
+        required = {
+            "config_version",
+            "paths.torrent_complete_dir",
+            "paths.staging_dir",
+            "paths.data_dir",
+            "custom_categories",
+            "disks[0].id",
+            "disks[0].path",
+            "disks[0].categories",
+            "anime_rule.enabled",
+            "anime_rule.requires_genre_id",
+            "anime_rule.maps_to",
+            "genre_mapping.default_movies_category",
+            "genre_mapping.default_tv_category",
+            "library.video.preferred_codec",
+            "library.audio.profile_priority",
+            "library.subtitles.required_languages",
+            "library.encoding_rules",
+        }
+        missing = required - paths
+        assert not missing, f"Missing key_paths: {sorted(missing)}"
+
+    def test_all_key_paths_are_nonempty_strings(self) -> None:
+        """Every Prompt has a non-empty key_path string."""
+        prompts = parse_example(self._EXAMPLE_PATH)
+        for p in prompts:
+            assert isinstance(p.key_path, str), f"key_path not str: {p}"
+            assert p.key_path, f"Empty key_path: {p}"
+
+    def test_majority_of_prompts_have_comments(self) -> None:
+        """Most keys in config.example.json5 are documented.
+
+        At least 70% of prompts should have a non-empty comment. This reflects
+        that the example file documents all user-facing fields. Some keys (e.g.
+        category folder_name entries, genre_mapping sibling keys sharing one
+        comment) legitimately produce empty comments due to parser reset logic.
+        """
+        prompts = parse_example(self._EXAMPLE_PATH)
+        with_comment = sum(1 for p in prompts if p.comment)
+        ratio = with_comment / len(prompts)
+        assert ratio >= 0.7, f"Only {with_comment}/{len(prompts)} prompts have comments ({ratio:.0%} < 70%)"
+
+    def test_critical_prompts_have_comments(self) -> None:
+        """Critical user-facing fields must have non-empty comments."""
+        prompts = parse_example(self._EXAMPLE_PATH)
+        by_path = {p.key_path: p for p in prompts}
+        critical = [
+            "paths.torrent_complete_dir",
+            "paths.staging_dir",
+            "paths.data_dir",
+            "disks[0].id",
+            "disks[0].path",
+            "disks[0].categories",
+            "anime_rule.requires_genre_id",
+            "anime_rule.maps_to",
+            "library.video.preferred_codec",
+            "library.audio.profile_priority",
+        ]
+        for key in critical:
+            assert key in by_path, f"Key not found: {key!r}"
+            assert by_path[key].comment, f"Missing comment for critical key: {key!r}"
+
+    def test_all_default_values_are_valid_json5_literals(self) -> None:
+        """Every default_value can be parsed as a JSON5 literal.
+
+        Validated by wrapping in ``{"x": <value>}`` and calling json5.loads.
+        """
+        import json5
+
+        prompts = parse_example(self._EXAMPLE_PATH)
+        invalid: list[tuple[str, str, str]] = []
+        for p in prompts:
+            try:
+                json5.loads('{"x": ' + p.default_value + "}")
+            except Exception as exc:
+                invalid.append((p.key_path, p.default_value, str(exc)))
+
+        assert not invalid, f"{len(invalid)} prompts have invalid JSON5 default_value:\n" + "\n".join(
+            f"  {kp!r}: {dv!r} → {err}" for kp, dv, err in invalid
+        )
+
+    def test_genre_mapping_numeric_key_paths(self) -> None:
+        """Genre mapping keys use quoted numeric keys in the key_path."""
+        prompts = parse_example(self._EXAMPLE_PATH)
+        paths = {p.key_path for p in prompts}
+        # Check a few specific genre_mapping entries
+        assert "genre_mapping.tmdb_movies.16" in paths
+        assert "genre_mapping.tmdb_movies.99" in paths
+        assert "genre_mapping.tvdb.27" in paths
+
+    def test_library_codec_lists_are_inline_array_prompts(self) -> None:
+        """Inline array values in library.video are emitted as single Prompts."""
+        prompts = parse_example(self._EXAMPLE_PATH)
+        by_path = {p.key_path: p for p in prompts}
+        # These are inline: fallback_codecs: ["av1"],
+        assert "library.video.fallback_codecs" in by_path
+        assert "library.video.rejected_codecs" in by_path
+        # Default values should be array literals
+        assert by_path["library.video.fallback_codecs"].default_value.startswith("[")
+        assert by_path["library.video.rejected_codecs"].default_value.startswith("[")
