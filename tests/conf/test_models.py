@@ -258,9 +258,7 @@ class TestConfigValidCustomIds:
                 torrent_complete_dir=tmp_path / "c",
                 staging_dir=tmp_path / "s",
             ),
-            disks=[
-                DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])
-            ],
+            disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])],
             custom_categories=["my_custom"],
         )
         assert "my_custom" in cfg.all_category_ids
@@ -273,9 +271,7 @@ class TestConfigValidCustomIds:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 custom_categories=["Bad-ID"],
             )
 
@@ -287,9 +283,7 @@ class TestConfigValidCustomIds:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 custom_categories=[CID.MOVIES],
             )
 
@@ -305,9 +299,7 @@ class TestConfigCrossReferences:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 categories={"ghost_id": CategoryConfig(folder_name="Ghost")},
             )
 
@@ -319,9 +311,7 @@ class TestConfigCrossReferences:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=["ghost_id"])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=["ghost_id"])],
             )
 
     def test_duplicate_disk_ids_rejected(self, tmp_path):
@@ -346,9 +336,7 @@ class TestConfigCrossReferences:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 genre_mapping=GenreMapping(tmdb_movies={16: "ghost_id"}),
             )
 
@@ -360,9 +348,7 @@ class TestConfigCrossReferences:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 category_rules=[CategoryRule(path_contains="/foo/", category="ghost_id")],
             )
 
@@ -374,9 +360,7 @@ class TestConfigCrossReferences:
                     torrent_complete_dir=tmp_path / "c",
                     staging_dir=tmp_path / "s",
                 ),
-                disks=[
-                    DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-                ],
+                disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 unknown_key="surprise",
             )
 
@@ -391,9 +375,7 @@ class TestConfigMethods:
                 torrent_complete_dir=tmp_path / "c",
                 staging_dir=tmp_path / "s",
             ),
-            disks=[
-                DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-            ],
+            disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
             categories={CID.MOVIES: CategoryConfig(folder_name="Films")},
         )
         assert cfg.category(CID.MOVIES).folder_name == "Films"
@@ -458,9 +440,7 @@ class TestConfigMethods:
                 torrent_complete_dir=tmp_path / "c",
                 staging_dir=tmp_path / "s",
             ),
-            disks=[
-                DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])
-            ],
+            disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
             categories={CID.MOVIES: CategoryConfig(folder_name="Films", aliases=["films", "movie"])},
         )
         assert cfg.resolve_category_alias("films") == CID.MOVIES
@@ -478,9 +458,7 @@ class TestConfigMethods:
                 torrent_complete_dir=tmp_path / "c",
                 staging_dir=tmp_path / "s",
             ),
-            disks=[
-                DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])
-            ],
+            disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])],
             custom_categories=["my_custom"],
         )
         assert "my_custom" in cfg.all_category_ids
