@@ -1028,6 +1028,135 @@ class TestRepairTvshowDir:
         scraper._repair_tvshow_dir(show_dir)
         assert orphan.exists()
 
+    def test_root_new_episode_organized_into_season_dir(
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
+    ) -> None:
+        """Root MKV for a NEW episode (not yet in Saison XX/) is renamed and moved.
+
+        Reproduces Bug 1: show has valid tvshow.nfo + Saison 05/ with S05E01-E02,
+        then S05E03.mkv lands at root. The repair should move it to Saison 05/
+        with the proper canonical name.
+        """
+        show_dir = tmp_path / "The Boys (2019)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>'
+        )
+        s05 = show_dir / "Saison 05"
+        s05.mkdir()
+        (s05 / "S05E01 - Episode 1.mkv").write_bytes(b"\x00" * 100)
+        (s05 / "S05E02 - Episode 2.mkv").write_bytes(b"\x00" * 100)
+        # New episode at root — NOT yet organized
+        root_new = show_dir / "The.Boys.S05E03.2160p.mkv"
+        root_new.write_bytes(b"\x00" * 200)
+
+        show_data = {
+            "id": 76479,
+            "name": "The Boys",
+            "seasons": [{"season_number": 5}],
+        }
+        season_data = {
+            "episodes": [
+                {"episode_number": 3, "name": "Episode 3", "still_path": ""},
+            ]
+        }
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._tmdb, "get_tv_season", return_value=season_data),
+            patch.object(scraper, "_generate_episode_nfos"),
+        ):
+            repaired = scraper._repair_tvshow_dir(show_dir)
+
+        assert repaired is True
+        # The original root file should be gone (moved)
+        assert not root_new.exists()
+        # A file for S05E03 should now exist somewhere under Saison 05/
+        organized = list(s05.glob("S05E03*"))
+        assert len(organized) >= 1, f"Expected S05E03 in Saison 05/, got: {list(s05.iterdir())}"
+
+    def test_root_new_episode_dedup_keeps_newest(
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
+    ) -> None:
+        """When multiple root files match same SxxExx, only the newest is kept.
+
+        Reproduces the dedup rule: two qualities (4K DV HDR + 1080p) for S05E03
+        at root — the newer file wins, the older one is deleted before organizing.
+        """
+        show_dir = tmp_path / "The Boys (2019)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>'
+        )
+        s05 = show_dir / "Saison 05"
+        s05.mkdir()
+        (s05 / "S05E01 - Episode 1.mkv").write_bytes(b"\x00" * 100)
+
+        # Two qualities for S05E03 at root — older and newer
+        older = show_dir / "The.Boys.S05E03.1080p.mkv"
+        older.write_bytes(b"\x00" * 100)
+        # Ensure mtime differs
+        import os
+
+        os.utime(older, (older.stat().st_atime, older.stat().st_mtime - 60))
+        newer = show_dir / "The.Boys.S05E03.2160p.DV.HDR.mkv"
+        newer.write_bytes(b"\x00" * 200)
+
+        show_data = {
+            "id": 76479,
+            "name": "The Boys",
+            "seasons": [{"season_number": 5}],
+        }
+        season_data = {
+            "episodes": [
+                {"episode_number": 3, "name": "Episode 3", "still_path": ""},
+            ]
+        }
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._tmdb, "get_tv_season", return_value=season_data),
+            patch.object(scraper, "_generate_episode_nfos"),
+        ):
+            repaired = scraper._repair_tvshow_dir(show_dir)
+
+        assert repaired is True
+        # Older duplicate at root must be deleted
+        assert not older.exists(), "Older duplicate should have been deleted"
+        # Newer was moved to Saison 05/, root must be clear
+        assert not newer.exists(), "Newer should have been moved (not at root)"
+        # One episode in Saison 05/ for S05E03
+        organized = list(s05.glob("S05E03*"))
+        assert len(organized) >= 1
+
+    def test_root_new_episode_skipped_when_no_tmdb_id(
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
+    ) -> None:
+        """Root new episodes are left intact when tvshow.nfo has no TMDB ID."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        # NFO without TMDB ID (TVDB-only show)
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tvdb">9999</uniqueid></tvshow>'
+        )
+        s01 = show_dir / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
+        # New episode at root
+        root_new = show_dir / "Show.S01E02.mkv"
+        root_new.write_bytes(b"\x00" * 200)
+
+        repaired = scraper._repair_tvshow_dir(show_dir)
+
+        # Nothing should be done for new root episodes without TMDB ID
+        assert root_new.exists(), "Root new episode should NOT be deleted when no TMDB ID"
+
 
 class TestStripTrailingYear:
     """Tests for Scraper._strip_trailing_year — removes trailing (YYYY)."""
