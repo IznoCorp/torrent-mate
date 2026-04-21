@@ -289,6 +289,70 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
     return removed
 
 
+def _tvdb_series_to_show_data(tvdb_data: dict[str, Any], tvdb_id: int) -> dict[str, Any]:
+    """Convert TVDB series data to a TMDB-like show_data dict.
+
+    Builds a minimal show_data compatible with generate_tvshow_nfo() and
+    download_tvshow_artwork() using only TVDB fields. Used when no TMDB
+    cross-reference is available (TVDB-only shows).
+
+    TVDB field mapping:
+    - name / originalName → name / original_name
+    - overview → overview
+    - status.name → status
+    - genres[{name}] → genres[{name}]
+    - contentRatings[{name}] → content_ratings.results[{rating}]
+    - seasons[{number}] → seasons[{season_number}]
+
+    Args:
+        tvdb_data: TVDB extended series dict (from get_series()).
+        tvdb_id: TVDB series ID (embedded in external_ids for NFO generation).
+
+    Returns:
+        Dict with TMDB-compatible fields for NFO/artwork generation.
+    """
+    status_raw = tvdb_data.get("status", {})
+    status_name = status_raw.get("name", "") if isinstance(status_raw, dict) else str(status_raw)
+
+    # Build content_ratings in TMDB format: {results: [{rating, iso_3166_1}]}
+    content_ratings_results: list[dict[str, str]] = []
+    for cr in tvdb_data.get("contentRatings", []) or []:
+        rating = cr.get("name", "")
+        country = cr.get("country", "")
+        if rating:
+            content_ratings_results.append({"rating": rating, "iso_3166_1": country})
+
+    # Build seasons list in TMDB format: [{season_number, poster_path}]
+    seasons: list[dict[str, Any]] = []
+    for s in tvdb_data.get("seasons", []) or []:
+        s_num = s.get("number", s.get("season_number", 0))
+        if s_num and s_num > 0:
+            seasons.append({"season_number": s_num, "poster_path": ""})
+
+    return {
+        "id": 0,  # No TMDB ID — will not be embedded as tmdb uniqueid
+        "name": tvdb_data.get("name", ""),
+        "original_name": tvdb_data.get("originalName", tvdb_data.get("name", "")),
+        "overview": tvdb_data.get("overview", ""),
+        "status": status_name,
+        "genres": [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])],
+        "networks": [],
+        "first_air_date": "",
+        "vote_average": 0.0,
+        "vote_count": 0,
+        "number_of_episodes": 0,
+        "number_of_seasons": len(seasons),
+        "external_ids": {
+            "tvdb_id": tvdb_id,
+            "imdb_id": "",
+        },
+        "content_ratings": {"results": content_ratings_results},
+        "seasons": seasons,
+        "images": {"posters": [], "backdrops": []},
+        "aggregate_credits": {"cast": []},
+    }
+
+
 class Scraper:
     """Main scraping orchestrator.
 
@@ -1360,8 +1424,14 @@ class Scraper:
             match.confidence,
         )
 
-        # Get full TMDB details (even if matched via TVDB)
-        tmdb_id: int | None = match.api_id
+        # Get full show details: prefer TMDB (richer metadata); fall back to
+        # TVDB-only when no cross-ref exists or TMDB returns 404 (show absent
+        # from TMDB, e.g. local-only productions like "Top Chef France").
+        from personalscraper.scraper.tmdb_client import TMDBError
+
+        tmdb_id: int | None = None
+        show_data: dict[str, Any]
+        tvdb_data: dict[str, Any] = {}
         try:
             if match.source == "tvdb":
                 tvdb_data = self._tvdb.get_series(match.api_id)
@@ -1369,12 +1439,32 @@ class Scraper:
                 raw_id = remote_ids.get("tmdb_id")
                 tmdb_id = int(raw_id) if raw_id else None
                 if not tmdb_id:
-                    logger.warning("No TMDB cross-ref for TVDB show %d", match.api_id)
-            if tmdb_id:
-                show_data = self._tmdb.get_tv(tmdb_id)
+                    logger.info(
+                        "No TMDB equivalent for TVDB show %d, using TVDB-only data",
+                        match.api_id,
+                    )
             else:
-                result.error = "No TMDB ID available"
-                return result
+                tmdb_id = match.api_id
+
+            if tmdb_id:
+                try:
+                    show_data = self._tmdb.get_tv(tmdb_id)
+                except TMDBError as tmdb_err:
+                    if tmdb_err.http_status == 404:
+                        logger.info(
+                            "No TMDB equivalent for TVDB show %d (404), using TVDB-only data",
+                            match.api_id,
+                        )
+                        # Fall through to TVDB-only path below
+                        tmdb_id = None
+                        show_data = {}
+                    else:
+                        raise  # Non-404 TMDB errors propagate normally
+            if not tmdb_id:
+                if not tvdb_data:
+                    result.error = "No TMDB ID available and no TVDB data fetched"
+                    return result
+                show_data = _tvdb_series_to_show_data(tvdb_data, match.api_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
             logger.error("Failed to get show details: %s", e)
@@ -1480,13 +1570,24 @@ class Scraper:
                 if s_num == 0:
                     continue
                 try:
-                    s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
-                    for ep in s_detail.get("episodes", []):
-                        e_num = ep.get("episode_number", 0)
-                        api_episodes[(s_num, e_num)] = {
-                            "title": ep.get("name", f"Episode {e_num}"),
-                            "still_path": ep.get("still_path", ""),
-                        }
+                    if tmdb_id:
+                        # Primary path: fetch episode list from TMDB
+                        s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
+                        for ep in s_detail.get("episodes", []):
+                            e_num = ep.get("episode_number", 0)
+                            api_episodes[(s_num, e_num)] = {
+                                "title": ep.get("name", f"Episode {e_num}"),
+                                "still_path": ep.get("still_path", ""),
+                            }
+                    else:
+                        # TVDB-only fallback: use TVDB episode list
+                        tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
+                        for ep in tvdb_eps:
+                            e_num = ep.get("number", ep.get("episode_number", 0))
+                            api_episodes[(s_num, e_num)] = {
+                                "title": ep.get("name", f"Episode {e_num}"),
+                                "still_path": "",  # TVDB episode stills are separate API calls
+                            }
                 except Exception as e:
                     logger.warning("Failed to get season %d: %s", s_num, e)
 
