@@ -80,7 +80,17 @@ class CategoryRule(_StrictModel):
         tmdb_genre_contains: Substring in a TMDB genre name. Case-insensitive.
         tmdb_keyword: TMDB keyword(s). Match if at least one is present.
         category: Result category_id if this rule matches.
+        applies_to: Media type this rule applies to. Defaults to "both".
     """
+
+    # Optional media-type filter (defaults to "both" for backward compatibility)
+    applies_to: Literal["movie", "tv", "both"] = Field(
+        default="both",
+        description=(
+            'Media type this rule applies to: "movie", "tv", or "both". '
+            'Rules with applies_to="movie" are skipped for TV media and vice-versa.'
+        ),
+    )
 
     # Exactly-one pattern fields (mutually exclusive, validated below)
     path_contains: str | None = Field(
