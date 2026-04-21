@@ -2,11 +2,17 @@
 
 Priorité (plus fort → plus faible):
 1. NFO ``<category source="personalscraper">X</category>`` — override explicite
-2. ``Config.category_rules`` — patterns user (path, title, genre-string, keyword)
-3. ``Config.anime_rule`` — règle spéciale anime (Animation + JP)
+2. ``Config.anime_rule`` — détection anime (ID ou string "animation") + origin JP,
+   évalué AVANT category_rules pour ne pas être masqué par des règles "animation → tv_shows_animation"
+3. ``Config.category_rules`` — patterns user (path, title, genre-string, keyword)
 4. ``Config.genre_mapping`` — ID genre → category_id
 5. ``default_movies_category`` / ``default_tv_category`` — fallback
 6. ``None`` — caller doit skip + reporter (unreachable en pratique)
+
+Note: The anime_rule runs before category_rules (unlike the conceptual design order)
+because origin-country-gated anime detection is a stronger signal than a generic
+"animation" genre string match. This mirrors V14 GenreMapper behavior where
+origin_country is checked before the string-based genre fallback.
 """
 
 import logging
@@ -39,7 +45,8 @@ def classify(
 
     Evaluates six priority levels in order, returning as soon as a level
     produces a result. The reason string identifies which layer fired,
-    useful for logs and skip-reports.
+    useful for logs and skip-reports. See module docstring for the full
+    priority chain.
 
     Args:
         config: Validated Config instance containing all classification rules.
@@ -75,7 +82,31 @@ def classify(
             )
 
     # ------------------------------------------------------------------
-    # Level 2 — category_rules (first match wins)
+    # Level 2 — anime_rule (before category_rules)
+    # ------------------------------------------------------------------
+    # Anime detection runs BEFORE category_rules so that a config rule like
+    # "animation → tv_shows_animation" does not shadow the more-specific
+    # "Animation genre + JP origin → anime" signal. V14 GenreMapper uses the
+    # same priority: origin-country-gated anime detection takes precedence over
+    # the generic animation string/ID match.
+    #
+    # Both ID-based and string-based checks are consolidated here:
+    # - ID path: TMDB genre_id == requires_genre_id (e.g. 16) + JP origin.
+    # - String path: "animation" in genre name strings + JP origin (no IDs).
+    ar = config.anime_rule
+    if ar.enabled and ar.applies_to in (media_type, "both"):
+        _anim_keyword = "animation"
+        _id_anime = bool(tmdb_genre_ids and ar.requires_genre_id in tmdb_genre_ids)
+        _str_anime = not tmdb_genre_ids and bool(tmdb_genres and any(_anim_keyword in g.lower() for g in tmdb_genres))
+        if (
+            (_id_anime or _str_anime)
+            and origin_country
+            and any(c in ar.requires_origin_country for c in origin_country)
+        ):
+            return ar.maps_to, "anime_rule"
+
+    # ------------------------------------------------------------------
+    # Level 3 — category_rules (first match wins)
     # ------------------------------------------------------------------
     for i, rule in enumerate(config.category_rules):
         # Skip rules that don't apply to this media type
@@ -89,15 +120,6 @@ def classify(
             tmdb_keywords=tmdb_keywords,
         ):
             return rule.category, f"category_rules[{i}]"
-
-    # ------------------------------------------------------------------
-    # Level 3 — anime_rule
-    # ------------------------------------------------------------------
-    ar = config.anime_rule
-    if ar.enabled and ar.applies_to in (media_type, "both"):
-        if tmdb_genre_ids and ar.requires_genre_id in tmdb_genre_ids:
-            if origin_country and any(c in ar.requires_origin_country for c in origin_country):
-                return ar.maps_to, "anime_rule"
 
     # ------------------------------------------------------------------
     # Level 4 — genre_mapping by provider IDs
