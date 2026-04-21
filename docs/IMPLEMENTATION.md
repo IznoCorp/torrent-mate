@@ -20,7 +20,7 @@
 | 3     | Resolver + Example Parser                           | [x]    | 2026-04-21  |
 | 4     | Migration module + init-config command              | [x]    | 2026-04-21  |
 | 5     | CLI integration — top-level --config + eager load   | [ ]    |             |
-| 6     | Settings allégé + Dispatch refactor                 | [ ]    |             |
+| 6     | Settings allégé + Dispatch refactor                 | [~]    | 2026-04-21  |
 | 7     | Scraper refactor — classifier + TMDB keywords + NFO | [ ]    |             |
 | 8     | Library refactor — prefs fusion + IDs               | [ ]    |             |
 | 9     | Verify/Enforce/Sorter + Tests refactor              | [ ]    |             |
@@ -28,7 +28,7 @@
 
 ## Next Action
 
-**Phase 5 — CLI integration** : lire `docs/v15-config-driven/plan/phase-05-cli-integration.md`, intégrer top-level `--config` option et eager `load_config` dans `cli.py`, brancher `init-config` command.
+**Phase 6 — sous-phase 6.6** : vérifier les sous-phases restantes de la phase 6 dans `docs/v15-config-driven/plan/INDEX.md` et `docs/v15-config-driven/plan/phase-06-settings-dispatch-refactor.md`. P6.5 terminé (commit v15.6.5). Continuer avec la sous-phase suivante de phase 6, ou passer à phase 5 si phase 6 est complète.
 
 ## Detailed Tracking
 
@@ -73,6 +73,12 @@
 **Deviation:** 4.1-4.6 committed together (v15.4.1), 4.7-4.8 together (v15.4.7, 4.8 validation included), 4.9 separately. Sub-phase discipline maintained for 4.7 and 4.9; earlier sub-phases batched due to tight interdependencies in a single file.
 
 **Test counts:** 60 (test_migration.py) + 17 (test_init_config.py) + 13 (test_init_config_e2e.py) = 90 new tests. Full suite: 1650 passed (+ 3 skipped).
+
+### Phase 6 — Settings allégé + Dispatch refactor (EN COURS)
+
+- [x] 6.5 Migrate all Settings.disk/paths consumers to Config — `pipeline.py`, `dispatch/run.py`, `scraper/run.py`, `sorter/run.py`, `cli.py` (library commands) — commit `v15.6.5`
+
+**Test counts:** 1670 passed (suite complète stable). mypy: 0 erreurs sur les 5 modules touchés; 42 erreurs restantes dans des modules hors-scope P6.5.
 
 ---
 

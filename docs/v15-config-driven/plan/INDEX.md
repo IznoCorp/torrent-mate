@@ -6,17 +6,17 @@
 
 | #   | Phase                                                                       | Fichier                                                              | Status |
 | --- | --------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------ |
-| 1   | Bootstrap — golden table + conf foundation                                  | [phase-01-bootstrap.md](phase-01-bootstrap.md)                       | [ ]    |
-| ·   | _Cohérence P1→P2 : equivalence golden dumped depuis V14_                    |                                                                      | [ ]    |
-| 2   | Classifier pipeline + équivalence                                           | [phase-02-classifier.md](phase-02-classifier.md)                     | [ ]    |
-| ·   | _Cohérence P2→P3 : 6 niveaux testés, golden passe_                          |                                                                      | [ ]    |
-| 3   | Resolver + example parser                                                   | [phase-03-resolver-parser.md](phase-03-resolver-parser.md)           | [ ]    |
-| ·   | _Cohérence P3→P4 : pick_disk_for + prompts opérationnels_                   |                                                                      | [ ]    |
-| 4   | Migration module + `init-config` command                                    | [phase-04-migration-initconfig.md](phase-04-migration-initconfig.md) | [ ]    |
-| ·   | _Cohérence P4→P5 : migration reversible, tests E2E passent_                 |                                                                      | [ ]    |
+| 1   | Bootstrap — golden table + conf foundation                                  | [phase-01-bootstrap.md](phase-01-bootstrap.md)                       | [x]    |
+| ·   | _Cohérence P1→P2 : equivalence golden dumped depuis V14_                    |                                                                      | [x]    |
+| 2   | Classifier pipeline + équivalence                                           | [phase-02-classifier.md](phase-02-classifier.md)                     | [x]    |
+| ·   | _Cohérence P2→P3 : 6 niveaux testés, golden passe_                          |                                                                      | [x]    |
+| 3   | Resolver + example parser                                                   | [phase-03-resolver-parser.md](phase-03-resolver-parser.md)           | [x]    |
+| ·   | _Cohérence P3→P4 : pick_disk_for + prompts opérationnels_                   |                                                                      | [x]    |
+| 4   | Migration module + `init-config` command                                    | [phase-04-migration-initconfig.md](phase-04-migration-initconfig.md) | [x]    |
+| ·   | _Cohérence P4→P5 : migration reversible, tests E2E passent_                 |                                                                      | [x]    |
 | 5   | CLI integration — top-level `--config` + eager load                         | [phase-05-cli.md](phase-05-cli.md)                                   | [ ]    |
 | ·   | _Cohérence P5→P6 : toute commande charge Config via callback_               |                                                                      | [ ]    |
-| 6   | Settings allégé + Dispatch refactor                                         | [phase-06-settings-dispatch.md](phase-06-settings-dispatch.md)       | [ ]    |
+| 6   | Settings allégé + Dispatch refactor                                         | [phase-06-settings-dispatch.md](phase-06-settings-dispatch.md)       | [~]    |
 | ·   | _Cohérence P6→P7 : dispatcher utilise Config.disks, tests dispatch passent_ |                                                                      | [ ]    |
 | 7   | Scraper refactor — classifier integration + TMDB keywords + NFO             | [phase-07-scraper.md](phase-07-scraper.md)                           | [ ]    |
 | ·   | _Cohérence P7→P8 : `genre_mapper.py` supprimé, scraper tests passent_       |                                                                      | [ ]    |
