@@ -52,14 +52,13 @@ Dé-hardcoder les derniers modules (`verify/`, `enforce/`, `sorter/`) et refacto
 
 **Commit** : `v15.9.5: notifier uses IDs in structured tags and labels in human text`
 
-### 9.6 — `tests/conftest.py` : expose `test_config`
+### 9.6 — `tests/conftest.py` : vérifier `test_config` est exposée partout
 
-- [ ] Créer `tests/fixtures/__init__.py` et `tests/fixtures/config.py` (cf DESIGN)
-- [ ] Dans `tests/conftest.py`, importer la fixture `test_config` pour qu'elle soit auto-découverte par pytest
-- [ ] La fixture `mock_settings` existante dans `tests/conftest.py` est retirée (non-utile après P6 où Settings n'a plus de paths)
-- [ ] Tests : `test_config` est injectable partout
+- [ ] `tests/fixtures/__init__.py` et `tests/fixtures/config.py` ont été créés en **P1.4b** (fixture shared dispo depuis le début)
+- [ ] Vérifier que `tests/conftest.py` l'expose bien (via import ou `pytest_plugins`) — ajouter si nécessaire
+- [ ] **NB** : la fixture `mock_settings` existante reste en place ici — elle sera retirée en P9.13 (après refactor de tous les tests consommateurs)
 
-**Commit** : `v15.9.6: Expose test_config fixture via conftest.py`
+**Commit** : `v15.9.6: Ensure test_config fixture is auto-exposed in conftest`
 
 ### 9.7 — `tests/dispatch/*` : refactor hardcoding
 
@@ -103,13 +102,29 @@ Dé-hardcoder les derniers modules (`verify/`, `enforce/`, `sorter/`) et refacto
 
 ### 9.12 — Audit final : grep zero-result sur tout le codebase
 
-- [ ] `grep -rE '"films"|"series"|"films animations"|"series animations"|"series documentaires"|"series animes"|"emissions"|"livres audios"|"spectacles"|"theatres"|"Disk[1-4]"|/Volumes/' personalscraper/ tests/ --include="*.py"`
+- [ ] Commande exacte à copy-paste :
+
+  ```bash
+  grep -rnE '"films"|"series"|"films animations"|"series animations"|"series documentaires"|"series animes"|"emissions"|"livres audios"|"spectacles"|"theatres"|"Disk[1-4]"|/Volumes/' personalscraper/ tests/ --include="*.py" \
+    | grep -vE 'conf/migration\.py|tests/migration/fixtures/'
+  ```
+
 - [ ] Seules exceptions acceptées :
-  - `personalscraper/conf/migration.py::V14_LABEL_TO_ID` (par design, one-shot migration)
+  - `personalscraper/conf/migration.py::V14_LABEL_TO_ID` + genre maps inlinés (par design, one-shot migration)
   - `tests/migration/fixtures/*` (fixtures V14 pour tester la migration)
+- [ ] Résultat attendu : 0 ligne après le second grep -v
 - [ ] Si autre résultat → corriger
 
 **Commit** : `v15.9.12: Audit final — zero hardcoded user-specific values outside migration code`
+
+### 9.13 — Retirer `mock_settings` fixture obsolète
+
+- [ ] **Pré-requis** : tous les tests refactorés (P9.7-P9.11) et utilisent `test_config` au lieu de `mock_settings`
+- [ ] Vérifier avec : `grep -rn "mock_settings" tests/ --include="*.py"` → seules références = la définition dans `tests/conftest.py`
+- [ ] Supprimer la fixture `mock_settings` de `tests/conftest.py` (plus besoin après P6 qui a allégé `Settings`)
+- [ ] Relancer la suite complète pour confirmer zéro régression
+
+**Commit** : `v15.9.13: Remove obsolete mock_settings fixture after tests migration`
 
 ## Tests de cohérence P9→P10
 

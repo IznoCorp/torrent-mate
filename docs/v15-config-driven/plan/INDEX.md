@@ -52,10 +52,14 @@ P1 (bootstrap)
 
 ### Après Phase 1 (bootstrap → classifier)
 
+- [ ] Branche `feat/v15-config-driven` créée depuis `main` (P1.0)
 - [ ] `conf/ids.py` définit les 11 IDs builtin (y compris STANDUP, pas CONCERTS)
 - [ ] `conf/models.py` contient Config, DiskConfig, CategoryConfig, CategoryRule, GenreMapping, AnimeRule, PathConfig, LibraryPrefs (+ sous-modèles V14)
-- [ ] `conf/loader.py` expose `load_config`, `resolve_config_path`, `ConfigNotFoundError`, `ConfigValidationError`
+- [ ] `conf/loader.py` expose `load_config`, `resolve_config_path`, `ConfigNotFoundError`, `ConfigValidationError`, `collect_warnings`
+- [ ] `collect_warnings` émet les 3 warnings acceptance #12 (dead custom_category, default_label, disk unmounted)
 - [ ] `config.example.json5` créé et lisible par `json5.load`
+- [ ] `tests/fixtures/config.py` expose `test_config` (fixture partagée dès P1.4b)
+- [ ] `conf/migration.py` scaffold avec `V14_LABEL_TO_ID` (P1.5, débloque P2.6)
 - [ ] `json5>=0.9.14` ajouté à `pyproject.toml [project.dependencies]`
 - [ ] Golden table `tests/equivalence/golden/classifier_cases.json` générée depuis V14 (50+ cas)
 - [ ] Test `tests/equivalence/test_classifier_v14_vs_v15.py` écrit (rouge pour le moment — V15 n'existe pas encore)
@@ -76,13 +80,14 @@ P1 (bootstrap)
 
 ### Après Phase 4 (migration + init-config)
 
-- [ ] `conf/migration.py` expose `generate_config_from_env`, `migrate_library_json`, `migrate_category_files`, `migrate_data_dir`
-- [ ] `V14_LABEL_TO_ID` contient 11 mappings (dont "spectacles" → "standup")
+- [ ] `conf/migration.py` complet : `V14_LABEL_TO_ID` + genre maps V14 inlinés + `generate_config_from_env`, `migrate_library_preferences`, `migrate_library_json`, `migrate_category_files`, `migrate_data_dir`
+- [ ] Genre maps V14 (TMDB_MOVIE, TMDB_TV, TVDB, KNOWN_CATEGORIES) inlinés dans migration.py → indépendance vs `genre_mapper.py` (permettra sa suppression en P7.5)
 - [ ] `commands/init_config.py` : flow interactif, `--force`, `--from-current`, `--yes`
-- [ ] `--force` + existing config = backup `.v15.bak` puis overwrite
+- [ ] `--force` + existing config = backup `.v15.bak` puis overwrite (test idempotence : re-run écrase le `.v15.bak` précédent)
 - [ ] `--from-current --yes` sans `.env` = error explicit (exit 2)
 - [ ] Test E2E : `--from-current` sur `.env` V14 fixture → assert config valide + equivalente
-- [ ] Migration `.personalscraper/` → `.data/` atomique (abort si cross-mount)
+- [ ] Migration `.personalscraper/` → `.data/` atomique (`os.rename`, abort si cross-mount ou lock présent)
+- [ ] `library_preferences.json` V14 migré dans `config.library` (pas dans `migrate_library_json`)
 
 ### Après Phase 5 (CLI)
 

@@ -64,15 +64,24 @@ Intégrer `conf/` dans la CLI Typer : option globale `--config`, chargement eage
 
 **Commit** : `v15.5.3: Wire init-config Typer command to commands module`
 
-### 5.4 — Toutes les subcommands accèdent à `ctx.obj.config`
+### 5.4a — Pipeline commands : `ctx.obj.config` wiring
 
-- [ ] Pour chaque commande V14 existante (`ingest`, `sort`, `scrape`, `verify`, `dispatch`, `run`, `library-scan`, `library-clean`, `library-validate`, `library-analyze`, `library-recommend`, `library-rescrape`, `library-report`, `enforce`, `process`) :
+- [ ] Modifier les commandes "pipeline core" : `ingest`, `sort`, `scrape`, `verify`, `dispatch`, `run`, `enforce`, `process` :
   - Ajouter `ctx: typer.Context` en premier param
   - Accéder `config = ctx.obj.config` (garanti non-None via callback)
-  - Passer `config` en paramètre aux services (Pipeline, Scraper, Dispatcher — refactorés en P6-7)
-- [ ] Pour l'instant, l'accès est fait même si les services ne consomment pas encore Config (P6-7 le brancheront)
+  - Pour l'instant, l'accès est fait même si les services ne consomment pas encore Config (P6-7 le brancheront)
+- [ ] Smoke test par commande : `--help` fonctionne (Typer parse OK)
 
-**Commit** : `v15.5.4: Route Config through all subcommands via ctx.obj`
+**Commit** : `v15.5.4a: Route Config through pipeline commands via ctx.obj`
+
+### 5.4b — Library commands : `ctx.obj.config` wiring
+
+- [ ] Modifier les commandes `library-*` : `library-scan`, `library-clean`, `library-validate`, `library-analyze`, `library-recommend`, `library-rescrape`, `library-report` :
+  - Ajouter `ctx: typer.Context` en premier param
+  - Accéder `config = ctx.obj.config`
+- [ ] Smoke test par commande : `--help` fonctionne
+
+**Commit** : `v15.5.4b: Route Config through library commands via ctx.obj`
 
 ### 5.5 — `--category` accepte ID ou alias
 

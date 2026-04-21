@@ -6,14 +6,19 @@ Implémenter la migration V14 → V15 intégrale (`.env`, `library_*.json`, `.ca
 
 ## Sous-phases
 
-### 4.1 — `conf/migration.py` : V14_LABEL_TO_ID + squelette
+### 4.1 — `conf/migration.py` : compléter avec genre maps V14 inlinés + signatures
 
-- [ ] Créer `personalscraper/conf/migration.py` avec :
-  - `V14_LABEL_TO_ID: dict[str, str]` (11 mappings, dont "spectacles" → "standup")
-  - Signatures `generate_config_from_env`, `migrate_library_json`, `migrate_category_files`, `migrate_data_dir`
-- [ ] Test : `V14_LABEL_TO_ID` couvre les 11 KNOWN_CATEGORIES V14 (introspection sur `genre_mapper.KNOWN_CATEGORIES`)
+- [ ] `V14_LABEL_TO_ID` est déjà en place depuis P1.5
+- [ ] Copier INTÉGRALEMENT (inline) les tables V14 depuis `genre_mapper.py` dans `conf/migration.py` :
+  - `V14_TMDB_MOVIE_GENRE_MAP: dict[int, str]` (TMDB_ANIMATION=16, TMDB_DOCUMENTARY=99)
+  - `V14_TMDB_TV_GENRE_MAP: dict[int, str]` (TMDB_TV_ANIMATION=16, DOCUMENTARY=99, REALITY=10764, TALK=10767, NEWS=10763)
+  - `V14_TVDB_GENRE_MAP: dict[int, str]` (TVDB_ANIMATION=17, ANIME=27, DOCUMENTARY=3, REALITY=8, TALK_SHOW=10, NEWS=11)
+  - `V14_KNOWN_CATEGORIES: frozenset[str]` (copy des 11 labels)
+- [ ] Ces copies locales **éliminent la dépendance de `conf/migration.py` envers `genre_mapper.py`** → P7.5 pourra supprimer `genre_mapper.py` sans casser la migration
+- [ ] Signatures `generate_config_from_env`, `migrate_library_json`, `migrate_category_files`, `migrate_data_dir`, `migrate_library_preferences` (nouveau — cf 4.3b)
+- [ ] Test : `V14_LABEL_TO_ID` keys == `V14_KNOWN_CATEGORIES` (cohérence interne — plus de `genre_mapper` needed)
 
-**Commit** : `v15.4.1: Add conf/migration.py scaffold with V14_LABEL_TO_ID`
+**Commit** : `v15.4.1: Inline V14 genre maps into conf/migration.py for independence`
 
 ### 4.2 — `generate_config_from_env` : V14 .env → config.json5 dict
 
@@ -28,7 +33,19 @@ Implémenter la migration V14 → V15 intégrale (`.env`, `library_*.json`, `.ca
 
 **Commit** : `v15.4.2: Implement generate_config_from_env for V14 migration`
 
-### 4.3 — `migrate_library_json` : rewrite labels → IDs
+### 4.3 — `migrate_library_preferences` : V14 library_preferences.json → config.library
+
+- [ ] Implémenter `migrate_library_preferences(prefs_path: Path) -> dict` :
+  - Read V14 `library_preferences.json` (Pydantic `LibraryPreferences` schema)
+  - Map vers structure `Config.library` V15 (VideoPrefs, AudioPrefs, SubtitlePrefs, EncodingRule) — les schémas sont compatibles (mêmes champs, renommage classes seulement)
+  - Return dict injectable dans le config result de `generate_config_from_env`
+  - Backup `.v14.bak`, puis supprimer l'ancien fichier après merge réussie
+- [ ] Intégrer dans `generate_config_from_env` : si `library_preferences.json` existe dans `data_dir`, appel `migrate_library_preferences` et inject dans config["library"]
+- [ ] Test fixture : `v14_library_preferences_sample.json` avec VideoPrefs + rules → assert équivalent dans config.library
+
+**Commit** : `v15.4.3: Implement migrate_library_preferences merging V14 prefs into config.library`
+
+### 4.4 — `migrate_library_json` : rewrite labels → IDs
 
 - [ ] Implémenter `migrate_library_json(file_path, backup_suffix=".v14.bak") -> None` :
   - Backup `.v14.bak` (refuse si existe déjà, éviter écraser backup manuel)
@@ -40,9 +57,9 @@ Implémenter la migration V14 → V15 intégrale (`.env`, `library_*.json`, `.ca
     - `library_rescrape.json`, `library_recommendations.json`, `library_validation.json` : idem
 - [ ] Test fixtures : 5 fichiers V14 samples → assert rewritten vers IDs + backup créé
 
-**Commit** : `v15.4.3: Implement migrate_library_json with V14 label rewrite`
+**Commit** : `v15.4.4: Implement migrate_library_json with V14 label rewrite`
 
-### 4.4 — `migrate_category_files` : .category → NFO `<category>`
+### 4.5 — `migrate_category_files` : .category → NFO `<category>`
 
 - [ ] Implémenter `migrate_category_files(staging_root: Path) -> int` :
   - Walk staging_root récursif, glob `**/.category`
@@ -56,21 +73,22 @@ Implémenter la migration V14 → V15 intégrale (`.env`, `library_*.json`, `.ca
   - Lock file check en début : si `data_dir/lock.json` existe → refuse (pipeline tourne)
 - [ ] Test fixture : tarball `v14_category_files.tar.gz` avec scénarios : `.category` + NFO, `.category` sans NFO, label inconnu, lock présent
 
-**Commit** : `v15.4.4: Implement migrate_category_files to NFO category element`
+**Commit** : `v15.4.5: Implement migrate_category_files to NFO category element`
 
-### 4.5 — `migrate_data_dir` : `.personalscraper/` → `.data/`
+### 4.6 — `migrate_data_dir` : `.personalscraper/` → `.data/`
 
 - [ ] Implémenter `migrate_data_dir(staging_dir: Path) -> Path` :
   - Source = `staging_dir / ".personalscraper"`, target = `staging_dir / ".data"`
+  - Lock file check en début : si `source/lock.json` existe (V14 location) → refuse (pipeline tourne)
   - Check same filesystem (via `os.stat().st_dev`) — si différent, abort avec message explicite
   - Check target n'existe pas (sinon abort)
-  - `shutil.move(source, target)` atomique si même filesystem
+  - Prefer `os.rename(source, target)` (vrai atomique intra-filesystem) ; fallback `shutil.move` sur `OSError.EXDEV` (cross-mount impossible anyway, donc erreur attendue)
   - Return target (chemin absolu à écrire dans config.data_dir)
-- [ ] Tests : same-fs move, cross-fs detection, target existe (abort), lock file present (abort)
+- [ ] Tests : same-fs rename, cross-fs detection, target existe (abort), lock file present (abort)
 
-**Commit** : `v15.4.5: Implement migrate_data_dir with same-filesystem atomicity check`
+**Commit** : `v15.4.6: Implement migrate_data_dir with os.rename atomicity`
 
-### 4.6 — `commands/init_config.py` : squelette + interactive flow
+### 4.7 — `commands/init_config.py` : squelette + interactive flow
 
 - [ ] Créer `personalscraper/commands/__init__.py` (vide)
 - [ ] Créer `personalscraper/commands/init_config.py` avec :
@@ -83,16 +101,16 @@ Implémenter la migration V14 → V15 intégrale (`.env`, `library_*.json`, `.ca
   - Write résultat JSON5 avec `json5.dumps(indent=2)`
 - [ ] Tests avec `CliRunner(input="...")` pour simuler l'interaction
 
-**Commit** : `v15.4.6: Add commands/init_config.py with interactive and from-current modes`
+**Commit** : `v15.4.7: Add commands/init_config.py with interactive and from-current modes`
 
-### 4.7 — `init-config --from-current --yes` sans `.env` : error
+### 4.8 — `init-config --from-current --yes` sans `.env` : error
 
 - [ ] Dans `init_config()` : si `from_current` et `not interactive` et `.env` manque DISK\*\_DIR → error avec message clair + exit 2
 - [ ] Test : `--from-current --yes` sur fixture `.env` sans DISK_DIR → assert exit 2 + message
 
-**Commit** : `v15.4.7: Error explicit when --from-current --yes lacks V14 .env`
+**Commit** : `v15.4.8: Error explicit when --from-current --yes lacks V14 .env`
 
-### 4.8 — `init-config --from-current` : E2E
+### 4.9 — `init-config --from-current` : E2E
 
 - [ ] Test E2E complet `tests/migration/test_init_config_e2e.py` :
   - Setup tmp staging avec `.env` V14 + `.personalscraper/` + `.category` files + NFOs
@@ -103,7 +121,7 @@ Implémenter la migration V14 → V15 intégrale (`.env`, `library_*.json`, `.ca
   - Assert `.category` files migrés vers NFOs (+ supprimés)
   - Assert semantic equivalence : config résultat matche la V14 source (paths, categories, disks)
 
-**Commit** : `v15.4.8: E2E test of init-config --from-current full migration`
+**Commit** : `v15.4.9: E2E test of init-config --from-current full migration`
 
 ## Tests de cohérence P4→P5
 

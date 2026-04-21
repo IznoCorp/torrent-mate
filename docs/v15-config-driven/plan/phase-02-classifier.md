@@ -66,7 +66,7 @@ Implémenter `conf/classifier.py` avec les 6 niveaux de priorité et faire passe
 ### 2.6 — Golden-table equivalence test : faire passer
 
 - [ ] Retirer `@pytest.mark.skip` de `test_classifier_v14_vs_v15.py`
-- [ ] Importer `V14_LABEL_TO_ID` depuis `conf/migration.py` (le créer minimal si besoin — juste le dict, le reste vient en Phase 4)
+- [ ] Importer `V14_LABEL_TO_ID` depuis `conf/migration.py` (déjà créé en P1.5)
 - [ ] Pour chaque cas du golden : invoke `classifier.classify(...)` avec les inputs sérialisés → assert result_id = `V14_LABEL_TO_ID[expected_v14_label]`
 - [ ] Si des cas V14 ne matchent pas V15 → investiguer (bug V15 ou cas V14 edge non capturé dans DESIGN)
 - [ ] Tous les 50+ cas passent → Phase 1 gate fermé

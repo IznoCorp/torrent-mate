@@ -1,8 +1,13 @@
-# Phase 1 — Bootstrap : golden table + `conf/` foundation
+️# Phase 1 — Bootstrap : golden table + `conf/` foundation
 
 ## Objectif
 
 Poser le socle du package `personalscraper/conf/` (IDs, modèles Pydantic, loader JSON5) et capturer le comportement V14 dans une golden table qui servira de contrat pour la Phase 2.
+
+## Pré-requis (P1.0)
+
+- [ ] Créer branche `feat/v15-config-driven` depuis `main`
+- [ ] Configurer PR merge strategy via `/implement-version` (recommandé : `manual` — PR reviewable en une fois)
 
 ## Sous-phases
 
@@ -29,16 +34,22 @@ Poser le socle du package `personalscraper/conf/` (IDs, modèles Pydantic, loade
 
 **Commit** : `v15.1.2: Add conf/models.py with Pydantic schema and full V14 library prefs`
 
-### 1.3 — `conf/loader.py` : JSON5 loader
+### 1.3 — `conf/loader.py` : JSON5 loader + warnings
 
 - [ ] Créer `personalscraper/conf/loader.py` avec :
   - `DEFAULT_CONFIG_PATH`, `ENV_CONFIG_PATH`
   - `ConfigNotFoundError`, `ConfigValidationError` exceptions
   - `resolve_config_path(cli_override)` (CLI > env > default)
-  - `load_config(path)` : read + json5.load + Pydantic validation + exception wrapping
+  - `load_config(path)` : read + json5.load + Pydantic validation + exception wrapping + **émission des warnings non-blocking** via `collect_warnings(config)`
+  - `collect_warnings(config: Config) -> list[str]` (implémente acceptance #12) :
+    - Pour chaque `custom_categories[id]` sans disque l'acceptant → `"dead custom_category '{id}': no disk accepts it"`
+    - Pour chaque ID utilisé (via disks/rules/mapping) mais absent de `config.categories` → `"using default label for '{id}'"`
+    - Pour chaque `disk.path` qui n'existe pas sur le filesystem → `"disk '{id}' path '{path}' not mounted/present"`
+  - Les warnings sont émis via `logger.warning()` (ne bloquent pas le load)
 - [ ] Unit tests `tests/conf/test_loader.py` : resolution order, missing file, invalid JSON5, validation error (Pydantic), expanduser/resolve
+- [ ] Unit tests `tests/conf/test_warnings.py` : chaque type de warning émis dans le bon cas
 
-**Commit** : `v15.1.3: Add conf/loader.py with JSON5 parsing and resolution order`
+**Commit** : `v15.1.3: Add conf/loader.py with JSON5 parsing, resolution, and validation warnings`
 
 ### 1.4 — `config.example.json5` template
 
@@ -53,7 +64,25 @@ Poser le socle du package `personalscraper/conf/` (IDs, modèles Pydantic, loade
 
 **Commit** : `v15.1.4: Add config.example.json5 template with fully commented schema`
 
-### 1.5 — Golden table : capturer le comportement V14
+### 1.4b — `tests/fixtures/config.py` : fixture `test_config` partagée
+
+- [ ] Créer `tests/fixtures/__init__.py` (vide)
+- [ ] Créer `tests/fixtures/config.py` avec fixture `test_config` (cf DESIGN §1138-1162) : 3 disques neutres `drive_a/b/c`, labels `cat_{id}`, tmp_path-based
+- [ ] Dans `tests/conftest.py`, importer ou exposer via `pytest_plugins = ["tests.fixtures.config"]` (au choix)
+- [ ] **NB** : cette fixture est nécessaire dès la Phase 6 pour les tests refactorés — sa création tôt évite les dépendances inter-phases implicites
+- [ ] Tests smoke : `test_fixture_loads` → assert `test_config.disks[0].id == "drive_a"`, valide Pydantic
+
+**Commit** : `v15.1.4b: Add tests/fixtures/config.py with test_config shared fixture`
+
+### 1.5 — `conf/migration.py` scaffold minimal (V14_LABEL_TO_ID uniquement)
+
+- [ ] Créer `personalscraper/conf/migration.py` avec SEULEMENT le dict `V14_LABEL_TO_ID` (11 mappings, dont "spectacles" → "standup")
+- [ ] Le reste du module (fonctions migration) sera rempli en Phase 4 — ici juste la constante pour débloquer P2.6 (golden equivalence)
+- [ ] **NB** : ce scaffold brise le back-edge P2 → P4 identifié par la review (P2.6 a besoin de V14_LABEL_TO_ID)
+
+**Commit** : `v15.1.5: Add conf/migration.py scaffold with V14_LABEL_TO_ID constant`
+
+### 1.6 — Golden table : capturer le comportement V14
 
 - [ ] Créer `scripts/generate_classifier_golden.py` qui :
   - Importe `personalscraper.genre_mapper.GenreMapper`
@@ -63,9 +92,9 @@ Poser le socle du package `personalscraper/conf/` (IDs, modèles Pydantic, loade
 - [ ] Lancer le script → générer 50+ cas
 - [ ] Vérifier manuellement que les cas couvrent toutes les branches de `genre_mapper.py` (grep `return "..."` → assertion matching dans la golden)
 
-**Commit** : `v15.1.5: Add script to generate classifier equivalence golden from V14`
+**Commit** : `v15.1.6: Add script to generate classifier equivalence golden from V14`
 
-### 1.6 — Test d'équivalence (rouge pour le moment)
+### 1.7 — Test d'équivalence (rouge pour le moment)
 
 - [ ] Créer `tests/equivalence/__init__.py` et `tests/equivalence/test_classifier_v14_vs_v15.py` avec :
   - Charge `classifier_cases.json`
@@ -73,7 +102,7 @@ Poser le socle du package `personalscraper/conf/` (IDs, modèles Pydantic, loade
   - Assert `result_id == V14_LABEL_TO_ID[case.expected_v14_label]`
 - [ ] Marque le test `@pytest.mark.skip(reason="Phase 2 will implement classifier")` pour l'instant
 
-**Commit** : `v15.1.6: Add skipped equivalence test scaffold for Phase 2 gate`
+**Commit** : `v15.1.7: Add skipped equivalence test scaffold for Phase 2 gate`
 
 ## Tests de cohérence P1→P2
 
