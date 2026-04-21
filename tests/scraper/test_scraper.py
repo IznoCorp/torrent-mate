@@ -466,6 +466,105 @@ class TestScrapeTvshow:
         assert result.nfo_written is True
         assert (show_dir / "tvshow.nfo").exists()
 
+    def test_tvdb_only_show_scraped_when_no_tmdb_crossref(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """TVDB-matched show with no TMDB cross-ref should be scraped, not aborted.
+
+        Reproduces Bug 3: "Top Chef France" matches on TVDB with high confidence
+        but has no TMDB equivalent. Current code sets error="No TMDB ID available"
+        and returns. Fix: continue with TVDB-only data (rename, NFO, artwork).
+        """
+        show_dir = tmp_path / "Top Chef France (2010)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=99999,
+            api_title="Top Chef France",
+            api_year=2010,
+            confidence=0.98,
+            source="tvdb",
+        )
+        tvdb_series_data = {
+            "id": 99999,
+            "name": "Top Chef France",
+            "originalName": "Top Chef France",
+            "overview": "French cooking competition.",
+            "status": {"name": "Continuing"},
+            "genres": [{"name": "Reality"}],
+            "seasons": [],
+            "contentRatings": [],
+            "remoteIds": [],  # No TMDB cross-ref
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tvdb, "get_series", return_value=tvdb_series_data),
+            patch.object(scraper._tvdb, "get_remote_ids", return_value={}),  # No tmdb_id
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        # Must NOT abort — should complete the scrape with TVDB data
+        assert result.action == "scraped", f"Expected scraped, got {result.action} ({result.error})"
+        assert result.error is None
+        assert result.nfo_written is True
+        assert (show_dir / "tvshow.nfo").exists()
+
+    def test_tvdb_only_show_scraped_when_tmdb_404(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """TVDB-matched show that 404s on TMDB should be scraped, not aborted.
+
+        Reproduces Bug 3 variant: tmdb_id is found in remoteIds, but TMDB
+        returns 404 (show deleted / mismatched). Fix: fall back to TVDB-only data.
+        """
+        from personalscraper.scraper.tmdb_client import TMDBError
+
+        show_dir = tmp_path / "Top Chef France (2010)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=99999,
+            api_title="Top Chef France",
+            api_year=2010,
+            confidence=0.98,
+            source="tvdb",
+        )
+        tvdb_series_data = {
+            "id": 99999,
+            "name": "Top Chef France",
+            "originalName": "Top Chef France",
+            "overview": "French cooking competition.",
+            "status": {"name": "Continuing"},
+            "genres": [{"name": "Reality"}],
+            "seasons": [],
+            "contentRatings": [],
+            "remoteIds": [{"sourceName": "TheMovieDB.com", "id": "777"}],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tvdb, "get_series", return_value=tvdb_series_data),
+            patch.object(scraper._tvdb, "get_remote_ids", return_value={"tmdb_id": "777"}),
+            patch.object(
+                scraper._tmdb,
+                "get_tv",
+                side_effect=TMDBError(404, 34, "The resource you requested could not be found."),
+            ),
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        # Must NOT abort — fall back to TVDB-only data
+        assert result.action == "scraped", f"Expected scraped, got {result.action} ({result.error})"
+        assert result.error is None
+        assert result.nfo_written is True
+
 
 # ---------------------------------------------------------------------------
 # Batch TV show processing
