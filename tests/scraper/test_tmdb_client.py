@@ -747,9 +747,7 @@ class TestGetKeywords:
             result = client.get_keywords(999, "movie")
         assert result == []
 
-    def test_500_returns_empty_list_with_warning(
-        self, client: TMDBClient, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_500_returns_empty_list_with_warning(self, client: TMDBClient, caplog: pytest.LogCaptureFixture) -> None:
         """HTTP 500 after retries exhausted returns [] and logs a warning."""
         payload = {"status_code": 11, "status_message": "Internal error: something went wrong."}
         mock_resp = _mock_response(500, payload, reason="Internal Server Error")
