@@ -19,16 +19,16 @@
 | 2     | Classifier pipeline + équivalence V14↔V15           | [x]    | 2026-04-21  |
 | 3     | Resolver + Example Parser                           | [x]    | 2026-04-21  |
 | 4     | Migration module + init-config command              | [x]    | 2026-04-21  |
-| 5     | CLI integration — top-level --config + eager load   | [ ]    |             |
-| 6     | Settings allégé + Dispatch refactor                 | [~]    | 2026-04-21  |
-| 7     | Scraper refactor — classifier + TMDB keywords + NFO | [ ]    |             |
+| 5     | CLI integration — top-level --config + eager load   | [x]    | 2026-04-21  |
+| 6     | Settings allégé + Dispatch refactor                 | [x]    | 2026-04-21  |
+| 7     | Scraper refactor — classifier + TMDB keywords + NFO | [x]    | 2026-04-21  |
 | 8     | Library refactor — prefs fusion + IDs               | [ ]    |             |
 | 9     | Verify/Enforce/Sorter + Tests refactor              | [ ]    |             |
 | 10    | Documentation + finalization + PR                   | [ ]    |             |
 
 ## Next Action
 
-**Phase 6 — sous-phase 6.6** : vérifier les sous-phases restantes de la phase 6 dans `docs/v15-config-driven/plan/INDEX.md` et `docs/v15-config-driven/plan/phase-06-settings-dispatch-refactor.md`. P6.5 terminé (commit v15.6.5). Continuer avec la sous-phase suivante de phase 6, ou passer à phase 5 si phase 6 est complète.
+**Phase 8 — sous-phase 8.1** : Supprimer `library/preferences.py` (fusionné dans `conf/models.py::LibraryPrefs`). Phases 5, 6, 7 toutes complètes (1712 tests passent). Commencer P8.1 selon `docs/v15-config-driven/plan/phase-08-library.md`.
 
 ## Detailed Tracking
 
@@ -74,8 +74,23 @@
 
 **Test counts:** 60 (test_migration.py) + 17 (test_init_config.py) + 13 (test_init_config_e2e.py) = 90 new tests. Full suite: 1650 passed (+ 3 skipped).
 
-### Phase 6 — Settings allégé + Dispatch refactor (EN COURS)
+### Phase 5 — CLI integration (DONE 2026-04-21)
 
+- [x] 5.1 `AppCtx` dataclass + imports (`Config | None`, `config_override: Path | None`)
+- [x] 5.2 `@app.callback()` eager load + bypass `init-config`
+- [x] 5.3 `init-config` Typer command câblé vers `commands/init_config.init_config`
+- [x] 5.4a Pipeline commands câblés avec `ctx.obj.config`
+- [x] 5.4b Library commands câblés avec `ctx.obj.config`
+- [x] 5.5 `_resolve_category()` — accepte ID ou alias, exit 2 si inconnu
+
+**Note:** Phase 5 implémentée conjointement avec P6 dans la même session. Tous les sous-phases présents dans `cli.py` avant le commit v15.6.5.
+
+### Phase 6 — Settings allégé + Dispatch refactor (DONE 2026-04-21)
+
+- [x] 6.1 Strip `Settings` of disk paths and data_dir — commit `v15.6.1`
+- [x] 6.2 `disk_scanner` uses `Config.disks` au lieu de `DISK_CATEGORIES` — commit `v15.6.2`
+- [x] 6.3 `dispatcher` uses `Config` + `resolver` pour routing — commit `v15.6.3`
+- [x] 6.4 `media_index` stocke/charge IDs avec auto-migration V14 — commit `v15.6.4`
 - [x] 6.5 Migrate all Settings.disk/paths consumers to Config — `pipeline.py`, `dispatch/run.py`, `scraper/run.py`, `sorter/run.py`, `cli.py` (library commands) — commit `v15.6.5`
 
 **Test counts:** 1670 passed (suite complète stable). mypy: 0 erreurs sur les 5 modules touchés; 42 erreurs restantes dans des modules hors-scope P6.5.
