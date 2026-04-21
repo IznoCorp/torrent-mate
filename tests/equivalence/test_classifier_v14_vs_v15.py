@@ -89,11 +89,10 @@ class TestV14GoldenRegression:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skip(reason="Phase 2 will implement classifier")
 class TestV15ClassifierEquivalence:
     """Verify V15 classifier.classify() is behaviorally equivalent to V14 GenreMapper.
 
-    Activate by removing the @pytest.mark.skip decorator once Phase 2 lands.
+    Phase 2: skip decorator removed, all 57 golden cases must pass.
     """
 
     @pytest.mark.parametrize(
@@ -104,12 +103,14 @@ class TestV15ClassifierEquivalence:
     def test_v15_equivalent_to_v14(self, test_config: object, case: dict) -> None:
         """V15 classifier must produce category_id equivalent to V14 label.
 
+        Passes both genre ID lists and genre name strings to classify() so that
+        all V14 code paths (ID-based and string-based fallback) are exercised.
+
         Args:
             test_config: Shared Config fixture (injected by conftest.py).
             case: A golden table entry.
         """
         from personalscraper.conf.classifier import classify  # type: ignore[import]
-
         from personalscraper.conf.migration import V14_LABEL_TO_ID
 
         expected_v14_label = case["expected_v14_label"]
@@ -122,6 +123,10 @@ class TestV15ClassifierEquivalence:
         source = case.get("source", "tmdb")
         media_type_v15 = "movie" if case["media_type"] == "movie" else "tv"
 
+        # Genre name strings — passed to classify() so string-based category_rules
+        # and the anime_rule string pre-check can fire for ID-absent cases.
+        tmdb_genres = case["genres"] if case["genres"] else None
+
         # Select the correct genre ID parameters based on source
         tmdb_genre_ids = genre_ids if source == "tmdb" else None
         tvdb_genre_ids = genre_ids if source == "tvdb" else None
@@ -129,6 +134,7 @@ class TestV15ClassifierEquivalence:
         result_id, reason = classify(
             test_config,  # type: ignore[arg-type]
             media_type=media_type_v15,
+            tmdb_genres=tmdb_genres,
             tmdb_genre_ids=tmdb_genre_ids,
             tvdb_genre_ids=tvdb_genre_ids,
             origin_country=origin_country_list,

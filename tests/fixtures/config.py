@@ -12,6 +12,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models import (
     AnimeRule,
     CategoryConfig,
+    CategoryRule,
     Config,
     DiskConfig,
     GenreMapping,
@@ -27,12 +28,101 @@ def test_config(tmp_path: Path) -> Config:
     drive_c. Uses generic folder names ``cat_{id}`` for easy assertion.
     Genre mapping mirrors V14 GenreMapper IDs for equivalence testing.
 
+    String-based category_rules mirror V14 GenreMapper string-fallback branches
+    (used when TMDB/TVDB return genre names but no IDs). Rules are media-type
+    scoped via ``applies_to`` to avoid cross-type collisions (e.g. "animation"
+    mapping to movies_animation for movies vs tv_shows_animation for TV).
+
     Args:
         tmp_path: Pytest temporary directory (unique per test).
 
     Returns:
-        Validated Config instance with 3 disks and all 11 builtin categories.
+        Validated Config instance with 3 disks, all 11 builtin categories,
+        and string-based category_rules for V14 equivalence.
     """
+    # Rules for movies: string-based genre name matching (V14 string fallback)
+    _movie_rules: list[CategoryRule] = [
+        CategoryRule(
+            tmdb_genre_contains="animation",
+            category=CID.MOVIES_ANIMATION,
+            applies_to="movie",
+        ),
+        CategoryRule(
+            tmdb_genre_contains="documentary",
+            category=CID.MOVIES_DOCUMENTARY,
+            applies_to="movie",
+        ),
+        # French TMDB variant "Documentaire" (case-insensitive, "documentaire" in "documentaire")
+        CategoryRule(
+            tmdb_genre_contains="documentaire",
+            category=CID.MOVIES_DOCUMENTARY,
+            applies_to="movie",
+        ),
+    ]
+
+    # Rules for TV: string-based genre name matching (V14 string fallback).
+    # Order matters: "anime" must precede "animation" so genre name "anime"/"Anime"
+    # is caught before the broader "animation" rule (though "anime" is not a
+    # substring of "animation", the ordering documents intent clearly).
+    # Animation + JP origin is handled by anime_rule (level 3), so the "animation"
+    # rule here only fires for non-JP cases (anime_rule fires first for JP).
+    _tv_rules: list[CategoryRule] = [
+        # Genre name "anime" / "Anime" → anime (no origin_country needed)
+        CategoryRule(
+            tmdb_genre_contains="anime",
+            category=CID.ANIME,
+            applies_to="tv",
+        ),
+        # "Animation" string, non-JP → tv_shows_animation
+        # (JP case: anime_rule fires at level 3 before these rules reach level 2,
+        #  BUT only when genre_ids are present; for string-only+JP, anime_rule's
+        #  str_match branch handles it before level 2 category_rules apply)
+        CategoryRule(
+            tmdb_genre_contains="animation",
+            category=CID.TV_SHOWS_ANIMATION,
+            applies_to="tv",
+        ),
+        CategoryRule(
+            tmdb_genre_contains="documentary",
+            category=CID.TV_SHOWS_DOCUMENTARY,
+            applies_to="tv",
+        ),
+        # French TMDB variant "Documentaire"
+        CategoryRule(
+            tmdb_genre_contains="documentaire",
+            category=CID.TV_SHOWS_DOCUMENTARY,
+            applies_to="tv",
+        ),
+        # "Reality", "Talk", "Talk Show", "News" → tv_programs (English variants)
+        CategoryRule(
+            tmdb_genre_contains="reality",
+            category=CID.TV_PROGRAMS,
+            applies_to="tv",
+        ),
+        # "talk" matches both "talk" and "talk show" (substring)
+        CategoryRule(
+            tmdb_genre_contains="talk",
+            category=CID.TV_PROGRAMS,
+            applies_to="tv",
+        ),
+        CategoryRule(
+            tmdb_genre_contains="news",
+            category=CID.TV_PROGRAMS,
+            applies_to="tv",
+        ),
+        # French TMDB variants: "Émission" (contains "mission"), "Divertissement"
+        CategoryRule(
+            tmdb_genre_contains="mission",
+            category=CID.TV_PROGRAMS,
+            applies_to="tv",
+        ),
+        CategoryRule(
+            tmdb_genre_contains="divertissement",
+            category=CID.TV_PROGRAMS,
+            applies_to="tv",
+        ),
+    ]
+
     return Config(
         paths=PathConfig(
             torrent_complete_dir=tmp_path / "torrents_complete",
@@ -64,6 +154,7 @@ def test_config(tmp_path: Path) -> Config:
             ),
         ],
         categories={cid: CategoryConfig(folder_name=f"cat_{cid}") for cid in CID.BUILTIN_CATEGORY_IDS},
+        category_rules=_movie_rules + _tv_rules,
         genre_mapping=GenreMapping(
             tmdb_movies={
                 16: CID.MOVIES_ANIMATION,
