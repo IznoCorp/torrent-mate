@@ -24,7 +24,9 @@ def _default_tracker_file() -> Path:
     """
     from personalscraper.config import get_settings
 
-    return get_settings().data_dir / "ingested_torrents.json"
+    settings = get_settings()
+    data_dir = Path(getattr(settings, "data_dir", ".data"))
+    return data_dir / "ingested_torrents.json"
 
 
 class IngestTracker:

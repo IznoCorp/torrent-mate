@@ -45,7 +45,7 @@ def check_coherence(settings: Settings, dry_run: bool = False) -> list[Coherence
         List of CoherenceResult, one per media directory found.
     """
     results: list[CoherenceResult] = []
-    staging = settings.staging_dir
+    staging = Path(getattr(settings, "staging_dir", "."))
 
     movies_dir = staging / settings.movies_dir_name
     if movies_dir.exists():

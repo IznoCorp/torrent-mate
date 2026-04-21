@@ -22,9 +22,13 @@ def _default_lock_file() -> Path:
     Returns:
         Path to pipeline.lock inside the configured data directory.
     """
+    from pathlib import Path as _Path
+
     from personalscraper.config import get_settings
 
-    return get_settings().data_dir / "pipeline.lock"
+    settings = get_settings()
+    data_dir = _Path(getattr(settings, "data_dir", ".data"))
+    return data_dir / "pipeline.lock"
 
 
 def acquire_lock(lock_file: Path | None = None) -> bool:

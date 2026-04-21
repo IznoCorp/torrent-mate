@@ -167,7 +167,12 @@ def transfer_torrent(source: Path, dest: Path, copy: bool, dry_run: bool = False
         return False
 
 
-def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
+def run_ingest(
+    settings: Settings,
+    dry_run: bool = False,
+    ingest_dir: Path | None = None,
+    staging_dir: Path | None = None,
+) -> StepReport:
     """Run the ingest pipeline step.
 
     Connects to qBittorrent, lists completed torrents, and transfers
@@ -176,6 +181,10 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview actions without modifying the filesystem.
+        ingest_dir: Absolute path to the ingest directory (097-TEMP/).
+            Falls back to ``settings.ingest_dir`` attribute for MagicMock tests.
+        staging_dir: Absolute path to the staging area (from Config.paths).
+            Falls back to ``settings.staging_dir`` attribute for MagicMock tests.
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -183,12 +192,13 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
     report = StepReport(name="ingest")
 
     # Ingest deposits into ingest_dir (097-TEMP/) so sort processes only media
-    ingest_dir = settings.ingest_dir
-    ingest_dir.mkdir(parents=True, exist_ok=True)
+    # getattr fallback: MagicMock tests set ingest_dir directly as a Path attribute.
+    resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else Path(getattr(settings, "ingest_dir", "."))
+    resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
     # Clean orphaned temp dirs from interrupted runs
     if not dry_run:
-        _cleanup_orphan_temps(ingest_dir)
+        _cleanup_orphan_temps(resolved_ingest_dir)
 
     try:
         client = QBitClient(
@@ -232,10 +242,13 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                     source = client.get_content_path(torrent)
                     if not source.exists():
                         # Check staging dirs for this content (already ingested pre-tracker)
+                        resolved_staging = (
+                            staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
+                        )
                         staging_dirs = [
-                            settings.staging_dir / settings.movies_dir_name,
-                            settings.staging_dir / settings.tvshows_dir_name,
-                            settings.ingest_dir,
+                            resolved_staging / settings.movies_dir_name,
+                            resolved_staging / settings.tvshows_dir_name,
+                            resolved_ingest_dir,
                         ]
                         found_in_staging = any((d / source.name).exists() for d in staging_dirs)
                         if found_in_staging:
@@ -250,7 +263,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
                         continue
 
                     # Destination in 097-TEMP/ (sort picks up from here)
-                    dest = ingest_dir / source.name
+                    dest = resolved_ingest_dir / source.name
                     if dest.exists():
                         log.info("already_exists", name=name, dest=str(dest))
                         report.skip_count += 1
@@ -260,7 +273,7 @@ def run_ingest(settings: Settings, dry_run: bool = False) -> StepReport:
 
                     # Check disk space
                     source_size = _get_dir_size(source)
-                    if not _check_disk_space(ingest_dir, source_size, settings.min_free_space_staging_gb):
+                    if not _check_disk_space(resolved_ingest_dir, source_size, settings.min_free_space_staging_gb):
                         log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
                         report.skip_count += 1
                         report.warnings.append(f"{name}: insufficient disk space")

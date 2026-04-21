@@ -19,6 +19,8 @@ if TYPE_CHECKING:
     from personalscraper.scraper.tmdb_client import TMDBClient
     from personalscraper.scraper.tvdb_client import TVDBClient
 
+from personalscraper.conf.ids import TV_CATEGORY_IDS
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,

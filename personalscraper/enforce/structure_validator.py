@@ -63,7 +63,7 @@ def validate_structure(settings: Settings, dry_run: bool = False) -> list[Struct
         One :class:`StructureResult` per media directory scanned.
     """
     results: list[StructureResult] = []
-    staging = settings.staging_dir
+    staging = Path(getattr(settings, "staging_dir", "."))
 
     movies_dir = staging / settings.movies_dir_name
     if movies_dir.exists():

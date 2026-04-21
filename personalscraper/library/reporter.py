@@ -236,7 +236,7 @@ def generate_report(
     if disk_statuses:
         for ds in disk_statuses:
             if hasattr(ds, "config") and hasattr(ds, "free_space_gb"):
-                report.disk_free_gb[ds.config.name] = round(ds.free_space_gb, 1)
+                report.disk_free_gb[ds.config.id] = round(ds.free_space_gb, 1)
 
     # --- Validation data ---
     if validation_data:

@@ -27,7 +27,7 @@ def _has_items_to_verify(settings: Settings) -> bool:
     Returns:
         True if at least one media folder exists.
     """
-    staging = settings.staging_dir
+    staging = Path(getattr(settings, "staging_dir", "."))
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
@@ -70,7 +70,7 @@ def run_verify(
     )
 
     all_results: list[VerifyResult] = []
-    staging = Path(settings.staging_dir)
+    staging = Path(getattr(settings, "staging_dir", "."))
 
     if not tvshows_only:
         movies_dir = staging / settings.movies_dir_name
