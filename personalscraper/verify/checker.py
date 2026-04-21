@@ -432,6 +432,28 @@ class MediaChecker:
                 )
             )
 
+        # root_video_files — only checked when tvshow.nfo exists (i.e. already scraped).
+        # Stray video files at the show root (not inside Saison XX/) mean the scraper
+        # repair step did not complete; dispatch must be blocked until they are organized.
+        if nfo_exists:
+            root_videos = [
+                f for f in show_dir.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+            ]
+            if root_videos:
+                names = ", ".join(f.name for f in root_videos[:3])
+                suffix = f" (+{len(root_videos) - 3} more)" if len(root_videos) > 3 else ""
+                message = f"Unprocessed video files at root: {names}{suffix}"
+            else:
+                message = ""
+            results.append(
+                CheckResult(
+                    name="root_video_files",
+                    passed=len(root_videos) == 0,
+                    severity=Severity.ERROR,
+                    message=message,
+                )
+            )
+
         # ntfs_safe_names
         results.append(self._check_ntfs_safe_names(show_dir))
 
