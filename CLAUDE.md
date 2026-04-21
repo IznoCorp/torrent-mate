@@ -16,9 +16,35 @@ Run `personalscraper init-config --from-current` to migrate from V14. See `MIGRA
 
 ### Commit Convention
 
-- Format: `vX.Y.Z: Description` (X=version, Y=phase, Z=sub-phase)
-- NEVER include `Co-Authored-By`, Claude, Anthropic, or AI references in commits
-- A PreToolUse hook (`block_ai_attribution.py`) enforces this — commit will be blocked
+Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
+
+Format :
+
+```
+<type>[(<scope>)]: <description>
+```
+
+Types : `feat | fix | chore | refactor | style | docs | test | perf | build | ci`
+
+Examples :
+
+- `feat(scraper): create TvShow nfo file`
+- `chore: add json5 dependency`
+- `refactor(dispatch): extract folder_for to resolver`
+- `fix(conf): add missing Config import in scraper/run.py`
+
+**Forbidden** :
+
+- Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md` and subagent reports (sub-phase → SHA mapping), not in commit messages
+- AI attribution : `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
+
+**Milestone commits** (used by `/implement-phase` skill) include version as scope :
+
+```
+chore(v15): phase 7 gate — scraper refactor
+```
+
+This is the ONLY place version appears.
 
 ### Pipeline Monitoring Rules
 
@@ -48,7 +74,7 @@ Coherence check between every phase — verify interfaces match design before co
 
 **Per sub-phase discipline:**
 
-- **Commit** after every sub-phase (`vX.Y.Z: Description`)
+- **Commit** after every sub-phase using Conventional Commits (`feat(scope): description` — see Commit Convention above)
 - **Update progress** (IMPLEMENTATION.md + plan/INDEX.md) after every sub-phase — never batch
 - **Check context** after every sub-phase — if ≥80% full, compact before continuing
 
