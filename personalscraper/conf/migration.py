@@ -325,10 +325,7 @@ def migrate_library_json(file_path: Path, backup_suffix: str = ".v14.bak") -> No
 
     backup_path = file_path.with_suffix(file_path.suffix + backup_suffix)
     if backup_path.exists():
-        raise FileExistsError(
-            f"Backup already exists: {backup_path}. "
-            "Remove it manually before re-running migration."
-        )
+        raise FileExistsError(f"Backup already exists: {backup_path}. Remove it manually before re-running migration.")
 
     try:
         raw_text = file_path.read_text(encoding="utf-8")
@@ -435,10 +432,7 @@ def migrate_category_files(staging_root: Path, data_dir: Path | None = None) -> 
     effective_data_dir = data_dir if data_dir is not None else staging_root / ".personalscraper"
     lock_file = effective_data_dir / "lock.json"
     if lock_file.exists():
-        raise RuntimeError(
-            f"Pipeline lock file detected at {lock_file}. "
-            "Stop the pipeline before running migration."
-        )
+        raise RuntimeError(f"Pipeline lock file detected at {lock_file}. Stop the pipeline before running migration.")
 
     migrated = 0
     for category_file in sorted(staging_root.rglob(".category")):
@@ -566,24 +560,17 @@ def migrate_data_dir(staging_dir: Path) -> Path:
     # Lock file check: refuse if pipeline is running.
     lock_file = source / "lock.json"
     if lock_file.exists():
-        raise RuntimeError(
-            f"Pipeline lock file detected at {lock_file}. "
-            "Stop the pipeline before running migration."
-        )
+        raise RuntimeError(f"Pipeline lock file detected at {lock_file}. Stop the pipeline before running migration.")
 
     if target.exists():
-        raise FileExistsError(
-            f"Target already exists: {target}. "
-            "Remove it manually before running migration."
-        )
+        raise FileExistsError(f"Target already exists: {target}. Remove it manually before running migration.")
 
     # Same-filesystem check to detect cross-mount scenarios early.
     source_dev = os.stat(source).st_dev
     staging_dev = os.stat(staging_dir).st_dev
     if source_dev != staging_dev:
         raise RuntimeError(
-            f"Source ({source}) and staging dir ({staging_dir}) are on different "
-            "filesystems. Manual move required."
+            f"Source ({source}) and staging dir ({staging_dir}) are on different filesystems. Manual move required."
         )
 
     try:
