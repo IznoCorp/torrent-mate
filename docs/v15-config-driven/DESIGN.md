@@ -148,6 +148,9 @@ class CategoryRule(_StrictModel):
     tmdb_genre_contains: str | None = Field(default=None, description="Substring dans un genre TMDB (nom tel que renvoyé par l'API — langue dépend de scraper_language). Match case-insensitive.")
     tmdb_keyword: list[str] | None = Field(default=None, description="Keyword(s) TMDB (API /keywords). Match si au moins un keyword présent. Nécessite scraper-side /keywords fetch (B4).")
 
+    # Scoping par type de média (ajouté Phase 2 — évite collision rules entre movies et TV)
+    applies_to: Literal["movie", "tv", "both"] = Field(default="both", description="Sur quel(s) type(s) de média appliquer cette rule.")
+
     category: str = Field(..., description="category_id résultat si cette règle match.")
 
     @model_validator(mode="after")
@@ -1022,23 +1025,27 @@ config.json5
 Input: media item (file/folder) + optional NFO + optional TMDB/TVDB metadata
 Output: (category_id | None, reason: str)
 
-Priority chain:
+Priority chain (**order adjusted in Phase 2** — anime before rules, mirroring V14 GenreMapper behavior):
   ┌─────────────────────────────────────────────┐
   │ 1. NFO <category> element                    │  → "nfo_override"
   └─────────────────────────────────────────────┘
                    │ (else)
                    ▼
   ┌─────────────────────────────────────────────┐
-  │ 2. Config.category_rules (ordered, first wins)│  → "category_rules[i]"
-  │    - path_contains / path_regex              │
-  │    - title_regex                             │
-  │    - tmdb_genre_contains / tmdb_keyword      │
+  │ 2. Config.anime_rule                         │  → "anime_rule"
+  │    (if enabled AND applies_to matches)       │
+  │    Runs BEFORE category_rules to preserve    │
+  │    V14 priority: origin-country-gated anime  │
+  │    wins over generic "Animation" matching.   │
   └─────────────────────────────────────────────┘
                    │ (else)
                    ▼
   ┌─────────────────────────────────────────────┐
-  │ 3. Config.anime_rule                         │  → "anime_rule"
-  │    (if enabled AND applies_to matches)       │
+  │ 3. Config.category_rules (ordered, first wins)│  → "category_rules[i]"
+  │    - path_contains / path_regex              │
+  │    - title_regex                             │
+  │    - tmdb_genre_contains / tmdb_keyword      │
+  │    - rule.applies_to ∈ {movie, tv, both}     │
   └─────────────────────────────────────────────┘
                    │ (else)
                    ▼
