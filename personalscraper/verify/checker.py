@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from personalscraper.genre_mapper import GenreMapper
+from personalscraper.conf.classifier import classify_from_nfo
+from personalscraper.conf.models import Config
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import _FILENAME_ILLEGAL
@@ -69,22 +70,23 @@ class MediaChecker:
     """Verify media directories meet quality standards.
 
     Checks naming, NFO validity, artwork presence, streamdetails,
-    and genre categorization against NamingPatterns and GenreMapper.
+    and genre categorization against NamingPatterns and V15 Config
+    (for classifier-backed category resolution).
 
     Attributes:
         patterns: MediaElch naming patterns reference.
-        genre_mapper: Genre-to-category mapper.
+        config: V15 Config used to resolve category IDs from NFO metadata.
     """
 
-    def __init__(self, patterns: NamingPatterns, genre_mapper: GenreMapper):
+    def __init__(self, patterns: NamingPatterns, config: Config):
         """Initialize the checker.
 
         Args:
             patterns: Naming patterns for file verification.
-            genre_mapper: Genre mapper for category checks.
+            config: V15 Config providing category IDs and classifier rules.
         """
         self.patterns = patterns
-        self.genre_mapper = genre_mapper
+        self.config = config
 
     def check_movie(self, movie_dir: Path) -> list[CheckResult]:
         """Run all quality checks on a movie directory.
@@ -236,7 +238,7 @@ class MediaChecker:
 
         # category
         if nfo_exists:
-            category = self.genre_mapper.categorize_from_nfo(nfo_path, "movie")
+            category, _reason = classify_from_nfo(self.config, nfo_path, "movie")
             results.append(
                 CheckResult(
                     name="category",
@@ -422,7 +424,7 @@ class MediaChecker:
 
         # category
         if nfo_exists:
-            category = self.genre_mapper.categorize_from_nfo(nfo_path, "tvshow")
+            category, _reason = classify_from_nfo(self.config, nfo_path, "tvshow")
             results.append(
                 CheckResult(
                     name="category",

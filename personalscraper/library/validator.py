@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from personalscraper.conf.models import Config
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
-from personalscraper.genre_mapper import GenreMapper
 from personalscraper.library.models import (
     LibraryValidationResult,
     ValidationItem,
@@ -129,7 +128,7 @@ def validate_library(
         LibraryValidationResult with per-item validation status.
     """
     patterns = NamingPatterns()
-    checker = MediaChecker(patterns, GenreMapper())
+    checker = MediaChecker(patterns, config)
     fixer = MediaFixer(patterns, dry_run=not apply) if fix else None
     items: list[ValidationItem] = []
     valid_count = 0

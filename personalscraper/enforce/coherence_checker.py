@@ -1,8 +1,8 @@
 """Cross-step coherence checker for staging media.
 
-Read-only checker that parses NFOs, verifies genre_mapper consistency,
-and checks sort↔process coherence. Produces warnings, never modifies
-the filesystem.
+Read-only checker that parses NFOs, verifies classifier-based genre
+consistency (V15), and checks sort↔process coherence. Produces
+warnings, never modifies the filesystem.
 """
 
 import logging
@@ -10,6 +10,9 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from personalscraper.conf import ids as CID
+from personalscraper.conf.classifier import classify_from_nfo
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -30,7 +33,11 @@ class CoherenceResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def check_coherence(settings: Settings, dry_run: bool = False) -> list[CoherenceResult]:
+def check_coherence(
+    settings: Settings,
+    config: Config,
+    dry_run: bool = False,
+) -> list[CoherenceResult]:
     """Check cross-step coherence for all staging items.
 
     Iterates over every media directory in 001-MOVIES and 002-TVSHOWS,
@@ -39,11 +46,13 @@ def check_coherence(settings: Settings, dry_run: bool = False) -> list[Coherence
 
     Args:
         settings: Pipeline configuration.
+        config: V15 Config used by the classifier for genre coherence.
         dry_run: No effect (coherence check is always read-only).
 
     Returns:
         List of CoherenceResult, one per media directory found.
     """
+    _ = dry_run  # coherence is always read-only
     results: list[CoherenceResult] = []
     staging = Path(getattr(settings, "staging_dir", "."))
 
@@ -57,7 +66,7 @@ def check_coherence(settings: Settings, dry_run: bool = False) -> list[Coherence
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
-                results.append(_check_tvshow(folder))
+                results.append(_check_tvshow(folder, config))
 
     return results
 
@@ -88,7 +97,7 @@ def _check_movie(movie_dir: Path) -> CoherenceResult:
     return result
 
 
-def _check_tvshow(show_dir: Path) -> CoherenceResult:
+def _check_tvshow(show_dir: Path, config: Config) -> CoherenceResult:
     """Check coherence for a single TV show directory.
 
     Detects movie NFOs misplaced in TVSHOWS, validates external IDs in the
@@ -96,6 +105,7 @@ def _check_tvshow(show_dir: Path) -> CoherenceResult:
 
     Args:
         show_dir: Path to the TV show folder.
+        config: V15 Config used by the classifier for genre coherence.
 
     Returns:
         CoherenceResult with any warnings found.
@@ -110,7 +120,7 @@ def _check_tvshow(show_dir: Path) -> CoherenceResult:
             result.warnings.append(f"Wrong category: {show_dir.name} has movie NFO but is in TVSHOWS")
     else:
         _check_nfo_ids(nfo_path, result)
-        _check_genre_coherence(nfo_path, result)
+        _check_genre_coherence(nfo_path, result, config)
 
     result.checks.append("sort_process_coherence")
     return result
@@ -148,29 +158,26 @@ def _check_nfo_ids(nfo_path: Path, result: CoherenceResult) -> None:
     result.checks.append("nfo_ids")
 
 
-def _check_genre_coherence(nfo_path: Path, result: CoherenceResult) -> None:
+def _check_genre_coherence(nfo_path: Path, result: CoherenceResult, config: Config) -> None:
     """Check whether the NFO genre suggests a different target category.
 
-    Uses GenreMapper.categorize_from_nfo() to determine the implied category.
-    If the genre implies a TV_PROGRAMS category (V14: "emissions") but the item
-    is in the default TVSHOWS bucket, a warning is emitted so the operator can
-    review and re-categorise manually.
+    Uses the V15 classifier (classify_from_nfo) to determine the implied
+    category. If the genre implies ``CID.TV_PROGRAMS`` but the item is in the
+    default TVSHOWS bucket, a warning is emitted so the operator can review
+    and re-categorise manually.
 
     Args:
         nfo_path: Path to the tvshow NFO file.
         result: CoherenceResult to append warnings and checks to (mutated).
+        config: V15 Config passed to the classifier.
     """
-    # V14 label returned by genre_mapper; mapped to CID.TV_PROGRAMS in V15.
-    _V14_TV_PROGRAMS_LABEL = "emissions"
-
     try:
-        from personalscraper.genre_mapper import GenreMapper
-
-        mapper = GenreMapper()
-        category = mapper.categorize_from_nfo(nfo_path, media_type="tvshow")
-        if category and category == _V14_TV_PROGRAMS_LABEL:
-            result.warnings.append(f"Genre suggests TV program (emissions) not series for {result.path.name}")
-    except (ET.ParseError, OSError, ValueError, ImportError) as exc:
+        category_id, _reason = classify_from_nfo(config, nfo_path, media_type="tvshow")
+        if category_id == CID.TV_PROGRAMS:
+            result.warnings.append(
+                f"Genre suggests TV program ({CID.TV_PROGRAMS}) not series for {result.path.name}"
+            )
+    except (ET.ParseError, OSError, ValueError) as exc:
         logger.warning("Genre check failed for %s: %s", nfo_path.name, exc)
         result.warnings.append(f"Genre check failed: {exc}")
 

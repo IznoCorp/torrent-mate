@@ -228,7 +228,7 @@ class Pipeline:
 
         self._run_step(
             "enforce",
-            lambda: run_enforce(self.settings, dry_run=self.dry_run),
+            lambda: run_enforce(self.settings, self.config, dry_run=self.dry_run),
             report,
         )
 

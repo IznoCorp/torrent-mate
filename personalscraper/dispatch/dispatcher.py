@@ -23,28 +23,12 @@ from pathlib import Path
 from typing import Any
 
 from personalscraper.conf import resolver
-from personalscraper.conf.migration import V14_LABEL_TO_ID
 from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
-
-
-def _normalize_category(category: str) -> str:
-    """Normalize a category string to a V15 ID.
-
-    Accepts either a V15 ID (``"movies"``, ``"tv_shows"``, ...) or a V14
-    label (``"films"``, ``"series"``, ...). V14 labels are translated via
-    ``V14_LABEL_TO_ID``. Unknown strings are returned unchanged so the
-    caller (pick_disk_for / config.disks_accepting) can raise a clear error.
-
-    Workaround for Phase 7.5 incomplete deletion: verify/* modules still
-    emit V14 labels via GenreMapper. Remove this shim once verify uses the
-    V15 classifier directly.
-    """
-    return V14_LABEL_TO_ID.get(category, category)
 
 
 def _force_rmtree(path: Path) -> None:
@@ -332,14 +316,12 @@ class Dispatcher:
         """Dispatch a movie: replace if exists, move to best disk if new.
 
         Args:
-            movie_dir: Source movie directory. Accepts V15 IDs or V14 labels
-                (auto-translated via :func:`_normalize_category`).
+            movie_dir: Source movie directory.
             category_id: V15 category ID (e.g. ``"movies"``) from the classifier.
 
         Returns:
             DispatchResult with operation details.
         """
-        category_id = _normalize_category(category_id)
         result = DispatchResult(source=movie_dir)
 
         # Pre-scan for NTFS-illegal filenames before any rsync operation
@@ -423,14 +405,11 @@ class Dispatcher:
 
         Args:
             show_dir: Source TV show directory.
-            category_id: V15 category ID (e.g. ``"tv_shows"``) from the classifier,
-                or a V14 label (``"series"``, ``"emissions"``) from the legacy
-                verify pipeline — auto-translated via :func:`_normalize_category`.
+            category_id: V15 category ID (e.g. ``"tv_shows"``) from the classifier.
 
         Returns:
             DispatchResult with operation details.
         """
-        category_id = _normalize_category(category_id)
         result = DispatchResult(source=show_dir)
 
         # Pre-scan for NTFS-illegal filenames before any rsync operation

@@ -298,14 +298,14 @@ def enforce(
     """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
     from personalscraper.enforce.run import run_enforce
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_enforce(settings, dry_run=dry_run)
+        report = run_enforce(settings, config, dry_run=dry_run)
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
         if state["verbose"]:
             for detail in report.details:

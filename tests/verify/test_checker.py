@@ -9,15 +9,15 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.genre_mapper import GenreMapper
+from personalscraper.conf.models import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import MediaChecker, Severity
 
 
 @pytest.fixture
-def checker() -> MediaChecker:
-    """Create a MediaChecker with default patterns and mapper."""
-    return MediaChecker(NamingPatterns(), GenreMapper())
+def checker(test_config: Config) -> MediaChecker:
+    """Create a MediaChecker with default patterns and a synthetic V15 Config."""
+    return MediaChecker(NamingPatterns(), test_config)
 
 
 def _make_movie_dir(tmp_path: Path, title: str = "Fight Club", year: int = 1999) -> Path:
@@ -204,7 +204,7 @@ class TestCheckTvshow:
 class TestNtfsSafeNames:
     """Tests for NTFS-illegal character detection in verify checker."""
 
-    def test_colon_in_artwork_fails_check(self, tmp_path: Path) -> None:
+    def test_colon_in_artwork_fails_check(self, tmp_path: Path, test_config: Config) -> None:
         """Artwork file with ':' should fail ntfs_safe_names check."""
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
@@ -216,7 +216,7 @@ class TestNtfsSafeNames:
 
         from personalscraper.verify.checker import MediaChecker
 
-        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        checker = MediaChecker(NamingPatterns(), test_config)
         results = checker.check_movie(movie_dir)
 
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
@@ -224,7 +224,7 @@ class TestNtfsSafeNames:
         assert ntfs_check.passed is False
         assert ":" in ntfs_check.message
 
-    def test_clean_names_pass_check(self, tmp_path: Path) -> None:
+    def test_clean_names_pass_check(self, tmp_path: Path, test_config: Config) -> None:
         """Files with NTFS-safe names should pass the check."""
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
@@ -234,14 +234,14 @@ class TestNtfsSafeNames:
 
         from personalscraper.verify.checker import MediaChecker
 
-        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        checker = MediaChecker(NamingPatterns(), test_config)
         results = checker.check_movie(movie_dir)
 
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
         assert ntfs_check is not None
         assert ntfs_check.passed is True
 
-    def test_tvshow_with_colon_in_nfo_fails(self, tmp_path: Path) -> None:
+    def test_tvshow_with_colon_in_nfo_fails(self, tmp_path: Path, test_config: Config) -> None:
         """TV show with ':' in a filename should also fail."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
@@ -255,7 +255,7 @@ class TestNtfsSafeNames:
 
         from personalscraper.verify.checker import MediaChecker
 
-        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        checker = MediaChecker(NamingPatterns(), test_config)
         results = checker.check_tvshow(show_dir)
 
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
