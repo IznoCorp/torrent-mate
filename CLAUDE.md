@@ -7,7 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to permanent storage on one of 4 disks.
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V14 implemented — see `docs/reference/architecture.md` for version history and module map.
+V0-V15 implemented — see `docs/reference/architecture.md` for version history and module map.
+
+**V15 (config-driven):** All storage paths and category names are now in `config.json5`.
+Run `personalscraper init-config --from-current` to migrate from V14. See `MIGRATION.md`.
 
 ## Critical Rules
 
@@ -58,8 +61,8 @@ Coherence check between every phase — verify interfaces match design before co
 
 ### Move Rules (V5 dispatch)
 
-- **Movies** (films, animations, documentaires, spectacles, theatre): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
-- **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
+- **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
+- **TV Shows** (category IDs: `tv_shows`, `tv_shows_animation`, `tv_shows_documentary`, `anime`, `tv_programs`): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
 
 ### Security & Paths
@@ -91,10 +94,16 @@ Also check version-specific planning docs under `docs/v{N}-*/` and archived vers
 
 ## Current Version
 
-**v15** — awaiting spec and plan.
+**v15** — COMPLETE. Config-driven architecture. All 10 phases done. 1702 tests pass.
 
 - Archive v14: `docs/archive/v14/IMPLEMENTATION.md`
-- Active plan: `docs/IMPLEMENTATION.md` (read first, update after each task — check, commit)
-- Specs: `docs/superpowers/specs/`, plans: `docs/superpowers/plans/`
+- Completed plan: `docs/IMPLEMENTATION.md`
+- Design spec: `docs/v15-config-driven/DESIGN.md`
+- Plans: `docs/v15-config-driven/plan/`
+- Migration guide: `MIGRATION.md`
 
-Workflow: brainstorming → design → plan (INDEX + phases) → implementation (commit per sub-phase).
+**Config-driven key points:**
+
+- `config.json5` (gitignored) holds all paths, disks, categories — run `init-config` to create
+- Category IDs: `movies`, `tv_shows`, `anime`, etc. — see `personalscraper/conf/ids.py`
+- `personalscraper init-config --from-current` migrates from V14 `.env`
