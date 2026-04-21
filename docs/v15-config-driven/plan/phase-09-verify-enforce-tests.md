@@ -131,6 +131,6 @@ Dé-hardcoder les derniers modules (`verify/`, `enforce/`, `sorter/`) et refacto
 - [ ] `python -m pytest tests/ -q` → 1270+ tests passent (aucune régression)
 - [ ] `grep -rE '"films"|"series"|"Disk[1-4]"|/Volumes/' personalscraper/ tests/ --include="*.py"` → seulement migration-related
 - [ ] Golden-table equivalence test passe toujours
-- [ ] Test E2E migration (P4.8) passe
+- [ ] Test E2E migration (P4.9) passe
 - [ ] mypy strict sur tout `personalscraper/` : 0 erreur
 - [ ] ruff check + ruff format : clean

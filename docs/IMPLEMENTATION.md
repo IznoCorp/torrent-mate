@@ -36,7 +36,7 @@ _(Filled phase by phase as the plan progresses)_
 
 ---
 
-**10 phases, 70 sous-phases** — Modules:
+**10 phases, 69 sous-phases** — Modules:
 
 - **Nouveaux** : `personalscraper/conf/` (ids, models, loader, classifier, resolver, example_parser, migration), `personalscraper/commands/` (init_config)
 - **Refactor** : `personalscraper/config.py` (allégé), `dispatch/*`, `scraper/*`, `library/*` (preferences supprimé), `verify/*`, `enforce/*`, `sorter/*`, `cli.py`, `pipeline.py`, `notifier.py`

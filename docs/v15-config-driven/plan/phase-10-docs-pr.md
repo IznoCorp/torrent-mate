@@ -86,19 +86,19 @@ Pour chaque critère du DESIGN §Critères d'acceptation V15, vérifier et coche
 - [ ] #1 : `grep -rE "Disk[1-4]|/Volumes/|\"films\"|\"series\"|..."` dans `personalscraper/` → seul `conf/migration.py::V14_LABEL_TO_ID`
 - [ ] #2 : `grep -rE "/Volumes/|\"films\"|\"series\"|\"Disk[1-4]\""` dans `tests/` → 0 (hors fixtures migration)
 - [ ] #3 : `init-config` + `config.example.json5` → `config.json5` fonctionnel (test)
-- [ ] #4 : `init-config --from-current` sur `.env` V14 fixture → config équivalente (test E2E P4.8)
+- [ ] #4 : `init-config --from-current` sur `.env` V14 fixture → config équivalente (test E2E P4.9)
 - [ ] #5 : 1270+ tests V14 passent avec fixture `test_config`
 - [ ] #6 : mypy strict 0 erreur (toute la codebase)
 - [ ] #7 : CI green sur Python 3.10, 3.11, 3.12, 3.13 (local check, CI execution comes after push)
 - [ ] #8 : User externe peut cloner + init-config + run sans toucher `.py` (test manuel ou documenter steps)
 - [ ] #9 : Classification pipeline 6 niveaux tous testés (P2.6)
-- [ ] #10 : `MIGRATION.md` créé + script auto testé (P4.8)
+- [ ] #10 : `MIGRATION.md` créé + script auto testé (P4.9)
 - [ ] #11 : Golden-table equivalence passe (P2.6)
 - [ ] #12 : Validation warnings (dead custom_category, default_label, disk unmounted) émises au load
 
 **Commit** : `v15.10.6: Validate all V15 acceptance criteria (#1-#12)`
 
-### 10.7 — Push + PR
+### 10.7 — Push + PR + finalize IMPLEMENTATION.md
 
 - [ ] `git push -u origin feat/v15-config-driven`
 - [ ] Créer PR via `gh pr create` avec titre `feat(v15): config-driven architecture — remove all hardcoded user values`
@@ -108,18 +108,14 @@ Pour chaque critère du DESIGN §Critères d'acceptation V15, vérifier et coche
   - Migration path détaillé avec lien `MIGRATION.md`
   - Liste commits clés
   - Test plan (checklist acceptance criteria)
+- [ ] Mise à jour `docs/IMPLEMENTATION.md` :
+  - Marquer toutes les phases P1-P10 comme DONE
+  - Ajouter URL de la PR dans le header `**PR:**`
+  - Summary final : `**10 phases, 70 sous-phases**`
 - [ ] Attendre CI green sur 3.10-3.13
 - [ ] Request review
 
-**Commit** : pas de commit propre — push + PR creation seulement
-
-### 10.8 — Mise à jour `IMPLEMENTATION.md`
-
-- [ ] Marquer toutes les phases P1-P10 comme DONE dans `docs/IMPLEMENTATION.md`
-- [ ] Ajouter `**PR:**` URL dans le header
-- [ ] Summary line : `**10 phases, ~60 sous-phases** — Modules: conf/, commands/, refactor library/dispatch/scraper/verify/enforce/sorter/tests`
-
-**Commit** : `v15.10.8: Mark V15 as DONE in IMPLEMENTATION.md`
+**Commit** : `v15.10.7: Mark V15 as DONE in IMPLEMENTATION.md and link PR`
 
 ## Tests de cohérence P10 → DONE
 

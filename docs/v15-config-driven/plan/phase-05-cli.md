@@ -60,7 +60,7 @@ Intégrer `conf/` dans la CLI Typer : option globale `--config`, chargement eage
       init_config(example, output, interactive=not non_interactive, from_current=from_current, force=force)
   ```
 
-- [ ] Tests : `personalscraper init-config --help` affiche les flags ; flow E2E depuis CLI (déjà en P4.8)
+- [ ] Tests : `personalscraper init-config --help` affiche les flags ; flow E2E depuis CLI (déjà en P4.9)
 
 **Commit** : `v15.5.3: Wire init-config Typer command to commands module`
 
