@@ -179,7 +179,7 @@ class TestCleanIntegration:
         """Clean should remove .actors/ directories."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        result = clean_library([mini_library["config"]], apply=True, only="actors")
+        result = clean_library(mini_library["v15_config"], apply=True, only="actors")
 
         assert result.deleted_count == 2  # Matrix + Fallout .actors
         assert not (mini_library["matrix"] / ".actors").exists()
@@ -189,7 +189,7 @@ class TestCleanIntegration:
         """Clean should remove .DS_Store files."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        clean_library([mini_library["config"]], apply=True, only="junk")
+        clean_library(mini_library["v15_config"], apply=True, only="junk")
 
         assert not (mini_library["matrix"] / ".DS_Store").exists()
 
@@ -197,7 +197,7 @@ class TestCleanIntegration:
         """Dry-run should not delete anything."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        result = clean_library([mini_library["config"]], apply=False)
+        result = clean_library(mini_library["v15_config"], apply=False)
 
         assert result.dry_run is True
         assert result.deleted_count > 0  # counted
@@ -295,7 +295,7 @@ class TestFullWorkflow:
         issues1 = sum(len(i.issues) for i in scan1.items)
 
         # Clean
-        clean_library([mini_library["config"]], apply=True)
+        clean_library(mini_library["v15_config"], apply=True)
 
         # Rescan
         scan2 = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])
