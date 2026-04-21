@@ -1,14 +1,32 @@
 """Tests for personalscraper.cli — CLI commands and global options."""
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from personalscraper.cli import app
+from personalscraper.cli import AppCtx, app
 from personalscraper.models import PipelineReport, StepReport
 
 runner = CliRunner()
+
+
+# ── 5.1 AppCtx dataclass ────────────────────────────────────────────────────
+
+
+def test_appctx_instantiation() -> None:
+    """AppCtx can be instantiated with None values for both fields."""
+    ctx = AppCtx(config=None, config_override=None)
+    assert ctx.config is None
+    assert ctx.config_override is None
+
+
+def test_appctx_with_path() -> None:
+    """AppCtx stores config_override Path when provided."""
+    p = Path("/tmp/config.json5")
+    ctx = AppCtx(config=None, config_override=p)
+    assert ctx.config_override == p
 
 # Patches for standalone commands
 _PATCH_CLI_RUN_INGEST = "personalscraper.cli.run_ingest"

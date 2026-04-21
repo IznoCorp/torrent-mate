@@ -1,8 +1,9 @@
 """Typer CLI entry point for PersonalScraper.
 
-Defines the main app with global options (--verbose, --quiet, --version)
-and commands for each pipeline step. Lock is acquired per-command to
-prevent concurrent executions.
+Defines the main app with global options (--verbose, --quiet, --version,
+--config) and commands for each pipeline step. Lock is acquired per-command
+to prevent concurrent executions. Config is loaded eagerly at the callback
+and stored in ``ctx.obj`` (AppCtx) for all subcommands.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, TypedDict
 
 import typer
@@ -18,12 +21,27 @@ from rich.console import Console
 from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
+from personalscraper.conf.models import Config
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AppCtx:
+    """Application context passed through Typer's ctx.obj.
+
+    Attributes:
+        config: Loaded and validated Config instance. None only for init-config.
+        config_override: Path passed via --config CLI option, if any.
+    """
+
+    config: Config | None
+    config_override: Path | None
+
 
 # Rich tracebacks for readable error output
 install_traceback(show_locals=False)
