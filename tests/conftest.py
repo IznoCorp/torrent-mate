@@ -6,6 +6,9 @@ import pytest
 
 from personalscraper.config import Settings
 
+# Expose shared fixtures from the fixtures package
+pytest_plugins = ["tests.fixtures.config"]
+
 # Disable Rich/Typer color output so help-text assertions (e.g. "--disk" in output)
 # match the rendered text without ANSI escape codes splitting option names.
 os.environ.setdefault("NO_COLOR", "1")
