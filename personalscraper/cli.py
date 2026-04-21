@@ -119,11 +119,28 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable DEBUG logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress console output"),
     version: bool = typer.Option(False, "--version", help="Show version and exit"),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help=(
+            "Path to config.json5 (overrides ./config.json5 and "
+            "$PERSONALSCRAPER_CONFIG). Must be placed BEFORE the subcommand."
+        ),
+    ),
 ) -> None:
     """PersonalScraper — Media pipeline automation."""
+    from personalscraper.conf.loader import (
+        ConfigNotFoundError,
+        ConfigValidationError,
+        load_config,
+        resolve_config_path,
+    )
+
     if version:
         typer.echo(__version__)
         raise typer.Exit()
@@ -131,6 +148,18 @@ def main(
     state["verbose"] = verbose
     state["quiet"] = quiet
     configure_logging(verbose=verbose, quiet=quiet)
+
+    # init-config bypasses eager load: config.json5 may not exist yet.
+    if ctx.invoked_subcommand == "init-config":
+        ctx.obj = AppCtx(config=None, config_override=config)
+        return
+
+    try:
+        cfg = load_config(resolve_config_path(config))
+    except (ConfigNotFoundError, ConfigValidationError) as exc:
+        typer.echo(f"Config error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    ctx.obj = AppCtx(config=cfg, config_override=config)
 
 
 @app.command()
