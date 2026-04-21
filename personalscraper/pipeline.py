@@ -103,13 +103,12 @@ class Pipeline:
         import shutil
         from pathlib import Path as _Path
 
-        from personalscraper.dispatch.disk_scanner import get_disk_configs
         from personalscraper.ingest.ingest import _cleanup_orphan_temps
 
         cleaned = 0
 
         # 1. Clean _tmp_dispatch_* on ALL storage disks
-        for disk_config in get_disk_configs(self.config):
+        for disk_config in self.config.disks:
             if not disk_config.path.exists():
                 continue
             try:

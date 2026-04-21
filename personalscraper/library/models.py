@@ -101,8 +101,8 @@ class LibraryScanItem:
 
     Attributes:
         path: Absolute path to media directory (str for JSON).
-        disk: Disk name ("Disk1" through "Disk4").
-        category: Disk category name (e.g. "films", "series").
+        disk: Disk ID from config (e.g. "disk_1", "drive_a").
+        category: Category ID from config (e.g. "movies", "tv_shows").
         media_type: "movie" or "tvshow".
         title: Parsed title from directory name.
         year: Parsed year from directory name, if present.

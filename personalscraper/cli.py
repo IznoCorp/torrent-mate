@@ -930,7 +930,7 @@ def library_report(
         personalscraper library-report
         personalscraper library-report --format json
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
+    from personalscraper.dispatch.disk_scanner import get_disk_status
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
@@ -960,8 +960,7 @@ def library_report(
         raise typer.Exit(1)
 
     # Get live disk free space
-    disk_configs = get_disk_configs(config)
-    disk_statuses = [get_disk_status(dc) for dc in disk_configs]
+    disk_statuses = [get_disk_status(dc) for dc in config.disks]
 
     report = generate_report(
         scan_data,

@@ -228,8 +228,7 @@ class TestCrashRecovery:
         config.disks = []
         return config
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
-    def test_expired_lockout_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_expired_lockout_cleaned(self, tmp_path: Path) -> None:
         """Expired qBit lockout file (>1h) should be removed at startup."""
         lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
         lockout.parent.mkdir(parents=True)
@@ -247,8 +246,7 @@ class TestCrashRecovery:
 
         assert not lockout.exists()
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
-    def test_non_expired_lockout_kept(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_non_expired_lockout_kept(self, tmp_path: Path) -> None:
         """Recent lockout file (<1h) should NOT be removed."""
         lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
         lockout.parent.mkdir(parents=True)
@@ -263,8 +261,7 @@ class TestCrashRecovery:
 
         assert lockout.exists()
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs")
-    def test_orphan_tmp_dispatch_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_orphan_tmp_dispatch_cleaned(self, tmp_path: Path) -> None:
         """Orphan _tmp_dispatch_* dirs on storage disks should be removed."""
         # Simulate a storage disk with an orphan
         disk_path = tmp_path / "Disk1" / "medias"
@@ -275,19 +272,19 @@ class TestCrashRecovery:
 
         disk_config = MagicMock()
         disk_config.path = disk_path
-        mock_get_disks.return_value = [disk_config]
 
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
         settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
-        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
+        config = self._make_config(tmp_path)
+        config.disks = [disk_config]  # inject disk with orphan directly
+        pipeline = Pipeline(config, settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
-    def test_orphan_ingest_tmp_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_orphan_ingest_tmp_cleaned(self, tmp_path: Path) -> None:
         """Orphan .ingest_tmp_* dirs in staging should be removed."""
         ingest_dir = tmp_path / "097-TEMP"
         ingest_dir.mkdir()
