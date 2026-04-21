@@ -164,8 +164,12 @@ def main(
 
 @app.command()
 @handle_cli_errors
-def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
+def ingest(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+) -> None:
     """Ingest completed torrents from qBittorrent."""
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -182,10 +186,14 @@ def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview withou
 
 @app.command()
 @handle_cli_errors
-def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
+def sort(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+) -> None:
     """Sort and clean media files."""
     from personalscraper.sorter.run import run_sort
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -206,6 +214,7 @@ def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without 
 @app.command()
 @handle_cli_errors
 def scrape(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
@@ -214,6 +223,7 @@ def scrape(
     """Scrape metadata and artwork from TMDB/TVDB."""
     from personalscraper.scraper.run import run_scrape
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -240,6 +250,7 @@ def scrape(
 @app.command()
 @handle_cli_errors
 def verify(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
     fix: bool = typer.Option(True, "--fix/--no-fix", help="Attempt auto-fixes (default: True)"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
@@ -248,6 +259,7 @@ def verify(
     """Verify and qualify scraped media before dispatch."""
     from personalscraper.verify.run import run_verify
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -277,11 +289,13 @@ def verify(
 @app.command()
 @handle_cli_errors
 def enforce(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
 ) -> None:
     """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
     from personalscraper.enforce.run import run_enforce
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -299,10 +313,14 @@ def enforce(
 
 @app.command()
 @handle_cli_errors
-def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
+def dispatch(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -324,12 +342,14 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
 @app.command()
 @handle_cli_errors
 def process(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
 ) -> None:
     """Run process phase only (reclean + dedup + scrape + cleanup)."""
     from personalscraper.process.run import run_process
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -358,6 +378,7 @@ def process(
 @app.command()
 @handle_cli_errors
 def run(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
 ) -> None:
@@ -372,6 +393,7 @@ def run(
     from personalscraper.notifier import TelegramNotifier, ping_healthcheck
     from personalscraper.pipeline import Pipeline
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
     log = logging.getLogger("pipeline")
