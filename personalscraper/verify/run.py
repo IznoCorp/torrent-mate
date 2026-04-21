@@ -7,6 +7,7 @@ converts VerifyResult lists to StepReport.
 import logging
 from pathlib import Path
 
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
@@ -40,6 +41,7 @@ def _has_items_to_verify(settings: Settings) -> bool:
 
 def run_verify(
     settings: Settings,
+    config: Config,
     dry_run: bool = False,
     fix: bool = True,
     movies_only: bool = False,
@@ -49,6 +51,8 @@ def run_verify(
 
     Args:
         settings: Pipeline configuration.
+        config: V15 Config passed to the Verifier for classifier-backed
+            category resolution.
         dry_run: If True, preview without modifying files.
         fix: If True, attempt automatic corrections.
         movies_only: Process only 001-MOVIES/.
@@ -65,6 +69,7 @@ def run_verify(
     verifier = Verifier(
         settings=settings,
         patterns=PATTERNS,
+        config=config,
         dry_run=dry_run,
         fix=fix,
     )

@@ -114,7 +114,7 @@ def run_dispatch(
         # Standalone mode: run verify first to get dispatchable items
         from personalscraper.verify.run import run_verify
 
-        _, verified = run_verify(settings, dry_run=dry_run)
+        _, verified = run_verify(settings, config, dry_run=dry_run)
 
     results = dispatcher.process(verified=verified)
 

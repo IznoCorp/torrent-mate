@@ -262,7 +262,7 @@ def verify(
     """Verify and qualify scraped media before dispatch."""
     from personalscraper.verify.run import run_verify
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -275,6 +275,7 @@ def verify(
             )
         report, dispatchable = run_verify(
             settings,
+            config,
             dry_run=dry_run,
             fix=fix,
             movies_only=movies_only,

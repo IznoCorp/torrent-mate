@@ -279,7 +279,7 @@ class Pipeline:
         """
         from personalscraper.verify.run import run_verify
 
-        return run_verify(self.settings, dry_run=self.dry_run, fix=False)
+        return run_verify(self.settings, self.config, dry_run=self.dry_run, fix=False)
 
     def _run_process_phase(self, report: PipelineReport) -> None:
         """Execute Phase 3: PROCESS as 3 independent steps.

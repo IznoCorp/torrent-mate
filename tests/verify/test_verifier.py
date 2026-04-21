@@ -372,7 +372,7 @@ class TestReinforcedChecks:
 class TestRunVerify:
     """Tests for run_verify."""
 
-    def test_processes_both_dirs(self, tmp_path: Path) -> None:
+    def test_processes_both_dirs(self, tmp_path: Path, test_config: Config) -> None:
         """Should process both movies and tvshows."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
@@ -392,7 +392,7 @@ class TestRunVerify:
             mock_v.verify_all_movies.return_value = []
             mock_v.verify_all_tvshows.return_value = []
 
-            report, dispatchable = run_verify(settings)
+            report, dispatchable = run_verify(settings, test_config)
 
         assert report.name == "verify"
         mock_v.verify_all_movies.assert_called_once()

@@ -65,3 +65,23 @@ def test_category_dir_names_configurable(monkeypatch):
     s = Settings(_env_file=None)
     assert s.movies_dir_name == "films"
     assert s.tvshows_dir_name == "series"
+
+
+def test_rich_repr_masks_secrets(monkeypatch):
+    """Rich traceback renderer must not leak secrets when inspecting Settings.
+
+    Reason: Rich's Traceback calls ``__rich_repr__`` if present; otherwise it
+    walks ``__dict__`` directly and bypasses ``__repr__``'s masking. A missing
+    ``__rich_repr__`` leaks qbit_password / API keys into any crash report.
+    """
+    monkeypatch.setenv("QBIT_PASSWORD", "supersecret")
+    monkeypatch.setenv("TMDB_API_KEY", "tmdb-secret-key")
+    monkeypatch.setenv("TVDB_API_KEY", "tvdb-secret-key")
+    s = Settings(_env_file=None)
+
+    rendered = dict(s.__rich_repr__())
+    assert rendered["qbit_password"] == "<masked>"
+    assert rendered["tmdb_api_key"] == "<masked>"
+    assert rendered["tvdb_api_key"] == "<masked>"
+    # Non-secret fields must still be visible
+    assert rendered["movies_dir_name"] == "001-MOVIES"

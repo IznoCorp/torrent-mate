@@ -121,6 +121,20 @@ class Settings(BaseSettings):
 
     __str__ = __repr__
 
+    def __rich_repr__(self):
+        """Rich-console repr that masks secrets.
+
+        Rich's ``Traceback`` inspects live objects via ``__rich_repr__`` when
+        present, otherwise falls back to ``__dict__``. Falling through to
+        ``__dict__`` bypasses ``__repr__``'s masking, so this override is
+        mandatory to keep ``qbit_password`` and API keys out of crash reports.
+        """
+        for name, value in self.model_dump().items():
+            if name in self._SECRET_FIELDS and value:
+                yield name, "<masked>"
+            else:
+                yield name, value
+
     def ingest_dir(self, staging_dir: Path) -> Path:
         """Resolved ingest directory (where ingest deposits files).
 
