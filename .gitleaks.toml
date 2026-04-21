@@ -6,4 +6,10 @@ paths = [
     '''.env\.example''',
     '''assets/torrents/''',
     '''docs/''',
+    '''CONFIGURATION\.md''',
+    '''INSTALLATION\.md''',
+    '''MANUAL\.md''',
+]
+regexes = [
+    '''abcdef1234567890abcdef1234567890''',
 ]
