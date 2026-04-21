@@ -289,7 +289,11 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
     return removed
 
 
-def _tvdb_series_to_show_data(tvdb_data: dict[str, Any], tvdb_id: int) -> dict[str, Any]:
+def _tvdb_series_to_show_data(
+    tvdb_data: dict[str, Any],
+    tvdb_id: int,
+    tvdb_client: Any = None,
+) -> dict[str, Any]:
     """Convert TVDB series data to a TMDB-like show_data dict.
 
     Builds a minimal show_data compatible with generate_tvshow_nfo() and
@@ -303,10 +307,15 @@ def _tvdb_series_to_show_data(tvdb_data: dict[str, Any], tvdb_id: int) -> dict[s
     - genres[{name}] → genres[{name}]
     - contentRatings[{name}] → content_ratings.results[{rating}]
     - seasons[{number}] → seasons[{season_number}]
+    - If tvdb_client is provided: posters (type=2) + backgrounds (type=3) are
+      fetched and injected into ``images`` as absolute URLs (``{file_path}``).
 
     Args:
         tvdb_data: TVDB extended series dict (from get_series()).
         tvdb_id: TVDB series ID (embedded in external_ids for NFO generation).
+        tvdb_client: Optional TVDB client used to fetch artworks. When None, the
+            returned dict has empty ``images`` (legacy call sites that don't
+            need artwork).
 
     Returns:
         Dict with TMDB-compatible fields for NFO/artwork generation.
@@ -329,6 +338,30 @@ def _tvdb_series_to_show_data(tvdb_data: dict[str, Any], tvdb_id: int) -> dict[s
         if s_num and s_num > 0:
             seasons.append({"season_number": s_num, "poster_path": ""})
 
+    # Fetch TVDB artworks (posters type=2, backgrounds type=3) when a client
+    # is provided. TVDB returns absolute URLs in the ``image`` field — we map
+    # them into TMDB-like ``{file_path, iso_639_1}`` entries so
+    # download_tvshow_artwork() can consume them unchanged.
+    posters: list[dict[str, Any]] = []
+    backdrops: list[dict[str, Any]] = []
+    if tvdb_client is not None:
+        try:
+            poster_artworks = tvdb_client.get_series_artworks(tvdb_id, type_id=2)
+            posters = [
+                {"file_path": a["image"], "iso_639_1": a.get("language") or ""}
+                for a in poster_artworks
+                if a.get("image")
+            ]
+        except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
+            logger.warning("TVDB poster fetch failed for series %s: %s", tvdb_id, exc)
+        try:
+            bg_artworks = tvdb_client.get_series_artworks(tvdb_id, type_id=3)
+            backdrops = [
+                {"file_path": a["image"], "iso_639_1": a.get("language") or ""} for a in bg_artworks if a.get("image")
+            ]
+        except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
+            logger.warning("TVDB background fetch failed for series %s: %s", tvdb_id, exc)
+
     return {
         "id": 0,  # No TMDB ID — will not be embedded as tmdb uniqueid
         "name": tvdb_data.get("name", ""),
@@ -348,7 +381,7 @@ def _tvdb_series_to_show_data(tvdb_data: dict[str, Any], tvdb_id: int) -> dict[s
         },
         "content_ratings": {"results": content_ratings_results},
         "seasons": seasons,
-        "images": {"posters": [], "backdrops": []},
+        "images": {"posters": posters, "backdrops": backdrops},
         "aggregate_credits": {"cast": []},
     }
 
@@ -1464,7 +1497,7 @@ class Scraper:
                 if not tvdb_data:
                     result.error = "No TMDB ID available and no TVDB data fetched"
                     return result
-                show_data = _tvdb_series_to_show_data(tvdb_data, match.api_id)
+                show_data = _tvdb_series_to_show_data(tvdb_data, match.api_id, self._tvdb)
         except Exception as e:
             result.error = f"Get details failed: {e}"
             logger.error("Failed to get show details: %s", e)

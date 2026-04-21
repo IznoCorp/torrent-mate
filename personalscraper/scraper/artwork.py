@@ -242,7 +242,8 @@ class ArtworkDownloader:
         poster_path = select_best_image(images.get("posters", []), self._lang_priority)
         if poster_path:
             dest = show_dir / patterns.tvshow_poster
-            url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
+            # TVDB images arrive as absolute URLs; TMDB paths need the CDN prefix.
+            url = poster_path if poster_path.startswith("http") else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
             try:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
@@ -253,7 +254,12 @@ class ArtworkDownloader:
         landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
         if landscape_path:
             dest = show_dir / patterns.tvshow_landscape
-            url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{landscape_path}"
+            # TVDB images arrive as absolute URLs; TMDB paths need the CDN prefix.
+            url = (
+                landscape_path
+                if landscape_path.startswith("http")
+                else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{landscape_path}"
+            )
             try:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
