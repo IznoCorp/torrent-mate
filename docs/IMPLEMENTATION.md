@@ -5,8 +5,8 @@
 > Never batch updates.
 
 **Archive v14:** `docs/archive/v14/IMPLEMENTATION.md`
-**Branch:** _(to be defined by /implement-version)_
-**PR merge:** auto-merge | auto-squash | manual _(filled by /implement-version)_
+**Branch:** `feat/config-driven`
+**PR merge:** manual
 **PR:** _(created after last phase)_
 **Design spec:** `docs/v15-config-driven/DESIGN.md`
 **Master plan:** `docs/v15-config-driven/plan/INDEX.md`
