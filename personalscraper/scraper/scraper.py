@@ -681,7 +681,10 @@ class Scraper:
 
         1. Remove residual NFOs at root (keep only tvshow.nfo).
         2. Remove root MKV duplicates (same SxxExx in Saison XX/).
-        3. Organize unstructured episodes into Saison XX/ (if TMDB ID available).
+        3. Organize new root episodes not yet in Saison XX/ (if TMDB ID available).
+           Dedup rule: when multiple root files match the same SxxExx, keep the
+           newest by mtime and delete the others before organizing.
+        4. Organize unstructured episodes from non-season subdirs (if TMDB ID available).
 
         Args:
             show_dir: Path to the TV show directory.
@@ -753,6 +756,160 @@ class Scraper:
                             f.name,
                         )
                         repaired = True
+
+        # 3b. Organize new root video files for episodes NOT yet in any Saison XX/.
+        # Collect all root video files that parse as SxxExx and are not duplicates.
+        root_new: dict[tuple[int, int], list[Path]] = {}
+        for f in list(show_dir.iterdir()):
+            if not f.is_file() or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                continue
+            m = _SXXEXX_RE.search(f.stem)
+            if not m:
+                continue
+            key = (int(m.group(1)), int(m.group(2)))
+            if key in organized:
+                continue  # Already handled as duplicate in step 3
+            root_new.setdefault(key, []).append(f)
+
+        if root_new:
+            nfo_path = show_dir / "tvshow.nfo"
+            tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
+            if not tmdb_id:
+                logger.warning(
+                    "Repair: cannot organize root episodes without tmdb_id in %s",
+                    show_dir.name,
+                )
+            else:
+                try:
+                    show_data = self._tmdb.get_tv(tmdb_id)
+                    root_api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
+                    for season in show_data.get("seasons", []):
+                        s_num = season.get("season_number", 0)
+                        if s_num == 0:
+                            continue
+                        # Only fetch seasons that have new root files
+                        if not any(s == s_num for s, _ in root_new):
+                            continue
+                        try:
+                            s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
+                            for ep in s_detail.get("episodes", []):
+                                e_num = ep.get("episode_number", 0)
+                                root_api_episodes[(s_num, e_num)] = {
+                                    "title": ep.get("name", f"Episode {e_num}"),
+                                    "still_path": ep.get("still_path", ""),
+                                }
+                        except (OSError, ConnectionError, TimeoutError) as e:
+                            logger.warning(
+                                "Repair: failed to get season %d details: %s",
+                                s_num,
+                                e,
+                            )
+
+                    for (s_num, e_num), candidates in root_new.items():
+                        # Dedup: keep newest by mtime, delete older ones
+                        if len(candidates) > 1:
+                            candidates_sorted = sorted(
+                                candidates,
+                                key=lambda f: f.stat().st_mtime,
+                                reverse=True,
+                            )
+                            to_delete = candidates_sorted[1:]
+                            keeper = candidates_sorted[0]
+                            for old_f in to_delete:
+                                if not self.dry_run:
+                                    try:
+                                        old_f.unlink()
+                                        logger.info(
+                                            "Repair: deleted older duplicate %s (kept %s)",
+                                            old_f.name,
+                                            keeper.name,
+                                        )
+                                        repaired = True
+                                    except OSError as exc:
+                                        logger.warning(
+                                            "Repair: cannot delete duplicate %s: %s",
+                                            old_f.name,
+                                            exc,
+                                        )
+                                else:
+                                    logger.info(
+                                        "[DRY RUN] Would delete older duplicate %s (keep %s)",
+                                        old_f.name,
+                                        keeper.name,
+                                    )
+                                    repaired = True
+                        else:
+                            keeper = candidates[0]
+
+                        # Rename and move keeper to Saison XX/
+                        ep_info = root_api_episodes.get((s_num, e_num))
+                        ep_title = ep_info["title"] if ep_info else f"Episode {e_num}"
+                        season_dir_name = self.patterns.format("season_dir", Season=s_num)
+                        new_stem = self.patterns.format(
+                            "episode_video",
+                            Season=s_num,
+                            Episode=e_num,
+                            EpisodeTitle=ep_title,
+                        )
+                        season_dir = show_dir / season_dir_name
+                        dest = season_dir / f"{new_stem}{keeper.suffix}"
+                        if not self.dry_run:
+                            season_dir.mkdir(parents=True, exist_ok=True)
+                            try:
+                                keeper.rename(dest)
+                                logger.info(
+                                    "Repair: moved root episode %s → %s/%s",
+                                    keeper.name,
+                                    season_dir_name,
+                                    dest.name,
+                                )
+                                repaired = True
+                            except OSError as exc:
+                                logger.warning(
+                                    "Repair: cannot move %s: %s",
+                                    keeper.name,
+                                    exc,
+                                )
+                        else:
+                            logger.info(
+                                "[DRY RUN] Would move %s → %s/%s",
+                                keeper.name,
+                                season_dir_name,
+                                dest.name,
+                            )
+                            repaired = True
+
+                    # Generate episode NFOs for moved files
+                    root_moved: dict[Path, dict[str, Any]] = {}
+                    for (s_num, e_num), candidates in root_new.items():
+                        ep_info = root_api_episodes.get((s_num, e_num))
+                        if ep_info is None:
+                            continue
+                        ep_title = ep_info["title"]
+                        season_dir_name = self.patterns.format("season_dir", Season=s_num)
+                        new_stem = self.patterns.format(
+                            "episode_video",
+                            Season=s_num,
+                            Episode=e_num,
+                            EpisodeTitle=ep_title,
+                        )
+                        suffix = candidates[0].suffix
+                        dest = show_dir / season_dir_name / f"{new_stem}{suffix}"
+                        root_moved[dest] = {
+                            "season": s_num,
+                            "episode": e_num,
+                            "api_title": ep_title,
+                            "still_path": ep_info.get("still_path", ""),
+                        }
+                    if root_moved and not self.dry_run:
+                        self._generate_episode_nfos(root_moved, show_dir, show_data)
+
+                except (OSError, ConnectionError, TimeoutError, ValueError, KeyError) as e:
+                    logger.warning(
+                        "Repair: failed to organize root episodes in %s: %s",
+                        show_dir.name,
+                        e,
+                    )
 
         # 4. Organize unstructured episodes (from raw torrent dirs)
         # Finds video files in non-season subdirs (not root, not .actors)

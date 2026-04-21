@@ -1009,24 +1009,41 @@ class TestRepairTvshowDir:
         assert not (show_dir / "S01E01.nfo").exists()
         assert not (show_dir / "S01E02.nfo").exists()
 
-    def test_root_video_not_matching_season_kept(
+    def test_root_video_not_matching_season_organized(
         self,
         tmp_path: Path,
         scraper: Scraper,
     ) -> None:
-        """Root video NOT matching any organized episode is kept (not deleted)."""
+        """Root video for new episode (not in any Saison XX/) is organized via TMDB.
+
+        S01E05 at root while S01E01 is already organized — the new episode should
+        be renamed and moved to Saison 01/ when TMDB data is available.
+        """
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s01 = show_dir / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
-        # Root video with different episode number — should be kept
+        # Root video with different episode number — new episode, should be organized
         orphan = show_dir / "Show.S01E05.mkv"
         orphan.write_bytes(b"\x00" * 50)
 
-        scraper._repair_tvshow_dir(show_dir)
-        assert orphan.exists()
+        show_data = {"id": 1, "name": "Show", "seasons": [{"season_number": 1}]}
+        season_data = {"episodes": [{"episode_number": 5, "name": "Episode 5", "still_path": ""}]}
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._tmdb, "get_tv_season", return_value=season_data),
+            patch.object(scraper, "_generate_episode_nfos"),
+        ):
+            repaired = scraper._repair_tvshow_dir(show_dir)
+
+        # New root episode should have been organized (moved out of root)
+        assert repaired is True
+        assert not orphan.exists(), "Root new episode should have been moved to Saison 01/"
+        organized = list(s01.glob("S01E05*"))
+        assert len(organized) >= 1
 
     def test_root_new_episode_organized_into_season_dir(
         self,
@@ -1041,9 +1058,7 @@ class TestRepairTvshowDir:
         """
         show_dir = tmp_path / "The Boys (2019)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>')
         s05 = show_dir / "Saison 05"
         s05.mkdir()
         (s05 / "S05E01 - Episode 1.mkv").write_bytes(b"\x00" * 100)
@@ -1089,9 +1104,7 @@ class TestRepairTvshowDir:
         """
         show_dir = tmp_path / "The Boys (2019)"
         show_dir.mkdir()
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>')
         s05 = show_dir / "Saison 05"
         s05.mkdir()
         (s05 / "S05E01 - Episode 1.mkv").write_bytes(b"\x00" * 100)
@@ -1142,9 +1155,7 @@ class TestRepairTvshowDir:
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
         # NFO without TMDB ID (TVDB-only show)
-        (show_dir / "tvshow.nfo").write_text(
-            '<tvshow><uniqueid type="tvdb">9999</uniqueid></tvshow>'
-        )
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">9999</uniqueid></tvshow>')
         s01 = show_dir / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
@@ -1152,7 +1163,7 @@ class TestRepairTvshowDir:
         root_new = show_dir / "Show.S01E02.mkv"
         root_new.write_bytes(b"\x00" * 200)
 
-        repaired = scraper._repair_tvshow_dir(show_dir)
+        scraper._repair_tvshow_dir(show_dir)
 
         # Nothing should be done for new root episodes without TMDB ID
         assert root_new.exists(), "Root new episode should NOT be deleted when no TMDB ID"
