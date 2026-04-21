@@ -475,6 +475,38 @@ def run(
 # --- Library maintenance commands ---
 
 
+def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
+    """Resolve a --category CLI value to a canonical category_id.
+
+    Accepts the category_id directly or any alias configured in
+    ``Config.categories[id].aliases``. Exits with code 2 and a clear error
+    message if the value is not recognised.
+
+    Args:
+        ctx: Typer context carrying the AppCtx (with a non-None config).
+        category: Raw --category argument value, or None if not provided.
+
+    Returns:
+        Resolved category_id string, or None if ``category`` was not provided.
+    """
+    if category is None:
+        return None
+    app_ctx: AppCtx = ctx.obj
+    resolved: str | None = app_ctx.config.resolve_category_alias(category)  # type: ignore[union-attr]
+    if resolved is None:
+        # Build a human-readable list of aliases from the config.
+        conf = app_ctx.config
+        alias_map = {cid: ccfg.aliases for cid, ccfg in conf.categories.items() if ccfg.aliases}  # type: ignore[union-attr]
+        alias_hint = ", ".join(f"{cid}: {aliases}" for cid, aliases in sorted(alias_map.items()))
+        valid_ids = ", ".join(sorted(conf.all_category_ids))  # type: ignore[union-attr]
+        msg = f"Unknown category '{category}'. Valid IDs: {valid_ids}." + (
+            f" Aliases: {alias_hint}." if alias_hint else ""
+        )
+        typer.echo(f"Error: {msg}", err=True)
+        raise typer.Exit(code=2)
+    return resolved
+
+
 @app.command()
 @handle_cli_errors
 def library_scan(
@@ -496,7 +528,7 @@ def library_scan(
     from personalscraper.library.models import write_json
     from personalscraper.library.scanner import scan_library
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -505,7 +537,7 @@ def library_scan(
     result = scan_library(
         disk_configs,
         disk_filter=disk,
-        category_filter=category,
+        category_filter=category_id,
     )
 
     output_path = settings.data_dir / "library_scan.json"
@@ -538,7 +570,7 @@ def library_clean(
     from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.disk_cleaner import clean_library
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     settings = get_settings()
 
@@ -565,7 +597,7 @@ def library_clean(
             apply=apply,
             only=only,
             disk_filter=disk,
-            category_filter=category,
+            category_filter=category_id,
         )
 
         if result.dry_run:
@@ -610,7 +642,7 @@ def library_validate(
     from personalscraper.library.models import write_json
     from personalscraper.library.validator import validate_library
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -629,7 +661,7 @@ def library_validate(
         result = validate_library(
             disk_configs,
             disk_filter=disk,
-            category_filter=category,
+            category_filter=category_id,
             fix=fix,
             apply=apply,
         )
@@ -677,7 +709,7 @@ def library_analyze(
     from personalscraper.library.analyzer import analyze_library
     from personalscraper.library.models import read_json, write_json
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -701,7 +733,7 @@ def library_analyze(
     result = analyze_library(
         disk_configs,
         disk_filter=disk,
-        category_filter=category,
+        category_filter=category_id,
         incremental=incremental,
         existing_sizes=existing if incremental else None,
         max_items=max_items,
@@ -740,7 +772,8 @@ def library_recommend(
     from personalscraper.library.preferences import LibraryPreferences
     from personalscraper.library.recommender import generate_recommendations
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    # Resolve alias now so unknown --category values fail fast (Phase 7 will wire it downstream).
+    _resolve_category(ctx, category)
     console = state["console"]
     settings = get_settings()
 
@@ -850,7 +883,7 @@ def library_rescrape(
     from personalscraper.library.models import write_json
     from personalscraper.library.rescraper import rescrape_library
 
-    _ = ctx.obj.config  # Phase 7 will use this; guaranteed non-None by callback.
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     settings = get_settings()
     disk_configs = get_disk_configs(settings)
@@ -873,7 +906,7 @@ def library_rescrape(
             disk_configs,
             settings,
             disk_filter=disk,
-            category_filter=category,
+            category_filter=category_id,
             only=only,
             interactive=interactive,
             dry_run=dry_run,

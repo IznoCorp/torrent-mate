@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from personalscraper.cli import AppCtx, app
@@ -12,29 +11,13 @@ from personalscraper.models import PipelineReport, StepReport
 
 runner = CliRunner()
 
-# Patch target for the eager config load in the CLI callback.
+# Patch targets for the eager config load in the CLI callback.
 # The callback does a lazy import from personalscraper.conf.loader, so we
 # patch the canonical location of load_config (the module it lives in).
+# The autouse fixture in conftest.py patches these for all tests; tests
+# that verify config-error paths override them inside the test body.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
-
-
-@pytest.fixture(autouse=True)
-def _mock_config_load(test_config):
-    """Patch the eager config load in the CLI callback for all CLI tests.
-
-    Intercepts load_config / resolve_config_path so tests do not need a real
-    config.json5 on disk.  Tests that explicitly verify config-error paths
-    must override this fixture by patching the same targets inside the test.
-
-    Args:
-        test_config: Synthetic Config fixture from tests/fixtures/config.py.
-    """
-    with (
-        patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
-        patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-    ):
-        yield
 
 
 # ── 5.1 AppCtx dataclass ────────────────────────────────────────────────────
@@ -839,3 +822,86 @@ def test_init_config_cmd_passes_flags() -> None:
     assert kwargs["interactive"] is False
     assert kwargs["from_current"] is True
     assert kwargs["force"] is True
+
+
+# ── 5.5 --category accepts ID or alias ──────────────────────────────────────
+
+
+class TestCategoryResolution:
+    """Tests for --category ID/alias resolution in library commands."""
+
+    def test_category_direct_id_resolves(self) -> None:
+        """--category movies (builtin ID) resolves without error."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryScanResult
+
+        mock_result = LibraryScanResult(
+            scanned_at="2026-04-21T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
+        )
+
+        with (
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result) as mock_scan,
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = MagicMock()
+            settings.data_dir.__truediv__ = lambda s, x: MagicMock()
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-scan", "--category", "movies"])
+
+        assert result.exit_code == 0, result.output
+        # Verify the resolved category_id was passed downstream (not the raw alias string)
+        _, kwargs = mock_scan.call_args
+        assert kwargs["category_filter"] == "movies"
+
+    def test_category_alias_resolves(self, test_config) -> None:
+        """--category with a configured alias resolves to the canonical ID."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.conf.models import CategoryConfig
+        from personalscraper.library.models import LibraryScanResult
+
+        # Add an alias to the movies category in the test config
+        test_config.categories["movies"] = CategoryConfig(folder_name="Films", aliases=["films", "movie"])
+
+        mock_result = LibraryScanResult(
+            scanned_at="2026-04-21T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
+        )
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result) as mock_scan,
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = MagicMock()
+            settings.data_dir.__truediv__ = lambda s, x: MagicMock()
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-scan", "--category", "films"])
+
+        assert result.exit_code == 0, result.output
+        _, kwargs = mock_scan.call_args
+        assert kwargs["category_filter"] == "movies"
+
+    def test_category_unknown_exits_2(self) -> None:
+        """--category with an unknown value exits with code 2 and error message."""
+        result = runner.invoke(app, ["library-scan", "--category", "unknown_xyz"])
+
+        assert result.exit_code == 2
+        assert "unknown_xyz" in result.output
+        assert "Valid IDs" in result.output
