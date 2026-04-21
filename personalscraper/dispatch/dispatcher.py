@@ -260,6 +260,74 @@ class Dispatcher:
 
         return results
 
+    def _resolve_existing_on_filesystem(
+        self,
+        name: str,
+        media_type: str,
+    ) -> IndexEntry | None:
+        """Resolve an existing entry for ``name`` validated against the filesystem.
+
+        media_index can drift when the user moves folders manually between disks.
+        This helper trusts the filesystem over the index :
+
+        1. Look up ``name`` in the in-memory index.
+        2. If the stored path still exists → return the entry unchanged.
+        3. If not → scan every configured disk for a directory named exactly
+           ``name`` (under any category folder). If found, return a synthetic
+           IndexEntry pointing at the real location (disk_id + path resolved
+           from filesystem). The in-memory index is NOT mutated — persistence
+           is library-scan's job, not dispatch's.
+        4. If nowhere on any disk → return ``None`` (truly new).
+
+        Args:
+            name: Directory name (source folder basename).
+            media_type: ``"movie"`` or ``"tvshow"``.
+
+        Returns:
+            IndexEntry with a validated (existing) path, or ``None`` if the
+            item is not present on any disk.
+        """
+        entry = self.index.find(name, media_type)
+        if entry is not None and Path(entry.path).exists():
+            return entry
+
+        # Index says a location that doesn't exist — scan disks for reality.
+        for disk_cfg in self._disk_configs:
+            if not disk_cfg.path.exists():
+                continue
+            try:
+                category_dirs = [p for p in disk_cfg.path.iterdir() if p.is_dir()]
+            except OSError:
+                continue
+            for category_dir in category_dirs:
+                candidate = category_dir / name
+                if candidate.is_dir():
+                    if entry is not None:
+                        logger.warning(
+                            "media_index drift detected for '%s': index says %s at %s, "
+                            "filesystem has it on %s — using filesystem truth",
+                            name,
+                            entry.disk,
+                            entry.path,
+                            disk_cfg.id,
+                        )
+                    return IndexEntry(
+                        name=name,
+                        disk=disk_cfg.id,
+                        category=(entry.category if entry else category_dir.name),
+                        path=str(candidate),
+                        media_type=media_type,
+                    )
+
+        if entry is not None:
+            logger.warning(
+                "media_index stale entry for '%s': path %s does not exist on any disk, "
+                "treating as NEW (dispatch will pick best disk)",
+                name,
+                entry.path,
+            )
+        return None
+
     def dispatch_movie(self, movie_dir: Path, category_id: str) -> DispatchResult:
         """Dispatch a movie: replace if exists, move to best disk if new.
 
@@ -288,8 +356,9 @@ class Dispatcher:
         # Calculate source size
         item_size_gb = self._dir_size_gb(movie_dir)
 
-        # Check index for existing copy
-        existing = self.index.find(movie_dir.name, "movie")
+        # Check index for existing copy, validated against filesystem to avoid
+        # duplicating when the user has moved the folder between disks manually.
+        existing = self._resolve_existing_on_filesystem(movie_dir.name, "movie")
 
         if existing:
             # Replace existing on the same disk (disk stored as disk_id in V15 index)
@@ -375,7 +444,9 @@ class Dispatcher:
         free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
         item_size_gb = self._dir_size_gb(show_dir)
 
-        existing = self.index.find(show_dir.name, "tvshow")
+        # Check index for existing copy, validated against filesystem to avoid
+        # duplicating when the user has moved the folder between disks manually.
+        existing = self._resolve_existing_on_filesystem(show_dir.name, "tvshow")
 
         if existing:
             dest = Path(existing.path)
