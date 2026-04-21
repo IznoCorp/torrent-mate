@@ -1,6 +1,9 @@
-"""Tests for personalscraper.config — Settings loading and validation."""
+"""Tests for personalscraper.config — Settings loading and validation.
 
-from pathlib import Path
+V15 note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
+and data_dir were removed from Settings in P6.1 — they now live in Config (conf/models.py).
+Tests for those removed fields have been deleted accordingly.
+"""
 
 from personalscraper.config import Settings
 
@@ -20,60 +23,37 @@ def test_settings_from_env(tmp_path, monkeypatch):
     """Settings reads and converts values from environment variables."""
     monkeypatch.setenv("QBIT_HOST", "192.168.1.100")
     monkeypatch.setenv("QBIT_PORT", "9090")
-    monkeypatch.setenv("STAGING_DIR", str(tmp_path))
-    monkeypatch.setenv("TORRENT_COMPLETE_DIR", str(tmp_path))
-    monkeypatch.setenv("DISK1_DIR", str(tmp_path))
-    monkeypatch.setenv("DISK2_DIR", str(tmp_path))
-    monkeypatch.setenv("DISK3_DIR", str(tmp_path))
-    monkeypatch.setenv("DISK4_DIR", str(tmp_path))
     settings = Settings(_env_file=None)
     assert settings.qbit_host == "192.168.1.100"
     assert settings.qbit_port == 9090
-    assert settings.staging_dir == tmp_path
 
 
-def test_settings_paths_are_path_objects(mock_settings):
-    """Path fields are actual Path objects, not strings."""
-    assert isinstance(mock_settings.staging_dir, Path)
-    assert isinstance(mock_settings.torrent_complete_dir, Path)
-    assert isinstance(mock_settings.disk1_dir, Path)
-
-
-def test_ingest_dir_relative_default(tmp_path, monkeypatch):
-    """ingest_dir resolves relative name against staging_dir."""
-    monkeypatch.setenv("STAGING_DIR", str(tmp_path))
+def test_settings_thresholds_configurable(monkeypatch):
+    """Numeric thresholds can be overridden via env vars."""
+    monkeypatch.setenv("MIN_FREE_SPACE_DISK_GB", "200.5")
+    monkeypatch.setenv("MIN_FREE_SPACE_STAGING_GB", "50")
     s = Settings(_env_file=None)
-    assert s.ingest_dir == tmp_path / "097-TEMP"
+    assert s.min_free_space_disk_gb == 200.5
+    assert s.min_free_space_staging_gb == 50
+
+
+def test_ingest_dir_relative_default(tmp_path):
+    """ingest_dir(staging_dir) resolves relative name against staging_dir."""
+    s = Settings(_env_file=None)
+    result = s.ingest_dir(tmp_path)
+    assert result == tmp_path / "097-TEMP"
 
 
 def test_ingest_dir_absolute_override(tmp_path, monkeypatch):
-    """ingest_dir returns absolute path as-is when configured."""
+    """ingest_dir(staging_dir) returns absolute path as-is when configured."""
     custom = tmp_path / "custom-ingest"
-    monkeypatch.setenv("STAGING_DIR", str(tmp_path))
     monkeypatch.setenv("INGEST_DIR_NAME", str(custom))
     s = Settings(_env_file=None)
-    assert s.ingest_dir == custom
+    assert s.ingest_dir(tmp_path) == custom
 
 
-def test_data_dir_relative_default(tmp_path, monkeypatch):
-    """data_dir resolves relative name against staging_dir."""
-    monkeypatch.setenv("STAGING_DIR", str(tmp_path))
-    s = Settings(_env_file=None)
-    assert s.data_dir == tmp_path / ".personalscraper"
-
-
-def test_data_dir_absolute_override(tmp_path, monkeypatch):
-    """data_dir returns absolute path as-is when configured."""
-    custom = tmp_path / "custom-data"
-    monkeypatch.setenv("STAGING_DIR", str(tmp_path))
-    monkeypatch.setenv("DATA_DIR_NAME", str(custom))
-    s = Settings(_env_file=None)
-    assert s.data_dir == custom
-
-
-def test_library_preferences_file_default(monkeypatch):
+def test_library_preferences_file_default():
     """library_preferences_file should default to 'library_preferences.json'."""
-    monkeypatch.setenv("STAGING_DIR", "/tmp/staging")
     settings = Settings(_env_file=None)
     assert settings.library_preferences_file == "library_preferences.json"
 

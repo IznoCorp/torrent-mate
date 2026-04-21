@@ -51,19 +51,15 @@ def _mock_cli_config_load(request, test_config):
 def mock_settings(tmp_path, monkeypatch):
     """Provide a Settings instance with temp paths and no real .env.
 
+    V15: disk paths and staging/torrent dirs removed from Settings — they now
+    live in Config (conf/models.py). This fixture only sets env vars for
+    fields that still exist in Settings.
+
     Args:
         tmp_path: Pytest temporary directory fixture.
         monkeypatch: Pytest monkeypatch fixture for env vars.
 
     Returns:
-        A Settings instance pointing to temporary directories.
+        A Settings instance with neutral test values.
     """
-    monkeypatch.setenv("TORRENT_COMPLETE_DIR", str(tmp_path / "complete"))
-    monkeypatch.setenv("STAGING_DIR", str(tmp_path / "staging"))
-    monkeypatch.setenv("DISK1_DIR", str(tmp_path / "disk1"))
-    monkeypatch.setenv("DISK2_DIR", str(tmp_path / "disk2"))
-    monkeypatch.setenv("DISK3_DIR", str(tmp_path / "disk3"))
-    monkeypatch.setenv("DISK4_DIR", str(tmp_path / "disk4"))
-    (tmp_path / "complete").mkdir()
-    (tmp_path / "staging").mkdir()
     return Settings(_env_file=None)
