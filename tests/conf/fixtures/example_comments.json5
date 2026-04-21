@@ -1,0 +1,21 @@
+{
+  /* Block comment before a key */
+  block_key: "block_value",
+
+  /*
+   * Multi-line block comment
+   * spanning several lines
+   */
+  multiline_key: "multiline_value",
+
+  // Single line comment
+  single_key: "single_value",
+
+  // This comment has no key after it (reset scenario)
+
+  orphan_reset_key: "after_blank",
+
+  // Comment followed immediately by next comment
+  // Second line of comment
+  two_line_key: "two_line_value",
+}
