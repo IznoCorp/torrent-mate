@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     # qBittorrent
     qbit_host: str = "localhost"
     qbit_port: int = 8081
-    qbit_username: str = "izno"
+    qbit_username: str = ""
     qbit_password: str = ""
 
     # TMDB
