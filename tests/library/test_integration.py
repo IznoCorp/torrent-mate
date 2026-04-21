@@ -190,13 +190,13 @@ class TestRecommendIntegration:
 
     def test_recommend_from_analysis(self) -> None:
         """Recommendations should be generated from analysis data."""
+        from personalscraper.conf.models import LibraryPrefs, VideoPrefs
         from personalscraper.library.models import (
             AudioTrack,
             LibraryAnalysisItem,
             MediaFileAnalysis,
             VideoInfo,
         )
-        from personalscraper.library.preferences import LibraryPreferences, VideoPreferences
         from personalscraper.library.recommender import generate_recommendations
 
         # H.264 movie at 8 GB — should trigger codec + size recommendations
@@ -228,7 +228,7 @@ class TestRecommendIntegration:
             )
         ]
 
-        prefs = LibraryPreferences(video=VideoPreferences(max_size_movie_gb=4.0))
+        prefs = LibraryPrefs(video=VideoPrefs(max_size_movie_gb=4.0))
         result = generate_recommendations(items, prefs)
 
         assert result.total_recommendations == 1

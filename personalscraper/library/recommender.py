@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from personalscraper.conf.models import LibraryPrefs
 from personalscraper.library.models import (
     PRIORITY_HIGH,
     PRIORITY_LOW,
@@ -20,7 +21,6 @@ from personalscraper.library.models import (
     Recommendation,
     TargetState,
 )
-from personalscraper.library.preferences import LibraryPreferences
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def _max_priority(*priorities: str) -> str:
 
 def _evaluate_movie(
     item: LibraryAnalysisItem,
-    prefs: LibraryPreferences,
+    prefs: LibraryPrefs,
     ids: tuple[str | None, str | None] = (None, None),
 ) -> Recommendation | None:
     """Evaluate a single movie against preferences.
@@ -173,7 +173,7 @@ def _evaluate_movie(
 
 def _evaluate_tvshow(
     item: LibraryAnalysisItem,
-    prefs: LibraryPreferences,
+    prefs: LibraryPrefs,
 ) -> Recommendation | None:
     """Evaluate a TV show against preferences.
 
@@ -256,7 +256,7 @@ def _evaluate_tvshow(
 
 def generate_recommendations(
     items: list[LibraryAnalysisItem],
-    prefs: LibraryPreferences,
+    prefs: LibraryPrefs,
     id_lookup: dict[str, tuple[str | None, str | None]] | None = None,
 ) -> LibraryRecommendationResult:
     """Generate re-download recommendations from analysis + preferences.

@@ -760,7 +760,7 @@ def library_recommend(
     """Generate re-download recommendations from library analysis.
 
     Requires library-analyze to have been run first.
-    Reads library_analysis.json and library_preferences.json.
+    Reads library_analysis.json; preferences come from config.library (V15).
 
     Examples:
         personalscraper library-recommend
@@ -771,14 +771,12 @@ def library_recommend(
 
     from personalscraper.library.analyzer import _reconstruct_analysis_items
     from personalscraper.library.models import read_json, write_json
-    from personalscraper.library.preferences import LibraryPreferences
     from personalscraper.library.recommender import generate_recommendations
 
-    # Resolve alias now so unknown --category values fail fast (Phase 7 will wire it downstream).
+    # Resolve alias now so unknown --category values fail fast.
     _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
-    settings = get_settings()
 
     # Validate --sort parameter
     valid_sorts = {"priority", "size", "codec"}
@@ -794,13 +792,8 @@ def library_recommend(
 
     analysis_data = read_json(analysis_path)
 
-    # Load preferences
-    prefs_path = config.paths.data_dir / settings.library_preferences_file
-    if prefs_path.exists():
-        prefs = LibraryPreferences.model_validate_json(prefs_path.read_text())
-    else:
-        prefs = LibraryPreferences()
-        console.print("[yellow]No preferences file found, using defaults.[/yellow]")
+    # Use preferences from config.library (V15 — no separate file).
+    prefs = config.library
 
     items = _reconstruct_analysis_items(analysis_data)
     result = generate_recommendations(items, prefs)
