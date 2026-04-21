@@ -10,6 +10,7 @@ version-controlled config file.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -96,6 +97,29 @@ class Settings(BaseSettings):
     # Circuit breaker (V8 — API outage detection)
     circuit_breaker_threshold: int = 5
     circuit_breaker_cooldown: int = 300
+
+    # Fields whose values must never appear in repr/str output (tracebacks, logs, etc.).
+    _SECRET_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "qbit_password",
+            "tmdb_api_key",
+            "tvdb_api_key",
+            "telegram_bot_token",
+            "healthcheck_url",
+        }
+    )
+
+    def __repr__(self) -> str:
+        """Return a repr that masks secret fields (prevents accidental leak via tracebacks)."""
+        items = []
+        for name, value in self.model_dump().items():
+            if name in self._SECRET_FIELDS and value:
+                items.append(f"{name}=<masked>")
+            else:
+                items.append(f"{name}={value!r}")
+        return f"Settings({', '.join(items)})"
+
+    __str__ = __repr__
 
     def ingest_dir(self, staging_dir: Path) -> Path:
         """Resolved ingest directory (where ingest deposits files).

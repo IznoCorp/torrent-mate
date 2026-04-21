@@ -169,14 +169,17 @@ def ingest(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
 ) -> None:
     """Ingest completed torrents from qBittorrent."""
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config
+    assert config is not None  # guaranteed non-None by callback
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_ingest(settings, dry_run=dry_run)
+        staging_dir = config.paths.staging_dir
+        ingest_dir = settings.ingest_dir(staging_dir)
+        report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir)
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
