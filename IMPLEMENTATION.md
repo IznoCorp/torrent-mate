@@ -18,7 +18,18 @@
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+- Findings received: 2
+- Retained: 2 (0 critical, 0 major, 0 medium, 2 minor)
+- Ignored: 0 (all retained as coherent with design scope)
+- Fix phase created: none
+- Status: clean — proceeding to merge (manual mode)
+
+Minor findings (non-blocking) :
+
+- Suggestion : stronger negative assertion on dry-run target disk (tighten no-move invariant)
+- Docstring nit : "counts items in details" guarantee dropped from wording (still covered by `success_count == 1` assertion)
 
 ## Next action
 
