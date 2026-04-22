@@ -1,10 +1,10 @@
-"""V14 → V15 migration utilities.
+"""Legacy migration utilities.
 
 Three migration paths:
-1. ``.env`` DISK*_DIR + V14 ``DISK_CATEGORIES`` → config.json5
+1. ``.env`` DISK*_DIR + legacy ``DISK_CATEGORIES`` → config.json5
    (via ``init-config --from-current``).
-2. ``library_*.json`` files on disk: rewrite V14 label strings ("films" → "movies")
-   to V15 IDs.
+2. ``library_*.json`` files on disk: rewrite legacy label strings ("films" → "movies")
+   to current category IDs.
 3. ``.category`` files in media dirs → ``<category>`` element in corresponding NFO
    + delete ``.category``.
 """
@@ -22,9 +22,9 @@ from xml.etree import ElementTree as ET
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# V14 label → V15 category ID mapping.
-# Derived from the maintainer's V14 config (DISK_CATEGORIES in disk_scanner.py).
-# "spectacles" maps to "standup" (V14 "spectacles" = stand-up / one-man-show).
+# Legacy label → category ID mapping.
+# Derived from the maintainer's legacy config (DISK_CATEGORIES in disk_scanner.py).
+# "spectacles" maps to "standup" (legacy "spectacles" = stand-up / one-man-show).
 # ---------------------------------------------------------------------------
 V14_LABEL_TO_ID: dict[str, str] = {
     "films": "movies",
@@ -41,8 +41,8 @@ V14_LABEL_TO_ID: dict[str, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# V14 known categories (inlined from genre_mapper.KNOWN_CATEGORIES).
-# Phase 7 will delete genre_mapper.py; migration.py must be independent.
+# Legacy known categories (inlined from genre_mapper.KNOWN_CATEGORIES).
+# genre_mapper.py has been removed; migration.py remains independent.
 # ---------------------------------------------------------------------------
 V14_KNOWN_CATEGORIES: frozenset[str] = frozenset(
     {
@@ -61,8 +61,8 @@ V14_KNOWN_CATEGORIES: frozenset[str] = frozenset(
 )
 
 # ---------------------------------------------------------------------------
-# V14 TMDB movie genre IDs → V15 category IDs.
-# Inlined from GenreMapper (TMDB_ANIMATION=16, TMDB_DOCUMENTARY=99).
+# Legacy TMDB movie genre IDs → category IDs.
+# Inlined from the legacy GenreMapper (TMDB_ANIMATION=16, TMDB_DOCUMENTARY=99).
 # ---------------------------------------------------------------------------
 V14_TMDB_MOVIE_GENRE_MAP: dict[int, str] = {
     16: "movies_animation",  # Animation
@@ -70,8 +70,8 @@ V14_TMDB_MOVIE_GENRE_MAP: dict[int, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# V14 TMDB TV genre IDs → V15 category IDs.
-# Inlined from GenreMapper (TV_ANIMATION=16, DOCUMENTARY=99,
+# Legacy TMDB TV genre IDs → category IDs.
+# Inlined from the legacy GenreMapper (TV_ANIMATION=16, DOCUMENTARY=99,
 # REALITY=10764, TALK=10767, NEWS=10763).
 # ---------------------------------------------------------------------------
 V14_TMDB_TV_GENRE_MAP: dict[int, str] = {
@@ -83,8 +83,8 @@ V14_TMDB_TV_GENRE_MAP: dict[int, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# V14 TVDB genre IDs → V15 category IDs.
-# Inlined from GenreMapper (ANIME=27, ANIMATION=17, DOCUMENTARY=3,
+# Legacy TVDB genre IDs → category IDs.
+# Inlined from the legacy GenreMapper (ANIME=27, ANIMATION=17, DOCUMENTARY=3,
 # REALITY=8, TALK_SHOW=10, NEWS=11).
 # ---------------------------------------------------------------------------
 V14_TVDB_GENRE_MAP: dict[int, str] = {
@@ -97,9 +97,9 @@ V14_TVDB_GENRE_MAP: dict[int, str] = {
 }
 
 # ---------------------------------------------------------------------------
-# V14 disk → category labels mapping (inlined from disk_scanner.DISK_CATEGORIES).
-# Phase 6 will remove DISK_CATEGORIES from disk_scanner.py; migration.py
-# must remain independent.
+# Legacy disk → category labels mapping (inlined from disk_scanner.DISK_CATEGORIES).
+# DISK_CATEGORIES has been removed from disk_scanner.py; migration.py
+# remains independent and carries its own copy.
 # ---------------------------------------------------------------------------
 _V14_DISK_CATEGORIES: dict[str, list[str]] = {
     "Disk1": [
@@ -154,12 +154,12 @@ def generate_config_from_env(
     env_values: dict[str, str],
     library_prefs_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Build a config.json5-compatible dict from V14 .env variables.
+    """Build a config.json5-compatible dict from legacy .env variables.
 
     Parses ``DISK1_DIR``..``DISK4_DIR``, ``STAGING_DIR``,
-    ``TORRENT_COMPLETE_DIR`` from *env_values*.  Inlines the V14
-    ``DISK_CATEGORIES`` mapping to produce V15-compatible disk entries.
-    Pre-fills ``genre_mapping`` with V14 TMDB/TVDB genre ID tables.
+    ``TORRENT_COMPLETE_DIR`` from *env_values*.  Inlines the legacy
+    ``DISK_CATEGORIES`` mapping to produce config-compatible disk entries.
+    Pre-fills ``genre_mapping`` with legacy TMDB/TVDB genre ID tables.
 
     Args:
         env_values: Dict of V14 environment variable names to values.
@@ -185,7 +185,7 @@ def generate_config_from_env(
             continue
         disk_key = f"Disk{n}"
         v14_labels = _V14_DISK_CATEGORIES.get(disk_key, [])
-        # Map each V14 label to its V15 ID; skip unknown labels with a warning.
+        # Map each legacy label to its category ID; skip unknown labels with a warning.
         v15_ids: list[str] = []
         seen: set[str] = set()
         for label in v14_labels:
@@ -204,14 +204,14 @@ def generate_config_from_env(
             }
         )
 
-    # Build categories dict: each V15 ID → folder_name = V14 French label.
+    # Build categories dict: each category ID → folder_name = legacy French label.
     # This preserves the existing folder names on disk (no rename needed).
     categories: dict[str, dict[str, Any]] = {}
     for label, cid in V14_LABEL_TO_ID.items():
         if cid not in categories:
             categories[cid] = {"folder_name": label}
 
-    # Build genre_mapping from inlined V14 tables.
+    # Build genre_mapping from inlined legacy tables.
     genre_mapping: dict[str, Any] = {
         "tmdb_movies": {str(k): v for k, v in V14_TMDB_MOVIE_GENRE_MAP.items()},
         "tmdb_tv": {str(k): v for k, v in V14_TMDB_TV_GENRE_MAP.items()},
@@ -220,7 +220,7 @@ def generate_config_from_env(
         "default_tv_category": "tv_shows",
     }
 
-    # Anime rule mirrors V14 behavior: Animation genre (16) + JP origin → anime.
+    # Anime rule mirrors legacy behavior: Animation genre (16) + JP origin → anime.
     anime_rule: dict[str, Any] = {
         "enabled": True,
         "requires_genre_id": 16,
@@ -256,12 +256,12 @@ def generate_config_from_env(
 
 
 def migrate_library_preferences(prefs_path: Path) -> dict[str, Any]:
-    """Migrate V14 ``library_preferences.json`` → V15 ``LibraryPrefs`` dict.
+    """Migrate legacy ``library_preferences.json`` → ``LibraryPrefs`` dict.
 
-    Reads the V14 JSON file (raw, without importing V14 Pydantic models) and
-    maps it to the V15 ``LibraryPrefs`` schema.  The mapping is direct because
-    V14 ``LibraryPreferences`` and V15 ``LibraryPrefs`` share identical field
-    names; only the class names differ.
+    Reads the legacy JSON file (raw, without importing legacy Pydantic models)
+    and maps it to the current ``LibraryPrefs`` schema.  The mapping is direct
+    because the legacy ``LibraryPreferences`` and current ``LibraryPrefs`` share
+    identical field names; only the class names differ.
 
     After a successful parse the original file is NOT deleted here — the
     caller (``init_config``) is responsible for backup/delete lifecycle.
@@ -284,7 +284,7 @@ def migrate_library_preferences(prefs_path: Path) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError(f"Expected a JSON object in {prefs_path}, got {type(raw).__name__}")
 
-    # V14 → V15 field mapping is direct (same field names, different class names).
+    # Field mapping is direct (same field names across schema versions).
     # Build each sub-section defensively so missing sub-keys fall back to defaults.
     result: dict[str, Any] = {}
 
@@ -299,11 +299,12 @@ def migrate_library_preferences(prefs_path: Path) -> dict[str, Any]:
 
 
 def migrate_library_json(file_path: Path, backup_suffix: str = ".v14.bak") -> None:
-    """Rewrite V14 label strings to V15 IDs in a library JSON file.
+    """Rewrite legacy label strings to category IDs in a library JSON file.
 
-    Reads the JSON file, replaces known V14 label strings with their V15 ID
-    equivalents in ``items[].category`` fields, creates a backup with
-    *backup_suffix*, then writes the modified content back.
+    Reads the JSON file, replaces known legacy label strings with their current
+    category ID equivalents in ``items[].category`` fields, creates a backup
+    with *backup_suffix* (the `.v14.bak` suffix is a runtime contract — do not
+    rename), then writes the modified content back.
 
     Skips files whose backup already exists (to avoid overwriting a manual
     backup).  Unknown labels are left in place with a WARN log.
@@ -357,7 +358,7 @@ def migrate_library_json(file_path: Path, backup_suffix: str = ".v14.bak") -> No
 
 
 def _rewrite_labels_in_items(data: dict[str, Any], filename: str) -> int:
-    """Rewrite V14 labels in ``items[].category`` in place.
+    """Rewrite legacy labels in ``items[].category`` in place.
 
     Mutates *data* directly.  Returns the count of items whose ``category``
     field was rewritten.
@@ -383,7 +384,7 @@ def _rewrite_labels_in_items(data: dict[str, Any], filename: str) -> int:
         cid = V14_LABEL_TO_ID.get(label)
         if cid is None:
             logger.warning(
-                "%s: Unknown V14 label '%s' in items[].category — left as-is",
+                "%s: Unknown legacy label '%s' in items[].category — left as-is",
                 filename,
                 label,
             )
@@ -395,11 +396,11 @@ def _rewrite_labels_in_items(data: dict[str, Any], filename: str) -> int:
 
 
 def migrate_category_files(staging_root: Path, data_dir: Path | None = None) -> int:
-    """Walk staging_root and migrate V14 ``.category`` files to NFO ``<category>`` elements.
+    """Walk staging_root and migrate legacy ``.category`` files to NFO ``<category>`` elements.
 
     For each ``.category`` file found:
 
-    - Reads the V14 label, maps to V15 ID via ``V14_LABEL_TO_ID``.
+    - Reads the legacy label, maps to category ID via ``V14_LABEL_TO_ID``.
     - Finds the sibling NFO (``movie.nfo`` or ``tvshow.nfo``).
     - Inserts ``<category source="personalscraper">{ID}</category>`` after any
       ``<genre>`` elements (or at end of root element).
@@ -428,7 +429,7 @@ def migrate_category_files(staging_root: Path, data_dir: Path | None = None) -> 
     Raises:
         RuntimeError: If a pipeline lock file is detected.
     """
-    # Default lock dir to V14 location if not provided.
+    # Default lock dir to legacy location if not provided.
     effective_data_dir = data_dir if data_dir is not None else staging_root / ".personalscraper"
     lock_file = effective_data_dir / "lock.json"
     if lock_file.exists():
@@ -440,7 +441,7 @@ def migrate_category_files(staging_root: Path, data_dir: Path | None = None) -> 
         cid = V14_LABEL_TO_ID.get(label)
         if cid is None:
             logger.warning(
-                "Unknown V14 label '%s' in %s — leaving .category in place",
+                "Unknown legacy label '%s' in %s — leaving .category in place",
                 label,
                 category_file,
             )
@@ -495,7 +496,7 @@ def _insert_category_in_nfo(nfo_path: Path, category_id: str) -> bool | None:
 
     Args:
         nfo_path: Path to the NFO file.
-        category_id: V15 category ID to write.
+        category_id: Category ID to write.
 
     Returns:
         True if the NFO was updated, None if skipped (already present or error).
@@ -533,7 +534,7 @@ def _insert_category_in_nfo(nfo_path: Path, category_id: str) -> bool | None:
 
 
 def migrate_data_dir(staging_dir: Path) -> Path:
-    """Move V14 ``.personalscraper/`` to V15 ``.data/`` atomically.
+    """Move legacy ``.personalscraper/`` to the current ``.data/`` atomically.
 
     Uses ``os.rename`` for an atomic same-filesystem move.  Falls back to
     ``shutil.move`` on ``OSError`` with errno ``EXDEV`` (cross-device), but

@@ -243,7 +243,7 @@ class PathConfig(_StrictModel):
 
 
 class VideoPrefs(_StrictModel):
-    """Préférences vidéo (miroir V14 VideoPreferences).
+    """Préférences vidéo (reprend les champs de l'ancien VideoPreferences).
 
     Attributes:
         preferred_codec: Target codec for recommendations.
@@ -280,7 +280,7 @@ class VideoPrefs(_StrictModel):
 
 
 class AudioPrefs(_StrictModel):
-    """Préférences audio (miroir V14 AudioPreferences).
+    """Préférences audio (reprend les champs de l'ancien AudioPreferences).
 
     Attributes:
         profile_priority: Ordered preference for audio profiles.
@@ -294,7 +294,7 @@ class AudioPrefs(_StrictModel):
 
 
 class SubtitlePrefs(_StrictModel):
-    """Préférences subtitles (miroir V14 SubtitlePreferences).
+    """Préférences subtitles (reprend les champs de l'ancien SubtitlePreferences).
 
     Language codes use ISO 639-2/T (fra, eng, jpn — NOT fre).
 
@@ -326,7 +326,7 @@ class SubtitlePrefs(_StrictModel):
 
 
 class RuleCriteria(_StrictModel):
-    """Critères encoding rule (miroir V14 RuleCriteria).
+    """Critères encoding rule (reprend les champs de l'ancien RuleCriteria).
 
     String fields use case-insensitive substring matching.
     ID fields use exact matching. At least one field must be non-None.
@@ -359,7 +359,7 @@ class RuleCriteria(_StrictModel):
 
 
 class EncodingRule(_StrictModel):
-    """Règle d'override encoding (miroir V14 EncodingRule).
+    """Règle d'override encoding (reprend les champs de l'ancien EncodingRule).
 
     Attributes:
         criteria: What to match against.
@@ -389,7 +389,7 @@ class EncodingRule(_StrictModel):
 
 
 class LibraryPrefs(_StrictModel):
-    """Préférences library (fusion complète de V14 library_preferences.json).
+    """Préférences library (reprend la structure de l'ancien library_preferences.json).
 
     Attributes:
         video: Video encoding preferences.
