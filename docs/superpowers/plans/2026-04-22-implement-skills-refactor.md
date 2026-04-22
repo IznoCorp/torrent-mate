@@ -16,7 +16,7 @@
 
 | #   | Phase                                                               | File                                                             | Status |
 | --- | ------------------------------------------------------------------- | ---------------------------------------------------------------- | ------ |
-| 1   | Fondations indépendantes (archive, create-branch, brainstorm, plan) | [phase-01-fondations.md](phase-01-fondations.md)                 | [ ]    |
+| 1   | Fondations indépendantes (archive, create-branch, brainstorm, plan) | [phase-01-fondations.md](phase-01-fondations.md)                 | [x]    |
 | ·   | _Cohérence P1 → P2_                                                 |                                                                  | [ ]    |
 | 2   | Orchestrateur feature                                               | [phase-02-orchestrator.md](phase-02-orchestrator.md)             | [ ]    |
 | ·   | _Cohérence P2 → P3_                                                 |                                                                  | [ ]    |
