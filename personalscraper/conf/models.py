@@ -209,6 +209,63 @@ class AnimeRule(_StrictModel):
     applies_to: Literal["movies", "tv", "both"] = Field(default="tv", description="Sur quels types de média appliquer.")
 
 
+class StagingDirConfig(_StrictModel):
+    """Configuration for one staging subdirectory.
+
+    Folder name on disk is derived as ``f"{id:03d}-{name.upper()}"``,
+    e.g. ``{"id": 1, "name": "movies"}`` → ``"001-MOVIES"``.
+
+    Attributes:
+        id: Numeric directory prefix in [0, 999]. Must be unique across all entries.
+        name: Kebab-case label (e.g. "movies", "tv-shows"). Used to build the folder name.
+        file_type: Optional FileType enum value string this dir receives
+            (e.g. "movie", "tvshow"). Duplicate values across entries are allowed —
+            multiple dirs may share a FileType for domain-specific routing.
+        role: Optional functional role. Currently only ``"ingest"`` is defined.
+            Exactly one entry must declare ``role="ingest"`` when staging_dirs is present.
+    """
+
+    id: int = Field(..., ge=0, le=999, description="Numeric prefix [0-999]. Unique across entries.")
+    name: str = Field(
+        ...,
+        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$",
+        description="Kebab-case label. Used to compute folder name via f'{id:03d}-{name.upper()}'.",
+    )
+    file_type: str | None = Field(
+        default=None,
+        description="FileType enum member string this dir receives (e.g. 'movie', 'tvshow').",
+    )
+    role: str | None = Field(
+        default=None,
+        description=(
+            "Functional role. Only 'ingest' defined. Exactly one entry must have this when staging_dirs present."
+        ),
+    )
+
+    @field_validator("file_type", mode="after")
+    @classmethod
+    def _validate_file_type(cls, v: str | None) -> str | None:
+        """Validate file_type is a known FileType member.
+
+        Args:
+            v: The file_type string value, or None.
+
+        Returns:
+            The validated file_type string, or None.
+
+        Raises:
+            ValueError: If v is set but not a valid FileType member.
+        """
+        if v is None:
+            return v
+        from personalscraper.sorter.file_type import FileType  # local import avoids circular
+
+        valid = {ft.value for ft in FileType}
+        if v not in valid:
+            raise ValueError(f"Invalid file_type '{v}'. Must be one of: {sorted(valid)}")
+        return v
+
+
 class PathConfig(_StrictModel):
     """Chemins non-disk utilisés par le pipeline.
 
@@ -441,6 +498,14 @@ class Config(_StrictModel):
 
     library: LibraryPrefs = Field(default_factory=LibraryPrefs)
 
+    staging_dirs: list[StagingDirConfig] | None = Field(
+        default=None,
+        description=(
+            "Staging subdirectory layout. Required from Phase 2 onward. "
+            "See MANUAL.md §Staging layout for migration steps."
+        ),
+    )
+
     @property
     def all_category_ids(self) -> frozenset[str]:
         """Return union of builtin and custom category IDs.
@@ -527,6 +592,41 @@ class Config(_StrictModel):
         for i, rule in enumerate(self.category_rules):
             if rule.category not in known:
                 raise ValueError(f"category_rules[{i}].category '{rule.category}' unknown")
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_staging_dirs(self) -> "Config":
+        """Validate staging_dirs entries when present.
+
+        Checks: unique IDs, exactly one role='ingest' entry, all file_type
+        values reference valid FileType members (already checked at field level,
+        but cross-entry uniqueness of IDs is checked here).
+
+        Returns:
+            self after validation.
+
+        Raises:
+            ValueError: If IDs are duplicated or ingest role count != 1.
+        """
+        if self.staging_dirs is None:
+            return self
+
+        # Unique IDs
+        seen_ids: set[int] = set()
+        for entry in self.staging_dirs:
+            if entry.id in seen_ids:
+                raise ValueError(f"Duplicate staging_dirs id={entry.id}. Each entry must have a unique id.")
+            seen_ids.add(entry.id)
+
+        # Exactly one ingest role
+        ingest_entries = [e for e in self.staging_dirs if e.role == "ingest"]
+        if len(ingest_entries) != 1:
+            raise ValueError(
+                f"staging_dirs must have exactly one entry with role='ingest' "
+                f"(found {len(ingest_entries)}). "
+                "One entry (typically 097-TEMP) must declare role='ingest'."
+            )
 
         return self
 
