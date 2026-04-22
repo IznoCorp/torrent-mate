@@ -55,38 +55,47 @@ Créer une note `/tmp/refs_to_fix.md` avec le plan de substitution.
 grep -rnE '/(plan:execute-next-phase|plan:end-phase|plan:check-execution)' .claude/ CLAUDE.md docs/ 2>/dev/null
 ```
 
-- [ ] **Step 2 : Décision**
+- [ ] **Step 2 : Appliquer le critère §10.1 par skill**
 
-Selon le critère §10.1 :
+Pour chaque skill, appliquer la matrice déterministe suivante — **pas de décision ouverte** :
 
-- **Retrait** si aucune référence externe active et recouvrement fonctionnel confirmé avec le nouveau flux
-- **Migration** sinon (renommage en `implement:*` équivalent ou conservation avec note de déprécation)
+| Skill                     | Recouverte par                                                        | Références externes actives (depuis Step 1) | Décision                                                                                                                                       |
+| ------------------------- | --------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `plan:execute-next-phase` | `implement:phase` (flux continu + dispatch sub-phase)                 | À vérifier avec grep Step 1                 | Retrait ssi aucune ref externe                                                                                                                 |
+| `plan:end-phase`          | `implement:phase` milestone + auto-invoke `implement:feature-pr`      | À vérifier avec grep Step 1                 | Retrait ssi aucune ref externe                                                                                                                 |
+| `plan:check-execution`    | **Non recouverte** (audit post-merge ≠ `implement:check` inter-phase) | À vérifier avec grep Step 1                 | **Conservation** (ajouter note dans SKILL.md : "superseded for new features by the implement:\* flow, kept for auditing legacy v0-v15 phases") |
 
-Analyser chacune :
+Procédure explicite :
 
-- `plan:execute-next-phase` — fonctionnellement recouvert par `implement:phase` ? Si oui et pas d'appelant → retrait.
-- `plan:end-phase` — fonctionnellement recouvert par `implement:phase` milestone commit + auto-invoke `implement:feature-pr` ? Si oui et pas d'appelant → retrait.
-- `plan:check-execution` — audit post-hoc. Pas directement recouvert par `implement:check` (qui est inter-phase, pas post-merge). Décision : **conserver** ou **retirer** selon analyse.
+1. Pour `plan:execute-next-phase` et `plan:end-phase` : si `grep -rn '/plan:execute-next-phase\|/plan:end-phase' .claude/ CLAUDE.md docs/ | grep -v "^docs/archive"` renvoie du contenu, **ne PAS supprimer**, migrer les appelants d'abord. Sinon : supprimer.
+2. Pour `plan:check-execution` : **conserver systématiquement**, ajouter une note de déprécation dans son `SKILL.md` (header).
 
-Documenter la décision dans le commit message.
-
-- [ ] **Step 3 : Si retrait**
+- [ ] **Step 3 : Supprimer (après vérif Step 2)**
 
 ```bash
+# Uniquement si grep Step 2 a confirmé 0 référence externe :
 git rm -r ".claude/skills/plan:execute-next-phase"
 git rm -r ".claude/skills/plan:end-phase"
-git rm -r ".claude/skills/plan:check-execution"   # uniquement si décision = retrait
+# plan:check-execution : NE PAS supprimer (conservation décidée en Step 2)
 ```
 
-- [ ] **Step 4 : Commit**
+- [ ] **Step 4 : Ajouter note de déprécation sur plan:check-execution**
+
+Éditer `.claude/skills/plan:check-execution/SKILL.md` pour ajouter en haut du corps :
+
+```markdown
+> **Note** : Cette skill est un vestige du flux version-based. Pour les nouvelles features (post-refactor 2026-04-22), l'audit inter-phase est pris en charge par `/implement:check`. `plan:check-execution` reste utilisable pour auditer les archives v0-v15 historiques.
+```
+
+- [ ] **Step 5 : Commit**
 
 ```bash
-git commit -m "chore(.claude): remove plan:* skills superseded by implement:* flow
+git add -A
+git commit -m "chore(.claude): retire plan:execute-next-phase and plan:end-phase, deprecate plan:check-execution
 
-Decision:
 - plan:execute-next-phase → superseded by implement:phase
 - plan:end-phase → superseded by implement:phase milestone + feature-pr auto-invoke
-- plan:check-execution → [retained | removed] (see rationale)
+- plan:check-execution → kept with deprecation note (audits legacy v0-v15)
 "
 ```
 
@@ -210,7 +219,7 @@ cat .claude/CLAUDE.md
 
 - [ ] **Step 2 : Mettre à jour la section "Implementation Lifecycle"**
 
-Remplacer la liste des skills `/model-version`, `/implement-version`, etc. par la nouvelle liste `/implement:*` avec 1 ligne descriptive chacune.
+Remplacer la liste des skills `/model-version`, `/implement-version`, `/implement-phase`, `/archive-version`, ainsi que les mentions de `/plan:execute-next-phase`, `/plan:end-phase` (supprimés en Task 5.2) et `/plan:check-execution` (conservé avec note de déprécation) par la nouvelle liste `/implement:*` avec 1 ligne descriptive chacune.
 
 Structure suggérée :
 
@@ -370,7 +379,7 @@ Observer :
 - Pas de feature précédente à archiver (ou archive de la feature de refactor si déjà mergée — voir note plus bas)
 - Brainstorm : codename proposé, confirmer (`dry-run-flag` par ex)
 - Type dérivé : `minor` (nouvelle fonctionnalité)
-- Bump calculé : ex `0.15.0` → `0.16.0`
+- Bump calculé : si `VERSION` absent, `implement:create-branch` le crée à `0.1.0` puis bump selon type. Pour un `minor` sur VERSION initial absent : `0.1.0` → `0.2.0`. (Le projet est historiquement "v15" mais cette numérotation n'est PAS reprise dans VERSION SemVer — point de départ frais.)
 - Branche créée : `feat/dry-run-flag`
 - Plan généré : 1 phase, 2-3 sous-phases
 

@@ -4,7 +4,7 @@
 
 **Goal:** Refonte des skills `.claude/skills/implement-*` et `archive-version` / `model-version` vers 10 skills `implement:*` orientées feature (codename + SemVer), avec allocation modèles Opus/Sonnet/Haiku et flux continu.
 
-**Architecture:** 10 skills Markdown (fichiers `SKILL.md` avec frontmatter YAML) dans `.claude/skills/implement:<name>/`. Main session Opus orchestre, dispatch Sonnet pour l'écriture de code et Haiku pour les tâches mécaniques. Rename + split en place (Approche 2 du spec §11) : un commit par skill, un commit final pour suppressions et mise à jour docs, puis smoke test sur une feature pilote.
+**Architecture:** 10 skills Markdown (fichiers `SKILL.md` avec frontmatter YAML) dans `.claude/skills/implement:<name>/`. Main session Opus orchestre, dispatch Sonnet pour l'écriture de code et Haiku pour les tâches mécaniques. Rename + split en place (approche "big-bang ciblé" discutée en brainstorming, transposée dans le plan d'écriture §11 du spec en 5 batches) : un commit par skill, un commit final pour suppressions et mise à jour docs, puis smoke test sur une feature pilote.
 
 **Tech Stack:** Markdown, YAML frontmatter, Bash, Git, Claude Code skills system.
 

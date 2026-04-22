@@ -255,11 +255,14 @@ Sections :
       - `OK` → continuer à la sous-phase suivante.
       - `AUTO_FIX_NEEDED` → **dispatch Agent Sonnet inline** (pas une skill nommée) avec prompt fix-only, scope = fichiers touchés, erreurs verbatim. Max 2 tentatives. Relancer `/implement:check` après chaque. Si toujours échec après 2 → fail loud.
       - `FAIL_LOUD` → stop, diagnostic au user.
-   4. **Après dernière sous-phase de la phase** : milestone commit sur la phase :
+   4. **Après dernière sous-phase de la phase** — milestone commit **unique** (pas deux commits empty/docs séparés) :
+      a. Éditer IMPLEMENTATION.md : cocher la phase `[x]`, mettre à jour "Next action".
+      b. Commit unique incluant uniquement IMPLEMENTATION.md :
       ```bash
-      git commit --allow-empty -m "chore({codename}): phase {N} gate — {phase_name}"
+      git add IMPLEMENTATION.md
+      git commit -m "chore({codename}): phase {N} gate — {phase_name}"
       ```
-      Marquer phase `[x]` dans IMPLEMENTATION.md, commit `docs({codename}): mark phase {N} done`.
+      C'est à la fois le milestone de phase ET le marquage `[x]` — un seul commit par phase pour garder l'historique lisible.
    5. **Si dernière phase** (toutes `[x]` dans IMPLEMENTATION.md) → invoquer `/implement:feature-pr` (flux continu, pas de pause).
    6. **Sinon** → boucle sur la phase suivante (pas de pause, pas de confirmation).
 6. `## Auto-fix Pattern` — section dédiée avec le prompt template pour le dispatch Sonnet fix-only :

@@ -49,7 +49,12 @@ Puis structurer le corps selon les sections :
 2. `## Usage` — `/implement:archive` (invoqué par `implement:feature`, rarement direct)
 3. `## Model Allocation` — Haiku subagent pour les opérations mécaniques (git mv + template + commit). Main session Opus uniquement pour lancer le dispatch et vérifier le résultat.
 4. `## Process` — 4 étapes conformément au spec §7.2 :
-   - **Pre-flight** (Opus inline) : repo clean, tests verts, toutes phases `[x]`, PR mergée. En cas d'échec : message d'erreur explicite (voir spec §7.2 pour wording exact).
+   - **Pre-flight** (Opus inline) : repo clean, tests verts, toutes phases `[x]`, PR mergée. Messages d'erreur verbatim :
+     - Repo sale → `"Uncommitted changes detected. Commit or stash before archiving."`
+     - Tests rouges → `"Tests are failing. Fix them before archiving."`
+     - Phase non DONE → `"Incomplete phases found in {codename}: {list}. Finish via /implement:phase before archiving."`
+     - PR non mergée → `"PR non mergée ; terminer le cycle pr-review ou merger manuellement avant d'archiver."`
+     - Archive dir existe → `"Archive directory docs/archive/features/{codename}/ already exists. Refusing to overwrite."`
    - **Lire le codename courant** depuis le header IMPLEMENTATION.md.
    - **Dispatch Haiku subagent** avec prompt listant les opérations : `mkdir docs/archive/features/{codename}/`, `git mv IMPLEMENTATION.md ...`, `git mv docs/features/{codename}/* ...`, créer nouveau IMPLEMENTATION.md vierge à la racine (template ci-dessous), mettre à jour CLAUDE.md section "Current Feature", commit `milestone: archive {codename}`.
    - **Post-archive** (Opus inline) : optionnellement `git branch -d feat/{codename}` (warning-only si échec, pas bloquant).
@@ -218,13 +223,30 @@ Sections :
 
 **Interception du commit superpowers** — note technique à inclure :
 
-Le skill `superpowers:brainstorming` commit automatiquement le design doc à la fin. Options pour intercepter :
+Le skill `superpowers:brainstorming` peut committer automatiquement le design doc à la fin. Stratégie en deux temps, préférence à la prévention :
 
-- Option A : laisser commit se faire sur main, puis reset soft le commit et reporter le fichier à `create-branch` pour re-commit sur la branche feature.
-- Option B : hook git pre-commit temporaire qui laisse passer mais marque le commit comme "relocatable".
-- **Option C (retenue)** : après retour de superpowers, vérifier si un commit a été fait sur main avec le design doc. Si oui → `git reset --soft HEAD~1` pour ré-émerger le fichier non committé, puis passer le chemin à `create-branch` qui se chargera du move + commit sur la branche.
+**Préféré — Prévention (prompt explicite)** : inclure dans le prompt passé à `superpowers:brainstorming` une instruction claire : _"Ne commit PAS le design doc à la fin — retourne son chemin, implement:brainstorm s'occupera du déplacement et du commit sur la branche feature."_ Si superpowers respecte cette instruction → zéro commit parasite sur main.
 
-Inclure le détail pratique (commandes git exactes) dans la section Process.
+**Secours — Détection et correction** : après retour de superpowers, vérifier si un commit non voulu a été créé :
+
+```bash
+# Avant superpowers : capturer HEAD baseline
+BASELINE=$(git rev-parse HEAD)
+
+# Après superpowers : vérifier
+CURRENT=$(git rev-parse HEAD)
+if [ "$BASELINE" != "$CURRENT" ]; then
+  # superpowers a committé malgré l'instruction → reset soft pour récupérer les fichiers non committés
+  git reset --soft "$BASELINE"
+  # Les fichiers deviennent staged mais pas committed → l'utilisateur doit valider cette action
+  # Ne PAS faire ça sans demander à l'utilisateur (viole esprit invariant §8.1 n°2 sinon)
+  echo "WARNING: superpowers a committé le design doc malgré l'instruction. Reset soft effectué. Fichiers à relocaliser :" git status --short
+fi
+```
+
+**Invariant respecté** : aucun reset/amend silencieux. Si le secours est déclenché, un message explicite alerte l'utilisateur (conforme §8.1 n°2 : jamais d'amend/force sans instruction user — ici reset est déclaré et audité).
+
+Inclure les deux voies (préférée + secours) dans la section Process du SKILL.md.
 
 - [ ] **Step 3 : Vérifier frontmatter**
 
