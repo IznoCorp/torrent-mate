@@ -51,7 +51,7 @@ A TRIER/
 ├── 002-TVSHOWS/         # Séries en attente
 ├── 004-AUDIO/           # Livres audio
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
-├── tests/               # 530 tests unitaires + 3 E2E
+├── tests/               # 1466 tests unitaires + 114 E2E
 ├── pyproject.toml       # Dépendances et configuration
 ├── Makefile             # make test/lint/format/install-dev
 └── .env.example         # Template de configuration
