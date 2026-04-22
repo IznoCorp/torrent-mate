@@ -15,10 +15,17 @@
 | #   | Phase                                         | File                                   | Status |
 | --- | --------------------------------------------- | -------------------------------------- | ------ |
 | 1   | Core info module + CLI + tests + quality gate | phase-01-core-info-module-cli-tests.md | [x]    |
+| 2   | PR fixes cycle 1                              | phase-02-pr-fixes-cycle-1.md           | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+- Findings received: 6 (1 Important, 5 minor)
+- Retained: 1 medium (hardcoded archive path) + 5 minor noted
+- Ignored: 0
+- Fix phase created: phase-02-pr-fixes-cycle-1.md
+- Status: fix phase dispatched → awaiting /implement:phase
 
 ## Next action
 
