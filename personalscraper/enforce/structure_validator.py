@@ -9,8 +9,11 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import SEASON_DIR_RE
+from personalscraper.sorter.file_type import FileType
 from personalscraper.text_utils import sanitize_filename
 
 logger = logging.getLogger(__name__)
@@ -46,7 +49,11 @@ class StructureResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def validate_structure(settings: Settings, dry_run: bool = False) -> list[StructureResult]:
+def validate_structure(
+    settings: Settings,
+    config: Config,
+    dry_run: bool = False,
+) -> list[StructureResult]:
     """Validate and fix directory structure for all staging items.
 
     Iterates over every top-level directory in ``001-MOVIES/`` and
@@ -54,8 +61,8 @@ def validate_structure(settings: Settings, dry_run: bool = False) -> list[Struct
     Fixes are applied in-place unless *dry_run* is ``True``.
 
     Args:
-        settings: Pipeline configuration supplying ``staging_dir``,
-            ``movies_dir_name``, and ``tvshows_dir_name``.
+        settings: Pipeline configuration supplying ``staging_dir``.
+        config: Application config used to resolve staging category folder names.
         dry_run: When ``True``, report planned fixes without modifying
             the filesystem.
 
@@ -65,13 +72,13 @@ def validate_structure(settings: Settings, dry_run: bool = False) -> list[Struct
     results: list[StructureResult] = []
     staging = Path(getattr(settings, "staging_dir", "."))
 
-    movies_dir = staging / settings.movies_dir_name
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
                 results.append(_validate_movie(folder, dry_run))
 
-    tvshows_dir = staging / settings.tvshows_dir_name
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):

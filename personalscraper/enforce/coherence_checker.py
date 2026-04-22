@@ -13,7 +13,9 @@ from pathlib import Path
 from personalscraper.conf import ids as CID
 from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.sorter.file_type import FileType
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +58,13 @@ def check_coherence(
     results: list[CoherenceResult] = []
     staging = Path(getattr(settings, "staging_dir", "."))
 
-    movies_dir = staging / settings.movies_dir_name
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
                 results.append(_check_movie(folder))
 
-    tvshows_dir = staging / settings.tvshows_dir_name
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
