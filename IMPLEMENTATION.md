@@ -14,7 +14,7 @@
 
 | #   | Phase                                         | File                                   | Status |
 | --- | --------------------------------------------- | -------------------------------------- | ------ |
-| 1   | Core info module + CLI + tests + quality gate | phase-01-core-info-module-cli-tests.md | [ ]    |
+| 1   | Core info module + CLI + tests + quality gate | phase-01-core-info-module-cli-tests.md | [x]    |
 
 ## Review cycles
 
@@ -22,4 +22,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+All phases complete — run `/implement:feature-pr`.
