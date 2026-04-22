@@ -18,7 +18,7 @@
 | 2   | Rewrite root docs    | phase-02-rewrite-root-docs.md    | [x]    |
 | 3   | Clean reference docs | phase-03-clean-reference-docs.md | [x]    |
 | 4   | Clean source code    | phase-04-clean-source-code.md    | [x]    |
-| 5   | Final validation     | phase-05-final-validation.md     | [ ]    |
+| 5   | Final validation     | phase-05-final-validation.md     | [x]    |
 
 ## Review cycles
 
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to continue with Phase 2.
+All phases complete — run `/implement:feature-pr`.
