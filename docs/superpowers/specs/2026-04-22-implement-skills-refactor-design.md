@@ -193,7 +193,10 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 **Étapes** :
 
-1. Détecter si une feature précédente doit être archivée (IMPLEMENTATION.md existant + phases toutes DONE + PR mergée). Si oui → lire le codename courant depuis le header IMPLEMENTATION.md et invoquer `implement:archive`.
+1. Détecter l'état de la feature précédente :
+   - **Pas de `IMPLEMENTATION.md` à la racine** → pas de feature précédente, sauter à l'étape 2.
+   - **`IMPLEMENTATION.md` existe, toutes phases `[x]`, PR mergée** → lire le codename depuis le header, invoquer `implement:archive`, puis étape 2.
+   - **`IMPLEMENTATION.md` existe, feature incomplète** → **STOP**, message utilisateur : "Feature précédente `{codename}` incomplète. Terminer via `/implement:phase` avant de démarrer une nouvelle feature."
 2. Invoquer `implement:brainstorm` → retourne `{codename, title, type, bump}`.
 3. Demander à l'utilisateur : stratégie de merge (`manual` ou `auto`).
 4. Invoquer `implement:create-branch` avec les arguments.
@@ -209,7 +212,7 @@ _(filled by implement:pr-review — max 3 cycles)_
 - Repo propre (`git status --porcelain` vide).
 - Tests verts.
 - Toutes les phases de IMPLEMENTATION.md courant = `[x]` ou `✅`.
-- PR présente et mergée (si mode `manual` → vérifier statut, sinon échec). Si mode `auto` → merger via `/github-curl` avec stratégie squash.
+- PR **présente et mergée**. `implement:archive` ne merge jamais — le merge est la responsabilité exclusive de `implement:pr-review` (cf. §7.10). Si la PR n'est pas mergée, stop avec message explicite : "PR non mergée ; terminer le cycle pr-review ou merger manuellement avant d'archiver."
 
 **Actions** :
 
@@ -218,7 +221,7 @@ _(filled by implement:pr-review — max 3 cycles)_
   - `git mv IMPLEMENTATION.md docs/archive/features/{codename}/IMPLEMENTATION.md`
   - `git mv docs/features/{codename}/* docs/archive/features/{codename}/`
   - Créer nouveau IMPLEMENTATION.md vierge à la racine
-  - Mettre à jour CLAUDE.md (section "Current feature")
+  - Mettre à jour CLAUDE.md racine projet (section "Current Feature" — cf. §10.1)
   - Commit : `milestone: archive {codename}`
 - Optionnel : supprimer la branche locale.
 
@@ -226,14 +229,15 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 **Rôle** : bump version, créer branche, initialiser IMPLEMENTATION.md.
 
-**Inline Opus** (≤ 5 commandes, pas de dispatch) :
+**Inline Opus** (pas de dispatch) :
 
 1. Lire VERSION actuelle (ou créer `0.1.0` si absent).
 2. Calculer nouveau numéro selon type (major/minor/bugfix).
-3. Écrire VERSION + `pyproject.toml` (si présent).
-4. `git checkout -b feat/{codename}` (ou `fix/{codename}`).
-5. Remplir header IMPLEMENTATION.md (codename, branch, merge strategy, version bump).
-6. Commit : `chore({codename}): bump version to {X.Y.Z}`.
+3. `git checkout -b feat/{codename}` (ou `fix/{codename}`).
+4. **Déplacer** le design doc depuis `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` vers `docs/features/{codename}/DESIGN.md` (création du dossier), via `mv` simple (le fichier n'est pas encore git-tracked à ce stade — cf. §7.4 étape 1).
+5. Écrire VERSION + `pyproject.toml` (si présent).
+6. Remplir header IMPLEMENTATION.md (codename, branch, merge strategy, version bump, chemin DESIGN).
+7. Commit unique : `chore({codename}): bump version to {X.Y.Z}` — inclut VERSION, pyproject.toml, DESIGN.md, IMPLEMENTATION.md.
 
 **Gestion conflit** : si branche existe déjà → demander reprendre ou renommer.
 
@@ -243,11 +247,10 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 **Opus main session** :
 
-1. Invoquer `superpowers:brainstorming` avec contexte projet (CLAUDE.md, archives DESIGN). Le design doc initial est écrit à l'emplacement par défaut de superpowers (`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`).
-2. Une fois le brainstorm terminé, dériver `codename` depuis le titre (proposition auto-générée, kebab-case, ≤ 15 chars, confirmée par user).
-3. Déduire `type` (major/minor/bugfix) depuis les décisions du brainstorm selon les critères de la section 3.
-4. Déplacer le design doc vers `docs/features/{codename}/DESIGN.md` (création du dossier si besoin) via `git mv`.
-5. Retourner `{codename, title, type, bump}` à `implement:feature`.
+1. Invoquer `superpowers:brainstorming` avec contexte projet (CLAUDE.md, archives DESIGN). Le design doc initial est écrit **non committé** à l'emplacement par défaut de superpowers (`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`) — superpowers commitera ; on intercepte avant le commit pour éviter de polluer main.
+2. Une fois le brainstorm terminé, dériver `codename` depuis le titre (proposition auto-générée, kebab-case, ≤ 15 chars, **confirmée par user**).
+3. Déduire `type` (major/minor/bugfix) depuis les décisions du brainstorm selon les critères de la section 3, **le présenter au user pour validation** (avec calcul du nouveau numéro de version). User peut override.
+4. Retourner `{codename, title, type, bump, design_doc_path}` à `implement:feature` **sans déplacer ni committer** le design doc — le déplacement + commit sur la branche feature est délégué à `implement:create-branch` (cf. §7.3) une fois la branche créée.
 
 ### 7.5 `implement:plan`
 
@@ -280,7 +283,7 @@ _(filled by implement:pr-review — max 3 cycles)_
    b. Invoquer `implement:sub-phase` avec (phase, sous-phase, contexte).
    c. Vérifier rapport Sonnet (schéma, truncation, commits faits).
    d. Invoquer `implement:check` pour vérifier cohérence design/plan.
-   e. Si échec → auto-fix (max 2 tentatives) → sinon fail loud.
+   e. Si échec → **auto-fix** : main session dispatch un Agent Sonnet dédié (pas une skill nommée — dispatch direct via l'outil `Agent` avec prompt "fix-only mode" : scope = fichiers touchés par la sous-phase, erreurs verbatim de la quality gate). Max 2 tentatives. Sinon fail loud.
 5. Milestone commit : `chore({codename}): phase {N} gate — {phase_name}`.
 6. Marquer phase `[x]` dans IMPLEMENTATION.md, commit.
 7. **Si dernière phase** → invoquer `implement:feature-pr`.
@@ -375,7 +378,11 @@ _(filled by implement:pr-review — max 3 cycles)_
 4. Classer retours retenus en `critique | majeur | moyen | mineur`.
 5. **Décision** :
    - Aucun retour `critique/majeur/moyen` → fin de boucle, déclencher merge squash selon config.
-   - Retours critiques/majeurs/moyens ET cycle < 3 → générer `docs/features/{codename}/plan/phase-XX-pr-fixes-cycle-{N}.md`, mettre à jour IMPLEMENTATION.md, invoquer `implement:phase` (flux continu).
+   - Retours critiques/majeurs/moyens ET cycle < 3 :
+     a. Générer `docs/features/{codename}/plan/phase-XX-pr-fixes-cycle-{N}.md` où `XX` = numéro suivant le plus élevé dans le tableau Phases.
+     b. **Ajouter une ligne dans le tableau "Phases" de IMPLEMENTATION.md** : `| XX | PR fixes cycle N | phase-XX-pr-fixes-cycle-{N}.md | [ ] |`.
+     c. Commit : `docs({codename}): add PR fixes phase cycle {N}`.
+     d. **Invoquer automatiquement `implement:phase`** (flux continu, pas de pause user). Au retour : reprendre à l'étape 5 du présent skill pour évaluer à nouveau (nouveau push → nouvelle CI → nouveau cycle review).
    - Cycle = 3 et retours toujours critiques → stop, escalade user avec résumé.
 6. Enregistrer cycle dans IMPLEMENTATION.md section "Review cycles".
 
@@ -399,27 +406,27 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ### 8.2 Matrice d'échecs
 
-| Skill                     | Situation                   | Comportement                            |
-| ------------------------- | --------------------------- | --------------------------------------- |
-| `implement:archive`       | Repo sale                   | Stop, user commit/stash                 |
-| `implement:archive`       | Tests rouges                | Stop, fix d'abord                       |
-| `implement:archive`       | Phase non-DONE              | Stop, lister incomplètes                |
-| `implement:archive`       | PR non mergée (mode manual) | Stop, user merge d'abord                |
-| `implement:archive`       | Archive dir existe déjà     | Stop, refuse écraser                    |
-| `implement:create-branch` | Branche existe              | Demander reprendre/renommer             |
-| `implement:create-branch` | VERSION absent              | Créer `0.1.0`, continuer                |
-| `implement:plan`          | Plan déjà présent           | Demander écraser/reprendre              |
-| `implement:sub-phase`     | Sonnet BLOCKED              | Stop phase, rapport user                |
-| `implement:sub-phase`     | Rapport tronqué             | Check git state → rollback ou continuer |
-| `implement:sub-phase`     | Quality gate échoue         | Auto-fix (max 2) → sinon fail loud      |
-| `implement:check`         | Scope drift                 | Fail loud, user décide (pas d'auto-fix) |
-| `implement:check`         | Déviation design            | Fail loud, user décide                  |
-| `implement:feature-pr`    | Gate local échoue           | Stop avant push                         |
-| `implement:feature-pr`    | Push rejeté                 | Stop, message (branch protection, etc.) |
-| `implement:feature-pr`    | CI rouge                    | Rapport user, stop cycle pr-review      |
-| `implement:pr-review`     | Cycle 3 + retours critiques | Escalade user avec résumé               |
-| `implement:pr-review`     | Merge API échoue            | Rapport, user merge manuel              |
-| Toute skill               | Context ≥ 80%               | Compact ou split session                |
+| Skill                     | Situation                   | Comportement                                                                                                                                                                                 |
+| ------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `implement:archive`       | Repo sale                   | Stop, user commit/stash                                                                                                                                                                      |
+| `implement:archive`       | Tests rouges                | Stop, fix d'abord                                                                                                                                                                            |
+| `implement:archive`       | Phase non-DONE              | Stop, lister incomplètes                                                                                                                                                                     |
+| `implement:archive`       | PR non mergée (mode manual) | Stop, user merge d'abord                                                                                                                                                                     |
+| `implement:archive`       | Archive dir existe déjà     | Stop, refuse écraser                                                                                                                                                                         |
+| `implement:create-branch` | Branche existe              | Demander reprendre/renommer                                                                                                                                                                  |
+| `implement:create-branch` | VERSION absent              | Créer `0.1.0`, continuer                                                                                                                                                                     |
+| `implement:plan`          | Plan déjà présent           | Demander écraser/reprendre                                                                                                                                                                   |
+| `implement:sub-phase`     | Sonnet BLOCKED              | Stop phase, rapport user                                                                                                                                                                     |
+| `implement:sub-phase`     | Rapport tronqué             | Check git state : `≥ 1 commit + clean` → conserver, rapport user pour partie manquante ; `0 commit + dirty` → `git checkout --` puis retry (tentative 2) ; `0 commit + clean` → retry direct |
+| `implement:sub-phase`     | Quality gate échoue         | Auto-fix (max 2) → sinon fail loud                                                                                                                                                           |
+| `implement:check`         | Scope drift                 | Fail loud, user décide (pas d'auto-fix)                                                                                                                                                      |
+| `implement:check`         | Déviation design            | Fail loud, user décide                                                                                                                                                                       |
+| `implement:feature-pr`    | Gate local échoue           | Stop avant push                                                                                                                                                                              |
+| `implement:feature-pr`    | Push rejeté                 | Stop, message (branch protection, etc.)                                                                                                                                                      |
+| `implement:feature-pr`    | CI rouge                    | Rapport user, stop cycle pr-review                                                                                                                                                           |
+| `implement:pr-review`     | Cycle 3 + retours critiques | Escalade user avec résumé                                                                                                                                                                    |
+| `implement:pr-review`     | Merge API échoue            | Rapport, user merge manuel                                                                                                                                                                   |
+| Toute skill               | Context ≥ 80%               | Compact ou split session                                                                                                                                                                     |
 
 ### 8.3 Idempotence
 
@@ -485,9 +492,13 @@ Exécuter le flux complet sur une feature triviale et jetable de `personalscrape
 
 - Création des 10 skills `implement:*`
 - Suppression des 4 anciennes (`implement-phase`, `implement-version`, `archive-version`, `model-version`)
-- Évaluation + retrait éventuel de `plan:execute-next-phase`, `plan:end-phase`, `plan:check-execution` si recouvrement
-- Mise à jour CLAUDE.md × 2
-- Grep + correction de toutes références
+- Évaluation des skills `plan:execute-next-phase`, `plan:end-phase`, `plan:check-execution` : **retrait** si aucune référence externe à `.claude/` et recouvrement fonctionnel confirmé avec le nouveau flux ; **migration** sinon (renommage en `implement:*` équivalent ou conservation avec note de déprécation).
+- Mise à jour `CLAUDE.md` racine projet :
+  - Renommer section `## Current Version` → `## Current Feature`
+  - Remplacer contenu (archive v14/v15 historique → codename courant + chemins `docs/features/{codename}/`)
+  - Section "Implementation Workflow" reflétant les 10 nouvelles skills
+- Mise à jour `.claude/CLAUDE.md` (doc config) : liste des skills `implement:*`, politique modèles, règles SemVer
+- Grep + correction de toutes références aux anciennes skills
 - Smoke test pilote
 
 ### 10.2 Hors scope
