@@ -70,12 +70,12 @@ class MediaChecker:
     """Verify media directories meet quality standards.
 
     Checks naming, NFO validity, artwork presence, streamdetails,
-    and genre categorization against NamingPatterns and V15 Config
+    and genre categorization against NamingPatterns and Config
     (for classifier-backed category resolution).
 
     Attributes:
         patterns: MediaElch naming patterns reference.
-        config: V15 Config used to resolve category IDs from NFO metadata.
+        config: Config used to resolve category IDs from NFO metadata.
     """
 
     def __init__(self, patterns: NamingPatterns, config: Config):
@@ -83,7 +83,7 @@ class MediaChecker:
 
         Args:
             patterns: Naming patterns for file verification.
-            config: V15 Config providing category IDs and classifier rules.
+            config: Config providing category IDs and classifier rules.
         """
         self.patterns = patterns
         self.config = config
