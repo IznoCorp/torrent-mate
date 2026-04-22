@@ -7,10 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to permanent storage on one of 4 disks.
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-V0-V15 implemented — see `docs/reference/architecture.md` for version history and module map.
+See `docs/reference/architecture.md` for version history and module map.
 
-**V15 (config-driven):** All storage paths and category names are now in `config.json5`.
-Run `personalscraper init-config --from-current` to migrate from V14. See `MIGRATION.md`.
+All storage paths and category names are in `config.json5`.
+Run `personalscraper init-config --from-current` to create `config.json5` from your current setup.
 
 ## Critical Rules
 
@@ -79,7 +79,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 **SemVer bump** (at create-branch): bugfix → Z+1, minor → Y+1, major → X+1
 **Merge**: squash, mode chosen at feature start (manual / auto)
 
-### Move Rules (V5 dispatch)
+### Move Rules (dispatch)
 
 - **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
 - **TV Shows** (category IDs: `tv_shows`, `tv_shows_animation`, `tv_shows_documentary`, `anime`, `tv_programs`): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
@@ -103,7 +103,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | ----------------------------------------------------------------------------- | -------------------------------------- |
 | CLI commands, pipeline invocation, scheduling (launchd), make targets         | `docs/reference/commands.md`           |
 | Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details        | `docs/reference/storage.md`            |
-| Directory layout, module map, versions V0-V14, shared utilities, dependencies | `docs/reference/architecture.md`       |
+| Directory layout, module map, version history, shared utilities, dependencies | `docs/reference/architecture.md`       |
 | Movie/TV folder naming, episode patterns, filename sanitization               | `docs/reference/naming.md`             |
 | Unit tests, E2E, roundtrip, golden files, test markers, timeouts              | `docs/reference/testing.md`            |
 | TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes               | `docs/reference/scraping.md`           |

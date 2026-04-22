@@ -1,31 +1,6 @@
 # ROADMAP — PersonalScraper
 
-> Future versions and ideas. Each item gets its own brainstorming session before implementation.
-
-## Implemented
-
-| Version | Name                 | Summary                                                  |
-| ------- | -------------------- | -------------------------------------------------------- |
-| V0      | PROJECT SETUP        | pyproject.toml, CLI Typer, pydantic-settings, logger     |
-| V1      | INGEST               | qBittorrent → A TRIER/ (copy if seeding, move if done)   |
-| V2      | SORT+CLEAN           | guessit parsing + FileMate strategies                    |
-| V3      | SCRAPE               | TMDB/TVDB matching, NFO XML, artwork, episode rename     |
-| V4      | VERIFY               | Quality gate: checker + fixer + genre categorization     |
-| V5      | DISPATCH             | Move to Disk1-4 (replace movies, merge series)           |
-| V6      | LOG+NOTIFY           | JSON logging, Telegram notifications, launchd scheduling |
-| V7      | E2E TESTS            | Real torrent tests with safe cleanup markers             |
-| V7.x    | TEST AUDIT           | Golden files E2E, test reinforcement                     |
-| V8      | ROBUSTNESS           | Circuit breaker, fuzzy guards, dispatch rollback         |
-| V9      | PIPELINE INTEGRITY   | Sequential 8-step pipeline, reclean+dedup                |
-| V10     | PIPELINE RESILIENCE  | Idempotence, fast-skip, crash recovery                   |
-| V11     | CODE QUALITY         | Error isolation, CLI UX, dead code, DRY extraction       |
-| V12     | PIPELINE HARDENING   | 22 bugs fixed, NTFS safety, crash recovery               |
-| V13     | PIPELINE CORRECTNESS | ENFORCE step, idempotence E2E tests                      |
-| V14     | LIBRARY MAINTENANCE  | Scan, clean, validate, analyze, recommend, report        |
-
-## In Progress
-
-_(No version currently in progress)_
+> Future ideas. Each item gets its own brainstorming session before implementation.
 
 ## Future Ideas
 
@@ -36,10 +11,8 @@ Automatic torrent download pipeline with tracker API integration.
 - Define preferred format + fallback formats
 - Series subscription list with cron-based new episode checks
 - Search multiple trackers via their APIs with preference ordering
-- Connect V14 recommendation list to auto-download for library renewal
+- Connect the library recommendation list to auto-download for library renewal
 - Override rules by criteria: studio, director, franchise, title, IMDB ID
-
-**Depends on:** V14 (recommendation list format)
 
 ### Watcher Service
 
@@ -64,7 +37,7 @@ Migrate from flat `.env` / pydantic-settings to structured JSON config.
 - Dedicated config directory (e.g. `.personalscraper/config/`)
 - JSON files per topic: `encoding.json`, `audio.json`, `paths.json`, `patterns.json`, `disks.json`
 - EVERYTHING configurable: directories, patterns, values, naming conventions, thresholds
-- V14's `encoding_rules.json` is a prototype of this approach
+- The existing `encoding_rules.json` is a prototype of this approach
 
 ### Decouple Staging from Project
 
@@ -79,10 +52,10 @@ Move staging directories out of the git project root.
 Persistent index of the media library with cache or database backend.
 
 - Index all media items across 4 disks (path, title, year, codec, size, NFO IDs, etc.)
-- Cache/BDD layer to avoid full disk scans on every command (V14 scans are read-heavy but slow on USB)
+- Cache/BDD layer to avoid full disk scans on every command (library scans are read-heavy but slow on USB)
 - Scheduled nightly update (cron/launchd, 1x per night)
 - Auto-refresh on path error detection (desync between index and filesystem = stale entry)
 - Replaces ad-hoc JSON files (`library_scan.json`, `library_analysis.json`) with a single authoritative source
 - Study `/Users/izno/dev/FileMate` for potential integration or shared architecture patterns
 
-**Depends on:** V14 (scan/analyze data model), Config System Overhaul (configurable paths)
+**Depends on:** Library maintenance commands (scan/analyze data model), Config System Overhaul (configurable paths)

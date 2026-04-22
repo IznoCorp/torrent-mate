@@ -8,18 +8,18 @@ Ce document explique comment utiliser la zone de tri "A TRIER" et les outils dis
 
 ```
 Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
-                    personalscraper run     (7 étapes V1→V10)
+                    personalscraper run     (7 étapes séquentielles)
 ```
 
-**Pipeline automatisé (PersonalScraper V0-V10) :**
+**Pipeline automatisé (PersonalScraper) :**
 
-1. **V1 Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `097-TEMP/`
-2. **V2 Sort** — Les fichiers sont triés dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
-3. **V9 Clean** — Nettoyage noms (reclean) + dédoublonnage fuzzy (dedup)
-4. **V3 Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
-5. **V9 Cleanup** — Suppression des dossiers vides
-6. **V4 Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
-7. **V5 Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
+1. **Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `097-TEMP/`
+2. **Sort** — Les fichiers sont triés dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
+3. **Clean** — Nettoyage noms (reclean) + dédoublonnage fuzzy (dedup)
+4. **Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
+5. **Cleanup** — Suppression des dossiers vides
+6. **Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
+7. **Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
 
 > **Note :** MediaElch reste disponible comme fallback manuel pour le scraping si l'API ne trouve pas le résultat.
 
@@ -35,16 +35,16 @@ personalscraper run                 # Exécute tout : ingest → sort → clean 
 personalscraper run --dry-run       # Prévisualiser sans modifier
 
 # Phase process seule (reclean + dedup + scrape + cleanup)
-personalscraper process             # V9: Nettoyer, dédoublonner, scraper, supprimer vides
+personalscraper process             # Nettoyer, dédoublonner, scraper, supprimer vides
 personalscraper process --dry-run   # Prévisualiser
 
 # Étapes individuelles
-personalscraper ingest              # V1: Copier/déplacer les torrents terminés depuis qBittorrent
+personalscraper ingest              # Copier/déplacer les torrents terminés depuis qBittorrent
 personalscraper ingest --dry-run    # Prévisualiser
-personalscraper sort                # V2: Trier dans 001-MOVIES, 002-TVSHOWS, etc.
-personalscraper scrape              # V3: Récupérer métadonnées TMDB/TVDB (.nfo, artwork)
-personalscraper verify              # V4: Contrôle qualité avant dispatch
-personalscraper dispatch            # V5: Déplacer vers disques de stockage
+personalscraper sort                # Trier dans 001-MOVIES, 002-TVSHOWS, etc.
+personalscraper scrape              # Récupérer métadonnées TMDB/TVDB (.nfo, artwork)
+personalscraper verify              # Contrôle qualité avant dispatch
+personalscraper dispatch            # Déplacer vers disques de stockage
 ```
 
 Chaque commande supporte des options supplémentaires (`--dry-run`, `--movies-only`, `--tvshows-only`, etc.). Voir `personalscraper <command> --help`.
@@ -146,14 +146,14 @@ A TRIER/
 ├── 097-TEMP/            Espace temporaire
 ├── 098-AUTRES/          Divers
 ├── 099-SCRIPTS/         Scripts legacy (.bak, gitignored)
-├── personalscraper/     Package Python (CLI V0-V9)
-│   ├── ingest/          V1: qBittorrent → 097-TEMP/
-│   ├── sorter/          V2: guessit + strategies → dossiers catégorie
-│   ├── process/         V9: reclean, dedup, cleanup
-│   ├── scraper/         V3: TMDB/TVDB matching, NFO, artwork
-│   ├── verify/          V4+V9: contrôle qualité renforcé
-│   ├── dispatch/        V5: rsync vers Disk1-4
-│   └── pipeline.py      V9: Orchestrateur 7 étapes séquentiel
+├── personalscraper/     Package Python (CLI)
+│   ├── ingest/          qBittorrent → 097-TEMP/
+│   ├── sorter/          guessit + strategies → dossiers catégorie
+│   ├── process/         reclean, dedup, cleanup
+│   ├── scraper/         TMDB/TVDB matching, NFO, artwork
+│   ├── verify/          contrôle qualité renforcé
+│   ├── dispatch/        rsync vers Disk1-4
+│   └── pipeline.py      Orchestrateur 7 étapes séquentiel
 ├── tests/               Tests unitaires + E2E
 └── assets/torrents/     Fichiers .torrent pour tests E2E
 ```
@@ -238,7 +238,7 @@ Hooks actifs dans `.claude/settings.json` :
 
 ## Scripts legacy (099-SCRIPTS/)
 
-Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper V0-V9.
+Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper.
 
 | Script                      | Usage d'origine                               | Statut                    |
 | --------------------------- | --------------------------------------------- | ------------------------- |
