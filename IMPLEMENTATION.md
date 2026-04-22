@@ -19,7 +19,7 @@
 | 3   | Clean reference docs | phase-03-clean-reference-docs.md | [x]    |
 | 4   | Clean source code    | phase-04-clean-source-code.md    | [x]    |
 | 5   | Final validation     | phase-05-final-validation.md     | [x]    |
-| 6   | PR fixes cycle 1     | phase-06-pr-fixes-cycle-1.md     | [ ]    |
+| 6   | PR fixes cycle 1     | phase-06-pr-fixes-cycle-1.md     | [x]    |
 
 ## Review cycles
 
