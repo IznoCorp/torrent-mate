@@ -38,13 +38,13 @@ Examples :
 - Version prefixes (`vX.Y.Z: Description`) — version traceability lives in `IMPLEMENTATION.md` and subagent reports (sub-phase → SHA mapping), not in commit messages
 - AI attribution : `Co-Authored-By`, `Claude`, `Anthropic` — enforced by `hooks/block_ai_attribution.py`
 
-**Milestone commits** (used by `/implement-phase` skill) include version as scope :
+**Milestone commits** (used by `/implement:phase` skill) include codename as scope :
 
 ```
-chore(v15): phase 7 gate — scraper refactor
+chore(my-feature): phase 3 gate — scraper refactor
 ```
 
-This is the ONLY place version appears.
+This is the ONLY place codename appears in milestone commits.
 
 ### Pipeline Monitoring Rules
 
@@ -66,24 +66,18 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - **Inline comments** for non-trivial logic explaining the "why" (not the "what")
 - Docstring/comment language: **English**
 
-### Implementation Workflow
+### Implementation Workflow (feature-oriented)
 
-ALL planning (brainstorming → design → plan) must be complete for ALL versions before ANY code is written.
-Use `/model-version` for planning, `/implement-version` to start coding (blocks if planning incomplete).
-Coherence check between every phase — verify interfaces match design before continuing.
+10 `implement:*` skills managing the full feature lifecycle with Opus/Sonnet/Haiku allocation. See details in `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
 
-**Per sub-phase discipline:**
+**Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename + SemVer type, create branch, generate plan.
 
-- **Commit** after every sub-phase using Conventional Commits (`feat(scope): description` — see Commit Convention above)
-- **Update progress** (IMPLEMENTATION.md + plan/INDEX.md) after every sub-phase — never batch
-- **Check context** after every sub-phase — if ≥80% full, compact before continuing
+**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` (Sonnet) + `/implement:check` (Opus verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + max-3 fix cycles + squash merge).
 
-**Continuous flow:**
-
-- **Never ask for confirmation** to continue between sub-phases, phases, or versions
-- **Always continue automatically** — phase done → next phase, version done → next version
-- **Only stop** if: a blocking error requires a user decision, or context needs compaction
-- Do NOT ask "On continue ?", "Shall I proceed?", or present options to continue — just do it
+**Branches**: `feat/{codename}` or `fix/{codename}`
+**Commits**: Conventional Commits with `(codename)` scope
+**SemVer bump** (at create-branch): bugfix → Z+1, minor → Y+1, major → X+1
+**Merge**: squash, mode chosen at feature start (manual / auto)
 
 ### Move Rules (V5 dispatch)
 
@@ -118,17 +112,21 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 
 Also check version-specific planning docs under `docs/v{N}-*/` and archived versions under `docs/archive/`.
 
-## Current Version
+## Current Feature
 
-**v15** — COMPLETE. Config-driven architecture. All 10 phases done. 1702 tests pass.
+**Codename**: _(no feature in progress)_
+**Version**: see `VERSION` file (SemVer, bumped by `/implement:create-branch`)
+**Archive**: `docs/archive/features/` — previous features by codename
+**Historical archive**: `docs/archive/v0/` to `docs/archive/v15/` — legacy version-based work (preserved as-is)
 
-- Archive v14: `docs/archive/v14/IMPLEMENTATION.md`
-- Completed plan: `docs/IMPLEMENTATION.md`
-- Design spec: `docs/v15-config-driven/DESIGN.md`
-- Plans: `docs/v15-config-driven/plan/`
-- Migration guide: `MIGRATION.md`
+When a feature is in progress, this section is populated by `/implement:feature` with:
 
-**Config-driven key points:**
+- Codename (kebab-case, derived from feature title)
+- Type (major / minor / bugfix)
+- Version bump (X.Y.Z → X'.Y'.Z')
+- Branch name, PR URL, design/plan paths
+
+**Config-driven key points (v15 baseline):**
 
 - `config.json5` (gitignored) holds all paths, disks, categories — run `init-config` to create
 - Category IDs: `movies`, `tv_shows`, `anime`, etc. — see `personalscraper/conf/ids.py`
