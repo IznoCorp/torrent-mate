@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to permanent storage on one of 4 disks.
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
-See `docs/reference/architecture.md` for version history and module map.
+See `docs/reference/architecture.md` for the module map and package layout.
 
 All storage paths and category names are in `config.json5`.
 Run `personalscraper init-config --from-current` to create `config.json5` from your current setup.
@@ -99,18 +99,18 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 
 Load these docs on-demand based on your task — they are **not** auto-loaded:
 
-| When working on...                                                            | Read                                   |
-| ----------------------------------------------------------------------------- | -------------------------------------- |
-| CLI commands, pipeline invocation, scheduling (launchd), make targets         | `docs/reference/commands.md`           |
-| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details        | `docs/reference/storage.md`            |
-| Directory layout, module map, version history, shared utilities, dependencies | `docs/reference/architecture.md`       |
-| Movie/TV folder naming, episode patterns, filename sanitization               | `docs/reference/naming.md`             |
-| Unit tests, E2E, roundtrip, golden files, test markers, timeouts              | `docs/reference/testing.md`            |
-| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes               | `docs/reference/scraping.md`           |
-| rapidfuzz, tenacity, structlog, rich, guessit gotchas                         | `docs/reference/libraries.md`          |
-| Circuit breaker, fast-skip, dispatch/verify internals, idempotence            | `docs/reference/pipeline-internals.md` |
+| When working on...                                                     | Read                                   |
+| ---------------------------------------------------------------------- | -------------------------------------- |
+| CLI commands, pipeline invocation, scheduling (launchd), make targets  | `docs/reference/commands.md`           |
+| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/reference/storage.md`            |
+| Directory layout, module map, shared utilities, dependencies           | `docs/reference/architecture.md`       |
+| Movie/TV folder naming, episode patterns, filename sanitization        | `docs/reference/naming.md`             |
+| Unit tests, E2E, roundtrip, golden files, test markers, timeouts       | `docs/reference/testing.md`            |
+| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes        | `docs/reference/scraping.md`           |
+| rapidfuzz, tenacity, structlog, rich, guessit gotchas                  | `docs/reference/libraries.md`          |
+| Circuit breaker, fast-skip, dispatch/verify internals, idempotence     | `docs/reference/pipeline-internals.md` |
 
-Also check version-specific planning docs under `docs/v{N}-*/` and archived versions under `docs/archive/`.
+Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
 ## Current Feature
 
