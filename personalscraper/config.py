@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,8 +21,9 @@ class Settings(BaseSettings):
     """Pipeline secrets and thresholds loaded from .env and environment variables.
 
     Note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
-    and data_dir_name have been removed — they now live in ``Config.paths`` and
-    ``Config.disks`` (conf/models.py). Only secrets and numeric thresholds remain here.
+    data_dir_name, and all *_dir_name fields have been removed — staging layout
+    now lives in ``Config.staging_dirs`` (conf/models.py + conf/staging.py).
+    Only secrets and numeric thresholds remain here.
 
     Attributes:
         qbit_host: qBittorrent Web API hostname.
@@ -40,13 +40,6 @@ class Settings(BaseSettings):
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring (empty = disabled).
         min_free_space_staging_gb: Minimum free space on SSD before ingest (GB).
         min_free_space_disk_gb: Minimum free space on storage disks before dispatch (GB).
-        ingest_dir_name: Ingest subdirectory name (relative to staging_dir in config.json5).
-        movies_dir_name: Movies category directory name (staging area only).
-        tvshows_dir_name: TV shows category directory name (staging area only).
-        ebooks_dir_name: Ebooks category directory name (staging area only).
-        audio_dir_name: Audio category directory name (staging area only).
-        apps_dir_name: Apps category directory name (staging area only).
-        other_dir_name: Other/misc category directory name (staging area only).
         library_preferences_file: Library preferences filename (legacy, kept for backward compat).
         circuit_breaker_threshold: Consecutive errors before opening circuit.
         circuit_breaker_cooldown: Seconds to wait before retrying after circuit opens.
@@ -82,17 +75,6 @@ class Settings(BaseSettings):
     # Thresholds
     min_free_space_staging_gb: int = 20
     min_free_space_disk_gb: float = 100
-
-    # Internal directories (relative to staging_dir from config.json5 if not absolute)
-    ingest_dir_name: str = "097-TEMP"
-
-    # Category directory names (staging area — override via env if needed)
-    movies_dir_name: str = "001-MOVIES"
-    tvshows_dir_name: str = "002-TVSHOWS"
-    ebooks_dir_name: str = "003-EBOOKS"
-    audio_dir_name: str = "004-AUDIO"
-    apps_dir_name: str = "005-APPS"
-    other_dir_name: str = "098-AUTRES"
 
     # Library maintenance preferences
     library_preferences_file: str = "library_preferences.json"
@@ -137,18 +119,6 @@ class Settings(BaseSettings):
                 yield name, "<masked>"
             else:
                 yield name, value
-
-    def ingest_dir(self, staging_dir: Path) -> Path:
-        """Resolved ingest directory (where ingest deposits files).
-
-        Args:
-            staging_dir: Staging directory from config.json5 (Config.paths.staging_dir).
-
-        Returns:
-            Absolute path, resolved relative to staging_dir if not absolute.
-        """
-        p = Path(self.ingest_dir_name)
-        return p if p.is_absolute() else staging_dir / p
 
 
 @lru_cache

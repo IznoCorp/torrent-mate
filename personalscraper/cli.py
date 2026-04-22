@@ -22,6 +22,7 @@ from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
@@ -178,7 +179,7 @@ def ingest(
     try:
         settings = get_settings()
         staging_dir = config.paths.staging_dir
-        ingest_dir = settings.ingest_dir(staging_dir)
+        ingest_dir = staging_path(config, find_ingest_dir(config))
         report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir)
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
