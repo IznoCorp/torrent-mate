@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.conf.models import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.run import _to_step_report, run_verify
 from personalscraper.verify.verifier import Verifier, VerifyResult
@@ -44,24 +45,24 @@ def _make_valid_movie(parent: Path, title: str = "Movie", year: int = 2024) -> P
 class TestVerifyMovie:
     """Tests for Verifier.verify_movie."""
 
-    def test_valid_movie(self, tmp_path: Path) -> None:
+    def test_valid_movie(self, tmp_path: Path, test_config: Config) -> None:
         """Valid movie should have status='valid' with category."""
         d = _make_valid_movie(tmp_path)
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
         assert result.status == "valid"
         assert result.category is not None
 
-    def test_blocked_movie_no_video(self, tmp_path: Path) -> None:
+    def test_blocked_movie_no_video(self, tmp_path: Path, test_config: Config) -> None:
         """Movie without video should be blocked."""
         d = tmp_path / "Empty (2024)"
         d.mkdir()
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
         assert result.status == "blocked"
         assert len(result.errors) > 0
 
-    def test_fixed_movie_dir_naming(self, tmp_path: Path) -> None:
+    def test_fixed_movie_dir_naming(self, tmp_path: Path, test_config: Config) -> None:
         """Badly named movie with NFO should be fixed."""
         d = tmp_path / "bad.name"
         d.mkdir()
@@ -82,7 +83,7 @@ class TestVerifyMovie:
         (d / "Fight Club-poster.jpg").write_bytes(b"\xff")
         (d / "Fight Club-landscape.jpg").write_bytes(b"\xff")
 
-        v = Verifier(MagicMock(), NamingPatterns(), fix=True)
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, fix=True)
         result = v.verify_movie(d)
         assert result.status == "fixed"
         assert len(result.fixes_applied) > 0
@@ -132,7 +133,7 @@ class TestToStepReport:
 class TestVerifyCheckFixCycle:
     """Tests for the check → fix → re-check cycle."""
 
-    def test_verify_check_fix_recheck_cycle(self, tmp_path: Path) -> None:
+    def test_verify_check_fix_recheck_cycle(self, tmp_path: Path, test_config: Config) -> None:
         """Item with fixable error should be fixed and re-checked."""
         # Create a movie with bad naming (fixable) but otherwise valid
         d = tmp_path / "bad.name"
@@ -154,7 +155,7 @@ class TestVerifyCheckFixCycle:
         (d / "GoodMovie-poster.jpg").write_bytes(b"\xff")
         (d / "GoodMovie-landscape.jpg").write_bytes(b"\xff")
 
-        v = Verifier(MagicMock(), NamingPatterns(), fix=True)
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, fix=True)
         result = v.verify_movie(d)
 
         assert result.status == "fixed"
@@ -162,7 +163,7 @@ class TestVerifyCheckFixCycle:
         # After fix, directory should be renamed
         assert (tmp_path / "GoodMovie (2024)").exists()
 
-    def test_verify_multiple_issues_all_fixed(self, tmp_path: Path) -> None:
+    def test_verify_multiple_issues_all_fixed(self, tmp_path: Path, test_config: Config) -> None:
         """Multiple fixable issues should all be corrected."""
         d = tmp_path / "bad.name.2024"
         d.mkdir()
@@ -183,32 +184,32 @@ class TestVerifyCheckFixCycle:
         (d / "Movie-poster.jpg").write_bytes(b"\xff")
         (d / "Movie-landscape.jpg").write_bytes(b"\xff")
 
-        v = Verifier(MagicMock(), NamingPatterns(), fix=True)
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, fix=True)
         result = v.verify_movie(d)
 
         # Should be fixed (dir rename is a fix)
         assert result.status in ("fixed", "valid")
 
-    def test_verify_partial_fix_blocked(self, tmp_path: Path) -> None:
+    def test_verify_partial_fix_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """Non-fixable issues should leave status as blocked."""
         # Movie with no video file at all — unfixable
         d = tmp_path / "NoVideo (2024)"
         d.mkdir()
         (d / "readme.txt").write_text("no video")
 
-        v = Verifier(MagicMock(), NamingPatterns(), fix=True)
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, fix=True)
         result = v.verify_movie(d)
 
         assert result.status == "blocked"
         assert len(result.errors) > 0
 
-    def test_verify_category_correct(self, tmp_path: Path) -> None:
-        """Genre 'Drame' should map to category 'films'."""
+    def test_verify_category_correct(self, tmp_path: Path, test_config: Config) -> None:
+        """Generic 'Drame' genre should fall through to default movies category (V15 'movies' ID)."""
         d = _make_valid_movie(tmp_path, "Drama Movie", 2024)
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
 
-        assert result.category == "films"
+        assert result.category == "movies"
 
     def test_verify_dispatchable_filter(self) -> None:
         """Only valid/fixed items with category should be dispatchable."""
@@ -227,7 +228,7 @@ class TestVerifyCheckFixCycle:
 class TestVerifyTvshow:
     """Tests for Verifier.verify_tvshow."""
 
-    def test_valid_tvshow(self, tmp_path: Path) -> None:
+    def test_valid_tvshow(self, tmp_path: Path, test_config: Config) -> None:
         """Valid TV show should have status='valid'."""
         show_dir = tmp_path / "Show (2024)"
         show_dir.mkdir()
@@ -251,35 +252,35 @@ class TestVerifyTvshow:
         (show_dir / "poster.jpg").write_bytes(b"\xff")
         (show_dir / "fanart.jpg").write_bytes(b"\xff")
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_tvshow(show_dir)
 
         assert result.status in ("valid", "fixed")
         assert result.media_type == "tvshow"
 
-    def test_verify_all_movies_empty(self, tmp_path: Path) -> None:
+    def test_verify_all_movies_empty(self, tmp_path: Path, test_config: Config) -> None:
         """Empty movies directory should return empty results."""
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         results = v.verify_all_movies(movies_dir)
 
         assert results == []
 
-    def test_verify_all_movies_nonexistent(self, tmp_path: Path) -> None:
+    def test_verify_all_movies_nonexistent(self, tmp_path: Path, test_config: Config) -> None:
         """Nonexistent movies directory should return empty results."""
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         results = v.verify_all_movies(tmp_path / "nonexistent")
         assert results == []
 
-    def test_verify_all_movies_with_error(self, tmp_path: Path) -> None:
+    def test_verify_all_movies_with_error(self, tmp_path: Path, test_config: Config) -> None:
         """Exception during verify should produce blocked result."""
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
         (movies_dir / "Bad (2024)").mkdir()
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         with patch.object(v, "verify_movie", side_effect=RuntimeError("crash")):
             results = v.verify_all_movies(movies_dir)
 
@@ -290,27 +291,27 @@ class TestVerifyTvshow:
 class TestReinforcedChecks:
     """Tests for V9 reinforced verify checks — poster, episodes, empty dirs."""
 
-    def test_movie_no_poster_blocked(self, tmp_path: Path) -> None:
+    def test_movie_no_poster_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """Movie without poster is blocked (poster_present check)."""
         d = _make_valid_movie(tmp_path)
         # Remove poster
         poster = d / "Movie-poster.jpg"
         poster.unlink()
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
         assert result.status == "blocked"
         assert any("Poster not found" in e for e in result.errors)
 
-    def test_movie_with_empty_subdir_blocked(self, tmp_path: Path) -> None:
+    def test_movie_with_empty_subdir_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """Movie with empty subdirectory is blocked."""
         d = _make_valid_movie(tmp_path)
         (d / "empty_subdir").mkdir()
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
         assert result.status == "blocked"
         assert any("Empty subdirs" in e for e in result.errors)
 
-    def test_tvshow_unrenamed_episode_blocked(self, tmp_path: Path) -> None:
+    def test_tvshow_unrenamed_episode_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """TV show with unrenamed episode file is blocked."""
         show = tmp_path / "Show (2024)"
         show.mkdir()
@@ -332,20 +333,20 @@ class TestReinforcedChecks:
         (show / "poster.jpg").write_bytes(b"\xff")
         (show / "fanart.jpg").write_bytes(b"\xff")
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_tvshow(show)
         assert result.status == "blocked"
         assert any("Unrenamed episodes" in e for e in result.errors)
 
-    def test_valid_movie_with_poster_passes(self, tmp_path: Path) -> None:
+    def test_valid_movie_with_poster_passes(self, tmp_path: Path, test_config: Config) -> None:
         """Movie with poster and no empty dirs passes all V9 checks."""
         d = _make_valid_movie(tmp_path)
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_movie(d)
         assert result.status == "valid"
         assert len(result.errors) == 0
 
-    def test_tvshow_nfo_without_uniqueid_blocked(self, tmp_path: Path) -> None:
+    def test_tvshow_nfo_without_uniqueid_blocked(self, tmp_path: Path, test_config: Config) -> None:
         """TV show with tvshow.nfo missing <uniqueid> is blocked."""
         show = tmp_path / "Show (2024)"
         show.mkdir()
@@ -362,7 +363,7 @@ class TestReinforcedChecks:
         (show / "poster.jpg").write_bytes(b"\xff")
         (show / "fanart.jpg").write_bytes(b"\xff")
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
         result = v.verify_tvshow(show)
         assert result.status == "blocked"
         assert any("uniqueid" in e.lower() for e in result.errors)
@@ -371,7 +372,7 @@ class TestReinforcedChecks:
 class TestRunVerify:
     """Tests for run_verify."""
 
-    def test_processes_both_dirs(self, tmp_path: Path) -> None:
+    def test_processes_both_dirs(self, tmp_path: Path, test_config: Config) -> None:
         """Should process both movies and tvshows."""
         settings = MagicMock()
         settings.staging_dir = tmp_path
@@ -391,7 +392,7 @@ class TestRunVerify:
             mock_v.verify_all_movies.return_value = []
             mock_v.verify_all_tvshows.return_value = []
 
-            report, dispatchable = run_verify(settings)
+            report, dispatchable = run_verify(settings, test_config)
 
         assert report.name == "verify"
         mock_v.verify_all_movies.assert_called_once()

@@ -66,7 +66,7 @@ class TestNfoCorruptRecovery:
         ]
         mock_scraper.process_tvshows.return_value = []
 
-        run_scrape(resilience_settings)
+        run_scrape(resilience_settings, staging_dir=staging)
 
         # Scraper was called (not skipped) because NFO is corrupt
         mock_scraper.process_movies.assert_called_once()

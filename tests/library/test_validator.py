@@ -1,18 +1,29 @@
 """Tests for personalscraper.library.validator — library validation."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
+from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.validator import validate_library
 
 
-def _make_config(path: Path, name: str, categories: list[str]):
-    """Create a mock DiskConfig."""
-    config = MagicMock()
-    config.path = path
-    config.name = name
-    config.categories = categories
-    return config
+def _make_v15_config(
+    disk_path: Path,
+    disk_id: str,
+    folder_name: str,
+    category_id: str,
+    tmp_path: Path,
+) -> Config:
+    """Create a minimal V15 Config for a single disk/category."""
+    disk_cfg = DiskConfig(id=disk_id, path=disk_path, categories=[category_id])
+    return Config(
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "torrents",
+            staging_dir=tmp_path / "staging",
+            data_dir=tmp_path / ".data",
+        ),
+        disks=[disk_cfg],
+        categories={category_id: CategoryConfig(folder_name=folder_name)},
+    )
 
 
 # Minimal valid NFO with genres for category check to pass
@@ -44,8 +55,8 @@ class TestValidateLibrary:
         (movie / "Test-poster.jpg").write_bytes(b"\x00" * 100)
         (movie / "Test-landscape.jpg").write_bytes(b"\x00" * 100)
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = validate_library([config])
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = validate_library(config)
 
         assert result.total_items == 1
         assert result.valid_count == 1
@@ -58,8 +69,8 @@ class TestValidateLibrary:
         movie.mkdir(parents=True)
         (movie / "NoNfo.mkv").write_bytes(b"\x00" * 200_000_000)
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = validate_library([config])
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = validate_library(config)
 
         assert result.issues_count == 1
         assert "nfo_present" in result.items[0].errors
@@ -73,10 +84,18 @@ class TestValidateLibrary:
         (d1 / "films" / "A (2024)" / "A.mkv").write_bytes(b"\x00" * 200_000_000)
         (d2 / "films" / "B (2024)" / "B.mkv").write_bytes(b"\x00" * 200_000_000)
 
-        configs = [
-            _make_config(d1, "Disk1", ["films"]),
-            _make_config(d2, "Disk2", ["films"]),
-        ]
-        result = validate_library(configs, disk_filter="Disk1")
+        config = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "torrents",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="disk1", path=d1, categories=["movies"]),
+                DiskConfig(id="disk2", path=d2, categories=["movies"]),
+            ],
+            categories={"movies": CategoryConfig(folder_name="films")},
+        )
+        result = validate_library(config, disk_filter="disk1")
 
         assert result.total_items == 1

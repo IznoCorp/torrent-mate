@@ -9,15 +9,15 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.genre_mapper import GenreMapper
+from personalscraper.conf.models import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import MediaChecker, Severity
 
 
 @pytest.fixture
-def checker() -> MediaChecker:
-    """Create a MediaChecker with default patterns and mapper."""
-    return MediaChecker(NamingPatterns(), GenreMapper())
+def checker(test_config: Config) -> MediaChecker:
+    """Create a MediaChecker with default patterns and a synthetic V15 Config."""
+    return MediaChecker(NamingPatterns(), test_config)
 
 
 def _make_movie_dir(tmp_path: Path, title: str = "Fight Club", year: int = 1999) -> Path:
@@ -204,7 +204,7 @@ class TestCheckTvshow:
 class TestNtfsSafeNames:
     """Tests for NTFS-illegal character detection in verify checker."""
 
-    def test_colon_in_artwork_fails_check(self, tmp_path: Path) -> None:
+    def test_colon_in_artwork_fails_check(self, tmp_path: Path, test_config: Config) -> None:
         """Artwork file with ':' should fail ntfs_safe_names check."""
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
@@ -216,7 +216,7 @@ class TestNtfsSafeNames:
 
         from personalscraper.verify.checker import MediaChecker
 
-        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        checker = MediaChecker(NamingPatterns(), test_config)
         results = checker.check_movie(movie_dir)
 
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
@@ -224,7 +224,7 @@ class TestNtfsSafeNames:
         assert ntfs_check.passed is False
         assert ":" in ntfs_check.message
 
-    def test_clean_names_pass_check(self, tmp_path: Path) -> None:
+    def test_clean_names_pass_check(self, tmp_path: Path, test_config: Config) -> None:
         """Files with NTFS-safe names should pass the check."""
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
@@ -234,14 +234,14 @@ class TestNtfsSafeNames:
 
         from personalscraper.verify.checker import MediaChecker
 
-        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        checker = MediaChecker(NamingPatterns(), test_config)
         results = checker.check_movie(movie_dir)
 
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
         assert ntfs_check is not None
         assert ntfs_check.passed is True
 
-    def test_tvshow_with_colon_in_nfo_fails(self, tmp_path: Path) -> None:
+    def test_tvshow_with_colon_in_nfo_fails(self, tmp_path: Path, test_config: Config) -> None:
         """TV show with ':' in a filename should also fail."""
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
@@ -255,9 +255,72 @@ class TestNtfsSafeNames:
 
         from personalscraper.verify.checker import MediaChecker
 
-        checker = MediaChecker(NamingPatterns(), GenreMapper())
+        checker = MediaChecker(NamingPatterns(), test_config)
         results = checker.check_tvshow(show_dir)
 
         ntfs_check = next((r for r in results if r.name == "ntfs_safe_names"), None)
         assert ntfs_check is not None
         assert ntfs_check.passed is False
+
+
+# ---------------------------------------------------------------------------
+# Stray root video check (Bug 2)
+# ---------------------------------------------------------------------------
+
+
+class TestRootVideoCheck:
+    """Tests for the stray root-level video check in check_tvshow.
+
+    Reproduces Bug 2: a TV show with tvshow.nfo plus .mkv at folder root
+    (not inside Saison XX/) should fail verification so dispatch is blocked.
+    """
+
+    def test_root_mkv_blocks_scraped_tvshow(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """Tvshow with .mkv at root is blocked even when Saison XX/ is valid."""
+        d = _make_tvshow_dir(tmp_path)
+        # Drop a stray .mkv at root level (simulates new episode not yet organized)
+        (d / "The.Boys.S05E03.2160p.mkv").write_bytes(b"\x00" * 1024)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        assert root_check is not None, "root_video_files check should be present"
+        assert root_check.passed is False
+        assert root_check.severity == Severity.ERROR
+        assert "The.Boys.S05E03.2160p.mkv" in root_check.message
+
+    def test_multiple_root_mkvs_blocked(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """Multiple stray .mkv files at root are all reported."""
+        d = _make_tvshow_dir(tmp_path)
+        (d / "Show.S05E03.4k.mkv").write_bytes(b"\x00" * 1024)
+        (d / "Show.S05E03.1080p.mkv").write_bytes(b"\x00" * 512)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        assert root_check is not None
+        assert root_check.passed is False
+
+    def test_no_root_video_passes(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """A clean tvshow with no root video files passes the check."""
+        d = _make_tvshow_dir(tmp_path)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        assert root_check is not None, "root_video_files check should always be present"
+        assert root_check.passed is True
+
+    def test_root_video_check_only_when_nfo_exists(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """The root_video_files check is only applied when tvshow.nfo exists."""
+        d = tmp_path / "Show (2025)"
+        d.mkdir()
+        # No tvshow.nfo — show not yet scraped
+        season = d / "Saison 01"
+        season.mkdir()
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 1024)
+        # Root video without NFO — should NOT block (scraper handles it)
+        (d / "Show.S01E02.mkv").write_bytes(b"\x00" * 1024)
+
+        results = checker.check_tvshow(d)
+        root_check = next((r for r in results if r.name == "root_video_files"), None)
+        # Either the check is absent or passes when there's no tvshow.nfo
+        if root_check is not None:
+            assert root_check.passed is True

@@ -1,0 +1,4 @@
+{
+  // The API key for authentication
+  api_key: "my-secret-key",
+}

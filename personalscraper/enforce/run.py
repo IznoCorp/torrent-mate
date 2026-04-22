@@ -10,6 +10,7 @@ Each component works on the state left by the previous one.
 
 import logging
 
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.enforce.coherence_checker import check_coherence
 from personalscraper.enforce.file_sanitizer import sanitize_files
@@ -19,13 +20,14 @@ from personalscraper.models import StepReport
 logger = logging.getLogger(__name__)
 
 
-def run_enforce(settings: Settings, dry_run: bool = False) -> StepReport:
+def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
     """Run the enforce pipeline step.
 
     Executes sanitize → structure → coherence in order.
 
     Args:
         settings: Pipeline configuration.
+        config: V15 Config passed to the coherence checker for classifier rules.
         dry_run: If True, preview without modifying filesystem.
 
     Returns:
@@ -33,7 +35,7 @@ def run_enforce(settings: Settings, dry_run: bool = False) -> StepReport:
     """
     sanitize_results = sanitize_files(settings, dry_run)
     structure_results = validate_structure(settings, dry_run)
-    coherence_results = check_coherence(settings, dry_run)
+    coherence_results = check_coherence(settings, config, dry_run)
 
     success = 0
     warnings_list: list[str] = []

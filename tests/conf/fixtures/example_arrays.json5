@@ -1,0 +1,23 @@
+{
+  // Accepted fallback codecs when preferred is unavailable
+  fallback_codecs: ["av1", "h264"],
+
+  disks: [
+    {
+      // Disk identifier used in CLI and logs
+      id: "drive_a",
+      // Absolute mount path
+      path: "/mnt/drive_a",
+      // Category IDs accepted on this disk
+      categories: ["movies", "tv_shows"],
+    },
+    {
+      // Second disk identifier
+      id: "drive_b",
+      // Mount path for second disk
+      path: "/mnt/drive_b",
+      // Category IDs accepted on second disk
+      categories: ["movies_animation"],
+    },
+  ],
+}

@@ -3,12 +3,20 @@
 Instantiates the Dispatcher and MediaIndex, processes verified items,
 and converts DispatchResult to StepReport. In standalone mode (no
 verified list provided), runs verify first to obtain dispatchable items.
+
+V15 P6.5: staging_dir is passed explicitly from Config.paths; Settings
+no longer carries disk paths.
 """
 
 import logging
 import shutil
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.config import Settings
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models import Config
 from personalscraper.dispatch.dispatcher import Dispatcher, DispatchResult
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.models import StepReport
@@ -17,20 +25,21 @@ from personalscraper.verify.verifier import VerifyResult
 logger = logging.getLogger(__name__)
 
 
-def _cleanup_staging_orphans(settings: Settings) -> int:
+def _cleanup_staging_orphans(settings: Settings, staging_dir: Path) -> int:
     """Remove orphaned dispatch temp dirs from staging categories.
 
     Cleans up _tmp_dispatch_* directories and .merge_backup/
     subdirectories that were left behind by interrupted dispatches.
 
     Args:
-        settings: Pipeline configuration.
+        settings: Pipeline configuration (provides dir name attributes).
+        staging_dir: Absolute path to the staging area (from Config.paths).
 
     Returns:
         Number of orphan directories removed.
     """
     cleaned = 0
-    staging = settings.staging_dir
+    staging = staging_dir
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
@@ -60,13 +69,15 @@ def _cleanup_staging_orphans(settings: Settings) -> int:
 
 def run_dispatch(
     settings: Settings,
+    config: "Config",
     dry_run: bool = False,
     verified: list[VerifyResult] | None = None,
 ) -> StepReport:
     """Run the dispatch pipeline step.
 
     Args:
-        settings: Pipeline configuration.
+        settings: Pipeline configuration (thresholds, API keys).
+        config: V15 config with disk layout and paths.
         dry_run: If True, preview without transferring files.
         verified: Verified items from V4 (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
@@ -74,12 +85,15 @@ def run_dispatch(
     Returns:
         StepReport with dispatch counts and details.
     """
+    staging_dir = config.paths.staging_dir
+    index_path = config.paths.data_dir / "media_index.json"
+
     # Clean orphaned temp dirs from staging area
     cleaned = 0
     if not dry_run:
-        cleaned = _cleanup_staging_orphans(settings)
+        cleaned = _cleanup_staging_orphans(settings, staging_dir)
 
-    index = MediaIndex()
+    index = MediaIndex(index_path)
     index.load()
 
     # Rebuild index if empty (first run or corrupted) to detect existing media
@@ -88,19 +102,19 @@ def run_dispatch(
     if index.count == 0:
         from personalscraper.dispatch.disk_scanner import get_disk_configs
 
-        disk_configs = get_disk_configs(settings)
-        count = index.rebuild(disk_configs)
+        disk_configs = get_disk_configs(config)
+        count = index.rebuild(disk_configs, categories=config.categories)
         logger.info("Index was empty — rebuilt from disk scan: %d entries", count)
         if not dry_run:
             index.save()
 
-    dispatcher = Dispatcher(settings=settings, index=index, dry_run=dry_run)
+    dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
 
     if verified is None:
         # Standalone mode: run verify first to get dispatchable items
         from personalscraper.verify.run import run_verify
 
-        _, verified = run_verify(settings, dry_run=dry_run)
+        _, verified = run_verify(settings, config, dry_run=dry_run)
 
     results = dispatcher.process(verified=verified)
 

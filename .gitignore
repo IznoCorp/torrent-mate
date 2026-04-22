@@ -140,3 +140,11 @@ docs/pipeline-runs/
 # .claude-old/ is a backup — ignore
 .claude-old/
 .personalscraper/
+# V15 runtime state (library index, tracker, lock, analysis results, .v14.bak backups)
+.data/
+
+# V15: personal config (paths + preferences, no secrets but gitignored for privacy)
+config.json5
+config.json5.v15.bak
+# TMDB keywords cache
+tmdb_keywords_cache.json

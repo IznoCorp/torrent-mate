@@ -1,0 +1,167 @@
+{
+  // Version du schéma config (ne pas modifier sauf mise à jour V15.x → V15.y)
+  config_version: 1,
+
+  paths: {
+    // Dossier où qBittorrent dépose les torrents terminés
+    torrent_complete_dir: "/path/to/torrents/complete",
+    // Dossier staging intermédiaire (A TRIER) avant dispatch
+    staging_dir: "/path/to/staging",
+    // State du pipeline (index, locks, analyse). Défaut: .data/ à la racine du repo.
+    data_dir: "./.data",
+  },
+
+  // Catégories custom au-delà des 11 builtin (optionnel)
+  // Chaque custom ID doit être une catégorie valide dans 'categories' et référencé par les disques/règles.
+  // Exemple: custom_categories: ["concerts", "short_films"]
+  custom_categories: [],
+
+  // Liste des disques de stockage (nombre variable)
+  disks: [
+    {
+      // Identifiant libre (utilisé dans CLI --disk et logs)
+      id: "drive_a",
+      // Chemin monté absolu
+      path: "/path/to/drive_a",
+      // IDs de catégories acceptées (parmi builtin + custom_categories)
+      categories: ["movies", "tv_shows", "anime", "audiobooks"],
+    },
+    // Exemple second disque:
+    // {
+    //   id: "drive_b",
+    //   path: "/path/to/drive_b",
+    //   categories: ["movies_animation", "tv_shows_animation", "movies_documentary", "tv_shows_documentary"],
+    // },
+  ],
+
+  // Personnalisation du nom de dossier pour chaque catégorie
+  // Défaut si non spécifié: ID avec underscores remplacés par espaces.
+  // Plusieurs IDs peuvent pointer vers le même folder_name (merge dans le même dossier physique).
+  categories: {
+    movies: { folder_name: "movies" },
+    movies_animation: {
+      folder_name: "movies animation",
+      // aliases: Labels alternatifs acceptés par la CLI --category
+      aliases: ["Movies Animation"],
+    },
+    movies_documentary: { folder_name: "movies documentary" },
+    tv_shows: { folder_name: "tv shows" },
+    tv_shows_animation: { folder_name: "tv shows animation" },
+    tv_shows_documentary: { folder_name: "tv shows documentary" },
+    anime: { folder_name: "anime" },
+    audiobooks: { folder_name: "audiobooks" },
+    standup: { folder_name: "standup" },
+    theater: { folder_name: "theater" },
+    tv_programs: { folder_name: "tv programs" },
+  },
+
+  // Règles pattern-based (évaluées en ordre, premier match gagne, AVANT genre_mapping)
+  // Supports: path_contains, path_regex, title_regex, tmdb_genre_contains, tmdb_keyword
+  // Exactement UN seul champ match_* doit être défini par règle.
+  category_rules: [
+    // Exemples (décommenter pour activer):
+    // { path_contains: "/standup/", category: "standup" },
+    // { path_contains: "/theatre/", category: "theater" },
+    // { tmdb_keyword: ["stand-up-comedy", "stand-up"], category: "standup" },
+    // { title_regex: "(?i)\\bspectacle\\b", category: "standup" },
+  ],
+
+  // Règle anime (TMDB n'a pas de genre Anime dédié, contrairement à TVDB)
+  // Désactiver en passant enabled: false.
+  anime_rule: {
+    enabled: true,
+    // TMDB Animation genre_id
+    requires_genre_id: 16,
+    // Liste de codes origin_country (ISO 3166) qui déclenchent la règle
+    requires_origin_country: ["JP"],
+    // category_id résultat
+    maps_to: "anime",
+    // Sur quels types de média: "movies", "tv", "both"
+    applies_to: "tv",
+  },
+
+  // Mapping genre_id → category_id par provider API.
+  // Les IDs genre sont stables (TMDB/TVDB ne les changent jamais).
+  genre_mapping: {
+    // TMDB Movies API — https://developer.themoviedb.org/reference/genre-movie-list
+    tmdb_movies: {
+      // 16 = Animation
+      "16": "movies_animation",
+      // 99 = Documentary
+      "99": "movies_documentary",
+      // Autres genres (Action=28, Comedy=35, Drama=18, ...) → default_movies_category
+    },
+    // TMDB TV API — https://developer.themoviedb.org/reference/genre-tv-list
+    tmdb_tv: {
+      // 16 = Animation (sauf anime_rule qui override si JP)
+      "16": "tv_shows_animation",
+      // 99 = Documentary
+      "99": "tv_shows_documentary",
+      // 10764 = Reality
+      "10764": "tv_programs",
+      // 10767 = Talk
+      "10767": "tv_programs",
+      // 10763 = News
+      "10763": "tv_programs",
+    },
+    // TVDB API — https://thetvdb.com/api-information
+    tvdb: {
+      // 27 = Anime (genre dédié)
+      "27": "anime",
+      // 17 = Animation
+      "17": "tv_shows_animation",
+      // 3 = Documentary
+      "3": "tv_shows_documentary",
+      // 8 = Reality, 10 = Talk, 11 = News
+      "8": "tv_programs",
+      "10": "tv_programs",
+      "11": "tv_programs",
+    },
+    // Fallback quand aucun genre ne match
+    default_movies_category: "movies",
+    default_tv_category: "tv_shows",
+  },
+
+  // Préférences library (anciennement library_preferences.json V14)
+  library: {
+    video: {
+      // Codec cible pour les recommandations d'encodage
+      preferred_codec: "hevc",
+      // Codecs acceptables (non signalés)
+      fallback_codecs: ["av1"],
+      // Codecs toujours signalés comme problématiques
+      rejected_codecs: ["mpeg2", "mpeg4"],
+      // Résolution cible
+      preferred_resolution: "1080p",
+      // Taille maximum d'un film en GB
+      max_size_movie_gb: 4.0,
+      // Taille maximum d'un épisode en GB
+      max_size_episode_gb: 2.0,
+    },
+    audio: {
+      // Ordre de préférence des profils audio (multi=multilingue, vf=VF, vostfr, vo)
+      profile_priority: ["multi", "vf", "vostfr", "vo"],
+      // Nombre minimum de canaux audio (1=mono, 2=stéréo, 6=5.1, etc.)
+      min_channels: 2,
+      // Codec audio préféré (null = pas de préférence)
+      preferred_codec: null,
+    },
+    subtitles: {
+      // Langues obligatoires (erreur si absentes) — codes ISO 639-2/T
+      required_languages: ["fra"],
+      // Langues souhaitées (warning si absentes)
+      preferred_languages: ["fra", "eng"],
+      // Émettre un warning si des sous-titres manquent
+      warn_if_missing: true,
+    },
+    // Règles d'override d'encodage pour des médias spécifiques
+    // encoding_rules: [
+    //   {
+    //     criteria: { genre: "Animation" },
+    //     codec: "hevc",
+    //     max_size_gb: 6.0,
+    //   },
+    // ],
+    encoding_rules: [],
+  },
+}

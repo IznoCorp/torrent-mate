@@ -1,6 +1,29 @@
 """Tests for personalscraper.library.analyzer — ffprobe deep scan."""
 
+from pathlib import Path
+
+from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.analyzer import deduce_audio_profile
+
+
+def _make_v15_config(
+    disk_path: Path,
+    disk_id: str,
+    folder_name: str,
+    category_id: str,
+    tmp_path: Path,
+) -> Config:
+    """Create a minimal V15 Config for a single disk/category."""
+    disk_cfg = DiskConfig(id=disk_id, path=disk_path, categories=[category_id])
+    return Config(
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "torrents",
+            staging_dir=tmp_path / "staging",
+            data_dir=tmp_path / ".data",
+        ),
+        disks=[disk_cfg],
+        categories={category_id: CategoryConfig(folder_name=folder_name)},
+    )
 
 
 class TestDeduceAudioProfile:
@@ -61,19 +84,31 @@ class TestDeduceAudioProfile:
         subs = [{"language": "fre"}]
         assert deduce_audio_profile(audio, subs) == "vostfr"
 
+    def test_vf_fra_with_subs(self) -> None:
+        """French audio with French subtitle should still be VF (not VOSTFR)."""
+        audio = [{"language": "fra", "is_default": True}]
+        subs = [{"language": "fra"}]
+        assert deduce_audio_profile(audio, subs) == "vf"
+
+    def test_vo_und_language(self) -> None:
+        """'und' (undefined) language without French subtitles = vo."""
+        audio = [{"language": "und", "is_default": True}]
+        assert deduce_audio_profile(audio, []) == "vo"
+
+    def test_vo_empty_subs(self) -> None:
+        """English audio without subtitles = vo."""
+        audio = [{"language": "eng", "is_default": True}]
+        assert deduce_audio_profile(audio, []) == "vo"
+
+    def test_vostfr_via_second_sub(self) -> None:
+        """Should detect VOSTFR even with multiple subtitle tracks."""
+        audio = [{"language": "eng", "is_default": True}]
+        subs = [{"language": "eng"}, {"language": "fra"}]
+        assert deduce_audio_profile(audio, subs) == "vostfr"
+
 
 class TestAnalyzeLibrary:
     """Tests for analyze_library — disk iteration, filtering, incremental."""
-
-    def _make_config(self, path, name, categories):
-        """Create a mock DiskConfig."""
-        from unittest.mock import MagicMock
-
-        config = MagicMock()
-        config.path = path
-        config.name = name
-        config.categories = categories
-        return config
 
     def _make_stream_info(self):
         """Create a minimal stream info dict for mocking extract_stream_info."""
@@ -90,7 +125,7 @@ class TestAnalyzeLibrary:
             "duration_seconds": 7200.0,
         }
 
-    def test_disk_filter(self, tmp_path):
+    def test_disk_filter(self, tmp_path: Path) -> None:
         """--disk filter should only analyze the specified disk."""
         from unittest.mock import patch
 
@@ -103,17 +138,25 @@ class TestAnalyzeLibrary:
         (disk2 / "films" / "B (2024)").mkdir(parents=True)
         (disk2 / "films" / "B (2024)" / "b.mkv").write_bytes(b"\x00" * 1000)
 
-        configs = [
-            self._make_config(disk1, "Disk1", ["films"]),
-            self._make_config(disk2, "Disk2", ["films"]),
-        ]
+        config = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "torrents",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="disk1", path=disk1, categories=["movies"]),
+                DiskConfig(id="disk2", path=disk2, categories=["movies"]),
+            ],
+            categories={"movies": CategoryConfig(folder_name="films")},
+        )
 
         with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library(configs, disk_filter="Disk1")
+            result = analyze_library(config, disk_filter="disk1")
 
         assert result.item_count == 1
 
-    def test_max_items(self, tmp_path):
+    def test_max_items(self, tmp_path: Path) -> None:
         """--max-items should limit items analyzed."""
         from unittest.mock import patch
 
@@ -125,14 +168,14 @@ class TestAnalyzeLibrary:
             d.mkdir(parents=True)
             (d / "movie.mkv").write_bytes(b"\x00" * 1000)
 
-        config = self._make_config(disk, "Disk1", ["films"])
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
 
         with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
-            result = analyze_library([config], max_items=2)
+            result = analyze_library(config, max_items=2)
 
         assert result.item_count == 2
 
-    def test_incremental_skips_unchanged(self, tmp_path):
+    def test_incremental_skips_unchanged(self, tmp_path: Path) -> None:
         """Incremental mode should skip files with matching size_gb."""
         from unittest.mock import patch
 
@@ -145,18 +188,18 @@ class TestAnalyzeLibrary:
         video.write_bytes(b"\x00" * 1000)
         size_gb = round(video.stat().st_size / (1024**3), 3)
 
-        config = self._make_config(disk, "Disk1", ["films"])
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
         existing = {str(video): size_gb}
 
         with patch(
             "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
         ) as mock_extract:
-            result = analyze_library([config], incremental=True, existing_sizes=existing)
+            result = analyze_library(config, incremental=True, existing_sizes=existing)
 
         mock_extract.assert_not_called()
         assert result.file_count == 0
 
-    def test_macos_resource_forks_skipped(self, tmp_path):
+    def test_macos_resource_forks_skipped(self, tmp_path: Path) -> None:
         """MacOS resource fork files (._*) should be skipped."""
         from unittest.mock import patch
 
@@ -168,11 +211,11 @@ class TestAnalyzeLibrary:
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie / "._Movie.mkv").write_bytes(b"\x00" * 100)
 
-        config = self._make_config(disk, "Disk1", ["films"])
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
 
         with patch(
             "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
         ) as mock_extract:
-            analyze_library([config])
+            analyze_library(config)
 
         assert mock_extract.call_count == 1

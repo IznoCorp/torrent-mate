@@ -1,8 +1,9 @@
 """Typer CLI entry point for PersonalScraper.
 
-Defines the main app with global options (--verbose, --quiet, --version)
-and commands for each pipeline step. Lock is acquired per-command to
-prevent concurrent executions.
+Defines the main app with global options (--verbose, --quiet, --version,
+--config) and commands for each pipeline step. Lock is acquired per-command
+to prevent concurrent executions. Config is loaded eagerly at the callback
+and stored in ``ctx.obj`` (AppCtx) for all subcommands.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, TypedDict
 
 import typer
@@ -18,12 +21,27 @@ from rich.console import Console
 from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
+from personalscraper.conf.models import Config
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class AppCtx:
+    """Application context passed through Typer's ctx.obj.
+
+    Attributes:
+        config: Loaded and validated Config instance. None only for init-config.
+        config_override: Path passed via --config CLI option, if any.
+    """
+
+    config: Config | None
+    config_override: Path | None
+
 
 # Rich tracebacks for readable error output
 install_traceback(show_locals=False)
@@ -101,11 +119,28 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable DEBUG logging"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Suppress console output"),
     version: bool = typer.Option(False, "--version", help="Show version and exit"),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help=(
+            "Path to config.json5 (overrides ./config.json5 and "
+            "$PERSONALSCRAPER_CONFIG). Must be placed BEFORE the subcommand."
+        ),
+    ),
 ) -> None:
     """PersonalScraper — Media pipeline automation."""
+    from personalscraper.conf.loader import (
+        ConfigNotFoundError,
+        ConfigValidationError,
+        load_config,
+        resolve_config_path,
+    )
+
     if version:
         typer.echo(__version__)
         raise typer.Exit()
@@ -114,18 +149,37 @@ def main(
     state["quiet"] = quiet
     configure_logging(verbose=verbose, quiet=quiet)
 
+    # init-config bypasses eager load: config.json5 may not exist yet.
+    if ctx.invoked_subcommand == "init-config":
+        ctx.obj = AppCtx(config=None, config_override=config)
+        return
+
+    try:
+        cfg = load_config(resolve_config_path(config))
+    except (ConfigNotFoundError, ConfigValidationError) as exc:
+        typer.echo(f"Config error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    ctx.obj = AppCtx(config=cfg, config_override=config)
+
 
 @app.command()
 @handle_cli_errors
-def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
+def ingest(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+) -> None:
     """Ingest completed torrents from qBittorrent."""
+    config = ctx.obj.config
+    assert config is not None  # guaranteed non-None by callback
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_ingest(settings, dry_run=dry_run)
+        staging_dir = config.paths.staging_dir
+        ingest_dir = settings.ingest_dir(staging_dir)
+        report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir)
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -135,17 +189,21 @@ def ingest(dry_run: bool = typer.Option(False, "--dry-run", help="Preview withou
 
 @app.command()
 @handle_cli_errors
-def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
+def sort(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+) -> None:
     """Sort and clean media files."""
     from personalscraper.sorter.run import run_sort
 
+    config = ctx.obj.config
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_sort(settings, dry_run=dry_run)
+        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run)
         console.print(
             f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -159,6 +217,7 @@ def sort(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without 
 @app.command()
 @handle_cli_errors
 def scrape(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without writing"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
@@ -167,6 +226,7 @@ def scrape(
     """Scrape metadata and artwork from TMDB/TVDB."""
     from personalscraper.scraper.run import run_scrape
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -193,6 +253,7 @@ def scrape(
 @app.command()
 @handle_cli_errors
 def verify(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
     fix: bool = typer.Option(True, "--fix/--no-fix", help="Attempt auto-fixes (default: True)"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
@@ -201,6 +262,7 @@ def verify(
     """Verify and qualify scraped media before dispatch."""
     from personalscraper.verify.run import run_verify
 
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -213,6 +275,7 @@ def verify(
             )
         report, dispatchable = run_verify(
             settings,
+            config,
             dry_run=dry_run,
             fix=fix,
             movies_only=movies_only,
@@ -230,18 +293,20 @@ def verify(
 @app.command()
 @handle_cli_errors
 def enforce(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
 ) -> None:
     """Enforce staging conventions: sanitize filenames, validate structure, check coherence."""
     from personalscraper.enforce.run import run_enforce
 
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_enforce(settings, dry_run=dry_run)
+        report = run_enforce(settings, config, dry_run=dry_run)
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
         if state["verbose"]:
             for detail in report.details:
@@ -252,17 +317,21 @@ def enforce(
 
 @app.command()
 @handle_cli_errors
-def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving")) -> None:
+def dispatch(
+    ctx: typer.Context,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without moving"),
+) -> None:
     """Move media to storage disks."""
     from personalscraper.dispatch.run import run_dispatch
 
+    config = ctx.obj.config
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         settings = get_settings()
-        report = run_dispatch(settings, dry_run=dry_run)
+        report = run_dispatch(settings, config=config, dry_run=dry_run)
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"
@@ -277,12 +346,14 @@ def dispatch(dry_run: bool = typer.Option(False, "--dry-run", help="Preview with
 @app.command()
 @handle_cli_errors
 def process(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
 ) -> None:
     """Run process phase only (reclean + dedup + scrape + cleanup)."""
     from personalscraper.process.run import run_process
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -311,6 +382,7 @@ def process(
 @app.command()
 @handle_cli_errors
 def run(
+    ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
 ) -> None:
@@ -325,6 +397,7 @@ def run(
     from personalscraper.notifier import TelegramNotifier, ping_healthcheck
     from personalscraper.pipeline import Pipeline
 
+    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
     log = logging.getLogger("pipeline")
@@ -353,7 +426,9 @@ def run(
         log.info("Pipeline started (dry_run=%s, run_id=%s)", dry_run, run_id)
 
         # Delegate to Pipeline orchestrator (8-step sequential flow)
+        config = ctx.obj.config
         pipeline = Pipeline(
+            config,
             settings,
             dry_run=dry_run,
             interactive=interactive,
@@ -406,9 +481,42 @@ def run(
 # --- Library maintenance commands ---
 
 
+def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
+    """Resolve a --category CLI value to a canonical category_id.
+
+    Accepts the category_id directly or any alias configured in
+    ``Config.categories[id].aliases``. Exits with code 2 and a clear error
+    message if the value is not recognised.
+
+    Args:
+        ctx: Typer context carrying the AppCtx (with a non-None config).
+        category: Raw --category argument value, or None if not provided.
+
+    Returns:
+        Resolved category_id string, or None if ``category`` was not provided.
+    """
+    if category is None:
+        return None
+    app_ctx: AppCtx = ctx.obj
+    resolved: str | None = app_ctx.config.resolve_category_alias(category)  # type: ignore[union-attr]
+    if resolved is None:
+        # Build a human-readable list of aliases from the config.
+        conf = app_ctx.config
+        alias_map = {cid: ccfg.aliases for cid, ccfg in conf.categories.items() if ccfg.aliases}  # type: ignore[union-attr]
+        alias_hint = ", ".join(f"{cid}: {aliases}" for cid, aliases in sorted(alias_map.items()))
+        valid_ids = ", ".join(sorted(conf.all_category_ids))  # type: ignore[union-attr]
+        msg = f"Unknown category '{category}'. Valid IDs: {valid_ids}." + (
+            f" Aliases: {alias_hint}." if alias_hint else ""
+        )
+        typer.echo(f"Error: {msg}", err=True)
+        raise typer.Exit(code=2)
+    return resolved
+
+
 @app.command()
 @handle_cli_errors
 def library_scan(
+    ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Scan only this disk (Disk1-4)"),
     category: str = typer.Option(None, "--category", help="Scan only this category"),
 ) -> None:
@@ -422,22 +530,22 @@ def library_scan(
         personalscraper library-scan --disk Disk1
         personalscraper library-scan --category films
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.scanner import scan_library
 
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    config = ctx.obj.config
 
     console.print("[bold]Scanning library...[/bold]")
     result = scan_library(
-        disk_configs,
+        config.disks,
+        config=config,
         disk_filter=disk,
-        category_filter=category,
+        category_filter=category_id,
     )
 
-    output_path = settings.data_dir / "library_scan.json"
+    output_path = config.paths.data_dir / "library_scan.json"
     write_json(result, output_path)
 
     console.print(f"[green]Scan complete:[/green] {result.item_count} items → {output_path}")
@@ -446,6 +554,7 @@ def library_scan(
 @app.command()
 @handle_cli_errors
 def library_clean(
+    ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
     only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
     disk: str = typer.Option(None, "--disk", help="Clean only this disk (Disk1-4)"),
@@ -463,19 +572,17 @@ def library_clean(
         personalscraper library-clean --apply --only actors
         personalscraper library-clean --disk Disk1
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.disk_cleaner import clean_library
 
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
+    config = ctx.obj.config
 
     # Validate --only parameter
     valid_only = {"actors", "empty", "junk", "release"}
     if only and only not in valid_only:
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
-
-    disk_configs = get_disk_configs(settings)
 
     # Acquire lock only when applying changes
     if apply:
@@ -488,11 +595,11 @@ def library_clean(
         console.print(f"[bold]Cleaning library ({mode})...[/bold]")
 
         result = clean_library(
-            disk_configs,
+            config,
             apply=apply,
             only=only,
             disk_filter=disk,
-            category_filter=category,
+            category_filter=category_id,
         )
 
         if result.dry_run:
@@ -517,6 +624,7 @@ def library_clean(
 @app.command()
 @handle_cli_errors
 def library_validate(
+    ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
     category: str = typer.Option(None, "--category", help="Validate only this category"),
     fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
@@ -532,13 +640,12 @@ def library_validate(
         personalscraper library-validate --disk Disk1
         personalscraper library-validate --fix --apply
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.validator import validate_library
 
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    config = ctx.obj.config
 
     if apply and not fix:
         console.print("[red]--apply requires --fix[/red]")
@@ -552,14 +659,14 @@ def library_validate(
     try:
         console.print("[bold]Validating library...[/bold]")
         result = validate_library(
-            disk_configs,
+            config,
             disk_filter=disk,
-            category_filter=category,
+            category_filter=category_id,
             fix=fix,
             apply=apply,
         )
 
-        output_path = settings.data_dir / "library_validation.json"
+        output_path = config.paths.data_dir / "library_validation.json"
         write_json(result, output_path)
 
         console.print(
@@ -582,6 +689,7 @@ def library_validate(
 @app.command()
 @handle_cli_errors
 def library_analyze(
+    ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
     category: str = typer.Option(None, "--category", help="Analyze only this category"),
     incremental: bool = typer.Option(False, "--incremental", help="Skip already-analyzed files"),
@@ -597,17 +705,16 @@ def library_analyze(
         personalscraper library-analyze --disk Disk2 --category series
         personalscraper library-analyze --max-items 50
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.analyzer import analyze_library
     from personalscraper.library.models import read_json, write_json
 
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
-    disk_configs = get_disk_configs(settings)
+    config = ctx.obj.config
 
     # Load existing analysis for incremental mode (compare size_gb with tolerance)
     existing: dict[str, float] = {}
-    analysis_path = settings.data_dir / "library_analysis.json"
+    analysis_path = config.paths.data_dir / "library_analysis.json"
     if incremental and analysis_path.exists():
         try:
             data = read_json(analysis_path)
@@ -622,9 +729,9 @@ def library_analyze(
 
     console.print("[bold]Analyzing library (ffprobe)...[/bold]")
     result = analyze_library(
-        disk_configs,
+        config,
         disk_filter=disk,
-        category_filter=category,
+        category_filter=category_id,
         incremental=incremental,
         existing_sizes=existing if incremental else None,
         max_items=max_items,
@@ -640,6 +747,7 @@ def library_analyze(
 @app.command()
 @handle_cli_errors
 def library_recommend(
+    ctx: typer.Context,
     sort: str = typer.Option("priority", "--sort", help="Sort by: priority, size, codec"),
     export: str = typer.Option(None, "--export", help="Export format: csv"),
     disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
@@ -648,7 +756,7 @@ def library_recommend(
     """Generate re-download recommendations from library analysis.
 
     Requires library-analyze to have been run first.
-    Reads library_analysis.json and library_preferences.json.
+    Reads library_analysis.json; preferences come from config.library (V15).
 
     Examples:
         personalscraper library-recommend
@@ -659,11 +767,12 @@ def library_recommend(
 
     from personalscraper.library.analyzer import _reconstruct_analysis_items
     from personalscraper.library.models import read_json, write_json
-    from personalscraper.library.preferences import LibraryPreferences
     from personalscraper.library.recommender import generate_recommendations
 
+    # Resolve alias now so unknown --category values fail fast.
+    _resolve_category(ctx, category)
     console = state["console"]
-    settings = get_settings()
+    config = ctx.obj.config
 
     # Validate --sort parameter
     valid_sorts = {"priority", "size", "codec"}
@@ -672,20 +781,15 @@ def library_recommend(
         raise typer.Exit(1)
 
     # Load analysis
-    analysis_path = settings.data_dir / "library_analysis.json"
+    analysis_path = config.paths.data_dir / "library_analysis.json"
     if not analysis_path.exists():
         console.print("[red]No analysis found. Run library-analyze first.[/red]")
         raise typer.Exit(1)
 
     analysis_data = read_json(analysis_path)
 
-    # Load preferences
-    prefs_path = settings.data_dir / settings.library_preferences_file
-    if prefs_path.exists():
-        prefs = LibraryPreferences.model_validate_json(prefs_path.read_text())
-    else:
-        prefs = LibraryPreferences()
-        console.print("[yellow]No preferences file found, using defaults.[/yellow]")
+    # Use preferences from config.library (V15 — no separate file).
+    prefs = config.library
 
     items = _reconstruct_analysis_items(analysis_data)
     result = generate_recommendations(items, prefs)
@@ -700,12 +804,12 @@ def library_recommend(
         result.items.sort(key=sort_keys[sort])
 
     # Write JSON
-    output_path = settings.data_dir / "library_recommendations.json"
+    output_path = config.paths.data_dir / "library_recommendations.json"
     write_json(result, output_path)
 
     # CSV export
     if export == "csv":
-        csv_path = settings.data_dir / "library_recommendations.csv"
+        csv_path = config.paths.data_dir / "library_recommendations.csv"
         with open(csv_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(
@@ -748,6 +852,7 @@ def library_recommend(
 @app.command()
 @handle_cli_errors
 def library_rescrape(
+    ctx: typer.Context,
     only: str = typer.Option(None, "--only", help="Only fix: nfo, artwork, episodes"),
     disk: str = typer.Option(None, "--disk", help="Rescrape only this disk"),
     category: str = typer.Option(None, "--category", help="Rescrape only this category"),
@@ -766,13 +871,13 @@ def library_rescrape(
         personalscraper library-rescrape --disk Disk1 --max-items 50
         personalscraper library-rescrape --interactive
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs
     from personalscraper.library.models import write_json
     from personalscraper.library.rescraper import rescrape_library
 
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
+    config = ctx.obj.config
     settings = get_settings()
-    disk_configs = get_disk_configs(settings)
 
     valid_only = {"nfo", "artwork", "episodes"}
     if only and only not in valid_only:
@@ -789,17 +894,17 @@ def library_rescrape(
         console.print(f"[bold]Rescraping library ({mode})...[/bold]")
 
         result = rescrape_library(
-            disk_configs,
+            config,
             settings,
             disk_filter=disk,
-            category_filter=category,
+            category_filter=category_id,
             only=only,
             interactive=interactive,
             dry_run=dry_run,
             max_items=max_items,
         )
 
-        output_path = settings.data_dir / "library_rescrape.json"
+        output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)
 
         total = result.fixed_count + result.skipped_count + result.error_count
@@ -817,6 +922,7 @@ def library_rescrape(
 @app.command()
 @handle_cli_errors
 def library_report(
+    ctx: typer.Context,
     format: str = typer.Option("text", "--format", help="Output format: text or json"),
 ) -> None:
     """Display library statistics and health report.
@@ -828,16 +934,16 @@ def library_report(
         personalscraper library-report
         personalscraper library-report --format json
     """
-    from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
+    from personalscraper.dispatch.disk_scanner import get_disk_status
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
+    config = ctx.obj.config
     console = state["console"]
-    settings = get_settings()
 
     # Load available data
     def _load(name: str) -> dict[str, Any] | None:
-        path = settings.data_dir / name
+        path = config.paths.data_dir / name
         if path.exists():
             try:
                 return read_json(path)
@@ -858,8 +964,7 @@ def library_report(
         raise typer.Exit(1)
 
     # Get live disk free space
-    disk_configs = get_disk_configs(settings)
-    disk_statuses = [get_disk_status(dc) for dc in disk_configs]
+    disk_statuses = [get_disk_status(dc) for dc in config.disks]
 
     report = generate_report(
         scan_data,
@@ -871,8 +976,53 @@ def library_report(
     )
 
     if format == "json":
-        output_path = settings.data_dir / "library_report.json"
+        output_path = config.paths.data_dir / "library_report.json"
         write_json(report, output_path)
         console.print(f"[green]Report written to {output_path}[/green]")
     else:
         console.print(format_report_text(report))
+
+
+# ── Setup commands ────────────────────────────────────────────────────────────
+
+
+@app.command("init-config")
+def init_config_cmd(
+    example: Path = typer.Option(
+        Path("config.example.json5"),
+        help="Path to the example template to read from.",
+    ),
+    output: Path = typer.Option(
+        Path("config.json5"),
+        help="Destination path for the generated config.json5.",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--yes",
+        help="Skip interactive prompts and accept all defaults.",
+    ),
+    from_current: bool = typer.Option(
+        False,
+        "--from-current",
+        help="Bootstrap config from the existing V14 .env file.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite output file if it already exists.",
+    ),
+) -> None:
+    """Create config.json5 from the example template or from a V14 .env migration.
+
+    Run without arguments for interactive mode (prompts for each value).
+    Use --from-current to migrate an existing V14 .env automatically.
+    Use --yes to skip all prompts and accept defaults.
+
+    Examples:
+        personalscraper init-config
+        personalscraper init-config --from-current --yes
+        personalscraper init-config --output /custom/path/config.json5 --force
+    """
+    from personalscraper.commands.init_config import init_config
+
+    init_config(example, output, interactive=not non_interactive, from_current=from_current, force=force)

@@ -9,8 +9,9 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from personalscraper.conf.classifier import classify_from_nfo
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
-from personalscraper.genre_mapper import GenreMapper
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
@@ -25,7 +26,7 @@ class VerifyResult:
     Attributes:
         media_path: Path to the media directory.
         media_type: "movie" or "tvshow".
-        category: Dispatch category (e.g. "films", "series animes").
+        category: Dispatch category ID (e.g. ``"movies"``, ``"anime"``).
         status: "valid" (no issues), "fixed" (issues corrected),
             or "blocked" (unresolvable errors).
         errors: Remaining blocking error messages.
@@ -54,21 +55,23 @@ class Verifier:
         self,
         settings: Settings,
         patterns: NamingPatterns,
+        config: Config,
         dry_run: bool = False,
         fix: bool = True,
     ):
-        """Initialize the verifier with checker, fixer, and mapper.
+        """Initialize the verifier with checker, fixer, and V15 classifier config.
 
         Args:
             settings: Pipeline configuration.
             patterns: Naming patterns for verification.
+            config: V15 Config with category IDs and classification rules.
             dry_run: If True, preview without modifying files.
             fix: If True, attempt to fix correctable issues.
         """
         self.fix = fix
         self.dry_run = dry_run
-        self._mapper = GenreMapper()
-        self._checker = MediaChecker(patterns, self._mapper)
+        self._config = config
+        self._checker = MediaChecker(patterns, config)
         self._fixer = MediaFixer(patterns, dry_run=dry_run)
 
     def verify_movie(self, movie_dir: Path) -> VerifyResult:
@@ -228,13 +231,13 @@ class Verifier:
         result.errors = [c.message for c in checks if not c.passed and c.severity == Severity.ERROR]
         result.warnings = [c.message for c in checks if not c.passed and c.severity == Severity.WARNING]
 
-        # Determine category
+        # Determine category via V15 classifier
         cat_check = next((c for c in checks if c.name == "category"), None)
         if cat_check and cat_check.passed:
-            # Get category from NFO
             nfo_path = self._find_nfo(media_dir, media_type)
             if nfo_path:
-                result.category = self._mapper.categorize_from_nfo(nfo_path, media_type)
+                category_id, _reason = classify_from_nfo(self._config, nfo_path, media_type)
+                result.category = category_id
 
         # Determine status
         if result.errors:

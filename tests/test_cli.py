@@ -1,14 +1,41 @@
 """Tests for personalscraper.cli — CLI commands and global options."""
 
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
-from personalscraper.cli import app
+from personalscraper.cli import AppCtx, app
 from personalscraper.models import PipelineReport, StepReport
 
 runner = CliRunner()
+
+# Patch targets for the eager config load in the CLI callback.
+# The callback does a lazy import from personalscraper.conf.loader, so we
+# patch the canonical location of load_config (the module it lives in).
+# The autouse fixture in conftest.py patches these for all tests; tests
+# that verify config-error paths override them inside the test body.
+_PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
+_PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
+
+
+# ── 5.1 AppCtx dataclass ────────────────────────────────────────────────────
+
+
+def test_appctx_instantiation() -> None:
+    """AppCtx can be instantiated with None values for both fields."""
+    ctx = AppCtx(config=None, config_override=None)
+    assert ctx.config is None
+    assert ctx.config_override is None
+
+
+def test_appctx_with_path() -> None:
+    """AppCtx stores config_override Path when provided."""
+    p = Path("/tmp/config.json5")
+    ctx = AppCtx(config=None, config_override=p)
+    assert ctx.config_override == p
+
 
 # Patches for standalone commands
 _PATCH_CLI_RUN_INGEST = "personalscraper.cli.run_ingest"
@@ -266,8 +293,6 @@ def test_run_sends_telegram_when_configured(
     mock_notifier_cfg,
 ):
     """Telegram notification is sent when configured."""
-    from unittest.mock import MagicMock
-
     mock_pipeline_run.return_value = _make_pipeline_report()
     mock_post.return_value = MagicMock(ok=True)
     result = runner.invoke(app, ["run"])
@@ -377,8 +402,6 @@ class TestLibraryScan:
 
     def test_scan_produces_json(self, tmp_path, monkeypatch) -> None:
         """library-scan should produce library_scan.json."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.models import LibraryScanResult
 
         mock_result = LibraryScanResult(
@@ -418,8 +441,6 @@ class TestLibraryClean:
 
     def test_dry_run_by_default(self, tmp_path) -> None:
         """library-clean without --apply should be dry-run."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.disk_cleaner import CleanResult
 
         mock_result = CleanResult(dry_run=True, deleted_count=5, freed_bytes=1024)
@@ -440,8 +461,6 @@ class TestLibraryClean:
 
     def test_apply_acquires_lock(self, tmp_path) -> None:
         """library-clean --apply should acquire pipeline lock."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.disk_cleaner import CleanResult
 
         mock_result = CleanResult(dry_run=False, deleted_count=0)
@@ -475,8 +494,6 @@ class TestLibraryValidate:
 
     def test_validate_produces_json(self, tmp_path) -> None:
         """library-validate should produce library_validation.json."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.models import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
@@ -506,8 +523,6 @@ class TestLibraryValidate:
 
     def test_apply_without_fix_errors(self) -> None:
         """--apply without --fix should error."""
-        from unittest.mock import MagicMock
-
         with (
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
@@ -518,8 +533,6 @@ class TestLibraryValidate:
 
     def test_fix_apply_acquires_lock(self, tmp_path) -> None:
         """--fix --apply should acquire pipeline lock."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.models import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
@@ -551,8 +564,6 @@ class TestLibraryValidate:
 
     def test_fix_forwards_params(self, tmp_path) -> None:
         """--fix should forward fix=True to validate_library."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.models import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
@@ -585,8 +596,6 @@ class TestLibraryValidate:
 
     def test_fix_suggests_rescrape(self, tmp_path) -> None:
         """--fix with remaining issues should suggest library-rescrape."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.models import LibraryValidationResult
 
         mock_result = LibraryValidationResult(
@@ -655,8 +664,6 @@ class TestLibraryRescrape:
 
     def test_invalid_only_errors(self) -> None:
         """--only with invalid value should error."""
-        from unittest.mock import MagicMock
-
         with (
             patch("personalscraper.cli.get_settings") as mock_settings,
             patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
@@ -667,8 +674,6 @@ class TestLibraryRescrape:
 
     def test_dry_run_no_lock(self, tmp_path) -> None:
         """--dry-run should not acquire lock."""
-        from unittest.mock import MagicMock
-
         from personalscraper.library.models import LibraryRescrapeResult
 
         mock_result = LibraryRescrapeResult(
@@ -707,3 +712,196 @@ class TestLibraryReport:
         result = runner.invoke(app, ["library-report", "--help"])
         assert result.exit_code == 0
         assert "--format" in result.output
+
+
+# ── 5.2 Callback eager load ──────────────────────────────────────────────────
+
+
+def test_callback_no_config_file_exits_2() -> None:
+    """Missing config.json5 causes exit code 2 with a clear error message.
+
+    Overrides the autouse _mock_config_load to simulate missing file.
+    """
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=Path("/nonexistent/config.json5")),
+        patch(_PATCH_LOAD_CONFIG, side_effect=ConfigNotFoundError("No config file at /nonexistent/config.json5")),
+    ):
+        result = runner.invoke(app, ["ingest"])
+
+    assert result.exit_code == 2
+    assert "Config error" in result.output
+
+
+def test_callback_invalid_config_exits_2() -> None:
+    """Invalid config.json5 (validation error) causes exit code 2.
+
+    Overrides the autouse _mock_config_load to simulate a parse error.
+    """
+    from personalscraper.conf.loader import ConfigValidationError
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+        patch(_PATCH_LOAD_CONFIG, side_effect=ConfigValidationError("JSON5 parse error")),
+    ):
+        result = runner.invoke(app, ["sort"])
+
+    assert result.exit_code == 2
+    assert "Config error" in result.output
+
+
+def test_callback_config_flag_not_found_exits_2() -> None:
+    """--config pointing to a non-existent file causes exit code 2."""
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=Path("/bad/path.json5")),
+        patch(_PATCH_LOAD_CONFIG, side_effect=ConfigNotFoundError("No config file at /bad/path.json5")),
+    ):
+        result = runner.invoke(app, ["--config", "/bad/path.json5", "sort"])
+
+    assert result.exit_code == 2
+    assert "Config error" in result.output
+
+
+def test_callback_help_works_without_config() -> None:
+    """--help short-circuits before the callback's eager config load.
+
+    Typer handles --help before invoking the callback body, so no config
+    file is needed.
+    """
+    # Even without the autouse patch active, --help must not try to load config.
+    # The autouse fixture is active here too, but the key assertion is exit 0.
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "PersonalScraper" in result.output
+
+
+# ── 5.3 init-config Typer command ───────────────────────────────────────────
+
+
+def test_init_config_help_shows_flags() -> None:
+    """init-config --help displays all expected flags."""
+    result = runner.invoke(app, ["init-config", "--help"])
+    assert result.exit_code == 0
+    assert "--yes" in result.output
+    assert "--from-current" in result.output
+    assert "--force" in result.output
+    assert "--output" in result.output
+    assert "--example" in result.output
+
+
+def test_callback_init_config_bypasses_load() -> None:
+    """init-config subcommand bypasses eager config load (config may not exist yet).
+
+    Overrides autouse to simulate missing config; init-config must not exit 2.
+    """
+    from personalscraper.conf.loader import ConfigNotFoundError
+
+    with (
+        patch(_PATCH_RESOLVE_PATH, return_value=Path("/nonexistent/config.json5")),
+        patch(_PATCH_LOAD_CONFIG, side_effect=ConfigNotFoundError("No config")),
+        patch("personalscraper.commands.init_config.init_config") as mock_init,
+    ):
+        result = runner.invoke(app, ["init-config"])
+
+    # Must not fail with exit 2 (config error) — init_config itself exits 0
+    assert result.exit_code != 2
+    mock_init.assert_called_once()
+
+
+def test_init_config_cmd_passes_flags() -> None:
+    """init-config forwards --yes, --from-current, --force to init_config()."""
+    with patch("personalscraper.commands.init_config.init_config") as mock_init:
+        result = runner.invoke(app, ["init-config", "--yes", "--from-current", "--force"])
+
+    assert result.exit_code == 0
+    mock_init.assert_called_once()
+    _, kwargs = mock_init.call_args
+    assert kwargs["interactive"] is False
+    assert kwargs["from_current"] is True
+    assert kwargs["force"] is True
+
+
+# ── 5.5 --category accepts ID or alias ──────────────────────────────────────
+
+
+class TestCategoryResolution:
+    """Tests for --category ID/alias resolution in library commands."""
+
+    def test_category_direct_id_resolves(self) -> None:
+        """--category movies (builtin ID) resolves without error."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.models import LibraryScanResult
+
+        mock_result = LibraryScanResult(
+            scanned_at="2026-04-21T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
+        )
+
+        with (
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result) as mock_scan,
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = MagicMock()
+            settings.data_dir.__truediv__ = lambda s, x: MagicMock()
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-scan", "--category", "movies"])
+
+        assert result.exit_code == 0, result.output
+        # Verify the resolved category_id was passed downstream (not the raw alias string)
+        _, kwargs = mock_scan.call_args
+        assert kwargs["category_filter"] == "movies"
+
+    def test_category_alias_resolves(self, test_config) -> None:
+        """--category with a configured alias resolves to the canonical ID."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.conf.models import CategoryConfig
+        from personalscraper.library.models import LibraryScanResult
+
+        # Add an alias to the movies category in the test config
+        test_config.categories["movies"] = CategoryConfig(folder_name="Films", aliases=["films", "movie"])
+
+        mock_result = LibraryScanResult(
+            scanned_at="2026-04-21T12:00:00",
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
+        )
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
+            patch("personalscraper.library.scanner.scan_library", return_value=mock_result) as mock_scan,
+            patch("personalscraper.library.models.write_json"),
+            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
+            patch("personalscraper.cli.get_settings") as mock_settings,
+        ):
+            settings = MagicMock()
+            settings.data_dir = MagicMock()
+            settings.data_dir.__truediv__ = lambda s, x: MagicMock()
+            mock_settings.return_value = settings
+
+            result = runner.invoke(app, ["library-scan", "--category", "films"])
+
+        assert result.exit_code == 0, result.output
+        _, kwargs = mock_scan.call_args
+        assert kwargs["category_filter"] == "movies"
+
+    def test_category_unknown_exits_2(self) -> None:
+        """--category with an unknown value exits with code 2 and error message."""
+        result = runner.invoke(app, ["library-scan", "--category", "unknown_xyz"])
+
+        assert result.exit_code == 2
+        assert "unknown_xyz" in result.output
+        assert "Valid IDs" in result.output

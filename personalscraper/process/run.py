@@ -8,6 +8,7 @@ Each sub-step can be called independently for error isolation.
 """
 
 import logging
+from pathlib import Path
 
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
@@ -31,8 +32,9 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     from personalscraper.process.dedup import dedup_folders
     from personalscraper.process.reclean import _has_polluted_folders, reclean_folders
 
-    movies_dir = settings.staging_dir / settings.movies_dir_name
-    tvshows_dir = settings.staging_dir / settings.tvshows_dir_name
+    staging = Path(getattr(settings, "staging_dir", "."))
+    movies_dir = staging / settings.movies_dir_name
+    tvshows_dir = staging / settings.tvshows_dir_name
 
     has_polluted = _has_polluted_folders(movies_dir) or _has_polluted_folders(tvshows_dir)
 
@@ -78,8 +80,9 @@ def run_cleanup(settings: Settings, dry_run: bool = False) -> StepReport:
     """
     from personalscraper.process.cleanup import cleanup_empty_dirs
 
-    movies_dir = settings.staging_dir / settings.movies_dir_name
-    tvshows_dir = settings.staging_dir / settings.tvshows_dir_name
+    staging = Path(getattr(settings, "staging_dir", "."))
+    movies_dir = staging / settings.movies_dir_name
+    tvshows_dir = staging / settings.tvshows_dir_name
 
     cleanup_report = StepReport(name="cleanup")
 

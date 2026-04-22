@@ -15,12 +15,12 @@ from .conftest import make_valid_movie_dir, make_valid_tvshow_dir
 class TestVerifyDoubleRun:
     """Test 9: Verify double-run produces same result, no re-fix."""
 
-    def test_movie_verify_double_run(self, staging):
+    def test_movie_verify_double_run(self, staging, test_config):
         """Valid movie: two verify runs produce same 'valid' status."""
         movies = staging / "001-MOVIES"
         movie = make_valid_movie_dir(movies, "Matrix", 1999)
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
 
         result1 = v.verify_movie(movie)
         result2 = v.verify_movie(movie)
@@ -31,12 +31,12 @@ class TestVerifyDoubleRun:
         assert result1.fixes_applied == []
         assert result2.fixes_applied == []
 
-    def test_tvshow_verify_double_run(self, staging):
+    def test_tvshow_verify_double_run(self, staging, test_config):
         """Valid tvshow: two verify runs produce same 'valid' status."""
         tvshows = staging / "002-TVSHOWS"
         show = make_valid_tvshow_dir(tvshows, "Breaking Bad", 2008)
 
-        v = Verifier(MagicMock(), NamingPatterns())
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
 
         result1 = v.verify_tvshow(show)
         result2 = v.verify_tvshow(show)

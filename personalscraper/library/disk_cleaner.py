@@ -2,6 +2,10 @@
 
 Dry-run by default. Requires --apply to actually delete.
 Handles NTFS deletion failures gracefully (per-item error, continues).
+
+In V15, ``clean_library`` accepts a ``Config`` object and resolves folder names
+from ``config.category(id).folder_name``. Disk filter uses ``disk.id``;
+category filter uses ``category_id``.
 """
 
 from __future__ import annotations
@@ -13,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from personalscraper.dispatch.disk_scanner import DiskConfig
+    from personalscraper.conf.models import Config
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +131,7 @@ def _is_effectively_empty(directory: Path) -> bool:
 
 
 def clean_library(
-    disk_configs: list[DiskConfig],
+    config: Config,
     apply: bool = False,
     only: str | None = None,
     disk_filter: str | None = None,
@@ -136,13 +140,15 @@ def clean_library(
     """Clean the media library across storage disks.
 
     Dry-run by default — set apply=True to actually delete.
+    Iterates ``config.disks``, resolves folder names from
+    ``config.category(id).folder_name``, and cleans media directories.
 
     Args:
-        disk_configs: List of DiskConfig objects from Settings.
+        config: V15 Config with disk and category definitions.
         apply: If True, actually delete files. If False, only report.
         only: Filter cleanup type: "actors", "empty", "junk", "release", or None (all).
-        disk_filter: Only clean this disk. None = all.
-        category_filter: Only clean this category. None = all.
+        disk_filter: Only clean this disk (by disk.id). None = all.
+        category_filter: Only clean this category_id. None = all.
 
     Returns:
         CleanResult with counts and details.
@@ -154,19 +160,22 @@ def clean_library(
     clean_junk = only in (None, "junk")
     clean_release = only in (None, "release")
 
-    for config in disk_configs:
-        if disk_filter and config.name != disk_filter:
+    for disk in config.disks:
+        if disk_filter and disk.id != disk_filter:
             continue
-        if not config.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
+        if not disk.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
             continue
 
-        for category_dir in sorted(config.path.iterdir()):
+        for category_id in disk.categories:
+            if category_filter and category_id != category_filter:
+                continue
+
+            # Resolve physical folder name from config
+            cat_cfg = config.category(category_id)
+            category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                continue
-            if category_dir.name not in config.categories:
-                continue
-            if category_filter and category_dir.name != category_filter:
+                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
                 continue
 
             for media_dir in sorted(category_dir.iterdir()):

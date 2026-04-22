@@ -1,29 +1,35 @@
-"""Pipeline configuration via pydantic-settings.
+"""Pipeline secrets and numeric thresholds via pydantic-settings.
 
 Loads settings from environment variables and .env file.
-Single source of truth for all pipeline configuration (V0-V9).
+
+V15 split: paths and disk structure live in config.json5 (see
+``conf/models.py::Config``). This module retains only secrets
+(API keys, credentials) and numeric thresholds that cannot go into a
+version-controlled config file.
 """
 
+from __future__ import annotations
+
+from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Pipeline configuration loaded from .env and environment variables.
+    """Pipeline secrets and thresholds loaded from .env and environment variables.
+
+    V15 note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
+    and data_dir_name have been removed — they now live in ``Config.paths`` and
+    ``Config.disks`` (conf/models.py). Only secrets and numeric thresholds remain here.
 
     Attributes:
         qbit_host: qBittorrent Web API hostname.
         qbit_port: qBittorrent Web API port.
         qbit_username: qBittorrent login username.
         qbit_password: qBittorrent login password.
-        torrent_complete_dir: Directory where completed torrents land.
-        staging_dir: Staging area ("A TRIER") for media processing.
-        disk1_dir: Storage disk 1 mount point.
-        disk2_dir: Storage disk 2 mount point.
-        disk3_dir: Storage disk 3 mount point.
-        disk4_dir: Storage disk 4 mount point.
         tmdb_api_key: The Movie Database API key (Bearer token).
         tvdb_api_key: TheTVDB API key (Negotiated Contract).
         scraper_language: Primary language for API queries (TMDB format: "fr-FR").
@@ -34,14 +40,14 @@ class Settings(BaseSettings):
         healthcheck_url: Healthchecks.io ping URL for scheduling monitoring (empty = disabled).
         min_free_space_staging_gb: Minimum free space on SSD before ingest (GB).
         min_free_space_disk_gb: Minimum free space on storage disks before dispatch (GB).
-        ingest_dir_name: Ingest subdirectory name (relative to staging_dir).
-        data_dir_name: Data directory name for lock/tracker (relative to staging_dir).
-        movies_dir_name: Movies category directory name.
-        tvshows_dir_name: TV shows category directory name.
-        ebooks_dir_name: Ebooks category directory name.
-        audio_dir_name: Audio category directory name.
-        apps_dir_name: Apps category directory name.
-        other_dir_name: Other/misc category directory name.
+        ingest_dir_name: Ingest subdirectory name (relative to staging_dir in config.json5).
+        movies_dir_name: Movies category directory name (staging area only).
+        tvshows_dir_name: TV shows category directory name (staging area only).
+        ebooks_dir_name: Ebooks category directory name (staging area only).
+        audio_dir_name: Audio category directory name (staging area only).
+        apps_dir_name: Apps category directory name (staging area only).
+        other_dir_name: Other/misc category directory name (staging area only).
+        library_preferences_file: Library preferences filename (legacy, kept for V14 compat).
         circuit_breaker_threshold: Consecutive errors before opening circuit.
         circuit_breaker_cooldown: Seconds to wait before retrying after circuit opens.
     """
@@ -51,16 +57,8 @@ class Settings(BaseSettings):
     # qBittorrent
     qbit_host: str = "localhost"
     qbit_port: int = 8081
-    qbit_username: str = "izno"
+    qbit_username: str = ""
     qbit_password: str = ""
-
-    # Paths
-    torrent_complete_dir: Path = Path("/Volumes/IznoServer SSD/torrents/complete")
-    staging_dir: Path = Path("/Volumes/IznoServer SSD/A TRIER")
-    disk1_dir: Path = Path("/Volumes/Disk1/medias")
-    disk2_dir: Path = Path("/Volumes/Disk2/medias")
-    disk3_dir: Path = Path("/Volumes/Disk3/medias")
-    disk4_dir: Path = Path("/Volumes/Disk4/medias")
 
     # TMDB
     tmdb_api_key: str = ""
@@ -85,11 +83,10 @@ class Settings(BaseSettings):
     min_free_space_staging_gb: int = 20
     min_free_space_disk_gb: float = 100
 
-    # Internal directories (relative to staging_dir if not absolute)
+    # Internal directories (relative to staging_dir from config.json5 if not absolute)
     ingest_dir_name: str = "097-TEMP"
-    data_dir_name: str = ".personalscraper"
 
-    # Category directory names
+    # Category directory names (staging area — override via env if needed)
     movies_dir_name: str = "001-MOVIES"
     tvshows_dir_name: str = "002-TVSHOWS"
     ebooks_dir_name: str = "003-EBOOKS"
@@ -104,25 +101,54 @@ class Settings(BaseSettings):
     circuit_breaker_threshold: int = 5
     circuit_breaker_cooldown: int = 300
 
-    @property
-    def ingest_dir(self) -> Path:
+    # Fields whose values must never appear in repr/str output (tracebacks, logs, etc.).
+    _SECRET_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "qbit_password",
+            "tmdb_api_key",
+            "tvdb_api_key",
+            "telegram_bot_token",
+            "healthcheck_url",
+        }
+    )
+
+    def __repr__(self) -> str:
+        """Return a repr that masks secret fields (prevents accidental leak via tracebacks)."""
+        items = []
+        for name, value in self.model_dump().items():
+            if name in self._SECRET_FIELDS and value:
+                items.append(f"{name}=<masked>")
+            else:
+                items.append(f"{name}={value!r}")
+        return f"Settings({', '.join(items)})"
+
+    __str__ = __repr__
+
+    def __rich_repr__(self) -> Iterator[tuple[str, Any]]:
+        """Rich-console repr that masks secrets.
+
+        Rich's ``Traceback`` inspects live objects via ``__rich_repr__`` when
+        present, otherwise falls back to ``__dict__``. Falling through to
+        ``__dict__`` bypasses ``__repr__``'s masking, so this override is
+        mandatory to keep ``qbit_password`` and API keys out of crash reports.
+        """
+        for name, value in self.model_dump().items():
+            if name in self._SECRET_FIELDS and value:
+                yield name, "<masked>"
+            else:
+                yield name, value
+
+    def ingest_dir(self, staging_dir: Path) -> Path:
         """Resolved ingest directory (where ingest deposits files).
+
+        Args:
+            staging_dir: Staging directory from config.json5 (Config.paths.staging_dir).
 
         Returns:
             Absolute path, resolved relative to staging_dir if not absolute.
         """
         p = Path(self.ingest_dir_name)
-        return p if p.is_absolute() else self.staging_dir / p
-
-    @property
-    def data_dir(self) -> Path:
-        """Resolved data directory (lock file, tracker JSON).
-
-        Returns:
-            Absolute path, resolved relative to staging_dir if not absolute.
-        """
-        p = Path(self.data_dir_name)
-        return p if p.is_absolute() else self.staging_dir / p
+        return p if p.is_absolute() else staging_dir / p
 
 
 @lru_cache

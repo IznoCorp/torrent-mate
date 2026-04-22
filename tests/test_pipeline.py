@@ -14,14 +14,30 @@ from personalscraper.pipeline import Pipeline
 
 @pytest.fixture
 def pipeline_settings(tmp_path):
-    """Provide a mock Settings with ingest_dir pointing to a temp dir."""
+    """Provide a mock Settings for pipeline tests.
+
+    V15 P6.5: ingest_dir is a method (not a property), staging_dir is
+    supplied via Config.paths in production. The mock supports both
+    patterns used in pipeline code.
+    """
     s = MagicMock()
     s.staging_dir = tmp_path
-    s.ingest_dir = tmp_path / "097-TEMP"
-    s.ingest_dir.mkdir()
+    ingest_dir_path = tmp_path / "097-TEMP"
+    ingest_dir_path.mkdir()
+    s.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
     s.movies_dir_name = "001-MOVIES"
     s.tvshows_dir_name = "002-TVSHOWS"
     return s
+
+
+@pytest.fixture
+def pipeline_config(tmp_path):
+    """Provide a mock Config for pipeline tests."""
+    config = MagicMock()
+    config.paths.staging_dir = tmp_path
+    config.paths.data_dir = tmp_path / ".data"
+    config.disks = []
+    return config
 
 
 @pytest.fixture
@@ -33,9 +49,9 @@ def quiet_console():
 class TestRunStep:
     """Tests for Pipeline._run_step method."""
 
-    def test_normal_step_report(self, pipeline_settings, quiet_console):
+    def test_normal_step_report(self, pipeline_config, pipeline_settings, quiet_console):
         """Normal step function returning StepReport."""
-        pipeline = Pipeline(pipeline_settings, console=quiet_console)
+        pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
         report = PipelineReport(started_at=MagicMock())
         sr = StepReport(name="test", success_count=3)
 
@@ -44,9 +60,9 @@ class TestRunStep:
         assert result is None
         assert report.steps["test"].success_count == 3
 
-    def test_tuple_return_extracts_extra(self, pipeline_settings, quiet_console):
+    def test_tuple_return_extracts_extra(self, pipeline_config, pipeline_settings, quiet_console):
         """Step returning (StepReport, extra_data) extracts both."""
-        pipeline = Pipeline(pipeline_settings, console=quiet_console)
+        pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
         report = PipelineReport(started_at=MagicMock())
         sr = StepReport(name="verify", success_count=5)
         extra_data = [{"path": "/some/path"}]
@@ -56,9 +72,9 @@ class TestRunStep:
         assert result == extra_data
         assert report.steps["verify"].success_count == 5
 
-    def test_exception_creates_error_report(self, pipeline_settings, quiet_console):
+    def test_exception_creates_error_report(self, pipeline_config, pipeline_settings, quiet_console):
         """Fatal exception creates StepReport with error details."""
-        pipeline = Pipeline(pipeline_settings, console=quiet_console)
+        pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
         report = PipelineReport(started_at=MagicMock())
 
         def failing_step():
@@ -80,6 +96,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
+        pipeline_config,
         pipeline_settings,
         quiet_console,
     ):
@@ -100,7 +117,7 @@ class TestPipelineRun:
             )
             mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
-            pipeline = Pipeline(pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
             report = pipeline.run()
 
         assert len(report.steps) == 8
@@ -121,6 +138,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
+        pipeline_config,
         pipeline_settings,
         quiet_console,
     ):
@@ -138,7 +156,7 @@ class TestPipelineRun:
                 [],  # no dispatchable items
             )
 
-            pipeline = Pipeline(pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
             report = pipeline.run()
 
         assert report.steps["dispatch"].skip_count == 1
@@ -150,6 +168,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
+        pipeline_config,
         pipeline_settings,
         quiet_console,
     ):
@@ -162,7 +181,7 @@ class TestPipelineRun:
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
             patch("personalscraper.verify.run.run_verify", side_effect=RuntimeError("boom")),
         ):
-            pipeline = Pipeline(pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
             report = pipeline.run()
 
         # verify has error, dispatch is skipped
@@ -175,6 +194,7 @@ class TestPipelineRun:
         self,
         mock_ingest,
         mock_sort,
+        pipeline_config,
         pipeline_settings,
         quiet_console,
     ):
@@ -189,7 +209,7 @@ class TestPipelineRun:
         ):
             mock_verify.return_value = (StepReport(name="verify"), [])
 
-            pipeline = Pipeline(pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
             report = pipeline.run()
 
         # Pipeline continued despite gate warning
@@ -200,8 +220,15 @@ class TestPipelineRun:
 class TestCrashRecovery:
     """Tests for _recover_from_previous_run cleanup."""
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
-    def test_expired_lockout_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+    def _make_config(self, staging_dir: Path) -> MagicMock:
+        """Build a minimal Config mock for crash recovery tests."""
+        config = MagicMock()
+        config.paths.staging_dir = staging_dir
+        config.paths.data_dir = staging_dir / ".data"
+        config.disks = []
+        return config
+
+    def test_expired_lockout_cleaned(self, tmp_path: Path) -> None:
         """Expired qBit lockout file (>1h) should be removed at startup."""
         lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
         lockout.parent.mkdir(parents=True)
@@ -210,33 +237,31 @@ class TestCrashRecovery:
         old_time = time.time() - 7200
         os.utime(lockout, (old_time, old_time))
 
+        (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
-        settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.ingest_dir.mkdir()
+        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
-        pipeline = Pipeline(settings, dry_run=False)
+        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=lockout)
 
         assert not lockout.exists()
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
-    def test_non_expired_lockout_kept(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_non_expired_lockout_kept(self, tmp_path: Path) -> None:
         """Recent lockout file (<1h) should NOT be removed."""
         lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
         lockout.parent.mkdir(parents=True)
         lockout.write_text("login_failed")
 
+        (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
-        settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.ingest_dir.mkdir()
+        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
-        pipeline = Pipeline(settings, dry_run=False)
+        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=lockout)
 
         assert lockout.exists()
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs")
-    def test_orphan_tmp_dispatch_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_orphan_tmp_dispatch_cleaned(self, tmp_path: Path) -> None:
         """Orphan _tmp_dispatch_* dirs on storage disks should be removed."""
         # Simulate a storage disk with an orphan
         disk_path = tmp_path / "Disk1" / "medias"
@@ -247,19 +272,19 @@ class TestCrashRecovery:
 
         disk_config = MagicMock()
         disk_config.path = disk_path
-        mock_get_disks.return_value = [disk_config]
 
+        (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
-        settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.ingest_dir.mkdir()
+        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
-        pipeline = Pipeline(settings, dry_run=False)
+        config = self._make_config(tmp_path)
+        config.disks = [disk_config]  # inject disk with orphan directly
+        pipeline = Pipeline(config, settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
 
-    @patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[])
-    def test_orphan_ingest_tmp_cleaned(self, mock_get_disks, tmp_path: Path) -> None:
+    def test_orphan_ingest_tmp_cleaned(self, tmp_path: Path) -> None:
         """Orphan .ingest_tmp_* dirs in staging should be removed."""
         ingest_dir = tmp_path / "097-TEMP"
         ingest_dir.mkdir()
@@ -268,9 +293,9 @@ class TestCrashRecovery:
         (orphan / "file.mkv").write_bytes(b"\x00" * 100)
 
         settings = MagicMock()
-        settings.ingest_dir = ingest_dir
+        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
-        pipeline = Pipeline(settings, dry_run=False)
+        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()

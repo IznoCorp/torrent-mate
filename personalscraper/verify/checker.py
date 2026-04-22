@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from personalscraper.genre_mapper import GenreMapper
+from personalscraper.conf.classifier import classify_from_nfo
+from personalscraper.conf.models import Config
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import _FILENAME_ILLEGAL
@@ -69,22 +70,23 @@ class MediaChecker:
     """Verify media directories meet quality standards.
 
     Checks naming, NFO validity, artwork presence, streamdetails,
-    and genre categorization against NamingPatterns and GenreMapper.
+    and genre categorization against NamingPatterns and V15 Config
+    (for classifier-backed category resolution).
 
     Attributes:
         patterns: MediaElch naming patterns reference.
-        genre_mapper: Genre-to-category mapper.
+        config: V15 Config used to resolve category IDs from NFO metadata.
     """
 
-    def __init__(self, patterns: NamingPatterns, genre_mapper: GenreMapper):
+    def __init__(self, patterns: NamingPatterns, config: Config):
         """Initialize the checker.
 
         Args:
             patterns: Naming patterns for file verification.
-            genre_mapper: Genre mapper for category checks.
+            config: V15 Config providing category IDs and classifier rules.
         """
         self.patterns = patterns
-        self.genre_mapper = genre_mapper
+        self.config = config
 
     def check_movie(self, movie_dir: Path) -> list[CheckResult]:
         """Run all quality checks on a movie directory.
@@ -236,7 +238,7 @@ class MediaChecker:
 
         # category
         if nfo_exists:
-            category = self.genre_mapper.categorize_from_nfo(nfo_path, "movie")
+            category, _reason = classify_from_nfo(self.config, nfo_path, "movie")
             results.append(
                 CheckResult(
                     name="category",
@@ -422,13 +424,35 @@ class MediaChecker:
 
         # category
         if nfo_exists:
-            category = self.genre_mapper.categorize_from_nfo(nfo_path, "tvshow")
+            category, _reason = classify_from_nfo(self.config, nfo_path, "tvshow")
             results.append(
                 CheckResult(
                     name="category",
                     passed=category is not None,
                     severity=Severity.ERROR,
                     message="" if category else "Cannot determine category from genres",
+                )
+            )
+
+        # root_video_files — only checked when tvshow.nfo exists (i.e. already scraped).
+        # Stray video files at the show root (not inside Saison XX/) mean the scraper
+        # repair step did not complete; dispatch must be blocked until they are organized.
+        if nfo_exists:
+            root_videos = [
+                f for f in show_dir.iterdir() if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+            ]
+            if root_videos:
+                names = ", ".join(f.name for f in root_videos[:3])
+                suffix = f" (+{len(root_videos) - 3} more)" if len(root_videos) > 3 else ""
+                message = f"Unprocessed video files at root: {names}{suffix}"
+            else:
+                message = ""
+            results.append(
+                CheckResult(
+                    name="root_video_files",
+                    passed=len(root_videos) == 0,
+                    severity=Severity.ERROR,
+                    message=message,
                 )
             )
 

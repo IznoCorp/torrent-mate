@@ -168,23 +168,18 @@ class TestCleanup:
             "torrents": torrents,
         }
 
-    def verify_clean(self, base_paths: list[Path] | None = None) -> list[Path]:
+    def verify_clean(self, base_paths: list[Path]) -> list[Path]:
         """Post-cleanup verification: check for orphan markers.
 
-        Scans all relevant locations for leftover .e2e-test-marker files.
+        Scans the provided locations for leftover .e2e-test-marker files.
+        Caller must supply the base paths from their Config/Settings (no
+        hardcoded personal paths).
 
         Args:
-            base_paths: Directories to scan. Defaults to common locations.
+            base_paths: Directories to scan (required). Typically the staging
+                directory and configured storage disks from Config.
 
         Returns:
             List of directories still containing markers (should be empty).
         """
-        if base_paths is None:
-            base_paths = [
-                Path("/Volumes/IznoServer SSD/A TRIER"),
-                Path("/Volumes/Disk1/medias"),
-                Path("/Volumes/Disk2/medias"),
-                Path("/Volumes/Disk3/medias"),
-                Path("/Volumes/Disk4/medias"),
-            ]
         return find_orphan_markers(base_paths)

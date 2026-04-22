@@ -18,6 +18,8 @@ from typing import Any, cast
 
 import requests
 
+from personalscraper.conf import classifier as _classifier
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -33,6 +35,7 @@ from personalscraper.scraper.episode_manager import (
     match_episode_files,
     rename_episodes,
 )
+from personalscraper.scraper.keywords_cache import KeywordsCache
 from personalscraper.scraper.mediainfo import extract_stream_info
 from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
@@ -113,11 +116,13 @@ class ScrapeResult:
         media_path: Path to the media directory.
         media_type: Type of media ("movie" or "tvshow").
         match: Matched API result, or None if no match.
+        category_id: V15 category ID from classifier.classify(), or None.
         nfo_written: Whether an NFO file was written.
         artwork_downloaded: List of downloaded artwork filenames.
         episodes_renamed: Number of episodes renamed (0 for movies).
         action: Result action ("scraped", "skipped_low_confidence",
-            "skipped_already_done", "artwork_recovered", "error").
+            "skipped_already_done", "artwork_recovered", "error",
+            "skipped_no_category").
         error: Error message if action is "error".
         warnings: Non-fatal issues (e.g. artwork download failure).
     """
@@ -125,6 +130,7 @@ class ScrapeResult:
     media_path: Path
     media_type: str
     match: MatchResult | None = None
+    category_id: str | None = None
     nfo_written: bool = False
     artwork_downloaded: list[str] = field(default_factory=list)
     episodes_renamed: int = 0
@@ -283,6 +289,103 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
     return removed
 
 
+def _tvdb_series_to_show_data(
+    tvdb_data: dict[str, Any],
+    tvdb_id: int,
+    tvdb_client: Any = None,
+) -> dict[str, Any]:
+    """Convert TVDB series data to a TMDB-like show_data dict.
+
+    Builds a minimal show_data compatible with generate_tvshow_nfo() and
+    download_tvshow_artwork() using only TVDB fields. Used when no TMDB
+    cross-reference is available (TVDB-only shows).
+
+    TVDB field mapping:
+    - name / originalName → name / original_name
+    - overview → overview
+    - status.name → status
+    - genres[{name}] → genres[{name}]
+    - contentRatings[{name}] → content_ratings.results[{rating}]
+    - seasons[{number}] → seasons[{season_number}]
+    - If tvdb_client is provided: posters (type=2) + backgrounds (type=3) are
+      fetched and injected into ``images`` as absolute URLs (``{file_path}``).
+
+    Args:
+        tvdb_data: TVDB extended series dict (from get_series()).
+        tvdb_id: TVDB series ID (embedded in external_ids for NFO generation).
+        tvdb_client: Optional TVDB client used to fetch artworks. When None, the
+            returned dict has empty ``images`` (legacy call sites that don't
+            need artwork).
+
+    Returns:
+        Dict with TMDB-compatible fields for NFO/artwork generation.
+    """
+    status_raw = tvdb_data.get("status", {})
+    status_name = status_raw.get("name", "") if isinstance(status_raw, dict) else str(status_raw)
+
+    # Build content_ratings in TMDB format: {results: [{rating, iso_3166_1}]}
+    content_ratings_results: list[dict[str, str]] = []
+    for cr in tvdb_data.get("contentRatings", []) or []:
+        rating = cr.get("name", "")
+        country = cr.get("country", "")
+        if rating:
+            content_ratings_results.append({"rating": rating, "iso_3166_1": country})
+
+    # Build seasons list in TMDB format: [{season_number, poster_path}]
+    seasons: list[dict[str, Any]] = []
+    for s in tvdb_data.get("seasons", []) or []:
+        s_num = s.get("number", s.get("season_number", 0))
+        if s_num and s_num > 0:
+            seasons.append({"season_number": s_num, "poster_path": ""})
+
+    # Fetch TVDB artworks (posters type=2, backgrounds type=3) when a client
+    # is provided. TVDB returns absolute URLs in the ``image`` field — we map
+    # them into TMDB-like ``{file_path, iso_639_1}`` entries so
+    # download_tvshow_artwork() can consume them unchanged.
+    posters: list[dict[str, Any]] = []
+    backdrops: list[dict[str, Any]] = []
+    if tvdb_client is not None:
+        try:
+            poster_artworks = tvdb_client.get_series_artworks(tvdb_id, type_id=2)
+            posters = [
+                {"file_path": a["image"], "iso_639_1": a.get("language") or ""}
+                for a in poster_artworks
+                if a.get("image")
+            ]
+        except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
+            logger.warning("TVDB poster fetch failed for series %s: %s", tvdb_id, exc)
+        try:
+            bg_artworks = tvdb_client.get_series_artworks(tvdb_id, type_id=3)
+            backdrops = [
+                {"file_path": a["image"], "iso_639_1": a.get("language") or ""} for a in bg_artworks if a.get("image")
+            ]
+        except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
+            logger.warning("TVDB background fetch failed for series %s: %s", tvdb_id, exc)
+
+    return {
+        "id": 0,  # No TMDB ID — will not be embedded as tmdb uniqueid
+        "name": tvdb_data.get("name", ""),
+        "original_name": tvdb_data.get("originalName", tvdb_data.get("name", "")),
+        "overview": tvdb_data.get("overview", ""),
+        "status": status_name,
+        "genres": [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])],
+        "networks": [],
+        "first_air_date": "",
+        "vote_average": 0.0,
+        "vote_count": 0,
+        "number_of_episodes": 0,
+        "number_of_seasons": len(seasons),
+        "external_ids": {
+            "tvdb_id": tvdb_id,
+            "imdb_id": "",
+        },
+        "content_ratings": {"results": content_ratings_results},
+        "seasons": seasons,
+        "images": {"posters": posters, "backdrops": backdrops},
+        "aggregate_credits": {"cast": []},
+    }
+
+
 class Scraper:
     """Main scraping orchestrator.
 
@@ -291,6 +394,7 @@ class Scraper:
 
     Attributes:
         settings: Pipeline configuration.
+        config: V15 Config for classification and keyword rules.
         patterns: Naming patterns for file generation.
         dry_run: If True, log operations without writing files.
         interactive: If True, prompt user for ambiguous matches.
@@ -302,6 +406,7 @@ class Scraper:
         patterns: NamingPatterns,
         dry_run: bool = False,
         interactive: bool = False,
+        config: Config | None = None,
     ):
         """Initialize the scraper with API clients and helpers.
 
@@ -310,8 +415,12 @@ class Scraper:
             patterns: MediaElch-compatible naming patterns.
             dry_run: If True, preview operations without writing.
             interactive: If True, prompt for ambiguous matches.
+            config: V15 Config for classification rules and paths. When provided,
+                classifier.classify() is called for every scraped item to assign
+                a category_id. When None, classification is skipped (legacy mode).
         """
         self.settings = settings
+        self.config = config
         self.patterns = patterns
         self.dry_run = dry_run
         self.interactive = interactive
@@ -334,6 +443,101 @@ class Scraper:
             dry_run=dry_run,
             artwork_language=settings.artwork_language,
         )
+
+        # Classification helpers — only set up when config is provided.
+        # _needs_keywords caches whether any category_rule uses tmdb_keyword so
+        # the /keywords endpoint is only called when actually required.
+        if config is not None:
+            self._keywords_cache: KeywordsCache | None = KeywordsCache(config.paths.data_dir)
+            self._needs_keywords: bool = any(rule.tmdb_keyword is not None for rule in config.category_rules)
+        else:
+            self._keywords_cache = None
+            self._needs_keywords = False
+
+    def _classify_item(
+        self,
+        media_type: str,
+        path: Path,
+        title: str,
+        api_data: dict[str, Any],
+        tmdb_id: int | None,
+        nfo_path: Path | None = None,
+    ) -> str | None:
+        """Classify a media item using the V15 classifier pipeline.
+
+        Fetches TMDB keywords first (using cache) when any category_rule uses
+        ``tmdb_keyword``, then delegates to ``classifier.classify()``.
+
+        Returns ``None`` when no config is set (legacy mode — classification
+        is skipped) or when ``classify()`` returns ``None`` (unreachable in
+        practice since defaults are always configured).
+
+        Args:
+            media_type: ``"movie"`` or ``"tv"`` (TMDB API convention).
+            path: Source path of the media item.
+            title: Resolved media title string.
+            api_data: Full TMDB movie/show details dict.
+            tmdb_id: TMDB numeric ID (used for /keywords fetch).
+            nfo_path: Optional path to an existing NFO for priority-1 override.
+
+        Returns:
+            category_id string, or ``None`` if classification was skipped or
+            produced no result.
+        """
+        if self.config is None:
+            return None
+
+        # Fetch TMDB keywords (via cache) only when needed
+        tmdb_keywords: list[str] = []
+        if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
+            cached = self._keywords_cache.get(tmdb_id, media_type)  # type: ignore[arg-type]
+            if cached is None:
+                fetched = self._tmdb.get_keywords(tmdb_id, media_type)  # type: ignore[arg-type]
+                self._keywords_cache.set(tmdb_id, media_type, fetched)  # type: ignore[arg-type]
+                tmdb_keywords = fetched
+            else:
+                tmdb_keywords = cached
+
+        # Extract genre data from TMDB API response
+        genres_raw = api_data.get("genres", [])
+        tmdb_genres = [g["name"] for g in genres_raw if isinstance(g, dict) and g.get("name")]
+        tmdb_genre_ids = [g["id"] for g in genres_raw if isinstance(g, dict) and g.get("id") is not None]
+
+        # Origin country (list for movies, list for TV shows)
+        origin_country: list[str] = []
+        raw_oc = api_data.get("origin_country") or api_data.get("production_countries") or []
+        if isinstance(raw_oc, list):
+            for item in raw_oc:
+                if isinstance(item, str):
+                    origin_country.append(item)
+                elif isinstance(item, dict):
+                    code = item.get("iso_3166_1") or item.get("iso_639_1")
+                    if code:
+                        origin_country.append(str(code))
+
+        category_id, reason = _classifier.classify(
+            self.config,
+            media_type=media_type,  # type: ignore[arg-type]
+            path=path,
+            title=title,
+            tmdb_genres=tmdb_genres or None,
+            tmdb_genre_ids=tmdb_genre_ids or None,
+            tmdb_keywords=tmdb_keywords or None,
+            origin_country=origin_country or None,
+            nfo_path=nfo_path,
+        )
+
+        if category_id is None:
+            logger.warning(
+                "No category matched for %s (%s) — reason: %s",
+                title,
+                media_type,
+                reason,
+            )
+            return None
+
+        logger.debug("Classified %s as %s (via %s)", title, category_id, reason)
+        return category_id
 
     def _resolve_title(
         self,
@@ -574,7 +778,10 @@ class Scraper:
 
         1. Remove residual NFOs at root (keep only tvshow.nfo).
         2. Remove root MKV duplicates (same SxxExx in Saison XX/).
-        3. Organize unstructured episodes into Saison XX/ (if TMDB ID available).
+        3. Organize new root episodes not yet in Saison XX/ (if TMDB ID available).
+           Dedup rule: when multiple root files match the same SxxExx, keep the
+           newest by mtime and delete the others before organizing.
+        4. Organize unstructured episodes from non-season subdirs (if TMDB ID available).
 
         Args:
             show_dir: Path to the TV show directory.
@@ -646,6 +853,160 @@ class Scraper:
                             f.name,
                         )
                         repaired = True
+
+        # 3b. Organize new root video files for episodes NOT yet in any Saison XX/.
+        # Collect all root video files that parse as SxxExx and are not duplicates.
+        root_new: dict[tuple[int, int], list[Path]] = {}
+        for f in list(show_dir.iterdir()):
+            if not f.is_file() or f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                continue
+            m = _SXXEXX_RE.search(f.stem)
+            if not m:
+                continue
+            key = (int(m.group(1)), int(m.group(2)))
+            if key in organized:
+                continue  # Already handled as duplicate in step 3
+            root_new.setdefault(key, []).append(f)
+
+        if root_new:
+            nfo_path = show_dir / "tvshow.nfo"
+            tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
+            if not tmdb_id:
+                logger.warning(
+                    "Repair: cannot organize root episodes without tmdb_id in %s",
+                    show_dir.name,
+                )
+            else:
+                try:
+                    show_data = self._tmdb.get_tv(tmdb_id)
+                    root_api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
+                    for season in show_data.get("seasons", []):
+                        s_num = season.get("season_number", 0)
+                        if s_num == 0:
+                            continue
+                        # Only fetch seasons that have new root files
+                        if not any(s == s_num for s, _ in root_new):
+                            continue
+                        try:
+                            s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
+                            for ep in s_detail.get("episodes", []):
+                                e_num = ep.get("episode_number", 0)
+                                root_api_episodes[(s_num, e_num)] = {
+                                    "title": ep.get("name", f"Episode {e_num}"),
+                                    "still_path": ep.get("still_path", ""),
+                                }
+                        except (OSError, ConnectionError, TimeoutError) as e:
+                            logger.warning(
+                                "Repair: failed to get season %d details: %s",
+                                s_num,
+                                e,
+                            )
+
+                    for (s_num, e_num), candidates in root_new.items():
+                        # Dedup: keep newest by mtime, delete older ones
+                        if len(candidates) > 1:
+                            candidates_sorted = sorted(
+                                candidates,
+                                key=lambda f: f.stat().st_mtime,
+                                reverse=True,
+                            )
+                            to_delete = candidates_sorted[1:]
+                            keeper = candidates_sorted[0]
+                            for old_f in to_delete:
+                                if not self.dry_run:
+                                    try:
+                                        old_f.unlink()
+                                        logger.info(
+                                            "Repair: deleted older duplicate %s (kept %s)",
+                                            old_f.name,
+                                            keeper.name,
+                                        )
+                                        repaired = True
+                                    except OSError as exc:
+                                        logger.warning(
+                                            "Repair: cannot delete duplicate %s: %s",
+                                            old_f.name,
+                                            exc,
+                                        )
+                                else:
+                                    logger.info(
+                                        "[DRY RUN] Would delete older duplicate %s (keep %s)",
+                                        old_f.name,
+                                        keeper.name,
+                                    )
+                                    repaired = True
+                        else:
+                            keeper = candidates[0]
+
+                        # Rename and move keeper to Saison XX/
+                        ep_info = root_api_episodes.get((s_num, e_num))
+                        ep_title = ep_info["title"] if ep_info else f"Episode {e_num}"
+                        season_dir_name = self.patterns.format("season_dir", Season=s_num)
+                        new_stem = self.patterns.format(
+                            "episode_video",
+                            Season=s_num,
+                            Episode=e_num,
+                            EpisodeTitle=ep_title,
+                        )
+                        season_dir = show_dir / season_dir_name
+                        dest = season_dir / f"{new_stem}{keeper.suffix}"
+                        if not self.dry_run:
+                            season_dir.mkdir(parents=True, exist_ok=True)
+                            try:
+                                keeper.rename(dest)
+                                logger.info(
+                                    "Repair: moved root episode %s → %s/%s",
+                                    keeper.name,
+                                    season_dir_name,
+                                    dest.name,
+                                )
+                                repaired = True
+                            except OSError as exc:
+                                logger.warning(
+                                    "Repair: cannot move %s: %s",
+                                    keeper.name,
+                                    exc,
+                                )
+                        else:
+                            logger.info(
+                                "[DRY RUN] Would move %s → %s/%s",
+                                keeper.name,
+                                season_dir_name,
+                                dest.name,
+                            )
+                            repaired = True
+
+                    # Generate episode NFOs for moved files
+                    root_moved: dict[Path, dict[str, Any]] = {}
+                    for (s_num, e_num), candidates in root_new.items():
+                        ep_info = root_api_episodes.get((s_num, e_num))
+                        if ep_info is None:
+                            continue
+                        ep_title = ep_info["title"]
+                        season_dir_name = self.patterns.format("season_dir", Season=s_num)
+                        new_stem = self.patterns.format(
+                            "episode_video",
+                            Season=s_num,
+                            Episode=e_num,
+                            EpisodeTitle=ep_title,
+                        )
+                        suffix = candidates[0].suffix
+                        dest = show_dir / season_dir_name / f"{new_stem}{suffix}"
+                        root_moved[dest] = {
+                            "season": s_num,
+                            "episode": e_num,
+                            "api_title": ep_title,
+                            "still_path": ep_info.get("still_path", ""),
+                        }
+                    if root_moved and not self.dry_run:
+                        self._generate_episode_nfos(root_moved, show_dir, show_data)
+
+                except (OSError, ConnectionError, TimeoutError, ValueError, KeyError) as e:
+                    logger.warning(
+                        "Repair: failed to organize root episodes in %s: %s",
+                        show_dir.name,
+                        e,
+                    )
 
         # 4. Organize unstructured episodes (from raw torrent dirs)
         # Finds video files in non-season subdirs (not root, not .actors)
@@ -902,9 +1263,25 @@ class Scraper:
                     logger.info("[DRY RUN] Would rename video: %s → %s", video_file.name, clean_video_name)
             stream_info = extract_stream_info(video_file)
 
+        # Classify item (V15 pipeline) — must run before NFO write so the
+        # category_id can be embedded in the NFO by nfo_generator (P7.4).
+        category_id = self._classify_item(
+            media_type="movie",
+            path=movie_dir,
+            title=title,
+            api_data=movie_data,
+            tmdb_id=match.api_id,
+            nfo_path=nfo_path if nfo_path.exists() else None,
+        )
+        result.category_id = category_id
+        if category_id is None and self.config is not None:
+            # Config is present but no category matched — skip this item
+            result.action = "skipped_no_category"
+            return result
+
         # Generate and write NFO
         try:
-            xml = self._nfo.generate_movie_nfo(movie_data, stream_info)
+            xml = self._nfo.generate_movie_nfo(movie_data, stream_info, category_id=category_id)
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True
@@ -1080,8 +1457,14 @@ class Scraper:
             match.confidence,
         )
 
-        # Get full TMDB details (even if matched via TVDB)
-        tmdb_id: int | None = match.api_id
+        # Get full show details: prefer TMDB (richer metadata); fall back to
+        # TVDB-only when no cross-ref exists or TMDB returns 404 (show absent
+        # from TMDB, e.g. local-only productions like "Top Chef France").
+        from personalscraper.scraper.tmdb_client import TMDBError
+
+        tmdb_id: int | None = None
+        show_data: dict[str, Any]
+        tvdb_data: dict[str, Any] = {}
         try:
             if match.source == "tvdb":
                 tvdb_data = self._tvdb.get_series(match.api_id)
@@ -1089,12 +1472,32 @@ class Scraper:
                 raw_id = remote_ids.get("tmdb_id")
                 tmdb_id = int(raw_id) if raw_id else None
                 if not tmdb_id:
-                    logger.warning("No TMDB cross-ref for TVDB show %d", match.api_id)
-            if tmdb_id:
-                show_data = self._tmdb.get_tv(tmdb_id)
+                    logger.info(
+                        "No TMDB equivalent for TVDB show %d, using TVDB-only data",
+                        match.api_id,
+                    )
             else:
-                result.error = "No TMDB ID available"
-                return result
+                tmdb_id = match.api_id
+
+            if tmdb_id:
+                try:
+                    show_data = self._tmdb.get_tv(tmdb_id)
+                except TMDBError as tmdb_err:
+                    if tmdb_err.http_status == 404:
+                        logger.info(
+                            "No TMDB equivalent for TVDB show %d (404), using TVDB-only data",
+                            match.api_id,
+                        )
+                        # Fall through to TVDB-only path below
+                        tmdb_id = None
+                        show_data = {}
+                    else:
+                        raise  # Non-404 TMDB errors propagate normally
+            if not tmdb_id:
+                if not tvdb_data:
+                    result.error = "No TMDB ID available and no TVDB data fetched"
+                    return result
+                show_data = _tvdb_series_to_show_data(tvdb_data, match.api_id, self._tvdb)
         except Exception as e:
             result.error = f"Get details failed: {e}"
             logger.error("Failed to get show details: %s", e)
@@ -1139,10 +1542,28 @@ class Scraper:
                 action = "merge into" if new_dir.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, title, canonical)
 
+        # Classify item (V15 pipeline) — must run before NFO write so the
+        # category_id can be embedded in the NFO by nfo_generator (P7.4).
+        # For TV shows matched via TVDB the source TMDB ID may differ from
+        # match.api_id — use tmdb_id which was resolved above.
+        nfo_path = show_dir / self.patterns.tvshow_nfo
+        category_id = self._classify_item(
+            media_type="tv",
+            path=show_dir,
+            title=resolved_title,
+            api_data=show_data,
+            tmdb_id=tmdb_id,
+            nfo_path=nfo_path if nfo_path.exists() else None,
+        )
+        result.category_id = category_id
+        if category_id is None and self.config is not None:
+            # Config is present but no category matched — skip this item
+            result.action = "skipped_no_category"
+            return result
+
         # Generate tvshow.nfo
         try:
-            xml = self._nfo.generate_tvshow_nfo(show_data)
-            nfo_path = show_dir / self.patterns.tvshow_nfo
+            xml = self._nfo.generate_tvshow_nfo(show_data, category_id=category_id)
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True
@@ -1182,13 +1603,24 @@ class Scraper:
                 if s_num == 0:
                     continue
                 try:
-                    s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
-                    for ep in s_detail.get("episodes", []):
-                        e_num = ep.get("episode_number", 0)
-                        api_episodes[(s_num, e_num)] = {
-                            "title": ep.get("name", f"Episode {e_num}"),
-                            "still_path": ep.get("still_path", ""),
-                        }
+                    if tmdb_id:
+                        # Primary path: fetch episode list from TMDB
+                        s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
+                        for ep in s_detail.get("episodes", []):
+                            e_num = ep.get("episode_number", 0)
+                            api_episodes[(s_num, e_num)] = {
+                                "title": ep.get("name", f"Episode {e_num}"),
+                                "still_path": ep.get("still_path", ""),
+                            }
+                    else:
+                        # TVDB-only fallback: use TVDB episode list
+                        tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
+                        for ep in tvdb_eps:
+                            e_num = ep.get("number", ep.get("episode_number", 0))
+                            api_episodes[(s_num, e_num)] = {
+                                "title": ep.get("name", f"Episode {e_num}"),
+                                "still_path": "",  # TVDB episode stills are separate API calls
+                            }
                 except Exception as e:
                     logger.warning("Failed to get season %d: %s", s_num, e)
 

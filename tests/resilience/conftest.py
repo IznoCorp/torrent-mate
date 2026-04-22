@@ -6,10 +6,9 @@ and category structures for testing crash recovery and idempotence.
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
-
-from personalscraper.config import Settings
 
 
 @pytest.fixture
@@ -24,13 +23,22 @@ def staging(tmp_path):
 
 
 @pytest.fixture
-def resilience_settings(staging, tmp_path, monkeypatch):
-    """Provide Settings pointing to the staging tmp directory."""
-    complete_dir = tmp_path / "complete"
-    complete_dir.mkdir(exist_ok=True)
-    monkeypatch.setenv("STAGING_DIR", str(staging))
-    monkeypatch.setenv("TORRENT_COMPLETE_DIR", str(complete_dir))
-    return Settings(_env_file=None)
+def resilience_settings(staging):
+    """Provide a minimal Settings mock pointing to the staging tmp directory.
+
+    V15 P6.5: Settings no longer carries staging_dir (moved to Config.paths).
+    Tests that use this fixture pass staging_dir explicitly to run_* functions.
+    The mock retains staging_dir and movies/tvshows dir names for modules that
+    still accept them via MagicMock attribute access.
+    """
+    s = MagicMock()
+    s.staging_dir = staging
+    s.movies_dir_name = "001-MOVIES"
+    s.tvshows_dir_name = "002-TVSHOWS"
+    s.ingest_dir_name = "097-TEMP"
+    s.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
+    s.min_free_space_disk_gb = 100.0
+    return s
 
 
 def make_valid_movie_dir(movies_dir: Path, title: str = "Movie", year: int = 2024) -> Path:

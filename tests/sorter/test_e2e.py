@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.config import Settings
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
 from personalscraper.sorter.strategies import TYPE_DIR_MAP
@@ -25,13 +24,14 @@ def staging(tmp_path):
 
 
 @pytest.fixture
-def staging_settings(tmp_path, staging, monkeypatch):
-    """Provide Settings pointing to the staging tmp directory."""
-    complete_dir = tmp_path / "complete"
-    complete_dir.mkdir(exist_ok=True)
-    monkeypatch.setenv("STAGING_DIR", str(staging))
-    monkeypatch.setenv("TORRENT_COMPLETE_DIR", str(complete_dir))
-    return Settings(_env_file=None)
+def staging_settings(staging):
+    """Provide a minimal Settings mock pointing to the staging tmp directory."""
+    from unittest.mock import MagicMock
+
+    s = MagicMock()
+    s.ingest_dir_name = "097-TEMP"
+    s.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
+    return s
 
 
 def _create_movie_dir(staging: Path, name: str) -> Path:
@@ -161,7 +161,7 @@ class TestE2ERunSort:
         temp.mkdir(exist_ok=True)
         _create_movie_dir(temp, "Movie.2024.1080p")
         _create_episode_file(temp, "Show.S01E01.mkv")
-        report = run_sort(staging_settings, dry_run=False)
+        report = run_sort(staging_settings, staging_dir=staging, dry_run=False)
         assert report.name == "sort"
         assert report.success_count == 2
         assert report.error_count == 0
@@ -171,14 +171,14 @@ class TestE2ERunSort:
         temp = staging / "097-TEMP"
         temp.mkdir(exist_ok=True)
         _create_movie_dir(temp, "Movie.2024.1080p")
-        report = run_sort(staging_settings, dry_run=True)
+        report = run_sort(staging_settings, staging_dir=staging, dry_run=True)
         assert report.success_count == 1
         assert any("[DRY-RUN]" in d for d in report.details)
 
     def test_run_sort_empty_staging(self, staging_settings, staging):
         """run_sort on empty staging returns zero counts."""
         (staging / "097-TEMP").mkdir(exist_ok=True)
-        report = run_sort(staging_settings, dry_run=False)
+        report = run_sort(staging_settings, staging_dir=staging, dry_run=False)
         assert report.success_count == 0
         assert report.skip_count == 0
         assert report.error_count == 0

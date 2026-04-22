@@ -14,12 +14,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from personalscraper.dispatch.disk_scanner import DiskConfig
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.nfo_generator import NFOGenerator
     from personalscraper.scraper.tmdb_client import TMDBClient
     from personalscraper.scraper.tvdb_client import TVDBClient
 
+from personalscraper.conf.ids import TV_CATEGORY_IDS
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,
@@ -31,7 +32,6 @@ from personalscraper.library.models import (
     RescrapeAction,
 )
 from personalscraper.library.scanner import (
-    _SERIES_CATEGORIES,
     extract_nfo_ids,
     parse_title_year,
 )
@@ -407,7 +407,7 @@ def _rescrape_episodes(
 
 
 def rescrape_library(
-    disk_configs: list[DiskConfig],
+    config: Config,
     settings: Settings,
     disk_filter: str | None = None,
     category_filter: str | None = None,
@@ -419,12 +419,14 @@ def rescrape_library(
     """Rescrape library items that need repair.
 
     Only repairs what is broken per item. Reuses existing scraper components.
+    Iterates ``config.disks``, resolves folder names from
+    ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
 
     Args:
-        disk_configs: List of DiskConfig objects.
+        config: V15 Config with disk and category definitions.
         settings: Pipeline settings (API keys, language, paths).
-        disk_filter: Only rescrape this disk. None = all.
-        category_filter: Only rescrape this category. None = all.
+        disk_filter: Only rescrape this disk (by disk.id). None = all.
+        category_filter: Only rescrape this category_id. None = all.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
         interactive: If True, prompt for low-confidence matches.
         dry_run: If True, preview without modifying files.
@@ -451,22 +453,25 @@ def rescrape_library(
     items_processed = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
-    for config in disk_configs:
-        if disk_filter and config.name != disk_filter:
+    for disk in config.disks:
+        if disk_filter and disk.id != disk_filter:
             continue
-        if not config.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
+        if not disk.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
             continue
 
-        for category_dir in sorted(config.path.iterdir()):
+        for category_id in disk.categories:
+            if category_filter and category_id != category_filter:
+                continue
+
+            # Resolve physical folder name from config
+            cat_cfg = config.category(category_id)
+            category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                continue
-            if category_dir.name not in config.categories:
-                continue
-            if category_filter and category_dir.name != category_filter:
+                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
                 continue
 
-            is_series = category_dir.name in _SERIES_CATEGORIES
+            is_series = category_id in TV_CATEGORY_IDS
             media_type = "tvshow" if is_series else "movie"
 
             for media_dir in sorted(category_dir.iterdir()):
@@ -481,8 +486,8 @@ def rescrape_library(
                     action = _rescrape_item(
                         media_dir=media_dir,
                         media_type=media_type,
-                        disk=config.name,
-                        category=category_dir.name,
+                        disk=disk.id,
+                        category=category_id,
                         title=title,
                         year=year,
                         tmdb_client=tmdb_client,
@@ -501,8 +506,8 @@ def rescrape_library(
                             path=str(media_dir),
                             title=title,
                             media_type=media_type,
-                            disk=config.name,
-                            category=category_dir.name,
+                            disk=disk.id,
+                            category=category_id,
                             actions_taken=[],
                             actions_skipped=[],
                             errors=[str(exc)],

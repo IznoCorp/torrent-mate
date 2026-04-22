@@ -1,91 +1,38 @@
-"""Disk scanner: configuration, free space, and disk selection.
+"""Disk scanner: free space queries and runtime disk status.
 
-Scans storage disks for mount status and available space. Provides
-disk selection logic based on category compatibility and free space
-thresholds.
+Scans storage disks for mount status and available space. The disk-to-category
+mapping is now driven by config.json5 (``Config.disks``) rather than a
+hardcoded ``DISK_CATEGORIES`` dict (removed in V15 P6.2).
 
-The disk-to-category mapping is hardcoded (matches physical disk layout
-from CLAUDE.md "Storage Disks"). Categories are validated against
-GenreMapper.KNOWN_CATEGORIES at import time.
+V14 → V15 shift:
+    - ``DISK_CATEGORIES`` dict removed — categories come from ``Config.disks``.
+    - ``DiskConfig`` dataclass removed — use ``conf.models.DiskConfig`` (Pydantic).
+    - ``get_disk_configs(settings)`` → ``get_disk_configs(config)`` returning
+      ``config.disks`` directly.
+    - ``choose_disk()`` removed — use ``conf.resolver.pick_disk_for()`` instead.
+    - ``DiskStatus`` retained as a pure runtime state dataclass (not config).
 """
 
 import logging
 import shutil
 from dataclasses import dataclass
-from pathlib import Path
 
-from personalscraper.config import Settings
-from personalscraper.genre_mapper import KNOWN_CATEGORIES
+# Re-export DiskConfig from conf.models so callers that do
+#   ``from personalscraper.dispatch.disk_scanner import DiskConfig``
+# continue to work without modification.
+from personalscraper.conf.models import Config, DiskConfig  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
 
-# Disk → category mapping (matches CLAUDE.md "Storage Disks" table)
-DISK_CATEGORIES: dict[str, list[str]] = {
-    "Disk1": [
-        "films",
-        "films animations",
-        "films documentaires",
-        "livres audios",
-        "series",
-        "series animations",
-        "series documentaires",
-        "spectacles",
-        "theatres",
-        "emissions",
-    ],
-    "Disk2": ["series", "series animes"],
-    "Disk3": [
-        "films",
-        "films animations",
-        "films documentaires",
-        "livres audios",
-        "series",
-        "series animations",
-        "series documentaires",
-        "spectacles",
-        "theatres",
-        "emissions",
-    ],
-    "Disk4": [
-        "films",
-        "films animations",
-        "series",
-        "series animations",
-        "series documentaires",
-        "emissions",
-    ],
-}
-
-# Validate all categories at import time
-for _disk, _cats in DISK_CATEGORIES.items():
-    for _cat in _cats:
-        assert _cat in KNOWN_CATEGORIES, f"Unknown category '{_cat}' in {_disk}"
-
-
-@dataclass
-class DiskConfig:
-    """Configuration for a storage disk.
-
-    Attributes:
-        name: Disk identifier (e.g. "Disk1").
-        path: Mount point path (e.g. /Volumes/Disk1/medias).
-        categories: List of media categories this disk accepts.
-    """
-
-    name: str
-    path: Path
-    categories: list[str]
-
-
 @dataclass
 class DiskStatus:
-    """Current status of a storage disk.
+    """Current runtime status of a storage disk.
 
     Attributes:
-        config: Disk configuration.
-        free_space_gb: Available free space in GB.
-        is_mounted: Whether the disk is currently mounted.
+        config: Disk configuration (Pydantic DiskConfig from conf.models).
+        free_space_gb: Available free space in GB (0.0 if unmounted or unreadable).
+        is_mounted: Whether the disk mount point currently exists and is accessible.
     """
 
     config: DiskConfig
@@ -93,46 +40,30 @@ class DiskStatus:
     is_mounted: bool
 
 
-def get_disk_configs(settings: Settings) -> list[DiskConfig]:
-    """Build disk configurations from settings.
+def get_disk_configs(config: Config) -> list[DiskConfig]:
+    """Return the list of DiskConfig objects from a loaded Config.
 
-    Maps settings disk paths (disk1_dir through disk4_dir) to
-    DiskConfig objects with their category assignments.
+    V14 → V15: formerly built DiskConfig dataclasses from ``settings.disk{1-4}_dir``
+    and the hardcoded ``DISK_CATEGORIES`` dict. Now simply returns
+    ``config.disks`` which are Pydantic ``DiskConfig`` models validated at load time.
 
     Args:
-        settings: Pipeline configuration with disk paths.
+        config: The loaded and validated Config instance (conf/models.py).
 
     Returns:
-        List of DiskConfig for all 4 disks.
+        List of DiskConfig Pydantic models, one per disk declared in config.json5.
     """
-    disk_paths = {
-        "Disk1": Path(settings.disk1_dir),
-        "Disk2": Path(settings.disk2_dir),
-        "Disk3": Path(settings.disk3_dir),
-        "Disk4": Path(settings.disk4_dir),
-    }
-
-    configs = []
-    for name, path in disk_paths.items():
-        configs.append(
-            DiskConfig(
-                name=name,
-                path=path,
-                categories=DISK_CATEGORIES[name],
-            )
-        )
-
-    return configs
+    return list(config.disks)
 
 
 def get_disk_status(config: DiskConfig) -> DiskStatus:
     """Get current free space and mount status for a disk.
 
     Args:
-        config: Disk configuration.
+        config: Disk configuration (Pydantic DiskConfig).
 
     Returns:
-        DiskStatus with free space and mount status.
+        DiskStatus with free space in GB and mount status.
     """
     is_mounted = config.path.exists()
     free_space_gb = 0.0
@@ -142,9 +73,13 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
             usage = shutil.disk_usage(config.path)
             free_space_gb = usage.free / (1024**3)
         except OSError as exc:
-            # Can't read disk usage — treat as unmounted to avoid
-            # dispatching to an unusable disk
-            logger.error("Cannot read disk usage for %s: %s — treating as unmounted", config.name, exc)
+            # Cannot read disk usage — treat as unmounted to avoid
+            # dispatching to an unusable disk.
+            logger.error(
+                "Cannot read disk usage for %s: %s — treating as unmounted",
+                config.id,
+                exc,
+            )
             is_mounted = False
 
     return DiskStatus(
@@ -161,55 +96,60 @@ def choose_disk(
     item_size_gb: float = 0,
     allow_create_category: bool = False,
 ) -> DiskStatus | None:
-    """Choose the best disk for a media item.
+    """Choose the best disk for a media item (V14 compatibility shim).
+
+    .. deprecated::
+        Use ``conf.resolver.pick_disk_for()`` for new code. This function is
+        retained for callers that have not yet been migrated to V15 Config-based
+        routing (dispatcher.py, tests). It operates on ``DiskStatus`` objects
+        and uses ``config.categories`` (list of category IDs or labels depending
+        on caller) rather than ``Config.disks_accepting()``.
 
     Two-pass strategy:
-    1. Disks that have the category AND enough space (most free wins)
-    2. If none found AND allow_create_category=True: any mounted disk
-       with enough space (the category dir will be created by the caller)
+        1. Disks that have the category AND enough space (most free wins).
+        2. If none found AND allow_create_category=True: any mounted disk
+           with enough space (category dir created by caller).
 
-    The category directory is NOT created here — just the disk is chosen.
-
-    Threshold formula: free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
+    Threshold formula: ``free_space_gb >= max(min_free_gb, item_size_gb * 1.5)``
 
     Args:
-        disks: List of disk statuses.
-        category: Media category to dispatch.
-        min_free_gb: Minimum free space threshold.
-        item_size_gb: Size of the item to dispatch.
-        allow_create_category: If True, fall back to any disk with space
-            when no disk has the category. Used for new items only.
+        disks: List of DiskStatus objects.
+        category: Category ID to match against ``disk.config.categories``.
+        min_free_gb: Minimum free space threshold in GB.
+        item_size_gb: Size of the item being dispatched in GB.
+        allow_create_category: If True, fall back to any mounted disk with space
+            when no disk accepts the category.
 
     Returns:
         Best DiskStatus, or None if no disk qualifies.
     """
     threshold = max(min_free_gb, item_size_gb * 1.5)
 
-    # Pass 1: disks with the category and enough space
+    # Pass 1: disks accepting the category with enough space
     eligible = [d for d in disks if d.is_mounted and category in d.config.categories and d.free_space_gb >= threshold]
 
     if eligible:
         eligible.sort(key=lambda d: d.free_space_gb, reverse=True)
         return eligible[0]
 
-    # Pass 2: any mounted disk with enough space (create category)
+    # Pass 2: any mounted disk with enough space (create category dir)
     if allow_create_category:
         fallback = [d for d in disks if d.is_mounted and d.free_space_gb >= threshold]
         if fallback:
             fallback.sort(key=lambda d: d.free_space_gb, reverse=True)
             chosen = fallback[0]
-            # Warn if the chosen disk is not configured for this category
+            disk_id = chosen.config.id
             if category not in chosen.config.categories:
                 logger.warning(
                     "Category '%s' not in %s config — creating anyway (overflow: no configured disk has space)",
                     category,
-                    chosen.config.name,
+                    disk_id,
                 )
             else:
                 logger.info(
                     "No disk has category '%s' with space — falling back to %s (most free)",
                     category,
-                    chosen.config.name,
+                    disk_id,
                 )
             return chosen
 

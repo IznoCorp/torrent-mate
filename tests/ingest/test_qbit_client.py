@@ -71,7 +71,7 @@ def test_is_seeding_stopped(mock_client):
 def test_get_content_path(mock_client):
     """get_content_path returns a Path from torrent.content_path."""
     torrent = MagicMock()
-    torrent.content_path = "/Volumes/IznoServer SSD/torrents/complete/The.Boys.S05E01"
+    torrent.content_path = "/tmp/torrents-complete/The.Boys.S05E01"
     result = mock_client.get_content_path(torrent)
     assert isinstance(result, Path)
     assert result.name == "The.Boys.S05E01"

@@ -6,6 +6,7 @@ generator tag. Uses sample data matching real TMDB API responses.
 """
 
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 
@@ -968,3 +969,131 @@ class TestEpisodeMediaElchConformity:
         xml = generator.generate_episode_nfo(SAMPLE_EPISODE_DATA, SAMPLE_STREAM_INFO)
         root = ET.fromstring(xml.split("\n", 1)[1])
         assert root.tag == "episodedetails"
+
+
+# ---------------------------------------------------------------------------
+# Category element (Phase 7.4) — <category source="personalscraper">
+# ---------------------------------------------------------------------------
+
+
+class TestCategoryElement:
+    """Tests for the V15 <category source="personalscraper"> NFO element."""
+
+    def _parse(self, xml: str) -> ET.Element:
+        """Parse the XML body (skip the declaration line).
+
+        Args:
+            xml: Full NFO XML string.
+
+        Returns:
+            Root XML element.
+        """
+        return ET.fromstring(xml.split("\n", 1)[1])
+
+    # --- Movie NFO ---
+
+    def test_movie_nfo_has_category_element(self, generator: NFOGenerator) -> None:
+        """Movie NFO includes <category source="personalscraper"> when category_id given."""
+        xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies_animation")
+        root = self._parse(xml)
+        cat = root.find("category[@source='personalscraper']")
+        assert cat is not None
+        assert cat.text == "movies_animation"
+        assert cat.get("source") == "personalscraper"
+
+    def test_movie_nfo_category_after_genres(self, generator: NFOGenerator) -> None:
+        """Category element appears after the last <genre> element."""
+        xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies")
+        root = self._parse(xml)
+        children = list(root)
+        genre_indices = [i for i, c in enumerate(children) if c.tag == "genre"]
+        cat_indices = [
+            i for i, c in enumerate(children) if c.tag == "category" and c.get("source") == "personalscraper"
+        ]
+        assert genre_indices, "Expected at least one <genre>"
+        assert cat_indices, "Expected <category source='personalscraper'>"
+        assert cat_indices[0] > genre_indices[-1], "Category must come after all genres"
+
+    def test_movie_nfo_no_category_when_none(self, generator: NFOGenerator) -> None:
+        """Movie NFO omits <category> element when category_id is None."""
+        xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id=None)
+        root = self._parse(xml)
+        cat = root.find("category[@source='personalscraper']")
+        assert cat is None
+
+    def test_movie_nfo_other_elements_preserved(self, generator: NFOGenerator) -> None:
+        """Adding category_id does not remove other NFO elements."""
+        xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies_documentary")
+        root = self._parse(xml)
+        assert root.findtext("title") == "The Piano Lesson"
+        assert root.findtext("plot") is not None
+        assert root.find("ratings") is not None
+        genre_names = [g.text for g in root.findall("genre")]
+        assert "Drame" in genre_names
+
+    def test_movie_nfo_idempotent_category(self, generator: NFOGenerator) -> None:
+        """Generating twice with the same category_id produces identical category content."""
+        xml1 = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies")
+        xml2 = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies")
+        root1 = self._parse(xml1)
+        root2 = self._parse(xml2)
+        cat1 = root1.find("category[@source='personalscraper']")
+        cat2 = root2.find("category[@source='personalscraper']")
+        assert cat1 is not None and cat2 is not None
+        assert cat1.text == cat2.text
+
+    # --- TV show NFO ---
+
+    def test_tvshow_nfo_has_category_element(self, generator: NFOGenerator) -> None:
+        """TV show NFO includes <category source="personalscraper"> when category_id given."""
+        xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA, category_id="tv_shows_animation")
+        root = self._parse(xml)
+        cat = root.find("category[@source='personalscraper']")
+        assert cat is not None
+        assert cat.text == "tv_shows_animation"
+
+    def test_tvshow_nfo_no_category_when_none(self, generator: NFOGenerator) -> None:
+        """TV show NFO omits category element when category_id is None."""
+        xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA, category_id=None)
+        root = self._parse(xml)
+        cat = root.find("category[@source='personalscraper']")
+        assert cat is None
+
+    def test_tvshow_nfo_other_elements_preserved(self, generator: NFOGenerator) -> None:
+        """Adding category_id does not disturb other TV show NFO elements."""
+        xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA, category_id="anime")
+        root = self._parse(xml)
+        assert root.findtext("title") is not None
+        assert root.find("ratings") is not None
+
+    # --- Round-trip with classifier._read_nfo_category ---
+
+    def test_round_trip_movie_nfo(self, generator: NFOGenerator, tmp_path: Path) -> None:
+        """Category written to NFO is readable by classifier._read_nfo_category."""
+        from personalscraper.conf.classifier import _read_nfo_category
+
+        nfo_path = tmp_path / "movie.nfo"
+        xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies_documentary")
+        nfo_path.write_text(xml, encoding="utf-8")
+        result = _read_nfo_category(nfo_path)
+        assert result == "movies_documentary"
+
+    def test_round_trip_tvshow_nfo(self, generator: NFOGenerator, tmp_path: Path) -> None:
+        """Category in tvshow.nfo is readable by classifier._read_nfo_category."""
+        from personalscraper.conf.classifier import _read_nfo_category
+
+        nfo_path = tmp_path / "tvshow.nfo"
+        xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA, category_id="anime")
+        nfo_path.write_text(xml, encoding="utf-8")
+        result = _read_nfo_category(nfo_path)
+        assert result == "anime"
+
+    def test_round_trip_overwrite_is_idempotent(self, generator: NFOGenerator, tmp_path: Path) -> None:
+        """Writing the same NFO twice produces the same category on read."""
+        from personalscraper.conf.classifier import _read_nfo_category
+
+        nfo_path = tmp_path / "movie.nfo"
+        for _ in range(2):
+            xml = generator.generate_movie_nfo(SAMPLE_MOVIE_DATA, category_id="movies")
+            nfo_path.write_text(xml, encoding="utf-8")
+        assert _read_nfo_category(nfo_path) == "movies"

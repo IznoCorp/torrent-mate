@@ -1,18 +1,29 @@
 """Tests for personalscraper.library.disk_cleaner — library cleanup."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
+from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.disk_cleaner import clean_library
 
 
-def _make_config(path: Path, name: str, categories: list[str]):
-    """Create a mock DiskConfig."""
-    config = MagicMock()
-    config.path = path
-    config.name = name
-    config.categories = categories
-    return config
+def _make_v15_config(
+    disk_path: Path,
+    disk_id: str,
+    folder_name: str,
+    category_id: str,
+    tmp_path: Path,
+) -> Config:
+    """Create a minimal V15 Config for a single disk/category."""
+    disk_cfg = DiskConfig(id=disk_id, path=disk_path, categories=[category_id])
+    return Config(
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "torrents",
+            staging_dir=tmp_path / "staging",
+            data_dir=tmp_path / ".data",
+        ),
+        disks=[disk_cfg],
+        categories={category_id: CategoryConfig(folder_name=folder_name)},
+    )
 
 
 class TestCleanActors:
@@ -26,8 +37,8 @@ class TestCleanActors:
         actors.mkdir(parents=True)
         (actors / "Actor.jpg").write_bytes(b"\x00" * 100)
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=True, only="actors")
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="actors")
 
         assert not actors.exists()
         assert result.deleted_count > 0
@@ -40,8 +51,8 @@ class TestCleanActors:
         actors.mkdir(parents=True)
         (actors / "Actor.jpg").write_bytes(b"\x00" * 100)
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=False, only="actors")
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=False, only="actors")
 
         assert actors.exists()
         assert result.deleted_count > 0  # counted but not deleted
@@ -71,8 +82,8 @@ class TestCleanActors:
 
         monkeypatch.setattr(shutil, "rmtree", flaky_rmtree)
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=True, only="actors")
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="actors")
 
         # First deletion failed, second succeeded
         assert result.error_count == 1
@@ -91,8 +102,8 @@ class TestCleanEmpty:
         empty = movie / "Subs"
         empty.mkdir()
 
-        config = _make_config(disk, "Disk1", ["films"])
-        clean_library([config], apply=True, only="empty")
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        clean_library(config, apply=True, only="empty")
 
         assert not empty.exists()
         assert movie.exists()  # parent not deleted
@@ -106,8 +117,8 @@ class TestCleanEmpty:
         artifact = show / "Show.S01E01.1080p.WEB-DL.H264-GROUP"
         artifact.mkdir()  # empty
 
-        config = _make_config(disk, "Disk1", ["series"])
-        clean_library([config], apply=True, only="release")
+        config = _make_v15_config(disk, "disk1", "series", "tv_shows", tmp_path)
+        clean_library(config, apply=True, only="release")
 
         assert not artifact.exists()
 
@@ -124,8 +135,8 @@ class TestCleanJunk:
         ds = movie / ".DS_Store"
         ds.write_bytes(b"\x00")
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=True, only="junk")
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="junk")
 
         assert not ds.exists()
         assert result.deleted_count == 1
@@ -139,8 +150,8 @@ class TestCleanJunk:
         (movie / "Thumbs.db").write_bytes(b"\x00")
         (movie / "desktop.ini").write_text("[ViewState]")
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=True, only="junk")
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only="junk")
 
         assert not (movie / "Thumbs.db").exists()
         assert not (movie / "desktop.ini").exists()
@@ -161,8 +172,8 @@ class TestCleanAll:
         (movie / ".DS_Store").write_bytes(b"\x00")
         (movie / "empty_dir").mkdir()
 
-        config = _make_config(disk, "Disk1", ["films"])
-        result = clean_library([config], apply=True, only=None)
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        result = clean_library(config, apply=True, only=None)
 
         assert not (movie / ".actors").exists()
         assert not (movie / ".DS_Store").exists()
@@ -180,11 +191,19 @@ class TestCleanAll:
         (m1 / ".actors").mkdir()
         (m2 / ".actors").mkdir()
 
-        configs = [
-            _make_config(disk1, "Disk1", ["films"]),
-            _make_config(disk2, "Disk2", ["films"]),
-        ]
-        clean_library(configs, apply=True, only="actors", disk_filter="Disk1")
+        config = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "torrents",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="disk1", path=disk1, categories=["movies"]),
+                DiskConfig(id="disk2", path=disk2, categories=["movies"]),
+            ],
+            categories={"movies": CategoryConfig(folder_name="films")},
+        )
+        clean_library(config, apply=True, only="actors", disk_filter="disk1")
 
         assert not (m1 / ".actors").exists()
         assert (m2 / ".actors").exists()  # untouched

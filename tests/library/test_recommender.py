@@ -2,6 +2,12 @@
 
 import pytest
 
+from personalscraper.conf.models import (
+    EncodingRule,
+    LibraryPrefs,
+    RuleCriteria,
+    VideoPrefs,
+)
 from personalscraper.library.models import (
     PRIORITY_HIGH,
     PRIORITY_MEDIUM,
@@ -10,12 +16,6 @@ from personalscraper.library.models import (
     MediaFileAnalysis,
     SubtitleTrack,
     VideoInfo,
-)
-from personalscraper.library.preferences import (
-    EncodingRule,
-    LibraryPreferences,
-    RuleCriteria,
-    VideoPreferences,
 )
 from personalscraper.library.recommender import generate_recommendations
 
@@ -68,14 +68,14 @@ class TestRecommendCodec:
     def test_preferred_codec_no_recommendation(self) -> None:
         """Movie with preferred codec should not be recommended."""
         items = [_make_movie(codec="hevc", audio_profile="multi", sub_languages=["fra"])]
-        prefs = LibraryPreferences()
+        prefs = LibraryPrefs()
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 0
 
     def test_rejected_codec_high_priority(self) -> None:
         """Movie with rejected codec should be high priority."""
         items = [_make_movie(codec="mpeg2")]
-        prefs = LibraryPreferences()
+        prefs = LibraryPrefs()
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 1
         assert result.items[0].priority == PRIORITY_HIGH
@@ -84,7 +84,7 @@ class TestRecommendCodec:
     def test_non_preferred_codec_medium_priority(self) -> None:
         """Movie with non-preferred, non-rejected codec should be medium."""
         items = [_make_movie(codec="h264")]
-        prefs = LibraryPreferences()
+        prefs = LibraryPrefs()
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 1
         assert result.items[0].priority == PRIORITY_MEDIUM
@@ -92,7 +92,7 @@ class TestRecommendCodec:
     def test_fallback_codec_no_recommendation(self) -> None:
         """Movie with fallback codec (av1) should not be recommended."""
         items = [_make_movie(codec="av1", audio_profile="multi", sub_languages=["fra"])]
-        prefs = LibraryPreferences()
+        prefs = LibraryPrefs()
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 0
 
@@ -103,7 +103,7 @@ class TestRecommendSize:
     def test_oversized_movie_medium(self) -> None:
         """Movie exceeding max_size should be medium priority."""
         items = [_make_movie(codec="hevc", size_gb=6.0)]
-        prefs = LibraryPreferences(video=VideoPreferences(max_size_movie_gb=4.0))
+        prefs = LibraryPrefs(video=VideoPrefs(max_size_movie_gb=4.0))
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 1
         assert result.items[0].priority == PRIORITY_MEDIUM
@@ -111,14 +111,14 @@ class TestRecommendSize:
     def test_very_oversized_movie_high(self) -> None:
         """Movie exceeding 2x max should be high priority."""
         items = [_make_movie(codec="hevc", size_gb=9.0)]
-        prefs = LibraryPreferences(video=VideoPreferences(max_size_movie_gb=4.0))
+        prefs = LibraryPrefs(video=VideoPrefs(max_size_movie_gb=4.0))
         result = generate_recommendations(items, prefs)
         assert result.items[0].priority == PRIORITY_HIGH
 
     def test_savings_estimated(self) -> None:
         """Estimated savings should be current_size - max_size."""
         items = [_make_movie(codec="hevc", size_gb=6.0)]
-        prefs = LibraryPreferences(video=VideoPreferences(max_size_movie_gb=4.0))
+        prefs = LibraryPrefs(video=VideoPrefs(max_size_movie_gb=4.0))
         result = generate_recommendations(items, prefs)
         assert result.items[0].estimated_savings_gb == pytest.approx(2.0, abs=0.1)
 
@@ -129,7 +129,7 @@ class TestRecommendAudio:
     def test_vo_when_multi_preferred(self) -> None:
         """VO movie when multi preferred should be recommended."""
         items = [_make_movie(audio_lang="eng", audio_profile="vo")]
-        prefs = LibraryPreferences()  # default: multi > vf > vostfr > vo
+        prefs = LibraryPrefs()  # default: multi > vf > vostfr > vo
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 1
         assert "audio" in result.items[0].reasons[0].lower()
@@ -137,7 +137,7 @@ class TestRecommendAudio:
     def test_multi_audio_no_recommendation(self) -> None:
         """MULTI movie should not be recommended for audio."""
         items = [_make_movie(audio_profile="multi", sub_languages=["fra"])]
-        prefs = LibraryPreferences()
+        prefs = LibraryPrefs()
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 0
 
@@ -148,7 +148,7 @@ class TestRecommendSubtitles:
     def test_missing_required_subtitle_flagged(self) -> None:
         """Movie without required French subtitles should be recommended."""
         items = [_make_movie(audio_profile="multi", sub_languages=["eng"])]
-        prefs = LibraryPreferences()  # default: required=["fra"]
+        prefs = LibraryPrefs()  # default: required=["fra"]
         result = generate_recommendations(items, prefs)
         assert result.total_recommendations == 1
         assert any("subtitle" in r.lower() for r in result.items[0].reasons)
@@ -160,7 +160,7 @@ class TestEncodingRules:
     def test_rule_by_imdb_id(self) -> None:
         """Rule matching IMDB ID should override target."""
         items = [_make_movie(codec="hevc", imdb_id="tt4154796")]
-        prefs = LibraryPreferences(
+        prefs = LibraryPrefs(
             encoding_rules=[
                 EncodingRule(
                     criteria=RuleCriteria(imdb_id="tt4154796"),
@@ -178,7 +178,7 @@ class TestEncodingRules:
     def test_rule_by_title_substring(self) -> None:
         """Rule matching title substring should apply."""
         items = [_make_movie(codec="hevc", title="Animation Movie", size_gb=3.0)]
-        prefs = LibraryPreferences(
+        prefs = LibraryPrefs(
             encoding_rules=[
                 EncodingRule(
                     criteria=RuleCriteria(title="Animation"),
@@ -228,7 +228,7 @@ class TestDisparateSeries:
                 ),
             ],
         )
-        prefs = LibraryPreferences()
+        prefs = LibraryPrefs()
         result = generate_recommendations([item], prefs)
         assert result.total_recommendations == 1
         assert any("disparate" in r.lower() or "mixed" in r.lower() for r in result.items[0].reasons)

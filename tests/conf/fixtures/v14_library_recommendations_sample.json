@@ -1,0 +1,28 @@
+{
+  "generated_at": "2024-01-15T13:00:00+00:00",
+  "total_recommendations": 1,
+  "estimated_total_savings_gb": 2.5,
+  "items": [
+    {
+      "path": "/Volumes/Disk1/medias/theatres/Moliere (2022)",
+      "title": "Moliere",
+      "media_type": "movie",
+      "disk": "Disk1",
+      "category": "theatres",
+      "tmdb_id": "99999",
+      "imdb_id": null,
+      "current": {
+        "codec": "h264",
+        "resolution": "1080p",
+        "size_gb": 4.0,
+        "audio_profile": "vf",
+        "subtitle_languages": ["fra"]
+      },
+      "target": { "codec": "hevc", "resolution": "1080p", "max_size_gb": null },
+      "reasons": ["codec_not_preferred"],
+      "priority": "medium",
+      "estimated_savings_gb": 2.5,
+      "matched_rule_index": null
+    }
+  ]
+}

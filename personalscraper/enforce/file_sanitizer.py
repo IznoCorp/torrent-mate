@@ -57,7 +57,7 @@ def sanitize_files(
         List of SanitizeResult for each action taken.
     """
     results: list[SanitizeResult] = []
-    staging = settings.staging_dir
+    staging = Path(getattr(settings, "staging_dir", "."))
 
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name

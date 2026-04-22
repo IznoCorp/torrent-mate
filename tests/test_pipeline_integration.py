@@ -15,17 +15,32 @@ from personalscraper.pipeline import Pipeline
 
 @pytest.fixture
 def integration_settings(tmp_path):
-    """Provide realistic Settings for integration tests."""
+    """Provide a minimal Settings mock for integration tests.
+
+    V15 P6.5: ingest_dir is a method; staging_dir comes from Config.paths.
+    The mock retains staging_dir for modules that use it directly
+    (e.g. process/run.py via MagicMock attribute access).
+    """
     s = MagicMock()
     s.staging_dir = tmp_path
-    s.ingest_dir = tmp_path / "097-TEMP"
-    s.ingest_dir.mkdir()
+    (tmp_path / "097-TEMP").mkdir()
+    s.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
     s.movies_dir_name = "001-MOVIES"
     s.tvshows_dir_name = "002-TVSHOWS"
     # Create category dirs
     (tmp_path / "001-MOVIES").mkdir()
     (tmp_path / "002-TVSHOWS").mkdir()
     return s
+
+
+@pytest.fixture
+def integration_config(tmp_path):
+    """Provide a minimal Config mock for integration tests."""
+    config = MagicMock()
+    config.paths.staging_dir = tmp_path
+    config.paths.data_dir = tmp_path / ".data"
+    config.disks = []
+    return config
 
 
 @pytest.fixture
@@ -53,6 +68,7 @@ class TestPipelineIntegration:
         mock_enforce,
         mock_verify,
         mock_dispatch,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -67,7 +83,7 @@ class TestPipelineIntegration:
         )
         mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
-        pipeline = Pipeline(integration_settings, console=quiet_console)
+        pipeline = Pipeline(integration_config, integration_settings, console=quiet_console)
         report = pipeline.run()
 
         assert len(report.steps) == 8
@@ -96,6 +112,7 @@ class TestPipelineIntegration:
         mock_scrape,
         mock_verify,
         mock_dispatch,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -105,7 +122,7 @@ class TestPipelineIntegration:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_verify.return_value = (StepReport(name="verify"), [])
 
-        pipeline = Pipeline(integration_settings, console=quiet_console)
+        pipeline = Pipeline(integration_config, integration_settings, console=quiet_console)
         report = pipeline.run()
 
         # Pipeline continued — verify and dispatch steps exist
@@ -124,6 +141,7 @@ class TestPipelineIntegration:
         mock_sort,
         mock_scrape,
         mock_verify,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -133,7 +151,7 @@ class TestPipelineIntegration:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_verify.return_value = (StepReport(name="verify"), [])
 
-        pipeline = Pipeline(integration_settings, console=quiet_console)
+        pipeline = Pipeline(integration_config, integration_settings, console=quiet_console)
         report = pipeline.run()
 
         assert report.steps["dispatch"].skip_count == 1
@@ -152,6 +170,7 @@ class TestPipelineIntegration:
         mock_scrape,
         mock_verify,
         mock_dispatch,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -162,7 +181,7 @@ class TestPipelineIntegration:
         mock_verify.return_value = (StepReport(name="verify"), [MagicMock()])
         mock_dispatch.return_value = StepReport(name="dispatch")
 
-        pipeline = Pipeline(integration_settings, dry_run=True, console=quiet_console)
+        pipeline = Pipeline(integration_config, integration_settings, dry_run=True, console=quiet_console)
         pipeline.run()
 
         assert mock_ingest.call_args.kwargs["dry_run"] is True
@@ -183,6 +202,7 @@ class TestPipelineIntegration:
         mock_scrape,
         mock_verify,
         mock_dispatch,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -194,6 +214,7 @@ class TestPipelineIntegration:
         mock_dispatch.return_value = StepReport(name="dispatch")
 
         pipeline = Pipeline(
+            integration_config,
             integration_settings,
             interactive=True,
             console=quiet_console,
@@ -212,6 +233,7 @@ class TestPipelineIntegration:
         mock_ingest,
         mock_sort,
         mock_scrape,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -228,7 +250,7 @@ class TestPipelineIntegration:
 
         with patch("personalscraper.verify.run.run_verify") as mock_verify:
             mock_verify.return_value = (StepReport(name="verify"), [])
-            pipeline = Pipeline(integration_settings, console=quiet_console)
+            pipeline = Pipeline(integration_config, integration_settings, console=quiet_console)
             report = pipeline.run()
 
         # The clean step should have re-cleaned the polluted folder
@@ -247,6 +269,7 @@ class TestPipelineIntegration:
         mock_ingest,
         mock_sort,
         mock_scrape,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -260,7 +283,7 @@ class TestPipelineIntegration:
             patch("personalscraper.verify.run.run_verify") as mock_verify,
         ):
             mock_verify.return_value = (StepReport(name="verify"), [])
-            pipeline = Pipeline(integration_settings, console=quiet_console)
+            pipeline = Pipeline(integration_config, integration_settings, console=quiet_console)
             report = pipeline.run()
 
         # Clean has error, but scrape ran successfully
@@ -279,6 +302,7 @@ class TestPipelineIntegration:
         mock_ingest,
         mock_sort,
         mock_scrape,
+        integration_config,
         integration_settings,
         quiet_console,
     ):
@@ -304,7 +328,7 @@ class TestPipelineIntegration:
                 warnings=["permission denied"],
             )
             mock_verify.return_value = (StepReport(name="verify"), [])
-            pipeline = Pipeline(integration_settings, console=quiet_console)
+            pipeline = Pipeline(integration_config, integration_settings, console=quiet_console)
             report = pipeline.run()
 
         # Clean step has the error but pipeline continued

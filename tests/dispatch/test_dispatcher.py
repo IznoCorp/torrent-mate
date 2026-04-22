@@ -3,6 +3,10 @@
 Tests dispatch logic with mocked rsync, disk statuses, and index.
 Covers movie replace, TV show merge, new item placement, dry-run,
 and insufficient space handling.
+
+V15 P6.3: Dispatcher now accepts Config as first argument. Category IDs
+are V15 IDs (e.g. "movies", "tv_shows") rather than V14 labels ("films").
+DiskConfig uses ``id`` field (Pydantic) rather than ``name`` (dataclass).
 """
 
 import os
@@ -12,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.conf.models import DiskConfig
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.verify.verifier import VerifyResult
@@ -19,12 +24,8 @@ from personalscraper.verify.verifier import VerifyResult
 
 @pytest.fixture
 def mock_settings() -> MagicMock:
-    """Create mock Settings."""
+    """Create mock Settings (V15: no disk paths — thresholds only)."""
     s = MagicMock()
-    s.disk1_dir = "/Volumes/Disk1/medias"
-    s.disk2_dir = "/Volumes/Disk2/medias"
-    s.disk3_dir = "/Volumes/Disk3/medias"
-    s.disk4_dir = "/Volumes/Disk4/medias"
     s.min_free_space_disk_gb = 100.0
     return s
 
@@ -38,20 +39,24 @@ class TestDispatcherInit:
     """Tests for Dispatcher initialization."""
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_init_with_rsync(self, mock_which: MagicMock, mock_settings: MagicMock) -> None:
+    def test_init_with_rsync(
+        self, mock_which: MagicMock, test_config, mock_settings: MagicMock, tmp_path: Path
+    ) -> None:
         """Should initialize when rsync is available."""
-        idx = MediaIndex()
-        d = Dispatcher(mock_settings, idx)
+        idx = MediaIndex(tmp_path / "index.json")
+        d = Dispatcher(test_config, mock_settings, idx)
         assert d is not None
 
     @patch("shutil.which", return_value=None)
-    def test_init_without_rsync(self, mock_which: MagicMock, mock_settings: MagicMock) -> None:
+    def test_init_without_rsync(
+        self, mock_which: MagicMock, test_config, mock_settings: MagicMock, tmp_path: Path
+    ) -> None:
         """Should raise DispatchError when rsync is missing."""
         from personalscraper.dispatch.dispatcher import DispatchError
 
-        idx = MediaIndex()
+        idx = MediaIndex(tmp_path / "index.json")
         with pytest.raises(DispatchError, match="rsync"):
-            Dispatcher(mock_settings, idx)
+            Dispatcher(test_config, mock_settings, idx)
 
 
 # ---------------------------------------------------------------------------
@@ -66,12 +71,13 @@ class TestDispatchMovie:
     def test_new_movie_dry_run(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Dry run should report action without moving."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Matrix (1999)"
         movie_dir.mkdir()
@@ -80,15 +86,15 @@ class TestDispatchMovie:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", Path("/Volumes/Disk1/medias"), ["films"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
 
-            result = d.dispatch_movie(movie_dir, "films")
+            result = d.dispatch_movie(movie_dir, "movies")
 
         assert result.action == "moved"
         assert movie_dir.exists()  # Not moved in dry run
@@ -97,12 +103,13 @@ class TestDispatchMovie:
     def test_no_space_skips(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should skip when no disk has enough space."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -110,15 +117,15 @@ class TestDispatchMovie:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", Path("/Volumes/Disk1/medias"), ["films"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=0.5,  # Not enough
                 is_mounted=True,
             )
 
-            result = d.dispatch_movie(movie_dir, "films")
+            result = d.dispatch_movie(movie_dir, "movies")
 
         assert result.action == "skipped"
         assert "space" in (result.reason or "").lower()
@@ -136,12 +143,13 @@ class TestDispatchTvshow:
     def test_new_tvshow_dry_run(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Dry run for new show should report action."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
@@ -149,15 +157,15 @@ class TestDispatchTvshow:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", Path("/Volumes/Disk1/medias"), ["series"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
 
-            result = d.dispatch_tvshow(show_dir, "series")
+            result = d.dispatch_tvshow(show_dir, "tv_shows")
 
         assert result.action == "moved"
 
@@ -174,12 +182,13 @@ class TestProcess:
     def test_process_verified_items(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should dispatch each verified item."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
@@ -188,7 +197,7 @@ class TestProcess:
             VerifyResult(
                 media_path=movie_dir,
                 media_type="movie",
-                category="films",
+                category="movies",
                 status="valid",
             ),
         ]
@@ -196,10 +205,10 @@ class TestProcess:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", Path("/Volumes/Disk1/medias"), ["films"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
@@ -213,12 +222,13 @@ class TestProcess:
     def test_skip_no_category(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should skip items without a category."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         verified = [
             VerifyResult(
@@ -237,12 +247,13 @@ class TestProcess:
     def test_process_empty_verified(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should return empty results for empty verified list."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         results = d.process(verified=[])
         assert results == []
@@ -260,12 +271,13 @@ class TestVerifyTransfer:
     def test_matching_files(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should return True when all files match."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -281,12 +293,13 @@ class TestVerifyTransfer:
     def test_missing_file_fails(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should return False when dest file is missing."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -300,12 +313,13 @@ class TestVerifyTransfer:
     def test_size_mismatch_fails(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Should return False when file sizes differ."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -329,12 +343,13 @@ class TestReplace:
     def test_replace_rsync_failure_cleanup(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Rsync failure should clean tmp_new and return False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -354,12 +369,13 @@ class TestReplace:
     def test_replace_atomic_swap_failure_restore(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """If atomic swap fails, original should be restored from tmp_old."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -393,12 +409,13 @@ class TestReplace:
     def test_replace_success(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Successful replace: rsync → swap → cleanup old + source."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -434,12 +451,13 @@ class TestMerge:
     def test_merge_rsync_failure(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -455,12 +473,13 @@ class TestMerge:
     def test_merge_verify_failure(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Verification failure after rsync should return False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -480,12 +499,13 @@ class TestMerge:
     def test_merge_success(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Successful merge: rsync + verify → source removed."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -503,12 +523,13 @@ class TestMerge:
     def test_merge_os_error(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """OSError during merge should return False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -533,15 +554,16 @@ class TestMoveNew:
     def test_move_new_success(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Successful move: rsync to tmp → rename → verify → source removed."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
-        dest = tmp_path / "dest" / "films" / "Movie (2024)"
+        dest = tmp_path / "dest" / "movies" / "Movie (2024)"
         source.mkdir()
         (source / "file.mkv").write_bytes(b"\x00" * 1024)
 
@@ -564,15 +586,16 @@ class TestMoveNew:
     def test_move_new_rsync_failure(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False, dest should not exist."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
-        dest = tmp_path / "dest" / "films" / "Movie (2024)"
+        dest = tmp_path / "dest" / "movies" / "Movie (2024)"
         source.mkdir()
 
         with patch.object(d, "_rsync", return_value=False):
@@ -585,15 +608,16 @@ class TestMoveNew:
     def test_move_new_verify_failure(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Verification failure should return False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
-        dest = tmp_path / "dest" / "films" / "Movie (2024)"
+        dest = tmp_path / "dest" / "movies" / "Movie (2024)"
         source.mkdir()
 
         def mock_rsync(src, dst, **kwargs):
@@ -609,15 +633,16 @@ class TestMoveNew:
     def test_move_new_orphan_tmp_cleaned(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Existing orphan _tmp_dispatch_* is cleaned before new attempt."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
-        dest = tmp_path / "dest" / "films" / "Movie (2024)"
+        dest = tmp_path / "dest" / "movies" / "Movie (2024)"
         source.mkdir()
         (source / "file.mkv").write_bytes(b"\x00" * 1024)
 
@@ -649,12 +674,13 @@ class TestRsync:
     def test_rsync_success(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Successful rsync returns True."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -671,12 +697,13 @@ class TestRsync:
     def test_rsync_failure_returns_false(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Failed rsync (non-zero returncode) returns False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -692,12 +719,13 @@ class TestRsync:
     def test_rsync_timeout(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Timeout should return False."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -713,12 +741,13 @@ class TestRsync:
     def test_rsync_delete_flag(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """delete=True should include --delete flag."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -735,12 +764,13 @@ class TestRsync:
     def test_rsync_excludes_ds_store(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Rsync command should exclude .DS_Store and ._* files (Bug #1)."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -758,12 +788,13 @@ class TestRsync:
     def test_rsync_merge_excludes_ds_store(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Rsync merge command should also exclude .DS_Store and ._* files (Bug #1)."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
+        d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
@@ -792,6 +823,7 @@ class TestDispatchExisting:
     def test_dispatch_movie_replace_existing(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -799,19 +831,19 @@ class TestDispatchExisting:
         idx = MediaIndex(tmp_path / "index.json")
         from personalscraper.dispatch.media_index import IndexEntry
 
-        existing_path = tmp_path / "disk1" / "films" / "Matrix (1999)"
+        existing_path = tmp_path / "drive_a" / "movies" / "Matrix (1999)"
         existing_path.mkdir(parents=True)
         idx.add(
             IndexEntry(
                 name="Matrix (1999)",
-                disk="Disk1",
-                category="films",
+                disk="drive_a",
+                category="movies",
                 path=str(existing_path),
                 media_type="movie",
             )
         )
 
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Matrix (1999)"
         movie_dir.mkdir()
@@ -820,23 +852,24 @@ class TestDispatchExisting:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", tmp_path, ["films"]),
+                config=DiskConfig(id="drive_a", path=tmp_path, categories=["movies"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
 
-            result = d.dispatch_movie(movie_dir, "films")
+            result = d.dispatch_movie(movie_dir, "movies")
 
         assert result.action == "replaced"
-        assert result.disk == "Disk1"
+        assert result.disk == "drive_a"
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_dispatch_tvshow_merge_existing(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
@@ -844,19 +877,19 @@ class TestDispatchExisting:
         idx = MediaIndex(tmp_path / "index.json")
         from personalscraper.dispatch.media_index import IndexEntry
 
-        existing_path = tmp_path / "disk1" / "series" / "Fallout (2024)"
+        existing_path = tmp_path / "drive_a" / "tv_shows" / "Fallout (2024)"
         existing_path.mkdir(parents=True)
         idx.add(
             IndexEntry(
                 name="Fallout (2024)",
-                disk="Disk1",
-                category="series",
+                disk="drive_a",
+                category="tv_shows",
                 path=str(existing_path),
                 media_type="tvshow",
             )
         )
 
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
@@ -864,29 +897,30 @@ class TestDispatchExisting:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", tmp_path, ["series"]),
+                config=DiskConfig(id="drive_a", path=tmp_path, categories=["tv_shows"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
 
-            result = d.dispatch_tvshow(show_dir, "series")
+            result = d.dispatch_tvshow(show_dir, "tv_shows")
 
         assert result.action == "merged"
-        assert result.disk == "Disk1"
+        assert result.disk == "drive_a"
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_dispatch_movie_new_best_disk(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """New movie should be placed on disk with most free space."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "NewMovie (2024)"
         movie_dir.mkdir()
@@ -895,29 +929,30 @@ class TestDispatchExisting:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk3", Path("/Volumes/Disk3/medias"), ["films"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=800,
                 is_mounted=True,
             )
 
-            result = d.dispatch_movie(movie_dir, "films")
+            result = d.dispatch_movie(movie_dir, "movies")
 
         assert result.action == "moved"
-        assert result.disk == "Disk3"
+        assert result.disk == "drive_a"
 
     @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_dispatch_tvshow_new(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """New TV show should be moved to best disk."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         show_dir = tmp_path / "NewShow (2024)"
         show_dir.mkdir()
@@ -925,15 +960,15 @@ class TestDispatchExisting:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk2", Path("/Volumes/Disk2/medias"), ["series"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
                 free_space_gb=600,
                 is_mounted=True,
             )
 
-            result = d.dispatch_tvshow(show_dir, "series")
+            result = d.dispatch_tvshow(show_dir, "tv_shows")
 
         assert result.action == "moved"
 
@@ -941,12 +976,13 @@ class TestDispatchExisting:
     def test_dispatch_no_category_skip(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """VerifyResult without category should be skipped in process()."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         verified = [
             VerifyResult(
@@ -965,12 +1001,13 @@ class TestDispatchExisting:
     def test_dispatch_dry_run_no_transfer(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Dry run should not call rsync or modify filesystem."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "DryRunMovie (2024)"
         movie_dir.mkdir()
@@ -982,15 +1019,15 @@ class TestDispatchExisting:
             ) as mock_status,
             patch.object(d, "_rsync") as mock_rsync,
         ):
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", Path("/Volumes/Disk1/medias"), ["films"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
 
-            d.dispatch_movie(movie_dir, "films")
+            d.dispatch_movie(movie_dir, "movies")
 
         mock_rsync.assert_not_called()
         assert movie_dir.exists()
@@ -999,12 +1036,13 @@ class TestDispatchExisting:
     def test_process_tvshow_type(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Process with tvshow type should call dispatch_tvshow."""
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx, dry_run=True)
+        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         show_dir = tmp_path / "Show (2024)"
         show_dir.mkdir()
@@ -1013,7 +1051,7 @@ class TestDispatchExisting:
             VerifyResult(
                 media_path=show_dir,
                 media_type="tvshow",
-                category="series",
+                category="tv_shows",
                 status="valid",
             ),
         ]
@@ -1021,10 +1059,10 @@ class TestDispatchExisting:
         with patch(
             "personalscraper.dispatch.dispatcher.get_disk_status",
         ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskConfig, DiskStatus
+            from personalscraper.dispatch.disk_scanner import DiskStatus
 
             mock_status.return_value = DiskStatus(
-                config=DiskConfig("Disk1", Path("/Volumes/Disk1/medias"), ["series"]),
+                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
                 free_space_gb=500,
                 is_mounted=True,
             )
@@ -1047,23 +1085,22 @@ class TestOrphanCleanup:
     def test_cleans_tmp_dispatch_orphans(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Orphan _tmp_dispatch_* directories are cleaned up."""
-        from personalscraper.dispatch.disk_scanner import DiskConfig
-
         # Create disk structure with orphan
-        disk = tmp_path / "Disk1" / "medias"
-        films_dir = disk / "films"
-        films_dir.mkdir(parents=True)
-        orphan = films_dir / "_tmp_dispatch_Movie (2024)"
+        disk = tmp_path / "drive_a" / "medias"
+        movies_dir = disk / "movies"
+        movies_dir.mkdir(parents=True)
+        orphan = movies_dir / "_tmp_dispatch_Movie (2024)"
         orphan.mkdir()
         (orphan / "partial.mkv").write_bytes(b"\x00" * 512)
 
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
-        d._disk_configs = [DiskConfig("Disk1", disk, ["films"])]
+        d = Dispatcher(test_config, mock_settings, idx)
+        d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["movies"])]
 
         cleaned = d._cleanup_orphan_temps()
 
@@ -1074,14 +1111,13 @@ class TestOrphanCleanup:
     def test_cleans_merge_backup_orphans(
         self,
         mock_which: MagicMock,
+        test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
     ) -> None:
         """Orphan .merge_backup directories inside media dirs are cleaned."""
-        from personalscraper.dispatch.disk_scanner import DiskConfig
-
-        disk = tmp_path / "Disk1" / "medias"
-        series_dir = disk / "series"
+        disk = tmp_path / "drive_a" / "medias"
+        series_dir = disk / "tv_shows"
         show_dir = series_dir / "Show (2024)"
         show_dir.mkdir(parents=True)
         backup = show_dir / ".merge_backup"
@@ -1089,8 +1125,8 @@ class TestOrphanCleanup:
         (backup / "old_file.mkv").write_bytes(b"\x00" * 100)
 
         idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(mock_settings, idx)
-        d._disk_configs = [DiskConfig("Disk1", disk, ["series"])]
+        d = Dispatcher(test_config, mock_settings, idx)
+        d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["tv_shows"])]
 
         cleaned = d._cleanup_orphan_temps()
 

@@ -7,6 +7,7 @@ converts VerifyResult lists to StepReport.
 import logging
 from pathlib import Path
 
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
@@ -27,7 +28,7 @@ def _has_items_to_verify(settings: Settings) -> bool:
     Returns:
         True if at least one media folder exists.
     """
-    staging = settings.staging_dir
+    staging = Path(getattr(settings, "staging_dir", "."))
     for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
@@ -40,6 +41,7 @@ def _has_items_to_verify(settings: Settings) -> bool:
 
 def run_verify(
     settings: Settings,
+    config: Config,
     dry_run: bool = False,
     fix: bool = True,
     movies_only: bool = False,
@@ -49,6 +51,8 @@ def run_verify(
 
     Args:
         settings: Pipeline configuration.
+        config: V15 Config passed to the Verifier for classifier-backed
+            category resolution.
         dry_run: If True, preview without modifying files.
         fix: If True, attempt automatic corrections.
         movies_only: Process only 001-MOVIES/.
@@ -65,12 +69,13 @@ def run_verify(
     verifier = Verifier(
         settings=settings,
         patterns=PATTERNS,
+        config=config,
         dry_run=dry_run,
         fix=fix,
     )
 
     all_results: list[VerifyResult] = []
-    staging = Path(settings.staging_dir)
+    staging = Path(getattr(settings, "staging_dir", "."))
 
     if not tvshows_only:
         movies_dir = staging / settings.movies_dir_name

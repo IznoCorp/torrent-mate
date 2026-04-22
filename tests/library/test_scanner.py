@@ -1,8 +1,11 @@
 """Tests for personalscraper.library.scanner — lightweight disk scanner."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
+import pytest
+
+from personalscraper.conf import ids as CID
+from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_BAD_DIR_NAME,
@@ -15,6 +18,44 @@ from personalscraper.library.scanner import (
     scan_movie_dir,
     scan_tvshow_dir,
 )
+
+# ---------------------------------------------------------------------------
+# Minimal Config fixture for scanner tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def scanner_config(tmp_path: Path) -> Config:
+    """Minimal Config for scanner unit tests.
+
+    Two disks: drive_a (movies, tv_shows, audiobooks) and drive_b (tv_shows_animation).
+    Folder names follow the default_label pattern: "movies", "tv shows", etc.
+    """
+    return Config(
+        paths=PathConfig(
+            torrent_complete_dir=tmp_path / "torrents",
+            staging_dir=tmp_path / "staging",
+            data_dir=tmp_path / ".data",
+        ),
+        disks=[
+            DiskConfig(
+                id="drive_a",
+                path=tmp_path / "drive_a",
+                categories=[CID.MOVIES, CID.TV_SHOWS, CID.AUDIOBOOKS],
+            ),
+            DiskConfig(
+                id="drive_b",
+                path=tmp_path / "drive_b",
+                categories=[CID.TV_SHOWS_ANIMATION],
+            ),
+        ],
+        categories={
+            CID.MOVIES: CategoryConfig(folder_name="films"),
+            CID.TV_SHOWS: CategoryConfig(folder_name="series"),
+            CID.AUDIOBOOKS: CategoryConfig(folder_name="livres audios"),
+            CID.TV_SHOWS_ANIMATION: CategoryConfig(folder_name="series animations"),
+        },
+    )
 
 
 class TestScanMovieDir:
@@ -29,7 +70,7 @@ class TestScanMovieDir:
         (movie / "The Matrix-poster.jpg").write_bytes(b"\x00")
         (movie / "The Matrix-landscape.jpg").write_bytes(b"\x00")
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert item.title == "The Matrix"
         assert item.year == 1999
@@ -40,6 +81,7 @@ class TestScanMovieDir:
         assert item.artwork.landscape is True
         assert item.issues == []
         assert item.seasons is None
+        assert item.category == CID.MOVIES
 
     def test_movie_with_actors_dir(self, tmp_path: Path) -> None:
         """Movie with .actors/ should flag ISSUE_ACTORS_DIR."""
@@ -50,7 +92,7 @@ class TestScanMovieDir:
         (movie / ".actors").mkdir()
         (movie / ".actors" / "Actor.jpg").write_bytes(b"\x00")
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert item.actors_dir is True
         assert ISSUE_ACTORS_DIR in item.issues
@@ -61,7 +103,7 @@ class TestScanMovieDir:
         movie.mkdir()
         (movie / "NoNfo.mkv").write_bytes(b"\x00" * 1000)
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert item.nfo.present is False
         assert item.nfo.valid is False
@@ -73,7 +115,7 @@ class TestScanMovieDir:
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie / "Subs").mkdir()  # empty subdir
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert ISSUE_EMPTY_SUBDIR in item.issues
 
@@ -84,7 +126,7 @@ class TestScanMovieDir:
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie / ".DS_Store").write_bytes(b"\x00")
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert ISSUE_JUNK_FILES in item.issues
 
@@ -94,7 +136,7 @@ class TestScanMovieDir:
         movie.mkdir()
         (movie / "movie.mkv").write_bytes(b"\x00" * 1000)
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert item.year is None
         assert ISSUE_BAD_DIR_NAME in item.issues
@@ -106,7 +148,7 @@ class TestScanMovieDir:
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie / "._Movie.mkv").write_bytes(b"\x00" * 100)
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert ISSUE_JUNK_FILES in item.issues
 
@@ -116,7 +158,7 @@ class TestScanMovieDir:
         book.mkdir()
         (book / "Foundation.mp3").write_bytes(b"\x00" * 1000)
 
-        item = scan_movie_dir(book, disk="Disk1", category="livres audios")
+        item = scan_movie_dir(book, disk_id="drive_a", category_id=CID.AUDIOBOOKS)
 
         assert item.year is None
         assert ISSUE_BAD_DIR_NAME not in item.issues
@@ -127,7 +169,7 @@ class TestScanMovieDir:
         movie.mkdir()
         (movie / "Movie.mkv").write_bytes(b"\x00" * 1024 * 1024)  # 1 MB
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         # ~1 MB = ~0.001 GB, should be > 0
         assert item.folder_size_gb > 0
@@ -150,7 +192,7 @@ class TestScanTvshowDir:
         (s01 / "S01E01 - The Beginning.nfo").write_text("<episodedetails/>")
         (show / "season01-poster.jpg").write_bytes(b"\x00")
 
-        item = scan_tvshow_dir(show, disk="Disk1", category="series")
+        item = scan_tvshow_dir(show, disk_id="drive_a", category_id=CID.TV_SHOWS)
 
         assert item.title == "Fallout"
         assert item.year == 2024
@@ -162,6 +204,7 @@ class TestScanTvshowDir:
         assert item.seasons[0].episode_count == 1
         assert item.seasons[0].has_poster is True
         assert item.seasons[0].episodes_with_nfo == 1
+        assert item.category == CID.TV_SHOWS
 
     def test_show_multiple_seasons(self, tmp_path: Path) -> None:
         """Show with 2 seasons."""
@@ -176,7 +219,7 @@ class TestScanTvshowDir:
             for ep in range(1, 4):
                 (s / f"S0{sn}E0{ep} - Ep.mkv").write_bytes(b"\x00" * 100)
 
-        item = scan_tvshow_dir(show, disk="Disk2", category="series")
+        item = scan_tvshow_dir(show, disk_id="drive_a", category_id=CID.TV_SHOWS)
 
         assert len(item.seasons) == 2
         assert item.seasons[0].episode_count == 3
@@ -184,92 +227,87 @@ class TestScanTvshowDir:
 
 
 class TestScanLibrary:
-    """Tests for scan_library — full disk scanning."""
+    """Tests for scan_library — full disk scanning with Config."""
 
-    def _make_disk_config(self, path: Path, name: str, categories: list[str]):
-        """Create a mock DiskConfig."""
-        config = MagicMock()
-        config.path = path
-        config.name = name
-        config.categories = categories
-        return config
-
-    def test_scan_single_disk(self, tmp_path: Path) -> None:
-        """Scan a single disk with one movie."""
-        disk = tmp_path / "medias"
-        films = disk / "films"
+    def test_scan_single_disk(self, tmp_path: Path, scanner_config: Config) -> None:
+        """Scan a single disk with one movie — produces LibraryScanResult with category_id."""
+        disk_a = scanner_config.disks[0].path
+        films = disk_a / "films"
         films.mkdir(parents=True)
         movie = films / "Test (2024)"
         movie.mkdir()
         (movie / "Test.mkv").write_bytes(b"\x00" * 1000)
         (movie / "Test.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
 
-        config = self._make_disk_config(disk, "Disk1", ["films"])
-        result = scan_library([config])
+        result = scan_library(scanner_config.disks, config=scanner_config)
 
         assert isinstance(result, LibraryScanResult)
         assert result.item_count == 1
         assert result.items[0].title == "Test"
-        assert result.items[0].disk == "Disk1"
+        assert result.items[0].disk == "drive_a"
+        assert result.items[0].category == CID.MOVIES
 
-    def test_disk_filter(self, tmp_path: Path) -> None:
-        """--disk filter should only scan the specified disk."""
-        disk1 = tmp_path / "disk1" / "medias"
-        disk2 = tmp_path / "disk2" / "medias"
-        (disk1 / "films" / "A (2024)").mkdir(parents=True)
-        (disk2 / "films" / "B (2024)").mkdir(parents=True)
-        (disk1 / "films" / "A (2024)" / "a.mkv").write_bytes(b"\x00")
-        (disk2 / "films" / "B (2024)" / "b.mkv").write_bytes(b"\x00")
-
-        configs = [
-            self._make_disk_config(disk1, "Disk1", ["films"]),
-            self._make_disk_config(disk2, "Disk2", ["films"]),
-        ]
-        result = scan_library(configs, disk_filter="Disk1")
-
-        assert result.item_count == 1
-        assert result.items[0].disk == "Disk1"
-        assert result.disk_filter == "Disk1"
-
-    def test_category_filter(self, tmp_path: Path) -> None:
-        """--category filter should only scan the specified category."""
-        disk = tmp_path / "medias"
-        (disk / "films" / "Movie (2024)").mkdir(parents=True)
-        (disk / "series" / "Show (2024)").mkdir(parents=True)
-        (disk / "films" / "Movie (2024)" / "m.mkv").write_bytes(b"\x00")
-        (disk / "series" / "Show (2024)" / "s.mkv").write_bytes(b"\x00")
-
-        config = self._make_disk_config(disk, "Disk1", ["films", "series"])
-        result = scan_library([config], category_filter="films")
-
-        assert result.item_count == 1
-        assert result.items[0].category == "films"
-        assert result.category_filter == "films"
-
-    def test_unmounted_disk_skipped(self, tmp_path: Path) -> None:
-        """Unmounted disk (path doesn't exist) should be skipped."""
-        config = self._make_disk_config(
-            tmp_path / "nonexistent",
-            "Disk3",
-            ["films"],
+    def test_disk_filter(self, tmp_path: Path, scanner_config: Config) -> None:
+        """disk_filter should only scan the specified disk by disk.id."""
+        disk_a = scanner_config.disks[0].path
+        disk_b = scanner_config.disks[1].path
+        (disk_a / "films").mkdir(parents=True)
+        (disk_b / "series animations").mkdir(parents=True)
+        (disk_a / "films" / "A (2024)").mkdir()
+        (disk_a / "films" / "A (2024)" / "a.mkv").write_bytes(b"\x00")
+        (disk_b / "series animations" / "Anime (2024)").mkdir()
+        (disk_b / "series animations" / "Anime (2024)" / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
         )
-        result = scan_library([config])
+
+        result = scan_library(scanner_config.disks, config=scanner_config, disk_filter="drive_a")
+
+        assert result.item_count == 1
+        assert result.items[0].disk == "drive_a"
+        assert result.disk_filter == "drive_a"
+
+    def test_category_filter(self, tmp_path: Path, scanner_config: Config) -> None:
+        """category_filter should only scan the specified category_id."""
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        (disk_a / "series").mkdir(parents=True)
+        (disk_a / "films" / "Movie (2024)").mkdir()
+        (disk_a / "films" / "Movie (2024)" / "m.mkv").write_bytes(b"\x00")
+        (disk_a / "series" / "Show (2024)").mkdir()
+        (disk_a / "series" / "Show (2024)" / "tvshow.nfo").write_text(
+            '<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>'
+        )
+
+        result = scan_library(
+            scanner_config.disks,
+            config=scanner_config,
+            category_filter=CID.MOVIES,
+        )
+
+        assert result.item_count == 1
+        assert result.items[0].category == CID.MOVIES
+        assert result.category_filter == CID.MOVIES
+
+    def test_unmounted_disk_skipped(self, tmp_path: Path, scanner_config: Config) -> None:
+        """Unmounted disk (path doesn't exist) should be skipped."""
+        # drive_a and drive_b paths do not exist (not mkdir'd)
+        result = scan_library(scanner_config.disks, config=scanner_config)
 
         assert result.item_count == 0
 
-    def test_series_categories_scanned_as_tvshow(self, tmp_path: Path) -> None:
-        """Items in series categories should be scanned as tvshows."""
-        disk = tmp_path / "medias"
-        show = disk / "series" / "Show (2024)"
+    def test_tv_categories_scanned_as_tvshow(self, tmp_path: Path, scanner_config: Config) -> None:
+        """Items in TV category IDs should be scanned as tvshows."""
+        disk_a = scanner_config.disks[0].path
+        show = disk_a / "series" / "Show (2024)"
         show.mkdir(parents=True)
         (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s01 = show / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Ep.mkv").write_bytes(b"\x00" * 100)
 
-        config = self._make_disk_config(disk, "Disk1", ["series"])
-        result = scan_library([config])
+        result = scan_library(scanner_config.disks, config=scanner_config, category_filter=CID.TV_SHOWS)
 
+        assert result.item_count == 1
         assert result.items[0].media_type == "tvshow"
         assert result.items[0].seasons is not None
 
@@ -364,6 +402,6 @@ class TestNtfsUnsafeDetection:
         # Create file with colon (common in TMDB French titles)
         (movie / "Spirale : L'Héritage.txt").write_bytes(b"\x00")
 
-        item = scan_movie_dir(movie, disk="Disk1", category="films")
+        item = scan_movie_dir(movie, disk_id="drive_a", category_id=CID.MOVIES)
 
         assert ISSUE_NTFS_UNSAFE in item.issues

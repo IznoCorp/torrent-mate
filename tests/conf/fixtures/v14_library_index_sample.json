@@ -1,0 +1,132 @@
+{
+  "scanned_at": "2024-01-15T10:00:00+00:00",
+  "disk_filter": null,
+  "category_filter": null,
+  "item_count": 4,
+  "items": [
+    {
+      "path": "/Volumes/Disk1/medias/films/Inception (2010)",
+      "disk": "Disk1",
+      "category": "films",
+      "media_type": "movie",
+      "title": "Inception",
+      "year": 2010,
+      "folder_size_gb": 8.5,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "27205",
+        "imdb_id": "tt1375666"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2024-01-15T10:00:00+00:00"
+    },
+    {
+      "path": "/Volumes/Disk1/medias/films animations/Spirited Away (2001)",
+      "disk": "Disk1",
+      "category": "films animations",
+      "media_type": "movie",
+      "title": "Spirited Away",
+      "year": 2001,
+      "folder_size_gb": 4.2,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "129",
+        "imdb_id": "tt0245429"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2024-01-15T10:00:00+00:00"
+    },
+    {
+      "path": "/Volumes/Disk1/medias/series/Breaking Bad",
+      "disk": "Disk1",
+      "category": "series",
+      "media_type": "tvshow",
+      "title": "Breaking Bad",
+      "year": 2008,
+      "folder_size_gb": 42.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "1396",
+        "imdb_id": "tt0903747"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": true,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Volumes/Disk1/medias/series/Breaking Bad/Season 01",
+          "episode_count": 7,
+          "has_poster": true,
+          "episodes_with_nfo": 7
+        }
+      ],
+      "scanned_at": "2024-01-15T10:00:00+00:00"
+    },
+    {
+      "path": "/Volumes/Disk1/medias/emissions/My Show",
+      "disk": "Disk1",
+      "category": "emissions",
+      "media_type": "tvshow",
+      "title": "My Show",
+      "year": 2020,
+      "folder_size_gb": 5.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "9999",
+        "imdb_id": null
+      },
+      "artwork": {
+        "poster": false,
+        "fanart": false,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2024-01-15T10:00:00+00:00"
+    }
+  ]
+}

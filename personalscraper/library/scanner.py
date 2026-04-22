@@ -3,6 +3,10 @@
 Scans storage disks without ffprobe. Produces LibraryScanItem for each
 media directory found. Uses existing utilities: is_nfo_complete()
 and SEASON_DIR_RE.
+
+In V15, ``scan_library`` accepts a ``Config`` object and resolves folder names
+from ``config.category(id).folder_name``. ``LibraryScanItem.category`` stores
+the category_id (not the folder label).
 """
 
 from __future__ import annotations
@@ -15,8 +19,9 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 if TYPE_CHECKING:
-    from personalscraper.dispatch.disk_scanner import DiskConfig
+    from personalscraper.conf.models import Config, DiskConfig
 
+from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_BAD_DIR_NAME,
@@ -67,20 +72,6 @@ _VIDEO_EXTENSIONS = frozenset(
         "rmvb",
     }
 )
-
-# Categories that contain TV shows (matching dispatch/media_index.py convention)
-_SERIES_CATEGORIES = frozenset(
-    {
-        "series",
-        "series animations",
-        "series documentaires",
-        "series animes",
-        "emissions",
-    }
-)
-
-# Categories where "Author Name" naming (no year) is normal
-_AUTHOR_CATEGORIES = frozenset({"livres audios"})
 
 
 def parse_title_year(dirname: str) -> tuple[str, int | None]:
@@ -194,7 +185,7 @@ def _detect_issues(
     title: str,
     year: int | None,
     is_tvshow: bool,
-    category: str = "",
+    category_id: str = "",
 ) -> tuple[list[str], bool]:
     """Detect common issues in a media directory.
 
@@ -203,7 +194,7 @@ def _detect_issues(
         title: Parsed title.
         year: Parsed year (None if missing).
         is_tvshow: Whether this is a TV show.
-        category: Disk category name (used to skip year check for audiobooks).
+        category_id: Category ID (used to skip year check for audiobooks).
 
     Returns:
         Tuple of (issues list, actors_dir_present bool).
@@ -238,8 +229,8 @@ def _detect_issues(
         if _NTFS_ILLEGAL.search(name):
             issues.append(ISSUE_NTFS_UNSAFE)
 
-    # Bad directory naming (no year) — skip for audiobook categories
-    if year is None and category not in _AUTHOR_CATEGORIES:
+    # Bad directory naming (no year) — skip for audiobooks (author naming is normal)
+    if year is None and category_id != AUDIOBOOKS:
         issues.append(ISSUE_BAD_DIR_NAME)
 
     # Deduplicate (e.g. multiple junk files -> one issue)
@@ -294,13 +285,13 @@ def _scan_seasons(show_dir: Path) -> list[SeasonInfo]:
     return seasons
 
 
-def scan_movie_dir(movie_dir: Path, disk: str, category: str) -> LibraryScanItem:
+def scan_movie_dir(movie_dir: Path, disk_id: str, category_id: str) -> LibraryScanItem:
     """Scan a single movie directory and collect metadata.
 
     Args:
         movie_dir: Path to the movie directory.
-        disk: Disk name (e.g. "Disk1").
-        category: Category name (e.g. "films").
+        disk_id: Disk identifier (e.g. "disk_a").
+        category_id: Category ID (e.g. "movies").
 
     Returns:
         LibraryScanItem with all collected metadata.
@@ -322,13 +313,13 @@ def scan_movie_dir(movie_dir: Path, disk: str, category: str) -> LibraryScanItem
     )
 
     artwork = _check_artwork_movie(movie_dir, title)
-    issues, actors_dir = _detect_issues(movie_dir, title, year, is_tvshow=False, category=category)
+    issues, actors_dir = _detect_issues(movie_dir, title, year, is_tvshow=False, category_id=category_id)
     size_gb = _dir_size_gb(movie_dir)
 
     return LibraryScanItem(
         path=str(movie_dir),
-        disk=disk,
-        category=category,
+        disk=disk_id,
+        category=category_id,
         media_type="movie",
         title=title,
         year=year,
@@ -342,13 +333,13 @@ def scan_movie_dir(movie_dir: Path, disk: str, category: str) -> LibraryScanItem
     )
 
 
-def scan_tvshow_dir(show_dir: Path, disk: str, category: str) -> LibraryScanItem:
+def scan_tvshow_dir(show_dir: Path, disk_id: str, category_id: str) -> LibraryScanItem:
     """Scan a single TV show directory and collect metadata.
 
     Args:
         show_dir: Path to the TV show directory.
-        disk: Disk name (e.g. "Disk1").
-        category: Category name (e.g. "series").
+        disk_id: Disk identifier (e.g. "disk_a").
+        category_id: Category ID (e.g. "tv_shows").
 
     Returns:
         LibraryScanItem with all collected metadata including seasons.
@@ -370,14 +361,14 @@ def scan_tvshow_dir(show_dir: Path, disk: str, category: str) -> LibraryScanItem
     )
 
     artwork = _check_artwork_tvshow(show_dir)
-    issues, actors_dir = _detect_issues(show_dir, title, year, is_tvshow=True, category=category)
+    issues, actors_dir = _detect_issues(show_dir, title, year, is_tvshow=True, category_id=category_id)
     seasons = _scan_seasons(show_dir)
     size_gb = _dir_size_gb(show_dir)
 
     return LibraryScanItem(
         path=str(show_dir),
-        disk=disk,
-        category=category,
+        disk=disk_id,
+        category=category_id,
         media_type="tvshow",
         title=title,
         year=year,
@@ -393,18 +384,21 @@ def scan_tvshow_dir(show_dir: Path, disk: str, category: str) -> LibraryScanItem
 
 def scan_library(
     disk_configs: list[DiskConfig],
+    config: Config,
     disk_filter: str | None = None,
     category_filter: str | None = None,
 ) -> LibraryScanResult:
     """Scan all mounted storage disks and collect library inventory.
 
-    Iterates disk configs, filters by disk/category if specified,
-    scans each media directory, and produces a LibraryScanResult.
+    Iterates disk configs, resolves folder names from config.category(id).folder_name,
+    filters by disk/category if specified, and produces a LibraryScanResult.
+    LibraryScanItem.category stores the category_id (not the folder label).
 
     Args:
-        disk_configs: List of DiskConfig objects from Settings.
-        disk_filter: Only scan this disk (e.g. "Disk1"). None = all.
-        category_filter: Only scan this category (e.g. "films"). None = all.
+        disk_configs: List of DiskConfig objects from Config.
+        config: V15 Config used to resolve category folder_name → category_id.
+        disk_filter: Only scan this disk (by disk.id). None = all.
+        category_filter: Only scan this category_id. None = all.
 
     Returns:
         LibraryScanResult with all scanned items.
@@ -412,37 +406,40 @@ def scan_library(
     items: list[LibraryScanItem] = []
     start = datetime.now(tz=timezone.utc).isoformat()
 
-    for config in disk_configs:
-        # Disk filter
-        if disk_filter and config.name != disk_filter:
+    for disk in disk_configs:
+        # Disk filter (by disk.id)
+        if disk_filter and disk.id != disk_filter:
             continue
 
         # Skip unmounted disks
-        if not config.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", config.name, config.path)
+        if not disk.path.exists():
+            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
             continue
 
-        # Iterate categories
-        for category_dir in sorted(config.path.iterdir()):
-            if not category_dir.is_dir():
-                continue
-            category_name = category_dir.name
-            if category_name not in config.categories:
-                continue
-            if category_filter and category_name != category_filter:
+        # Iterate category IDs on this disk
+        for category_id in disk.categories:
+            if category_filter and category_id != category_filter:
                 continue
 
-            is_series = category_name in _SERIES_CATEGORIES
+            # Resolve physical folder name from config
+            cat_cfg = config.category(category_id)
+            category_dir = disk.path / cat_cfg.folder_name
+            if not category_dir.is_dir():
+                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
+                continue
+
+            # TV shows have season/episode structure; movies have single-file structure
+            is_tvshow = category_id in TV_CATEGORY_IDS
 
             # Iterate media directories
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
                     continue
                 try:
-                    if is_series:
-                        item = scan_tvshow_dir(media_dir, config.name, category_name)
+                    if is_tvshow:
+                        item = scan_tvshow_dir(media_dir, disk.id, category_id)
                     else:
-                        item = scan_movie_dir(media_dir, config.name, category_name)
+                        item = scan_movie_dir(media_dir, disk.id, category_id)
                     items.append(item)
                 except OSError as exc:
                     logger.warning("Error scanning %s: %s", media_dir, exc)

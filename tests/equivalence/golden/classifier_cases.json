@@ -1,0 +1,715 @@
+[
+  {
+    "media_type": "movie",
+    "genres": [
+      "Action"
+    ],
+    "genre_ids": [
+      28
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_id_action_fallback_to_films"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Comedy"
+    ],
+    "genre_ids": [
+      35
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_id_comedy_fallback_to_films"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Drama"
+    ],
+    "genre_ids": [
+      18
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_id_drama_fallback_to_films"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Thriller"
+    ],
+    "genre_ids": [
+      53
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_id_thriller_fallback_to_films"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Action",
+      "Thriller"
+    ],
+    "genre_ids": [
+      28,
+      53
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_id_multi_genre_no_special"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Action"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_string_action_fallback"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Drama",
+      "Romance"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_string_multi_no_special"
+  },
+  {
+    "media_type": "movie",
+    "genres": [],
+    "genre_ids": [],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films",
+    "scenario": "movies_empty_ids_fallback"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": [
+      16
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films animations",
+    "scenario": "movies_anim_id"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Animation",
+      "Action"
+    ],
+    "genre_ids": [
+      16,
+      28
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films animations",
+    "scenario": "movies_anim_id_with_action"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Animation",
+      "Documentary"
+    ],
+    "genre_ids": [
+      16,
+      99
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films animations",
+    "scenario": "movies_anim_id_beats_documentary"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "animation"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films animations",
+    "scenario": "movies_anim_string_lowercase"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films animations",
+    "scenario": "movies_anim_string_title_case"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Documentary"
+    ],
+    "genre_ids": [
+      99
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films documentaires",
+    "scenario": "movies_doc_id"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Documentary",
+      "Drama"
+    ],
+    "genre_ids": [
+      99,
+      18
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films documentaires",
+    "scenario": "movies_doc_id_with_drama"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "documentary"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films documentaires",
+    "scenario": "movies_doc_string_lowercase"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Documentaire"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films documentaires",
+    "scenario": "movies_doc_string_french"
+  },
+  {
+    "media_type": "movie",
+    "genres": [
+      "Documentary",
+      "Action"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "films documentaires",
+    "scenario": "movies_doc_string_with_action"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Drama"
+    ],
+    "genre_ids": [
+      18
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_id_drama_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Comedy"
+    ],
+    "genre_ids": [
+      35
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_id_comedy_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Action & Adventure"
+    ],
+    "genre_ids": [
+      10759
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_id_action_adventure_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Crime"
+    ],
+    "genre_ids": [
+      80
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_id_crime_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Drama"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_string_drama_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Fantasy"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_string_fantasy_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [],
+    "genre_ids": [],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_empty_ids_fallback"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Comedy",
+      "Drama"
+    ],
+    "genre_ids": [
+      35,
+      18
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series",
+    "scenario": "tv_id_multi_no_special"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": [
+      16
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series animations",
+    "scenario": "tv_anim_tmdb_no_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation",
+      "Comedy"
+    ],
+    "genre_ids": [
+      16,
+      35
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series animations",
+    "scenario": "tv_anim_tmdb_multi_no_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series animations",
+    "scenario": "tv_anim_string_no_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "animation"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series animations",
+    "scenario": "tv_anim_string_lowercase_no_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": [
+      17
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "series animations",
+    "scenario": "tv_anim_tvdb_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation",
+      "Comedy"
+    ],
+    "genre_ids": [
+      17,
+      35
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "series animations",
+    "scenario": "tv_anim_tvdb_multi"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Documentary"
+    ],
+    "genre_ids": [
+      99
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series documentaires",
+    "scenario": "tv_doc_tmdb_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Documentary",
+      "Drama"
+    ],
+    "genre_ids": [
+      99,
+      18
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series documentaires",
+    "scenario": "tv_doc_tmdb_with_drama"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "documentary"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series documentaires",
+    "scenario": "tv_doc_string_lowercase"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Documentaire"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series documentaires",
+    "scenario": "tv_doc_string_french"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Documentary"
+    ],
+    "genre_ids": [
+      3
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "series documentaires",
+    "scenario": "tv_doc_tvdb_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": [
+      16
+    ],
+    "origin_country": "JP",
+    "source": "tmdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_tmdb_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation",
+      "Action"
+    ],
+    "genre_ids": [
+      16,
+      28
+    ],
+    "origin_country": "JP",
+    "source": "tmdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_tmdb_jp_multi"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Animation"
+    ],
+    "genre_ids": null,
+    "origin_country": "JP",
+    "source": "tmdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_string_anim_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "animation"
+    ],
+    "genre_ids": null,
+    "origin_country": "JP",
+    "source": "tmdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_string_anim_lowercase_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "anime"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_string_name_no_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Anime"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_string_name_title_no_jp"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Anime"
+    ],
+    "genre_ids": [
+      27
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_tvdb_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Anime",
+      "Action"
+    ],
+    "genre_ids": [
+      27,
+      28
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "series animes",
+    "scenario": "anime_tvdb_multi"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Reality"
+    ],
+    "genre_ids": [
+      10764
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tmdb_reality_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Talk"
+    ],
+    "genre_ids": [
+      10767
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tmdb_talk_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "News"
+    ],
+    "genre_ids": [
+      10763
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tmdb_news_id"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Reality",
+      "Talk"
+    ],
+    "genre_ids": [
+      10764,
+      10767
+    ],
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tmdb_reality_talk"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "reality"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_string_reality"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "talk show"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_string_talk_show"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "news"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_string_news"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Émission"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_string_french_emission"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Divertissement"
+    ],
+    "genre_ids": null,
+    "origin_country": null,
+    "source": "tmdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_string_french_divertissement"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Reality"
+    ],
+    "genre_ids": [
+      8
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tvdb_reality"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "Talk"
+    ],
+    "genre_ids": [
+      10
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tvdb_talk"
+  },
+  {
+    "media_type": "tvshow",
+    "genres": [
+      "News"
+    ],
+    "genre_ids": [
+      11
+    ],
+    "origin_country": null,
+    "source": "tvdb",
+    "expected_v14_label": "emissions",
+    "scenario": "tv_prog_tvdb_news"
+  }
+]

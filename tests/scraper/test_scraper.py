@@ -466,6 +466,105 @@ class TestScrapeTvshow:
         assert result.nfo_written is True
         assert (show_dir / "tvshow.nfo").exists()
 
+    def test_tvdb_only_show_scraped_when_no_tmdb_crossref(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """TVDB-matched show with no TMDB cross-ref should be scraped, not aborted.
+
+        Reproduces Bug 3: "Top Chef France" matches on TVDB with high confidence
+        but has no TMDB equivalent. Current code sets error="No TMDB ID available"
+        and returns. Fix: continue with TVDB-only data (rename, NFO, artwork).
+        """
+        show_dir = tmp_path / "Top Chef France (2010)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=99999,
+            api_title="Top Chef France",
+            api_year=2010,
+            confidence=0.98,
+            source="tvdb",
+        )
+        tvdb_series_data = {
+            "id": 99999,
+            "name": "Top Chef France",
+            "originalName": "Top Chef France",
+            "overview": "French cooking competition.",
+            "status": {"name": "Continuing"},
+            "genres": [{"name": "Reality"}],
+            "seasons": [],
+            "contentRatings": [],
+            "remoteIds": [],  # No TMDB cross-ref
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tvdb, "get_series", return_value=tvdb_series_data),
+            patch.object(scraper._tvdb, "get_remote_ids", return_value={}),  # No tmdb_id
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        # Must NOT abort — should complete the scrape with TVDB data
+        assert result.action == "scraped", f"Expected scraped, got {result.action} ({result.error})"
+        assert result.error is None
+        assert result.nfo_written is True
+        assert (show_dir / "tvshow.nfo").exists()
+
+    def test_tvdb_only_show_scraped_when_tmdb_404(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """TVDB-matched show that 404s on TMDB should be scraped, not aborted.
+
+        Reproduces Bug 3 variant: tmdb_id is found in remoteIds, but TMDB
+        returns 404 (show deleted / mismatched). Fix: fall back to TVDB-only data.
+        """
+        from personalscraper.scraper.tmdb_client import TMDBError
+
+        show_dir = tmp_path / "Top Chef France (2010)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=99999,
+            api_title="Top Chef France",
+            api_year=2010,
+            confidence=0.98,
+            source="tvdb",
+        )
+        tvdb_series_data = {
+            "id": 99999,
+            "name": "Top Chef France",
+            "originalName": "Top Chef France",
+            "overview": "French cooking competition.",
+            "status": {"name": "Continuing"},
+            "genres": [{"name": "Reality"}],
+            "seasons": [],
+            "contentRatings": [],
+            "remoteIds": [{"sourceName": "TheMovieDB.com", "id": "777"}],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tvdb, "get_series", return_value=tvdb_series_data),
+            patch.object(scraper._tvdb, "get_remote_ids", return_value={"tmdb_id": "777"}),
+            patch.object(
+                scraper._tmdb,
+                "get_tv",
+                side_effect=TMDBError(404, 34, "The resource you requested could not be found."),
+            ),
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        # Must NOT abort — fall back to TVDB-only data
+        assert result.action == "scraped", f"Expected scraped, got {result.action} ({result.error})"
+        assert result.error is None
+        assert result.nfo_written is True
+
 
 # ---------------------------------------------------------------------------
 # Batch TV show processing
@@ -1009,24 +1108,164 @@ class TestRepairTvshowDir:
         assert not (show_dir / "S01E01.nfo").exists()
         assert not (show_dir / "S01E02.nfo").exists()
 
-    def test_root_video_not_matching_season_kept(
+    def test_root_video_not_matching_season_organized(
         self,
         tmp_path: Path,
         scraper: Scraper,
     ) -> None:
-        """Root video NOT matching any organized episode is kept (not deleted)."""
+        """Root video for new episode (not in any Saison XX/) is organized via TMDB.
+
+        S01E05 at root while S01E01 is already organized — the new episode should
+        be renamed and moved to Saison 01/ when TMDB data is available.
+        """
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
         s01 = show_dir / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
-        # Root video with different episode number — should be kept
+        # Root video with different episode number — new episode, should be organized
         orphan = show_dir / "Show.S01E05.mkv"
         orphan.write_bytes(b"\x00" * 50)
 
+        show_data = {"id": 1, "name": "Show", "seasons": [{"season_number": 1}]}
+        season_data = {"episodes": [{"episode_number": 5, "name": "Episode 5", "still_path": ""}]}
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._tmdb, "get_tv_season", return_value=season_data),
+            patch.object(scraper, "_generate_episode_nfos"),
+        ):
+            repaired = scraper._repair_tvshow_dir(show_dir)
+
+        # New root episode should have been organized (moved out of root)
+        assert repaired is True
+        assert not orphan.exists(), "Root new episode should have been moved to Saison 01/"
+        organized = list(s01.glob("S01E05*"))
+        assert len(organized) >= 1
+
+    def test_root_new_episode_organized_into_season_dir(
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
+    ) -> None:
+        """Root MKV for a NEW episode (not yet in Saison XX/) is renamed and moved.
+
+        Reproduces Bug 1: show has valid tvshow.nfo + Saison 05/ with S05E01-E02,
+        then S05E03.mkv lands at root. The repair should move it to Saison 05/
+        with the proper canonical name.
+        """
+        show_dir = tmp_path / "The Boys (2019)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>')
+        s05 = show_dir / "Saison 05"
+        s05.mkdir()
+        (s05 / "S05E01 - Episode 1.mkv").write_bytes(b"\x00" * 100)
+        (s05 / "S05E02 - Episode 2.mkv").write_bytes(b"\x00" * 100)
+        # New episode at root — NOT yet organized
+        root_new = show_dir / "The.Boys.S05E03.2160p.mkv"
+        root_new.write_bytes(b"\x00" * 200)
+
+        show_data = {
+            "id": 76479,
+            "name": "The Boys",
+            "seasons": [{"season_number": 5}],
+        }
+        season_data = {
+            "episodes": [
+                {"episode_number": 3, "name": "Episode 3", "still_path": ""},
+            ]
+        }
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._tmdb, "get_tv_season", return_value=season_data),
+            patch.object(scraper, "_generate_episode_nfos"),
+        ):
+            repaired = scraper._repair_tvshow_dir(show_dir)
+
+        assert repaired is True
+        # The original root file should be gone (moved)
+        assert not root_new.exists()
+        # A file for S05E03 should now exist somewhere under Saison 05/
+        organized = list(s05.glob("S05E03*"))
+        assert len(organized) >= 1, f"Expected S05E03 in Saison 05/, got: {list(s05.iterdir())}"
+
+    def test_root_new_episode_dedup_keeps_newest(
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
+    ) -> None:
+        """When multiple root files match same SxxExx, only the newest is kept.
+
+        Reproduces the dedup rule: two qualities (4K DV HDR + 1080p) for S05E03
+        at root — the newer file wins, the older one is deleted before organizing.
+        """
+        show_dir = tmp_path / "The Boys (2019)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">76479</uniqueid></tvshow>')
+        s05 = show_dir / "Saison 05"
+        s05.mkdir()
+        (s05 / "S05E01 - Episode 1.mkv").write_bytes(b"\x00" * 100)
+
+        # Two qualities for S05E03 at root — older and newer
+        older = show_dir / "The.Boys.S05E03.1080p.mkv"
+        older.write_bytes(b"\x00" * 100)
+        # Ensure mtime differs
+        import os
+
+        os.utime(older, (older.stat().st_atime, older.stat().st_mtime - 60))
+        newer = show_dir / "The.Boys.S05E03.2160p.DV.HDR.mkv"
+        newer.write_bytes(b"\x00" * 200)
+
+        show_data = {
+            "id": 76479,
+            "name": "The Boys",
+            "seasons": [{"season_number": 5}],
+        }
+        season_data = {
+            "episodes": [
+                {"episode_number": 3, "name": "Episode 3", "still_path": ""},
+            ]
+        }
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._tmdb, "get_tv_season", return_value=season_data),
+            patch.object(scraper, "_generate_episode_nfos"),
+        ):
+            repaired = scraper._repair_tvshow_dir(show_dir)
+
+        assert repaired is True
+        # Older duplicate at root must be deleted
+        assert not older.exists(), "Older duplicate should have been deleted"
+        # Newer was moved to Saison 05/, root must be clear
+        assert not newer.exists(), "Newer should have been moved (not at root)"
+        # One episode in Saison 05/ for S05E03
+        organized = list(s05.glob("S05E03*"))
+        assert len(organized) >= 1
+
+    def test_root_new_episode_skipped_when_no_tmdb_id(
+        self,
+        tmp_path: Path,
+        scraper: Scraper,
+    ) -> None:
+        """Root new episodes are left intact when tvshow.nfo has no TMDB ID."""
+        show_dir = tmp_path / "Show (2025)"
+        show_dir.mkdir()
+        # NFO without TMDB ID (TVDB-only show)
+        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">9999</uniqueid></tvshow>')
+        s01 = show_dir / "Saison 01"
+        s01.mkdir()
+        (s01 / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
+        # New episode at root
+        root_new = show_dir / "Show.S01E02.mkv"
+        root_new.write_bytes(b"\x00" * 200)
+
         scraper._repair_tvshow_dir(show_dir)
-        assert orphan.exists()
+
+        # Nothing should be done for new root episodes without TMDB ID
+        assert root_new.exists(), "Root new episode should NOT be deleted when no TMDB ID"
 
 
 class TestStripTrailingYear:
@@ -1135,3 +1374,366 @@ class TestMediaPathUpdatedAfterRename:
         assert result.media_path == expected_path
         assert expected_path.exists()
         assert not show_dir.exists()
+
+
+# ---------------------------------------------------------------------------
+# Classifier integration (Phase 7.3)
+# ---------------------------------------------------------------------------
+
+
+class TestClassifierIntegration:
+    """Tests for Scraper classifier.classify() wiring."""
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings with required attributes."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        settings.circuit_breaker_threshold = 5
+        settings.circuit_breaker_cooldown = 300
+        settings.artwork_language = "fr"
+        settings.scraper_prefer_local_title = False
+        return settings
+
+    @pytest.fixture
+    def test_config(self, tmp_path: Path):
+        """Build a minimal Config for classification tests."""
+        # test_config is a pytest fixture — call it via the fixture system
+        # Here we replicate its logic directly for isolation
+        from personalscraper.conf import ids as CID
+        from personalscraper.conf.models import (
+            AnimeRule,
+            CategoryConfig,
+            Config,
+            DiskConfig,
+            GenreMapping,
+            PathConfig,
+        )
+
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "torrents",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=[CID.MOVIES, CID.TV_SHOWS, CID.ANIME]),
+                DiskConfig(id="drive_b", path=tmp_path / "drive_b", categories=[CID.MOVIES_ANIMATION]),
+                DiskConfig(
+                    id="drive_c",
+                    path=tmp_path / "drive_c",
+                    categories=[
+                        CID.MOVIES_DOCUMENTARY,
+                        CID.TV_SHOWS_DOCUMENTARY,
+                        CID.STANDUP,
+                        CID.TV_PROGRAMS,
+                        CID.AUDIOBOOKS,
+                        CID.THEATER,
+                        CID.TV_SHOWS_ANIMATION,
+                    ],
+                ),
+            ],
+            categories={cid: CategoryConfig(folder_name=f"cat_{cid}") for cid in CID.BUILTIN_CATEGORY_IDS},
+            genre_mapping=GenreMapping(
+                tmdb_movies={16: CID.MOVIES_ANIMATION, 99: CID.MOVIES_DOCUMENTARY},
+                tmdb_tv={16: CID.TV_SHOWS_ANIMATION, 99: CID.TV_SHOWS_DOCUMENTARY},
+                default_movies_category=CID.MOVIES,
+                default_tv_category=CID.TV_SHOWS,
+            ),
+            anime_rule=AnimeRule(
+                enabled=True,
+                requires_genre_id=16,
+                requires_origin_country=["JP"],
+                maps_to=CID.ANIME,
+                applies_to="tv",
+            ),
+        )
+
+    def test_classify_called_for_movie(self, mock_settings: MagicMock, test_config, tmp_path: Path) -> None:
+        """classify() is called and category_id is set on ScrapeResult."""
+        from personalscraper.conf import ids as CID
+
+        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+            scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
+
+        movie_dir = tmp_path / "Spirited Away (2001)"
+        movie_dir.mkdir()
+        (movie_dir / "Spirited Away.mkv").write_text("video")
+
+        match = MatchResult(api_id=129, api_title="Spirited Away", api_year=2001, confidence=0.97, source="tmdb")
+        # Animation (genre_id=16) + JP origin → movies_animation via genre_mapping
+        movie_data = {
+            "id": 129,
+            "title": "Spirited Away",
+            "overview": "...",
+            "vote_average": 8.5,
+            "vote_count": 5000,
+            "genres": [{"id": 16, "name": "Animation"}],
+            "origin_country": ["JP"],
+            "release_date": "2001-07-20",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt0245429"},
+            "release_dates": {"results": []},
+            "production_countries": [{"iso_3166_1": "JP", "name": "Japan"}],
+            "production_companies": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        # Animation genre_id=16 → movies_animation via genre_mapping
+        assert result.category_id == CID.MOVIES_ANIMATION
+
+    def test_classify_called_for_tvshow(self, mock_settings: MagicMock, test_config, tmp_path: Path) -> None:
+        """classify() is called for TV shows and sets category_id."""
+        from personalscraper.conf import ids as CID
+
+        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+            scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
+
+        show_dir = tmp_path / "Breaking Bad (2008)"
+        show_dir.mkdir()
+
+        match = MatchResult(api_id=1396, api_title="Breaking Bad", api_year=2008, confidence=0.99, source="tmdb")
+        show_data = {
+            "id": 1396,
+            "name": "Breaking Bad",
+            "original_name": "Breaking Bad",
+            "overview": "...",
+            "vote_average": 9.5,
+            "vote_count": 11000,
+            "genres": [{"id": 18, "name": "Drama"}],  # Drama → tv_shows default
+            "first_air_date": "2008-01-20",
+            "number_of_episodes": 62,
+            "number_of_seasons": 5,
+            "status": "Ended",
+            "networks": [{"name": "AMC"}],
+            "aggregate_credits": {"cast": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt0903747", "tvdb_id": 81189},
+            "content_ratings": {"results": []},
+            "origin_country": ["US"],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        assert result.action == "scraped"
+        assert result.category_id == CID.TV_SHOWS  # default for non-matching TV genres
+
+    def test_keywords_not_fetched_when_no_keyword_rules(
+        self, mock_settings: MagicMock, test_config, tmp_path: Path
+    ) -> None:
+        """When no category_rules use tmdb_keyword, keywords API is never called."""
+        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+            scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
+
+        # Ensure no keyword rules are configured (test_config has none)
+        assert scraper._needs_keywords is False
+
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "video.mkv").write_text("v")
+
+        match = MatchResult(api_id=603, api_title="The Matrix", api_year=1999, confidence=0.95, source="tmdb")
+        movie_data = {
+            "id": 603,
+            "title": "The Matrix",
+            "overview": "...",
+            "vote_average": 8.2,
+            "vote_count": 20000,
+            "genres": [{"id": 28, "name": "Action"}],
+            "release_date": "1999-03-31",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt0133093"},
+            "release_dates": {"results": []},
+            "production_countries": [],
+            "production_companies": [],
+        }
+
+        get_keywords_called = []
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(
+                scraper._tmdb,
+                "get_keywords",
+                side_effect=lambda *a, **k: get_keywords_called.append(True) or [],
+            ),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            scraper.scrape_movie(movie_dir)
+
+        assert get_keywords_called == [], "get_keywords() should not be called when no keyword rules exist"
+
+    def test_keywords_fetched_when_keyword_rules_configured(self, mock_settings: MagicMock, tmp_path: Path) -> None:
+        """When a category_rule uses tmdb_keyword, keywords are fetched via cache."""
+        from personalscraper.conf import ids as CID
+        from personalscraper.conf.models import (
+            AnimeRule,
+            CategoryConfig,
+            CategoryRule,
+            Config,
+            DiskConfig,
+            GenreMapping,
+            PathConfig,
+        )
+
+        # Config with a tmdb_keyword rule
+        config_with_kw = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "torrents",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[
+                DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=[CID.MOVIES, CID.STANDUP]),
+            ],
+            categories={cid: CategoryConfig(folder_name=f"cat_{cid}") for cid in CID.BUILTIN_CATEGORY_IDS},
+            category_rules=[
+                CategoryRule(tmdb_keyword=["stand-up-comedy"], category=CID.STANDUP, applies_to="movie"),
+            ],
+            genre_mapping=GenreMapping(default_movies_category=CID.MOVIES, default_tv_category=CID.TV_SHOWS),
+            anime_rule=AnimeRule(
+                enabled=False,
+                requires_genre_id=16,
+                requires_origin_country=["JP"],
+                maps_to=CID.ANIME,
+            ),
+        )
+
+        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+            scraper = Scraper(mock_settings, NamingPatterns(), config=config_with_kw)
+
+        assert scraper._needs_keywords is True
+
+        movie_dir = tmp_path / "Dave Chappelle (2024)"
+        movie_dir.mkdir()
+        (movie_dir / "video.mkv").write_text("v")
+
+        match = MatchResult(api_id=999, api_title="Dave Chappelle", api_year=2024, confidence=0.92, source="tmdb")
+        movie_data = {
+            "id": 999,
+            "title": "Dave Chappelle",
+            "overview": "...",
+            "vote_average": 7.5,
+            "vote_count": 500,
+            "genres": [{"id": 35, "name": "Comedy"}],
+            "release_date": "2024-01-01",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt1234567"},
+            "release_dates": {"results": []},
+            "production_countries": [],
+            "production_companies": [],
+        }
+
+        get_keywords_called = []
+
+        def fake_get_keywords(tmdb_id: int, media_type: str) -> list[str]:
+            get_keywords_called.append((tmdb_id, media_type))
+            return ["stand-up-comedy"]
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch.object(scraper._tmdb, "get_keywords", side_effect=fake_get_keywords),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert get_keywords_called == [(999, "movie")], "get_keywords() should be called once"
+        assert result.category_id == CID.STANDUP
+
+    def test_skip_no_category_when_config_present(self, mock_settings: MagicMock, test_config, tmp_path: Path) -> None:
+        """When config is set but classify() returns None, action is skipped_no_category."""
+        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+            scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
+
+        movie_dir = tmp_path / "Unknown (2024)"
+        movie_dir.mkdir()
+        (movie_dir / "video.mkv").write_text("v")
+
+        match = MatchResult(api_id=1, api_title="Unknown", api_year=2024, confidence=0.95, source="tmdb")
+        movie_data = {
+            "id": 1,
+            "title": "Unknown",
+            "overview": "...",
+            "vote_average": 5.0,
+            "vote_count": 10,
+            "genres": [],
+            "release_date": "2024-01-01",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {},
+            "release_dates": {"results": []},
+            "production_countries": [],
+            "production_companies": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+            patch("personalscraper.scraper.scraper._classifier.classify", return_value=(None, "no_match")),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "skipped_no_category"
+        assert result.category_id is None
+
+    def test_no_config_skips_classification(self, mock_settings: MagicMock, tmp_path: Path) -> None:
+        """Without config, classify() is never called and category_id stays None."""
+        with patch("personalscraper.scraper.scraper.TMDBClient"):
+            scraper = Scraper(mock_settings, NamingPatterns())  # no config
+
+        assert scraper.config is None
+        assert scraper._needs_keywords is False
+
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "video.mkv").write_text("v")
+
+        match = MatchResult(api_id=603, api_title="The Matrix", api_year=1999, confidence=0.95, source="tmdb")
+        movie_data = {
+            "id": 603,
+            "title": "The Matrix",
+            "overview": "...",
+            "vote_average": 8.2,
+            "vote_count": 20000,
+            "genres": [{"id": 28, "name": "Action"}],
+            "release_date": "1999-03-31",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt0133093"},
+            "release_dates": {"results": []},
+            "production_countries": [],
+            "production_companies": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(scraper._artwork, "download_movie_artwork", return_value=[]),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        assert result.action == "scraped"
+        assert result.category_id is None  # classification skipped

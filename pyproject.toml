@@ -36,6 +36,7 @@ dependencies = [
     "tenacity>=9.1.0",
     "rich>=14.0.0",
     "structlog>=25.0.0",
+    "json5>=0.9.14",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +68,7 @@ markers = [
     "e2e_torrent: Pipeline E2E with real torrent downloads (manual only, costs ratio)",
     "e2e_idempotence: E2E idempotence tests on real staging data (manual only)",
 ]
-addopts = "-m 'not e2e and not e2e_torrent'"
+addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence'"
 
 [tool.ruff]
 target-version = "py310"

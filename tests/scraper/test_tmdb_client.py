@@ -700,3 +700,74 @@ class TestTMDBCircuitBreaker:
 
         assert isinstance(client.circuit, CircuitBreaker)
         assert client.circuit.name == "TMDB"
+
+
+# ---------------------------------------------------------------------------
+# TMDBClient.get_keywords — /keywords endpoint
+# ---------------------------------------------------------------------------
+
+
+class TestGetKeywords:
+    """Tests for TMDBClient.get_keywords()."""
+
+    def test_movie_keywords_success(self, client: TMDBClient) -> None:
+        """Movie keywords: response uses 'keywords' key."""
+        payload = {
+            "id": 123,
+            "keywords": [{"id": 1, "name": "stand-up-comedy"}, {"id": 2, "name": "one-man-show"}],
+        }
+        mock_resp = _mock_response(200, payload)
+        with patch.object(client._session, "get", return_value=mock_resp):
+            result = client.get_keywords(123, "movie")
+        assert result == ["stand-up-comedy", "one-man-show"]
+
+    def test_tv_keywords_success(self, client: TMDBClient) -> None:
+        """TV keywords: response uses 'results' key."""
+        payload = {
+            "id": 456,
+            "results": [{"id": 10, "name": "anime"}, {"id": 11, "name": "based-on-manga"}],
+        }
+        mock_resp = _mock_response(200, payload)
+        with patch.object(client._session, "get", return_value=mock_resp):
+            result = client.get_keywords(456, "tv")
+        assert result == ["anime", "based-on-manga"]
+
+    def test_empty_keywords(self, client: TMDBClient) -> None:
+        """Response with empty list returns empty list."""
+        mock_resp = _mock_response(200, {"id": 789, "keywords": []})
+        with patch.object(client._session, "get", return_value=mock_resp):
+            result = client.get_keywords(789, "movie")
+        assert result == []
+
+    def test_404_returns_empty_list(self, client: TMDBClient) -> None:
+        """HTTP 404 is fail-soft: returns [] without raising."""
+        payload = {"status_code": 34, "status_message": "The resource you requested could not be found."}
+        mock_resp = _mock_response(404, payload, reason="Not Found")
+        with patch.object(client._session, "get", return_value=mock_resp):
+            result = client.get_keywords(999, "movie")
+        assert result == []
+
+    def test_500_returns_empty_list_with_warning(self, client: TMDBClient, caplog: pytest.LogCaptureFixture) -> None:
+        """HTTP 500 after retries exhausted returns [] and logs a warning."""
+        payload = {"status_code": 11, "status_message": "Internal error: something went wrong."}
+        mock_resp = _mock_response(500, payload, reason="Internal Server Error")
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            with patch.object(client._session, "get", return_value=mock_resp):
+                result = client.get_keywords(100, "tv")
+        assert result == []
+        # Warning must mention the media_type and tmdb_id
+        assert any("100" in r.message and "tv" in r.message for r in caplog.records)
+
+    def test_timeout_returns_empty_list_with_warning(
+        self, client: TMDBClient, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Timeout returns [] and logs a warning."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            with patch.object(client._session, "get", side_effect=requests.exceptions.Timeout("timed out")):
+                result = client.get_keywords(200, "movie")
+        assert result == []
+        assert any("200" in r.message for r in caplog.records)

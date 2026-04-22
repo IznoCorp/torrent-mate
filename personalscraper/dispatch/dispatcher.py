@@ -1,10 +1,14 @@
 """Media dispatch orchestrator: replace, merge, and move operations.
 
 Handles cross-filesystem transfers from staging area (A TRIER/) to
-storage disks (Disk1-4) using rsync for reliability. Movies are
-replaced (delete old + move new), TV shows are merged (add new episodes).
+storage disks using rsync for reliability. Movies are replaced
+(delete old + move new), TV shows are merged (add new episodes).
 
-The category is provided by V4 verify (VerifyResult.category).
+V15 P6.3: Dispatcher now accepts ``Config`` as first argument. Category routing
+uses ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for`` instead of
+the removed ``choose_disk()`` + hardcoded DISK_CATEGORIES. The ``category``
+parameter is now a category_id (V15 ID, e.g. ``"movies"``) rather than a V14
+label (e.g. ``"films"``).
 """
 
 import logging
@@ -18,14 +22,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from personalscraper.conf import resolver
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
-from personalscraper.dispatch.disk_scanner import (
-    choose_disk,
-    get_disk_configs,
-    get_disk_status,
-)
+from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
-from personalscraper.genre_mapper import GenreMapper
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
@@ -112,12 +113,17 @@ class Dispatcher:
     Handles replace (movies), merge (TV shows), and new item placement
     using rsync for cross-filesystem transfers.
 
+    V15 P6.3: accepts ``Config`` as first argument; routing uses
+    ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for``
+    instead of the removed ``choose_disk()`` + DISK_CATEGORIES.
+
     Attributes:
         dry_run: If True, preview operations without transferring.
     """
 
     def __init__(
         self,
+        config: Config,
         settings: Settings,
         index: MediaIndex,
         dry_run: bool = False,
@@ -125,18 +131,19 @@ class Dispatcher:
         """Initialize the dispatcher.
 
         Args:
-            settings: Pipeline configuration with disk paths.
+            config: Loaded Config with disk definitions and category mapping.
+            settings: Pipeline settings with numeric thresholds and credentials.
             index: Media index for existing media lookup.
             dry_run: If True, preview without modifying files.
 
         Raises:
             DispatchError: If rsync is not available.
         """
+        self.config = config
         self.settings = settings
         self.index = index
         self.dry_run = dry_run
-        self._genre_mapper = GenreMapper()
-        self._disk_configs = get_disk_configs(settings)
+        self._disk_configs = get_disk_configs(config)
 
         # Verify rsync is available
         if not shutil.which("rsync"):
@@ -160,7 +167,7 @@ class Dispatcher:
             except OSError as e:
                 logger.warning(
                     "Cannot scan %s for orphans: %s",
-                    config.name,
+                    config.id,
                     e,
                 )
                 continue
@@ -237,12 +244,80 @@ class Dispatcher:
 
         return results
 
-    def dispatch_movie(self, movie_dir: Path, category: str) -> DispatchResult:
+    def _resolve_existing_on_filesystem(
+        self,
+        name: str,
+        media_type: str,
+    ) -> IndexEntry | None:
+        """Resolve an existing entry for ``name`` validated against the filesystem.
+
+        media_index can drift when the user moves folders manually between disks.
+        This helper trusts the filesystem over the index :
+
+        1. Look up ``name`` in the in-memory index.
+        2. If the stored path still exists → return the entry unchanged.
+        3. If not → scan every configured disk for a directory named exactly
+           ``name`` (under any category folder). If found, return a synthetic
+           IndexEntry pointing at the real location (disk_id + path resolved
+           from filesystem). The in-memory index is NOT mutated — persistence
+           is library-scan's job, not dispatch's.
+        4. If nowhere on any disk → return ``None`` (truly new).
+
+        Args:
+            name: Directory name (source folder basename).
+            media_type: ``"movie"`` or ``"tvshow"``.
+
+        Returns:
+            IndexEntry with a validated (existing) path, or ``None`` if the
+            item is not present on any disk.
+        """
+        entry = self.index.find(name, media_type)
+        if entry is not None and Path(entry.path).exists():
+            return entry
+
+        # Index says a location that doesn't exist — scan disks for reality.
+        for disk_cfg in self._disk_configs:
+            if not disk_cfg.path.exists():
+                continue
+            try:
+                category_dirs = [p for p in disk_cfg.path.iterdir() if p.is_dir()]
+            except OSError:
+                continue
+            for category_dir in category_dirs:
+                candidate = category_dir / name
+                if candidate.is_dir():
+                    if entry is not None:
+                        logger.warning(
+                            "media_index drift detected for '%s': index says %s at %s, "
+                            "filesystem has it on %s — using filesystem truth",
+                            name,
+                            entry.disk,
+                            entry.path,
+                            disk_cfg.id,
+                        )
+                    return IndexEntry(
+                        name=name,
+                        disk=disk_cfg.id,
+                        category=(entry.category if entry else category_dir.name),
+                        path=str(candidate),
+                        media_type=media_type,
+                    )
+
+        if entry is not None:
+            logger.warning(
+                "media_index stale entry for '%s': path %s does not exist on any disk, "
+                "treating as NEW (dispatch will pick best disk)",
+                name,
+                entry.path,
+            )
+        return None
+
+    def dispatch_movie(self, movie_dir: Path, category_id: str) -> DispatchResult:
         """Dispatch a movie: replace if exists, move to best disk if new.
 
         Args:
             movie_dir: Source movie directory.
-            category: Dispatch category from V4.
+            category_id: V15 category ID (e.g. ``"movies"``) from the classifier.
 
         Returns:
             DispatchResult with operation details.
@@ -256,35 +331,30 @@ class Dispatcher:
             logger.error("dispatch_ntfs_illegal: %s", movie_dir)
             return result
 
-        # Get disk statuses
+        # Get disk statuses keyed by disk ID for resolver
         disk_statuses = [get_disk_status(c) for c in self._disk_configs]
+        free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
 
         # Calculate source size
         item_size_gb = self._dir_size_gb(movie_dir)
 
-        # Check index for existing copy
-        existing = self.index.find(movie_dir.name, "movie")
+        # Check index for existing copy, validated against filesystem to avoid
+        # duplicating when the user has moved the folder between disks manually.
+        existing = self._resolve_existing_on_filesystem(movie_dir.name, "movie")
 
         if existing:
-            # Replace existing on the same disk
+            # Replace existing on the same disk (disk stored as disk_id in V15 index)
             dest = Path(existing.path)
             result.disk = existing.disk
             result.destination = dest
 
             # Check if disk has enough space for the replacement
-            existing_disk = next(
-                (d for d in disk_statuses if d.config.name == existing.disk),
-                None,
-            )
-            if existing_disk:
-                threshold = max(
-                    self.settings.min_free_space_disk_gb,
-                    item_size_gb * 1.5,
-                )
-                if existing_disk.free_space_gb < threshold:
-                    result.action = "skipped"
-                    result.reason = f"Disk {existing.disk} full, cannot replace"
-                    return result
+            threshold = max(self.settings.min_free_space_disk_gb, item_size_gb * 1.5)
+            disk_free = free_space_by_id.get(existing.disk, 0.0)
+            if disk_free < threshold:
+                result.action = "skipped"
+                result.reason = f"Disk {existing.disk} full, cannot replace"
+                return result
 
             if self.dry_run:
                 result.action = "replaced"
@@ -293,36 +363,36 @@ class Dispatcher:
             success = self._replace(movie_dir, dest)
             result.action = "replaced" if success else "error"
         else:
-            # Move to best disk (allow creating category dir on new disk)
-            target = choose_disk(
-                disk_statuses,
-                category,
+            # Move to best disk via resolver
+            target_disk = resolver.pick_disk_for(
+                self.config,
+                category_id,
+                free_space_by_id,
                 self.settings.min_free_space_disk_gb,
                 item_size_gb,
-                allow_create_category=True,
             )
-            if not target:
+            if not target_disk:
                 result.action = "skipped"
-                result.reason = f"No disk with enough space for category '{category}'"
+                result.reason = f"No disk with enough space for category '{category_id}'"
                 return result
 
-            dest = target.config.path / category / movie_dir.name
-            result.disk = target.config.name
+            dest = resolver.folder_for(self.config, target_disk, category_id) / movie_dir.name
+            result.disk = target_disk.id
             result.destination = dest
             if self.dry_run:
                 result.action = "moved"
-                result.reason = f"[DRY RUN] Would move to {target.config.name}"
+                result.reason = f"[DRY RUN] Would move to {target_disk.id}"
                 return result
             success = self._move_new(movie_dir, dest)
             result.action = "moved" if success else "error"
 
-        # Update index
+        # Update index with V15 IDs
         if result.action in ("replaced", "moved") and result.destination:
             self.index.add(
                 IndexEntry(
                     name=movie_dir.name,
                     disk=result.disk or "",
-                    category=category,
+                    category=category_id,
                     path=str(result.destination),
                     media_type="movie",
                 )
@@ -330,12 +400,12 @@ class Dispatcher:
 
         return result
 
-    def dispatch_tvshow(self, show_dir: Path, category: str) -> DispatchResult:
+    def dispatch_tvshow(self, show_dir: Path, category_id: str) -> DispatchResult:
         """Dispatch a TV show: merge if exists, move to best disk if new.
 
         Args:
             show_dir: Source TV show directory.
-            category: Dispatch category from V4.
+            category_id: V15 category ID (e.g. ``"tv_shows"``) from the classifier.
 
         Returns:
             DispatchResult with operation details.
@@ -350,9 +420,12 @@ class Dispatcher:
             return result
 
         disk_statuses = [get_disk_status(c) for c in self._disk_configs]
+        free_space_by_id = {s.config.id: s.free_space_gb if s.is_mounted else 0.0 for s in disk_statuses}
         item_size_gb = self._dir_size_gb(show_dir)
 
-        existing = self.index.find(show_dir.name, "tvshow")
+        # Check index for existing copy, validated against filesystem to avoid
+        # duplicating when the user has moved the folder between disks manually.
+        existing = self._resolve_existing_on_filesystem(show_dir.name, "tvshow")
 
         if existing:
             dest = Path(existing.path)
@@ -360,19 +433,12 @@ class Dispatcher:
             result.destination = dest
 
             # Check if disk has enough space for the merge
-            existing_disk = next(
-                (d for d in disk_statuses if d.config.name == existing.disk),
-                None,
-            )
-            if existing_disk:
-                threshold = max(
-                    self.settings.min_free_space_disk_gb,
-                    item_size_gb * 1.5,
-                )
-                if existing_disk.free_space_gb < threshold:
-                    result.action = "skipped"
-                    result.reason = f"Disk {existing.disk} full, cannot merge"
-                    return result
+            threshold = max(self.settings.min_free_space_disk_gb, item_size_gb * 1.5)
+            disk_free = free_space_by_id.get(existing.disk, 0.0)
+            if disk_free < threshold:
+                result.action = "skipped"
+                result.reason = f"Disk {existing.disk} full, cannot merge"
+                return result
 
             if self.dry_run:
                 result.action = "merged"
@@ -381,25 +447,25 @@ class Dispatcher:
             success = self._merge(show_dir, dest)
             result.action = "merged" if success else "error"
         else:
-            # Move to best disk (allow creating category dir on new disk)
-            target = choose_disk(
-                disk_statuses,
-                category,
+            # Move to best disk via resolver
+            target_disk = resolver.pick_disk_for(
+                self.config,
+                category_id,
+                free_space_by_id,
                 self.settings.min_free_space_disk_gb,
                 item_size_gb,
-                allow_create_category=True,
             )
-            if not target:
+            if not target_disk:
                 result.action = "skipped"
-                result.reason = f"No disk with enough space for category '{category}'"
+                result.reason = f"No disk with enough space for category '{category_id}'"
                 return result
 
-            dest = target.config.path / category / show_dir.name
-            result.disk = target.config.name
+            dest = resolver.folder_for(self.config, target_disk, category_id) / show_dir.name
+            result.disk = target_disk.id
             result.destination = dest
             if self.dry_run:
                 result.action = "moved"
-                result.reason = f"[DRY RUN] Would move to {target.config.name}"
+                result.reason = f"[DRY RUN] Would move to {target_disk.id}"
                 return result
             success = self._move_new(show_dir, dest)
             result.action = "moved" if success else "error"
@@ -409,7 +475,7 @@ class Dispatcher:
                 IndexEntry(
                     name=show_dir.name,
                     disk=result.disk or "",
-                    category=category,
+                    category=category_id,
                     path=str(result.destination),
                     media_type="tvshow",
                 )

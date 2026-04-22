@@ -32,7 +32,13 @@ class TestRunDispatch:
     def test_runs_with_mocked_dispatcher(self, tmp_path: Path) -> None:
         """Should create dispatcher and process."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
+        settings.movies_dir_name = "001-MOVIES"
+        settings.tvshows_dir_name = "002-TVSHOWS"
+
+        config = MagicMock()
+        config.paths.staging_dir = tmp_path
+        config.paths.data_dir = tmp_path / ".data"
+        config.disks = []
 
         with (
             patch("personalscraper.dispatch.run.Dispatcher") as MockDisp,
@@ -42,7 +48,7 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            report = run_dispatch(settings, dry_run=True)
+            report = run_dispatch(settings, config=config, dry_run=True)
 
         assert report.name == "dispatch"
         mock_idx.load.assert_called_once()

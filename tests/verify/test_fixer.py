@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.genre_mapper import GenreMapper
+from personalscraper.conf.models import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
@@ -22,9 +22,9 @@ def fixer() -> MediaFixer:
 
 
 @pytest.fixture
-def checker() -> MediaChecker:
+def checker(test_config: Config) -> MediaChecker:
     """Create a MediaChecker for re-check tests."""
-    return MediaChecker(NamingPatterns(), GenreMapper())
+    return MediaChecker(NamingPatterns(), test_config)
 
 
 def _make_nfo(directory: Path, title: str, year: str, filename: str = "") -> Path:

@@ -1,0 +1,16 @@
+{
+  paths: {
+    // Directory where completed torrents land
+    torrent_complete_dir: "/torrents/complete",
+    // Staging area before dispatch
+    staging_dir: "/staging",
+  },
+  library: {
+    video: {
+      // Target codec for encoding recommendations
+      preferred_codec: "hevc",
+      // Maximum movie size in GB
+      max_size_movie_gb: 4.0,
+    },
+  },
+}
