@@ -4,15 +4,15 @@ Maintains an index of all media items across storage disks.
 Supports exact lookup, fuzzy matching (via fuzzy_match_score), atomic
 save, and full rebuild from disk scans.
 
-V15 P6.4: IndexEntry.category and IndexEntry.disk now store V15 IDs
-(e.g. "movies", "drive_a") rather than V14 labels ("films", "Disk1").
-MediaIndex.load() detects V14 format (FR labels) and migrates in-memory
-via V14_LABEL_TO_ID from conf.migration. Disk names (Disk1..Disk4) are
-migrated to lowercase IDs (disk_1..disk_4) for V14 indexes that
-predate the Config-driven disk IDs.
+IndexEntry.category and IndexEntry.disk store canonical IDs
+(e.g. "movies", "drive_a") rather than legacy French labels ("films",
+"Disk1"). MediaIndex.load() detects legacy format (FR labels) and
+migrates in-memory via V14_LABEL_TO_ID from conf.migration. Disk names
+(Disk1..Disk4) are migrated to lowercase IDs (disk_1..disk_4) for
+indexes that predate the Config-driven disk IDs.
 
-Index file path must be supplied explicitly; the removed
-``settings.data_dir`` default is gone (P6.1).
+Index file path must be supplied explicitly; the old ``settings.data_dir``
+default is no longer supported.
 """
 
 from __future__ import annotations
@@ -32,12 +32,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# V14 label detection helpers (imported lazily to avoid circular imports)
+# Legacy label detection helpers (imported lazily to avoid circular imports)
 # ---------------------------------------------------------------------------
 
-# V14 disk name → V15 disk ID mapping.
-# The V14 disk_scanner used "Disk1".."Disk4" as names; V15 config uses
-# free-form IDs. This mapping covers the canonical V14 setup only.
+# Legacy disk name → current disk ID mapping.
+# The old disk_scanner used "Disk1".."Disk4" as names; the current config uses
+# free-form IDs. This mapping covers the canonical legacy setup only.
 _V14_DISK_NAME_TO_ID: dict[str, str] = {
     "Disk1": "disk_1",
     "Disk2": "disk_2",
@@ -87,7 +87,7 @@ def _normalize_key(name: str) -> str:
 
 
 def _is_v14_format(entries: dict[str, Any]) -> bool:
-    """Detect whether raw index data is in V14 format (FR category labels).
+    """Detect whether raw index data is in legacy format (FR category labels).
 
     Samples up to 10 entries and checks whether any ``category`` value
     appears in the V14_LABEL_TO_ID keys (French labels like "films", "series").
@@ -96,7 +96,7 @@ def _is_v14_format(entries: dict[str, Any]) -> bool:
         entries: Raw dict loaded from JSON, before IndexEntry construction.
 
     Returns:
-        True if the data looks like V14 format.
+        True if the data looks like legacy format.
     """
     from personalscraper.conf.migration import V14_LABEL_TO_ID
 
@@ -110,11 +110,11 @@ def _is_v14_format(entries: dict[str, Any]) -> bool:
 
 
 def _migrate_v14_entry(entry_data: dict[str, Any]) -> dict[str, Any]:
-    """Migrate a single V14 index entry to V15 IDs in-place.
+    """Migrate a single legacy index entry to current IDs in-place.
 
     Converts:
-    - category: V14 FR label → V15 category ID via V14_LABEL_TO_ID
-    - disk: "Disk1".."Disk4" → "disk_1".."disk_4" (canonical V14 mapping)
+    - category: legacy FR label → category ID via V14_LABEL_TO_ID
+    - disk: "Disk1".."Disk4" → "disk_1".."disk_4" (canonical legacy mapping)
 
     Unknown labels/names are kept as-is with a warning.
 
@@ -122,7 +122,7 @@ def _migrate_v14_entry(entry_data: dict[str, Any]) -> dict[str, Any]:
         entry_data: Raw dict for one index entry (as read from JSON).
 
     Returns:
-        Updated dict with V15 IDs.
+        Updated dict with current IDs.
     """
     from personalscraper.conf.migration import V14_LABEL_TO_ID
 
@@ -133,9 +133,9 @@ def _migrate_v14_entry(entry_data: dict[str, Any]) -> dict[str, Any]:
     if cat in V14_LABEL_TO_ID:
         data["category"] = V14_LABEL_TO_ID[cat]
     else:
-        logger.warning("media_index V14 migration: unknown category label %r — keeping as-is", cat)
+        logger.warning("media_index legacy migration: unknown category label %r — keeping as-is", cat)
 
-    # Migrate disk name → ID (best-effort, canonical V14 names only)
+    # Migrate disk name → ID (best-effort, canonical legacy names only)
     disk = data.get("disk", "")
     if disk in _V14_DISK_NAME_TO_ID:
         data["disk"] = _V14_DISK_NAME_TO_ID[disk]
@@ -150,13 +150,13 @@ def _migrate_v14_entry(entry_data: dict[str, Any]) -> dict[str, Any]:
 class IndexEntry:
     """A single media entry in the index.
 
-    V15: category stores a category_id (e.g. "movies"), disk stores a disk_id
-    (e.g. "drive_a" or "disk_1") — not V14 labels/names.
+    Category stores a category_id (e.g. "movies"), disk stores a disk_id
+    (e.g. "drive_a" or "disk_1") — not legacy French labels/names.
 
     Attributes:
         name: Original directory name.
-        disk: Disk identifier (V15 disk_id from Config, e.g. "drive_a").
-        category: Category ID (V15, e.g. "movies").
+        disk: Disk identifier (disk_id from Config, e.g. "drive_a").
+        category: Category ID (e.g. "movies").
         path: Full path on disk.
         media_type: "movie" or "tvshow".
         last_updated: ISO datetime of last update.
@@ -174,8 +174,8 @@ class MediaIndex:
     """JSON-based index of all media across storage disks.
 
     Provides exact and fuzzy lookups, atomic saves, and full rebuilds.
-    V15: always works with V15 IDs; V14-format files are migrated in-memory
-    on first load and saved back in V15 format.
+    Always works with canonical IDs; legacy-format files are migrated in-memory
+    on first load and saved back in the current format.
     """
 
     def __init__(self, index_path: Path):
@@ -183,7 +183,7 @@ class MediaIndex:
 
         Args:
             index_path: Path to the JSON index file. Must be supplied
-                explicitly — the V14 ``settings.data_dir`` default is gone.
+                explicitly — the old ``settings.data_dir`` default is gone.
         """
         self._path = index_path
         self._entries: dict[str, IndexEntry] = {}
@@ -193,8 +193,8 @@ class MediaIndex:
 
         Creates an empty index if the file doesn't exist.
         Rebuilds if the file is corrupted.
-        Detects V14 format (FR labels) and migrates in-memory;
-        the next ``save()`` call will persist the V15 format.
+        Detects legacy format (FR labels) and migrates in-memory;
+        the next ``save()`` call will persist the current format.
         """
         if not self._path.exists():
             self._entries = {}
@@ -203,10 +203,10 @@ class MediaIndex:
         try:
             raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
 
-            # Detect V14 format and migrate in-memory
+            # Detect legacy format and migrate in-memory
             if _is_v14_format(raw):
                 logger.info(
-                    "media_index: detected V14 format in %s — migrating to V15 IDs in-memory",
+                    "media_index: detected legacy format in %s — migrating to current IDs in-memory",
                     self._path,
                 )
                 raw = {k: _migrate_v14_entry(v) for k, v in raw.items()}
@@ -223,7 +223,7 @@ class MediaIndex:
     def save(self) -> None:
         """Save the index to disk with atomic write.
 
-        Always writes V15 format (category IDs, disk IDs).
+        Always writes current format (category IDs, disk IDs).
         Writes to a .tmp file first, then renames to avoid corruption.
         """
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,7 +288,7 @@ class MediaIndex:
         """Add or update an entry in the index.
 
         Args:
-            entry: Index entry to add (must use V15 IDs).
+            entry: Index entry to add (must use current IDs).
         """
         key = _normalize_key(entry.name)
         entry.last_updated = datetime.now(timezone.utc).isoformat()
@@ -301,20 +301,20 @@ class MediaIndex:
     ) -> int:
         """Rebuild the index by scanning all mounted disks.
 
-        Resolves each on-disk category directory to a V15 category ID. When
+        Resolves each on-disk category directory to a canonical category ID. When
         ``categories`` is supplied, the reverse map ``folder_name → id`` is
-        used first — this is required whenever the disk layout uses
-        configurable French folder names (``series``, ``films``, ``emissions``)
-        that differ from the V15 IDs (``tv_shows``, ``movies``, ``tv_programs``).
+        used first — this is required whenever the disk layout uses configurable
+        French folder names (``series``, ``films``, ``emissions``) that differ
+        from the canonical IDs (``tv_shows``, ``movies``, ``tv_programs``).
         Falls back to treating the directory name as the category ID for
         backward compatibility with setups where ``folder_name == category_id``.
 
         Args:
             disk_configs: List of DiskConfig objects (Pydantic, from conf.models).
-            categories: Optional V15 categories dict (``id → CategoryConfig``)
+            categories: Optional categories dict (``id → CategoryConfig``)
                 used to resolve on-disk ``folder_name`` back to the canonical
                 category ID. Without it, only directories whose names already
-                match a V15 category ID are indexed.
+                match a canonical category ID are indexed.
 
         Returns:
             Total number of entries indexed.
@@ -337,9 +337,9 @@ class MediaIndex:
                 if not category_dir.is_dir() or category_dir.name.startswith("."):
                     continue
 
-                # Resolve dir name → V15 category ID.
+                # Resolve dir name → canonical category ID.
                 # Preference order: (1) configured folder_name reverse map,
-                # (2) dir name already being a V15 id (legacy fallback).
+                # (2) dir name already being a category ID (legacy fallback).
                 resolved_id = folder_to_id.get(category_dir.name.lower())
                 if resolved_id is None and category_dir.name in config.categories:
                     resolved_id = category_dir.name

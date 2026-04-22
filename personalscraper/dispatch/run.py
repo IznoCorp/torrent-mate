@@ -4,8 +4,8 @@ Instantiates the Dispatcher and MediaIndex, processes verified items,
 and converts DispatchResult to StepReport. In standalone mode (no
 verified list provided), runs verify first to obtain dispatchable items.
 
-V15 P6.5: staging_dir is passed explicitly from Config.paths; Settings
-no longer carries disk paths.
+staging_dir is passed explicitly from Config.paths; Settings no longer
+carries disk paths.
 """
 
 import logging
@@ -77,9 +77,9 @@ def run_dispatch(
 
     Args:
         settings: Pipeline configuration (thresholds, API keys).
-        config: V15 config with disk layout and paths.
+        config: Config with disk layout and paths.
         dry_run: If True, preview without transferring files.
-        verified: Verified items from V4 (pipeline mode).
+        verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
 
     Returns:
