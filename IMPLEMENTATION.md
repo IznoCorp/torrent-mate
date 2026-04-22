@@ -8,11 +8,13 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/sort-dry-run/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/sort-dry-run/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                  | File                       | Status |
+| --- | -------------------------------------- | -------------------------- | ------ |
+| 1   | CLI flag + core dry-run branch + tests | phase-01-cli-core-tests.md | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +22,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
