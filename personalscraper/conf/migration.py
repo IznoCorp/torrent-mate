@@ -138,7 +138,7 @@ _V14_DISK_CATEGORIES: dict[str, list[str]] = {
 }
 
 # ---------------------------------------------------------------------------
-# Known library JSON filenames and their field paths containing V14 labels.
+# Known library JSON filenames and their field paths containing legacy labels.
 # Used by migrate_library_json to know which fields to rewrite.
 # ---------------------------------------------------------------------------
 _LIBRARY_JSON_FIELD_PATHS: dict[str, list[str]] = {
@@ -162,7 +162,7 @@ def generate_config_from_env(
     Pre-fills ``genre_mapping`` with legacy TMDB/TVDB genre ID tables.
 
     Args:
-        env_values: Dict of V14 environment variable names to values.
+        env_values: Dict of legacy environment variable names to values.
         library_prefs_path: Optional path to ``library_preferences.json``.
             When provided, the file is parsed and merged into
             ``result["library"]``.
@@ -191,7 +191,7 @@ def generate_config_from_env(
         for label in v14_labels:
             cid = V14_LABEL_TO_ID.get(label)
             if cid is None:
-                logger.warning("Unknown V14 label '%s' for %s — skipping", label, disk_key)
+                logger.warning("Unknown legacy label '%s' for %s — skipping", label, disk_key)
                 continue
             if cid not in seen:
                 v15_ids.append(cid)
@@ -229,7 +229,7 @@ def generate_config_from_env(
         "applies_to": "tv",
     }
 
-    # data_dir: V15 default is <staging>/.data (absolute, avoids CWD dependency).
+    # data_dir: default is <staging>/.data (absolute, avoids CWD dependency).
     data_dir = str(Path(staging_dir) / ".data") if staging_dir else "./.data"
 
     result: dict[str, Any] = {
@@ -420,7 +420,7 @@ def migrate_category_files(staging_root: Path, data_dir: Path | None = None) -> 
         staging_root: Root directory to search recursively for ``.category``
             files.
         data_dir: Optional data directory to check for a lock file.
-            Defaults to ``staging_root / ".personalscraper"`` (V14 location)
+            Defaults to ``staging_root / ".personalscraper"`` (legacy location)
             if not provided.
 
     Returns:
