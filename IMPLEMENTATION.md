@@ -6,7 +6,7 @@
 **Version bump**: 0.1.0 → 0.2.0
 **Branch**: feat/info-cmd
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/7
 **Design**: docs/features/info-cmd/DESIGN.md
 **Master plan**: docs/features/info-cmd/plan/INDEX.md
 
