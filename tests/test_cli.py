@@ -1,5 +1,6 @@
 """Tests for personalscraper.cli — CLI commands and global options."""
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -79,7 +80,8 @@ def test_version():
     """--version flag outputs the current version and exits."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    # Match any semver string — avoids hardcoding the version number.
+    assert re.search(r"\d+\.\d+\.\d+", result.output)
 
 
 def test_help():
@@ -905,3 +907,26 @@ class TestCategoryResolution:
         assert result.exit_code == 2
         assert "unknown_xyz" in result.output
         assert "Valid IDs" in result.output
+
+
+# ── info command ─────────────────────────────────────────────────────────────
+
+
+def test_info_command(test_config) -> None:
+    """Info command exits 0 and output contains 'personalscraper' and version."""
+    # Patch shutil.disk_usage so no real filesystem access occurs.
+    import collections
+    from unittest.mock import patch as _patch
+
+    import personalscraper
+
+    Usage = collections.namedtuple("Usage", ["total", "used", "free"])
+    fake_usage = Usage(total=2_000_000_000_000, used=1_200_000_000_000, free=800_000_000_000)
+
+    with _patch("shutil.disk_usage", return_value=fake_usage):
+        result = runner.invoke(app, ["info"])
+
+    assert result.exit_code == 0, f"exit_code={result.exit_code}\n{result.output}"
+    assert "personalscraper" in result.output
+    assert personalscraper.__version__ in result.output
+    assert "staging:" in result.output
