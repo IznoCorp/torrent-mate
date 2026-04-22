@@ -5,8 +5,9 @@ which handles token reordering, partial matches, and varying string
 lengths automatically. Uses media_processor for accent-insensitive
 French title matching.
 
-This module is specific to V2 sorting (matching against staging subdirs).
-V3 and V5 use rapidfuzz directly for API title and disk index matching.
+Used during the sorting step (matching against staging subdirs).
+Scraping and dispatch steps use rapidfuzz directly for API title
+and disk index matching.
 """
 
 import re

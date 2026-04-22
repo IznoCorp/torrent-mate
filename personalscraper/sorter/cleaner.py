@@ -114,8 +114,8 @@ class NameCleaner:
         """Clean a name for folder creation: 'Title (Year)' or 'Title'.
 
         Used when creating destination directories for movies.
-        TV shows get folders without year (V2 creates 'Show Name/',
-        V3 adds the year after API matching).
+        TV shows get folders without year at sort time;
+        year is added after API matching in the scraping step.
 
         Args:
             name: Raw media filename or directory name.
