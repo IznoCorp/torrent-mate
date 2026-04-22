@@ -1,4 +1,4 @@
-"""V1 — Ingest: copy/move completed torrents from qBittorrent to staging.
+"""Ingest: copy/move completed torrents from qBittorrent to staging.
 
 Modules:
     qbit_client: Wrapper around qbittorrent-api for torrent status and file listing.
