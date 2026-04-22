@@ -2,22 +2,22 @@
 
 Complete CLI reference for `personalscraper` and related tools.
 
-## PersonalScraper CLI (V0+)
+## PersonalScraper CLI
 
 ```bash
 personalscraper ingest              # Ingest completed torrents from qBittorrent
 personalscraper ingest --dry-run    # Preview without moving
-personalscraper sort                # Sort media files into category folders (V2)
-personalscraper scrape              # Scrape metadata from TMDB/TVDB (V3)
-personalscraper verify              # Quality check before dispatch (V4)
-personalscraper dispatch            # Move to storage disks (V5)
-personalscraper process             # Reclean + dedup + scrape + cleanup (V9)
-personalscraper enforce             # Enforce staging conventions (V13)
-personalscraper run                 # Full pipeline (V6+V9)
+personalscraper sort                # Sort media files into category folders
+personalscraper scrape              # Scrape metadata from TMDB/TVDB
+personalscraper verify              # Quality check before dispatch
+personalscraper dispatch            # Move to storage disks
+personalscraper process             # Reclean + dedup + scrape + cleanup
+personalscraper enforce             # Enforce staging conventions
+personalscraper run                 # Full pipeline
 personalscraper run --dry-run       # Preview full pipeline
 ```
 
-## Library Maintenance (V14)
+## Library Maintenance
 
 ```bash
 personalscraper library-scan                         # Scan library structure/metadata
@@ -43,7 +43,7 @@ media-ingest                        # → personalscraper ingest
 
 ## Legacy: torrent-sort
 
-Shell alias replaced by `personalscraper sort` in V2 but still available:
+Shell alias replaced by `personalscraper sort`, but still available:
 
 ```bash
 torrent-sort

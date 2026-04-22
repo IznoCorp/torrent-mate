@@ -2,14 +2,14 @@
 
 Circuit breaker, fast-skip behavior, dispatch/verify internals, idempotence.
 
-## Circuit Breaker (V8)
+## Circuit Breaker
 
 - Sits **ABOVE** tenacity: tenacity retries transient errors (429, single timeout), circuit breaker detects sustained outages.
 - Trip condition: 5 consecutive 5xx / timeout / connection errors → **OPEN for 5 min**.
 - Only counts 5xx / timeout / connection — **NOT** 429 (tenacity handles) or 4xx (client errors).
 - `guard()` method centralizes check-then-raise: clients call `self._circuit.guard()` instead of manually checking `can_proceed()` + constructing `CircuitOpenError`.
 
-## Fast-Skip (V10 idempotence)
+## Fast-Skip (idempotence)
 
 All 8 pipeline steps are idempotent — re-running produces no changes if everything is already processed.
 
@@ -24,7 +24,7 @@ All 8 pipeline steps are idempotent — re-running produces no changes if everyt
 - `_has_polluted_folders()` scans category dirs
 - If no polluted names found, skip reclean+dedup entirely
 
-## Dispatch (V5 + V8)
+## Dispatch
 
 ### rsync flags
 
@@ -43,7 +43,7 @@ Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support
 
 `personalscraper dispatch` auto-runs verify first to get the dispatchable item list — there is no separate staging_dir scan mode.
 
-## Verify (V4 + V9)
+## Verify
 
 - `nfo_ids` check: at least one of TMDB or IMDB required (not both)
 - Missing one → WARNING

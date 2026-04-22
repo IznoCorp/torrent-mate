@@ -13,7 +13,7 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 | Disk3 | /Volumes/Disk3/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
 | Disk4 | /Volumes/Disk4/medias | NTFS       | films, films animations, series, series animations, series documentaires, emissions                                                           |
 
-## Move Rules (V5 dispatch)
+## Move Rules (dispatch)
 
 - **Movies** (films, animations, documentaires, spectacles, theatre): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
 - **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
@@ -28,7 +28,7 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 
 ## Disk Space Threshold
 
-Unified formula across V5:
+Unified formula:
 
 ```
 free_space_gb >= max(min_free_gb, item_size_gb * 1.5)

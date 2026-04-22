@@ -36,11 +36,12 @@ Show Name (Year)/
 
 - Season folders use **French** naming: `Saison 01`, `Saison 02`, etc.
 - Episode files follow the pattern: `S{nn}E{nn} - {Episode Title}.{ext}`.
-- TV folder creation: V2 creates `Show Name/` (no year), V3 renames to `Show Name (Year)/` after API matching (idempotent).
+- TV folder creation: sorter creates `Show Name/` (no year), scraper renames to `Show Name (Year)/` after API matching (idempotent).
 
 ## Filename Sanitization
 
 `sanitize_filename()` (in `personalscraper/text_utils.py`) strips `<>:"/\|?*` and normalizes U+00A0→space. Applied:
+
 - In `NamingPatterns.format()` — all artwork and NFO filenames
 - In scraper `clean_name` — folder renames
 
