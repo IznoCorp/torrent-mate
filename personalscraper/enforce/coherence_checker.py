@@ -1,7 +1,7 @@
 """Cross-step coherence checker for staging media.
 
 Read-only checker that parses NFOs, verifies classifier-based genre
-consistency (V15), and checks sort↔process coherence. Produces
+consistency, and checks sort↔process coherence. Produces
 warnings, never modifies the filesystem.
 """
 
@@ -46,7 +46,7 @@ def check_coherence(
 
     Args:
         settings: Pipeline configuration.
-        config: V15 Config used by the classifier for genre coherence.
+        config: Config used by the classifier for genre coherence.
         dry_run: No effect (coherence check is always read-only).
 
     Returns:
@@ -105,7 +105,7 @@ def _check_tvshow(show_dir: Path, config: Config) -> CoherenceResult:
 
     Args:
         show_dir: Path to the TV show folder.
-        config: V15 Config used by the classifier for genre coherence.
+        config: Config used by the classifier for genre coherence.
 
     Returns:
         CoherenceResult with any warnings found.
@@ -161,7 +161,7 @@ def _check_nfo_ids(nfo_path: Path, result: CoherenceResult) -> None:
 def _check_genre_coherence(nfo_path: Path, result: CoherenceResult, config: Config) -> None:
     """Check whether the NFO genre suggests a different target category.
 
-    Uses the V15 classifier (classify_from_nfo) to determine the implied
+    Uses the classifier (classify_from_nfo) to determine the implied
     category. If the genre implies ``CID.TV_PROGRAMS`` but the item is in the
     default TVSHOWS bucket, a warning is emitted so the operator can review
     and re-categorise manually.
@@ -169,7 +169,7 @@ def _check_genre_coherence(nfo_path: Path, result: CoherenceResult, config: Conf
     Args:
         nfo_path: Path to the tvshow NFO file.
         result: CoherenceResult to append warnings and checks to (mutated).
-        config: V15 Config passed to the classifier.
+        config: Config passed to the classifier.
     """
     try:
         category_id, _reason = classify_from_nfo(config, nfo_path, media_type="tvshow")

@@ -27,7 +27,7 @@ def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> St
 
     Args:
         settings: Pipeline configuration.
-        config: V15 Config passed to the coherence checker for classifier rules.
+        config: Config passed to the coherence checker for classifier rules.
         dry_run: If True, preview without modifying filesystem.
 
     Returns:
