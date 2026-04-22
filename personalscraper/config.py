@@ -2,7 +2,7 @@
 
 Loads settings from environment variables and .env file.
 
-V15 split: paths and disk structure live in config.json5 (see
+Config split: paths and disk structure live in config.json5 (see
 ``conf/models.py::Config``). This module retains only secrets
 (API keys, credentials) and numeric thresholds that cannot go into a
 version-controlled config file.
@@ -21,7 +21,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Pipeline secrets and thresholds loaded from .env and environment variables.
 
-    V15 note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
+    Note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
     and data_dir_name have been removed — they now live in ``Config.paths`` and
     ``Config.disks`` (conf/models.py). Only secrets and numeric thresholds remain here.
 
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
         audio_dir_name: Audio category directory name (staging area only).
         apps_dir_name: Apps category directory name (staging area only).
         other_dir_name: Other/misc category directory name (staging area only).
-        library_preferences_file: Library preferences filename (legacy, kept for V14 compat).
+        library_preferences_file: Library preferences filename (legacy, kept for backward compat).
         circuit_breaker_threshold: Consecutive errors before opening circuit.
         circuit_breaker_cooldown: Seconds to wait before retrying after circuit opens.
     """
@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     # Library maintenance preferences
     library_preferences_file: str = "library_preferences.json"
 
-    # Circuit breaker (V8 — API outage detection)
+    # Circuit breaker — API outage detection
     circuit_breaker_threshold: int = 5
     circuit_breaker_cooldown: int = 300
 

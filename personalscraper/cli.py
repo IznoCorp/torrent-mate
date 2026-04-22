@@ -756,7 +756,7 @@ def library_recommend(
     """Generate re-download recommendations from library analysis.
 
     Requires library-analyze to have been run first.
-    Reads library_analysis.json; preferences come from config.library (V15).
+    Reads library_analysis.json; preferences come from config.library.
 
     Examples:
         personalscraper library-recommend
@@ -788,7 +788,7 @@ def library_recommend(
 
     analysis_data = read_json(analysis_path)
 
-    # Use preferences from config.library (V15 — no separate file).
+    # Use preferences from config.library (no separate file).
     prefs = config.library
 
     items = _reconstruct_analysis_items(analysis_data)
@@ -1015,7 +1015,7 @@ def init_config_cmd(
     from_current: bool = typer.Option(
         False,
         "--from-current",
-        help="Bootstrap config from the existing V14 .env file.",
+        help="Bootstrap config from the existing legacy .env file.",
     ),
     force: bool = typer.Option(
         False,
@@ -1023,10 +1023,10 @@ def init_config_cmd(
         help="Overwrite output file if it already exists.",
     ),
 ) -> None:
-    """Create config.json5 from the example template or from a V14 .env migration.
+    """Create config.json5 from the example template or from a legacy .env migration.
 
     Run without arguments for interactive mode (prompts for each value).
-    Use --from-current to migrate an existing V14 .env automatically.
+    Use --from-current to migrate an existing legacy .env automatically.
     Use --yes to skip all prompts and accept defaults.
 
     Examples:
