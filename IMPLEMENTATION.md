@@ -6,7 +6,7 @@
 **Version bump**: 0.2.0 → 0.3.0
 **Branch**: feat/legacy-cleanup
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/8
 **Design**: docs/features/legacy-cleanup/DESIGN.md
 **Master plan**: docs/features/legacy-cleanup/plan/INDEX.md
 
