@@ -121,7 +121,13 @@ git status --short
 git commit -m "chore(legacy-cleanup): final sweep and validation"
 ```
 
-If no files were changed (all greps returned empty, test count was already current), create a no-op commit only if it is needed to record the gate passage on the branch. Otherwise skip the commit — do not create an empty commit.
+**Always emit this commit**, even if Tasks 1-3 made no file changes, using `--allow-empty` if needed:
+
+```bash
+git commit --allow-empty -m "chore(legacy-cleanup): final sweep and validation"
+```
+
+Rationale: the INDEX commit table advertises this commit as _the_ Phase 5 milestone. Skipping it would leave downstream checks (`/implement:feature-pr` commit counting) expecting 14 commits but finding 13.
 
 ---
 
@@ -133,10 +139,17 @@ If no files were changed (all greps returned empty, test count was already curre
 cd "/Volumes/IznoServer SSD/A TRIER"
 
 # Criterion 1: zero significant VX matches
-grep -rn "\bV[0-9]\+\b" --include="*.md" --include="*.py" \
+# Capture output so a FAIL case shows which matches remain.
+CRIT1_OUT=$(grep -rn "\bV[0-9]\+\b" --include="*.md" --include="*.py" \
   --exclude-dir=archive --exclude-dir=.venv --exclude-dir=.git | \
-  grep -v "Python 3\|TMDB\|TVDB\|VERSION\|0\.[0-9]"
-echo "Criterion 1: $([ $? -eq 1 ] && echo PASS || echo FAIL)"
+  grep -v "Python 3\|TMDB\|TVDB\|VERSION\|0\.[0-9]")
+if [ -z "$CRIT1_OUT" ]; then
+  echo "Criterion 1: PASS"
+else
+  echo "Criterion 1: FAIL"
+  echo "Remaining matches:"
+  echo "$CRIT1_OUT"
+fi
 
 # Criterion 2: lint + test green
 make lint && make test && echo "Criterion 2: PASS" || echo "Criterion 2: FAIL"
@@ -150,7 +163,7 @@ echo "Criterion 4: manual — open CLAUDE.md and confirm no alpha history visibl
 # Criterion 5: all 5 phases committed on feat/legacy-cleanup
 git log --oneline feat/legacy-cleanup | grep -E \
   "archive v0-v15|rewrite root docs|clean reference docs|strip VX refs|final sweep"
-echo "Criterion 5: count above should be >= 13 commits (1+1+1+10+1)"
+echo "Criterion 5: count above should be >= 14 commits (1+1+1+10+1)"
 ```
 
 ---

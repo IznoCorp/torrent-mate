@@ -47,5 +47,20 @@ Format: `{type}(legacy-cleanup): {description}`
 | 1     | `chore(legacy-cleanup): archive v0-v15 alpha docs`         |
 | 2     | `chore(legacy-cleanup): rewrite root docs without VX refs` |
 | 3     | `chore(legacy-cleanup): clean reference docs of VX refs`   |
-| 4     | One commit per module (10 commits, see phase-04)           |
+| 4     | 10 per-module commits (see list below)                     |
 | 5     | `chore(legacy-cleanup): final sweep and validation`        |
+
+**Phase 4 commit list (10 commits, one per sub-phase):**
+
+1. `chore(legacy-cleanup): strip VX refs from top-level modules`
+2. `chore(legacy-cleanup): strip VX refs from commands module`
+3. `chore(legacy-cleanup): strip VX refs from conf module`
+4. `chore(legacy-cleanup): strip VX refs from ingest module`
+5. `chore(legacy-cleanup): strip VX refs from sorter module`
+6. `chore(legacy-cleanup): strip VX refs from scraper module`
+7. `chore(legacy-cleanup): strip VX refs from verify module`
+8. `chore(legacy-cleanup): strip VX refs from enforce module`
+9. `chore(legacy-cleanup): strip VX refs from dispatch module`
+10. `chore(legacy-cleanup): strip VX refs from library module`
+
+Total expected commits on `feat/legacy-cleanup`: **14** (1 + 1 + 1 + 10 + 1).

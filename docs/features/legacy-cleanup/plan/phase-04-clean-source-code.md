@@ -105,7 +105,24 @@ git commit -m "chore(legacy-cleanup): strip VX refs from commands module"
 
 **Files:** `personalscraper/conf/__init__.py`, `classifier.py`, `migration.py`, `models.py`, `resolver.py`
 
-**Special case `migration.py`:** The code that creates/reads `.v14.bak` files is a runtime contract — do NOT touch it. Only reword the surrounding comments. Replace "V14 format" with "legacy format", "V15 format" with "current format".
+**Special case `migration.py`:** The code that creates/reads `.v14.bak` files is a runtime contract — do NOT touch string literals, file names, or any identifier referring to `.v14.bak`. Only reword comments and docstrings. Replace "V14 format" with "legacy format", "V15 format" with "current format".
+
+**Concrete rewording examples** (to disambiguate comment vs runtime filename):
+
+```python
+# BEFORE
+"""Migrate V14 library_index.json to V15 format."""
+# Backup original as library_index.json.v14.bak
+
+# AFTER
+"""Migrate legacy library_index.json to the current format.
+
+Backups use the .v14.bak suffix (runtime contract — do not rename).
+"""
+# Backup original as library_index.json.v14.bak (legacy-suffix marker)
+```
+
+Key rule: the `.v14.bak` suffix **is the runtime contract** and stays verbatim in both code AND comments. Only wording _around_ it changes.
 
 - [ ] **Step 5: Scan**
 

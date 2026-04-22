@@ -73,7 +73,7 @@ ls "/Volumes/IznoServer SSD/A TRIER/MIGRATION.md" 2>/dev/null && echo "FAIL: sti
 
 ```bash
 cd "/Volumes/IznoServer SSD/A TRIER"
-grep -n "\bV[0-9]\+\b\|v[0-9]\+\b\|V[0-9]\+\.x\|V[0-9]\++V[0-9]\+" \
+grep -n "\bV[0-9]\+\b\|\bv[0-9]\+\b\|V[0-9]\+\.x\|V[0-9]\++V[0-9]\+" \
   ROADMAP.md CLAUDE.md CONFIGURATION.md MANUAL.md INSTALLATION.md 2>/dev/null
 ```
 
@@ -185,6 +185,11 @@ ls MIGRATION.md 2>/dev/null && echo "FAIL" || echo "OK"
 # Check 3: ROADMAP.md contains no history table
 grep -c "Implemented\|V0\|V1[0-5]" ROADMAP.md
 # expected: 0
+
+# Check 4: no stale path references to archived docs/v*-*/ directories
+# (Risk 4 mitigation: Phase 1 moved these dirs to docs/archive/legacy-alpha/)
+grep -n "docs/v[0-9]" *.md 2>/dev/null
+# expected: no output
 ```
 
 - [ ] **Step 11: Commit**
@@ -206,4 +211,5 @@ Phase 3 may start only when:
 - `MIGRATION.md` does not exist
 - `ROADMAP.md` contains only future ideas (no implemented history table)
 - `CLAUDE.md` describes the current 0.x project without alpha history mentions
+- No `docs/v[0-9]` path references remain in root `.md` files (archived paths not dangling)
 - The commit `chore(legacy-cleanup): rewrite root docs without VX refs` is on the branch

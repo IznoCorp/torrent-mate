@@ -212,6 +212,10 @@ grep -n "\bV[0-9]\+\b" "/Volumes/IznoServer SSD/A TRIER/docs/reference/pipeline-
 grep -n "\bV[0-9]\+\b" "/Volumes/IznoServer SSD/A TRIER/docs/reference/"*.md | \
   grep -v "Python 3\|TMDB\|TVDB\|VERSION"
 # expected: no output
+
+# Risk 4 mitigation: no stale path references to archived docs/v*-*/ directories
+grep -n "docs/v[0-9]" "/Volumes/IznoServer SSD/A TRIER/docs/reference/"*.md 2>/dev/null
+# expected: no output
 ```
 
 - [ ] **Step 19: Visual pass — check for orphan fragments**
@@ -248,5 +252,6 @@ git commit -m "chore(legacy-cleanup): clean reference docs of VX refs"
 Phase 4 may start only when:
 
 - `grep -n "V[0-9]\b" docs/reference/*.md` returns no project-version matches
+- `grep -n "docs/v[0-9]" docs/reference/*.md` returns no stale archive-path references
 - All 8 files pass the visual orphan-fragment check
 - The commit `chore(legacy-cleanup): clean reference docs of VX refs` is on the branch
