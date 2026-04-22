@@ -16,7 +16,7 @@
 | --- | -------------------- | -------------------------------- | ------ |
 | 1   | Archive legacy docs  | phase-01-archive-legacy-docs.md  | [x]    |
 | 2   | Rewrite root docs    | phase-02-rewrite-root-docs.md    | [x]    |
-| 3   | Clean reference docs | phase-03-clean-reference-docs.md | [ ]    |
+| 3   | Clean reference docs | phase-03-clean-reference-docs.md | [x]    |
 | 4   | Clean source code    | phase-04-clean-source-code.md    | [ ]    |
 | 5   | Final validation     | phase-05-final-validation.md     | [ ]    |
 
