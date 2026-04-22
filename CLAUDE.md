@@ -114,20 +114,7 @@ Also check version-specific planning docs under `docs/v{N}-*/` and archived vers
 
 ## Current Feature
 
-**Codename**: _(no feature in progress)_
-**Version**: see `VERSION` file (SemVer, bumped by `/implement:create-branch`)
-**Archive**: `docs/archive/features/` — previous features by codename
-**Historical archive**: `docs/archive/v0/` to `docs/archive/v15/` — legacy version-based work (preserved as-is)
-
-When a feature is in progress, this section is populated by `/implement:feature` with:
-
-- Codename (kebab-case, derived from feature title)
-- Type (major / minor / bugfix)
-- Version bump (X.Y.Z → X'.Y'.Z')
-- Branch name, PR URL, design/plan paths
-
-**Config-driven key points (v15 baseline):**
-
-- `config.json5` (gitignored) holds all paths, disks, categories — run `init-config` to create
-- Category IDs: `movies`, `tv_shows`, `anime`, etc. — see `personalscraper/conf/ids.py`
-- `personalscraper init-config --from-current` migrates from V14 `.env`
+**Feature**: _(awaiting /implement:feature)_
+**Branch**: _(to be defined)_
+**Design**: _(to be defined)_
+**Plan**: _(to be defined)_

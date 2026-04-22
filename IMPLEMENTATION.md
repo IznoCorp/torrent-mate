@@ -1,40 +1,23 @@
-# Implementation Progress — info-cmd
+# Implementation Progress — (awaiting feature)
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Add personalscraper info command to display version, config paths, and disk status (minor)
-**Version bump**: 0.1.0 → 0.2.0
-**Branch**: feat/info-cmd
-**PR merge**: manual
-**PR**: https://github.com/LounisBou/personal-scraper/pull/7
-**Design**: docs/features/info-cmd/DESIGN.md
-**Master plan**: docs/features/info-cmd/plan/INDEX.md
+**Feature**: _(to be defined by /implement:feature)_
+**Version bump**: _(to be defined)_
+**Branch**: _(to be defined)_
+**PR merge**: _(to be defined: manual or auto)_
+**PR**: _(created after last phase)_
+**Design**: _(to be defined after brainstorm)_
+**Master plan**: _(to be defined after plan generation)_
 
 ## Phases
 
-| #   | Phase                                         | File                                   | Status |
-| --- | --------------------------------------------- | -------------------------------------- | ------ |
-| 1   | Core info module + CLI + tests + quality gate | phase-01-core-info-module-cli-tests.md | [x]    |
-| 2   | PR fixes cycle 1                              | phase-02-pr-fixes-cycle-1.md           | [x]    |
+_(filled by /implement:plan)_
 
 ## Review cycles
 
-### Cycle 1
-
-- Findings received: 6 (1 Important/medium, 5 minor)
-- Retained: 1 medium (hardcoded archive path) + 5 minor noted
-- Ignored: 0
-- Fix phase created: phase-02-pr-fixes-cycle-1.md
-- Status: fix phase executed → cycle 2 re-review clean
-
-### Cycle 2
-
-- Findings received: 2 (0 critical/major/medium, 2 minor textual/cosmetic in DESIGN.md)
-- Retained: 0
-- Ignored: 2 (non-blocking)
-- Fix phase created: none
-- Status: clean — proceeding to merge (manual mode)
+_(filled by /implement:pr-review)_
 
 ## Next action
 
-All phases complete — run `/implement:feature-pr`.
+**Awaiting new feature definition** — run /implement:feature
