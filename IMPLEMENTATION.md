@@ -14,7 +14,7 @@
 
 | #   | Phase                              | File                        | Status |
 | --- | ---------------------------------- | --------------------------- | ------ |
-| 1   | Config schema (additive)           | phase-01-config-schema.md   | [ ]    |
+| 1   | Config schema (additive)           | phase-01-config-schema.md   | [x]    |
 | 2   | Sorter refactor + Settings cleanup | phase-02-sorter-refactor.md | [ ]    |
 | 3   | Auto-create staging tree           | phase-03-auto-create.md     | [ ]    |
 | 4   | Repo cleanup (git rm --cached)     | phase-04-repo-cleanup.md    | [ ]    |
