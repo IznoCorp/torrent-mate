@@ -254,7 +254,7 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
         field_order = s.get("field_order", "progressive")
         scantype = "interlaced" if field_order in ("tt", "bb", "tb", "bt") else "progressive"
 
-        # Bitrate extraction (V14)
+        # Bitrate extraction
         bitrate_raw = s.get("bit_rate", "")
         bitrate_kbps = int(int(bitrate_raw) / 1000) if bitrate_raw and str(bitrate_raw).isdigit() else None
 

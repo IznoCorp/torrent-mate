@@ -86,7 +86,7 @@ class NFOGenerator:
         Args:
             movie_data: TMDB movie details dict (from get_movie()).
             stream_info: Stream details dict from extract_stream_info(), or None.
-            category_id: V15 category ID to embed in NFO, or None to omit.
+            category_id: Category ID to embed in NFO, or None to omit.
 
         Returns:
             UTF-8 XML string with <?xml?> declaration.
@@ -127,7 +127,7 @@ class NFOGenerator:
         for genre in movie_data.get("genres", []):
             _sub(root, "genre", genre.get("name", ""))
 
-        # --- V15 category (classifier output, written after genres for readability) ---
+        # --- Category (classifier output, written after genres for readability) ---
         if category_id is not None:
             cat_elem = _sub(root, "category", category_id)
             cat_elem.set("source", "personalscraper")
@@ -193,7 +193,7 @@ class NFOGenerator:
 
         Args:
             show_data: TMDB TV show details dict (from get_tv()).
-            category_id: V15 category ID to embed in NFO, or None to omit.
+            category_id: Category ID to embed in NFO, or None to omit.
 
         Returns:
             UTF-8 XML string with <?xml?> declaration.
@@ -267,7 +267,7 @@ class NFOGenerator:
         for genre in show_data.get("genres", []):
             _sub(root, "genre", genre.get("name", ""))
 
-        # --- V15 category (classifier output, written after genres for readability) ---
+        # --- Category (classifier output, written after genres for readability) ---
         if category_id is not None:
             cat_elem = _sub(root, "category", category_id)
             cat_elem.set("source", "personalscraper")

@@ -5,7 +5,7 @@ to API episode data (via S/E extraction), and renaming episodes with
 proper titles from TMDB/TVDB. Subtitle files (.srt, .sub, .vtt) are
 renamed alongside their associated video files.
 
-These functions are used by the TV show orchestrator (scraper.py, Phase 12)
+These functions are used by the TV show orchestrator (scraper.py)
 to organize episodes after metadata matching.
 """
 
@@ -100,7 +100,7 @@ def match_episode_files(
 ) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
-    Uses V2 NameCleaner to extract S/E numbers from filenames, then
+    Uses NameCleaner to extract S/E numbers from filenames, then
     looks up the episode title in the API data.
 
     Args:
