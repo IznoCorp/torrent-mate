@@ -18,7 +18,7 @@
 | --- | ------------------------------------------------------------------- | ---------------------------------------------------------------- | ------ |
 | 1   | Fondations indépendantes (archive, create-branch, brainstorm, plan) | [phase-01-fondations.md](phase-01-fondations.md)                 | [x]    |
 | ·   | _Cohérence P1 → P2_                                                 |                                                                  | [ ]    |
-| 2   | Orchestrateur feature                                               | [phase-02-orchestrator.md](phase-02-orchestrator.md)             | [ ]    |
+| 2   | Orchestrateur feature                                               | [phase-02-orchestrator.md](phase-02-orchestrator.md)             | [x]    |
 | ·   | _Cohérence P2 → P3_                                                 |                                                                  | [ ]    |
 | 3   | Exécution de phase (sub-phase, check, phase)                        | [phase-03-phase-execution.md](phase-03-phase-execution.md)       | [ ]    |
 | ·   | _Cohérence P3 → P4_                                                 |                                                                  | [ ]    |
