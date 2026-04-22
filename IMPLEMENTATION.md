@@ -6,7 +6,7 @@
 **Version bump**: 0.1.0 → 0.2.0
 **Branch**: feat/sort-dry-run
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/6
 **Design**: docs/features/sort-dry-run/DESIGN.md
 **Master plan**: docs/features/sort-dry-run/plan/INDEX.md
 
