@@ -983,6 +983,17 @@ def library_report(
         console.print(format_report_text(report))
 
 
+@app.command()
+def info(ctx: typer.Context) -> None:
+    """Display version, config paths, and disk status."""
+    from personalscraper.info.run import collect_info, format_info
+
+    config = ctx.obj.config
+    assert config is not None  # guaranteed non-None by callback
+    report = collect_info(config)
+    print(format_info(report))
+
+
 # ── Setup commands ────────────────────────────────────────────────────────────
 
 
