@@ -292,20 +292,39 @@ class MediaIndex:
         entry.last_updated = datetime.now(timezone.utc).isoformat()
         self._entries[key] = entry
 
-    def rebuild(self, disk_configs: list["DiskConfig"]) -> int:
+    def rebuild(
+        self,
+        disk_configs: list["DiskConfig"],
+        categories: dict[str, "CategoryConfig"] | None = None,
+    ) -> int:
         """Rebuild the index by scanning all mounted disks.
 
-        Scans each disk's media directory for subdirectories and indexes
-        them. The category is inferred from the subdirectory name, which
-        must match one of the disk's accepted category IDs.
+        Resolves each on-disk category directory to a V15 category ID. When
+        ``categories`` is supplied, the reverse map ``folder_name → id`` is
+        used first — this is required whenever the disk layout uses
+        configurable French folder names (``series``, ``films``, ``emissions``)
+        that differ from the V15 IDs (``tv_shows``, ``movies``, ``tv_programs``).
+        Falls back to treating the directory name as the category ID for
+        backward compatibility with setups where ``folder_name == category_id``.
 
         Args:
             disk_configs: List of DiskConfig objects (Pydantic, from conf.models).
+            categories: Optional V15 categories dict (``id → CategoryConfig``)
+                used to resolve on-disk ``folder_name`` back to the canonical
+                category ID. Without it, only directories whose names already
+                match a V15 category ID are indexed.
 
         Returns:
             Total number of entries indexed.
         """
         self._entries = {}
+
+        # Build folder_name → category_id reverse map (one-shot per rebuild).
+        # Folder names are normalised for a case-insensitive filesystem match.
+        folder_to_id: dict[str, str] = {}
+        if categories:
+            for cid, cat in categories.items():
+                folder_to_id[cat.folder_name.lower()] = cid
 
         for config in disk_configs:
             if not config.path.exists():
@@ -316,26 +335,31 @@ class MediaIndex:
                 if not category_dir.is_dir() or category_dir.name.startswith("."):
                     continue
 
-                # Match the directory name against accepted category IDs
-                # via folder_name lookup — for V15, we check the dir name
-                # against known category IDs directly (folder_name == category_id
-                # by default unless overridden in config).
-                category_id = category_dir.name
-                if category_id not in config.categories:
-                    # Try matching by folder_name from a loaded config (best-effort)
+                # Resolve dir name → V15 category ID.
+                # Preference order: (1) configured folder_name reverse map,
+                # (2) dir name already being a V15 id (legacy fallback).
+                resolved_id = folder_to_id.get(category_dir.name.lower())
+                if resolved_id is None and category_dir.name in config.categories:
+                    resolved_id = category_dir.name
+                if resolved_id is None:
                     continue
+
+                # Disk must accept this category (guard against cross-disk
+                # scans that pick up categories not declared for that disk).
+                if resolved_id not in config.categories:
+                    continue
+
+                # Infer media_type from category ID
+                media_type = "tvshow" if resolved_id in _SERIES_CATEGORY_IDS else "movie"
 
                 for media_dir in category_dir.iterdir():
                     if not media_dir.is_dir() or media_dir.name.startswith("."):
                         continue
 
-                    # Infer media_type from category ID
-                    media_type = "tvshow" if category_id in _SERIES_CATEGORY_IDS else "movie"
-
                     entry = IndexEntry(
                         name=media_dir.name,
                         disk=config.id,
-                        category=category_id,
+                        category=resolved_id,
                         path=str(media_dir),
                         media_type=media_type,
                     )

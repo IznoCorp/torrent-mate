@@ -315,6 +315,70 @@ class TestMediaIndexRebuild:
         assert entry is not None
         assert entry.disk == "my_nas"
 
+    def test_rebuild_resolves_folder_name_to_category_id(self, tmp_path: Path) -> None:
+        """Should resolve on-disk folder_name → V15 category_id via ``categories`` map.
+
+        Production disks use French folder names (``series``, ``films``,
+        ``emissions``) while V15 category IDs are English (``tv_shows``,
+        ``movies``, ``tv_programs``). Without the reverse lookup, rebuild
+        silently skipped every folder whose name was not already a V15 ID.
+        """
+        from personalscraper.conf.models import CategoryConfig, DiskConfig
+
+        disk = tmp_path / "medias"
+        (disk / "series" / "Fallout (2024)").mkdir(parents=True)
+        (disk / "emissions" / "Top Chef (France) (2010)").mkdir(parents=True)
+        (disk / "films" / "The Matrix (1999)").mkdir(parents=True)
+
+        config = DiskConfig(
+            id="drive_a",
+            path=disk,
+            categories=["tv_shows", "tv_programs", "movies"],
+        )
+        categories = {
+            "tv_shows": CategoryConfig(folder_name="series"),
+            "tv_programs": CategoryConfig(folder_name="emissions"),
+            "movies": CategoryConfig(folder_name="films"),
+        }
+
+        idx = MediaIndex(tmp_path / "index.json")
+        count = idx.rebuild([config], categories=categories)
+
+        assert count == 3
+
+        fallout = idx.find("Fallout (2024)", "tvshow")
+        assert fallout is not None
+        assert fallout.category == "tv_shows"
+        assert fallout.disk == "drive_a"
+
+        topchef = idx.find("Top Chef (France) (2010)", "tvshow")
+        assert topchef is not None
+        assert topchef.category == "tv_programs"
+
+        matrix = idx.find("The Matrix (1999)", "movie")
+        assert matrix is not None
+        assert matrix.category == "movies"
+
+    def test_rebuild_without_categories_falls_back_to_legacy(self, tmp_path: Path) -> None:
+        """When no ``categories`` provided, rebuild keeps legacy behaviour.
+
+        Folder name must equal category ID (backward compat with existing
+        tests that pre-date the folder_name remapping).
+        """
+        from personalscraper.conf.models import DiskConfig
+
+        disk = tmp_path / "medias"
+        (disk / "movies" / "Movie A").mkdir(parents=True)
+        (disk / "series" / "Show B").mkdir(parents=True)  # Will be skipped — no mapping
+
+        config = DiskConfig(id="drive_a", path=disk, categories=["movies", "tv_shows"])
+        idx = MediaIndex(tmp_path / "index.json")
+        count = idx.rebuild([config])  # no categories kwarg
+
+        assert count == 1  # Only "movies" dir matched (folder_name == category_id)
+        assert idx.find("Movie A", "movie") is not None
+        assert idx.find("Show B", "tvshow") is None
+
 
 # ---------------------------------------------------------------------------
 # Remove stale

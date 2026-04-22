@@ -103,7 +103,7 @@ def run_dispatch(
         from personalscraper.dispatch.disk_scanner import get_disk_configs
 
         disk_configs = get_disk_configs(config)
-        count = index.rebuild(disk_configs)
+        count = index.rebuild(disk_configs, categories=config.categories)
         logger.info("Index was empty — rebuilt from disk scan: %d entries", count)
         if not dry_run:
             index.save()
