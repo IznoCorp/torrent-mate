@@ -174,9 +174,7 @@ def _check_genre_coherence(nfo_path: Path, result: CoherenceResult, config: Conf
     try:
         category_id, _reason = classify_from_nfo(config, nfo_path, media_type="tvshow")
         if category_id == CID.TV_PROGRAMS:
-            result.warnings.append(
-                f"Genre suggests TV program ({CID.TV_PROGRAMS}) not series for {result.path.name}"
-            )
+            result.warnings.append(f"Genre suggests TV program ({CID.TV_PROGRAMS}) not series for {result.path.name}")
     except (ET.ParseError, OSError, ValueError) as exc:
         logger.warning("Genre check failed for %s: %s", nfo_path.name, exc)
         result.warnings.append(f"Genre check failed: {exc}")
