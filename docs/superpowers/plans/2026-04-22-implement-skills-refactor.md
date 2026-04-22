@@ -22,7 +22,7 @@
 | ·   | _Cohérence P2 → P3_                                                 |                                                                  | [ ]    |
 | 3   | Exécution de phase (sub-phase, check, phase)                        | [phase-03-phase-execution.md](phase-03-phase-execution.md)       | [x]    |
 | ·   | _Cohérence P3 → P4_                                                 |                                                                  | [ ]    |
-| 4   | Finalisation PR (feature-pr, pr-review)                             | [phase-04-pr-finalization.md](phase-04-pr-finalization.md)       | [ ]    |
+| 4   | Finalisation PR (feature-pr, pr-review)                             | [phase-04-pr-finalization.md](phase-04-pr-finalization.md)       | [x]    |
 | ·   | _Cohérence P4 → P5_                                                 |                                                                  | [ ]    |
 | 5   | Nettoyage + migration docs + smoke test                             | [phase-05-cleanup-smoke-test.md](phase-05-cleanup-smoke-test.md) | [ ]    |
 
