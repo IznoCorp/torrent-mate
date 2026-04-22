@@ -8,11 +8,17 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/ext-staging/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/ext-staging/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                              | File                        | Status |
+| --- | ---------------------------------- | --------------------------- | ------ |
+| 1   | Config schema (additive)           | phase-01-config-schema.md   | [ ]    |
+| 2   | Sorter refactor + Settings cleanup | phase-02-sorter-refactor.md | [ ]    |
+| 3   | Auto-create staging tree           | phase-03-auto-create.md     | [ ]    |
+| 4   | Repo cleanup (git rm --cached)     | phase-04-repo-cleanup.md    | [ ]    |
+| 5   | Docs + E2E + final gate            | phase-05-docs-e2e.md        | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
