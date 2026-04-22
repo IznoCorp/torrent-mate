@@ -4,7 +4,7 @@ Scans storage disks without ffprobe. Produces LibraryScanItem for each
 media directory found. Uses existing utilities: is_nfo_complete()
 and SEASON_DIR_RE.
 
-In V15, ``scan_library`` accepts a ``Config`` object and resolves folder names
+``scan_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. ``LibraryScanItem.category`` stores
 the category_id (not the folder label).
 """
@@ -396,7 +396,7 @@ def scan_library(
 
     Args:
         disk_configs: List of DiskConfig objects from Config.
-        config: V15 Config used to resolve category folder_name → category_id.
+        config: Config used to resolve category folder_name → category_id.
         disk_filter: Only scan this disk (by disk.id). None = all.
         category_filter: Only scan this category_id. None = all.
 

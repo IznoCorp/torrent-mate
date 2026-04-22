@@ -423,7 +423,7 @@ def rescrape_library(
     ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
 
     Args:
-        config: V15 Config with disk and category definitions.
+        config: Config with disk and category definitions.
         settings: Pipeline settings (API keys, language, paths).
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.

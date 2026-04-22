@@ -4,7 +4,7 @@ Wraps existing verify/checker.py checks for use on storage disks.
 Supports --fix mode for local corrections (empty dirs, NTFS names, dir naming).
 Distinction with enforce: enforce = staging (A TRIER/), validate = library (Disk1-4).
 
-In V15, ``validate_library`` accepts a ``Config`` object and resolves folder names
+``validate_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
 """
 
@@ -118,7 +118,7 @@ def validate_library(
     TV detection uses ``TV_CATEGORY_IDS`` from ``conf/ids``.
 
     Args:
-        config: V15 Config with disk and category definitions.
+        config: Config with disk and category definitions.
         disk_filter: Only validate this disk (by disk.id). None = all.
         category_filter: Only validate this category_id. None = all.
         fix: If True, attempt to fix locally fixable issues.

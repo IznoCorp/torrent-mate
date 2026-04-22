@@ -1,6 +1,6 @@
 """Data models for library maintenance commands.
 
-Result models use @dataclass (V0-V13 convention). Path fields use str
+Result models use @dataclass. Path fields use str
 for JSON serialization compatibility (matching IndexEntry pattern).
 """
 
