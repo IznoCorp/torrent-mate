@@ -123,7 +123,6 @@ def _make_report(*, mounted: bool = True, used: int = 1_200_000_000_000, total: 
     return InfoReport(
         version="0.2.0",
         staging_path=Path("/Volumes/IznoServer SSD/A TRIER"),
-        archive_path=Path("/Volumes/IznoServer SSD/A TRIER/Done"),
         disks=[
             DiskStatus(
                 name="drive_a",
@@ -149,12 +148,6 @@ def test_format_info_contains_staging():
     assert "staging:" in output
 
 
-def test_format_info_contains_archive():
-    """format_info output includes archive: label."""
-    output = format_info(_make_report())
-    assert "archive:" in output
-
-
 def test_format_info_not_mounted_label():
     """format_info shows NOT MOUNTED for unmounted disks."""
     output = format_info(_make_report(mounted=False))
@@ -178,7 +171,6 @@ def test_format_info_disk_count_header(test_config):
     report = InfoReport(
         version="0.2.0",
         staging_path=Path("/fake/staging"),
-        archive_path=Path("/fake/done"),
         disks=[
             DiskStatus(name=d.id, path=d.path, mounted=False, total_bytes=0, used_bytes=0) for d in test_config.disks
         ],

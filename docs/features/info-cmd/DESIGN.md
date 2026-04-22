@@ -21,7 +21,6 @@ personalscraper 0.15.0
 
 Config
   staging: /Volumes/IznoServer SSD/A TRIER
-  archive: /Volumes/IznoServer SSD/A TRIER/Done
 
 Disks (4 configured)
   DISK01  /Volumes/DISK01   1.2 TB / 2.0 TB (60% used)
@@ -74,7 +73,7 @@ class DiskStatus:
 class InfoReport:
     version: str
     staging_path: Path
-    archive_path: Path
+    # Note: PathConfig has no archive_dir field — archive_path removed.
     disks: list[DiskStatus]
 ```
 
@@ -105,7 +104,7 @@ Une seule phase suffit : la feature est contenue (nouveau module isolé + 1 comm
 
 - `personalscraper info` exécute avec exit code 0
 - Output contient "personalscraper" + version string
-- Output contient au moins les chemins `staging:` et `archive:`
+- Output contient le chemin `staging:`
 - Output liste les disques avec leur statut (monté ou non)
 - Tests unitaires verts : version detection, disk_usage OK, not-mounted, empty, formatted output
 - `make lint` + `make test` verts

@@ -40,13 +40,11 @@ class InfoReport:
     Attributes:
         version: Current personalscraper version string.
         staging_path: Staging directory (A TRIER) from config.
-        archive_path: Archive/done directory from config (staging_dir parent).
         disks: Status snapshot for each configured disk.
     """
 
     version: str
     staging_path: Path
-    archive_path: Path
     disks: list[DiskStatus]
 
 
@@ -103,13 +101,9 @@ def collect_info(config: Config) -> InfoReport:
             )
         )
 
-    # Derive archive_path as the "Done" sub-folder of staging_dir (conventional).
-    archive_path = config.paths.staging_dir / "Done"
-
     return InfoReport(
         version=__version__,
         staging_path=config.paths.staging_dir,
-        archive_path=archive_path,
         disks=disks,
     )
 
@@ -118,7 +112,7 @@ def format_info(report: InfoReport) -> str:
     """Render an InfoReport as a plain-text human-readable string.
 
     Format mirrors the DESIGN.md spec: version header, Config section with
-    staging/archive paths, then Disks section with per-disk status.
+    staging path, then Disks section with per-disk status.
 
     Args:
         report: InfoReport produced by collect_info().
@@ -135,7 +129,6 @@ def format_info(report: InfoReport) -> str:
     # Config section
     lines.append("Config")
     lines.append(f"  staging: {report.staging_path}")
-    lines.append(f"  archive: {report.archive_path}")
     lines.append("")
 
     # Disks section

@@ -930,4 +930,3 @@ def test_info_command(test_config) -> None:
     assert "personalscraper" in result.output
     assert personalscraper.__version__ in result.output
     assert "staging:" in result.output
-    assert "archive:" in result.output
