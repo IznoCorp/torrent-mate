@@ -1,5 +1,6 @@
 """Tests for personalscraper.cli — CLI commands and global options."""
 
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -79,7 +80,8 @@ def test_version():
     """--version flag outputs the current version and exits."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "0.1.0" in result.output
+    # Match any semver string — avoids hardcoding the version number.
+    assert re.search(r"\d+\.\d+\.\d+", result.output)
 
 
 def test_help():
