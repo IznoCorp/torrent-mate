@@ -20,7 +20,7 @@
 | ·   | _Cohérence P1 → P2_                                                 |                                                                  | [ ]    |
 | 2   | Orchestrateur feature                                               | [phase-02-orchestrator.md](phase-02-orchestrator.md)             | [x]    |
 | ·   | _Cohérence P2 → P3_                                                 |                                                                  | [ ]    |
-| 3   | Exécution de phase (sub-phase, check, phase)                        | [phase-03-phase-execution.md](phase-03-phase-execution.md)       | [ ]    |
+| 3   | Exécution de phase (sub-phase, check, phase)                        | [phase-03-phase-execution.md](phase-03-phase-execution.md)       | [x]    |
 | ·   | _Cohérence P3 → P4_                                                 |                                                                  | [ ]    |
 | 4   | Finalisation PR (feature-pr, pr-review)                             | [phase-04-pr-finalization.md](phase-04-pr-finalization.md)       | [ ]    |
 | ·   | _Cohérence P4 → P5_                                                 |                                                                  | [ ]    |
