@@ -8,9 +8,12 @@ V15 split: paths and disk structure live in config.json5 (see
 version-controlled config file.
 """
 
+from __future__ import annotations
+
+from collections.abc import Iterator
 from functools import lru_cache
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -121,7 +124,7 @@ class Settings(BaseSettings):
 
     __str__ = __repr__
 
-    def __rich_repr__(self):
+    def __rich_repr__(self) -> Iterator[tuple[str, Any]]:
         """Rich-console repr that masks secrets.
 
         Rich's ``Traceback`` inspects live objects via ``__rich_repr__`` when

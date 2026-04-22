@@ -15,6 +15,8 @@ Index file path must be supplied explicitly; the removed
 ``settings.data_dir`` default is gone (P6.1).
 """
 
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -25,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import DiskConfig
+    from personalscraper.conf.models import CategoryConfig, DiskConfig
 
 logger = logging.getLogger(__name__)
 
@@ -294,8 +296,8 @@ class MediaIndex:
 
     def rebuild(
         self,
-        disk_configs: list["DiskConfig"],
-        categories: dict[str, "CategoryConfig"] | None = None,
+        disk_configs: list[DiskConfig],
+        categories: dict[str, CategoryConfig] | None = None,
     ) -> int:
         """Rebuild the index by scanning all mounted disks.
 
