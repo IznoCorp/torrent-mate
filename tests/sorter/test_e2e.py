@@ -167,13 +167,14 @@ class TestE2ERunSort:
         assert report.error_count == 0
 
     def test_run_sort_dry_run(self, staging_settings, staging):
-        """run_sort dry-run counts items in details."""
+        """run_sort dry-run: details contain [DRY-RUN], no files moved."""
         temp = staging / "097-TEMP"
         temp.mkdir(exist_ok=True)
-        _create_movie_dir(temp, "Movie.2024.1080p")
+        movie_dir = _create_movie_dir(temp, "Movie.2024.1080p")
         report = run_sort(staging_settings, staging_dir=staging, dry_run=True)
         assert report.success_count == 1
         assert any("[DRY-RUN]" in d for d in report.details)
+        assert movie_dir.exists()
 
     def test_run_sort_empty_staging(self, staging_settings, staging):
         """run_sort on empty staging returns zero counts."""
