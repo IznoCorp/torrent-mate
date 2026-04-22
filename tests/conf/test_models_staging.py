@@ -153,8 +153,9 @@ class TestConfigStagingDirsValidators:
                 )
             )
 
-    def test_config_without_staging_dirs_still_loads(self):
-        """staging_dirs is Optional in Phase 1 — missing key must not raise."""
+    def test_config_without_staging_dirs_raises_friendly_error(self):
+        """staging_dirs is required in Phase 2 — missing key must emit friendly message."""
         cfg = _minimal_config_dict([])
         del cfg["staging_dirs"]
-        Config.model_validate(cfg)
+        with pytest.raises(ValidationError, match="MANUAL.md"):
+            Config.model_validate(cfg)

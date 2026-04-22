@@ -232,6 +232,20 @@ def generate_config_from_env(
     # data_dir: default is <staging>/.data (absolute, avoids CWD dependency).
     data_dir = str(Path(staging_dir) / ".data") if staging_dir else "./.data"
 
+    # Canonical staging_dirs entries matching the default on-disk layout.
+    # Sub-phase 2.5 will make this config-driven from legacy env vars; for now
+    # we emit the 8 canonical defaults so Config.model_validate() succeeds.
+    staging_dirs: list[dict[str, Any]] = [
+        {"id": 1, "name": "movies", "file_type": "movie"},
+        {"id": 2, "name": "tvshows", "file_type": "tvshow"},
+        {"id": 3, "name": "ebooks", "file_type": "ebook"},
+        {"id": 4, "name": "audio", "file_type": "audio"},
+        {"id": 5, "name": "apps", "file_type": "app"},
+        {"id": 6, "name": "android", "file_type": "app"},
+        {"id": 97, "name": "temp", "file_type": None, "role": "ingest"},
+        {"id": 98, "name": "autres", "file_type": "other"},
+    ]
+
     result: dict[str, Any] = {
         "config_version": 1,
         "paths": {
@@ -246,6 +260,7 @@ def generate_config_from_env(
         "anime_rule": anime_rule,
         "genre_mapping": genre_mapping,
         "library": {},
+        "staging_dirs": staging_dirs,
     }
 
     # Optionally merge library preferences.

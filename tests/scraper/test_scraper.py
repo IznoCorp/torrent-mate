@@ -1410,6 +1410,7 @@ class TestClassifierIntegration:
             GenreMapping,
             PathConfig,
         )
+        from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
         return Config(
             paths=PathConfig(
@@ -1448,6 +1449,7 @@ class TestClassifierIntegration:
                 maps_to=CID.ANIME,
                 applies_to="tv",
             ),
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
 
     def test_classify_called_for_movie(self, mock_settings: MagicMock, test_config, tmp_path: Path) -> None:
@@ -1592,6 +1594,7 @@ class TestClassifierIntegration:
             GenreMapping,
             PathConfig,
         )
+        from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
         # Config with a tmdb_keyword rule
         config_with_kw = Config(
@@ -1614,6 +1617,7 @@ class TestClassifierIntegration:
                 requires_origin_country=["JP"],
                 maps_to=CID.ANIME,
             ),
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
 
         with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):

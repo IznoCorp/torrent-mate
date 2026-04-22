@@ -4,6 +4,7 @@ from pathlib import Path
 
 from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.disk_cleaner import clean_library
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 def _make_v15_config(
@@ -23,6 +24,7 @@ def _make_v15_config(
         ),
         disks=[disk_cfg],
         categories={category_id: CategoryConfig(folder_name=folder_name)},
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 
@@ -202,6 +204,7 @@ class TestCleanAll:
                 DiskConfig(id="disk2", path=disk2, categories=["movies"]),
             ],
             categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         clean_library(config, apply=True, only="actors", disk_filter="disk1")
 

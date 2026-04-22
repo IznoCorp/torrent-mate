@@ -498,12 +498,9 @@ class Config(_StrictModel):
 
     library: LibraryPrefs = Field(default_factory=LibraryPrefs)
 
-    staging_dirs: list[StagingDirConfig] | None = Field(
-        default=None,
-        description=(
-            "Staging subdirectory layout. Required from Phase 2 onward. "
-            "See MANUAL.md §Staging layout for migration steps."
-        ),
+    staging_dirs: list[StagingDirConfig] = Field(
+        ...,
+        description=("Staging subdirectory layout. Required. See MANUAL.md §Staging layout for migration steps."),
     )
 
     @property
@@ -595,6 +592,26 @@ class Config(_StrictModel):
 
         return self
 
+    @model_validator(mode="before")
+    @classmethod
+    def _check_staging_dirs_present(cls, data: dict[str, object]) -> dict[str, object]:
+        """Emit a friendly error when staging_dirs is missing.
+
+        Args:
+            data: Raw config dict[str, object] before field validation.
+
+        Returns:
+            data unchanged (validation continues normally).
+
+        Raises:
+            ValueError: With a human-readable migration hint if staging_dirs is absent.
+        """
+        if isinstance(data, dict) and "staging_dirs" not in data:
+            raise ValueError(
+                "`staging_dirs` missing from config.json5 — see MANUAL.md §Staging layout for migration steps."
+            )
+        return data
+
     @model_validator(mode="after")
     def _validate_staging_dirs(self) -> "Config":
         """Validate staging_dirs entries when present.
@@ -609,9 +626,6 @@ class Config(_StrictModel):
         Raises:
             ValueError: If IDs are duplicated or ingest role count != 1.
         """
-        if self.staging_dirs is None:
-            return self
-
         # Unique IDs
         seen_ids: set[int] = set()
         for entry in self.staging_dirs:

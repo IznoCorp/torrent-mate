@@ -4,6 +4,7 @@ from pathlib import Path
 
 from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.validator import validate_library
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 def _make_v15_config(
@@ -23,6 +24,7 @@ def _make_v15_config(
         ),
         disks=[disk_cfg],
         categories={category_id: CategoryConfig(folder_name=folder_name)},
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 

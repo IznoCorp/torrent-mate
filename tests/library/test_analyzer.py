@@ -4,6 +4,7 @@ from pathlib import Path
 
 from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
 from personalscraper.library.analyzer import deduce_audio_profile
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 def _make_v15_config(
@@ -23,6 +24,7 @@ def _make_v15_config(
         ),
         disks=[disk_cfg],
         categories={category_id: CategoryConfig(folder_name=folder_name)},
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 
@@ -149,6 +151,7 @@ class TestAnalyzeLibrary:
                 DiskConfig(id="disk2", path=disk2, categories=["movies"]),
             ],
             categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
 
         with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):

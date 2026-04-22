@@ -19,6 +19,7 @@ from personalscraper.conf.models import (
     PathConfig,
 )
 from personalscraper.conf.resolver import folder_for, pick_disk_for
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Helpers / minimal config factory
@@ -48,6 +49,7 @@ def _make_config(
             default_movies_category=CID.MOVIES,
             default_tv_category=CID.TV_SHOWS,
         ),
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 

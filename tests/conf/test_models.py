@@ -16,6 +16,7 @@ from personalscraper.conf.models import (
     SubtitlePrefs,
     VideoPrefs,
 )
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -43,6 +44,7 @@ def _minimal_config(tmp_path):
                 categories=list(CID.BUILTIN_CATEGORY_IDS),
             )
         ],
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 
@@ -260,6 +262,7 @@ class TestConfigValidCustomIds:
             ),
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])],
             custom_categories=["my_custom"],
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         assert "my_custom" in cfg.all_category_ids
 
@@ -273,6 +276,7 @@ class TestConfigValidCustomIds:
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 custom_categories=["Bad-ID"],
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
     def test_builtin_collision_rejected(self, tmp_path):
@@ -285,6 +289,7 @@ class TestConfigValidCustomIds:
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 custom_categories=[CID.MOVIES],
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
 
@@ -301,6 +306,7 @@ class TestConfigCrossReferences:
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 categories={"ghost_id": CategoryConfig(folder_name="Ghost")},
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
     def test_unknown_category_in_disk(self, tmp_path):
@@ -312,6 +318,7 @@ class TestConfigCrossReferences:
                     staging_dir=tmp_path / "s",
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=["ghost_id"])],
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
     def test_duplicate_disk_ids_rejected(self, tmp_path):
@@ -326,6 +333,7 @@ class TestConfigCrossReferences:
                     DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES]),
                     DiskConfig(id="disk_a", path=tmp_path / "b", categories=[CID.TV_SHOWS]),
                 ],
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
     def test_genre_mapping_unknown_category(self, tmp_path):
@@ -338,6 +346,7 @@ class TestConfigCrossReferences:
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 genre_mapping=GenreMapping(tmdb_movies={16: "ghost_id"}),
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
     def test_category_rules_unknown_category(self, tmp_path):
@@ -350,6 +359,7 @@ class TestConfigCrossReferences:
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 category_rules=[CategoryRule(path_contains="/foo/", category="ghost_id")],
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
     def test_extra_field_forbidden(self, tmp_path):
@@ -362,6 +372,7 @@ class TestConfigCrossReferences:
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
                 unknown_key="surprise",
+                staging_dirs=CANONICAL_STAGING_DIRS,
             )
 
 
@@ -377,6 +388,7 @@ class TestConfigMethods:
             ),
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
             categories={CID.MOVIES: CategoryConfig(folder_name="Films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         assert cfg.category(CID.MOVIES).folder_name == "Films"
 
@@ -408,6 +420,7 @@ class TestConfigMethods:
                 DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES]),
                 DiskConfig(id="disk_b", path=tmp_path / "b", categories=[CID.TV_SHOWS]),
             ],
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         result = cfg.disks_accepting(CID.MOVIES)
         assert len(result) == 1
@@ -424,6 +437,7 @@ class TestConfigMethods:
                 DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES]),
                 DiskConfig(id="disk_b", path=tmp_path / "b", categories=[CID.MOVIES]),
             ],
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         result = cfg.disks_accepting(CID.MOVIES)
         assert len(result) == 2
@@ -442,6 +456,7 @@ class TestConfigMethods:
             ),
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
             categories={CID.MOVIES: CategoryConfig(folder_name="Films", aliases=["films", "movie"])},
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         assert cfg.resolve_category_alias("films") == CID.MOVIES
         assert cfg.resolve_category_alias("movie") == CID.MOVIES
@@ -460,6 +475,7 @@ class TestConfigMethods:
             ),
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])],
             custom_categories=["my_custom"],
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         assert "my_custom" in cfg.all_category_ids
         assert CID.MOVIES in cfg.all_category_ids

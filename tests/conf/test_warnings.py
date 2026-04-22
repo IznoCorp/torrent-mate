@@ -8,6 +8,7 @@ from personalscraper.conf.models import (
     DiskConfig,
     PathConfig,
 )
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -43,6 +44,7 @@ def _base_config(tmp_path, *, disk_path_exists: bool = True) -> Config:
             )
         ],
         categories={cid: CategoryConfig(folder_name=f"cat_{cid}") for cid in CID.BUILTIN_CATEGORY_IDS},
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 
@@ -64,6 +66,7 @@ class TestDeadCustomCategoryWarning:
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
             custom_categories=["my_unused_cat"],
             categories={"my_unused_cat": CategoryConfig(folder_name="unused")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         warnings = collect_warnings(cfg)
         assert any("dead custom_category" in w and "my_unused_cat" in w for w in warnings)
@@ -78,6 +81,7 @@ class TestDeadCustomCategoryWarning:
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES, "my_custom"])],
             custom_categories=["my_custom"],
             categories={"my_custom": CategoryConfig(folder_name="Custom Stuff")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         warnings = collect_warnings(cfg)
         assert not any("dead custom_category" in w for w in warnings)
@@ -100,6 +104,7 @@ class TestDefaultLabelWarning:
             ),
             disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
             # No categories dict — MOVIES has no explicit config
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         warnings = collect_warnings(cfg)
         assert any("using default label" in w and CID.MOVIES in w for w in warnings)
@@ -115,6 +120,7 @@ class TestDefaultLabelWarning:
             categories={CID.MOVIES: CategoryConfig(folder_name="Films")},
             # Also provide config for defaults used by genre_mapping and anime_rule
             # to suppress their warnings — add the remaining ones that get pulled in
+            staging_dirs=CANONICAL_STAGING_DIRS,
         )
         # MOVIES is configured; only check that MOVIES warning is absent
         warnings = collect_warnings(cfg)
@@ -173,6 +179,16 @@ class TestDiskUnmountedWarning:
                     theater: {{ folder_name: "Theater" }},
                     tv_programs: {{ folder_name: "TV Programs" }},
                 }},
+                staging_dirs: [
+                    {{ id: 1, name: "movies", file_type: "movie" }},
+                    {{ id: 2, name: "tvshows", file_type: "tvshow" }},
+                    {{ id: 3, name: "ebooks", file_type: "ebook" }},
+                    {{ id: 4, name: "audio", file_type: "audio" }},
+                    {{ id: 5, name: "apps", file_type: "app" }},
+                    {{ id: 6, name: "android", file_type: "app" }},
+                    {{ id: 97, name: "temp", file_type: null, role: "ingest" }},
+                    {{ id: 98, name: "autres", file_type: "other" }},
+                ],
             }}""",
             encoding="utf-8",
         )
