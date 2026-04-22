@@ -1,16 +1,15 @@
 """Disk scanner: free space queries and runtime disk status.
 
 Scans storage disks for mount status and available space. The disk-to-category
-mapping is now driven by config.json5 (``Config.disks``) rather than a
-hardcoded ``DISK_CATEGORIES`` dict (removed in V15 P6.2).
+mapping is driven by config.json5 (``Config.disks``) rather than a hardcoded
+``DISK_CATEGORIES`` dict.
 
-V14 → V15 shift:
+Key design decisions:
     - ``DISK_CATEGORIES`` dict removed — categories come from ``Config.disks``.
     - ``DiskConfig`` dataclass removed — use ``conf.models.DiskConfig`` (Pydantic).
-    - ``get_disk_configs(settings)`` → ``get_disk_configs(config)`` returning
-      ``config.disks`` directly.
-    - ``choose_disk()`` removed — use ``conf.resolver.pick_disk_for()`` instead.
-    - ``DiskStatus`` retained as a pure runtime state dataclass (not config).
+    - ``get_disk_configs(config)`` returns ``config.disks`` directly.
+    - ``choose_disk()`` kept as compatibility shim — prefer ``conf.resolver.pick_disk_for()``.
+    - ``DiskStatus`` is a pure runtime state dataclass (not config).
 """
 
 import logging
@@ -43,9 +42,9 @@ class DiskStatus:
 def get_disk_configs(config: Config) -> list[DiskConfig]:
     """Return the list of DiskConfig objects from a loaded Config.
 
-    V14 → V15: formerly built DiskConfig dataclasses from ``settings.disk{1-4}_dir``
-    and the hardcoded ``DISK_CATEGORIES`` dict. Now simply returns
-    ``config.disks`` which are Pydantic ``DiskConfig`` models validated at load time.
+    Formerly built DiskConfig dataclasses from ``settings.disk{1-4}_dir`` and the
+    hardcoded ``DISK_CATEGORIES`` dict. Now simply returns ``config.disks`` which
+    are Pydantic ``DiskConfig`` models validated at load time.
 
     Args:
         config: The loaded and validated Config instance (conf/models.py).
@@ -96,14 +95,13 @@ def choose_disk(
     item_size_gb: float = 0,
     allow_create_category: bool = False,
 ) -> DiskStatus | None:
-    """Choose the best disk for a media item (V14 compatibility shim).
+    """Choose the best disk for a media item (compatibility shim).
 
     .. deprecated::
         Use ``conf.resolver.pick_disk_for()`` for new code. This function is
-        retained for callers that have not yet been migrated to V15 Config-based
-        routing (dispatcher.py, tests). It operates on ``DiskStatus`` objects
-        and uses ``config.categories`` (list of category IDs or labels depending
-        on caller) rather than ``Config.disks_accepting()``.
+        retained for callers not yet migrated to Config-based routing.
+        It operates on ``DiskStatus`` objects and uses ``config.categories``
+        (list of category IDs) rather than ``Config.disks_accepting()``.
 
     Two-pass strategy:
         1. Disks that have the category AND enough space (most free wins).

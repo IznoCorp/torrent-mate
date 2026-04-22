@@ -117,9 +117,9 @@ class MovieStrategy(SortingStrategy):
 class TVShowStrategy(SortingStrategy):
     """Place TV shows in 002-TVSHOWS/Show Name/ subfolders.
 
-    V2 creates folders WITHOUT year (e.g. 'Shrinking/', not 'Shrinking (2023)/').
-    V3 adds the year after API matching. Uses fuzzy matching to merge
-    new episodes into existing show folders.
+    Sort creates folders WITHOUT year (e.g. 'Shrinking/', not 'Shrinking (2023)/');
+    year is added after API matching in the scraping step. Uses fuzzy matching
+    to merge new episodes into existing show folders.
     """
 
     def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner) -> Path:
@@ -135,8 +135,8 @@ class TVShowStrategy(SortingStrategy):
         """
         tvshows_dir = staging_dir / get_type_dir_map()[FileType.TVSHOW]
 
-        # Extract show name without season/episode info and without year
-        # V2 creates "Show Name/" — V3 will rename to "Show Name (Year)/"
+        # Extract show name without season/episode info and without year.
+        # Sort creates "Show Name/"; the scraping step renames to "Show Name (Year)/".
         cleaned = cleaner.clean(name)
         # Remove season/episode suffix to get just the show name
         # clean() returns "Show S01E04" or "Show S03" — we want just "Show"

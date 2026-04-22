@@ -1,7 +1,7 @@
-"""Shared dataclass models used across multiple pipeline versions.
+"""Shared dataclass models used across multiple pipeline modules.
 
-Convention: only models shared between 2+ versions live here.
-Version-specific models (ScrapeResult, VerifyResult, DispatchResult)
+Convention: only models shared between 2+ modules live here.
+Module-specific models (ScrapeResult, VerifyResult, DispatchResult)
 are defined in their respective modules.
 """
 
@@ -20,8 +20,8 @@ class SortResult:
         media_type: Detected type ("movie", "episode", "audio", "ebook", etc.).
         title: Extracted title.
         year: Detected year, if any.
-        season: Detected season number, if any (V2 cleaner).
-        episode: Detected episode number, if any (V2 cleaner).
+        season: Detected season number, if any.
+        episode: Detected episode number, if any.
         status: Result status ("moved", "skipped", "error").
         message: Error message or additional info.
     """
@@ -41,7 +41,7 @@ class SortResult:
 class StepReport:
     """Execution report for a single pipeline step.
 
-    Each run_*() function (V1-V9) converts its internal results
+    Each run_*() function converts its internal results
     into a StepReport before returning.
 
     Attributes:
@@ -63,7 +63,7 @@ class StepReport:
 
 @dataclass
 class PipelineReport:
-    """Aggregated report for a full pipeline run (V6, extended in V9).
+    """Aggregated report for a full pipeline run.
 
     Collects StepReports from each pipeline step and provides
     summary methods for notifications and console display.

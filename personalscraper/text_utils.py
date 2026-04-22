@@ -1,12 +1,12 @@
 """Shared text processing utilities for media title matching.
 
 Provides media_processor() — a custom rapidfuzz processor that normalizes
-media titles for accent-insensitive French matching. Used by V2 (matcher.py),
-V3 (confidence.py), and V5 (media_index.py).
+media titles for accent-insensitive French matching. Used by the sorter
+(matcher.py), scraper (confidence.py), and dispatcher (media_index.py).
 
 Also provides fuzzy_match_score() — a guarded fuzzy matching function with
 anti-false-positive protections (year constraint, length ratio, adaptive
-threshold). Used by V5 (media_index.py) and V2 (matcher.py).
+threshold). Used by the dispatcher (media_index.py) and sorter (matcher.py).
 
 See docs/rapidfuzz-reference.md for rationale on custom processing.
 """

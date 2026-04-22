@@ -34,6 +34,7 @@ python -m pytest -m roundtrip -v -s     # 2 tests (movie + tvshow roundtrip matc
 ## Golden Files
 
 Located in `assets/torrents/expected/`. Add exact validation on top of smoke tests:
+
 - NFO invariants
 - Artwork existence
 - Directory structure
@@ -48,6 +49,6 @@ make lint            # ruff check
 make format          # ruff format + fix
 ```
 
-## V12 Testing Requirement
+## Testing Requirement
 
-Every bug fix MUST have a test reproducing the bug. No exception. Tests added during V12 demonstrate this discipline — see `docs/v12-pipeline-hardening/` for examples.
+Every bug fix MUST have a test reproducing the bug. No exception.

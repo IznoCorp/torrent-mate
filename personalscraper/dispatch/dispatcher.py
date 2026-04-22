@@ -4,11 +4,10 @@ Handles cross-filesystem transfers from staging area (A TRIER/) to
 storage disks using rsync for reliability. Movies are replaced
 (delete old + move new), TV shows are merged (add new episodes).
 
-V15 P6.3: Dispatcher now accepts ``Config`` as first argument. Category routing
-uses ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for`` instead of
-the removed ``choose_disk()`` + hardcoded DISK_CATEGORIES. The ``category``
-parameter is now a category_id (V15 ID, e.g. ``"movies"``) rather than a V14
-label (e.g. ``"films"``).
+Dispatcher accepts ``Config`` as first argument. Category routing uses
+``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for``. The
+``category`` parameter is a category_id (e.g. ``"movies"``) rather than
+a legacy label (e.g. ``"films"``).
 """
 
 import logging
@@ -113,7 +112,7 @@ class Dispatcher:
     Handles replace (movies), merge (TV shows), and new item placement
     using rsync for cross-filesystem transfers.
 
-    V15 P6.3: accepts ``Config`` as first argument; routing uses
+    Accepts ``Config`` as first argument; routing uses
     ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for``
     instead of the removed ``choose_disk()`` + DISK_CATEGORIES.
 
@@ -217,7 +216,7 @@ class Dispatcher:
         dispatching each item to the appropriate storage disk.
 
         Args:
-            verified: List of VerifyResult from V4 verify step.
+            verified: List of VerifyResult from the verify step.
 
         Returns:
             List of DispatchResult for each item.
@@ -317,7 +316,7 @@ class Dispatcher:
 
         Args:
             movie_dir: Source movie directory.
-            category_id: V15 category ID (e.g. ``"movies"``) from the classifier.
+            category_id: Category ID (e.g. ``"movies"``) from the classifier.
 
         Returns:
             DispatchResult with operation details.
@@ -343,7 +342,7 @@ class Dispatcher:
         existing = self._resolve_existing_on_filesystem(movie_dir.name, "movie")
 
         if existing:
-            # Replace existing on the same disk (disk stored as disk_id in V15 index)
+            # Replace existing on the same disk (disk stored as disk_id in the index)
             dest = Path(existing.path)
             result.disk = existing.disk
             result.destination = dest
@@ -386,7 +385,7 @@ class Dispatcher:
             success = self._move_new(movie_dir, dest)
             result.action = "moved" if success else "error"
 
-        # Update index with V15 IDs
+        # Update index with current IDs
         if result.action in ("replaced", "moved") and result.destination:
             self.index.add(
                 IndexEntry(
@@ -405,7 +404,7 @@ class Dispatcher:
 
         Args:
             show_dir: Source TV show directory.
-            category_id: V15 category ID (e.g. ``"tv_shows"``) from the classifier.
+            category_id: Category ID (e.g. ``"tv_shows"``) from the classifier.
 
         Returns:
             DispatchResult with operation details.

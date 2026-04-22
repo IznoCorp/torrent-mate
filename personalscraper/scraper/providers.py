@@ -2,7 +2,7 @@
 
 Defines the MetadataProvider Protocol — the common interface that both
 TMDBClient and TVDBClient implement. Enables polymorphic usage in the
-matching and orchestration phases (V3 phases 5-6, 11-12).
+matching and orchestration phases.
 
 Each client adds type-specific methods (search_movie, get_tv_season, etc.)
 beyond this minimal shared contract.

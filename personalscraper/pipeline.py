@@ -1,4 +1,4 @@
-"""Sequential exhaustive pipeline orchestrator (V9).
+"""Sequential exhaustive pipeline orchestrator.
 
 Executes 6 phases producing 8 StepReports:
 INGEST → SORT → (gate: 097-TEMP empty) → PROCESS (clean, scrape, cleanup)
@@ -47,7 +47,7 @@ class Pipeline:
     only runs if verified items exist.
 
     Attributes:
-        config: V15 config (paths, disks).
+        config: Config with paths and disk layout.
         settings: Pipeline configuration (secrets, thresholds).
         dry_run: Preview mode — no filesystem changes.
         interactive: Prompt user for ambiguous matches.
@@ -67,7 +67,7 @@ class Pipeline:
         """Initialize the pipeline.
 
         Args:
-            config: V15 config with paths and disk layout.
+            config: Config with paths and disk layout.
             settings: Pipeline configuration (secrets, thresholds).
             dry_run: If True, preview operations without modifying files.
             interactive: If True, prompt for ambiguous matches.

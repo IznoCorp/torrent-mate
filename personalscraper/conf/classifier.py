@@ -11,7 +11,7 @@ Priorité (plus fort → plus faible):
 
 Note: The anime_rule runs before category_rules (unlike the conceptual design order)
 because origin-country-gated anime detection is a stronger signal than a generic
-"animation" genre string match. This mirrors V14 GenreMapper behavior where
+"animation" genre string match. This mirrors the legacy GenreMapper behavior where
 origin_country is checked before the string-based genre fallback.
 """
 
@@ -86,9 +86,9 @@ def classify(
     # ------------------------------------------------------------------
     # Anime detection runs BEFORE category_rules so that a config rule like
     # "animation → tv_shows_animation" does not shadow the more-specific
-    # "Animation genre + JP origin → anime" signal. V14 GenreMapper uses the
-    # same priority: origin-country-gated anime detection takes precedence over
-    # the generic animation string/ID match.
+    # "Animation genre + JP origin → anime" signal. The legacy GenreMapper used
+    # the same priority: origin-country-gated anime detection takes precedence
+    # over the generic animation string/ID match.
     #
     # Both ID-based and string-based checks are consolidated here:
     # - ID path: TMDB genre_id == requires_genre_id (e.g. 16) + JP origin.
@@ -164,29 +164,30 @@ def classify_from_nfo(
 ) -> tuple[str | None, str]:
     """Classify a media item by parsing its NFO file.
 
-    This is the V15 replacement for V14's ``GenreMapper.categorize_from_nfo``.
+    This replaces the legacy ``GenreMapper.categorize_from_nfo``.
     It extracts genres and origin_country from the NFO, then delegates to
-    :func:`classify`. The ``media_type`` argument accepts the V14 convention
-    ``"tvshow"`` in addition to V15's ``"tv"`` for a drop-in migration.
+    :func:`classify`. The ``media_type`` argument accepts the legacy convention
+    ``"tvshow"`` in addition to the current ``"tv"`` for a drop-in migration.
 
     A legacy sibling ``.category`` file is also honored — its content is
-    translated from a V14 label (e.g. ``"films"``) to a V15 ID (``"movies"``)
-    via :data:`conf.migration.V14_LABEL_TO_ID`. The ``.category`` mechanism
-    remains supported so existing user-tagged folders (spectacles, théâtre)
-    keep their manual classification without requiring NFO edits.
+    translated from a legacy label (e.g. ``"films"``) to a category ID
+    (``"movies"``) via :data:`conf.migration.V14_LABEL_TO_ID`. The
+    ``.category`` mechanism remains supported so existing user-tagged folders
+    (spectacles, théâtre) keep their manual classification without requiring
+    NFO edits.
 
     Args:
         config: Validated Config instance.
         nfo_path: Path to the NFO file to classify from.
-        media_type: ``"movie"`` or ``"tvshow"`` (V14) or ``"tv"`` (V15).
+        media_type: ``"movie"`` or ``"tvshow"`` (legacy) or ``"tv"`` (current).
 
     Returns:
-        A ``(category_id, reason)`` tuple. ``category_id`` is either a V15 ID
-        present in ``config.all_category_ids`` or ``None``. ``reason`` is a
+        A ``(category_id, reason)`` tuple. ``category_id`` is either a known
+        ID present in ``config.all_category_ids`` or ``None``. ``reason`` is a
         short human-readable tag (``"category_file"``, ``"nfo_parse_error"``,
         or the reason produced by :func:`classify`).
     """
-    # Legacy V14 .category override — translate to V15 ID if needed.
+    # Legacy .category override — translate to current category ID if needed.
     category_file = nfo_path.parent / ".category"
     if category_file.is_file():
         try:
@@ -202,7 +203,7 @@ def classify_from_nfo(
             if v15_id in config.all_category_ids:
                 return v15_id, "category_file"
             logger.warning(
-                "Invalid .category content '%s' in %s (not a V14 label nor V15 ID)",
+                "Invalid .category content '%s' in %s (not a legacy label nor known category ID)",
                 content,
                 nfo_path.parent.name,
             )

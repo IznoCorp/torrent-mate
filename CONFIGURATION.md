@@ -18,7 +18,7 @@ Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-sett
 
 ## qBittorrent
 
-Variables de connexion à l'interface Web de qBittorrent (V1 — Ingest).
+Variables de connexion à l'interface Web de qBittorrent (Ingest).
 
 | Variable        | Défaut      | Description                           |
 | --------------- | ----------- | ------------------------------------- |
@@ -82,7 +82,7 @@ STAGING_DIR=/Volumes/IznoServer SSD/A TRIER
 
 ## TMDB (The Movie Database)
 
-Clé API pour la recherche de métadonnées films et séries (V3 — Scrape).
+Clé API pour la recherche de métadonnées films et séries (Scrape).
 
 | Variable       | Défaut   | Description               |
 | -------------- | -------- | ------------------------- |
@@ -113,7 +113,7 @@ TMDB_API_KEY=abcdef1234567890abcdef1234567890
 
 ## TVDB (TheTVDB)
 
-Clé API pour la recherche de métadonnées séries, épisodes, et anime (V3 — Scrape).
+Clé API pour la recherche de métadonnées séries, épisodes, et anime (Scrape).
 
 | Variable       | Défaut   | Description                      |
 | -------------- | -------- | -------------------------------- |
@@ -177,7 +177,7 @@ SCRAPER_FALLBACK_LANGUAGE=en-US
 
 ## Telegram (optionnel)
 
-Notifications en fin de pipeline via un bot Telegram (V6 — Log+Notify).
+Notifications en fin de pipeline via un bot Telegram.
 
 | Variable             | Défaut   | Description                                         |
 | -------------------- | -------- | --------------------------------------------------- |
@@ -227,7 +227,7 @@ curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
 
 ## Monitoring (optionnel)
 
-Ping de supervision pour le scheduling automatique (V6 — launchd).
+Ping de supervision pour le scheduling automatique (launchd).
 
 | Variable          | Défaut   | Description                                                          |
 | ----------------- | -------- | -------------------------------------------------------------------- |
@@ -277,7 +277,7 @@ MIN_FREE_SPACE_DISK_GB=100
 
 ---
 
-## Circuit Breaker (V8)
+## Circuit Breaker
 
 Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker détecte quand un provider est durablement down et évite de le spammer.
 
@@ -342,7 +342,7 @@ HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 MIN_FREE_SPACE_STAGING_GB=20
 MIN_FREE_SPACE_DISK_GB=100
 
-# ── Circuit Breaker (V8) ─────────────────────
+# ── Circuit Breaker ──────────────────────────
 CIRCUIT_BREAKER_THRESHOLD=5
 CIRCUIT_BREAKER_COOLDOWN=300
 ```

@@ -51,7 +51,7 @@ def run_verify(
 
     Args:
         settings: Pipeline configuration.
-        config: V15 Config passed to the Verifier for classifier-backed
+        config: Config passed to the Verifier for classifier-backed
             category resolution.
         dry_run: If True, preview without modifying files.
         fix: If True, attempt automatic corrections.

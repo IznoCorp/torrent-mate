@@ -59,12 +59,12 @@ class Verifier:
         dry_run: bool = False,
         fix: bool = True,
     ):
-        """Initialize the verifier with checker, fixer, and V15 classifier config.
+        """Initialize the verifier with checker, fixer, and classifier config.
 
         Args:
             settings: Pipeline configuration.
             patterns: Naming patterns for verification.
-            config: V15 Config with category IDs and classification rules.
+            config: Config with category IDs and classification rules.
             dry_run: If True, preview without modifying files.
             fix: If True, attempt to fix correctable issues.
         """
@@ -231,7 +231,7 @@ class Verifier:
         result.errors = [c.message for c in checks if not c.passed and c.severity == Severity.ERROR]
         result.warnings = [c.message for c in checks if not c.passed and c.severity == Severity.WARNING]
 
-        # Determine category via V15 classifier
+        # Determine category via classifier
         cat_check = next((c for c in checks if c.name == "category"), None)
         if cat_check and cat_check.passed:
             nfo_path = self._find_nfo(media_dir, media_type)

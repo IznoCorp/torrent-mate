@@ -48,7 +48,7 @@ def pick_disk_for(
 ) -> DiskConfig | None:
     """Pick the best disk to dispatch a media item of a given category.
 
-    Threshold formula (preserved from V14):
+    Threshold formula:
         threshold = max(min_free_gb, item_size_gb * 1.5)
 
     The 1.5× multiplier leaves headroom for rsync temp files and partial
@@ -84,8 +84,8 @@ def pick_disk_for(
         >>> pick_disk_for(cfg, "movies", {"drive_a": 200.0, "drive_b": 50.0}, 100.0, 4.0)
         DiskConfig(id='drive_a', ...)
     """
-    # V14 threshold: item_size_gb * 1.5 ensures write headroom; min_free_gb
-    # is a policy floor independent of item size.
+    # Threshold: item_size_gb * 1.5 ensures write headroom for rsync temp files;
+    # min_free_gb is a policy floor independent of item size.
     threshold = max(min_free_gb, item_size_gb * 1.5)
 
     candidates = config.disks_accepting(category_id)

@@ -1,7 +1,7 @@
 """Interactive init-config command implementation.
 
 Creates ``config.json5`` from the example template (interactive) or from a
-V14 ``.env`` migration (``--from-current``).
+legacy ``.env`` migration (``--from-current``).
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from personalscraper.conf.migration import (
 
 logger = logging.getLogger(__name__)
 
-# Required V14 env variables for --from-current --yes (non-interactive).
+# Required env variables for --from-current --yes (non-interactive).
 _REQUIRED_DISK_VARS = ["DISK1_DIR", "DISK2_DIR", "DISK3_DIR", "DISK4_DIR"]
 _REQUIRED_PATH_VARS = ["STAGING_DIR", "TORRENT_COMPLETE_DIR"]
 
@@ -83,13 +83,13 @@ def _run_from_current(
     staging_dir: Path,
     env_path: Path,
 ) -> dict[str, Any]:
-    """Build config dict by migrating V14 environment + data.
+    """Build config dict by migrating a legacy environment + data.
 
-    Performs the full V14 → V15 migration:
+    Performs the full migration from the legacy layout:
     1. Parse ``.env`` for DISK*_DIR, STAGING_DIR, TORRENT_COMPLETE_DIR.
     2. Generate config dict via ``generate_config_from_env``.
     3. Migrate ``.personalscraper/`` → ``.data/`` (if source exists).
-    4. Rewrite ``library_*.json`` files with V15 IDs.
+    4. Rewrite ``library_*.json`` files with current category IDs.
     5. Merge ``library_preferences.json`` into config["library"].
     6. Migrate ``.category`` files → NFO ``<category>`` elements.
 
@@ -118,12 +118,12 @@ def _run_from_current(
         missing_required = [v for v in ["DISK1_DIR", *_REQUIRED_PATH_VARS] if not env_values.get(v)]
         if missing_required:
             typer.echo(
-                f"--from-current --yes requires all V14 DISK*_DIR in .env. Missing: {', '.join(missing_required)}",
+                f"--from-current --yes requires all DISK*_DIR in .env. Missing: {', '.join(missing_required)}",
                 err=True,
             )
             sys.exit(2)
 
-    # Step 1: Discover V14 data_dir.
+    # Step 1: Discover legacy data_dir.
     v14_data_dir = staging_dir / ".personalscraper"
     prefs_path: Path | None = None
     if v14_data_dir.is_dir():
@@ -184,7 +184,7 @@ def init_config(
     from_current: bool,
     force: bool,
 ) -> None:
-    """Create ``config.json5`` from the example template or a V14 migration.
+    """Create ``config.json5`` from the example template or a legacy migration.
 
     Behaviour when *output* already exists:
 
@@ -193,7 +193,7 @@ def init_config(
       (overwriting any previous backup — idempotent) and writes the new one.
 
     When ``from_current`` is ``True`` and ``interactive`` is ``False``:
-    validates that all required V14 ``DISK*_DIR`` variables are present in
+    validates that all required ``DISK*_DIR`` variables are present in
     ``.env``.  Exits with code 2 and an explicit message if any are missing.
 
     Args:
@@ -201,7 +201,7 @@ def init_config(
         output: Destination path for the new ``config.json5``.
         interactive: Whether to prompt the user for values (``True``) or
             use defaults silently (``False``).
-        from_current: If ``True``, read V14 ``.env`` and run all migrations.
+        from_current: If ``True``, read the legacy ``.env`` and run all migrations.
         force: If ``True``, overwrite an existing *output* (with auto-backup).
 
     Raises:

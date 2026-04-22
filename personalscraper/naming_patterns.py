@@ -4,7 +4,7 @@ Defines all file naming conventions used by Kodi/MediaElch for movies,
 TV shows, seasons, and episodes. Each pattern uses Python format string
 syntax with named placeholders ({Title}, {Year}, {Season:02d}, etc.).
 
-Shared across V3 (NFO/artwork generation), V4 (verification), and V5 (dispatch).
+Shared across the scraper (NFO/artwork generation), verifier, and dispatcher modules.
 Patterns are MediaElch defaults — no config file needed (YAGNI).
 """
 

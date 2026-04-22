@@ -1,4 +1,4 @@
-"""Main sorting orchestrator for the V2 pipeline step.
+"""Main sorting orchestrator for the pipeline sort step.
 
 Processes all items from a source directory (typically 097-TEMP/), detects
 their type, cleans their names, and moves them into the correct category

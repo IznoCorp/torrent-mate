@@ -147,7 +147,7 @@ def run_scrape(
         interactive: If True, prompt user for ambiguous matches.
         movies_only: If True, process only 001-MOVIES/.
         tvshows_only: If True, process only 002-TVSHOWS/.
-        config: Optional V15 Config for classifier-based categorisation. When
+        config: Optional Config for classifier-based categorisation. When
             provided, each scraped item is classified and ``ScrapeResult.category_id``
             is set. Items with no matching category are skipped. When None, the
             scraper runs in legacy mode (no classification).

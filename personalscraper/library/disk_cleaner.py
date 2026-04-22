@@ -3,7 +3,7 @@
 Dry-run by default. Requires --apply to actually delete.
 Handles NTFS deletion failures gracefully (per-item error, continues).
 
-In V15, ``clean_library`` accepts a ``Config`` object and resolves folder names
+``clean_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. Disk filter uses ``disk.id``;
 category filter uses ``category_id``.
 """
@@ -144,7 +144,7 @@ def clean_library(
     ``config.category(id).folder_name``, and cleans media directories.
 
     Args:
-        config: V15 Config with disk and category definitions.
+        config: Config with disk and category definitions.
         apply: If True, actually delete files. If False, only report.
         only: Filter cleanup type: "actors", "empty", "junk", "release", or None (all).
         disk_filter: Only clean this disk (by disk.id). None = all.

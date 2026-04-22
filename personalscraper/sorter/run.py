@@ -5,9 +5,9 @@ directory (097-TEMP/) into categorized subdirectories under the staging
 root. Returns a StepReport for the pipeline.
 The lock is managed by the CLI caller, not by this module.
 
-V15 P6.5: staging_dir and ingest_dir now come from Config.paths. Functions
-accept an explicit ``staging_dir`` parameter; legacy Settings.ingest_dir
-(now a method) is called with the staging_dir value.
+staging_dir and ingest_dir come from Config.paths. Functions accept an
+explicit ``staging_dir`` parameter; Settings.ingest_dir (a method) is
+called with the staging_dir value.
 """
 
 import logging

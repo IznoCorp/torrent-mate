@@ -116,7 +116,7 @@ class ScrapeResult:
         media_path: Path to the media directory.
         media_type: Type of media ("movie" or "tvshow").
         match: Matched API result, or None if no match.
-        category_id: V15 category ID from classifier.classify(), or None.
+        category_id: Category ID from classifier.classify(), or None.
         nfo_written: Whether an NFO file was written.
         artwork_downloaded: List of downloaded artwork filenames.
         episodes_renamed: Number of episodes renamed (0 for movies).
@@ -394,7 +394,7 @@ class Scraper:
 
     Attributes:
         settings: Pipeline configuration.
-        config: V15 Config for classification and keyword rules.
+        config: Config for classification and keyword rules.
         patterns: Naming patterns for file generation.
         dry_run: If True, log operations without writing files.
         interactive: If True, prompt user for ambiguous matches.
@@ -415,7 +415,7 @@ class Scraper:
             patterns: MediaElch-compatible naming patterns.
             dry_run: If True, preview operations without writing.
             interactive: If True, prompt for ambiguous matches.
-            config: V15 Config for classification rules and paths. When provided,
+            config: Config for classification rules and paths. When provided,
                 classifier.classify() is called for every scraped item to assign
                 a category_id. When None, classification is skipped (legacy mode).
         """
@@ -463,7 +463,7 @@ class Scraper:
         tmdb_id: int | None,
         nfo_path: Path | None = None,
     ) -> str | None:
-        """Classify a media item using the V15 classifier pipeline.
+        """Classify a media item using the classifier pipeline.
 
         Fetches TMDB keywords first (using cache) when any category_rule uses
         ``tmdb_keyword``, then delegates to ``classifier.classify()``.
@@ -1263,8 +1263,8 @@ class Scraper:
                     logger.info("[DRY RUN] Would rename video: %s → %s", video_file.name, clean_video_name)
             stream_info = extract_stream_info(video_file)
 
-        # Classify item (V15 pipeline) — must run before NFO write so the
-        # category_id can be embedded in the NFO by nfo_generator (P7.4).
+        # Classify item — must run before NFO write so the
+        # category_id can be embedded in the NFO by nfo_generator.
         category_id = self._classify_item(
             media_type="movie",
             path=movie_dir,
@@ -1506,7 +1506,7 @@ class Scraper:
         # Resolve title: use local FR title if preferred and available
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, show_data, "tvshow"))
 
-        # Rename folder to canonical name (V2→V3 handoff)
+        # Rename folder to canonical name
         old_dir_name = show_dir.name  # Save before potential rename
         canonical = self.patterns.format(
             "movie_dir",
@@ -1542,8 +1542,8 @@ class Scraper:
                 action = "merge into" if new_dir.exists() else "rename"
                 logger.info("[DRY RUN] Would %s: %s → %s", action, title, canonical)
 
-        # Classify item (V15 pipeline) — must run before NFO write so the
-        # category_id can be embedded in the NFO by nfo_generator (P7.4).
+        # Classify item — must run before NFO write so the
+        # category_id can be embedded in the NFO by nfo_generator.
         # For TV shows matched via TVDB the source TMDB ID may differ from
         # match.api_id — use tmdb_id which was resolved above.
         nfo_path = show_dir / self.patterns.tvshow_nfo

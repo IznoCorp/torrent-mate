@@ -3,7 +3,7 @@
 Most I/O-intensive library command. Designed for off-peak scheduling.
 Supports --incremental to skip already-analyzed files.
 
-In V15, ``analyze_library`` accepts a ``Config`` object and resolves folder
+``analyze_library`` accepts a ``Config`` object and resolves folder
 names from ``config.category(id).folder_name``. TV detection uses
 ``TV_CATEGORY_IDS`` from ``conf/ids``.
 """
@@ -192,7 +192,7 @@ def analyze_library(
     TV detection uses ``TV_CATEGORY_IDS`` from ``conf/ids``.
 
     Args:
-        config: V15 Config with disk and category definitions.
+        config: Config with disk and category definitions.
         disk_filter: Only analyze this disk (by disk.id). None = all.
         category_filter: Only analyze this category_id. None = all.
         incremental: Skip files whose size_gb hasn't changed since last analysis.

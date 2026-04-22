@@ -11,11 +11,12 @@ Python library gotchas: rapidfuzz, tenacity, structlog, rich, guessit.
 ### fuzzy_match_score guards
 
 `fuzzy_match_score()` in `text_utils.py` provides 3 anti-false-positive guards:
+
 1. **Year**: ±1 year tolerance
 2. **Length ratio**: ≥ 0.67 required
 3. **Adaptive threshold**: ≤10 chars → 95%, >10 → 90%
 
-Used by V2 matcher and V5 media_index.
+Used by the sorter matcher and dispatch media_index.
 
 ## tenacity (retry)
 
@@ -34,4 +35,4 @@ Used by V2 matcher and V5 media_index.
 
 ## guessit (filename parsing)
 
-Used by V2 sorter for media filename parsing. Reference: `docs/guessit-evaluation.md`.
+Used by the sorter for media filename parsing. Reference: `docs/guessit-evaluation.md`.
