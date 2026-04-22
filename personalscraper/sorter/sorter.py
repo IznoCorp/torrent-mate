@@ -19,7 +19,6 @@ from personalscraper.sorter.strategies import (
     MovieStrategy,
     SortingStrategy,
     TVShowStrategy,
-    get_type_dir_map,
 )
 
 logger = logging.getLogger(__name__)
@@ -92,7 +91,18 @@ class Sorter:
         items = sorted(source_dir.iterdir(), key=lambda p: p.name)
 
         # Directories that are sorting destinations — skip them during processing
-        skip_dirs = frozenset(get_type_dir_map().values())
+        # TODO(ext-staging 2.4): replace with config-driven lookup via conf/staging
+        skip_dirs = frozenset(
+            {
+                "001-MOVIES",
+                "002-TVSHOWS",
+                "003-EBOOKS",
+                "004-AUDIO",
+                "005-APPS",
+                "097-TEMP",
+                "098-AUTRES",
+            }
+        )
 
         for item in items:
             # Skip sorted directories and hidden files

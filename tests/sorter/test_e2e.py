@@ -6,7 +6,9 @@ import pytest
 
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
-from personalscraper.sorter.strategies import TYPE_DIR_MAP
+
+# TODO(ext-staging 2.6): replace with config-driven fixture (see test_strategies.py)
+_STAGING_DIR_NAMES = ["001-MOVIES", "002-TVSHOWS", "003-EBOOKS", "004-AUDIO", "005-APPS", "097-TEMP", "098-AUTRES"]
 
 
 @pytest.fixture
@@ -18,7 +20,7 @@ def staging(tmp_path):
     """
     staging_dir = tmp_path / "staging"
     staging_dir.mkdir()
-    for dir_name in TYPE_DIR_MAP.values():
+    for dir_name in _STAGING_DIR_NAMES:
         (staging_dir / dir_name).mkdir()
     return staging_dir
 
