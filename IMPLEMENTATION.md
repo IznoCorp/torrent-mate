@@ -15,7 +15,7 @@
 | #   | Phase                                         | File                                   | Status |
 | --- | --------------------------------------------- | -------------------------------------- | ------ |
 | 1   | Core info module + CLI + tests + quality gate | phase-01-core-info-module-cli-tests.md | [x]    |
-| 2   | PR fixes cycle 1                              | phase-02-pr-fixes-cycle-1.md           | [ ]    |
+| 2   | PR fixes cycle 1                              | phase-02-pr-fixes-cycle-1.md           | [x]    |
 
 ## Review cycles
 
