@@ -11,21 +11,20 @@ carries disk paths.
 import logging
 import shutil
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
-
-if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
 from personalscraper.dispatch.dispatcher import Dispatcher, DispatchResult
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.models import StepReport
+from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
 logger = logging.getLogger(__name__)
 
 
-def _cleanup_staging_orphans(settings: Settings, staging_dir: Path) -> int:
+def _cleanup_staging_orphans(settings: Settings, config: Config, staging_dir: Path) -> int:
     """Remove orphaned dispatch temp dirs from staging categories.
 
     Cleans up _tmp_dispatch_* directories and .merge_backup/
@@ -33,6 +32,7 @@ def _cleanup_staging_orphans(settings: Settings, staging_dir: Path) -> int:
 
     Args:
         settings: Pipeline configuration (provides dir name attributes).
+        config: Application config for category-based dir name resolution.
         staging_dir: Absolute path to the staging area (from Config.paths).
 
     Returns:
@@ -40,7 +40,10 @@ def _cleanup_staging_orphans(settings: Settings, staging_dir: Path) -> int:
     """
     cleaned = 0
     staging = staging_dir
-    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+    for dir_name in (
+        folder_name(find_by_file_type(config, FileType.MOVIE)),
+        folder_name(find_by_file_type(config, FileType.TVSHOW)),
+    ):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue
@@ -91,7 +94,7 @@ def run_dispatch(
     # Clean orphaned temp dirs from staging area
     cleaned = 0
     if not dry_run:
-        cleaned = _cleanup_staging_orphans(settings, staging_dir)
+        cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
     index = MediaIndex(index_path)
     index.load()

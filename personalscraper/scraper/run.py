@@ -11,17 +11,18 @@ import logging
 from pathlib import Path
 
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper.scraper import Scraper, ScrapeResult
-from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
 
 logger = logging.getLogger(__name__)
 
 
-def _has_unscraped_items(settings: Settings, staging_dir: Path | None = None) -> bool:
+def _has_unscraped_items(settings: Settings, config: Config, staging_dir: Path | None = None) -> bool:
     """Check if any media folder needs scraping or artwork recovery.
 
     Returns True if at least one folder has:
@@ -34,6 +35,7 @@ def _has_unscraped_items(settings: Settings, staging_dir: Path | None = None) ->
 
     Args:
         settings: Pipeline configuration (movies_dir_name, tvshows_dir_name).
+        config: Application config for category-based dir name resolution.
         staging_dir: Absolute path to the staging area. Falls back to
             settings.staging_dir for MagicMock tests.
 
@@ -42,15 +44,17 @@ def _has_unscraped_items(settings: Settings, staging_dir: Path | None = None) ->
     """
     from personalscraper.scraper.scraper import _parse_folder_name
 
+    movies_dir_name = folder_name(find_by_file_type(config, FileType.MOVIE))
+    tvshows_dir_name = folder_name(find_by_file_type(config, FileType.TVSHOW))
     staging = staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
-    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+    for dir_name in (movies_dir_name, tvshows_dir_name):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue
         for folder in cat_dir.iterdir():
             if not folder.is_dir() or folder.name.startswith("."):
                 continue
-            if dir_name == settings.movies_dir_name:
+            if dir_name == movies_dir_name:
                 title, _ = _parse_folder_name(folder.name)
                 nfo_name = PATTERNS.format("movie_nfo", Title=title)
                 nfo_path = folder / nfo_name
@@ -157,19 +161,27 @@ def run_scrape(
     """
     # Fast-skip: nothing to scrape and no structural repairs needed
     staging = staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
-    try:
-        needs_movie_repair = _needs_repair(staging / settings.movies_dir_name)
-    except OSError as exc:
-        logger.warning("Cannot check movie repair status: %s", exc)
-        needs_movie_repair = True
-    try:
-        needs_tvshow_repair = _needs_repair(staging / settings.tvshows_dir_name)
-    except OSError as exc:
-        logger.warning("Cannot check tvshow repair status: %s", exc)
-        needs_tvshow_repair = True
-    if not _has_unscraped_items(settings, staging) and not needs_movie_repair and not needs_tvshow_repair:
-        logger.info("Scrape fast-skip: all NFOs valid, artwork present, no repairs needed")
-        return StepReport(name="scrape")
+    if config is not None:
+        movies_dir_name = folder_name(find_by_file_type(config, FileType.MOVIE))
+        tvshows_dir_name = folder_name(find_by_file_type(config, FileType.TVSHOW))
+        try:
+            needs_movie_repair = _needs_repair(staging / movies_dir_name)
+        except OSError as exc:
+            logger.warning("Cannot check movie repair status: %s", exc)
+            needs_movie_repair = True
+        try:
+            needs_tvshow_repair = _needs_repair(staging / tvshows_dir_name)
+        except OSError as exc:
+            logger.warning("Cannot check tvshow repair status: %s", exc)
+            needs_tvshow_repair = True
+        if not _has_unscraped_items(settings, config, staging) and not needs_movie_repair and not needs_tvshow_repair:
+            logger.info("Scrape fast-skip: all NFOs valid, artwork present, no repairs needed")
+            return StepReport(name="scrape")
+    else:
+        # Legacy mode (no config): dir names unknown, skip fast-skip checks.
+        # Callers will be updated to always pass config in batch 2.4c.
+        movies_dir_name = ""
+        tvshows_dir_name = ""
 
     scraper = Scraper(
         settings=settings,
@@ -182,15 +194,15 @@ def run_scrape(
     all_results: list[ScrapeResult] = []
 
     # Process movies
-    if not tvshows_only:
-        movies_dir = staging / settings.movies_dir_name
+    if not tvshows_only and movies_dir_name:
+        movies_dir = staging / movies_dir_name
         if movies_dir.exists():
             results = scraper.process_movies(movies_dir)
             all_results.extend(results)
 
     # Process TV shows
-    if not movies_only:
-        tvshows_dir = staging / settings.tvshows_dir_name
+    if not movies_only and tvshows_dir_name:
+        tvshows_dir = staging / tvshows_dir_name
         if tvshows_dir.exists():
             results = scraper.process_tvshows(tvshows_dir)
             all_results.extend(results)
