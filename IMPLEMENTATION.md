@@ -19,10 +19,17 @@
 | 3   | Clean reference docs | phase-03-clean-reference-docs.md | [x]    |
 | 4   | Clean source code    | phase-04-clean-source-code.md    | [x]    |
 | 5   | Final validation     | phase-05-final-validation.md     | [x]    |
+| 6   | PR fixes cycle 1     | phase-06-pr-fixes-cycle-1.md     | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+- Findings received: 3
+- Retained: 1 (0 critical, 1 major, 0 medium, 2 minor)
+- Ignored: 2 (minor: orphan .gitkeep, V14\_\* identifiers — intentionally preserved per DESIGN invariant)
+- Fix phase created: phase-06-pr-fixes-cycle-1.md
+- Status: fix phase dispatched → awaiting /implement:phase
 
 ## Next action
 
