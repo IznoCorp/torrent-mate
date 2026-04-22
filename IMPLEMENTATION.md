@@ -14,7 +14,7 @@
 
 | #   | Phase                | File                             | Status |
 | --- | -------------------- | -------------------------------- | ------ |
-| 1   | Archive legacy docs  | phase-01-archive-legacy-docs.md  | [ ]    |
+| 1   | Archive legacy docs  | phase-01-archive-legacy-docs.md  | [x]    |
 | 2   | Rewrite root docs    | phase-02-rewrite-root-docs.md    | [ ]    |
 | 3   | Clean reference docs | phase-03-clean-reference-docs.md | [ ]    |
 | 4   | Clean source code    | phase-04-clean-source-code.md    | [ ]    |
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to continue with Phase 2.
