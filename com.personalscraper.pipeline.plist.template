@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd agent template for personalscraper.
+
+  DO NOT edit directly. Render via `scripts/install-launchd.sh` — placeholders
+  {{PROJECT_ROOT}}, {{PYTHON}}, {{PYTHON_BIN}}, {{LOG_DIR}} are substituted at
+  install time and the result is written to ~/Library/LaunchAgents/.
+-->
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>com.personalscraper.pipeline</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/izno/.pyenv/versions/3.11.9/bin/python</string>
+        <string>{{PYTHON}}</string>
         <string>-m</string>
         <string>personalscraper</string>
         <string>run</string>
@@ -19,17 +26,17 @@
         <integer>0</integer>
     </dict>
     <key>StandardOutPath</key>
-    <string>/Users/izno/.personalscraper/launchd-stdout.log</string>
+    <string>{{LOG_DIR}}/launchd-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/izno/.personalscraper/launchd-stderr.log</string>
+    <string>{{LOG_DIR}}/launchd-stderr.log</string>
     <key>WorkingDirectory</key>
-    <string>/Volumes/IznoServer SSD/A TRIER</string>
+    <string>{{PROJECT_ROOT}}</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/izno/.pyenv/versions/3.11.9/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <string>{{PYTHON_BIN}}:/usr/local/bin:/usr/bin:/bin</string>
         <key>PYTHONPATH</key>
-        <string>/Volumes/IznoServer SSD/A TRIER</string>
+        <string>{{PROJECT_ROOT}}</string>
     </dict>
 </dict>
 </plist>
