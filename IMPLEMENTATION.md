@@ -6,7 +6,7 @@
 **Version bump**: 0.3.0 → 0.4.0
 **Branch**: feat/ext-staging
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/9
 **Design**: docs/features/ext-staging/DESIGN.md
 **Master plan**: docs/features/ext-staging/plan/INDEX.md
 
