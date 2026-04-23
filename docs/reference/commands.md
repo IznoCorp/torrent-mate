@@ -45,7 +45,9 @@ personalscraper library-report --format json         # Export as JSON
 ## Bootstrap
 
 ```bash
-personalscraper init-config --from-current           # Create config.json5 from current env
+personalscraper init-config                          # Create config.json5 from the example template (interactive)
+personalscraper init-config --yes                    # Non-interactive — accept all defaults
+personalscraper init-config --force                  # Overwrite existing config.json5 (backs up to .bak)
 ```
 
 ## Aliases

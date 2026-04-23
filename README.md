@@ -34,7 +34,7 @@ pip install -e ".[dev]"
 
 # Configuration
 cp .env.example .env                                # Secrets API uniquement (TMDB_API_KEY, TVDB_API_KEY, ...)
-personalscraper init-config --from-current          # Génère config.json5 (chemins, disques, catégories, règles)
+personalscraper init-config                         # Génère config.json5 depuis le template (chemins, disques, catégories, règles)
 
 # Lancer le pipeline
 personalscraper run --dry-run   # Prévisualiser

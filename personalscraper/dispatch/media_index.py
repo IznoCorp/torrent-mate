@@ -4,12 +4,10 @@ Maintains an index of all media items across storage disks.
 Supports exact lookup, fuzzy matching (via fuzzy_match_score), atomic
 save, and full rebuild from disk scans.
 
-IndexEntry.category and IndexEntry.disk store canonical IDs
-(e.g. "movies", "drive_a") rather than legacy French labels ("films",
-"Disk1"). MediaIndex.load() detects legacy format (FR labels) and
-migrates in-memory via V14_LABEL_TO_ID from conf.migration. Disk names
-(Disk1..Disk4) are migrated to lowercase IDs (disk_1..disk_4) for
-indexes that predate the Config-driven disk IDs.
+IndexEntry.category and IndexEntry.disk always store canonical IDs
+(e.g. ``"movies"``, ``"drive_a"``). Legacy V14 label/disk-name migration
+was removed along with the rest of the V14 compatibility layer — older
+index files will be discarded on load() and rebuilt from disk.
 
 Index file path must be supplied explicitly; the old ``settings.data_dir``
 default is no longer supported.
@@ -32,20 +30,6 @@ if TYPE_CHECKING:
     from personalscraper.conf.models import CategoryConfig, DiskConfig, FuzzyMatchConfig
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Legacy label detection helpers (imported lazily to avoid circular imports)
-# ---------------------------------------------------------------------------
-
-# Legacy disk name → current disk ID mapping.
-# The old disk_scanner used "Disk1".."Disk4" as names; the current config uses
-# free-form IDs. This mapping covers the canonical legacy setup only.
-_V14_DISK_NAME_TO_ID: dict[str, str] = {
-    "Disk1": "disk_1",
-    "Disk2": "disk_2",
-    "Disk3": "disk_3",
-    "Disk4": "disk_4",
-}
 
 _YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
 
@@ -90,66 +74,6 @@ def _normalize_key(name: str) -> str:
         Normalized key string.
     """
     return unicodedata.normalize("NFC", name).lower().strip()
-
-
-def _is_v14_format(entries: dict[str, Any]) -> bool:
-    """Detect whether raw index data is in legacy format (FR category labels).
-
-    Samples up to 10 entries and checks whether any ``category`` value
-    appears in the V14_LABEL_TO_ID keys (French labels like "films", "series").
-
-    Args:
-        entries: Raw dict loaded from JSON, before IndexEntry construction.
-
-    Returns:
-        True if the data looks like legacy format.
-    """
-    from personalscraper.conf.migration import V14_LABEL_TO_ID
-
-    for _i, entry_data in enumerate(entries.values()):
-        if _i >= 10:
-            break
-        cat = entry_data.get("category", "")
-        if cat in V14_LABEL_TO_ID:
-            return True
-    return False
-
-
-def _migrate_v14_entry(entry_data: dict[str, Any]) -> dict[str, Any]:
-    """Migrate a single legacy index entry to current IDs in-place.
-
-    Converts:
-    - category: legacy FR label → category ID via V14_LABEL_TO_ID
-    - disk: "Disk1".."Disk4" → "disk_1".."disk_4" (canonical legacy mapping)
-
-    Unknown labels/names are kept as-is with a warning.
-
-    Args:
-        entry_data: Raw dict for one index entry (as read from JSON).
-
-    Returns:
-        Updated dict with current IDs.
-    """
-    from personalscraper.conf.migration import V14_LABEL_TO_ID
-
-    data = dict(entry_data)
-
-    # Migrate category label → ID
-    cat = data.get("category", "")
-    if cat in V14_LABEL_TO_ID:
-        data["category"] = V14_LABEL_TO_ID[cat]
-    else:
-        logger.warning("media_index legacy migration: unknown category label %r — keeping as-is", cat)
-
-    # Migrate disk name → ID (best-effort, canonical legacy names only)
-    disk = data.get("disk", "")
-    if disk in _V14_DISK_NAME_TO_ID:
-        data["disk"] = _V14_DISK_NAME_TO_ID[disk]
-    elif disk:
-        # Already an ID (e.g. "drive_a") or unknown — keep as-is
-        pass
-
-    return data
 
 
 @dataclass
@@ -198,9 +122,9 @@ class MediaIndex:
         """Load the index from disk.
 
         Creates an empty index if the file doesn't exist.
-        Rebuilds if the file is corrupted.
-        Detects legacy format (FR labels) and migrates in-memory;
-        the next ``save()`` call will persist the current format.
+        Rebuilds if the file is corrupted or uses an unexpected schema
+        (e.g. pre-V15 files written before the V14 compat layer was
+        removed — those will be regenerated from disk on next ``rebuild``).
         """
         if not self._path.exists():
             self._entries = {}
@@ -208,15 +132,6 @@ class MediaIndex:
 
         try:
             raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
-
-            # Detect legacy format and migrate in-memory
-            if _is_v14_format(raw):
-                logger.info(
-                    "media_index: detected legacy format in %s — migrating to current IDs in-memory",
-                    self._path,
-                )
-                raw = {k: _migrate_v14_entry(v) for k, v in raw.items()}
-
             self._entries = {k: IndexEntry(**v) for k, v in raw.items()}
         except (json.JSONDecodeError, TypeError, KeyError) as exc:
             logger.error(

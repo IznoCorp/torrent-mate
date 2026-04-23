@@ -1,8 +1,7 @@
 """Tests for the media index module.
 
-V15 P6.4: IndexEntry.category and .disk store V15 IDs. MediaIndex requires
-an explicit index_path (settings.data_dir default removed in P6.1).
-Auto-migration from V14 FR labels tested via regression test.
+IndexEntry.category and .disk always store canonical IDs. MediaIndex
+requires an explicit index_path (no implicit default).
 """
 
 import json
@@ -202,84 +201,15 @@ class TestMediaIndexPersistence:
 
 
 # ---------------------------------------------------------------------------
-# V14 → V15 auto-migration
+# Canonical-ID passthrough
 # ---------------------------------------------------------------------------
 
 
-class TestV14Migration:
-    """Regression tests: load V14-format index → entries have V15 IDs."""
+class TestCanonicalIdLoad:
+    """Loading an index already written with canonical IDs is a no-op."""
 
-    def _write_v14_index(self, path: Path) -> None:
-        """Write a synthetic V14 format index to disk."""
-        v14_data = {
-            "the matrix (1999)": {
-                "name": "The Matrix (1999)",
-                "disk": "Disk1",
-                "category": "films",
-                "path": "/Volumes/Disk1/medias/films/The Matrix (1999)",
-                "media_type": "movie",
-                "last_updated": "2024-01-01T00:00:00+00:00",
-            },
-            "fallout (2024)": {
-                "name": "Fallout (2024)",
-                "disk": "Disk2",
-                "category": "series",
-                "path": "/Volumes/Disk2/medias/series/Fallout (2024)",
-                "media_type": "tvshow",
-                "last_updated": "2024-01-01T00:00:00+00:00",
-            },
-            "demon slayer (2019)": {
-                "name": "Demon Slayer (2019)",
-                "disk": "Disk2",
-                "category": "series animes",
-                "path": "/Volumes/Disk2/medias/series animes/Demon Slayer (2019)",
-                "media_type": "tvshow",
-                "last_updated": "2024-01-01T00:00:00+00:00",
-            },
-        }
-        path.write_text(json.dumps(v14_data, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    def test_v14_categories_migrated_to_ids(self, tmp_path: Path) -> None:
-        """V14 category labels should be converted to V15 IDs on load."""
-        idx_path = tmp_path / "index.json"
-        self._write_v14_index(idx_path)
-
-        idx = MediaIndex(idx_path)
-        idx.load()
-
-        assert idx.count == 3
-
-        matrix = idx.find("The Matrix (1999)", "movie")
-        assert matrix is not None
-        assert matrix.category == "movies"  # "films" → "movies"
-
-        fallout = idx.find("Fallout (2024)", "tvshow")
-        assert fallout is not None
-        assert fallout.category == "tv_shows"  # "series" → "tv_shows"
-
-        slayer = idx.find("Demon Slayer (2019)", "tvshow")
-        assert slayer is not None
-        assert slayer.category == "anime"  # "series animes" → "anime"
-
-    def test_v14_disk_names_migrated_to_ids(self, tmp_path: Path) -> None:
-        """V14 disk names (Disk1..Disk4) should be converted to disk IDs."""
-        idx_path = tmp_path / "index.json"
-        self._write_v14_index(idx_path)
-
-        idx = MediaIndex(idx_path)
-        idx.load()
-
-        matrix = idx.find("The Matrix (1999)", "movie")
-        assert matrix is not None
-        assert matrix.disk == "disk_1"  # "Disk1" → "disk_1"
-
-        fallout = idx.find("Fallout (2024)", "tvshow")
-        assert fallout is not None
-        assert fallout.disk == "disk_2"  # "Disk2" → "disk_2"
-
-    def test_v15_format_passthrough(self, tmp_path: Path) -> None:
-        """V15-format index (IDs) should load without modification."""
-        v15_data = {
+    def test_canonical_ids_loaded_verbatim(self, tmp_path: Path) -> None:
+        data = {
             "inception (2010)": {
                 "name": "Inception (2010)",
                 "disk": "drive_a",
@@ -290,7 +220,7 @@ class TestV14Migration:
             }
         }
         idx_path = tmp_path / "index.json"
-        idx_path.write_text(json.dumps(v15_data), encoding="utf-8")
+        idx_path.write_text(json.dumps(data), encoding="utf-8")
 
         idx = MediaIndex(idx_path)
         idx.load()
@@ -299,28 +229,6 @@ class TestV14Migration:
         assert entry is not None
         assert entry.category == "movies"
         assert entry.disk == "drive_a"
-
-    def test_save_after_v14_load_writes_v15(self, tmp_path: Path) -> None:
-        """After loading V14 data, save() must write V15 IDs to disk."""
-        idx_path = tmp_path / "index.json"
-        self._write_v14_index(idx_path)
-
-        idx = MediaIndex(idx_path)
-        idx.load()
-        idx.save()
-
-        raw = json.loads(idx_path.read_text())
-        for entry_data in raw.values():
-            # No V14 labels should remain after save
-            assert entry_data["category"] not in {
-                "films",
-                "series",
-                "series animes",
-                "films animations",
-                "emissions",
-            }
-            # No V14 disk names (Disk1..Disk4) should remain
-            assert entry_data["disk"] not in {"Disk1", "Disk2", "Disk3", "Disk4"}
 
 
 # ---------------------------------------------------------------------------

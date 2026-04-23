@@ -164,17 +164,15 @@ def classify_from_nfo(
 ) -> tuple[str | None, str]:
     """Classify a media item by parsing its NFO file.
 
-    This replaces the legacy ``GenreMapper.categorize_from_nfo``.
-    It extracts genres and origin_country from the NFO, then delegates to
-    :func:`classify`. The ``media_type`` argument accepts the legacy convention
-    ``"tvshow"`` in addition to the current ``"tv"`` for a drop-in migration.
+    Extracts genres and origin_country from the NFO, then delegates to
+    :func:`classify`. The ``media_type`` argument accepts the legacy
+    convention ``"tvshow"`` in addition to the current ``"tv"`` because
+    callers (verify/dispatch/enforce) still speak that dialect.
 
-    A legacy sibling ``.category`` file is also honored — its content is
-    translated from a legacy label (e.g. ``"films"``) to a category ID
-    (``"movies"``) via :data:`conf.migration.V14_LABEL_TO_ID`. The
-    ``.category`` mechanism remains supported so existing user-tagged folders
-    (spectacles, théâtre) keep their manual classification without requiring
-    NFO edits.
+    A sibling ``.category`` file acts as a manual override and must
+    contain a canonical category ID (e.g. ``"movies"``, ``"anime"``) —
+    the legacy French-label fallback was removed with the rest of the
+    V14 compat layer. Unknown IDs are logged and ignored.
 
     Args:
         config: Validated Config instance.
@@ -187,7 +185,7 @@ def classify_from_nfo(
         short human-readable tag (``"category_file"``, ``"nfo_parse_error"``,
         or the reason produced by :func:`classify`).
     """
-    # Legacy .category override — translate to current category ID if needed.
+    # Manual .category override — content must already be a canonical ID.
     category_file = nfo_path.parent / ".category"
     if category_file.is_file():
         try:
@@ -196,14 +194,10 @@ def classify_from_nfo(
             logger.warning("Failed to read .category in %s: %s", nfo_path.parent.name, exc)
             content = ""
         if content:
-            # Import locally to avoid cycle (migration imports from conf).
-            from personalscraper.conf.migration import V14_LABEL_TO_ID
-
-            v15_id = V14_LABEL_TO_ID.get(content, content)
-            if v15_id in config.all_category_ids:
-                return v15_id, "category_file"
+            if content in config.all_category_ids:
+                return content, "category_file"
             logger.warning(
-                "Invalid .category content '%s' in %s (not a legacy label nor known category ID)",
+                "Invalid .category content '%s' in %s (not a known category ID)",
                 content,
                 nfo_path.parent.name,
             )

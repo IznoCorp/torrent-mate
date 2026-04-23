@@ -1038,28 +1038,22 @@ def init_config_cmd(
         "--yes",
         help="Skip interactive prompts and accept all defaults.",
     ),
-    from_current: bool = typer.Option(
-        False,
-        "--from-current",
-        help="Bootstrap config from the existing legacy .env file.",
-    ),
     force: bool = typer.Option(
         False,
         "--force",
         help="Overwrite output file if it already exists.",
     ),
 ) -> None:
-    """Create config.json5 from the example template or from a legacy .env migration.
+    """Create config.json5 from the example template.
 
     Run without arguments for interactive mode (prompts for each value).
-    Use --from-current to migrate an existing legacy .env automatically.
     Use --yes to skip all prompts and accept defaults.
 
     Examples:
         personalscraper init-config
-        personalscraper init-config --from-current --yes
+        personalscraper init-config --yes
         personalscraper init-config --output /custom/path/config.json5 --force
     """
     from personalscraper.commands.init_config import init_config
 
-    init_config(example, output, interactive=not non_interactive, from_current=from_current, force=force)
+    init_config(example, output, interactive=not non_interactive, force=force)

@@ -17,7 +17,7 @@ Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 See `docs/reference/architecture.md` for the module map and package layout.
 
 All storage paths, staging layout, and category names are in `config.json5`.
-Run `personalscraper init-config --from-current` to create `config.json5` from your current setup.
+Run `personalscraper init-config` to create `config.json5` from the example template (interactive prompts, or `--yes` to accept defaults).
 
 ## Critical Rules
 
