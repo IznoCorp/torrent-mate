@@ -152,9 +152,11 @@ class TVDBClient:
         self._session.close()
 
     def __enter__(self) -> "TVDBClient":
+        """Return self for use as a context manager."""
         return self
 
     def __exit__(self, *exc: object) -> None:
+        """Close the HTTP session on context exit."""
         self.close()
 
     def login(self) -> None:

@@ -276,7 +276,11 @@ def scrape(
 def verify(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
-    fix: Optional[bool] = typer.Option(None, "--fix/--no-fix", help="Attempt auto-fixes (deprecated — use 'enforce' instead)"),
+    fix: Optional[bool] = typer.Option(
+        None,
+        "--fix/--no-fix",
+        help="Attempt auto-fixes (deprecated — use 'enforce' instead)",
+    ),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
 ) -> None:

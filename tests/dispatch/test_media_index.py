@@ -209,6 +209,7 @@ class TestCanonicalIdLoad:
     """Loading an index already written with canonical IDs is a no-op."""
 
     def test_canonical_ids_loaded_verbatim(self, tmp_path: Path) -> None:
+        """Canonical-ID entries round-trip through load() unchanged."""
         data = {
             "inception (2010)": {
                 "name": "Inception (2010)",
