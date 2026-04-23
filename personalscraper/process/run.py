@@ -47,7 +47,7 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> Step
     for category_dir in (movies_dir, tvshows_dir):
         # Only run reclean if polluted folders exist
         if has_polluted:
-            reclean_report = reclean_folders(category_dir, dry_run=dry_run)
+            reclean_report = reclean_folders(category_dir, dry_run=dry_run, config=config)
             clean_report.success_count += reclean_report.success_count
             clean_report.skip_count += reclean_report.skip_count
             clean_report.error_count += reclean_report.error_count
