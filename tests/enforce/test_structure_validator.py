@@ -7,24 +7,21 @@ from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 @pytest.fixture
-def settings(tmp_path):
-    """Build a mocked Settings object pointing at ``tmp_path`` for isolation."""
+def settings():
+    """Minimal settings mock (staging resolved from config.paths)."""
     from unittest.mock import MagicMock
 
-    s = MagicMock()
-    s.staging_dir = tmp_path
-    s.movies_dir_name = "001-MOVIES"
-    s.tvshows_dir_name = "002-TVSHOWS"
-    return s
+    return MagicMock()
 
 
 @pytest.fixture
-def config():
-    """Minimal config mock with canonical staging_dirs."""
+def config(tmp_path):
+    """Minimal config mock with canonical staging_dirs and staging path."""
     from unittest.mock import MagicMock
 
     c = MagicMock()
     c.staging_dirs = CANONICAL_STAGING_DIRS
+    c.paths.staging_dir = tmp_path
     return c
 
 

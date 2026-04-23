@@ -196,7 +196,7 @@ def ingest(
         settings = get_settings()
         staging_dir = config.paths.staging_dir
         ingest_dir = staging_path(config, find_ingest_dir(config))
-        report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir)
+        report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir, config=config)
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )

@@ -61,8 +61,8 @@ def validate_structure(
     Fixes are applied in-place unless *dry_run* is ``True``.
 
     Args:
-        settings: Pipeline configuration supplying ``staging_dir``.
-        config: Application config used to resolve staging category folder names.
+        settings: Pipeline configuration (reserved for future use).
+        config: Application config used to resolve staging_dir and category folder names.
         dry_run: When ``True``, report planned fixes without modifying
             the filesystem.
 
@@ -70,7 +70,7 @@ def validate_structure(
         One :class:`StructureResult` per media directory scanned.
     """
     results: list[StructureResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():

@@ -47,8 +47,8 @@ def check_coherence(
     This function is read-only — it never modifies the filesystem.
 
     Args:
-        settings: Pipeline configuration.
-        config: Config used by the classifier for genre coherence.
+        settings: Pipeline configuration (reserved for future use).
+        config: Config used to resolve staging_dir and by the classifier for genre coherence.
         dry_run: No effect (coherence check is always read-only).
 
     Returns:
@@ -56,7 +56,7 @@ def check_coherence(
     """
     _ = dry_run  # coherence is always read-only
     results: list[CoherenceResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():

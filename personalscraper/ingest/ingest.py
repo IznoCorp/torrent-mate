@@ -186,20 +186,23 @@ def run_ingest(
         settings: Pipeline configuration.
         dry_run: If True, preview actions without modifying the filesystem.
         ingest_dir: Absolute path to the ingest directory (097-TEMP/).
-            Falls back to ``settings.ingest_dir`` attribute for MagicMock tests.
-        staging_dir: Absolute path to the staging area (from Config.paths).
-            Falls back to ``settings.staging_dir`` attribute for MagicMock tests.
-        config: Loaded Config for staging dir name resolution. When provided,
-            uses folder_name(find_by_file_type(config, FileType.X)) to derive
-            staging dir names. Falls back to hardcoded defaults when None.
+            Falls back to ``settings.ingest_dir`` attribute for MagicMock tests
+            that do not provide ``config``.
+        staging_dir: Explicit staging area override. When None, resolved from
+            ``config.paths.staging_dir``.
+        config: Loaded Config for staging dir name resolution. Uses
+            ``config.paths.staging_dir`` and
+            ``folder_name(find_by_file_type(config, FileType.X))`` to derive
+            staging dirs. When None (legacy MagicMock tests), falls back to
+            ``settings.staging_dir`` and hardcoded ``001-MOVIES``/``002-TVSHOWS``.
 
     Returns:
         StepReport with success/skip/error counts and details.
     """
     report = StepReport(name="ingest")
 
-    # Ingest deposits into ingest_dir (097-TEMP/) so sort processes only media
-    # getattr fallback: MagicMock tests set ingest_dir directly as a Path attribute.
+    # Resolve ingest_dir: prefer explicit arg, then config-derived path,
+    # then legacy getattr fallback for MagicMock tests.
     resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else Path(getattr(settings, "ingest_dir", "."))
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -248,16 +251,25 @@ def run_ingest(
                     # Resolve content path — if missing, check if already in staging
                     source = client.get_content_path(torrent)
                     if not source.exists():
-                        # Check staging dirs for this content (already ingested pre-tracker)
-                        resolved_staging = (
-                            staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
-                        )
-                        if config is not None:
-                            _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
-                            _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
+                        # Check staging dirs for this content (already ingested pre-tracker).
+                        # Prefer explicit staging_dir arg, then config.paths.staging_dir.
+                        resolved_staging: Path
+                        if staging_dir is not None:
+                            resolved_staging = staging_dir
+                        elif config is not None:
+                            resolved_staging = config.paths.staging_dir
                         else:
-                            _movies_dir = "001-MOVIES"
-                            _tvshows_dir = "002-TVSHOWS"
+                            resolved_staging = Path(getattr(settings, "staging_dir", "."))
+                        _movies_dir = (
+                            folder_name(find_by_file_type(config, FileType.MOVIE))
+                            if config is not None
+                            else "001-MOVIES"
+                        )
+                        _tvshows_dir = (
+                            folder_name(find_by_file_type(config, FileType.TVSHOW))
+                            if config is not None
+                            else "002-TVSHOWS"
+                        )
                         staging_dirs = [
                             resolved_staging / _movies_dir,
                             resolved_staging / _tvshows_dir,

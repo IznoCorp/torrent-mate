@@ -54,15 +54,15 @@ def sanitize_files(
     Renames NTFS-illegal characters, removes .DS_Store and ._ files.
 
     Args:
-        settings: Pipeline configuration.
-        config: Application config used to resolve staging category folder names.
+        settings: Pipeline configuration (reserved for future use).
+        config: Application config used to resolve staging_dir and category folder names.
         dry_run: If True, log actions without modifying filesystem.
 
     Returns:
         List of SanitizeResult for each action taken.
     """
     results: list[SanitizeResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
     for dir_name in (
         folder_name(find_by_file_type(config, FileType.MOVIE)),
