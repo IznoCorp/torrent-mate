@@ -11,12 +11,13 @@ See docs/ffprobe-reference.md for the full specification.
 """
 
 import json
-import logging
 import subprocess
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+log = get_logger("mediainfo")
 
 FFPROBE_TIMEOUT = 30  # seconds — generous; ffprobe reads only headers
 
@@ -189,27 +190,27 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFPROBE_TIMEOUT)
     except FileNotFoundError:
-        logger.warning("ffprobe not found — install ffmpeg: brew install ffmpeg")
+        log.warning("ffprobe_not_found", message="ffprobe not found — install ffmpeg: brew install ffmpeg")
         return None
     except subprocess.TimeoutExpired:
-        logger.warning("ffprobe timed out after %ds on: %s", FFPROBE_TIMEOUT, video_path)
+        log.warning("ffprobe_timeout", timeout_seconds=FFPROBE_TIMEOUT, path=str(video_path))
         return None
 
     if result.returncode != 0:
-        logger.warning("ffprobe failed (exit %d) on: %s", result.returncode, video_path)
+        log.warning("ffprobe_failed", exit_code=result.returncode, path=str(video_path))
         return None
 
     try:
         data = json.loads(result.stdout)
     except json.JSONDecodeError:
-        logger.warning("ffprobe returned invalid JSON for: %s", video_path)
+        log.warning("ffprobe_invalid_json", path=str(video_path))
         return None
 
     streams = data.get("streams", [])
     fmt = data.get("format", {})
 
     if not streams:
-        logger.warning("ffprobe returned no streams for: %s", video_path)
+        log.warning("ffprobe_no_streams", path=str(video_path))
         return None
 
     # --- Parse duration ---
@@ -270,7 +271,7 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
         break  # First real video stream only
 
     if video_info is None:
-        logger.warning("No video stream found in: %s", video_path)
+        log.warning("ffprobe_no_video_stream", path=str(video_path))
         return None
 
     # --- Parse audio streams (all) ---

@@ -14,13 +14,14 @@ State machine:
     HALF_OPEN →(failure)→ OPEN
 """
 
-import logging
 import time
 from enum import Enum
 
 import requests
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+log = get_logger("circuit_breaker")
 
 
 class CircuitState(Enum):
@@ -105,10 +106,7 @@ class CircuitBreaker:
         # Auto-transition OPEN → HALF_OPEN when cooldown has elapsed
         if self._state == CircuitState.OPEN and self._cooldown_elapsed():
             self._state = CircuitState.HALF_OPEN
-            logger.info(
-                "Circuit breaker %s: OPEN → HALF_OPEN (cooldown elapsed)",
-                self.name,
-            )
+            log.info("circuit_half_open", provider=self.name)
         return self._state
 
     def can_proceed(self) -> bool:
@@ -139,11 +137,7 @@ class CircuitBreaker:
         In HALF_OPEN state, this confirms the provider is back up.
         """
         if self._state != CircuitState.CLOSED:
-            logger.info(
-                "Circuit breaker %s: %s → CLOSED (success)",
-                self.name,
-                self._state.value,
-            )
+            log.info("circuit_closed", provider=self.name, previous_state=self._state.value)
         self._state = CircuitState.CLOSED
         self._failure_count = 0
 
@@ -166,22 +160,18 @@ class CircuitBreaker:
         if self._state == CircuitState.HALF_OPEN:
             self._state = CircuitState.OPEN
             self._opened_at = time.monotonic()
-            logger.warning(
-                "Circuit breaker %s: HALF_OPEN → OPEN (test call failed: %s)",
-                self.name,
-                exc,
-            )
+            log.warning("circuit_reopened", provider=self.name, error=str(exc))
             return
 
         self._failure_count += 1
         if self._failure_count >= self.failure_threshold:
             self._state = CircuitState.OPEN
             self._opened_at = time.monotonic()
-            logger.warning(
-                "Circuit breaker %s: CLOSED → OPEN (%d consecutive failures, cooldown %.0fs)",
-                self.name,
-                self._failure_count,
-                self.cooldown_seconds,
+            log.warning(
+                "circuit_opened",
+                provider=self.name,
+                failure_count=self._failure_count,
+                cooldown_seconds=self.cooldown_seconds,
             )
 
     def reset(self) -> None:

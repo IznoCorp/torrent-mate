@@ -27,10 +27,11 @@ from tenacity import (
     wait_fixed,
 )
 
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.http_retry import make_retryable_predicate
 
-logger = logging.getLogger(__name__)
+log = get_logger("artwork")
 
 # TMDB image base URL (HTTPS)
 IMAGE_BASE_URL = "https://image.tmdb.org/t/p"
@@ -124,7 +125,7 @@ class ArtworkDownloader:
         stop=stop_after_attempt(3),
         wait=wait_fixed(2),
         retry=retry_if_exception(_is_retryable),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def download_image(self, url: str, dest: Path) -> bool:
@@ -145,23 +146,23 @@ class ArtworkDownloader:
             requests.exceptions.ConnectionError: After retry exhaustion.
         """
         if dest.exists():
-            logger.info("Artwork already exists, skipping: %s", dest.name)
+            log.info("artwork_exists_skip", filename=dest.name)
             return False
 
         if self.dry_run:
-            logger.info("[DRY RUN] Would download %s → %s", url, dest.name)
+            log.info("artwork_would_download", url=url, dest=dest.name)
             return False
 
         response = self._session.get(url, timeout=30)
         response.raise_for_status()
 
         if len(response.content) == 0:
-            logger.warning("Downloaded empty file from %s, skipping", url)
+            log.warning("artwork_empty_response", url=url)
             return False
 
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(response.content)
-        logger.info("Downloaded artwork: %s (%d bytes)", dest.name, len(response.content))
+        log.info("artwork_downloaded", filename=dest.name, bytes=len(response.content))
         return True
 
     def download_movie_artwork(
@@ -198,7 +199,7 @@ class ArtworkDownloader:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
-                logger.warning("Failed to download movie poster: %s", poster_name)
+                log.warning("artwork_movie_poster_failed", filename=poster_name)
 
         # Landscape (from backdrops)
         landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
@@ -210,7 +211,7 @@ class ArtworkDownloader:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
-                logger.warning("Failed to download movie landscape: %s", landscape_name)
+                log.warning("artwork_movie_landscape_failed", filename=landscape_name)
 
         return downloaded
 
@@ -248,7 +249,7 @@ class ArtworkDownloader:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
-                logger.warning("Failed to download show poster")
+                log.warning("artwork_show_poster_failed")
 
         # Show landscape (fixed name: landscape.jpg)
         landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
@@ -264,7 +265,7 @@ class ArtworkDownloader:
                 if self.download_image(url, dest):
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
-                logger.warning("Failed to download show landscape")
+                log.warning("artwork_show_landscape_failed")
 
         # Season posters (only for seasons that exist on disk)
         for season in show_data.get("seasons", []):
@@ -285,9 +286,6 @@ class ArtworkDownloader:
                     if self.download_image(url, dest):
                         downloaded.append(dest)
                 except requests.exceptions.RequestException:
-                    logger.warning(
-                        "Failed to download season %d poster",
-                        season_num,
-                    )
+                    log.warning("artwork_season_poster_failed", season=season_num)
 
         return downloaded

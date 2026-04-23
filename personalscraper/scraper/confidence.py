@@ -11,14 +11,14 @@ does NOT strip accents.
 See docs/rapidfuzz-reference.md for scorer details.
 """
 
-import logging
 from dataclasses import dataclass
 
 from rapidfuzz import fuzz
 
+from personalscraper.logger import get_logger
 from personalscraper.text_utils import media_processor
 
-logger = logging.getLogger(__name__)
+log = get_logger("confidence")
 
 # Confidence thresholds
 HIGH_CONFIDENCE = 0.8  # Auto-accept in automatic mode
@@ -115,7 +115,7 @@ def match_movie(
     """
     results = tmdb_client.search_movie(title, year)  # type: ignore[attr-defined]
     if not results:
-        logger.info("No TMDB results for movie: %s (%s)", title, year)
+        log.info("movie_no_tmdb_results", title=title, year=year)
         return None
 
     best_match: MatchResult | None = None
@@ -140,12 +140,12 @@ def match_movie(
             )
 
     if best_match:
-        logger.info(
-            "Best TMDB match for '%s': '%s' (%s) — confidence %.2f",
-            title,
-            best_match.api_title,
-            best_match.api_year,
-            best_match.confidence,
+        log.info(
+            "movie_tmdb_match",
+            title=title,
+            api_title=best_match.api_title,
+            api_year=best_match.api_year,
+            confidence=round(best_match.confidence, 2),
         )
 
     return best_match
@@ -171,7 +171,7 @@ def match_tvshow_tvdb(
     """
     results = tvdb_client.search_series(title, year)  # type: ignore[attr-defined]
     if not results:
-        logger.info("No TVDB results for show: %s (%s)", title, year)
+        log.info("show_no_tvdb_results", title=title, year=year)
         return None
 
     best_match: MatchResult | None = None
@@ -199,12 +199,12 @@ def match_tvshow_tvdb(
             )
 
     if best_match:
-        logger.info(
-            "Best TVDB match for '%s': '%s' (%s) — confidence %.2f",
-            title,
-            best_match.api_title,
-            best_match.api_year,
-            best_match.confidence,
+        log.info(
+            "show_tvdb_match",
+            title=title,
+            api_title=best_match.api_title,
+            api_year=best_match.api_year,
+            confidence=round(best_match.confidence, 2),
         )
 
     return best_match
@@ -238,7 +238,7 @@ def match_tvshow(
         if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
             return tvdb_match
     except Exception as e:
-        logger.warning("TVDB failed for '%s', falling back to TMDB: %s", title, e)
+        log.warning("show_tvdb_fallback_tmdb", title=title, error=str(e))
 
     # Fallback to TMDB
     tmdb_results = tmdb_client.search_tv(title, year)  # type: ignore[attr-defined]
@@ -262,12 +262,12 @@ def match_tvshow(
             )
 
     if tmdb_match:
-        logger.info(
-            "TMDB fallback for '%s': '%s' (%s) — confidence %.2f",
-            title,
-            tmdb_match.api_title,
-            tmdb_match.api_year,
-            tmdb_match.confidence,
+        log.info(
+            "show_tmdb_fallback_match",
+            title=title,
+            api_title=tmdb_match.api_title,
+            api_year=tmdb_match.api_year,
+            confidence=round(tmdb_match.confidence, 2),
         )
 
     # Return whichever is better (TVDB preferred at equal confidence)
@@ -307,7 +307,7 @@ def get_episode_titles(
     if match.source == "tvdb":
         episodes = tvdb_client.get_season_episodes(match.api_id, season)  # type: ignore[attr-defined]
         if not episodes:
-            logger.warning("Season %d not found on TVDB for %s", season, match.api_title)
+            log.warning("season_not_found_tvdb", season=season, title=match.api_title)
             return titles
 
         for ep in episodes:
@@ -330,7 +330,7 @@ def get_episode_titles(
         season_data = tmdb_client.get_tv_season(match.api_id, season)  # type: ignore[attr-defined]
         episodes = season_data.get("episodes", [])
         if not episodes:
-            logger.warning("Season %d not found on TMDB for %s", season, match.api_title)
+            log.warning("season_not_found_tmdb", season=season, title=match.api_title)
             return titles
 
         for ep in episodes:
@@ -373,7 +373,7 @@ def prompt_user_choice(
             choice = int(input("\nChoix : "))
         except EOFError:
             # Non-interactive context (launchd, cron) — skip prompt
-            logger.warning("Non-interactive mode detected, skipping user prompt")
+            log.warning("prompt_non_interactive")
             return None
         except ValueError:
             continue

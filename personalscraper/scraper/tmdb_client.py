@@ -26,12 +26,13 @@ from tenacity import (
 )
 from urllib3.util.retry import Retry as Urllib3Retry
 
+from personalscraper.logger import get_logger
 from personalscraper.scraper.http_retry import make_retryable_predicate
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
-logger = logging.getLogger(__name__)
+log = get_logger("tmdb_client")
 
 # TMDB internal error codes (not HTTP codes)
 TMDB_INVALID_KEY = 7
@@ -144,7 +145,7 @@ class TMDBClient:
         retry=retry_if_exception(_is_retryable),
         wait=wait_exponential_jitter(initial=0.5, max=10, jitter=0.5),
         stop=stop_after_attempt(4),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -444,20 +445,20 @@ class TMDBClient:
         except TMDBError as exc:
             if exc.http_status == 404:
                 return []
-            logger.warning(
-                "TMDB keywords fetch failed for %s/%d (HTTP %d): %s — using empty list",
-                media_type,
-                tmdb_id,
-                exc.http_status,
-                exc.message,
+            log.warning(
+                "tmdb_keywords_failed_http",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                http_status=exc.http_status,
+                message=exc.message,
             )
             return []
         except (requests.RequestException, json.JSONDecodeError, _CircuitOpenError) as exc:
-            logger.warning(
-                "TMDB keywords fetch failed for %s/%d: %s — using empty list",
-                media_type,
-                tmdb_id,
-                exc,
+            log.warning(
+                "tmdb_keywords_failed",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                error=str(exc),
             )
             return []
 

@@ -30,12 +30,13 @@ from tenacity import (
 )
 from urllib3.util.retry import Retry as Urllib3Retry
 
+from personalscraper.logger import get_logger
 from personalscraper.scraper.http_retry import make_retryable_predicate
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
-logger = logging.getLogger(__name__)
+log = get_logger("tvdb_client")
 
 # TVDB source type IDs for cross-referencing
 TVDB_SOURCE_IMDB = 2
@@ -187,13 +188,13 @@ class TVDBClient:
         data = resp.json()
         self._token = data["data"]["token"]
         self._session.headers["Authorization"] = f"Bearer {self._token}"
-        logger.info("TVDB login successful")
+        log.info("tvdb_login_ok")
 
     @retry(
         retry=retry_if_exception(_is_retryable),
         wait=wait_exponential(multiplier=1, min=1, max=30),
         stop=stop_after_attempt(3),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
@@ -239,7 +240,7 @@ class TVDBClient:
             # Re-login on 401 (token expired) — one retry
             # 401 is NOT a circuit error — it's a normal auth flow
             if resp.status_code == 401:
-                logger.warning("TVDB token expired, re-authenticating")
+                log.warning("tvdb_token_expired_reauth")
                 self.login()
                 resp = self._session.get(
                     f"{self.BASE_URL}{endpoint}",
@@ -437,7 +438,7 @@ class TVDBClient:
             return data if isinstance(data, dict) else None
         except TVDBError as e:
             if e.http_status == 404:
-                logger.debug("No %s translation for episode %d", lang_3, episode_id)
+                log.debug("tvdb_translation_not_found", lang=lang_3, episode_id=episode_id)
                 return None
             raise
 
