@@ -252,8 +252,12 @@ def run_ingest(
                         resolved_staging = (
                             staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
                         )
-                        _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
-                        _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
+                        if config is not None:
+                            _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
+                            _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
+                        else:
+                            _movies_dir = "001-MOVIES"
+                            _tvshows_dir = "002-TVSHOWS"
                         staging_dirs = [
                             resolved_staging / _movies_dir,
                             resolved_staging / _tvshows_dir,

@@ -104,9 +104,9 @@ def run_cleanup(settings: Settings, config: Config, dry_run: bool = False) -> St
 
 def run_process(
     settings: Settings,
+    config: Config,
     dry_run: bool = False,
     interactive: bool = False,
-    config: Config | None = None,
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 

@@ -48,7 +48,7 @@ def _folder_to_name(folder: str) -> str:
     return folder.lower()
 
 
-def _build_staging_dirs_from_env(env: dict[str, str]) -> list[dict]:
+def _build_staging_dirs_from_env(env: dict[str, str]) -> list[dict[str, object]]:
     """Convert legacy *_dir_name env vars to staging_dirs entries.
 
     Reads the raw .env dict (not Settings) to extract the 7 old dir name
