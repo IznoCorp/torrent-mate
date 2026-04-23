@@ -1,6 +1,6 @@
 """AST-based logging convention audit script for personalscraper.
 
-Walks Python source files and flags violations in five categories:
+Walks Python source files and flags violations in four categories:
 
 - ERROR: bare ``print()`` calls.
 - ERROR: ``logging.getLogger()`` calls (direct, via alias, or via bare import), except in
@@ -150,7 +150,7 @@ class _LoggingVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     # ------------------------------------------------------------------
-    # First pass: collect get_logger() bindings
+    # Binding tracking
     # ------------------------------------------------------------------
 
     def visit_Assign(self, node: ast.Assign) -> None:
@@ -191,7 +191,7 @@ class _LoggingVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     # ------------------------------------------------------------------
-    # Second pass: flag violations
+    # Violation flagging
     # ------------------------------------------------------------------
 
     def visit_Call(self, node: ast.Call) -> None:
@@ -352,7 +352,7 @@ def analyze_file(path: Path) -> list[Finding]:
 
     # Both stdlib and structlog direct calls are allowed in personalscraper/logger.py,
     # which is the one module that legitimately wraps both.
-    # Match by path suffix (package + basename) to avoid false negatives when
+    # Match by path suffix (package + basename) to avoid false positives when
     # a file named logger.py exists outside the package.
     is_logger_module = path.parts[-len(_LOGGER_MODULE_SUFFIX) :] == _LOGGER_MODULE_SUFFIX
     check_get_logger = not is_logger_module

@@ -17,8 +17,8 @@ Event names are part of the **observability contract** — renames break log agg
 Rules:
 
 - **Snake_case throughout** — no camelCase, no hyphens.
-- **Prefix by module concern** — e.g. `ingest_*`, `dispatch_*`, `scrape_*`, `tvdb_*`, `tmdb_*`, `circuit_*`, `verify_*`.
-- **Past-tense for state changes** — use suffixes like `_moved_ok`, `_login_failed`, `_opened`, `_closed`, `_started`, `_completed`.
+- **Prefix by module concern** — e.g. `ingest_*`, `dispatch_*`, `scrape_*`, `tvdb_*`, `tmdb_*`, `circuit_*`, `verify_*` (illustrative; many other prefixes exist).
+- **Past-tense for state changes** — suffixes follow real usage, e.g. `_failed`, `_started`, `_opened`, `_closed`, `_login_failed`, `_renamed`.
 - **Stability** — treat event names as public API: a rename is a breaking change.
 
 ## Channels
@@ -41,9 +41,9 @@ log = get_logger("my_module")
 # Event name: snake_case, stable, grep-friendly.
 # Context goes in kwargs — never in the event string.
 log.info("rsync_start", source=src, dest=dst)
-log.warning("disk_low", free_gb=free, threshold_gb=threshold)
-log.error("scrape_failed", title=title, reason=str(exc))
-log.exception("scrape_failed", title=title)
+log.warning("disk_usage_failed", free_gb=free, threshold_gb=threshold)
+log.error("movie_artwork_failed", title=title, reason=str(exc))
+log.exception("movie_artwork_failed", title=title)
 ```
 
 ### CLI UI
@@ -70,16 +70,16 @@ typer.echo("Processing…")
 
 ## Migration recipes
 
-| Pattern (legacy)                                         | Replacement                                                                               |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                         |
-| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                 |
-| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_low", free_gb=free)`                                                   |
-| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it             |
-| `logger.error(f"Dispatch failed for {title}")`           | `log.error("dispatch_failed", title=title)`                                               |
-| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                             |
-| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                         |
-| `before_sleep=before_sleep_log(logger, logging.WARNING)` | custom `_log_retry_warning("event_name")` callback (see `scraper/artwork.py` as template) |
+| Pattern (legacy)                                         | Replacement                                                                                                                  |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                                                            |
+| `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                                                    |
+| `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_usage_failed", free_gb=free)`                                                                             |
+| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it                                                |
+| `logger.error(f"Dispatch failed for {title}")`           | `log.error("replace_swap_failed", title=title)`                                                                              |
+| `print(...)` in CLI commands                             | `state["console"].print(...)`                                                                                                |
+| `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                                                            |
+| `before_sleep=before_sleep_log(logger, logging.WARNING)` | `build_retry_logger(log, "event_name")` from `personalscraper.scraper.http_retry` (see `scraper/tmdb_client.py` as template) |
 
 ## exc_info rules
 
@@ -90,10 +90,10 @@ Three rules apply to every structlog call site in the codebase:
 
 ```python
 # correct
-log.exception("scrape_failed", title=title)
+log.exception("movie_artwork_failed", title=title)
 
 # wrong — do not do this
-log.exception("scrape_failed", exc_info=True, title=title)
+log.exception("movie_artwork_failed", exc_info=True, title=title)
 ```
 
 **Rule B — Non-exception levels inside `except` use `exc_info=True, error=str(exc)`.**
@@ -102,7 +102,7 @@ traceback explicitly with `exc_info=True` and include the message via `error=str
 
 ```python
 except OSError as exc:
-    log.warning("disk_scan_failed", disk=disk.id, exc_info=True, error=str(exc))
+    log.warning("disk_usage_failed", disk=disk.id, exc_info=True, error=str(exc))
 ```
 
 **Rule C — Never pass an exception instance as `exc_info` inside an active `except` block.**
@@ -111,10 +111,10 @@ exception message is useful, add `error=str(exc)` alongside.
 
 ```python
 # correct
-log.error("nfo_failed", title=title, exc_info=True, error=str(exc))
+log.error("nfo_generation_failed", title=title, exc_info=True, error=str(exc))
 
 # wrong — do not do this
-log.error("nfo_failed", title=title, exc_info=exc)
+log.error("nfo_generation_failed", title=title, exc_info=exc)
 ```
 
 **RULE D — Callbacks outside active `except` blocks.**
@@ -144,13 +144,14 @@ See `personalscraper/scraper/http_retry.py` (`build_retry_logger`) for the canon
 The convention is enforced by `scripts/check_logging.py` (AST walker) and surfaced
 via `make lint-logging` (also included in the default `make lint` target).
 
-Three rules:
+Four rules:
 
-| Violation                                                                      | Severity |
-| ------------------------------------------------------------------------------ | -------- |
-| `logging.getLogger` in `personalscraper/` (except `personalscraper/logger.py`) | error    |
-| `print(` in `personalscraper/`                                                 | error    |
-| `log.info(f"…")` — f-string as event arg (indicates string-mode logging)       | warning  |
+| Rule ID               | Violation                                                                                                                      | Severity |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `no-print`            | `print(` in `personalscraper/`                                                                                                 | error    |
+| `no-stdlib-logger`    | `logging.getLogger` in `personalscraper/` (except `personalscraper/logger.py`); also catches import aliases and `from` imports | error    |
+| `no-structlog-direct` | `structlog.get_logger()` / `structlog.getLogger()` called directly — must go through `personalscraper.logger.get_logger`       | error    |
+| `no-fstring-log`      | `log.info(f"…")` — f-string as event name arg (indicates string-mode logging instead of structured key=value style)            | warning  |
 
 Run manually:
 
