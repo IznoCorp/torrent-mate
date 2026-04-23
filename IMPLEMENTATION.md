@@ -15,7 +15,7 @@
 | #   | Phase                              | File                        | Status |
 | --- | ---------------------------------- | --------------------------- | ------ |
 | 1   | Config schema (additive)           | phase-01-config-schema.md   | [x]    |
-| 2   | Sorter refactor + Settings cleanup | phase-02-sorter-refactor.md | [ ]    |
+| 2   | Sorter refactor + Settings cleanup | phase-02-sorter-refactor.md | [x]    |
 | 3   | Auto-create staging tree           | phase-03-auto-create.md     | [ ]    |
 | 4   | Repo cleanup (git rm --cached)     | phase-04-repo-cleanup.md    | [ ]    |
 | 5   | Docs + E2E + final gate            | phase-05-docs-e2e.md        | [ ]    |
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 3 (auto-create staging tree).
