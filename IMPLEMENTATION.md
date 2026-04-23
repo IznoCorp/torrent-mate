@@ -17,7 +17,7 @@
 | 1   | Audit & enforcement tooling  | phase-01-audit-tooling.md    | [x]    |
 | 2   | stdlib → structlog migration | phase-02-stdlib-migration.md | [x]    |
 | 3   | print() cleanup              | phase-03-print-cleanup.md    | [x]    |
-| 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [ ]    |
+| 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
 
 ## Review cycles
 
@@ -25,4 +25,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Continue `/implement:phase` to start Phase 4 (enforcement + docs).
+All phases complete — run `/implement:feature-pr` to finalize (local gate + push + PR + CI poll).
