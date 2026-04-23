@@ -384,9 +384,7 @@ def process(
         _bootstrap_staging(ctx)
         settings = get_settings()
         try:
-            clean, scrape, cleanup = run_process(
-                settings, dry_run=dry_run, interactive=interactive, config=config
-            )
+            clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive, config=config)
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             logging.getLogger("pipeline").exception("Process command failed")
