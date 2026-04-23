@@ -12,13 +12,21 @@ from xml.etree import ElementTree as ET
 logger = logging.getLogger(__name__)
 
 
+# Values that appear in <uniqueid> text but do not identify a real record.
+# These come from legacy NFOs written before a53a44f, when missing TMDB/TVDB
+# ids were still emitted as "0" or the literal string "None" (from str(None)).
+_INVALID_UNIQUEID_VALUES = frozenset({"0", "none"})
+
+
 def is_nfo_complete(nfo_path: Path) -> bool:
     """Check if an NFO file is complete and valid.
 
     A complete NFO must:
     1. Exist on disk
     2. Be parsable as XML
-    3. Contain at least one <uniqueid> element with non-empty text
+    3. Contain at least one <uniqueid> element with a non-empty,
+       non-placeholder text value (``"0"`` and ``"None"`` are rejected —
+       they indicate a provider miss that should trigger a re-scrape).
 
     Used to distinguish valid NFOs from crash-truncated or incomplete
     ones that should be re-scraped.
@@ -35,7 +43,7 @@ def is_nfo_complete(nfo_path: Path) -> bool:
         tree = ET.parse(nfo_path)  # noqa: S314
         root = tree.getroot()
         for uid in root.findall("uniqueid"):
-            if uid.text and uid.text.strip():
+            if uid.text and uid.text.strip().lower() not in _INVALID_UNIQUEID_VALUES and uid.text.strip():
                 return True
         return False
     except ET.ParseError:
