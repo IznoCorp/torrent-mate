@@ -95,7 +95,7 @@ def _has_unsorted_items(ingest_dir: Path) -> bool:
     return any(not item.name.startswith(".") for item in ingest_dir.iterdir())
 
 
-def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config | None = None) -> list[str]:
+def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config) -> list[str]:
     """Check that the ingest directory is empty after sort.
 
     Ignores hidden files (.gitkeep, .DS_Store, etc.) since these
@@ -104,14 +104,12 @@ def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config | No
     Args:
         settings: Pipeline settings (retained for API compatibility; no longer used for path resolution).
         staging_dir: Absolute path to the staging area (from Config.paths).
-        config: Loaded Config for ingest_dir resolution. When None, falls back to
-            ``staging_dir / "097-TEMP"`` (for MagicMock-based tests).
+        config: Loaded Config instance (required) for ingest_dir resolution.
 
     Returns:
         List of remaining file/dir names. Empty list means gate passes.
     """
-    # Prefer config-based lookup; fall back to hardcoded name for MagicMock tests.
-    ingest_dir = staging_path(config, find_ingest_dir(config)) if config is not None else staging_dir / "097-TEMP"
+    ingest_dir = staging_path(config, find_ingest_dir(config))
     if not ingest_dir.exists():
         return []
     remaining = [item.name for item in ingest_dir.iterdir() if not item.name.startswith(".")]

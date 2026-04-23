@@ -13,7 +13,7 @@ import qbittorrentapi
 import requests
 
 from personalscraper.conf.models import Config
-from personalscraper.conf.staging import find_by_file_type, folder_name
+from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient
 from personalscraper.ingest.tracker import IngestTracker
@@ -172,10 +172,11 @@ def transfer_torrent(source: Path, dest: Path, copy: bool, dry_run: bool = False
 
 def run_ingest(
     settings: Settings,
+    *,
     dry_run: bool = False,
     ingest_dir: Path | None = None,
     staging_dir: Path | None = None,
-    config: Config | None = None,
+    config: Config,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -186,24 +187,18 @@ def run_ingest(
         settings: Pipeline configuration.
         dry_run: If True, preview actions without modifying the filesystem.
         ingest_dir: Absolute path to the ingest directory (097-TEMP/).
-            Falls back to ``settings.ingest_dir`` attribute for MagicMock tests
-            that do not provide ``config``.
+            When None, resolved from ``config`` via find_ingest_dir.
         staging_dir: Explicit staging area override. When None, resolved from
             ``config.paths.staging_dir``.
-        config: Loaded Config for staging dir name resolution. Uses
-            ``config.paths.staging_dir`` and
-            ``folder_name(find_by_file_type(config, FileType.X))`` to derive
-            staging dirs. When None (legacy MagicMock tests), falls back to
-            ``settings.staging_dir`` and hardcoded ``001-MOVIES``/``002-TVSHOWS``.
+        config: Loaded Config instance (required) for staging dir name resolution.
 
     Returns:
         StepReport with success/skip/error counts and details.
     """
     report = StepReport(name="ingest")
 
-    # Resolve ingest_dir: prefer explicit arg, then config-derived path,
-    # then legacy getattr fallback for MagicMock tests.
-    resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else Path(getattr(settings, "ingest_dir", "."))
+    # Resolve ingest_dir: prefer explicit arg, then derive from config.
+    resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
     # Clean orphaned temp dirs from interrupted runs
@@ -253,23 +248,9 @@ def run_ingest(
                     if not source.exists():
                         # Check staging dirs for this content (already ingested pre-tracker).
                         # Prefer explicit staging_dir arg, then config.paths.staging_dir.
-                        resolved_staging: Path
-                        if staging_dir is not None:
-                            resolved_staging = staging_dir
-                        elif config is not None:
-                            resolved_staging = config.paths.staging_dir
-                        else:
-                            resolved_staging = Path(getattr(settings, "staging_dir", "."))
-                        _movies_dir = (
-                            folder_name(find_by_file_type(config, FileType.MOVIE))
-                            if config is not None
-                            else "001-MOVIES"
-                        )
-                        _tvshows_dir = (
-                            folder_name(find_by_file_type(config, FileType.TVSHOW))
-                            if config is not None
-                            else "002-TVSHOWS"
-                        )
+                        resolved_staging: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
+                        _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
+                        _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
                         staging_dirs = [
                             resolved_staging / _movies_dir,
                             resolved_staging / _tvshows_dir,

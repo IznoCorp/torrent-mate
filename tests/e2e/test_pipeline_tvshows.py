@@ -72,9 +72,11 @@ class TestTVShowFullPipeline:
                     e2e_registry.register(downloaded)
 
             # ── 2. V1 Ingest (REAL) ──
+            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.ingest.ingest import run_ingest
 
-            ingest_report = run_ingest(settings, dry_run=False)
+            e2e_config = load_config(resolve_config_path(None))
+            ingest_report = run_ingest(settings, dry_run=False, config=e2e_config)
             print(f"  V1 Ingest: {ingest_report.success_count} ingested")
 
             expected = [{"name": n, "type": "tvshow"} for n in names.values()]
@@ -95,10 +97,8 @@ class TestTVShowFullPipeline:
                         e2e_registry.register(d)
 
             # ── 4. V3 Scrape (REAL — calls TVDB/TMDB APIs) ──
-            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.scraper.run import run_scrape
 
-            e2e_config = load_config(resolve_config_path(None))
             scrape_report = run_scrape(settings, config=e2e_config, dry_run=False, tvshows_only=True)
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(staging / "001-MOVIES", tvshows_dir, expected)
@@ -196,9 +196,10 @@ class TestFullPipelineMixed:
                     e2e_registry.register(downloaded)
 
             # 2. Ingest first so there's data in staging for the run command
+            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.ingest.ingest import run_ingest
 
-            run_ingest(settings, dry_run=False)
+            run_ingest(settings, dry_run=False, config=load_config(resolve_config_path(None)))
 
             # Register ingested items for cleanup
             for item in staging.iterdir():

@@ -45,16 +45,16 @@ def config(tmp_path: Path) -> Config:
 class TestAssertTempEmpty:
     """Tests for the assert_temp_empty gate function."""
 
-    def test_gate_passes_when_empty(self, gate_settings: MagicMock, staging: Path) -> None:
+    def test_gate_passes_when_empty(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
         """Empty ingest dir returns empty list (gate passes)."""
         from personalscraper.sorter.run import assert_temp_empty
 
         ingest = staging / "097-TEMP"
         ingest.mkdir(parents=True, exist_ok=True)
-        remaining = assert_temp_empty(gate_settings, staging_dir=staging)
+        remaining = assert_temp_empty(gate_settings, staging_dir=staging, config=config)
         assert remaining == []
 
-    def test_gate_returns_names_when_files_remain(self, gate_settings: MagicMock, staging: Path) -> None:
+    def test_gate_returns_names_when_files_remain(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
         """Non-empty ingest dir returns list of remaining item names."""
         from personalscraper.sorter.run import assert_temp_empty
 
@@ -63,10 +63,10 @@ class TestAssertTempEmpty:
         (ingest / "leftover.mkv").write_text("video")
         (ingest / "another_dir").mkdir()
 
-        remaining = assert_temp_empty(gate_settings, staging_dir=staging)
+        remaining = assert_temp_empty(gate_settings, staging_dir=staging, config=config)
         assert sorted(remaining) == ["another_dir", "leftover.mkv"]
 
-    def test_gate_ignores_hidden_files(self, gate_settings: MagicMock, staging: Path) -> None:
+    def test_gate_ignores_hidden_files(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
         """Hidden files (.gitkeep, .DS_Store) are ignored by the gate."""
         from personalscraper.sorter.run import assert_temp_empty
 
@@ -75,10 +75,10 @@ class TestAssertTempEmpty:
         (ingest / ".gitkeep").write_text("")
         (ingest / ".DS_Store").write_bytes(b"\x00\x00")
 
-        remaining = assert_temp_empty(gate_settings, staging_dir=staging)
+        remaining = assert_temp_empty(gate_settings, staging_dir=staging, config=config)
         assert remaining == []
 
-    def test_gate_mixed_hidden_and_visible(self, gate_settings: MagicMock, staging: Path) -> None:
+    def test_gate_mixed_hidden_and_visible(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
         """Only visible items are returned, hidden ones are ignored."""
         from personalscraper.sorter.run import assert_temp_empty
 
@@ -88,15 +88,15 @@ class TestAssertTempEmpty:
         (ingest / ".gitkeep").write_text("")
         (ingest / "unsorted_movie").mkdir()
 
-        remaining = assert_temp_empty(gate_settings, staging_dir=staging)
+        remaining = assert_temp_empty(gate_settings, staging_dir=staging, config=config)
         assert remaining == ["unsorted_movie"]
 
-    def test_gate_passes_when_dir_missing(self, gate_settings: MagicMock, staging: Path) -> None:
+    def test_gate_passes_when_dir_missing(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
         """Gate passes (empty list) when ingest dir does not exist."""
         from personalscraper.sorter.run import assert_temp_empty
 
         # 097-TEMP not created — it shouldn't exist
-        remaining = assert_temp_empty(gate_settings, staging_dir=staging)
+        remaining = assert_temp_empty(gate_settings, staging_dir=staging, config=config)
         assert remaining == []
 
 
