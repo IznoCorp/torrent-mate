@@ -99,17 +99,27 @@ def run_dispatch(
     index = MediaIndex(index_path)
     index.load()
 
+    # Log index freshness at entry so dry-run reviews know whether the plan
+    # is computed against a fresh or cached index.
+    index_source = "cache" if index.count > 0 else "empty"
+    logger.info(
+        "dispatch_index_state",
+        extra={"entries": index.count, "source": index_source, "path": str(index_path)},
+    )
+
     # Rebuild index if empty (first run or corrupted) to detect existing media
     # on all 4 disks. Without this, all items are treated as "new" and sent
     # to the disk with most free space, ignoring existing series/movies.
+    # The rebuild is persisted even on dry-run because the index is a cache
+    # of disk reality, not pipeline output — skipping persistence would make
+    # every dry-run redo the scan (observed waste: ~2044 entries per call).
     if index.count == 0:
         from personalscraper.dispatch.disk_scanner import get_disk_configs
 
         disk_configs = get_disk_configs(config)
         count = index.rebuild(disk_configs, categories=config.categories)
         logger.info("Index was empty — rebuilt from disk scan: %d entries", count)
-        if not dry_run:
-            index.save()
+        index.save()
 
     dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
 
@@ -146,19 +156,21 @@ def _to_step_report(results: list[DispatchResult]) -> StepReport:
     warnings: list[str] = []
     details: list[str] = []
 
+    # Action tags use a leading "action=" prefix (not "[action]") because
+    # Rich console.print() would silently swallow bracketed tokens as markup.
     for r in results:
         name = r.source.name
         if r.action in ("replaced", "merged", "moved"):
             success += 1
-            details.append(f"[{r.action}] {name} → {r.disk}")
+            details.append(f"action={r.action:<8} {name} → {r.disk}")
         elif r.action == "skipped":
             skipped += 1
-            details.append(f"[skipped] {name}: {r.reason}")
+            details.append(f"action=skipped  {name}: {r.reason}")
             if r.reason:
                 warnings.append(f"{name}: {r.reason}")
         elif r.action == "error":
             errors += 1
-            details.append(f"[error] {name}: {r.reason}")
+            details.append(f"action=error    {name}: {r.reason}")
             warnings.append(f"{name}: {r.reason or 'unknown error'}")
 
     return StepReport(

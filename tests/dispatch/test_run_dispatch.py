@@ -47,6 +47,7 @@ class TestRunDispatch:
             patch("personalscraper.dispatch.run.MediaIndex") as MockIdx,
         ):
             mock_idx = MockIdx.return_value
+            mock_idx.count = 5  # non-zero so rebuild branch is skipped
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
