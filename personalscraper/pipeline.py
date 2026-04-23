@@ -28,10 +28,6 @@ if TYPE_CHECKING:
     from personalscraper.verify.verifier import VerifyResult
 
 
-class PipelineGateError(Exception):
-    """Raised when a pipeline gate check fails."""
-
-
 class _CriticalStepError(Exception):
     """Raised internally when a critical pipeline step crashes.
 
