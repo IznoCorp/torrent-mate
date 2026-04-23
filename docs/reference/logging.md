@@ -105,9 +105,9 @@ except OSError as exc:
     log.warning("disk_scan_failed", disk=disk.id, exc_info=True, error=str(exc))
 ```
 
-**Rule C — Never pass an exception instance as `exc_info`.**
-`exc_info=exc` is banned project-wide. Always use `exc_info=True`. If the exception
-message is useful, add `error=str(exc)` alongside.
+**Rule C — Never pass an exception instance as `exc_info` inside an active `except` block.**
+`exc_info=exc` is banned inside `except` blocks project-wide. Always use `exc_info=True`. If the
+exception message is useful, add `error=str(exc)` alongside.
 
 ```python
 # correct
@@ -116,6 +116,28 @@ log.error("nfo_failed", title=title, exc_info=True, error=str(exc))
 # wrong — do not do this
 log.error("nfo_failed", title=title, exc_info=exc)
 ```
+
+**RULE D — Callbacks outside active `except` blocks.**
+
+For loggers invoked OUTSIDE an active `except` block (e.g. tenacity `before_sleep` callbacks,
+signal handlers, async result handlers), `exc_info=True` does not work because `sys.exc_info()`
+is empty. Pass the exception INSTANCE directly so structlog can render the traceback from it.
+
+```python
+# In a tenacity before_sleep callback
+def _cb(retry_state: RetryCallState) -> None:
+    exc = retry_state.outcome.exception() if retry_state.outcome else None
+    log.warning("tmdb_retry", attempt=..., exc_info=exc if exc else False, error=str(exc) if exc else None)
+```
+
+Wrong:
+
+```python
+exc_info=True   # sys.exc_info() is empty outside an active except — no traceback will render
+```
+
+This is the ONLY case where passing an exception instance as `exc_info` is permitted.
+See `personalscraper/scraper/http_retry.py` (`build_retry_logger`) for the canonical implementation.
 
 ## Enforcement
 

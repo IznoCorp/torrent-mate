@@ -28,16 +28,29 @@ def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState
 
     Returns:
         Callback accepted by tenacity's before_sleep parameter.
+
+    Note:
+        exc_info is passed as the exception instance (or False), NOT as True.
+        See RULE D in docs/reference/logging.md: tenacity before_sleep callbacks
+        run outside the active except block, so sys.exc_info() is empty there.
+        Passing the exception INSTANCE directly lets structlog render the
+        traceback from it even when sys.exc_info() is (None, None, None).
+        exc_info is the exception that triggered the retry (as the instance, so
+        structlog can render the traceback from it), or ``False`` when the retry
+        was triggered by a non-exception outcome.
     """
 
     def _cb(retry_state: RetryCallState) -> None:
         exc = retry_state.outcome.exception() if retry_state.outcome else None
+        # RULE D: tenacity before_sleep runs outside the active except block;
+        # sys.exc_info() is empty there. Pass the exception INSTANCE (or False)
+        # so structlog can render the traceback.
         log.warning(
             event,
             attempt=retry_state.attempt_number,
             wait=retry_state.next_action.sleep if retry_state.next_action else 0,
-            exc_info=exc is not None,
-            **({"error": str(exc)} if exc is not None else {}),
+            exc_info=exc if exc is not None else False,
+            error=str(exc) if exc is not None else None,
         )
 
     return _cb
