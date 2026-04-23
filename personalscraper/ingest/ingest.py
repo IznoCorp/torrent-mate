@@ -341,16 +341,16 @@ def run_ingest(
                 )
 
     except QBitAuthLockoutError as e:
-        log.exception("ingest_failed", error=str(e))
+        log.exception("ingest_qbit_auth_lockout", error=str(e))
         report.error_count += 1
         report.details.append(f"qBittorrent auth lockout active: {e}")
     except qbittorrentapi.LoginFailed as e:
-        log.exception("ingest_failed", error=str(e))
+        log.exception("ingest_qbit_login_failed", error=str(e))
         report.error_count += 1
         report.details.append(f"qBittorrent login failed: {e}. Fix: check QBIT_USERNAME/QBIT_PASSWORD in .env")
     except qbittorrentapi.Forbidden403Error as e:
         # Must come before APIConnectionError (Forbidden403Error is a subclass)
-        log.exception("ingest_failed", error=str(e))
+        log.exception("ingest_qbit_forbidden", error=str(e))
         report.error_count += 1
         report.details.append(
             f"qBittorrent auth blocked (IP banned): {e}. "
@@ -358,12 +358,12 @@ def run_ingest(
             "or wait for the ban to expire."
         )
     except (qbittorrentapi.APIConnectionError, requests.ConnectionError) as e:
-        log.exception("ingest_failed", error=str(e))
+        log.exception("ingest_qbit_unreachable", error=str(e))
         report.error_count += 1
         report.details.append(f"qBittorrent unreachable: {e}. Fix: verify qBit is running and Web UI is enabled.")
     except Exception as e:
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
-        log.exception("ingest_failed", error=str(e))
+        log.exception("ingest_unexpected_error", error=str(e), error_type=type(e).__name__)
         report.error_count += 1
         report.details.append(f"Ingest failed: {type(e).__name__}: {e}")
 

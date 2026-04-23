@@ -70,7 +70,7 @@ class TelegramNotifier:
         except requests.RequestException as exc:
             log.warning("telegram_send_failed", error=str(exc))
             return False
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 — best-effort fallback; notification must not mask the underlying operation
             log.exception("telegram_unexpected_error", error=str(exc))
             return False
 

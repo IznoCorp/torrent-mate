@@ -510,7 +510,7 @@ class Dispatcher:
                     os.rename(tmp_old, dest)
                     log.info("replace_restored_from_backup", dest=str(dest))
             except OSError as restore_err:
-                log.error("replace_restore_failed", error=str(restore_err))
+                log.error("replace_restore_failed", error=str(restore_err), tmp_old=str(tmp_old), dest=str(dest))
             return False
 
         # Phase 3: Cleanup (non-critical — replace already succeeded)

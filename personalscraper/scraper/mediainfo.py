@@ -190,7 +190,7 @@ def extract_stream_info(video_path: Path) -> dict[str, Any] | None:
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=FFPROBE_TIMEOUT)
     except FileNotFoundError:
-        log.warning("ffprobe_not_found", message="ffprobe not found — install ffmpeg: brew install ffmpeg")
+        log.warning("ffprobe_not_found", remediation="ffprobe not found — install ffmpeg: brew install ffmpeg")
         return None
     except subprocess.TimeoutExpired:
         log.warning("ffprobe_timeout", timeout_seconds=FFPROBE_TIMEOUT, path=str(video_path))

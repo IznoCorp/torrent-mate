@@ -688,7 +688,7 @@ class Scraper:
                 result.artwork_downloaded = [p.name for p in downloaded]
                 log.info("artwork_recovered", count=len(downloaded), directory=movie_dir.name)
         except Exception as e:
-            log.warning("artwork_recovery_failed", directory=movie_dir.name, error=str(e))
+            log.warning("artwork_recovery_failed", directory=movie_dir.name, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork recovery failed: {e}")
 
     def _recover_tvshow_artwork(
@@ -722,7 +722,7 @@ class Scraper:
                 result.artwork_downloaded = [p.name for p in downloaded]
                 log.info("artwork_recovered", count=len(downloaded), directory=show_dir.name)
         except Exception as e:
-            log.warning("artwork_recovery_failed", directory=show_dir.name, error=str(e))
+            log.warning("artwork_recovery_failed", directory=show_dir.name, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork recovery failed: {e}")
 
     def _repair_movie_dir(self, movie_dir: Path, title: str) -> bool:
@@ -953,7 +953,7 @@ class Scraper:
                         self._generate_episode_nfos(root_moved, show_dir, show_data)
 
                 except (OSError, ConnectionError, TimeoutError, ValueError, KeyError) as e:
-                    log.warning("repair_root_episodes_failed", show=show_dir.name, error=str(e))
+                    log.warning("repair_root_episodes_failed", show=show_dir.name, exc_info=True, error=str(e))
 
         # 4. Organize unstructured episodes (from raw torrent dirs)
         # Finds video files in non-season subdirs (not root, not .actors)
@@ -1021,7 +1021,7 @@ class Scraper:
                             )
 
                 except (OSError, ConnectionError, TimeoutError, ValueError, KeyError) as e:
-                    log.warning("repair_organize_episodes_failed", show=show_dir.name, error=str(e))
+                    log.warning("repair_organize_episodes_failed", show=show_dir.name, exc_info=True, error=str(e))
             else:
                 log.warning("repair_organize_episodes_no_tmdb_id", show=show_dir.name)
 
@@ -1230,7 +1230,7 @@ class Scraper:
             )
             result.artwork_downloaded = [p.name for p in downloaded]
         except Exception as e:
-            log.warning("movie_artwork_failed", title=title, error=str(e))
+            log.warning("movie_artwork_failed", title=title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
         result.action = "scraped"
@@ -1492,7 +1492,7 @@ class Scraper:
             )
             result.artwork_downloaded = [p.name for p in downloaded]
         except Exception as e:
-            log.warning("show_artwork_failed", api_title=match.api_title, error=str(e))
+            log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
         # Process episodes — rglob to find files nested in release-group subdirs,
@@ -1532,7 +1532,7 @@ class Scraper:
                                 "still_path": "",  # TVDB episode stills are separate API calls
                             }
                 except Exception as e:
-                    log.warning("show_season_fetch_failed", season=s_num, error=str(e))
+                    log.warning("show_season_fetch_failed", season=s_num, exc_info=True, error=str(e))
 
             if api_episodes:
                 ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
