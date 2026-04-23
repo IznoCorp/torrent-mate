@@ -1,7 +1,7 @@
 """Sequential exhaustive pipeline orchestrator.
 
 Executes 6 phases producing 8 StepReports:
-INGEST → SORT → (gate: 097-TEMP empty) → PROCESS (clean, scrape, cleanup)
+INGEST → SORT → (gate: ingest dir empty) → PROCESS (clean, scrape, cleanup)
 → ENFORCE → VERIFY → DISPATCH.
 
 Each phase must complete fully before the next one starts. The dispatch
@@ -157,9 +157,9 @@ class Pipeline:
     def run(self) -> PipelineReport:
         """Execute all pipeline phases sequentially with gates.
 
-        Phase 1: INGEST — complete/ → 097-TEMP/
-        Phase 2: SORT — 097-TEMP/ → 001-MOVIES/, 002-TVSHOWS/
-        Gate: assert 097-TEMP empty
+        Phase 1: INGEST — complete/ → {ingest_dir}/
+        Phase 2: SORT — {ingest_dir}/ → {movies_dir}/, {tvshows_dir}/
+        Gate: assert ingest dir empty
         Phase 3: PROCESS — re-clean + dedup + scrape + cleanup
         Phase 4: ENFORCE — validate and correct conventions
         Phase 5: VERIFY — coherence check
@@ -189,7 +189,7 @@ class Pipeline:
             self._log.info("[DRY RUN] Crash recovery skipped")
 
         # Phase 1: INGEST — abort pipeline on fatal crash because
-        # sort depends on ingest having deposited files into 097-TEMP
+        # sort depends on ingest having deposited files into ingest_dir
         try:
             self._run_step(
                 "ingest",
@@ -221,7 +221,7 @@ class Pipeline:
             report.finished_at = datetime.now()
             return report
 
-        # GATE: assert 097-TEMP is empty after sort
+        # GATE: assert ingest dir is empty after sort
         self._check_temp_empty_gate()
 
         # Phase 3: PROCESS (re-clean + dedup + scrape + cleanup)
@@ -328,7 +328,7 @@ class Pipeline:
         )
 
     def _check_temp_empty_gate(self) -> None:
-        """Gate: verify 097-TEMP is empty after sort.
+        """Gate: verify ingest dir is empty after sort.
 
         Logs a warning if unsorted files remain but does NOT block
         the pipeline. The remaining files will be processed on the
@@ -339,12 +339,12 @@ class Pipeline:
         remaining = assert_temp_empty(self.settings, staging_dir=self.config.paths.staging_dir, config=self.config)
         if remaining:
             self._log.warning(
-                "Gate 097-TEMP: %d unsorted files remain: %s",
+                "Gate ingest dir: %d unsorted files remain: %s",
                 len(remaining),
                 ", ".join(remaining[:5]),
             )
             self.console.print(
-                f"   [yellow]! 097-TEMP not empty: {len(remaining)} files remain[/yellow]",
+                f"   [yellow]! Ingest dir not empty: {len(remaining)} files remain[/yellow]",
                 highlight=False,
             )
 

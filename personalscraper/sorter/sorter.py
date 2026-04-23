@@ -1,8 +1,8 @@
 """Main sorting orchestrator for the pipeline sort step.
 
-Processes all items from a source directory (typically 097-TEMP/), detects
+Processes all items from a source directory (typically {ingest_dir}/), detects
 their type, cleans their names, and moves them into the correct category
-subdirectory (001-MOVIES/, 002-TVSHOWS/, etc.) under a destination root.
+subdirectory ({movies_dir}/, {tvshows_dir}/, etc.) under a destination root.
 Returns a list of SortResult for reporting and downstream pipeline steps.
 """
 
@@ -145,7 +145,7 @@ class Sorter:
 
             # Compute final destination path
             if file_type == FileType.MOVIE and item.is_dir():
-                # Directory movies: move the whole dir into 001-MOVIES/
+                # Directory movies: move the whole dir into {movies_dir}/
                 dest_path = dest_dir
             else:
                 # Files, TV shows, and all other types go INTO the target dir

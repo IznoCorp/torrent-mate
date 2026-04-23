@@ -213,7 +213,7 @@ class StagingDirConfig(_StrictModel):
     """Configuration for one staging subdirectory.
 
     Folder name on disk is derived as ``f"{id:03d}-{name.upper()}"``,
-    e.g. ``{"id": 1, "name": "movies"}`` → ``"001-MOVIES"``.
+    e.g. ``{"id": 1, "name": "movies"}`` → ``f"{id:03d}-{name.upper()}"``.
 
     Attributes:
         id: Numeric directory prefix in [0, 999]. Must be unique across all entries.
@@ -639,7 +639,7 @@ class Config(_StrictModel):
             raise ValueError(
                 f"staging_dirs must have exactly one entry with role='ingest' "
                 f"(found {len(ingest_entries)}). "
-                "One entry (typically 097-TEMP) must declare role='ingest'."
+                "One entry (the ingest staging dir) must declare role='ingest'."
             )
 
         return self

@@ -60,7 +60,7 @@ def dedup_folders(
     found, merges the less-complete folder into the more-complete one.
 
     Args:
-        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+        category_dir: Path to {movies_dir}/ or {tvshows_dir}/.
         dry_run: If True, log without merging.
 
     Returns:

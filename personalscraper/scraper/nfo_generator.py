@@ -5,7 +5,7 @@ the structure produced by MediaElch. Uses xml.etree.ElementTree
 for XML construction with manual pretty-printing for readability.
 
 The XML structure has been validated against real MediaElch NFO files
-from the 001-MOVIES/ directory.
+from the {movies_dir}/ directory.
 """
 
 import xml.etree.ElementTree as ET

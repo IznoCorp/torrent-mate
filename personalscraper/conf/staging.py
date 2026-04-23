@@ -22,13 +22,14 @@ def folder_name(entry: "StagingDirConfig") -> str:
     """Compute the on-disk folder name for a staging entry.
 
     Format: ``f"{entry.id:03d}-{entry.name.upper()}"``.
-    E.g. ``{id: 1, name: "movies"}`` -> ``"001-MOVIES"``.
+    The actual folder names are determined by config.staging_dirs entries.
 
     Args:
         entry: A StagingDirConfig entry from config.staging_dirs.
 
     Returns:
-        The folder name string (e.g. "001-MOVIES").
+        The folder name string derived as ``f"{entry.id:03d}-{entry.name.upper()}"``.
+
     """
     return f"{entry.id:03d}-{entry.name.upper()}"
 

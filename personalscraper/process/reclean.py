@@ -36,7 +36,7 @@ def _has_polluted_folders(category_dir: Path) -> bool:
     folder is found. Used for fast-skip in the clean phase.
 
     Args:
-        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+        category_dir: Path to {movies_dir}/ or {tvshows_dir}/.
 
     Returns:
         True if at least one folder has release tokens in its name.
@@ -100,7 +100,7 @@ def reclean_folders(
     into the existing one via _merge_dirs.
 
     Args:
-        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+        category_dir: Path to {movies_dir}/ or {tvshows_dir}/.
         dry_run: If True, log without renaming.
 
     Returns:

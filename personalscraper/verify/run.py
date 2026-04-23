@@ -60,8 +60,8 @@ def run_verify(
             category resolution.
         dry_run: If True, preview without modifying files.
         fix: If True, attempt automatic corrections.
-        movies_only: Process only 001-MOVIES/.
-        tvshows_only: Process only 002-TVSHOWS/.
+        movies_only: Process only {movies_dir}/.
+        tvshows_only: Process only {tvshows_dir}/.
 
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).

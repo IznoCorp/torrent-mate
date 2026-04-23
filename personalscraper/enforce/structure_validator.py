@@ -56,8 +56,8 @@ def validate_structure(
 ) -> list[StructureResult]:
     """Validate and fix directory structure for all staging items.
 
-    Iterates over every top-level directory in ``001-MOVIES/`` and
-    ``002-TVSHOWS/``, running the appropriate validation logic for each.
+    Iterates over every top-level directory in ``{movies_dir}/`` and
+    ``{tvshows_dir}/``, running the appropriate validation logic for each.
     Fixes are applied in-place unless *dry_run* is ``True``.
 
     Args:

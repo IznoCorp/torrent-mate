@@ -30,14 +30,14 @@ _REQUIRED_PATH_VARS = ["STAGING_DIR", "TORRENT_COMPLETE_DIR"]
 
 
 def _folder_to_name(folder: str) -> str:
-    """Extract kebab-case name from a folder like '001-MOVIES' to 'movies'.
+    """Extract kebab-case name from a NNN-NAME folder string (e.g. '{movies_dir}' → 'movies').
 
     Strips the leading NNN- numeric prefix and lowercases the remainder.
     If the string does not match the NNN-NAME pattern the whole string is
     lowercased and returned unchanged.
 
     Args:
-        folder: Folder name string in NNN-NAME format (e.g. '001-MOVIES').
+        folder: Folder name string in NNN-NAME format (e.g. '{id:03d}-{NAME}').
 
     Returns:
         Lowercase kebab-case name portion (e.g. 'movies', 'tv-shows').
@@ -69,14 +69,14 @@ def _build_staging_dirs_from_env(env: dict[str, str]) -> list[dict[str, object]]
         return env.get(key, default)
 
     return [
-        {"id": 1, "name": _folder_to_name(_get("MOVIES_DIR_NAME", "001-MOVIES")), "file_type": "movie"},
-        {"id": 2, "name": _folder_to_name(_get("TVSHOWS_DIR_NAME", "002-TVSHOWS")), "file_type": "tvshow"},
-        {"id": 3, "name": _folder_to_name(_get("EBOOKS_DIR_NAME", "003-EBOOKS")), "file_type": "ebook"},
-        {"id": 4, "name": _folder_to_name(_get("AUDIO_DIR_NAME", "004-AUDIO")), "file_type": "audio"},
-        {"id": 5, "name": _folder_to_name(_get("APPS_DIR_NAME", "005-APPS")), "file_type": "app"},
+        {"id": 1, "name": _folder_to_name(_get("MOVIES_DIR_NAME", "movies")), "file_type": "movie"},
+        {"id": 2, "name": _folder_to_name(_get("TVSHOWS_DIR_NAME", "tvshows")), "file_type": "tvshow"},
+        {"id": 3, "name": _folder_to_name(_get("EBOOKS_DIR_NAME", "ebooks")), "file_type": "ebook"},
+        {"id": 4, "name": _folder_to_name(_get("AUDIO_DIR_NAME", "audio")), "file_type": "audio"},
+        {"id": 5, "name": _folder_to_name(_get("APPS_DIR_NAME", "apps")), "file_type": "app"},
         {"id": 6, "name": "android", "file_type": "app"},
-        {"id": 97, "name": _folder_to_name(_get("INGEST_DIR_NAME", "097-TEMP")), "file_type": None, "role": "ingest"},
-        {"id": 98, "name": _folder_to_name(_get("OTHER_DIR_NAME", "098-AUTRES")), "file_type": "other"},
+        {"id": 97, "name": _folder_to_name(_get("INGEST_DIR_NAME", "temp")), "file_type": None, "role": "ingest"},
+        {"id": 98, "name": _folder_to_name(_get("OTHER_DIR_NAME", "autres")), "file_type": "other"},
     ]
 
 

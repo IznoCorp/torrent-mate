@@ -151,8 +151,8 @@ def run_scrape(
             Items with no matching category are skipped.
         dry_run: If True, preview operations without writing files.
         interactive: If True, prompt user for ambiguous matches.
-        movies_only: If True, process only 001-MOVIES/.
-        tvshows_only: If True, process only 002-TVSHOWS/.
+        movies_only: If True, process only {movies_dir}/.
+        tvshows_only: If True, process only {tvshows_dir}/.
 
     Returns:
         StepReport with success/skip/error counts and details.

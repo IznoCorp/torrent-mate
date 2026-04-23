@@ -186,7 +186,7 @@ def run_ingest(
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview actions without modifying the filesystem.
-        ingest_dir: Absolute path to the ingest directory (097-TEMP/).
+        ingest_dir: Absolute path to the ingest directory ({ingest_dir}/).
             When None, resolved from ``config`` via find_ingest_dir.
         staging_dir: Explicit staging area override. When None, resolved from
             ``config.paths.staging_dir``.
@@ -268,7 +268,7 @@ def run_ingest(
                             report.warnings.append(f"{name}: content path missing ({source})")
                         continue
 
-                    # Destination in 097-TEMP/ (sort picks up from here)
+                    # Destination in {ingest_dir}/ (sort picks up from here)
                     dest = resolved_ingest_dir / source.name
                     if dest.exists():
                         log.info("already_exists", name=name, dest=str(dest))

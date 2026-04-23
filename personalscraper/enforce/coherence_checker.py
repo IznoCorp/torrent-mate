@@ -42,7 +42,7 @@ def check_coherence(
 ) -> list[CoherenceResult]:
     """Check cross-step coherence for all staging items.
 
-    Iterates over every media directory in 001-MOVIES and 002-TVSHOWS,
+    Iterates over every media directory in {movies_dir} and {tvshows_dir},
     verifying sort/process coherence and NFO metadata consistency.
     This function is read-only — it never modifies the filesystem.
 

@@ -16,7 +16,7 @@ class SortResult:
 
     Attributes:
         source: Source path in staging area (A TRIER/).
-        destination: Target path (001-MOVIES/, 002-TVSHOWS/, etc.).
+        destination: Target path ({movies_dir}/, {tvshows_dir}/, etc.).
         media_type: Detected type ("movie", "episode", "audio", "ebook", etc.).
         title: Extracted title.
         year: Detected year, if any.

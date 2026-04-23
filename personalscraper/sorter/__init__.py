@@ -2,7 +2,7 @@
 
 Detects file types, cleans filenames via guessit, and sorts items from
 the staging root into categorized subdirectories
-(001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.).
+({movies_dir}, {tvshows_dir}, {audio_dir}, etc.).
 """
 
 from personalscraper.sorter.file_type import FileType, detect_dir_type, detect_file_type

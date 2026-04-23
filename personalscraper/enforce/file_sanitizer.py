@@ -50,7 +50,7 @@ def sanitize_files(
 ) -> list[SanitizeResult]:
     """Sanitize all filenames in staging categories.
 
-    Processes 001-MOVIES/ and 002-TVSHOWS/ recursively.
+    Processes {movies_dir}/ and {tvshows_dir}/ recursively.
     Renames NTFS-illegal characters, removes .DS_Store and ._ files.
 
     Args:

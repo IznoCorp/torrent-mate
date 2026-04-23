@@ -1,7 +1,7 @@
 """Sort step entry point — run_sort() function.
 
 Coordinates NameCleaner and Sorter to sort all items from the ingest
-directory (097-TEMP/) into categorized subdirectories under the staging
+directory ({ingest_dir}/) into categorized subdirectories under the staging
 root. Returns a StepReport for the pipeline.
 The lock is managed by the CLI caller, not by this module.
 
@@ -45,13 +45,13 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
 
     # Fast-skip: nothing to sort
     if not _has_unsorted_items(ingest_dir):
-        logger.info("Sort fast-skip: 097-TEMP is empty")
+        logger.info("Sort fast-skip: ingest dir is empty")
         return StepReport(name="sort")
 
     cleaner = NameCleaner()
     sorter = Sorter(config=config, cleaner=cleaner, dry_run=dry_run)
 
-    # Sort processes ingest_dir (097-TEMP/) → categorized dirs at staging root
+    # Sort processes ingest_dir ({ingest_dir}/) → categorized dirs at staging root
     results = sorter.process(ingest_dir, dest_root=staging_dir)
 
     report = StepReport(name="sort")
@@ -85,7 +85,7 @@ def _has_unsorted_items(ingest_dir: Path) -> bool:
     Used for fast-skip: if nothing to sort, skip the entire phase.
 
     Args:
-        ingest_dir: Resolved path to the ingest directory (097-TEMP/).
+        ingest_dir: Resolved path to the ingest directory ({ingest_dir}/).
 
     Returns:
         True if there are items to sort.
@@ -115,7 +115,7 @@ def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config) -> 
     remaining = [item.name for item in ingest_dir.iterdir() if not item.name.startswith(".")]
     if remaining:
         logger.warning(
-            "097-TEMP not empty after sort: %d items remain",
+            "Ingest dir not empty after sort: %d items remain",
             len(remaining),
         )
     return remaining
