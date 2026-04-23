@@ -6,11 +6,11 @@ to avoid re-ingesting already-processed torrents. Uses atomic writes
 """
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from personalscraper.io_utils import atomic_write_json
 from personalscraper.logger import get_logger
 
 log = get_logger("tracker")
@@ -85,19 +85,17 @@ class IngestTracker:
         return self._data
 
     def save(self) -> None:
-        """Save tracker data to the JSON file atomically.
+        """Save tracker data to the JSON file atomically and durably.
 
-        Writes to a .tmp file first, then uses os.replace() for an atomic
-        rename. This prevents corruption if the process is killed mid-write.
-        Logs an error on write failure instead of crashing the ingest loop.
+        Writes via ``atomic_write_json`` (tmp + fsync + rename + parent
+        dir fsync) so the result survives a crash mid-write. Logs an
+        error on write failure instead of crashing the ingest loop.
         """
-        tmp_path = self.tracker_path.with_suffix(".tmp")
+        tmp_path = self.tracker_path.with_suffix(self.tracker_path.suffix + ".tmp")
         try:
-            tmp_path.write_text(json.dumps(self._data, indent=2, ensure_ascii=False), encoding="utf-8")
-            os.replace(tmp_path, self.tracker_path)
+            atomic_write_json(self.tracker_path, self._data)
         except OSError as e:
             log.error("tracker_save_failed", path=str(self.tracker_path), error=str(e))
-            # Clean up orphaned .tmp to avoid stale files
             tmp_path.unlink(missing_ok=True)
 
     def is_ingested(self, torrent_hash: str) -> bool:

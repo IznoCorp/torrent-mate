@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from personalscraper.io_utils import atomic_write_json
 
 if TYPE_CHECKING:
     from personalscraper.conf.models import CategoryConfig, DiskConfig
@@ -226,19 +227,14 @@ class MediaIndex:
             self._entries = {}
 
     def save(self) -> None:
-        """Save the index to disk with atomic write.
+        """Save the index to disk atomically and durably.
 
-        Always writes current format (category IDs, disk IDs).
-        Writes to a .tmp file first, then renames to avoid corruption.
+        Always writes current format (category IDs, disk IDs). Uses
+        ``atomic_write_json`` (tmp + fsync + rename + parent dir fsync)
+        so the result survives a crash mid-write.
         """
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = self._path.with_suffix(".json.tmp")
         data = {k: asdict(v) for k, v in self._entries.items()}
-        tmp_path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
-        os.replace(tmp_path, self._path)
+        atomic_write_json(self._path, data)
 
     def find(self, name: str, media_type: str) -> IndexEntry | None:
         """Find a media entry by name.
