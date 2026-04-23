@@ -224,7 +224,7 @@ def run_ingest(
             active_hashes = client.get_all_torrent_hashes()
             log.info("torrents_found", completed=len(torrents), total=len(active_hashes))
 
-            tracker = IngestTracker()
+            tracker = IngestTracker(config.paths.data_dir / "ingested_torrents.json")
 
             # Clean tracker of removed torrents
             tracker.cleanup(active_hashes)

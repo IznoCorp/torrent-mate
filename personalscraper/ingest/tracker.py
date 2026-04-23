@@ -17,16 +17,24 @@ log = get_logger("tracker")
 
 
 def _default_tracker_file() -> Path:
-    """Return the default tracker file path from settings.
+    """Return the default tracker file path from the loaded Config.
+
+    The tracker used to read ``Settings.data_dir`` (legacy, CWD-relative,
+    silently defaulted to ``./.data``). That path diverged from
+    ``Config.paths.data_dir`` (json5, absolute, under the staging area),
+    producing two tracker files that gradually fell out of sync.
+
+    Now resolves from Config so the tracker follows the staging layout
+    the rest of the pipeline uses. Callers that want a different path
+    should pass ``tracker_path`` explicitly to :class:`IngestTracker`.
 
     Returns:
-        Path to ingested_torrents.json inside the configured data directory.
+        Path to ingested_torrents.json inside ``Config.paths.data_dir``.
     """
-    from personalscraper.config import get_settings
+    from personalscraper.conf.loader import load_config, resolve_config_path
 
-    settings = get_settings()
-    data_dir = Path(getattr(settings, "data_dir", ".data"))
-    return data_dir / "ingested_torrents.json"
+    config = load_config(resolve_config_path())
+    return config.paths.data_dir / "ingested_torrents.json"
 
 
 class IngestTracker:
