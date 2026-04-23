@@ -13,6 +13,7 @@ See docs/rapidfuzz-reference.md for scorer details.
 
 from dataclasses import dataclass
 
+import typer
 from rapidfuzz import fuzz
 
 from personalscraper.logger import get_logger
@@ -361,12 +362,12 @@ def prompt_user_choice(
     if not results:
         return None
 
-    print(f"\nMatching: {local_title}")
-    print("-" * 50)
+    typer.echo(f"\nMatching: {local_title}")
+    typer.echo("-" * 50)
     for i, r in enumerate(results, 1):
         year_str = f" ({r.api_year})" if r.api_year else ""
-        print(f"  [{i}] {r.api_title}{year_str} — {r.confidence:.0%} [{r.source}]")
-    print("  [0] Aucun de ces résultats")
+        typer.echo(f"  [{i}] {r.api_title}{year_str} — {r.confidence:.0%} [{r.source}]")
+    typer.echo("  [0] Aucun de ces résultats")
 
     while True:
         try:
