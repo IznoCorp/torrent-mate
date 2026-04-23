@@ -76,7 +76,7 @@ def _has_unscraped_items(settings: Settings, config: Config) -> bool:
     return False
 
 
-def _needs_repair(category_dir: Path) -> bool:
+def _needs_repair(category_dir: Path, file_type: FileType) -> bool:
     """Check if any item in category needs repair beyond NFO/artwork.
 
     Quick filesystem-only check (no API calls). Returns True if any
@@ -84,7 +84,10 @@ def _needs_repair(category_dir: Path) -> bool:
     duplicates.
 
     Args:
-        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+        category_dir: Path to the movies or TV shows staging directory.
+        file_type: FileType.MOVIE or FileType.TVSHOW — determines which
+            checks to apply. Passed explicitly by callers to avoid
+            substring heuristics on directory names.
 
     Returns:
         True if at least one item needs repair.
@@ -92,7 +95,7 @@ def _needs_repair(category_dir: Path) -> bool:
     if not category_dir.exists():
         return False
 
-    is_movies = "MOVIE" in category_dir.name.upper()
+    is_movies = file_type == FileType.MOVIE
 
     for folder in category_dir.iterdir():
         if not folder.is_dir() or folder.name.startswith("."):
@@ -160,12 +163,12 @@ def run_scrape(
 
     # Fast-skip: nothing to scrape and no structural repairs needed
     try:
-        needs_movie_repair = _needs_repair(staging / movies_dir_name)
+        needs_movie_repair = _needs_repair(staging / movies_dir_name, FileType.MOVIE)
     except OSError as exc:
         logger.warning("Cannot check movie repair status: %s", exc)
         needs_movie_repair = True
     try:
-        needs_tvshow_repair = _needs_repair(staging / tvshows_dir_name)
+        needs_tvshow_repair = _needs_repair(staging / tvshows_dir_name, FileType.TVSHOW)
     except OSError as exc:
         logger.warning("Cannot check tvshow repair status: %s", exc)
         needs_tvshow_repair = True

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.scraper.run import _to_step_report, run_scrape
 from personalscraper.scraper.scraper import ScrapeResult
+from personalscraper.sorter.file_type import FileType
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
@@ -190,7 +191,7 @@ def test_needs_repair_false_when_clean(tmp_path):
     s01 = show_dir / "Saison 01"
     s01.mkdir()
     (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "002-TVSHOWS") is False
+    assert _needs_repair(tmp_path / "002-TVSHOWS", FileType.TVSHOW) is False
 
 
 def test_needs_repair_true_raw_torrent_dir(tmp_path):
@@ -203,7 +204,7 @@ def test_needs_repair_true_raw_torrent_dir(tmp_path):
     raw = show_dir / "The.Boys.S05E01.MULTi"
     raw.mkdir()
     (raw / "S05E01.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "002-TVSHOWS") is True
+    assert _needs_repair(tmp_path / "002-TVSHOWS", FileType.TVSHOW) is True
 
 
 def test_needs_repair_true_duplicate_nfo(tmp_path):
@@ -215,7 +216,7 @@ def test_needs_repair_true_duplicate_nfo(tmp_path):
     (movie_dir / "Scream 7.nfo").write_text("<movie><title>Scream 7</title></movie>")
     (movie_dir / "Scream.7.2026.MULTI.nfo").write_text("<movie/>")
     (movie_dir / "Scream 7.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "001-MOVIES") is True
+    assert _needs_repair(tmp_path / "001-MOVIES", FileType.MOVIE) is True
 
 
 def test_needs_repair_true_root_mkv_with_season(tmp_path):
@@ -229,4 +230,4 @@ def test_needs_repair_true_root_mkv_with_season(tmp_path):
     s02.mkdir()
     (s02 / "S02E01 - Ep.mkv").write_bytes(b"\x00")
     (show_dir / "Show.S02E01.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "002-TVSHOWS") is True
+    assert _needs_repair(tmp_path / "002-TVSHOWS", FileType.TVSHOW) is True
