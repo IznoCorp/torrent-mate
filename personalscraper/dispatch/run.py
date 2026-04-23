@@ -8,7 +8,6 @@ staging_dir is passed explicitly from Config.paths; Settings no longer
 carries disk paths.
 """
 
-import logging
 import shutil
 from pathlib import Path
 
@@ -17,11 +16,12 @@ from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.dispatcher import Dispatcher, DispatchResult
 from personalscraper.dispatch.media_index import MediaIndex
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
-logger = logging.getLogger(__name__)
+log = get_logger("dispatch_run")
 
 
 def _cleanup_staging_orphans(settings: Settings, config: Config, staging_dir: Path) -> int:
@@ -54,19 +54,19 @@ def _cleanup_staging_orphans(settings: Settings, config: Config, staging_dir: Pa
             if item.name.startswith("_tmp_dispatch_"):
                 try:
                     shutil.rmtree(item)
-                    logger.warning("Cleaned staging orphan: %s", item.name)
+                    log.warning("staging_orphan_cleaned", name=item.name)
                     cleaned += 1
                 except OSError as exc:
-                    logger.warning("Failed to clean orphan %s: %s", item.name, exc)
+                    log.warning("staging_orphan_cleanup_failed", name=item.name, error=str(exc))
             # Clean .merge_backup/ inside media dirs
             backup = item / ".merge_backup"
             if backup.exists() and backup.is_dir():
                 try:
                     shutil.rmtree(backup)
-                    logger.warning("Cleaned merge backup: %s/%s", item.name, backup.name)
+                    log.warning("staging_backup_cleaned", media=item.name, backup=backup.name)
                     cleaned += 1
                 except OSError as exc:
-                    logger.warning("Failed to clean backup %s: %s", backup, exc)
+                    log.warning("staging_backup_cleanup_failed", path=str(backup), error=str(exc))
     return cleaned
 
 
@@ -102,10 +102,7 @@ def run_dispatch(
     # Log index freshness at entry so dry-run reviews know whether the plan
     # is computed against a fresh or cached index.
     index_source = "cache" if index.count > 0 else "empty"
-    logger.info(
-        "dispatch_index_state",
-        extra={"entries": index.count, "source": index_source, "path": str(index_path)},
-    )
+    log.info("dispatch_index_state", entries=index.count, source=index_source, path=str(index_path))
 
     # Rebuild index if empty (first run or corrupted) to detect existing media
     # on all 4 disks. Without this, all items are treated as "new" and sent
@@ -118,7 +115,7 @@ def run_dispatch(
 
         disk_configs = get_disk_configs(config)
         count = index.rebuild(disk_configs, categories=config.categories)
-        logger.info("Index was empty — rebuilt from disk scan: %d entries", count)
+        log.info("index_rebuilt_on_empty", entries=count)
         index.save()
 
     dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
