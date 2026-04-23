@@ -19,7 +19,7 @@
 | 3   | Auto-create staging tree           | phase-03-auto-create.md      | [x]    |
 | 4   | Repo cleanup (git rm --cached)     | phase-04-repo-cleanup.md     | [x]    |
 | 5   | Docs + E2E + final gate            | phase-05-docs-e2e.md         | [x]    |
-| 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md | [ ]    |
+| 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md | [x]    |
 
 ## Review cycles
 
