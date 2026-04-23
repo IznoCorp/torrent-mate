@@ -372,12 +372,15 @@ class TestReinforcedChecks:
 class TestRunVerify:
     """Tests for run_verify."""
 
-    def test_processes_both_dirs(self, tmp_path: Path, test_config: Config) -> None:
+    def test_processes_both_dirs(self, tmp_path: Path) -> None:
         """Should process both movies and tvshows."""
+        from tests.fixtures.config import CANONICAL_STAGING_DIRS
+
         settings = MagicMock()
-        settings.staging_dir = tmp_path
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
+
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         movies = tmp_path / "001-MOVIES"
         movies.mkdir()
@@ -392,7 +395,7 @@ class TestRunVerify:
             mock_v.verify_all_movies.return_value = []
             mock_v.verify_all_tvshows.return_value = []
 
-            report, dispatchable = run_verify(settings, test_config)
+            report, dispatchable = run_verify(settings, config)
 
         assert report.name == "verify"
         mock_v.verify_all_movies.assert_called_once()

@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.scraper.run import _to_step_report, run_scrape
 from personalscraper.scraper.scraper import ScrapeResult
+from personalscraper.sorter.file_type import FileType
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # StepReport conversion
@@ -97,11 +99,12 @@ class TestRunScrape:
     def test_processes_movies_and_tvshows(self, tmp_path: Path) -> None:
         """Should process both 001-MOVIES and 002-TVSHOWS."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
+
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
@@ -116,7 +119,7 @@ class TestRunScrape:
             mock_scraper.process_movies.return_value = []
             mock_scraper.process_tvshows.return_value = []
 
-            report = run_scrape(settings)
+            report = run_scrape(settings, config=config)
 
         assert report.name == "scrape"
         mock_scraper.process_movies.assert_called_once()
@@ -125,11 +128,12 @@ class TestRunScrape:
     def test_movies_only(self, tmp_path: Path) -> None:
         """--movies-only should skip TV shows."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
+
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
@@ -141,7 +145,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_movies.return_value = []
 
-            run_scrape(settings, movies_only=True)
+            run_scrape(settings, config=config, movies_only=True)
 
         mock_scraper.process_movies.assert_called_once()
         mock_scraper.process_tvshows.assert_not_called()
@@ -149,11 +153,12 @@ class TestRunScrape:
     def test_tvshows_only(self, tmp_path: Path) -> None:
         """--tvshows-only should skip movies."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
+
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
@@ -165,7 +170,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_tvshows.return_value = []
 
-            run_scrape(settings, tvshows_only=True)
+            run_scrape(settings, config=config, tvshows_only=True)
 
         mock_scraper.process_movies.assert_not_called()
         mock_scraper.process_tvshows.assert_called_once()
@@ -186,7 +191,7 @@ def test_needs_repair_false_when_clean(tmp_path):
     s01 = show_dir / "Saison 01"
     s01.mkdir()
     (s01 / "S01E01 - Episode.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "002-TVSHOWS") is False
+    assert _needs_repair(tmp_path / "002-TVSHOWS", FileType.TVSHOW) is False
 
 
 def test_needs_repair_true_raw_torrent_dir(tmp_path):
@@ -199,7 +204,7 @@ def test_needs_repair_true_raw_torrent_dir(tmp_path):
     raw = show_dir / "The.Boys.S05E01.MULTi"
     raw.mkdir()
     (raw / "S05E01.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "002-TVSHOWS") is True
+    assert _needs_repair(tmp_path / "002-TVSHOWS", FileType.TVSHOW) is True
 
 
 def test_needs_repair_true_duplicate_nfo(tmp_path):
@@ -211,7 +216,7 @@ def test_needs_repair_true_duplicate_nfo(tmp_path):
     (movie_dir / "Scream 7.nfo").write_text("<movie><title>Scream 7</title></movie>")
     (movie_dir / "Scream.7.2026.MULTI.nfo").write_text("<movie/>")
     (movie_dir / "Scream 7.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "001-MOVIES") is True
+    assert _needs_repair(tmp_path / "001-MOVIES", FileType.MOVIE) is True
 
 
 def test_needs_repair_true_root_mkv_with_season(tmp_path):
@@ -225,4 +230,4 @@ def test_needs_repair_true_root_mkv_with_season(tmp_path):
     s02.mkdir()
     (s02 / "S02E01 - Ep.mkv").write_bytes(b"\x00")
     (show_dir / "Show.S02E01.mkv").write_bytes(b"\x00")
-    assert _needs_repair(tmp_path / "002-TVSHOWS") is True
+    assert _needs_repair(tmp_path / "002-TVSHOWS", FileType.TVSHOW) is True

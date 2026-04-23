@@ -17,17 +17,16 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Literal
+
+from personalscraper.conf.classifier import MediaType
 
 logger = logging.getLogger(__name__)
 
 # Time-to-live: entries older than this are treated as cache misses.
 _TTL = timedelta(days=30)
 
-_MediaType = Literal["movie", "tv"]
 
-
-def _cache_key(tmdb_id: int, media_type: _MediaType) -> str:
+def _cache_key(tmdb_id: int, media_type: MediaType) -> str:
     """Build a cache key string for a TMDB item.
 
     Args:
@@ -71,7 +70,7 @@ class KeywordsCache:
     # Public API
     # ------------------------------------------------------------------
 
-    def get(self, tmdb_id: int, media_type: _MediaType) -> list[str] | None:
+    def get(self, tmdb_id: int, media_type: MediaType) -> list[str] | None:
         """Return cached keywords or ``None`` on miss/expiry.
 
         Reads the backing JSON file on every call (the file is small and
@@ -109,7 +108,7 @@ class KeywordsCache:
             return []
         return [str(k) for k in raw_kws]
 
-    def set(self, tmdb_id: int, media_type: _MediaType, keywords: list[str]) -> None:
+    def set(self, tmdb_id: int, media_type: MediaType, keywords: list[str]) -> None:
         """Write or overwrite a cache entry atomically.
 
         Reads the existing cache, updates the entry for ``(tmdb_id, media_type)``,

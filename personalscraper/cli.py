@@ -13,7 +13,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Optional, TypedDict
 
 import typer
 from pydantic import ValidationError
@@ -22,6 +22,8 @@ from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
+from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
@@ -117,6 +119,20 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def _bootstrap_staging(ctx: typer.Context) -> None:
+    """Call ensure_staging_tree if config is available on the AppCtx.
+
+    Safe to call from any command -- silently skips if config is None
+    (only init-config runs without a loaded config).
+
+    Args:
+        ctx: The Typer context with AppCtx in ctx.obj.
+    """
+    app_ctx: AppCtx = ctx.obj
+    if app_ctx is not None and app_ctx.config is not None:
+        _ensure_staging_tree(app_ctx.config)
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -176,10 +192,11 @@ def ingest(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         staging_dir = config.paths.staging_dir
-        ingest_dir = settings.ingest_dir(staging_dir)
-        report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir)
+        ingest_dir = staging_path(config, find_ingest_dir(config))
+        report = run_ingest(settings, dry_run=dry_run, ingest_dir=ingest_dir, staging_dir=staging_dir, config=config)
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -202,8 +219,9 @@ def sort(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
-        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run)
+        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run, config=config)
         console.print(
             f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -226,15 +244,18 @@ def scrape(
     """Scrape metadata and artwork from TMDB/TVDB."""
     from personalscraper.scraper.run import run_scrape
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
+    assert config is not None
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_scrape(
             settings,
+            config=config,
             dry_run=dry_run,
             interactive=interactive,
             movies_only=movies_only,
@@ -255,7 +276,11 @@ def scrape(
 def verify(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
-    fix: bool = typer.Option(True, "--fix/--no-fix", help="Attempt auto-fixes (default: True)"),
+    fix: Optional[bool] = typer.Option(
+        None,
+        "--fix/--no-fix",
+        help="Attempt auto-fixes (deprecated — use 'enforce' instead)",
+    ),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
 ) -> None:
@@ -268,16 +293,18 @@ def verify(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
-        if fix:
+        if fix is not None:
             console.print(
                 "[yellow]Warning: --fix is deprecated. Use 'personalscraper enforce' before verify instead.[/yellow]"
             )
+        effective_fix = bool(fix) if fix is not None else False
         report, dispatchable = run_verify(
             settings,
             config,
             dry_run=dry_run,
-            fix=fix,
+            fix=effective_fix,
             movies_only=movies_only,
             tvshows_only=tvshows_only,
         )
@@ -305,6 +332,7 @@ def enforce(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_enforce(settings, config, dry_run=dry_run)
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
@@ -330,6 +358,7 @@ def dispatch(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_dispatch(settings, config=config, dry_run=dry_run)
         console.print(
@@ -353,15 +382,16 @@ def process(
     """Run process phase only (reclean + dedup + scrape + cleanup)."""
     from personalscraper.process.run import run_process
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         try:
-            clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive)
+            clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive, config=config)
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             logging.getLogger("pipeline").exception("Process command failed")
@@ -1012,28 +1042,22 @@ def init_config_cmd(
         "--yes",
         help="Skip interactive prompts and accept all defaults.",
     ),
-    from_current: bool = typer.Option(
-        False,
-        "--from-current",
-        help="Bootstrap config from the existing legacy .env file.",
-    ),
     force: bool = typer.Option(
         False,
         "--force",
         help="Overwrite output file if it already exists.",
     ),
 ) -> None:
-    """Create config.json5 from the example template or from a legacy .env migration.
+    """Create config.json5 from the example template.
 
     Run without arguments for interactive mode (prompts for each value).
-    Use --from-current to migrate an existing legacy .env automatically.
     Use --yes to skip all prompts and accept defaults.
 
     Examples:
         personalscraper init-config
-        personalscraper init-config --from-current --yes
+        personalscraper init-config --yes
         personalscraper init-config --output /custom/path/config.json5 --force
     """
     from personalscraper.commands.init_config import init_config
 
-    init_config(example, output, interactive=not non_interactive, from_current=from_current, force=force)
+    init_config(example, output, interactive=not non_interactive, force=force)

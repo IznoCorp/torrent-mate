@@ -77,9 +77,11 @@ class TestMovieFullPipeline:
                     e2e_registry.register(downloaded)
 
             # ── 2. V1 Ingest (REAL) ──
+            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.ingest.ingest import run_ingest
 
-            ingest_report = run_ingest(settings, dry_run=False)
+            e2e_config = load_config(resolve_config_path(None))
+            ingest_report = run_ingest(settings, dry_run=False, config=e2e_config)
             print(
                 f"  V1 Ingest: {ingest_report.success_count} ingested, "
                 f"{ingest_report.skip_count} skipped, {ingest_report.error_count} errors"
@@ -106,7 +108,7 @@ class TestMovieFullPipeline:
             # ── 4. V3 Scrape (REAL — calls TMDB API) ──
             from personalscraper.scraper.run import run_scrape
 
-            scrape_report = run_scrape(settings, dry_run=False, movies_only=True)
+            scrape_report = run_scrape(settings, config=e2e_config, dry_run=False, movies_only=True)
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(movies_dir, staging / "002-TVSHOWS", expected)
 

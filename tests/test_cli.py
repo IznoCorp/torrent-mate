@@ -788,7 +788,6 @@ def test_init_config_help_shows_flags() -> None:
     result = runner.invoke(app, ["init-config", "--help"])
     assert result.exit_code == 0
     assert "--yes" in result.output
-    assert "--from-current" in result.output
     assert "--force" in result.output
     assert "--output" in result.output
     assert "--example" in result.output
@@ -814,15 +813,14 @@ def test_callback_init_config_bypasses_load() -> None:
 
 
 def test_init_config_cmd_passes_flags() -> None:
-    """init-config forwards --yes, --from-current, --force to init_config()."""
+    """init-config forwards --yes and --force to init_config()."""
     with patch("personalscraper.commands.init_config.init_config") as mock_init:
-        result = runner.invoke(app, ["init-config", "--yes", "--from-current", "--force"])
+        result = runner.invoke(app, ["init-config", "--yes", "--force"])
 
     assert result.exit_code == 0
     mock_init.assert_called_once()
     _, kwargs = mock_init.call_args
     assert kwargs["interactive"] is False
-    assert kwargs["from_current"] is True
     assert kwargs["force"] is True
 
 

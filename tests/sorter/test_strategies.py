@@ -1,114 +1,164 @@
 """Tests for personalscraper.sorter.strategies — sorting strategies."""
 
+from pathlib import Path
+
 import pytest
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name, staging_path
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType
-from personalscraper.sorter.strategies import (
-    TYPE_DIR_MAP,
-    DefaultStrategy,
-    MovieStrategy,
-    TVShowStrategy,
-)
+from personalscraper.sorter.strategies import DefaultStrategy, MovieStrategy, TVShowStrategy
+
+_STAGING_DIRS = [
+    {"id": 1, "name": "movies", "file_type": "movie"},
+    {"id": 2, "name": "tvshows", "file_type": "tvshow"},
+    {"id": 3, "name": "ebooks", "file_type": "ebook"},
+    {"id": 4, "name": "audio", "file_type": "audio"},
+    {"id": 5, "name": "apps", "file_type": "app"},
+    {"id": 6, "name": "android", "file_type": "app"},
+    {"id": 97, "name": "temp", "file_type": None, "role": "ingest"},
+    {"id": 98, "name": "autres", "file_type": "other"},
+]
 
 
 @pytest.fixture
-def cleaner():
-    """Provide a NameCleaner instance."""
+def config(tmp_path) -> Config:
+    """Provide a Config with staging_dirs pointing at tmp_path."""
+    return Config.model_validate(
+        {
+            "paths": {
+                "torrent_complete_dir": str(tmp_path / "torrents"),
+                "staging_dir": str(tmp_path / "staging"),
+                "data_dir": str(tmp_path / ".data"),
+            },
+            "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+            "staging_dirs": _STAGING_DIRS,
+        }
+    )
+
+
+@pytest.fixture
+def cleaner() -> NameCleaner:
+    """Provide a NameCleaner instance for strategy tests."""
     return NameCleaner()
 
 
 @pytest.fixture
-def staging(tmp_path):
-    """Create a staging directory with type subdirectories."""
-    for dir_name in TYPE_DIR_MAP.values():
-        (tmp_path / dir_name).mkdir()
-    return tmp_path
-
-
-# --- MovieStrategy ---
+def staging(config, tmp_path) -> Path:
+    """Create staging subdirs on disk matching config."""
+    staging_root = config.paths.staging_dir
+    staging_root.mkdir(parents=True, exist_ok=True)
+    for entry in config.staging_dirs:
+        (staging_root / folder_name(entry)).mkdir(parents=True, exist_ok=True)
+    return staging_root
 
 
 class TestMovieStrategy:
-    """MovieStrategy — places movies in 001-MOVIES/Title (Year)/."""
+    """MovieStrategy — places movies in {movies_dir}/Title (Year)/."""
 
-    def test_new_movie_creates_folder(self, staging, cleaner):
-        """New movie gets a 'Title (Year)' folder."""
+    def test_new_movie_creates_folder(self, staging, cleaner, config):
+        """New movie name with year → destination under the movies staging dir."""
         strategy = MovieStrategy()
-        dest = strategy.get_destination("Movie.Title.2024.1080p.BluRay.x264-GROUP", staging, cleaner)
-        assert dest.parent == staging / "001-MOVIES"
+        dest = strategy.get_destination("Movie.Title.2024.1080p.BluRay.x264-GROUP", staging, cleaner, config)
+        movies_dir = staging_path(config, find_by_file_type(config, FileType.MOVIE))
+        assert dest.parent == movies_dir
         assert "Movie Title" in dest.name
         assert "(2024)" in dest.name
 
-    def test_new_movie_without_year(self, staging, cleaner):
-        """Movie without year gets a 'Title' folder."""
+    def test_new_movie_without_year(self, staging, cleaner, config):
+        """Movie without year in name still lands under movies dir."""
         strategy = MovieStrategy()
-        dest = strategy.get_destination("Some.Movie.1080p.BluRay", staging, cleaner)
-        assert dest.parent == staging / "001-MOVIES"
+        dest = strategy.get_destination("Some.Movie.1080p.BluRay", staging, cleaner, config)
+        movies_dir = staging_path(config, find_by_file_type(config, FileType.MOVIE))
+        assert dest.parent == movies_dir
 
-    def test_existing_movie_fuzzy_match(self, staging, cleaner):
-        """Matches existing movie folder via fuzzy matching."""
-        existing = staging / "001-MOVIES" / "The Matrix (1999)"
+    def test_existing_movie_fuzzy_match(self, staging, cleaner, config):
+        """Existing movie folder matched fuzzily → destination equals existing folder."""
+        movies_dir = staging_path(config, find_by_file_type(config, FileType.MOVIE))
+        existing = movies_dir / "The Matrix (1999)"
         existing.mkdir()
         strategy = MovieStrategy()
-        dest = strategy.get_destination("The.Matrix.1999.Remaster.1080p.BluRay", staging, cleaner)
+        dest = strategy.get_destination("The.Matrix.1999.Remaster.1080p.BluRay", staging, cleaner, config)
         assert dest == existing
 
-    def test_different_year_no_match(self, staging, cleaner):
-        """Different year does not match existing folder."""
-        existing = staging / "001-MOVIES" / "The Matrix (1999)"
+    def test_different_year_no_match(self, staging, cleaner, config):
+        """Same title but different year → treated as a different movie."""
+        movies_dir = staging_path(config, find_by_file_type(config, FileType.MOVIE))
+        existing = movies_dir / "The Matrix (1999)"
         existing.mkdir()
         strategy = MovieStrategy()
-        dest = strategy.get_destination("The.Matrix.Reloaded.2003.1080p", staging, cleaner)
-        # Should not match the 1999 folder
+        dest = strategy.get_destination("The.Matrix.Reloaded.2003.1080p", staging, cleaner, config)
         assert dest != existing
 
-
-# --- TVShowStrategy ---
+    def test_custom_config_different_folder_name(self, tmp_path, cleaner):
+        """Custom id=10,name='mega' → dir is 010-MEGA."""
+        custom_dirs = [
+            {"id": 10, "name": "mega", "file_type": "movie"},
+            {"id": 97, "name": "temp", "file_type": None, "role": "ingest"},
+        ]
+        config = Config.model_validate(
+            {
+                "paths": {
+                    "torrent_complete_dir": str(tmp_path / "torrents"),
+                    "staging_dir": str(tmp_path / "staging"),
+                    "data_dir": str(tmp_path / ".data"),
+                },
+                "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+                "staging_dirs": custom_dirs,
+            }
+        )
+        staging_root = config.paths.staging_dir
+        staging_root.mkdir(parents=True)
+        (staging_root / "010-MEGA").mkdir()
+        strategy = MovieStrategy()
+        dest = strategy.get_destination("Inception.2010.1080p", staging_root, cleaner, config)
+        assert dest.parent == staging_root / "010-MEGA"
 
 
 class TestTVShowStrategy:
-    """TVShowStrategy — places TV shows in 002-TVSHOWS/Show Name/."""
+    """TVShowStrategy — places TV shows in {tvshows_dir}/Show Name/."""
 
-    def test_new_show_creates_folder(self, staging, cleaner):
-        """New show gets a folder without year."""
+    def test_new_show_creates_folder(self, staging, cleaner, config):
+        """New TV show → destination under the tvshows staging dir."""
         strategy = TVShowStrategy()
-        dest = strategy.get_destination("Shrinking.S03.MULTi.1080p.WEBRiP-R3MiX", staging, cleaner)
-        assert dest.parent == staging / "002-TVSHOWS"
+        dest = strategy.get_destination("Shrinking.S03.MULTi.1080p.WEBRiP-R3MiX", staging, cleaner, config)
+        tvshows_dir = staging_path(config, find_by_file_type(config, FileType.TVSHOW))
+        assert dest.parent == tvshows_dir
         assert "Shrinking" in dest.name
 
-    def test_show_folder_has_no_year(self, staging, cleaner):
-        """V2 creates show folders WITHOUT year (V3 adds it)."""
+    def test_show_folder_has_no_year(self, staging, cleaner, config):
+        """TV show folder name should not include a movie-style year marker."""
         strategy = TVShowStrategy()
-        dest = strategy.get_destination("The.Boys.S05E01.MULTi.1080p", staging, cleaner)
-        # Should not contain a year in parentheses
+        dest = strategy.get_destination("The.Boys.S05E01.MULTi.1080p", staging, cleaner, config)
         assert "(" not in dest.name or "S05" in dest.name
 
-    def test_existing_show_fuzzy_match(self, staging, cleaner):
-        """Merges into existing show folder via fuzzy matching."""
-        existing = staging / "002-TVSHOWS" / "Shrinking"
+    def test_existing_show_fuzzy_match(self, staging, cleaner, config):
+        """Existing show folder matched fuzzily → destination equals existing folder."""
+        tvshows_dir = staging_path(config, find_by_file_type(config, FileType.TVSHOW))
+        existing = tvshows_dir / "Shrinking"
         existing.mkdir()
         strategy = TVShowStrategy()
-        dest = strategy.get_destination("Shrinking.S03.MULTi.1080p.WEBRiP-R3MiX", staging, cleaner)
+        dest = strategy.get_destination("Shrinking.S03.MULTi.1080p.WEBRiP-R3MiX", staging, cleaner, config)
         assert dest == existing
 
-    def test_episode_file_matches_show_folder(self, staging, cleaner):
-        """Single episode file matches existing show folder."""
-        existing = staging / "002-TVSHOWS" / "The Boys"
+    def test_episode_file_matches_show_folder(self, staging, cleaner, config):
+        """Episode file matches an existing show folder despite extra quality tags."""
+        tvshows_dir = staging_path(config, find_by_file_type(config, FileType.TVSHOW))
+        existing = tvshows_dir / "The Boys"
         existing.mkdir()
         strategy = TVShowStrategy()
-        dest = strategy.get_destination("The.Boys.S05E01.MULTi.DV.HDR.2160p.AMZN.WEBRiP-R3MiX", staging, cleaner)
+        dest = strategy.get_destination(
+            "The.Boys.S05E01.MULTi.DV.HDR.2160p.AMZN.WEBRiP-R3MiX", staging, cleaner, config
+        )
         assert dest == existing
-
-
-# --- DefaultStrategy ---
 
 
 class TestDefaultStrategy:
     """DefaultStrategy — places items in type-specific directories."""
 
     @pytest.mark.parametrize(
-        "file_type,expected_dir",
+        "file_type,expected_name",
         [
             (FileType.EBOOK, "003-EBOOKS"),
             (FileType.AUDIO, "004-AUDIO"),
@@ -116,20 +166,48 @@ class TestDefaultStrategy:
             (FileType.OTHER, "098-AUTRES"),
         ],
     )
-    def test_type_directory_mapping(self, staging, cleaner, file_type, expected_dir):
-        """Each type maps to its correct directory."""
+    def test_type_directory_mapping(self, staging, cleaner, config, file_type, expected_name):
+        """Each FileType resolves to its canonical staging directory name."""
         strategy = DefaultStrategy(file_type)
-        dest = strategy.get_destination("file.ext", staging, cleaner)
-        assert dest == staging / expected_dir
+        dest = strategy.get_destination("file.ext", staging, cleaner, config)
+        assert dest == config.paths.staging_dir / expected_name
 
+    def test_warning_emitted_on_missing_file_type(self, cleaner, tmp_path, caplog):
+        """A warning is logged when a non-OTHER FileType has no staging entry.
 
-# --- TYPE_DIR_MAP ---
+        The fallback to FileType.OTHER must still resolve correctly, and the
+        warning must name both the requested type and the available types.
+        """
+        # Build a minimal config that has no 'movie' entry but does have 'other'.
+        minimal_dirs = [
+            {"id": 97, "name": "temp", "file_type": None, "role": "ingest"},
+            {"id": 98, "name": "autres", "file_type": "other"},
+        ]
+        cfg = Config.model_validate(
+            {
+                "paths": {
+                    "torrent_complete_dir": str(tmp_path / "torrents"),
+                    "staging_dir": str(tmp_path / "staging"),
+                    "data_dir": str(tmp_path / ".data"),
+                },
+                "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+                "staging_dirs": minimal_dirs,
+            }
+        )
+        # Create the staging tree so staging_path() can resolve without errors.
+        staging_root = cfg.paths.staging_dir
+        staging_root.mkdir(parents=True, exist_ok=True)
+        (staging_root / "097-TEMP").mkdir(exist_ok=True)
+        (staging_root / "098-AUTRES").mkdir(exist_ok=True)
 
+        strategy = DefaultStrategy(FileType.MOVIE)
+        with caplog.at_level("WARNING", logger="personalscraper.sorter.strategies"):
+            dest = strategy.get_destination("some_movie.mkv", staging_root, cleaner, cfg)
 
-class TestTypeDirMap:
-    """TYPE_DIR_MAP constant validation."""
+        # Fallback destination must be the OTHER dir
+        assert dest == staging_root / "098-AUTRES"
 
-    def test_all_types_mapped(self):
-        """All FileType values have a directory mapping."""
-        for ft in FileType:
-            assert ft in TYPE_DIR_MAP
+        # Warning must mention the requested type and available types
+        warning_text = caplog.text
+        assert "movie" in warning_text
+        assert "other" in warning_text

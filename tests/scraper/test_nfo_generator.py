@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.scraper.nfo_generator import NFOGenerator
+from personalscraper.scraper.nfo_generator import NFOGenerator, _image_url
 
 # ---------------------------------------------------------------------------
 # Sample data matching TMDB API format
@@ -250,6 +250,75 @@ class TestMovieNFOImages:
         assert "w780" in thumbs[0].get("preview", "")
 
 
+class TestImageUrl:
+    """Tests for the _image_url helper that prevents double-prefixed URLs."""
+
+    def test_tmdb_relative_path_is_prefixed(self) -> None:
+        """TMDB-style relative paths must receive the CDN prefix."""
+        assert _image_url("/abc.jpg") == "https://image.tmdb.org/t/p/original/abc.jpg"
+
+    def test_tmdb_relative_path_respects_size(self) -> None:
+        """Non-default sizes must be honored in the prefix."""
+        assert _image_url("/abc.jpg", "w342") == "https://image.tmdb.org/t/p/w342/abc.jpg"
+
+    def test_absolute_tvdb_url_is_returned_unchanged(self) -> None:
+        """TVDB fallback URLs are absolute and must NOT be double-prefixed.
+
+        Regression guard: prior code produced
+        ``https://image.tmdb.org/t/p/originalhttps://artworks.thetvdb.com/...``
+        which broke every TV show scraped through the TVDB-only fallback.
+        """
+        tvdb_url = "https://artworks.thetvdb.com/banners/v4/series/475278/posters/69b.jpg"
+        assert _image_url(tvdb_url) == tvdb_url
+        assert _image_url(tvdb_url, "w342") == tvdb_url
+
+    def test_http_url_is_returned_unchanged(self) -> None:
+        """Plain http:// URLs are also passthrough (robustness)."""
+        url = "http://example.com/foo.jpg"
+        assert _image_url(url) == url
+
+
+class TestTvdbFallbackNfoUrls:
+    """TV show NFO must use TVDB absolute URLs as-is when TMDB is missing."""
+
+    def test_tvdb_poster_url_not_double_prefixed(self, generator: NFOGenerator) -> None:
+        """Regression: NFO thumb/fanart must not prepend image.tmdb.org/t/p/original to a TVDB URL."""
+        tvdb_poster = "https://artworks.thetvdb.com/banners/v4/series/475278/posters/a.jpg"
+        tvdb_backdrop = "https://artworks.thetvdb.com/banners/v4/series/475278/backgrounds/b.jpg"
+        tv_data = {
+            "id": 0,
+            "name": "Show Without TMDB",
+            "original_name": "Show Without TMDB",
+            "overview": "",
+            "status": "Continuing",
+            "genres": [],
+            "networks": [],
+            "first_air_date": "",
+            "vote_average": 0.0,
+            "vote_count": 0,
+            "number_of_episodes": 0,
+            "number_of_seasons": 1,
+            "external_ids": {"tvdb_id": 475278, "imdb_id": ""},
+            "content_ratings": {"results": []},
+            "seasons": [{"season_number": 1, "poster_path": ""}],
+            "images": {
+                "posters": [{"file_path": tvdb_poster, "iso_639_1": "fr"}],
+                "backdrops": [{"file_path": tvdb_backdrop, "iso_639_1": "fr"}],
+            },
+            "aggregate_credits": {"cast": []},
+        }
+        xml = generator.generate_tvshow_nfo(tv_data)
+        root = ET.fromstring(xml.split("\n", 1)[1])
+        poster_thumbs = root.findall("thumb")
+        # Top-level <thumb> holds the poster for TV shows
+        assert poster_thumbs, "Expected at least one <thumb> element"
+        assert poster_thumbs[0].text == tvdb_poster
+        assert "image.tmdb.org" not in (poster_thumbs[0].text or "")
+        fanart = root.find("fanart")
+        assert fanart is not None
+        assert fanart.findall("thumb")[0].text == tvdb_backdrop
+
+
 # ---------------------------------------------------------------------------
 # Movie NFO — streamdetails
 # ---------------------------------------------------------------------------
@@ -415,7 +484,7 @@ SAMPLE_EPISODE_DATA = {
     "name": "La Fin",
     "showtitle": "Fallout",
     "id": 2362884,
-    "tvdb_id": "",
+    "tvdb_id": "9876543",
     "season_number": 1,
     "episode_number": 1,
     "overview": "Fille du superviseur de l'Abri 33...",

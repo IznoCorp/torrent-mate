@@ -18,6 +18,7 @@ from personalscraper.library.scanner import (
     scan_movie_dir,
     scan_tvshow_dir,
 )
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Minimal Config fixture for scanner tests
@@ -55,6 +56,7 @@ def scanner_config(tmp_path: Path) -> Config:
             CID.AUDIOBOOKS: CategoryConfig(folder_name="livres audios"),
             CID.TV_SHOWS_ANIMATION: CategoryConfig(folder_name="series animations"),
         },
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
 

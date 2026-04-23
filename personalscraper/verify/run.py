@@ -5,18 +5,19 @@ converts VerifyResult lists to StepReport.
 """
 
 import logging
-from pathlib import Path
 
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
+from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
 logger = logging.getLogger(__name__)
 
 
-def _has_items_to_verify(settings: Settings) -> bool:
+def _has_items_to_verify(settings: Settings, config: Config) -> bool:
     """Check if any media folders exist in category directories.
 
     Used for fast-skip: if no media folders exist, the entire
@@ -24,12 +25,16 @@ def _has_items_to_verify(settings: Settings) -> bool:
 
     Args:
         settings: Pipeline configuration.
+        config: Application config for category-based dir name resolution.
 
     Returns:
         True if at least one media folder exists.
     """
-    staging = Path(getattr(settings, "staging_dir", "."))
-    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+    staging = config.paths.staging_dir
+    for dir_name in (
+        folder_name(find_by_file_type(config, FileType.MOVIE)),
+        folder_name(find_by_file_type(config, FileType.TVSHOW)),
+    ):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue
@@ -55,14 +60,14 @@ def run_verify(
             category resolution.
         dry_run: If True, preview without modifying files.
         fix: If True, attempt automatic corrections.
-        movies_only: Process only 001-MOVIES/.
-        tvshows_only: Process only 002-TVSHOWS/.
+        movies_only: Process only {movies_dir}/.
+        tvshows_only: Process only {tvshows_dir}/.
 
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
     """
     # Fast-skip: no media folders to verify
-    if not _has_items_to_verify(settings):
+    if not _has_items_to_verify(settings, config):
         logger.info("Verify fast-skip: no media folders found")
         return StepReport(name="verify"), []
 
@@ -75,15 +80,15 @@ def run_verify(
     )
 
     all_results: list[VerifyResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
     if not tvshows_only:
-        movies_dir = staging / settings.movies_dir_name
+        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
         if movies_dir.exists():
             all_results.extend(verifier.verify_all_movies(movies_dir))
 
     if not movies_only:
-        tvshows_dir = staging / settings.tvshows_dir_name
+        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
         if tvshows_dir.exists():
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
 

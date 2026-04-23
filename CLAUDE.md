@@ -4,13 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This is a **media triage staging area** ("A TRIER" = "to sort"). Downloaded media files land here, get renamed, cleaned of junk files/folders, scraped for metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to permanent storage on one of 4 disks.
+This is a **media triage pipeline** ("A TRIER" = "to sort"). Downloaded media files
+land in the staging area (defined by `paths.staging_dir` in `config.json5`, outside
+the repository by default), get renamed, cleaned of junk files/folders, scraped for
+metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to
+permanent storage on one of 4 disks.
+
+The staging subdirectory layout (`001-MOVIES/`, `002-TVSHOWS/`, etc.) is configured
+via the `staging_dirs` section of `config.json5` — not hardcoded or tracked by git.
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 See `docs/reference/architecture.md` for the module map and package layout.
 
-All storage paths and category names are in `config.json5`.
-Run `personalscraper init-config --from-current` to create `config.json5` from your current setup.
+All storage paths, staging layout, and category names are in `config.json5`.
+Run `personalscraper init-config` to create `config.json5` from the example template (interactive prompts, or `--yes` to accept defaults).
 
 ## Critical Rules
 
@@ -114,7 +121,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: _(awaiting /implement:feature)_
-**Branch**: _(to be defined)_
-**Design**: _(to be defined)_
-**Plan**: _(to be defined)_
+**Feature**: ext-staging — external staging directories
+**Branch**: `feat/ext-staging`
+**Design**: `docs/features/ext-staging/DESIGN.md`
+**Plan**: `docs/features/ext-staging/plan/`

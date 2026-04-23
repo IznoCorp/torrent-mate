@@ -221,11 +221,27 @@ class TestCrashRecovery:
     """Tests for _recover_from_previous_run cleanup."""
 
     def _make_config(self, staging_dir: Path) -> MagicMock:
-        """Build a minimal Config mock for crash recovery tests."""
+        """Build a minimal Config mock for crash recovery tests.
+
+        Includes a staging_dirs entry with role='ingest' (097-TEMP) so that
+        find_ingest_dir() resolves correctly in _recover_from_previous_run.
+
+        Args:
+            staging_dir: Root staging directory for the test.
+
+        Returns:
+            A MagicMock Config with paths and staging_dirs configured.
+        """
         config = MagicMock()
         config.paths.staging_dir = staging_dir
         config.paths.data_dir = staging_dir / ".data"
         config.disks = []
+        # Provide a real ingest staging entry so find_ingest_dir() resolves.
+        ingest_entry = MagicMock()
+        ingest_entry.id = 97
+        ingest_entry.name = "temp"
+        ingest_entry.role = "ingest"
+        config.staging_dirs = [ingest_entry]
         return config
 
     def test_expired_lockout_cleaned(self, tmp_path: Path) -> None:
@@ -239,7 +255,6 @@ class TestCrashRecovery:
 
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
-        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
         pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=lockout)
@@ -254,7 +269,6 @@ class TestCrashRecovery:
 
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
-        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
         pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=lockout)
@@ -275,7 +289,6 @@ class TestCrashRecovery:
 
         (tmp_path / "097-TEMP").mkdir()
         settings = MagicMock()
-        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
         config = self._make_config(tmp_path)
         config.disks = [disk_config]  # inject disk with orphan directly
@@ -293,7 +306,6 @@ class TestCrashRecovery:
         (orphan / "file.mkv").write_bytes(b"\x00" * 100)
 
         settings = MagicMock()
-        settings.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
 
         pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")

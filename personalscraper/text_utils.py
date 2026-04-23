@@ -6,15 +6,21 @@ media titles for accent-insensitive French matching. Used by the sorter
 
 Also provides fuzzy_match_score() — a guarded fuzzy matching function with
 anti-false-positive protections (year constraint, length ratio, adaptive
-threshold). Used by the dispatcher (media_index.py) and sorter (matcher.py).
+threshold). Thresholds come from ``Config.fuzzy_match`` (user-tunable in
+``config.json5``); callers that have no Config in hand can omit the
+argument and fall back to the same defaults the model declares.
 
 See docs/rapidfuzz-reference.md for rationale on custom processing.
 """
+
+from __future__ import annotations
 
 import re
 import unicodedata
 
 from rapidfuzz import utils
+
+from personalscraper.conf.models import FuzzyMatchConfig
 
 # Year suffix pattern for length ratio normalization
 _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
@@ -66,18 +72,28 @@ def media_processor(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
 
 
+# Fallback defaults used when no FuzzyMatchConfig is supplied. Kept in sync
+# with the FuzzyMatchConfig pydantic defaults.
+_DEFAULT_MIN_LENGTH_RATIO = 0.67
+_DEFAULT_SHORT_TITLE_LENGTH = 10
+_DEFAULT_SHORT_TITLE_THRESHOLD = 95.0
+_DEFAULT_LONG_TITLE_THRESHOLD = 90.0
+
+
 def fuzzy_match_score(
     query: str,
     candidate: str,
     query_year: int | None = None,
     candidate_year: int | None = None,
+    config: FuzzyMatchConfig | None = None,
 ) -> float | None:
     """Score a fuzzy match with anti-false-positive guards.
 
     Applies three guards before returning a score:
     1. Year: if both years are present, abs(diff) must be <= 1
-    2. Length ratio: len(shorter)/len(longer) must be >= 0.67
-    3. Adaptive threshold: processed len <= 10 requires 95%, else 90%
+    2. Length ratio: len(shorter)/len(longer) must be >= ``min_length_ratio``
+    3. Adaptive threshold: processed len <= ``short_title_length`` requires
+       ``short_title_threshold``, otherwise ``long_title_threshold``
 
     Uses WRatio with media_processor for accent-insensitive matching.
 
@@ -86,11 +102,19 @@ def fuzzy_match_score(
         candidate: Candidate to compare (raw — processed internally).
         query_year: Year extracted from query (optional).
         candidate_year: Year extracted from candidate (optional).
+        config: Optional FuzzyMatchConfig overriding the built-in defaults.
+            When omitted, the same hardcoded values ship as the pydantic
+            defaults on the model (67% length ratio, ≤10 chars → 95, else 90).
 
     Returns:
         WRatio score (0-100) if all guards pass, None if rejected.
     """
     from rapidfuzz import fuzz
+
+    min_length_ratio = config.min_length_ratio if config is not None else _DEFAULT_MIN_LENGTH_RATIO
+    short_title_length = config.short_title_length if config is not None else _DEFAULT_SHORT_TITLE_LENGTH
+    short_title_threshold = config.short_title_threshold if config is not None else _DEFAULT_SHORT_TITLE_THRESHOLD
+    long_title_threshold = config.long_title_threshold if config is not None else _DEFAULT_LONG_TITLE_THRESHOLD
 
     # Guard 1 — Year constraint: ±1 year tolerance
     if query_year is not None and candidate_year is not None:
@@ -118,14 +142,14 @@ def fuzzy_match_score(
         len_candidate = len(processed_candidate)
     shorter = min(len_query, len_candidate)
     longer = max(len_query, len_candidate)
-    if shorter / longer < 0.67:
+    if shorter / longer < min_length_ratio:
         return None
 
     # Guard 3 — Adaptive threshold: short titles need higher score.
     # Use stripped length so "Shrinking" (9 chars) vs "Shrinking (2023)"
     # uses the title-only length for threshold selection.
     effective_len = len(stripped_query) if stripped_query else len(processed_query)
-    threshold = 95.0 if effective_len <= 10 else 90.0
+    threshold = short_title_threshold if effective_len <= short_title_length else long_title_threshold
 
     score = fuzz.WRatio(query, candidate, processor=media_processor)
     if score >= threshold:

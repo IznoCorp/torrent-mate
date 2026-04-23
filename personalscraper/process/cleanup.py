@@ -42,7 +42,7 @@ def cleanup_empty_dirs(
     are treated as empty. The category_dir root is never removed.
 
     Args:
-        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+        category_dir: Path to {movies_dir}/ or {tvshows_dir}/.
         dry_run: If True, log without deleting.
 
     Returns:

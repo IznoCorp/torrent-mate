@@ -1,44 +1,42 @@
-# Implementation Progress — legacy-cleanup
+# Implementation Progress — ext-staging
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Legacy Cleanup — remove all traces of alpha versioning from code and docs, archive legacy docs to `docs/archive/legacy-alpha/` (minor)
-**Version bump**: 0.2.0 → 0.3.0
-**Branch**: feat/legacy-cleanup
+**Feature**: Decouple Staging from Project — external staging path + config-driven dir names (minor)
+**Version bump**: 0.3.0 → 0.4.0
+**Branch**: feat/ext-staging
 **PR merge**: manual
-**PR**: https://github.com/LounisBou/personal-scraper/pull/8
-**Design**: docs/features/legacy-cleanup/DESIGN.md
-**Master plan**: docs/features/legacy-cleanup/plan/INDEX.md
+**PR**: https://github.com/LounisBou/personal-scraper/pull/9
+**Design**: docs/features/ext-staging/DESIGN.md
+**Master plan**: docs/features/ext-staging/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                | File                             | Status |
-| --- | -------------------- | -------------------------------- | ------ |
-| 1   | Archive legacy docs  | phase-01-archive-legacy-docs.md  | [x]    |
-| 2   | Rewrite root docs    | phase-02-rewrite-root-docs.md    | [x]    |
-| 3   | Clean reference docs | phase-03-clean-reference-docs.md | [x]    |
-| 4   | Clean source code    | phase-04-clean-source-code.md    | [x]    |
-| 5   | Final validation     | phase-05-final-validation.md     | [x]    |
-| 6   | PR fixes cycle 1     | phase-06-pr-fixes-cycle-1.md     | [x]    |
+| #   | Phase                              | File                         | Status |
+| --- | ---------------------------------- | ---------------------------- | ------ |
+| 1   | Config schema (additive)           | phase-01-config-schema.md    | [x]    |
+| 2   | Sorter refactor + Settings cleanup | phase-02-sorter-refactor.md  | [x]    |
+| 3   | Auto-create staging tree           | phase-03-auto-create.md      | [x]    |
+| 4   | Repo cleanup (git rm --cached)     | phase-04-repo-cleanup.md     | [x]    |
+| 5   | Docs + E2E + final gate            | phase-05-docs-e2e.md         | [x]    |
+| 6   | PR fixes cycle 1                   | phase-06-pr-fixes-cycle-1.md | [x]    |
 
 ## Review cycles
 
 ### Cycle 1
 
-- Findings received: 3
-- Retained: 1 (0 critical, 1 major, 0 medium, 2 minor)
-- Ignored: 2 (minor: orphan .gitkeep, V14\_\* identifiers — intentionally preserved per DESIGN invariant)
-- Fix phase created: phase-06-pr-fixes-cycle-1.md
-- Status: fixed (commit e1b8824) → re-review cycle 2
+- Findings received: 18 (4 critical, 5 major, 5 medium, 4 minor)
+- Retained: 12 (4 critical, 4 major, 3 medium, 1 minor)
+- Ignored: 6 (out of scope or pre-existing)
+- Fix phase created: phase-06-pr-fixes-cycle-1.md (6 sub-phases)
+- Status: fix phase complete → cycle 2 verification
 
 ### Cycle 2
 
 - Findings received: 0
 - Retained: 0
-- Ignored: 0
-- Fix phase created: none
-- Status: APPROVE — clean, proceeding to merge (manual mode)
+- Status: all cycle 1 findings verified resolved, no new findings — clean for merge
 
 ## Next action
 
-Review clean after cycle 2. Merge the PR manually (squash), then run `/implement:archive`.
+All phases complete — run `/implement:feature-pr`.

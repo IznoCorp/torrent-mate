@@ -4,15 +4,27 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.models import StepReport
 from personalscraper.process.run import run_clean, run_process
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
-def _make_settings(tmp_path):
-    """Create mock settings with staging dir and category dirs."""
-    s = MagicMock()
-    s.staging_dir = tmp_path
-    s.movies_dir_name = "001-MOVIES"
-    s.tvshows_dir_name = "002-TVSHOWS"
-    return s
+def _make_settings():
+    """Create mock settings."""
+    return MagicMock()
+
+
+def _make_config(tmp_path):
+    """Minimal config mock with canonical staging_dirs and staging path.
+
+    Args:
+        tmp_path: Temporary directory used as the staging root.
+
+    Returns:
+        MagicMock with staging_dirs and paths.staging_dir configured.
+    """
+    c = MagicMock()
+    c.staging_dirs = CANONICAL_STAGING_DIRS
+    c.paths.staging_dir = tmp_path
+    return c
 
 
 class TestRunProcess:
@@ -36,8 +48,8 @@ class TestRunProcess:
         mock_scrape.return_value = StepReport(name="scrape", success_count=3)
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        settings = _make_settings(tmp_path)
-        clean, scrape, cleanup = run_process(settings)
+        settings = _make_settings()
+        clean, scrape, cleanup = run_process(settings, config=_make_config(tmp_path))
 
         assert clean.name == "clean"
         assert scrape.name == "scrape"
@@ -64,8 +76,8 @@ class TestRunProcess:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        settings = _make_settings(tmp_path)
-        run_process(settings)
+        settings = _make_settings()
+        run_process(settings, config=_make_config(tmp_path))
 
         assert mock_reclean.call_count == 2
         movies_call = mock_reclean.call_args_list[0]
@@ -93,8 +105,8 @@ class TestRunProcess:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        settings = _make_settings(tmp_path)
-        clean, _, _ = run_process(settings)
+        settings = _make_settings()
+        clean, _, _ = run_process(settings, config=_make_config(tmp_path))
 
         # 1 reclean (movies) + 2 dedup (movies) + 1 reclean (tvshows) + 2 dedup (tvshows)
         assert clean.success_count == 1 + 2 + 1 + 2
@@ -117,8 +129,8 @@ class TestRunProcess:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        settings = _make_settings(tmp_path)
-        run_process(settings, dry_run=True)
+        settings = _make_settings()
+        run_process(settings, config=_make_config(tmp_path), dry_run=True)
 
         for mock_call in mock_reclean.call_args_list:
             assert mock_call.kwargs.get("dry_run") is True
@@ -146,8 +158,8 @@ class TestRunProcess:
         mock_scrape.return_value = StepReport(name="scrape")
         mock_cleanup.return_value = StepReport(name="cleanup")
 
-        settings = _make_settings(tmp_path)
-        run_process(settings, interactive=True)
+        settings = _make_settings()
+        run_process(settings, config=_make_config(tmp_path), interactive=True)
 
         assert mock_scrape.call_args.kwargs.get("interactive") is True
 
@@ -157,7 +169,7 @@ class TestRunCleanFastSkip:
 
     def test_fast_skip_all_clean(self, tmp_path):
         """run_clean returns empty report when all folders are clean."""
-        settings = _make_settings(tmp_path)
+        settings = _make_settings()
         movies = tmp_path / "001-MOVIES"
         movies.mkdir()
         (movies / "The Matrix (1999)").mkdir()
@@ -165,7 +177,7 @@ class TestRunCleanFastSkip:
         tvshows = tmp_path / "002-TVSHOWS"
         tvshows.mkdir()
 
-        report = run_clean(settings)
+        report = run_clean(settings, _make_config(tmp_path))
 
         assert report.name == "clean"
         assert report.success_count == 0
@@ -173,14 +185,14 @@ class TestRunCleanFastSkip:
 
     def test_no_fast_skip_with_polluted(self, tmp_path):
         """run_clean processes when polluted folders exist."""
-        settings = _make_settings(tmp_path)
+        settings = _make_settings()
         movies = tmp_path / "001-MOVIES"
         movies.mkdir()
         (movies / "Movie.Title.2024.1080p.BluRay.x264-GROUP").mkdir()
         tvshows = tmp_path / "002-TVSHOWS"
         tvshows.mkdir()
 
-        report = run_clean(settings)
+        report = run_clean(settings, _make_config(tmp_path))
 
         # Polluted folder was processed (re-cleaned)
         assert report.success_count >= 1

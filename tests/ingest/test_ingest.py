@@ -17,6 +17,7 @@ from personalscraper.ingest.ingest import (
     run_ingest,
     transfer_torrent,
 )
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -186,6 +187,21 @@ def _make_torrent(name: str, torrent_hash: str) -> MagicMock:
     return t
 
 
+def _make_config(tmp_path: Path) -> MagicMock:
+    """Create a minimal config mock with staging_dirs and staging path.
+
+    Args:
+        tmp_path: Temporary directory used as the staging root.
+
+    Returns:
+        MagicMock with staging_dirs and paths.staging_dir configured.
+    """
+    c = MagicMock()
+    c.staging_dirs = CANONICAL_STAGING_DIRS
+    c.paths.staging_dir = tmp_path
+    return c
+
+
 class TestRunIngest:
     """Tests for run_ingest orchestrator."""
 
@@ -199,7 +215,6 @@ class TestRunIngest:
     ) -> None:
         """No completed torrents should return success_count=0."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 1
 
@@ -210,7 +225,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.success_count == 0
         assert report.error_count == 0
@@ -225,7 +240,6 @@ class TestRunIngest:
     ) -> None:
         """Already-ingested torrents should be skipped."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 1
 
@@ -241,7 +255,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = True
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.skip_count == 1
         assert report.success_count == 0
@@ -258,7 +272,6 @@ class TestRunIngest:
     ) -> None:
         """Seeding torrent should be copied (not moved)."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -280,7 +293,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.success_count == 1
         mock_transfer.assert_called_once()
@@ -299,7 +312,6 @@ class TestRunIngest:
     ) -> None:
         """Completed (not seeding) torrent should be moved."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -321,7 +333,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.success_count == 1
         mock_transfer.assert_called_once()
@@ -340,7 +352,6 @@ class TestRunIngest:
     ) -> None:
         """Insufficient disk space should skip the torrent."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 999
 
@@ -361,7 +372,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.skip_count == 1
         assert report.success_count == 0
@@ -378,7 +389,6 @@ class TestRunIngest:
     ) -> None:
         """Transfer failure should increment error_count."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -400,7 +410,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.error_count == 1
         assert report.success_count == 0
@@ -415,7 +425,6 @@ class TestRunIngest:
     ) -> None:
         """Dry run should not call _cleanup_orphan_temps or mark ingested."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -437,7 +446,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, dry_run=True)
+        report = run_ingest(settings, dry_run=True, config=_make_config(tmp_path))
 
         assert report.success_count == 1
         mock_tracker.mark_ingested.assert_not_called()
@@ -452,7 +461,6 @@ class TestRunIngest:
     ) -> None:
         """StepReport should have correct name and initial counts."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -463,7 +471,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.name == "ingest"
         assert report.success_count == 0
@@ -482,7 +490,6 @@ class TestRunIngest:
     ) -> None:
         """Multiple torrents: 1 seeding (copy) + 1 done (move) + 1 already ingested."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -510,7 +517,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.side_effect = [False, False, True]
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.success_count == 2
         assert report.skip_count == 1
@@ -523,11 +530,10 @@ class TestRunIngest:
     ) -> None:
         """QBitClient init failure should return error report."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
 
         mock_qbit_cls.side_effect = ConnectionError("Cannot connect")
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.error_count == 1
         assert "init failed" in report.details[0].lower()
@@ -542,7 +548,6 @@ class TestRunIngest:
     ) -> None:
         """Missing content path should increment skip_count (file likely already processed)."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -560,7 +565,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.skip_count == 1
         # Escalated to error because ALL torrents had missing content
@@ -579,7 +584,6 @@ class TestRunIngest:
     ) -> None:
         """OSError on one transfer should not prevent the others from completing."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -612,7 +616,7 @@ class TestRunIngest:
         # 2nd call raises OSError, 1st and 3rd succeed
         mock_transfer.side_effect = [True, OSError("Disk I/O error"), True]
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.success_count == 2
         assert report.error_count == 1
@@ -630,7 +634,6 @@ class TestRunIngest:
     ) -> None:
         """Two consecutive identical errors should abort the loop (systemic failure)."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -663,7 +666,7 @@ class TestRunIngest:
         # Both transfers raise the same error type → triggers abort after 2nd
         mock_transfer.side_effect = [OSError("Disk dead"), OSError("Disk dead")]
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         # 2 errors, loop aborted before reaching torrent 3
         assert report.error_count == 2
@@ -682,7 +685,6 @@ class TestRunIngest:
         import qbittorrentapi
 
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
@@ -690,7 +692,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -708,7 +710,6 @@ class TestRunIngest:
         import qbittorrentapi
 
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
@@ -716,7 +717,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -732,7 +733,6 @@ class TestRunIngest:
         import qbittorrentapi
 
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
@@ -740,7 +740,7 @@ class TestRunIngest:
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.error_count >= 1
         combined = " ".join(report.details).lower()
@@ -756,7 +756,6 @@ class TestRunIngest:
     ) -> None:
         """If destination already exists in staging, skip and mark ingested."""
         settings = MagicMock()
-        settings.staging_dir = tmp_path
         settings.ingest_dir = tmp_path / "097-TEMP"
         settings.min_free_space_staging_gb = 0
 
@@ -781,7 +780,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        report = run_ingest(settings, config=_make_config(tmp_path))
 
         assert report.skip_count == 1
         mock_tracker.mark_ingested.assert_called_once()

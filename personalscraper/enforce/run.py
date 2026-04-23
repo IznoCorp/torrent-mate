@@ -33,8 +33,8 @@ def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> St
     Returns:
         StepReport with enforce counts and details.
     """
-    sanitize_results = sanitize_files(settings, dry_run)
-    structure_results = validate_structure(settings, dry_run)
+    sanitize_results = sanitize_files(settings, config, dry_run)
+    structure_results = validate_structure(settings, config, dry_run)
     coherence_results = check_coherence(settings, config, dry_run)
 
     success = 0

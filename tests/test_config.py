@@ -37,34 +37,10 @@ def test_settings_thresholds_configurable(monkeypatch):
     assert s.min_free_space_staging_gb == 50
 
 
-def test_ingest_dir_relative_default(tmp_path):
-    """ingest_dir(staging_dir) resolves relative name against staging_dir."""
-    s = Settings(_env_file=None)
-    result = s.ingest_dir(tmp_path)
-    assert result == tmp_path / "097-TEMP"
-
-
-def test_ingest_dir_absolute_override(tmp_path, monkeypatch):
-    """ingest_dir(staging_dir) returns absolute path as-is when configured."""
-    custom = tmp_path / "custom-ingest"
-    monkeypatch.setenv("INGEST_DIR_NAME", str(custom))
-    s = Settings(_env_file=None)
-    assert s.ingest_dir(tmp_path) == custom
-
-
 def test_library_preferences_file_default():
     """library_preferences_file should default to 'library_preferences.json'."""
     settings = Settings(_env_file=None)
     assert settings.library_preferences_file == "library_preferences.json"
-
-
-def test_category_dir_names_configurable(monkeypatch):
-    """Category directory names can be overridden via env vars."""
-    monkeypatch.setenv("MOVIES_DIR_NAME", "films")
-    monkeypatch.setenv("TVSHOWS_DIR_NAME", "series")
-    s = Settings(_env_file=None)
-    assert s.movies_dir_name == "films"
-    assert s.tvshows_dir_name == "series"
 
 
 def test_rich_repr_masks_secrets(monkeypatch):
@@ -84,4 +60,4 @@ def test_rich_repr_masks_secrets(monkeypatch):
     assert rendered["tmdb_api_key"] == "<masked>"
     assert rendered["tvdb_api_key"] == "<masked>"
     # Non-secret fields must still be visible
-    assert rendered["movies_dir_name"] == "001-MOVIES"
+    assert rendered["scraper_language"] == "fr-FR"

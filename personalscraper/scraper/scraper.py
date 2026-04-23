@@ -1316,7 +1316,7 @@ class Scraper:
         remaining movies (no viable fallback for movie metadata).
 
         Args:
-            movies_dir: Path to the movies directory (e.g. 001-MOVIES/).
+            movies_dir: Path to the movies directory (e.g. {movies_dir}/).
 
         Returns:
             List of ScrapeResult for each processed movie.
@@ -1767,7 +1767,7 @@ class Scraper:
         match_tvshow via CircuitOpenError catch).
 
         Args:
-            tvshows_dir: Path to the TV shows directory (e.g. 002-TVSHOWS/).
+            tvshows_dir: Path to the TV shows directory (e.g. {tvshows_dir}/).
 
         Returns:
             List of ScrapeResult for each processed show.

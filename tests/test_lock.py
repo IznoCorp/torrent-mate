@@ -54,3 +54,33 @@ def test_invalid_pid_in_lock(tmp_path):
     lock_file = tmp_path / "pipeline.lock"
     lock_file.write_text("not_a_number")
     assert acquire_lock(lock_file)
+
+
+def test_toctou_race_lost(tmp_path, monkeypatch):
+    """Simulate the narrow race between exists() and O_CREAT|O_EXCL.
+
+    Pre-create the lock file after forcing exists() to report False, so
+    acquire_lock passes the stale-check path and reaches os.open(),
+    which fails with FileExistsError — the code path that keeps two
+    racing processes from both thinking they own the lock.
+    """
+    lock_file = tmp_path / "pipeline.lock"
+    # Competitor PID owns the lock from their perspective
+    lock_file.write_text(str(os.getpid() + 1))
+
+    from pathlib import Path as _Path
+
+    real_exists = _Path.exists
+
+    def _fake_exists(self, *args, **kwargs):
+        # Hide the lock from the stale-check phase only, keep default
+        # behaviour for every other path (mkdir -> exists_ok handling etc.)
+        if self == lock_file:
+            return False
+        return real_exists(self, *args, **kwargs)
+
+    monkeypatch.setattr(_Path, "exists", _fake_exists)
+
+    assert acquire_lock(lock_file) is False
+    # Competitor's lock content is preserved — we did not overwrite it
+    assert lock_file.read_text().strip() == str(os.getpid() + 1)

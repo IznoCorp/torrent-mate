@@ -3,43 +3,71 @@
 import pytest
 
 from personalscraper.enforce.coherence_checker import check_coherence
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 @pytest.fixture
-def settings(tmp_path):
-    """Build a mocked Settings object pointing at ``tmp_path`` for isolation."""
+def settings():
+    """Minimal settings mock (staging resolved from config.paths)."""
     from unittest.mock import MagicMock
 
-    s = MagicMock()
-    s.staging_dir = tmp_path
-    s.movies_dir_name = "001-MOVIES"
-    s.tvshows_dir_name = "002-TVSHOWS"
-    return s
+    return MagicMock()
 
 
-def test_tvshow_in_movies_warns(tmp_path, settings, test_config):
+@pytest.fixture
+def test_config_at_tmp(tmp_path, test_config):
+    """Build a config mock combining test_config rules with tmp_path staging.
+
+    The coherence checker uses config.paths.staging_dir and config.staging_dirs
+    to locate staging category dirs. This fixture wraps the real test_config
+    so that category_rules and genre mappings are available, while directing
+    staging to tmp_path.
+
+    Args:
+        tmp_path: Pytest temporary directory.
+        test_config: Full Config fixture from tests/fixtures/config.py.
+
+    Returns:
+        MagicMock with staging_dirs from CANONICAL_STAGING_DIRS,
+        paths.staging_dir set to tmp_path, and categories/rules from
+        test_config forwarded for classifier use.
+    """
+    from unittest.mock import MagicMock
+
+    c = MagicMock()
+    c.staging_dirs = CANONICAL_STAGING_DIRS
+    c.paths.staging_dir = tmp_path
+    # Forward classifier-relevant attributes from the real test_config
+    c.category_rules = test_config.category_rules
+    c.genre_mapping = test_config.genre_mapping
+    c.anime_rule = test_config.anime_rule
+    c.categories = test_config.categories
+    return c
+
+
+def test_tvshow_in_movies_warns(tmp_path, settings, test_config_at_tmp):
     """tvshow.nfo in 001-MOVIES → warning."""
     movie = tmp_path / "001-MOVIES" / "Fake Show (2026)"
     movie.mkdir(parents=True)
     (movie / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">1</uniqueid></tvshow>')
 
-    results = check_coherence(settings, test_config, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
     warns = [w for r in results for w in r.warnings if "wrong category" in w.lower()]
     assert len(warns) >= 1
 
 
-def test_nfo_missing_both_ids_warns(tmp_path, settings, test_config):
+def test_nfo_missing_both_ids_warns(tmp_path, settings, test_config_at_tmp):
     """NFO without TMDB or IMDB ID → warning."""
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
     (movie / "Film.nfo").write_text("<movie><title>Film</title></movie>")
 
-    results = check_coherence(settings, test_config, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
     warns = [w for r in results for w in r.warnings if "missing" in w.lower() and "id" in w.lower()]
     assert len(warns) >= 1
 
 
-def test_clean_items_no_warnings(tmp_path, settings, test_config):
+def test_clean_items_no_warnings(tmp_path, settings, test_config_at_tmp):
     """Properly structured items → no warnings."""
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
@@ -47,12 +75,12 @@ def test_clean_items_no_warnings(tmp_path, settings, test_config):
         '<movie><uniqueid type="tmdb">123</uniqueid><uniqueid type="imdb">tt123</uniqueid></movie>'
     )
 
-    results = check_coherence(settings, test_config, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
     warns = [w for r in results for w in r.warnings]
     assert len(warns) == 0
 
 
-def test_genre_emission_in_series_warns(tmp_path, settings, test_config):
+def test_genre_emission_in_series_warns(tmp_path, settings, test_config_at_tmp):
     """NFO with French TMDB genre 'Émission' in 002-TVSHOWS → warning about tv_programs.
 
     The V15 classifier rule ``tmdb_genre_contains="mission"`` maps the French
@@ -63,7 +91,7 @@ def test_genre_emission_in_series_warns(tmp_path, settings, test_config):
     show.mkdir(parents=True)
     (show / "tvshow.nfo").write_text('<tvshow><genre>Émission</genre><uniqueid type="tmdb">312697</uniqueid></tvshow>')
 
-    results = check_coherence(settings, test_config, dry_run=False)
+    results = check_coherence(settings, test_config_at_tmp, dry_run=False)
 
     # Verify genre_coherence check was performed without error
     assert any("genre_coherence" in r.checks for r in results)

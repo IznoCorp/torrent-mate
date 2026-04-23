@@ -12,11 +12,14 @@ from pathlib import Path
 import qbittorrentapi
 import requests
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.sorter.file_type import FileType
 
 log = get_logger("ingest")
 
@@ -169,9 +172,11 @@ def transfer_torrent(source: Path, dest: Path, copy: bool, dry_run: bool = False
 
 def run_ingest(
     settings: Settings,
+    *,
     dry_run: bool = False,
     ingest_dir: Path | None = None,
     staging_dir: Path | None = None,
+    config: Config,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -181,19 +186,19 @@ def run_ingest(
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview actions without modifying the filesystem.
-        ingest_dir: Absolute path to the ingest directory (097-TEMP/).
-            Falls back to ``settings.ingest_dir`` attribute for MagicMock tests.
-        staging_dir: Absolute path to the staging area (from Config.paths).
-            Falls back to ``settings.staging_dir`` attribute for MagicMock tests.
+        ingest_dir: Absolute path to the ingest directory ({ingest_dir}/).
+            When None, resolved from ``config`` via find_ingest_dir.
+        staging_dir: Explicit staging area override. When None, resolved from
+            ``config.paths.staging_dir``.
+        config: Loaded Config instance (required) for staging dir name resolution.
 
     Returns:
         StepReport with success/skip/error counts and details.
     """
     report = StepReport(name="ingest")
 
-    # Ingest deposits into ingest_dir (097-TEMP/) so sort processes only media
-    # getattr fallback: MagicMock tests set ingest_dir directly as a Path attribute.
-    resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else Path(getattr(settings, "ingest_dir", "."))
+    # Resolve ingest_dir: prefer explicit arg, then derive from config.
+    resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
 
     # Clean orphaned temp dirs from interrupted runs
@@ -219,7 +224,7 @@ def run_ingest(
             active_hashes = client.get_all_torrent_hashes()
             log.info("torrents_found", completed=len(torrents), total=len(active_hashes))
 
-            tracker = IngestTracker()
+            tracker = IngestTracker(config.paths.data_dir / "ingested_torrents.json")
 
             # Clean tracker of removed torrents
             tracker.cleanup(active_hashes)
@@ -241,13 +246,14 @@ def run_ingest(
                     # Resolve content path — if missing, check if already in staging
                     source = client.get_content_path(torrent)
                     if not source.exists():
-                        # Check staging dirs for this content (already ingested pre-tracker)
-                        resolved_staging = (
-                            staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
-                        )
+                        # Check staging dirs for this content (already ingested pre-tracker).
+                        # Prefer explicit staging_dir arg, then config.paths.staging_dir.
+                        resolved_staging: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
+                        _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
+                        _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
                         staging_dirs = [
-                            resolved_staging / settings.movies_dir_name,
-                            resolved_staging / settings.tvshows_dir_name,
+                            resolved_staging / _movies_dir,
+                            resolved_staging / _tvshows_dir,
                             resolved_ingest_dir,
                         ]
                         found_in_staging = any((d / source.name).exists() for d in staging_dirs)
@@ -262,7 +268,7 @@ def run_ingest(
                             report.warnings.append(f"{name}: content path missing ({source})")
                         continue
 
-                    # Destination in 097-TEMP/ (sort picks up from here)
+                    # Destination in {ingest_dir}/ (sort picks up from here)
                     dest = resolved_ingest_dir / source.name
                     if dest.exists():
                         log.info("already_exists", name=name, dest=str(dest))

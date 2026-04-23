@@ -139,7 +139,7 @@ class Verifier:
         """Verify all movie subdirectories.
 
         Args:
-            movies_dir: Path to the movies root (e.g. 001-MOVIES/).
+            movies_dir: Path to the movies root (e.g. {movies_dir}/).
 
         Returns:
             List of VerifyResult for each movie.
@@ -170,7 +170,7 @@ class Verifier:
         """Verify all TV show subdirectories.
 
         Args:
-            tvshows_dir: Path to the TV shows root (e.g. 002-TVSHOWS/).
+            tvshows_dir: Path to the TV shows root (e.g. {tvshows_dir}/).
 
         Returns:
             List of VerifyResult for each show.

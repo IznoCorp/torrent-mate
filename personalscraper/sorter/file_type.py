@@ -97,12 +97,12 @@ class FileType(Enum):
     """Media type categories matching staging subdirectories.
 
     Attributes:
-        MOVIE: Films — sorted to 001-MOVIES/.
-        TVSHOW: TV series — sorted to 002-TVSHOWS/.
-        EBOOK: Ebooks — sorted to 003-EBOOKS/.
-        AUDIO: Audiobooks/music — sorted to 004-AUDIO/.
-        APP: Applications — sorted to 005-APPS/ or 006-ANDROID/.
-        OTHER: Unrecognized — sorted to 098-AUTRES/.
+        MOVIE: Films — sorted to {movies_dir}/.
+        TVSHOW: TV series — sorted to {tvshows_dir}/.
+        EBOOK: Ebooks — sorted to {ebooks_dir}/.
+        AUDIO: Audiobooks/music — sorted to {audio_dir}/.
+        APP: Applications — sorted to {apps_dir}/ or {android_dir}/.
+        OTHER: Unrecognized — sorted to {autres_dir}/.
     """
 
     MOVIE = "movie"

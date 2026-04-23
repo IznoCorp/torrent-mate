@@ -47,6 +47,7 @@ class TestNfoCorruptRecovery:
         mock_unscraped,
         staging,
         resilience_settings,
+        resilience_config,
     ):
         """Scrape step detects corrupt NFO and triggers re-scrape."""
         from personalscraper.scraper.run import run_scrape
@@ -66,7 +67,7 @@ class TestNfoCorruptRecovery:
         ]
         mock_scraper.process_tvshows.return_value = []
 
-        run_scrape(resilience_settings, staging_dir=staging)
+        run_scrape(resilience_settings, config=resilience_config)
 
         # Scraper was called (not skipped) because NFO is corrupt
         mock_scraper.process_movies.assert_called_once()

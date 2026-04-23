@@ -206,7 +206,75 @@ class AnimeRule(_StrictModel):
     requires_genre_id: int = Field(default=16, description="TMDB Animation genre ID.")
     requires_origin_country: list[str] = Field(default_factory=lambda: ["JP"], description="Codes ISO origin_country.")
     maps_to: str = Field(default="anime", description="category_id résultat.")
-    applies_to: Literal["movies", "tv", "both"] = Field(default="tv", description="Sur quels types de média appliquer.")
+    applies_to: Literal["movie", "tv", "both"] = Field(default="tv", description="Sur quels types de média appliquer.")
+
+    @field_validator("applies_to", mode="before")
+    @classmethod
+    def _normalize_applies_to(cls, value: object) -> object:
+        # Backward-compat: legacy configs used "movies" (plural). The classifier
+        # compares against media_type values ("movie"/"tv") so plural never matched —
+        # silently disabling the rule. Accept and normalize to keep old configs working.
+        if value == "movies":
+            return "movie"
+        return value
+
+
+class StagingDirConfig(_StrictModel):
+    """Configuration for one staging subdirectory.
+
+    Folder name on disk is derived as ``f"{id:03d}-{name.upper()}"``,
+    e.g. ``{"id": 1, "name": "movies"}`` → ``f"{id:03d}-{name.upper()}"``.
+
+    Attributes:
+        id: Numeric directory prefix in [0, 999]. Must be unique across all entries.
+        name: Kebab-case label (e.g. "movies", "tv-shows"). Used to build the folder name.
+        file_type: Optional FileType enum value string this dir receives
+            (e.g. "movie", "tvshow"). Duplicate values across entries are allowed —
+            multiple dirs may share a FileType for domain-specific routing.
+        role: Optional functional role. Currently only ``"ingest"`` is defined.
+            Exactly one entry must declare ``role="ingest"`` when staging_dirs is present.
+    """
+
+    id: int = Field(..., ge=0, le=999, description="Numeric prefix [0-999]. Unique across entries.")
+    name: str = Field(
+        ...,
+        pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$",
+        description="Kebab-case label. Used to compute folder name via f'{id:03d}-{name.upper()}'.",
+    )
+    file_type: str | None = Field(
+        default=None,
+        description="FileType enum member string this dir receives (e.g. 'movie', 'tvshow').",
+    )
+    role: Literal["ingest"] | None = Field(
+        default=None,
+        description=(
+            "Functional role tag. Allowed value: 'ingest' (the only defined role). "
+            "Exactly one staging_dirs entry must declare role='ingest' when staging_dirs is present."
+        ),
+    )
+
+    @field_validator("file_type", mode="after")
+    @classmethod
+    def _validate_file_type(cls, v: str | None) -> str | None:
+        """Validate file_type is a known FileType member.
+
+        Args:
+            v: The file_type string value, or None.
+
+        Returns:
+            The validated file_type string, or None.
+
+        Raises:
+            ValueError: If v is set but not a valid FileType member.
+        """
+        if v is None:
+            return v
+        from personalscraper.sorter.file_type import FileType  # local import avoids circular
+
+        valid = {ft.value for ft in FileType}
+        if v not in valid:
+            raise ValueError(f"Invalid file_type '{v}'. Must be one of: {sorted(valid)}")
+        return v
 
 
 class PathConfig(_StrictModel):
@@ -404,6 +472,31 @@ class LibraryPrefs(_StrictModel):
     encoding_rules: list[EncodingRule] = Field(default_factory=list)
 
 
+class FuzzyMatchConfig(_StrictModel):
+    """Thresholds for ``text_utils.fuzzy_match_score``.
+
+    All fields are exposed in ``config.json5`` under the ``fuzzy_match`` key
+    so the anti-false-positive guards can be tuned without touching code.
+
+    Attributes:
+        min_length_ratio: ``len(shorter) / len(longer)`` guard. Strings
+            whose length ratio is below this are rejected before scoring.
+            Range: (0.0, 1.0]. Default 0.67.
+        short_title_length: Inclusive length boundary (processed string
+            length) separating short and long titles for the adaptive
+            threshold. Default 10.
+        short_title_threshold: WRatio score required when the processed
+            length is ≤ ``short_title_length``. Default 95.0.
+        long_title_threshold: WRatio score required when the processed
+            length is > ``short_title_length``. Default 90.0.
+    """
+
+    min_length_ratio: float = Field(default=0.67, gt=0.0, le=1.0)
+    short_title_length: int = Field(default=10, ge=1)
+    short_title_threshold: float = Field(default=95.0, ge=0.0, le=100.0)
+    long_title_threshold: float = Field(default=90.0, ge=0.0, le=100.0)
+
+
 class Config(_StrictModel):
     """Top-level config.json5 parsed model.
 
@@ -439,7 +532,14 @@ class Config(_StrictModel):
     anime_rule: AnimeRule = Field(default_factory=AnimeRule)
     genre_mapping: GenreMapping = Field(default_factory=GenreMapping)
 
+    fuzzy_match: FuzzyMatchConfig = Field(default_factory=FuzzyMatchConfig)
+
     library: LibraryPrefs = Field(default_factory=LibraryPrefs)
+
+    staging_dirs: list[StagingDirConfig] = Field(
+        ...,
+        description=("Staging subdirectory layout. Required. See MANUAL.md §Staging layout for migration steps."),
+    )
 
     @property
     def all_category_ids(self) -> frozenset[str]:
@@ -527,6 +627,58 @@ class Config(_StrictModel):
         for i, rule in enumerate(self.category_rules):
             if rule.category not in known:
                 raise ValueError(f"category_rules[{i}].category '{rule.category}' unknown")
+
+        return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def _check_staging_dirs_present(cls, data: dict[str, object]) -> dict[str, object]:
+        """Emit a friendly error when staging_dirs is missing.
+
+        Args:
+            data: Raw config dict[str, object] before field validation.
+
+        Returns:
+            data unchanged (validation continues normally).
+
+        Raises:
+            ValueError: With a human-readable migration hint if staging_dirs is absent.
+        """
+        if isinstance(data, dict) and "staging_dirs" not in data:
+            raise ValueError(
+                "`staging_dirs` missing from config.json5 — see MANUAL.md §Staging layout for migration steps."
+            )
+        return data
+
+    @model_validator(mode="after")
+    def _validate_staging_dirs(self) -> "Config":
+        """Validate staging_dirs entries when present.
+
+        Checks: unique IDs, exactly one role='ingest' entry, all file_type
+        values reference valid FileType members (already checked at field level,
+        but cross-entry uniqueness of IDs is checked here).
+
+        Returns:
+            self after validation.
+
+        Raises:
+            ValueError: If IDs are duplicated or ingest role count != 1.
+        """
+        # Unique IDs
+        seen_ids: set[int] = set()
+        for entry in self.staging_dirs:
+            if entry.id in seen_ids:
+                raise ValueError(f"Duplicate staging_dirs id={entry.id}. Each entry must have a unique id.")
+            seen_ids.add(entry.id)
+
+        # Exactly one ingest role
+        ingest_entries = [e for e in self.staging_dirs if e.role == "ingest"]
+        if len(ingest_entries) != 1:
+            raise ValueError(
+                f"staging_dirs must have exactly one entry with role='ingest' "
+                f"(found {len(ingest_entries)}). "
+                "One entry (the ingest staging dir) must declare role='ingest'."
+            )
 
         return self
 

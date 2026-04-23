@@ -3,21 +3,29 @@
 import pytest
 
 from personalscraper.enforce.structure_validator import validate_structure
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 @pytest.fixture
-def settings(tmp_path):
-    """Build a mocked Settings object pointing at ``tmp_path`` for isolation."""
+def settings():
+    """Minimal settings mock (staging resolved from config.paths)."""
     from unittest.mock import MagicMock
 
-    s = MagicMock()
-    s.staging_dir = tmp_path
-    s.movies_dir_name = "001-MOVIES"
-    s.tvshows_dir_name = "002-TVSHOWS"
-    return s
+    return MagicMock()
 
 
-def test_movie_extra_nfo_removed(tmp_path, settings):
+@pytest.fixture
+def config(tmp_path):
+    """Minimal config mock with canonical staging_dirs and staging path."""
+    from unittest.mock import MagicMock
+
+    c = MagicMock()
+    c.staging_dirs = CANONICAL_STAGING_DIRS
+    c.paths.staging_dir = tmp_path
+    return c
+
+
+def test_movie_extra_nfo_removed(tmp_path, settings, config):
     """Movie with 2 NFOs: residual removed, correct kept."""
     movie = tmp_path / "001-MOVIES" / "Scream 7 (2026)"
     movie.mkdir(parents=True)
@@ -27,14 +35,14 @@ def test_movie_extra_nfo_removed(tmp_path, settings):
     bad.write_text("<movie/>")
     (movie / "Scream 7.mkv").write_bytes(b"\x00")
 
-    results = validate_structure(settings, dry_run=False)
+    results = validate_structure(settings, config, dry_run=False)
     repaired = [r for r in results if r.action == "repaired"]
     assert len(repaired) == 1
     assert good.exists()
     assert not bad.exists()
 
 
-def test_movie_duplicate_artwork_legacy_removed(tmp_path, settings):
+def test_movie_duplicate_artwork_legacy_removed(tmp_path, settings, config):
     """Artwork with same type but different names: keep sanitized, delete legacy."""
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
@@ -43,13 +51,13 @@ def test_movie_duplicate_artwork_legacy_removed(tmp_path, settings):
     (movie / "Film-poster.jpg").write_bytes(b"good")
     (movie / "Film-poster (1).jpg").write_bytes(b"dup")
 
-    results = validate_structure(settings, dry_run=False)
+    results = validate_structure(settings, config, dry_run=False)
     repaired = [r for r in results if r.action == "repaired"]
     assert len(repaired) == 1
     assert not (movie / "Film-poster (1).jpg").exists()
 
 
-def test_tvshow_empty_torrent_subdir_removed(tmp_path, settings):
+def test_tvshow_empty_torrent_subdir_removed(tmp_path, settings, config):
     """Empty torrent subdirectory removed."""
     show = tmp_path / "002-TVSHOWS" / "Show (2025)"
     show.mkdir(parents=True)
@@ -57,11 +65,11 @@ def test_tvshow_empty_torrent_subdir_removed(tmp_path, settings):
     empty_dir = show / "Show.S01E01.MULTi.1080p"
     empty_dir.mkdir()
 
-    validate_structure(settings, dry_run=False)
+    validate_structure(settings, config, dry_run=False)
     assert not empty_dir.exists()
 
 
-def test_clean_movie_no_action(tmp_path, settings):
+def test_clean_movie_no_action(tmp_path, settings, config):
     """Clean movie → validated, no fixes."""
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
@@ -70,12 +78,12 @@ def test_clean_movie_no_action(tmp_path, settings):
     (movie / "Film-poster.jpg").write_bytes(b"\x00")
     (movie / "Film-landscape.jpg").write_bytes(b"\x00")
 
-    results = validate_structure(settings, dry_run=False)
+    results = validate_structure(settings, config, dry_run=False)
     validated = [r for r in results if r.action == "validated"]
     assert len(validated) == 1
 
 
-def test_idempotent_second_run(tmp_path, settings):
+def test_idempotent_second_run(tmp_path, settings, config):
     """Run 2 after fixes → no more repairs."""
     movie = tmp_path / "001-MOVIES" / "Film (2025)"
     movie.mkdir(parents=True)
@@ -83,7 +91,7 @@ def test_idempotent_second_run(tmp_path, settings):
     (movie / "Film.mkv").write_bytes(b"\x00")
     (movie / "Film.MULTI.nfo").write_text("<movie/>")
 
-    validate_structure(settings, dry_run=False)
-    results2 = validate_structure(settings, dry_run=False)
+    validate_structure(settings, config, dry_run=False)
+    results2 = validate_structure(settings, config, dry_run=False)
     repaired = [r for r in results2 if r.action == "repaired"]
     assert len(repaired) == 0

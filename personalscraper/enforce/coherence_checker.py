@@ -13,7 +13,9 @@ from pathlib import Path
 from personalscraper.conf import ids as CID
 from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.sorter.file_type import FileType
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +42,13 @@ def check_coherence(
 ) -> list[CoherenceResult]:
     """Check cross-step coherence for all staging items.
 
-    Iterates over every media directory in 001-MOVIES and 002-TVSHOWS,
+    Iterates over every media directory in {movies_dir} and {tvshows_dir},
     verifying sort/process coherence and NFO metadata consistency.
     This function is read-only — it never modifies the filesystem.
 
     Args:
-        settings: Pipeline configuration.
-        config: Config used by the classifier for genre coherence.
+        settings: Pipeline configuration (reserved for future use).
+        config: Config used to resolve staging_dir and by the classifier for genre coherence.
         dry_run: No effect (coherence check is always read-only).
 
     Returns:
@@ -54,15 +56,15 @@ def check_coherence(
     """
     _ = dry_run  # coherence is always read-only
     results: list[CoherenceResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
-    movies_dir = staging / settings.movies_dir_name
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     if movies_dir.exists():
         for folder in sorted(movies_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):
                 results.append(_check_movie(folder))
 
-    tvshows_dir = staging / settings.tvshows_dir_name
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
     if tvshows_dir.exists():
         for folder in sorted(tvshows_dir.iterdir()):
             if folder.is_dir() and not folder.name.startswith("."):

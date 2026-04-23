@@ -14,13 +14,13 @@ qBittorrent  →  A TRIER/ (staging)  →  Disques de stockage (Disk1-4)
                personalscraper run
 ```
 
-| Etape        | Commande                   | Description                                            |
-| ------------ | -------------------------- | ------------------------------------------------------ |
-| **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent |
-| **Sort**     | `personalscraper sort`     | Tri dans 001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.      |
-| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)          |
-| **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre            |
-| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage             |
+| Etape        | Commande                   | Description                                                    |
+| ------------ | -------------------------- | -------------------------------------------------------------- |
+| **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent         |
+| **Sort**     | `personalscraper sort`     | Tri dans les dossiers de staging (définis dans `staging_dirs`) |
+| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)                  |
+| **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre                    |
+| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage                     |
 
 Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour prévisualiser).
 
@@ -33,8 +33,8 @@ cd "/Volumes/IznoServer SSD/A TRIER"
 pip install -e ".[dev]"
 
 # Configuration
-cp .env.example .env
-# Remplir les clés API et credentials — voir CONFIGURATION.md pour le détail
+cp .env.example .env                                # Secrets API uniquement (TMDB_API_KEY, TVDB_API_KEY, ...)
+personalscraper init-config                         # Génère config.json5 depuis le template (chemins, disques, catégories, règles)
 
 # Lancer le pipeline
 personalscraper run --dry-run   # Prévisualiser
@@ -47,15 +47,19 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées.
 
 ```
 A TRIER/
-├── 001-MOVIES/          # Films en attente de traitement
-├── 002-TVSHOWS/         # Séries en attente
-├── 004-AUDIO/           # Livres audio
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
-├── tests/               # 1466 tests unitaires + 114 E2E
-├── pyproject.toml       # Dépendances et configuration
-├── Makefile             # make test/lint/format/install-dev
-└── .env.example         # Template de configuration
+├── tests/               # Tests unitaires + E2E
+├── docs/                # Documentation
+├── config.json5         # Configuration principale — chemins, disques, catégories, règles (gitignored)
+├── config.example.json5 # Exemple de config.json5
+├── .env                 # Secrets API uniquement — TMDB/TVDB keys, qBit credentials (gitignored)
+├── .env.example         # Exemple de .env
+└── Makefile             # make test/lint/format/install-dev
 ```
+
+Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
+défini par `paths.staging_dir` dans `config.json5` — en dehors du dépôt par défaut.
+Ils ne sont pas suivis par git.
 
 ## Commandes utiles
 
@@ -79,11 +83,11 @@ make format                             # Formater le code
 
 ## Documentation
 
-| Document                             | Contenu                                                        |
-| ------------------------------------ | -------------------------------------------------------------- |
-| [INSTALLATION.md](INSTALLATION.md)   | Prérequis, installation, scheduling                            |
-| [CONFIGURATION.md](CONFIGURATION.md) | Guide complet du .env — toutes les variables, clés API, seuils |
-| [MANUAL.md](MANUAL.md)               | Manuel d'utilisation — commandes, disques, nommage             |
+| Document                             | Contenu                                                   |
+| ------------------------------------ | --------------------------------------------------------- |
+| [INSTALLATION.md](INSTALLATION.md)   | Prérequis, installation, scheduling                       |
+| [CONFIGURATION.md](CONFIGURATION.md) | Guide config.json5 + .env — toutes les sections, clés API |
+| [MANUAL.md](MANUAL.md)               | Manuel d'utilisation — commandes, disques, nommage        |
 
 ## Technologies
 

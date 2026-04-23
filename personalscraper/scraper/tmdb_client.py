@@ -11,6 +11,7 @@ See docs/TMDB-API.md for the full API reference.
 See docs/tenacity-reference.md for retry strategy details.
 """
 
+import json
 import logging
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -126,6 +127,18 @@ class TMDBClient:
             failure_threshold=circuit_breaker_threshold,
             cooldown_seconds=circuit_breaker_cooldown,
         )
+
+    def close(self) -> None:
+        """Release the underlying HTTP session."""
+        self._session.close()
+
+    def __enter__(self) -> "TMDBClient":
+        """Return self for use as a context manager."""
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        """Close the HTTP session on context exit."""
+        self.close()
 
     @retry(
         retry=retry_if_exception(_is_retryable),
@@ -423,6 +436,8 @@ class TMDBClient:
             List of keyword name strings. Empty list on any error or when the
             item has no keywords.
         """
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError as _CircuitOpenError  # noqa: F401
+
         endpoint = f"/{media_type}/{tmdb_id}/keywords"
         try:
             data = self._get(endpoint)
@@ -437,7 +452,7 @@ class TMDBClient:
                 exc.message,
             )
             return []
-        except Exception as exc:
+        except (requests.RequestException, json.JSONDecodeError, _CircuitOpenError) as exc:
             logger.warning(
                 "TMDB keywords fetch failed for %s/%d: %s — using empty list",
                 media_type,

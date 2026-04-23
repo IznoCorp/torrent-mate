@@ -6,10 +6,25 @@
     // Dossier où qBittorrent dépose les torrents terminés
     torrent_complete_dir: "/path/to/torrents/complete",
     // Dossier staging intermédiaire (A TRIER) avant dispatch
-    staging_dir: "/path/to/staging",
+    // portable relative default for CI and fresh clones
+    staging_dir: "./staging/",
     // State du pipeline (index, locks, analyse). Défaut: .data/ à la racine du repo.
     data_dir: "./.data",
   },
+
+  // Répertoires de staging — layout des sous-dossiers dans staging_dir.
+  // id: préfixe numérique [0-999], name: label kebab-case, file_type: type FileType reçu (null = pas de type fixe).
+  // Exactement un entry doit déclarer role: "ingest" (dossier d'entrée, typiquement 097-TEMP).
+  staging_dirs: [
+    {id: 1,  name: "movies",   file_type: "movie"},
+    {id: 2,  name: "tvshows",  file_type: "tvshow"},
+    {id: 3,  name: "ebooks",   file_type: "ebook"},
+    {id: 4,  name: "audio",    file_type: "audio"},
+    {id: 5,  name: "apps",     file_type: "app"},
+    {id: 6,  name: "android",  file_type: "app"},
+    {id: 97, name: "temp",     file_type: null,     role: "ingest"},
+    {id: 98, name: "autres",   file_type: "other"},
+  ],
 
   // Catégories custom au-delà des 11 builtin (optionnel)
   // Chaque custom ID doit être une catégorie valide dans 'categories' et référencé par les disques/règles.
@@ -120,6 +135,20 @@
     // Fallback quand aucun genre ne match
     default_movies_category: "movies",
     default_tv_category: "tv_shows",
+  },
+
+  // Seuils du matcher fuzzy (anti-faux-positifs). Tous sont optionnels —
+  // les valeurs ci-dessous sont les défauts codés dans le modèle Pydantic.
+  fuzzy_match: {
+    // Garde 1: rejet si len(shorter) / len(longer) < ce ratio. (0.0, 1.0]
+    min_length_ratio: 0.67,
+    // Frontière inclusive (en nombre de caractères normalisés) entre titres
+    // "courts" et "longs" pour la sélection du seuil adaptatif.
+    short_title_length: 10,
+    // Seuil WRatio (0-100) requis pour les titres ≤ short_title_length.
+    short_title_threshold: 95.0,
+    // Seuil WRatio (0-100) requis pour les titres > short_title_length.
+    long_title_threshold: 90.0,
   },
 
   // Préférences library (anciennement library_preferences.json V14)

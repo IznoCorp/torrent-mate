@@ -86,6 +86,7 @@ def mini_library(tmp_path: Path):
 
     # Build V15 DiskConfig + Config for scan operations
     from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
+    from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
     disk_cfg = DiskConfig(id="disk1", path=disk, categories=["movies", "tv_shows"])
     v15_config = Config(
@@ -99,6 +100,7 @@ def mini_library(tmp_path: Path):
             "movies": CategoryConfig(folder_name="films"),
             "tv_shows": CategoryConfig(folder_name="series"),
         },
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
     # Build V14-style mock DiskConfig for disk_cleaner / disk_scanner calls

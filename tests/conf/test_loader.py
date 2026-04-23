@@ -38,6 +38,16 @@ def _write_minimal_config(path, tmp_path):
                 categories: ["movies", "tv_shows"],
             }},
         ],
+        staging_dirs: [
+            {{ id: 1, name: "movies", file_type: "movie" }},
+            {{ id: 2, name: "tvshows", file_type: "tvshow" }},
+            {{ id: 3, name: "ebooks", file_type: "ebook" }},
+            {{ id: 4, name: "audio", file_type: "audio" }},
+            {{ id: 5, name: "apps", file_type: "app" }},
+            {{ id: 6, name: "android", file_type: "app" }},
+            {{ id: 97, name: "temp", file_type: null, role: "ingest" }},
+            {{ id: 98, name: "autres", file_type: "other" }},
+        ],
     }}"""
     path.write_text(content, encoding="utf-8")
 

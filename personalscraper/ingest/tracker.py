@@ -6,27 +6,35 @@ to avoid re-ingesting already-processed torrents. Uses atomic writes
 """
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from personalscraper.io_utils import atomic_write_json
 from personalscraper.logger import get_logger
 
 log = get_logger("tracker")
 
 
 def _default_tracker_file() -> Path:
-    """Return the default tracker file path from settings.
+    """Return the default tracker file path from the loaded Config.
+
+    The tracker used to read ``Settings.data_dir`` (legacy, CWD-relative,
+    silently defaulted to ``./.data``). That path diverged from
+    ``Config.paths.data_dir`` (json5, absolute, under the staging area),
+    producing two tracker files that gradually fell out of sync.
+
+    Now resolves from Config so the tracker follows the staging layout
+    the rest of the pipeline uses. Callers that want a different path
+    should pass ``tracker_path`` explicitly to :class:`IngestTracker`.
 
     Returns:
-        Path to ingested_torrents.json inside the configured data directory.
+        Path to ingested_torrents.json inside ``Config.paths.data_dir``.
     """
-    from personalscraper.config import get_settings
+    from personalscraper.conf.loader import load_config, resolve_config_path
 
-    settings = get_settings()
-    data_dir = Path(getattr(settings, "data_dir", ".data"))
-    return data_dir / "ingested_torrents.json"
+    config = load_config(resolve_config_path())
+    return config.paths.data_dir / "ingested_torrents.json"
 
 
 class IngestTracker:
@@ -64,7 +72,7 @@ class IngestTracker:
         self.tracker_path.parent.mkdir(parents=True, exist_ok=True)
         if self.tracker_path.exists():
             try:
-                self._data = json.loads(self.tracker_path.read_text())
+                self._data = json.loads(self.tracker_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, ValueError, OSError) as exc:
                 log.error(
                     "tracker_corrupted_or_unreadable",
@@ -77,19 +85,17 @@ class IngestTracker:
         return self._data
 
     def save(self) -> None:
-        """Save tracker data to the JSON file atomically.
+        """Save tracker data to the JSON file atomically and durably.
 
-        Writes to a .tmp file first, then uses os.replace() for an atomic
-        rename. This prevents corruption if the process is killed mid-write.
-        Logs an error on write failure instead of crashing the ingest loop.
+        Writes via ``atomic_write_json`` (tmp + fsync + rename + parent
+        dir fsync) so the result survives a crash mid-write. Logs an
+        error on write failure instead of crashing the ingest loop.
         """
-        tmp_path = self.tracker_path.with_suffix(".tmp")
+        tmp_path = self.tracker_path.with_suffix(self.tracker_path.suffix + ".tmp")
         try:
-            tmp_path.write_text(json.dumps(self._data, indent=2))
-            os.replace(tmp_path, self.tracker_path)
+            atomic_write_json(self.tracker_path, self._data)
         except OSError as e:
             log.error("tracker_save_failed", path=str(self.tracker_path), error=str(e))
-            # Clean up orphaned .tmp to avoid stale files
             tmp_path.unlink(missing_ok=True)
 
     def is_ingested(self, torrent_hash: str) -> bool:

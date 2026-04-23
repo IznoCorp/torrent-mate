@@ -5,11 +5,17 @@ When duplicates are found (e.g. "Shrinking" + "Shrinking (2023)"),
 merges the less-complete folder into the more-complete one.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.text_utils import fuzzy_match_score
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models import FuzzyMatchConfig
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +58,7 @@ def _completeness_score(folder: Path) -> tuple[int, int, int]:
 def dedup_folders(
     category_dir: Path,
     dry_run: bool = False,
+    fuzzy_config: FuzzyMatchConfig | None = None,
 ) -> tuple[int, int]:
     """Find and merge fuzzy duplicate folders within a category.
 
@@ -60,8 +67,10 @@ def dedup_folders(
     found, merges the less-complete folder into the more-complete one.
 
     Args:
-        category_dir: Path to 001-MOVIES/ or 002-TVSHOWS/.
+        category_dir: Path to {movies_dir}/ or {tvshows_dir}/.
         dry_run: If True, log without merging.
+        fuzzy_config: Optional thresholds from ``Config.fuzzy_match``.
+            Defaults applied when None.
 
     Returns:
         Tuple of (merged_count, failed_count).
@@ -96,6 +105,7 @@ def dedup_folders(
                 folder_b.name,
                 query_year=year_a,
                 candidate_year=year_b,
+                config=fuzzy_config,
             )
             if score is None:
                 continue

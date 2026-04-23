@@ -17,7 +17,24 @@ from personalscraper.conf.models import (
     DiskConfig,
     GenreMapping,
     PathConfig,
+    StagingDirConfig,
 )
+
+# ---------------------------------------------------------------------------
+# Shared staging_dirs constant — import this in any test file that builds
+# a Config() directly so that the now-required staging_dirs field is satisfied.
+# ---------------------------------------------------------------------------
+
+CANONICAL_STAGING_DIRS: list[StagingDirConfig] = [
+    StagingDirConfig(id=1, name="movies", file_type="movie"),
+    StagingDirConfig(id=2, name="tvshows", file_type="tvshow"),
+    StagingDirConfig(id=3, name="ebooks", file_type="ebook"),
+    StagingDirConfig(id=4, name="audio", file_type="audio"),
+    StagingDirConfig(id=5, name="apps", file_type="app"),
+    StagingDirConfig(id=6, name="android", file_type="app"),
+    StagingDirConfig(id=97, name="temp", file_type=None, role="ingest"),
+    StagingDirConfig(id=98, name="autres", file_type="other"),
+]
 
 
 @pytest.fixture
@@ -183,4 +200,5 @@ def test_config(tmp_path: Path) -> Config:
             maps_to=CID.ANIME,
             applies_to="tv",
         ),
+        staging_dirs=CANONICAL_STAGING_DIRS,
     )

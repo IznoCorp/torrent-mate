@@ -35,3 +35,31 @@ class TestIsNfoComplete:
         nfo = tmp_path / "movie.nfo"
         nfo.write_text("<movie><title>broken")
         assert is_nfo_complete(nfo) is False
+
+    def test_uniqueid_zero_is_incomplete(self, tmp_path: Path) -> None:
+        """A legacy NFO whose only <uniqueid> is ``"0"`` must be treated as incomplete.
+
+        Regression guard: such NFOs came from runs where TMDB did not know
+        the show and the scraper emitted ``<uniqueid type="tmdb">0</uniqueid>``.
+        They were then fast-skipped by process on every subsequent run,
+        never getting regenerated. The tmdb=0 default was fixed in
+        a53a44f, but this validator needs to reject the legacy value so
+        the show actually gets re-scraped.
+        """
+        nfo = tmp_path / "tvshow.nfo"
+        nfo.write_text('<tvshow><uniqueid default="true" type="tmdb">0</uniqueid></tvshow>')
+        assert is_nfo_complete(nfo) is False
+
+    def test_uniqueid_none_string_is_incomplete(self, tmp_path: Path) -> None:
+        """Legacy ``None`` text (from str(None) bug) must be treated as incomplete."""
+        nfo = tmp_path / "episode.nfo"
+        nfo.write_text('<episodedetails><uniqueid type="tvdb">None</uniqueid></episodedetails>')
+        assert is_nfo_complete(nfo) is False
+
+    def test_one_real_id_among_placeholders_is_valid(self, tmp_path: Path) -> None:
+        """If any <uniqueid> carries a real value, the NFO stays valid."""
+        nfo = tmp_path / "tvshow.nfo"
+        nfo.write_text(
+            '<tvshow><uniqueid default="true" type="tmdb">0</uniqueid><uniqueid type="tvdb">475278</uniqueid></tvshow>'
+        )
+        assert is_nfo_complete(nfo) is True

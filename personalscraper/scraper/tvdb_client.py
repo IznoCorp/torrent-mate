@@ -147,6 +147,18 @@ class TVDBClient:
             cooldown_seconds=circuit_breaker_cooldown,
         )
 
+    def close(self) -> None:
+        """Release the underlying HTTP session."""
+        self._session.close()
+
+    def __enter__(self) -> "TVDBClient":
+        """Return self for use as a context manager."""
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        """Close the HTTP session on context exit."""
+        self.close()
+
     def login(self) -> None:
         """Authenticate with the TVDB API and store the JWT token.
 

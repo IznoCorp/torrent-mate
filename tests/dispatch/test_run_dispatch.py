@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.dispatch.dispatcher import DispatchResult
 from personalscraper.dispatch.run import _to_step_report, run_dispatch
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
 class TestToStepReport:
@@ -39,12 +40,14 @@ class TestRunDispatch:
         config.paths.staging_dir = tmp_path
         config.paths.data_dir = tmp_path / ".data"
         config.disks = []
+        config.staging_dirs = CANONICAL_STAGING_DIRS
 
         with (
             patch("personalscraper.dispatch.run.Dispatcher") as MockDisp,
             patch("personalscraper.dispatch.run.MediaIndex") as MockIdx,
         ):
             mock_idx = MockIdx.return_value
+            mock_idx.count = 5  # non-zero so rebuild branch is skipped
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 

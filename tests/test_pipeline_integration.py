@@ -35,11 +35,23 @@ def integration_settings(tmp_path):
 
 @pytest.fixture
 def integration_config(tmp_path):
-    """Provide a minimal Config mock for integration tests."""
+    """Provide a minimal Config mock for integration tests.
+
+    staging_dirs is populated with real StagingDirConfig entries so that
+    find_by_file_type() and folder_name() resolve correctly without a full
+    config.json5 on disk.
+    """
+    from personalscraper.conf.models import StagingDirConfig
+
     config = MagicMock()
     config.paths.staging_dir = tmp_path
     config.paths.data_dir = tmp_path / ".data"
     config.disks = []
+    config.staging_dirs = [
+        StagingDirConfig(id=1, name="movies", file_type="movie"),
+        StagingDirConfig(id=2, name="tvshows", file_type="tvshow"),
+        StagingDirConfig(id=97, name="temp", role="ingest"),
+    ]
     return config
 
 

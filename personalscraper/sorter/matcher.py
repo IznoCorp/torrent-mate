@@ -10,8 +10,12 @@ Scraping and dispatch steps use rapidfuzz directly for API title
 and disk index matching.
 """
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
+
+from personalscraper.conf.models import FuzzyMatchConfig
 
 # Year pattern: 4-digit year in parentheses or standalone
 _YEAR_PATTERN: re.Pattern[str] = re.compile(r"\b((?:19|20)\d{2})\b")
@@ -35,12 +39,13 @@ def find_matching_directory(
     candidates: list[Path],
     respect_year: bool = True,
     threshold: float = 85.0,
+    fuzzy_config: FuzzyMatchConfig | None = None,
 ) -> Path | None:
     """Find the best matching existing directory with anti-false-positive guards.
 
     Uses fuzzy_match_score() for accent-insensitive French title matching
-    with three guards: year constraint (±1), length ratio (≥0.67), and
-    adaptive threshold (95% for short titles, 90% for long).
+    with three guards: year constraint (±1), length ratio, and adaptive
+    threshold (all tunable via ``Config.fuzzy_match``).
 
     The threshold parameter is kept for backward compatibility but is
     overridden by fuzzy_match_score's adaptive threshold internally.
@@ -51,6 +56,8 @@ def find_matching_directory(
         respect_year: If True, year guard is active in fuzzy_match_score.
             If False, years are not passed to the guard function.
         threshold: Legacy parameter — overridden by adaptive threshold.
+        fuzzy_config: Optional thresholds from ``Config.fuzzy_match``.
+            Defaults applied when None.
 
     Returns:
         The Path of the best matching directory, or None if no match
@@ -73,6 +80,7 @@ def find_matching_directory(
             cand.name,
             query_year=name_year,
             candidate_year=cand_year,
+            config=fuzzy_config,
         )
         if score is not None and score > best_score:
             best_score = score

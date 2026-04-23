@@ -9,7 +9,10 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.sorter.file_type import FileType
 from personalscraper.text_utils import sanitize_filename
 
 logger = logging.getLogger(__name__)
@@ -42,24 +45,29 @@ def _has_illegal_chars(name: str) -> bool:
 
 def sanitize_files(
     settings: Settings,
+    config: Config,
     dry_run: bool = False,
 ) -> list[SanitizeResult]:
     """Sanitize all filenames in staging categories.
 
-    Processes 001-MOVIES/ and 002-TVSHOWS/ recursively.
+    Processes {movies_dir}/ and {tvshows_dir}/ recursively.
     Renames NTFS-illegal characters, removes .DS_Store and ._ files.
 
     Args:
-        settings: Pipeline configuration.
+        settings: Pipeline configuration (reserved for future use).
+        config: Application config used to resolve staging_dir and category folder names.
         dry_run: If True, log actions without modifying filesystem.
 
     Returns:
         List of SanitizeResult for each action taken.
     """
     results: list[SanitizeResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
-    for dir_name in (settings.movies_dir_name, settings.tvshows_dir_name):
+    for dir_name in (
+        folder_name(find_by_file_type(config, FileType.MOVIE)),
+        folder_name(find_by_file_type(config, FileType.TVSHOW)),
+    ):
         cat_dir = staging / dir_name
         if not cat_dir.exists():
             continue

@@ -5,7 +5,7 @@ the structure produced by MediaElch. Uses xml.etree.ElementTree
 for XML construction with manual pretty-printing for readability.
 
 The XML structure has been validated against real MediaElch NFO files
-from the 001-MOVIES/ directory.
+from the {movies_dir}/ directory.
 """
 
 import xml.etree.ElementTree as ET
@@ -17,6 +17,27 @@ POSTER_PREVIEW_SIZE = "w342"
 BACKDROP_PREVIEW_SIZE = "w780"
 ACTOR_THUMB_SIZE = "original"
 IMAGE_BASE = "https://image.tmdb.org/t/p"
+
+
+def _image_url(path: str, size: str = "original") -> str:
+    """Build an image URL, leaving absolute URLs untouched.
+
+    TMDB returns relative paths (``/abcd.jpg``) that must be prefixed
+    with ``https://image.tmdb.org/t/p/<size>``. TVDB (used as fallback
+    when a show is absent from TMDB) returns absolute URLs already, so
+    prefixing them again produces broken double URLs like
+    ``https://image.tmdb.org/t/p/originalhttps://artworks.thetvdb.com/...``.
+
+    Args:
+        path: Either a TMDB relative path or an absolute URL.
+        size: TMDB size bucket (e.g. ``original``, ``w342``).
+
+    Returns:
+        A usable image URL.
+    """
+    if path.startswith(("http://", "https://")):
+        return path
+    return f"{IMAGE_BASE}/{size}{path}"
 
 
 def _sub(parent: ET.Element, tag: str, text: str = "") -> ET.Element:
@@ -214,18 +235,26 @@ class NFOGenerator:
         )
 
         # --- IDs (TMDB default for TV shows, unlike movies) ---
-        external_ids = show_data.get("external_ids", {})
-        imdb_id = external_ids.get("imdb_id", "")
-        tmdb_id = str(show_data.get("id", ""))
-        tvdb_id = str(external_ids.get("tvdb_id", ""))
+        # When TMDB resolves to 0/empty (show missing from TMDB), promote TVDB
+        # as default so Kodi/Jellyfin lookups don't hit an invalid id.
+        external_ids = show_data.get("external_ids") or {}
+        imdb_id = external_ids.get("imdb_id") or ""
+        raw_tmdb_id = show_data.get("id")
+        raw_tvdb_id = external_ids.get("tvdb_id")
+        tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
+        tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
 
-        uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-        uniqueid_tmdb.set("default", "true")
-        uniqueid_tmdb.set("type", "tmdb")
-        if tvdb_id and tvdb_id not in ("", "None"):
+        tmdb_is_default = bool(tmdb_id)
+        if tmdb_id:
+            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+            uniqueid_tmdb.set("default", "true")
+            uniqueid_tmdb.set("type", "tmdb")
+        if tvdb_id:
             uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
+            if not tmdb_is_default:
+                uniqueid_tvdb.set("default", "true")
             uniqueid_tvdb.set("type", "tvdb")
-        uniqueid_imdb = _sub(root, "uniqueid", imdb_id or "")
+        uniqueid_imdb = _sub(root, "uniqueid", imdb_id)
         uniqueid_imdb.set("type", "imdb")
         _sub(root, "id", tmdb_id)
 
@@ -318,14 +347,24 @@ class NFOGenerator:
         _sub(root, "showtitle", episode_data.get("showtitle", ""))
 
         # --- IDs (TVDB default for episodes) ---
-        tvdb_id = str(episode_data.get("tvdb_id", ""))
-        tmdb_id = str(episode_data.get("id", episode_data.get("tmdb_id", "")))
+        # When an id resolves to None/0/"" the tag is omitted rather than
+        # written as the literal string "None" (Kodi reads "None" as a real
+        # id and tries to look it up, poisoning the scraper cache).
+        raw_tvdb_id = episode_data.get("tvdb_id")
+        raw_tmdb_id = episode_data.get("id", episode_data.get("tmdb_id"))
+        tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
+        tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
 
-        uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
-        uniqueid_tvdb.set("default", "true")
-        uniqueid_tvdb.set("type", "tvdb")
-        uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-        uniqueid_tmdb.set("type", "tmdb")
+        tvdb_is_default = bool(tvdb_id)
+        if tvdb_id:
+            uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
+            uniqueid_tvdb.set("default", "true")
+            uniqueid_tvdb.set("type", "tvdb")
+        if tmdb_id:
+            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+            if not tvdb_is_default:
+                uniqueid_tmdb.set("default", "true")
+            uniqueid_tmdb.set("type", "tmdb")
 
         # --- Ratings (episodes use "tmdb" not "themoviedb") ---
         self._add_ratings(root, episode_data, rating_name="tmdb")
@@ -381,7 +420,7 @@ class NFOGenerator:
         # --- Episode thumb (screenshot) ---
         still_path = episode_data.get("still_path", "")
         if still_path:
-            _sub(root, "thumb", f"{IMAGE_BASE}/original{still_path}")
+            _sub(root, "thumb", _image_url(still_path))
 
         # --- Streamdetails ---
         if stream_info:
@@ -442,9 +481,9 @@ class NFOGenerator:
         # Posters as <thumb aspect="poster">
         for img in images.get("posters", []):
             path = img.get("file_path", "")
-            thumb = _sub(root, "thumb", f"{IMAGE_BASE}/original{path}")
+            thumb = _sub(root, "thumb", _image_url(path))
             thumb.set("aspect", "poster")
-            thumb.set("preview", f"{IMAGE_BASE}/{POSTER_PREVIEW_SIZE}{path}")
+            thumb.set("preview", _image_url(path, POSTER_PREVIEW_SIZE))
 
         # Backdrops as <fanart><thumb>
         backdrops = images.get("backdrops", [])
@@ -452,8 +491,8 @@ class NFOGenerator:
             fanart = ET.SubElement(root, "fanart")
             for img in backdrops:
                 path = img.get("file_path", "")
-                thumb = _sub(fanart, "thumb", f"{IMAGE_BASE}/original{path}")
-                thumb.set("preview", f"{IMAGE_BASE}/{BACKDROP_PREVIEW_SIZE}{path}")
+                thumb = _sub(fanart, "thumb", _image_url(path))
+                thumb.set("preview", _image_url(path, BACKDROP_PREVIEW_SIZE))
 
     def _add_inline_images_tv(self, root: ET.Element, data: dict[str, Any]) -> None:
         """Add inline <thumb> and <fanart> elements for TV shows.
@@ -471,7 +510,7 @@ class NFOGenerator:
         posters = images.get("posters", [])
         for i, img in enumerate(posters):
             path = img.get("file_path", "")
-            url = f"{IMAGE_BASE}/original{path}"
+            url = _image_url(path)
             thumb = _sub(root, "thumb", url)
             if i == 0:
                 thumb.set("aspect", "poster")
@@ -489,7 +528,7 @@ class NFOGenerator:
             fanart = ET.SubElement(root, "fanart")
             for img in backdrops:
                 path = img.get("file_path", "")
-                url = f"{IMAGE_BASE}/original{path}"
+                url = _image_url(path)
                 thumb = _sub(fanart, "thumb", url)
                 thumb.set("preview", url)
 
