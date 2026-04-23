@@ -72,7 +72,7 @@ class IngestTracker:
         self.tracker_path.parent.mkdir(parents=True, exist_ok=True)
         if self.tracker_path.exists():
             try:
-                self._data = json.loads(self.tracker_path.read_text())
+                self._data = json.loads(self.tracker_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, ValueError, OSError) as exc:
                 log.error(
                     "tracker_corrupted_or_unreadable",
@@ -93,7 +93,7 @@ class IngestTracker:
         """
         tmp_path = self.tracker_path.with_suffix(".tmp")
         try:
-            tmp_path.write_text(json.dumps(self._data, indent=2))
+            tmp_path.write_text(json.dumps(self._data, indent=2, ensure_ascii=False), encoding="utf-8")
             os.replace(tmp_path, self.tracker_path)
         except OSError as e:
             log.error("tracker_save_failed", path=str(self.tracker_path), error=str(e))
