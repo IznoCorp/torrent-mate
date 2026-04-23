@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.scraper.run import _to_step_report, run_scrape
 from personalscraper.scraper.scraper import ScrapeResult
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # StepReport conversion
@@ -103,6 +104,9 @@ class TestRunScrape:
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
         tvshows_dir = tmp_path / "002-TVSHOWS"
@@ -116,7 +120,7 @@ class TestRunScrape:
             mock_scraper.process_movies.return_value = []
             mock_scraper.process_tvshows.return_value = []
 
-            report = run_scrape(settings)
+            report = run_scrape(settings, config=config)
 
         assert report.name == "scrape"
         mock_scraper.process_movies.assert_called_once()
@@ -131,6 +135,9 @@ class TestRunScrape:
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
 
@@ -141,7 +148,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_movies.return_value = []
 
-            run_scrape(settings, movies_only=True)
+            run_scrape(settings, movies_only=True, config=config)
 
         mock_scraper.process_movies.assert_called_once()
         mock_scraper.process_tvshows.assert_not_called()
@@ -155,6 +162,9 @@ class TestRunScrape:
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
 
@@ -165,7 +175,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_tvshows.return_value = []
 
-            run_scrape(settings, tvshows_only=True)
+            run_scrape(settings, tvshows_only=True, config=config)
 
         mock_scraper.process_movies.assert_not_called()
         mock_scraper.process_tvshows.assert_called_once()

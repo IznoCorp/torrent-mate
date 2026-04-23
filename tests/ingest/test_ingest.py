@@ -17,6 +17,7 @@ from personalscraper.ingest.ingest import (
     run_ingest,
     transfer_torrent,
 )
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -560,7 +561,10 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings)
+        config = MagicMock()
+        config.staging_dirs = CANONICAL_STAGING_DIRS
+
+        report = run_ingest(settings, config=config)
 
         assert report.skip_count == 1
         # Escalated to error because ALL torrents had missing content

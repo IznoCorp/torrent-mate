@@ -10,6 +10,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
+
 
 @pytest.fixture
 def staging(tmp_path):
@@ -109,3 +111,13 @@ def make_valid_tvshow_dir(tvshows_dir: Path, title: str = "Show", year: int = 20
     (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
     (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
     return d
+
+
+@pytest.fixture
+def resilience_config():
+    """Minimal config mock with canonical staging_dirs for resilience tests."""
+    from unittest.mock import MagicMock
+
+    c = MagicMock()
+    c.staging_dirs = CANONICAL_STAGING_DIRS
+    return c

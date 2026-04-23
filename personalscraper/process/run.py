@@ -19,7 +19,7 @@ from personalscraper.sorter.file_type import FileType
 logger = logging.getLogger(__name__)
 
 
-def run_clean(settings: Settings, dry_run: bool = False, config: Config | None = None) -> StepReport:
+def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
     """Run reclean + dedup on all category directories.
 
     Skips reclean when no polluted folder names are found.
@@ -28,9 +28,8 @@ def run_clean(settings: Settings, dry_run: bool = False, config: Config | None =
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview without modifying files.
-        config: Loaded Config for staging dir name resolution. When provided,
-            derives movie/tvshow dir names from staging_dirs. Falls back to
-            settings attributes via getattr when None.
+        config: Loaded Config for staging dir name resolution.
+            Derives movie/tvshow dir names from staging_dirs.
 
     Returns:
         StepReport with combined reclean + dedup counts.
@@ -39,12 +38,8 @@ def run_clean(settings: Settings, dry_run: bool = False, config: Config | None =
     from personalscraper.process.reclean import _has_polluted_folders, reclean_folders
 
     staging = Path(getattr(settings, "staging_dir", "."))
-    if config is not None:
-        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
-        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
-    else:
-        movies_dir = staging / getattr(settings, "movies_dir_name", "001-MOVIES")
-        tvshows_dir = staging / getattr(settings, "tvshows_dir_name", "002-TVSHOWS")
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
 
     has_polluted = _has_polluted_folders(movies_dir) or _has_polluted_folders(tvshows_dir)
 
@@ -78,15 +73,14 @@ def run_clean(settings: Settings, dry_run: bool = False, config: Config | None =
     return clean_report
 
 
-def run_cleanup(settings: Settings, dry_run: bool = False, config: Config | None = None) -> StepReport:
+def run_cleanup(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
     """Run empty directory cleanup on all category directories.
 
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview without deleting.
-        config: Loaded Config for staging dir name resolution. When provided,
-            derives movie/tvshow dir names from staging_dirs. Falls back to
-            settings attributes via getattr when None.
+        config: Loaded Config for staging dir name resolution.
+            Derives movie/tvshow dir names from staging_dirs.
 
     Returns:
         StepReport with cleanup counts.
@@ -94,12 +88,8 @@ def run_cleanup(settings: Settings, dry_run: bool = False, config: Config | None
     from personalscraper.process.cleanup import cleanup_empty_dirs
 
     staging = Path(getattr(settings, "staging_dir", "."))
-    if config is not None:
-        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
-        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
-    else:
-        movies_dir = staging / getattr(settings, "movies_dir_name", "001-MOVIES")
-        tvshows_dir = staging / getattr(settings, "tvshows_dir_name", "002-TVSHOWS")
+    movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+    tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
 
     cleanup_report = StepReport(name="cleanup")
 

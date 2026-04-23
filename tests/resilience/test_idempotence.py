@@ -78,7 +78,7 @@ class TestMergePartialRecovery:
 class TestDispatchOrphanCleanup:
     """Test 5: Orphaned _tmp_dispatch_* cleaned at dispatch start."""
 
-    def test_tmp_dispatch_orphan_cleaned(self, staging, resilience_settings):
+    def test_tmp_dispatch_orphan_cleaned(self, staging, resilience_settings, resilience_config):
         """_tmp_dispatch_* dirs are cleaned before dispatch runs."""
         from personalscraper.dispatch.run import _cleanup_staging_orphans
 
@@ -87,12 +87,12 @@ class TestDispatchOrphanCleanup:
         orphan.mkdir()
         (orphan / "file.mkv").write_text("data")
 
-        cleaned = _cleanup_staging_orphans(resilience_settings, staging_dir=staging)
+        cleaned = _cleanup_staging_orphans(resilience_settings, resilience_config, staging_dir=staging)
 
         assert cleaned >= 1
         assert not orphan.exists()
 
-    def test_merge_backup_orphan_cleaned(self, staging, resilience_settings):
+    def test_merge_backup_orphan_cleaned(self, staging, resilience_settings, resilience_config):
         """merge_backup/ inside a media dir is cleaned."""
         from personalscraper.dispatch.run import _cleanup_staging_orphans
 
@@ -103,7 +103,7 @@ class TestDispatchOrphanCleanup:
         backup.mkdir()
         (backup / "old_file.mkv").write_text("backup")
 
-        cleaned = _cleanup_staging_orphans(resilience_settings, staging_dir=staging)
+        cleaned = _cleanup_staging_orphans(resilience_settings, resilience_config, staging_dir=staging)
 
         assert cleaned >= 1
         assert not backup.exists()
