@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 from rich.console import Console
 
 from personalscraper.conf.models import Config
-from personalscraper.conf.staging import ensure_staging_tree
+from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.models import PipelineReport, StepReport
 
@@ -146,7 +146,7 @@ class Pipeline:
                 self._log.warning("Crash recovery: cannot clean lockout %s: %s", lockout_path, exc)
 
         # 3. Clean .ingest_tmp_* in staging
-        ingest_dir = self.settings.ingest_dir(self.config.paths.staging_dir)
+        ingest_dir = staging_path(self.config, find_ingest_dir(self.config))
         if ingest_dir.exists():
             cleaned += _cleanup_orphan_temps(ingest_dir)
 
