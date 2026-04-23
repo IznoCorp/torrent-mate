@@ -1,4 +1,9 @@
-"""Shared pytest fixtures for PersonalScraper tests."""
+"""Shared pytest fixtures for PersonalScraper tests.
+
+Installs structlog via :func:`personalscraper.logger.configure_logging` before any test runs,
+so that stdlib-bridged `caplog` assertions see the expected records irrespective of which
+subset of tests is collected (e.g. ``pytest tests/sorter/`` in isolation).
+"""
 
 import os
 from pathlib import Path
@@ -7,6 +12,7 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.config import Settings
+from personalscraper.logger import configure_logging
 
 # Expose shared fixtures from the fixtures package
 pytest_plugins = ["tests.fixtures.config"]
@@ -19,6 +25,17 @@ os.environ.setdefault("TERM", "dumb")
 # Patch targets for the eager config load in the CLI callback.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _configure_logging_for_tests() -> None:
+    """Configure structlog once per session for caplog interop.
+
+    Ensures structlog uses the stdlib bridge before any test runs, so that
+    caplog fixtures can capture structured log records irrespective of which
+    subset of tests is collected (e.g. ``pytest tests/sorter/`` in isolation).
+    """
+    configure_logging(verbose=False, quiet=False)
 
 
 @pytest.fixture(autouse=True)
