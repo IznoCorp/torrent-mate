@@ -121,7 +121,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: ext-staging — external staging directories
-**Branch**: `feat/ext-staging`
-**Design**: `docs/features/ext-staging/DESIGN.md`
-**Plan**: `docs/features/ext-staging/plan/`
+**Feature**: _(awaiting /implement:feature)_
+**Branch**: _(to be defined)_
+**Design**: _(to be defined)_
+**Plan**: _(to be defined)_
