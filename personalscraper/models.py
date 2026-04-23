@@ -8,6 +8,9 @@ are defined in their respective modules.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Literal
+
+SortStatus = Literal["moved", "skipped", "error", "dry-run"]
 
 
 @dataclass
@@ -22,7 +25,7 @@ class SortResult:
         year: Detected year, if any.
         season: Detected season number, if any.
         episode: Detected episode number, if any.
-        status: Result status ("moved", "skipped", "error").
+        status: Result status — one of "moved", "skipped", "error", "dry-run".
         message: Error message or additional info.
     """
 
@@ -33,7 +36,7 @@ class SortResult:
     year: int | None
     season: int | None
     episode: int | None
-    status: str
+    status: SortStatus
     message: str | None
 
 
