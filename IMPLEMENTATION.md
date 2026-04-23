@@ -46,9 +46,9 @@
 - Retained: 11 (1 critical, 4 major, 6 medium, ~8 minor per user directive "fix all findings")
 - Critical: `build_retry_logger` loses retry tracebacks (`exc_info=bool` in tenacity `before_sleep` is empty outside active `except`)
 - Major: stale migration recipe + fabricated events in `logging.md`; dispatcher data-loss paths missing `exc_info`; tmdb_client second fallback arm missing kwargs; `ingest_unexpected_error` no test
-- Fix phase created: phase-06-pr-fixes-cycle-2.md (6 sub-phases)
-- Status: fix phase dispatched → awaiting `/implement:phase`
+- Fix phase created: phase-06-pr-fixes-cycle-2.md (6 sub-phases, all DONE)
+- Status: all cycle-2 findings addressed across 7 commits (SP6.1 traceback + SP6.2–6.6)
 
 ## Next action
 
-Phase 6 in progress — run `/implement:phase` to execute fixes, then feature-pr + pr-review cycle 3 (ceiling).
+Phase 6 complete — run `/implement:feature-pr` to push and verify CI, then `/implement:pr-review` cycle 3 (must end clean — cycle ceiling).
