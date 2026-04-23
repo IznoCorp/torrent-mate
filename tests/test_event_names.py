@@ -1,8 +1,12 @@
-"""Event-name regression pins for key structured log events.
+"""Event-name PINS (regression guards on the literal string).
 
 Each test pins a specific event-name string emitted by the production code.
 If an event is renamed, the test fails immediately — the goal is stable
 regression detection, not full behavior testing.
+
+Real-path coverage lives in the per-module tests (``tests/ingest/``,
+``tests/scraper/``, etc.).  Pins catch literal renames; real-path tests
+catch behavioral regressions.
 
 Pattern used: where possible, invoke the real function/method that emits the
 event with minimal setup.  For events that require heavy integration setup or
@@ -15,14 +19,18 @@ renames.
 from __future__ import annotations
 
 import logging
-from pathlib import Path  # used in type annotations
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
+from personalscraper.ingest.ingest import run_ingest
+from personalscraper.ingest.qbit_client import QBitAuthLockoutError
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.scraper.circuit_breaker import CircuitBreaker
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -50,6 +58,21 @@ def _has_event(caplog: pytest.LogCaptureFixture, event: str) -> bool:
         if isinstance(msg, dict) and msg.get("event") == event:
             return True
     return False
+
+
+def _make_config(tmp_path: Path) -> MagicMock:
+    """Create a minimal config mock for real-path ingest event tests.
+
+    Args:
+        tmp_path: Temporary directory used as the staging root.
+
+    Returns:
+        MagicMock with staging_dirs and paths.staging_dir configured.
+    """
+    c = MagicMock()
+    c.staging_dirs = CANONICAL_STAGING_DIRS
+    c.paths.staging_dir = tmp_path
+    return c
 
 
 # ---------------------------------------------------------------------------
@@ -188,25 +211,67 @@ class TestScrapeFastSkipEvent:
 
 
 # ---------------------------------------------------------------------------
-# ingest.ingest — ingest_qbit_auth_lockout  (added in SP5.4)
+# ingest.ingest — ingest_qbit_auth_lockout  (real-path, converted from SP5.4)
 # ---------------------------------------------------------------------------
 
 
 class TestIngestQbitAuthLockoutEvent:
-    """Regression pin for ingest_qbit_auth_lockout (added in SP5.4).
+    """Real-path regression pin for ingest_qbit_auth_lockout.
 
     ``ingest_qbit_auth_lockout`` is emitted via ``log.exception(...)`` inside
-    an ``except QBitAuthLockoutError`` handler in
-    :func:`personalscraper.ingest.ingest.run_ingest`.  Triggering the full
-    function requires a live qBittorrent connection; emit via the same module
-    logger inside a real exception context to pin the literal string.
+    the ``except QBitAuthLockoutError`` handler in
+    :func:`personalscraper.ingest.ingest.run_ingest`.  Mocks ``QBitClient``
+    to raise ``QBitAuthLockoutError`` on ``__enter__``, mirroring the
+    pattern used in ``tests/ingest/test_ingest.py`` for the other auth-error arms.
     """
 
-    def test_ingest_qbit_auth_lockout_event_name(self, caplog: pytest.LogCaptureFixture) -> None:
-        """ingest_qbit_auth_lockout event name is pinned.
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_ingest_qbit_auth_lockout_event_name(
+        self,
+        mock_qbit_cls: MagicMock,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """ingest_qbit_auth_lockout event name is pinned via a real run_ingest call.
 
-        Uses a live exception context so log.exception() behaves correctly
-        (exc_info is captured automatically when called inside except).
+        Injects ``QBitAuthLockoutError`` on ``QBitClient.__enter__`` so the
+        handler in ``run_ingest`` is exercised, not a synthetic logger emit.
+
+        Args:
+            mock_qbit_cls: Patched QBitClient class.
+            tmp_path: Pytest temporary directory fixture.
+            caplog: Pytest log capture fixture.
+        """
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(side_effect=QBitAuthLockoutError("lockout detected"))
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        with caplog.at_level(logging.ERROR, logger="ingest"):
+            run_ingest(settings, config=_make_config(tmp_path))
+
+        assert _has_event(caplog, "ingest_qbit_auth_lockout"), "ingest event 'ingest_qbit_auth_lockout' was not emitted"
+
+
+# ---------------------------------------------------------------------------
+# ingest.ingest — ingest_qbit_login_failed
+# ---------------------------------------------------------------------------
+
+
+class TestIngestQbitLoginFailedEvent:
+    """Regression pin for ingest_qbit_login_failed.
+
+    ``ingest_qbit_login_failed`` is emitted via ``log.exception(...)`` inside
+    the ``except qbittorrentapi.LoginFailed`` handler in
+    :func:`personalscraper.ingest.ingest.run_ingest`.  Emitting directly via
+    the module logger pins the literal string.
+    """
+
+    def test_ingest_qbit_login_failed_event_name(self, caplog: pytest.LogCaptureFixture) -> None:
+        """ingest_qbit_login_failed event name is pinned.
 
         Args:
             caplog: Pytest log capture fixture.
@@ -214,7 +279,94 @@ class TestIngestQbitAuthLockoutEvent:
         log = get_logger("ingest")
         with caplog.at_level(logging.ERROR, logger="ingest"):
             try:
-                raise RuntimeError("lockout active")
+                raise RuntimeError("login failed")
             except RuntimeError as exc:
-                log.exception("ingest_qbit_auth_lockout", error=str(exc))
-        assert _has_event(caplog, "ingest_qbit_auth_lockout"), "ingest event 'ingest_qbit_auth_lockout' was not emitted"
+                log.exception("ingest_qbit_login_failed", error=str(exc))
+        assert _has_event(caplog, "ingest_qbit_login_failed"), "ingest event 'ingest_qbit_login_failed' was not emitted"
+
+
+# ---------------------------------------------------------------------------
+# ingest.ingest — ingest_qbit_forbidden
+# ---------------------------------------------------------------------------
+
+
+class TestIngestQbitForbiddenEvent:
+    """Regression pin for ingest_qbit_forbidden.
+
+    ``ingest_qbit_forbidden`` is emitted via ``log.exception(...)`` inside
+    the ``except qbittorrentapi.Forbidden403Error`` handler in
+    :func:`personalscraper.ingest.ingest.run_ingest`.  Emitting directly via
+    the module logger pins the literal string.
+    """
+
+    def test_ingest_qbit_forbidden_event_name(self, caplog: pytest.LogCaptureFixture) -> None:
+        """ingest_qbit_forbidden event name is pinned.
+
+        Args:
+            caplog: Pytest log capture fixture.
+        """
+        log = get_logger("ingest")
+        with caplog.at_level(logging.ERROR, logger="ingest"):
+            try:
+                raise RuntimeError("forbidden")
+            except RuntimeError as exc:
+                log.exception("ingest_qbit_forbidden", error=str(exc))
+        assert _has_event(caplog, "ingest_qbit_forbidden"), "ingest event 'ingest_qbit_forbidden' was not emitted"
+
+
+# ---------------------------------------------------------------------------
+# ingest.ingest — ingest_qbit_unreachable
+# ---------------------------------------------------------------------------
+
+
+class TestIngestQbitUnreachableEvent:
+    """Regression pin for ingest_qbit_unreachable.
+
+    ``ingest_qbit_unreachable`` is emitted via ``log.exception(...)`` inside
+    the ``except (qbittorrentapi.APIConnectionError, requests.ConnectionError)``
+    handler in :func:`personalscraper.ingest.ingest.run_ingest`.  Emitting
+    directly via the module logger pins the literal string.
+    """
+
+    def test_ingest_qbit_unreachable_event_name(self, caplog: pytest.LogCaptureFixture) -> None:
+        """ingest_qbit_unreachable event name is pinned.
+
+        Args:
+            caplog: Pytest log capture fixture.
+        """
+        log = get_logger("ingest")
+        with caplog.at_level(logging.ERROR, logger="ingest"):
+            try:
+                raise RuntimeError("unreachable")
+            except RuntimeError as exc:
+                log.exception("ingest_qbit_unreachable", error=str(exc))
+        assert _has_event(caplog, "ingest_qbit_unreachable"), "ingest event 'ingest_qbit_unreachable' was not emitted"
+
+
+# ---------------------------------------------------------------------------
+# ingest.ingest — ingest_unexpected_error
+# ---------------------------------------------------------------------------
+
+
+class TestIngestUnexpectedErrorEvent:
+    """Regression pin for ingest_unexpected_error.
+
+    ``ingest_unexpected_error`` is emitted via ``log.exception(...)`` inside
+    the catch-all ``except Exception`` handler in
+    :func:`personalscraper.ingest.ingest.run_ingest`.  Emitting directly via
+    the module logger pins the literal string.
+    """
+
+    def test_ingest_unexpected_error_event_name(self, caplog: pytest.LogCaptureFixture) -> None:
+        """ingest_unexpected_error event name is pinned.
+
+        Args:
+            caplog: Pytest log capture fixture.
+        """
+        log = get_logger("ingest")
+        with caplog.at_level(logging.ERROR, logger="ingest"):
+            try:
+                raise RuntimeError("unexpected")
+            except RuntimeError as exc:
+                log.exception("ingest_unexpected_error", error=str(exc), error_type=type(exc).__name__)
+        assert _has_event(caplog, "ingest_unexpected_error"), "ingest event 'ingest_unexpected_error' was not emitted"
