@@ -61,7 +61,7 @@ include = ["personalscraper*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "scripts"]
 markers = [
     "e2e: End-to-end tests requiring storage disks and/or live APIs",
     "roundtrip: Roundtrip tests — torrentify disk media, re-match via API, compare",

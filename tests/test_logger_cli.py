@@ -25,12 +25,12 @@ def test_cli_creates_log_file(mock_lock, mock_release, mock_run, tmp_path, monke
     assert result.exit_code == 0
 
     log_file = tmp_path / "logs" / "personalscraper.json"
-    if log_file.exists():
-        for line in log_file.read_text().strip().split("\n"):
-            if line:
-                data = json.loads(line)
-                assert "timestamp" in data
-                assert "level" in data
+    assert log_file.exists(), f"Expected log file was not created: {log_file}"
+    for line in log_file.read_text().strip().split("\n"):
+        if line:
+            data = json.loads(line)
+            assert "timestamp" in data
+            assert "level" in data
 
 
 @patch("personalscraper.cli.run_ingest", return_value=_mock_report)

@@ -1,14 +1,11 @@
 """Tests for scripts/check_logging.py — logging convention audit script."""
 
 # Import the public API directly so tests do not shell out.
-# The script lives outside the package but is importable because pyproject.toml
-# adds "." to pythonpath for pytest.
-import sys
+# The script lives outside the package (scripts/) but is importable because
+# pyproject.toml adds "." AND "scripts" to pythonpath for pytest.
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
-
-from check_logging import analyze_file, analyze_paths, main  # noqa: E402
+from check_logging import analyze_file, analyze_paths, main  # type: ignore[import-not-found]
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -583,3 +580,73 @@ class TestMixedPaths:
         rules = {f.rule for f in findings}
         assert "no-print" in rules
         assert "no-stdlib-logger" in rules
+
+
+# ---------------------------------------------------------------------------
+# Line-number regression pins for all 3 rules (off-by-one guard)
+# ---------------------------------------------------------------------------
+
+
+class TestLineNumberRegressionPins:
+    """Regression tests that pin the exact source line reported for each rule.
+
+    Purpose: if the AST walker ever introduces an off-by-one error (e.g. by
+    using the wrong node attribute), these tests catch it immediately.
+    Each snippet is crafted so the violation appears on a known fixed line.
+    """
+
+    def test_no_print_line_pin(self, tmp_path: Path) -> None:
+        """no-print violation is pinned to line 2 in the print snippet.
+
+        Snippet::
+
+            def greet(name):        # line 1
+                print(f"Hello")     # line 2 — violation
+
+        Args:
+            tmp_path: Pytest temporary directory fixture.
+        """
+        p = _write(tmp_path, "module.py", _PRINT_SNIPPET)
+        findings = analyze_file(p)
+        print_findings = [f for f in findings if f.rule == "no-print"]
+        assert len(print_findings) == 1
+        assert print_findings[0].line == 2
+
+    def test_no_stdlib_logger_line_pin(self, tmp_path: Path) -> None:
+        """no-stdlib-logger violation is pinned to line 3 in the stdlib snippet.
+
+        Snippet::
+
+            import logging              # line 1
+                                        # line 2 (blank)
+            logger = logging.getLogger  # line 3 — violation
+
+        Args:
+            tmp_path: Pytest temporary directory fixture.
+        """
+        p = _write(tmp_path, "module.py", _STDLIB_LOGGER_SNIPPET)
+        findings = analyze_file(p)
+        stdlib_findings = [f for f in findings if f.rule == "no-stdlib-logger"]
+        assert len(stdlib_findings) == 1
+        assert stdlib_findings[0].line == 3
+
+    def test_no_fstring_log_event_line_pin(self, tmp_path: Path) -> None:
+        """no-fstring-log-event violation is pinned to line 6 in the f-string snippet.
+
+        Snippet::
+
+            from personalscraper.logger import get_logger  # line 1
+                                                            # line 2 (blank)
+            log = get_logger("mymod")                       # line 3
+                                                            # line 4 (blank)
+            def run(item):                                  # line 5
+                log.info(f"processing {item}")              # line 6 — violation
+
+        Args:
+            tmp_path: Pytest temporary directory fixture.
+        """
+        p = _write(tmp_path, "module.py", _FSTRING_LOG_SNIPPET)
+        findings = analyze_file(p)
+        fstring_findings = [f for f in findings if f.rule == "no-fstring-log"]
+        assert len(fstring_findings) == 1
+        assert fstring_findings[0].line == 6
