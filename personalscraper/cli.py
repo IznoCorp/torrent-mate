@@ -22,6 +22,7 @@ from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
@@ -118,6 +119,20 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def _bootstrap_staging(ctx: typer.Context) -> None:
+    """Call ensure_staging_tree if config is available on the AppCtx.
+
+    Safe to call from any command -- silently skips if config is None
+    (only init-config runs without a loaded config).
+
+    Args:
+        ctx: The Typer context with AppCtx in ctx.obj.
+    """
+    app_ctx: AppCtx = ctx.obj
+    if app_ctx is not None and app_ctx.config is not None:
+        _ensure_staging_tree(app_ctx.config)
+
+
 @app.callback()
 def main(
     ctx: typer.Context,
@@ -177,6 +192,7 @@ def ingest(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         staging_dir = config.paths.staging_dir
         ingest_dir = staging_path(config, find_ingest_dir(config))
@@ -203,6 +219,7 @@ def sort(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run)
         console.print(
@@ -233,6 +250,7 @@ def scrape(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_scrape(
             settings,
@@ -269,6 +287,7 @@ def verify(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         if fix:
             console.print(
@@ -306,6 +325,7 @@ def enforce(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_enforce(settings, config, dry_run=dry_run)
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
@@ -331,6 +351,7 @@ def dispatch(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         report = run_dispatch(settings, config=config, dry_run=dry_run)
         console.print(
@@ -360,6 +381,7 @@ def process(
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
+        _bootstrap_staging(ctx)
         settings = get_settings()
         try:
             clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive)

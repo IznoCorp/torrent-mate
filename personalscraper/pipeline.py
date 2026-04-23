@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from rich.console import Console
 
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import ensure_staging_tree
 from personalscraper.config import Settings
 from personalscraper.models import PipelineReport, StepReport
 
@@ -172,6 +173,9 @@ class Pipeline:
 
         from personalscraper.ingest.ingest import run_ingest
         from personalscraper.sorter.run import run_sort
+
+        # Bootstrap staging tree on first run (idempotent, no-op if already exists)
+        ensure_staging_tree(self.config)
 
         report = PipelineReport(started_at=datetime.now())
 
