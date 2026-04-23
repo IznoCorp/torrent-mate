@@ -19,6 +19,27 @@ ACTOR_THUMB_SIZE = "original"
 IMAGE_BASE = "https://image.tmdb.org/t/p"
 
 
+def _image_url(path: str, size: str = "original") -> str:
+    """Build an image URL, leaving absolute URLs untouched.
+
+    TMDB returns relative paths (``/abcd.jpg``) that must be prefixed
+    with ``https://image.tmdb.org/t/p/<size>``. TVDB (used as fallback
+    when a show is absent from TMDB) returns absolute URLs already, so
+    prefixing them again produces broken double URLs like
+    ``https://image.tmdb.org/t/p/originalhttps://artworks.thetvdb.com/...``.
+
+    Args:
+        path: Either a TMDB relative path or an absolute URL.
+        size: TMDB size bucket (e.g. ``original``, ``w342``).
+
+    Returns:
+        A usable image URL.
+    """
+    if path.startswith(("http://", "https://")):
+        return path
+    return f"{IMAGE_BASE}/{size}{path}"
+
+
 def _sub(parent: ET.Element, tag: str, text: str = "") -> ET.Element:
     """Add a sub-element with optional text content.
 
@@ -399,7 +420,7 @@ class NFOGenerator:
         # --- Episode thumb (screenshot) ---
         still_path = episode_data.get("still_path", "")
         if still_path:
-            _sub(root, "thumb", f"{IMAGE_BASE}/original{still_path}")
+            _sub(root, "thumb", _image_url(still_path))
 
         # --- Streamdetails ---
         if stream_info:
@@ -460,9 +481,9 @@ class NFOGenerator:
         # Posters as <thumb aspect="poster">
         for img in images.get("posters", []):
             path = img.get("file_path", "")
-            thumb = _sub(root, "thumb", f"{IMAGE_BASE}/original{path}")
+            thumb = _sub(root, "thumb", _image_url(path))
             thumb.set("aspect", "poster")
-            thumb.set("preview", f"{IMAGE_BASE}/{POSTER_PREVIEW_SIZE}{path}")
+            thumb.set("preview", _image_url(path, POSTER_PREVIEW_SIZE))
 
         # Backdrops as <fanart><thumb>
         backdrops = images.get("backdrops", [])
@@ -470,8 +491,8 @@ class NFOGenerator:
             fanart = ET.SubElement(root, "fanart")
             for img in backdrops:
                 path = img.get("file_path", "")
-                thumb = _sub(fanart, "thumb", f"{IMAGE_BASE}/original{path}")
-                thumb.set("preview", f"{IMAGE_BASE}/{BACKDROP_PREVIEW_SIZE}{path}")
+                thumb = _sub(fanart, "thumb", _image_url(path))
+                thumb.set("preview", _image_url(path, BACKDROP_PREVIEW_SIZE))
 
     def _add_inline_images_tv(self, root: ET.Element, data: dict[str, Any]) -> None:
         """Add inline <thumb> and <fanart> elements for TV shows.
@@ -489,7 +510,7 @@ class NFOGenerator:
         posters = images.get("posters", [])
         for i, img in enumerate(posters):
             path = img.get("file_path", "")
-            url = f"{IMAGE_BASE}/original{path}"
+            url = _image_url(path)
             thumb = _sub(root, "thumb", url)
             if i == 0:
                 thumb.set("aspect", "poster")
@@ -507,7 +528,7 @@ class NFOGenerator:
             fanart = ET.SubElement(root, "fanart")
             for img in backdrops:
                 path = img.get("file_path", "")
-                url = f"{IMAGE_BASE}/original{path}"
+                url = _image_url(path)
                 thumb = _sub(fanart, "thumb", url)
                 thumb.set("preview", url)
 
