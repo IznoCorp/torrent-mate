@@ -18,7 +18,7 @@
 | 2   | stdlib → structlog migration | phase-02-stdlib-migration.md | [x]    |
 | 3   | print() cleanup              | phase-03-print-cleanup.md    | [x]    |
 | 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
-| 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [ ]    |
+| 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [x]    |
 
 ## Review cycles
 
@@ -27,8 +27,8 @@
 - Findings received: 4 agents (code-reviewer, silent-failure-hunter, pr-test-analyzer, comment-analyzer)
 - Retained: 6 (0 critical, 0 major, 2 medium, 4 minor)
 - Ignored: many (out of DESIGN §7 scope — pre-existing behaviors preserved faithfully per DESIGN §2 non-goals)
-- Fix phase created: none — all retained findings are non-blocking polish / doc drift
-- Status: clean — proceeding to manual merge
+- Fix phase created: phase-05-pr-fixes-cycle-1.md (6 sub-phases, all DONE)
+- Status: all 6 retained findings + project-wide sweep addressed across 6 commits (SP5.1–5.6)
 
 **Retained findings (tracked as follow-up, non-blocking for merge)**:
 
@@ -41,4 +41,4 @@
 
 ## Next action
 
-Phase 5 PR fixes in progress — user directed to address all review findings including out-of-scope items. Run `/implement:phase` to continue.
+All phases complete — run `/implement:feature-pr` to push and wait for CI green, then `/implement:pr-review` for cycle 2 verification.
