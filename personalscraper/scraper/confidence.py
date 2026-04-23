@@ -232,13 +232,16 @@ def match_tvshow(
         Best MatchResult (source="tvdb" or "tmdb"), or None.
     """
     # Try TVDB first (primary for TV shows)
-    # Any TVDB error (circuit open, 5xx, timeout) falls through to TMDB
+    # Any TVDB error (circuit open, 5xx, timeout) falls through to TMDB.
+    # TVDB is optional/advisory — TMDB is authoritative. Programming bugs in the TVDB adapter
+    # are masked here, but the circuit breaker prevents cascading adapter failures from
+    # impacting the pipeline; TMDB fallback ensures metadata is still populated.
     tvdb_match: MatchResult | None = None
     try:
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year)
         if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
             return tvdb_match
-    except Exception as e:  # noqa: BLE001 — catches TVDBError, requests.ConnectionError, CircuitOpenError; narrowing requires 3 cross-module imports and a lazy-import for CircuitOpenError
+    except Exception as e:  # noqa: BLE001 — TVDB is optional; TMDB is authoritative. Broad catch silently masks programming bugs in the TVDB adapter as transient TVDB failure — fall back to TMDB. Accepted because the circuit breaker surfaces persistent TVDB errors via circuit_opened, and dashboards can monitor show_tvdb_fallback_tmdb rate.
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
     # Fallback to TMDB

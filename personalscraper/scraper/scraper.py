@@ -171,7 +171,7 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
             return title, year
     except ImportError:
         log.warning("folder_name_cleaner_unavailable", name=name)
-    except Exception as exc:
+    except (ValueError, AttributeError, TypeError) as exc:
         log.warning("folder_name_clean_failed", name=name, error=str(exc), exc_info=True)
 
     return name.strip(), None
@@ -676,6 +676,9 @@ class Scraper:
         tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
         if not tmdb_id:
             return
+        # Broad catch: get_movie() can raise TMDBError, CircuitOpenError, or requests
+        # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
+        # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
             movie_data = self._tmdb.get_movie(tmdb_id)
             downloaded = self._artwork.download_movie_artwork(
@@ -687,7 +690,7 @@ class Scraper:
                 result.action = "artwork_recovered"
                 result.artwork_downloaded = [p.name for p in downloaded]
                 log.info("artwork_recovered", count=len(downloaded), directory=movie_dir.name)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — get_movie() raises TMDBError/CircuitOpenError (lazy imports); download_movie_artwork() adds OSError; mixed API+IO path, narrowing needs 3 cross-module imports
             log.warning("artwork_recovery_failed", directory=movie_dir.name, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork recovery failed: {e}")
 
@@ -710,6 +713,9 @@ class Scraper:
         tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
         if not tmdb_id:
             return
+        # Broad catch: get_tv() can raise TMDBError, CircuitOpenError, or requests
+        # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
+        # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
             show_data = self._tmdb.get_tv(tmdb_id)
             downloaded = self._artwork.download_tvshow_artwork(
@@ -721,7 +727,7 @@ class Scraper:
                 result.action = "artwork_recovered"
                 result.artwork_downloaded = [p.name for p in downloaded]
                 log.info("artwork_recovered", count=len(downloaded), directory=show_dir.name)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 — mixed API+IO path; see comment above
             log.warning("artwork_recovery_failed", directory=show_dir.name, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork recovery failed: {e}")
 
@@ -1229,7 +1235,7 @@ class Scraper:
                 self.patterns,
             )
             result.artwork_downloaded = [p.name for p in downloaded]
-        except Exception as e:
+        except (requests.RequestException, OSError) as e:
             log.warning("movie_artwork_failed", title=title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
@@ -1491,7 +1497,7 @@ class Scraper:
                 self.patterns,
             )
             result.artwork_downloaded = [p.name for p in downloaded]
-        except Exception as e:
+        except (requests.RequestException, OSError) as e:
             log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
@@ -1531,7 +1537,7 @@ class Scraper:
                                 "title": ep.get("name", f"Episode {e_num}"),
                                 "still_path": "",  # TVDB episode stills are separate API calls
                             }
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001 — both TMDB and TVDB paths raise CircuitOpenError (lazy import)
                     log.warning("show_season_fetch_failed", season=s_num, exc_info=True, error=str(e))
 
             if api_episodes:
