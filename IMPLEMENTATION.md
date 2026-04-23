@@ -19,6 +19,7 @@
 | 3   | print() cleanup              | phase-03-print-cleanup.md    | [x]    |
 | 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
 | 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [x]    |
+| 6   | PR fixes cycle 2             | phase-06-pr-fixes-cycle-2.md | [ ]    |
 
 ## Review cycles
 
@@ -39,6 +40,15 @@
 - **Minor** — `scripts/check_logging.py` does not catch `from logging import getLogger` bypass. DESIGN §4 specifies literal `logging.getLogger` detection — current codebase has zero violations either way. Hardening opportunity.
 - **Minor** — CLAUDE.md Reference Index row grammar ("writing new logging call" → "writing new logging calls") and style (noun phrase vs "When…" clause) inconsistent with sibling rows.
 
+### Cycle 2
+
+- Findings received: 4 agents (code-reviewer, silent-failure-hunter, pr-test-analyzer, comment-analyzer)
+- Retained: 11 (1 critical, 4 major, 6 medium, ~8 minor per user directive "fix all findings")
+- Critical: `build_retry_logger` loses retry tracebacks (`exc_info=bool` in tenacity `before_sleep` is empty outside active `except`)
+- Major: stale migration recipe + fabricated events in `logging.md`; dispatcher data-loss paths missing `exc_info`; tmdb_client second fallback arm missing kwargs; `ingest_unexpected_error` no test
+- Fix phase created: phase-06-pr-fixes-cycle-2.md (6 sub-phases)
+- Status: fix phase dispatched → awaiting `/implement:phase`
+
 ## Next action
 
-All phases complete — run `/implement:feature-pr` to push and wait for CI green, then `/implement:pr-review` for cycle 2 verification.
+Phase 6 in progress — run `/implement:phase` to execute fixes, then feature-pr + pr-review cycle 3 (ceiling).
