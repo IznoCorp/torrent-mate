@@ -18,6 +18,7 @@
 | 2   | stdlib → structlog migration | phase-02-stdlib-migration.md | [x]    |
 | 3   | print() cleanup              | phase-03-print-cleanup.md    | [x]    |
 | 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
+| 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [ ]    |
 
 ## Review cycles
 
@@ -40,4 +41,4 @@
 
 ## Next action
 
-Review clean. Squash merge PR #10 when ready (mode: manual). Then run `/implement:archive`.
+Phase 5 PR fixes in progress — user directed to address all review findings including out-of-scope items. Run `/implement:phase` to continue.
