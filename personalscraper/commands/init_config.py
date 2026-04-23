@@ -7,7 +7,6 @@ been removed along with the rest of the V14 compatibility layer.
 
 from __future__ import annotations
 
-import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +14,9 @@ from typing import Any
 import json5
 import typer
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+log = get_logger("init_config")
 
 
 def _backup_output(output: Path) -> None:
@@ -28,7 +29,7 @@ def _backup_output(output: Path) -> None:
     if backup.exists():
         backup.unlink()
     output.rename(backup)
-    logger.info("Backed up existing config to %s", backup)
+    log.info("config_backed_up", backup=str(backup))
 
 
 def init_config(
@@ -135,7 +136,7 @@ def _apply_overrides(data: dict[str, Any], overrides: dict[str, str]) -> None:
     """
     for path, value in overrides.items():
         if "[" in path:
-            logger.debug("Skipping array path override: %s", path)
+            log.debug("override_skip_array_path", path=path)
             continue
         parts = path.split(".")
         node: Any = data

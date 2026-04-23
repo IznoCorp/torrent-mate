@@ -15,15 +15,15 @@ because origin-country-gated anime detection is a stronger signal than a generic
 origin_country is checked before the string-based genre fallback.
 """
 
-import logging
 import re
 from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
 from personalscraper.conf.models import CategoryRule, Config
+from personalscraper.logger import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger("personalscraper.conf.classifier")
 
 MediaType = Literal["movie", "tv"]
 
@@ -75,10 +75,11 @@ def classify(
             if cid in config.all_category_ids:
                 return cid, "nfo_override"
             # Unknown / obsolete ID written in NFO — fall through to next layers
-            logger.warning(
-                "NFO %s has invalid <category>%s</category>, falling through to next classification layer",
-                nfo_path,
-                cid,
+            log.warning(
+                "nfo_invalid_category",
+                nfo_path=str(nfo_path),
+                category=cid,
+                message="Falling through to next classification layer",
             )
 
     # ------------------------------------------------------------------
@@ -191,21 +192,22 @@ def classify_from_nfo(
         try:
             content = category_file.read_text(encoding="utf-8").strip().lower()
         except OSError as exc:
-            logger.warning("Failed to read .category in %s: %s", nfo_path.parent.name, exc)
+            log.warning("category_file_read_error", folder=nfo_path.parent.name, error=str(exc))
             content = ""
         if content:
             if content in config.all_category_ids:
                 return content, "category_file"
-            logger.warning(
-                "Invalid .category content '%s' in %s (not a known category ID)",
-                content,
-                nfo_path.parent.name,
+            log.warning(
+                "category_file_invalid_id",
+                content=content,
+                folder=nfo_path.parent.name,
+                message="Not a known category ID",
             )
 
     try:
         root = ET.parse(nfo_path).getroot()  # noqa: S314
     except (ET.ParseError, OSError) as exc:
-        logger.warning("Failed to parse NFO %s: %s", nfo_path.name, exc)
+        log.warning("nfo_parse_failed", nfo_file=nfo_path.name, error=str(exc))
         return None, "nfo_parse_error"
 
     genres = [g.text for g in root.findall("genre") if g.text]

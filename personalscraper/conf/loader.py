@@ -4,15 +4,15 @@ Resolution order for config path: CLI override > $PERSONALSCRAPER_CONFIG > ./con
 Warnings are non-blocking: they are logged but do not prevent config from loading.
 """
 
-import logging
 import os
 from pathlib import Path
 
 import json5
 
 from personalscraper.conf.models import Config
+from personalscraper.logger import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger("personalscraper.conf.loader")
 
 DEFAULT_CONFIG_PATH: Path = Path("./config.json5")
 ENV_CONFIG_PATH: str = "PERSONALSCRAPER_CONFIG"
@@ -75,9 +75,10 @@ def load_config(path: Path | None = None) -> Config:
     except Exception as exc:
         raise ConfigValidationError(f"Validation error in {resolved}:\n{exc}") from exc
 
-    # Emit non-blocking warnings — do not raise, just log
+    # Emit non-blocking warnings — do not raise, just log.
+    # The warning text is used as the event so stdlib caplog records carry it.
     for warning in collect_warnings(config):
-        logger.warning(warning)
+        log.warning(warning)
 
     return config
 
