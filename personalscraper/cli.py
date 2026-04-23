@@ -244,7 +244,8 @@ def scrape(
     """Scrape metadata and artwork from TMDB/TVDB."""
     from personalscraper.scraper.run import run_scrape
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
+    assert config is not None
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -254,6 +255,7 @@ def scrape(
         settings = get_settings()
         report = run_scrape(
             settings,
+            config=config,
             dry_run=dry_run,
             interactive=interactive,
             movies_only=movies_only,

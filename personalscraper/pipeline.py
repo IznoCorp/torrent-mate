@@ -314,7 +314,7 @@ class Pipeline:
             "scrape",
             lambda: run_scrape(
                 self.settings,
-                staging_dir=self.config.paths.staging_dir,
+                config=self.config,
                 dry_run=self.dry_run,
                 interactive=self.interactive,
             ),

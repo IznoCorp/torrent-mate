@@ -95,9 +95,11 @@ class TestTVShowFullPipeline:
                         e2e_registry.register(d)
 
             # ── 4. V3 Scrape (REAL — calls TVDB/TMDB APIs) ──
+            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.scraper.run import run_scrape
 
-            scrape_report = run_scrape(settings, dry_run=False, tvshows_only=True)
+            e2e_config = load_config(resolve_config_path(None))
+            scrape_report = run_scrape(settings, config=e2e_config, dry_run=False, tvshows_only=True)
             print(f"  V3 Scrape: {scrape_report.success_count} scraped")
             assert_scrape_complete(staging / "001-MOVIES", tvshows_dir, expected)
 

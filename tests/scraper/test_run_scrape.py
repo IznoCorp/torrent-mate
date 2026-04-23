@@ -98,14 +98,12 @@ class TestRunScrape:
     def test_processes_movies_and_tvshows(self, tmp_path: Path) -> None:
         """Should process both 001-MOVIES and 002-TVSHOWS."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
         config = MagicMock()
         config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
@@ -129,14 +127,12 @@ class TestRunScrape:
     def test_movies_only(self, tmp_path: Path) -> None:
         """--movies-only should skip TV shows."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
         config = MagicMock()
         config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
@@ -148,7 +144,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_movies.return_value = []
 
-            run_scrape(settings, movies_only=True, config=config)
+            run_scrape(settings, config=config, movies_only=True)
 
         mock_scraper.process_movies.assert_called_once()
         mock_scraper.process_tvshows.assert_not_called()
@@ -156,14 +152,12 @@ class TestRunScrape:
     def test_tvshows_only(self, tmp_path: Path) -> None:
         """--tvshows-only should skip movies."""
         settings = MagicMock()
-        settings.staging_dir = str(tmp_path)
-        settings.movies_dir_name = "001-MOVIES"
-        settings.tvshows_dir_name = "002-TVSHOWS"
         settings.tmdb_api_key = "fake"
         settings.tvdb_api_key = "fake"
 
         config = MagicMock()
         config.staging_dirs = CANONICAL_STAGING_DIRS
+        config.paths.staging_dir = tmp_path
 
         (tmp_path / "001-MOVIES").mkdir()
         (tmp_path / "002-TVSHOWS").mkdir()
@@ -175,7 +169,7 @@ class TestRunScrape:
             mock_scraper = MockScraper.return_value
             mock_scraper.process_tvshows.return_value = []
 
-            run_scrape(settings, tvshows_only=True, config=config)
+            run_scrape(settings, config=config, tvshows_only=True)
 
         mock_scraper.process_movies.assert_not_called()
         mock_scraper.process_tvshows.assert_called_once()

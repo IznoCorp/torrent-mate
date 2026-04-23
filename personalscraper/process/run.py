@@ -8,7 +8,6 @@ Each sub-step can be called independently for error isolation.
 """
 
 import logging
-from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -37,7 +36,7 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> Step
     from personalscraper.process.dedup import dedup_folders
     from personalscraper.process.reclean import _has_polluted_folders, reclean_folders
 
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
 
@@ -87,7 +86,7 @@ def run_cleanup(settings: Settings, config: Config, dry_run: bool = False) -> St
     """
     from personalscraper.process.cleanup import cleanup_empty_dirs
 
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
     movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
     tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
 
@@ -137,7 +136,7 @@ def run_process(
         )
 
     try:
-        scrape_report = run_scrape(settings, dry_run=dry_run, interactive=interactive)
+        scrape_report = run_scrape(settings, config=config, dry_run=dry_run, interactive=interactive)
     except Exception as exc:
         logger.exception("Scrape sub-step failed fatally")
         scrape_report = StepReport(

@@ -5,7 +5,6 @@ converts VerifyResult lists to StepReport.
 """
 
 import logging
-from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
@@ -31,7 +30,7 @@ def _has_items_to_verify(settings: Settings, config: Config) -> bool:
     Returns:
         True if at least one media folder exists.
     """
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
     for dir_name in (
         folder_name(find_by_file_type(config, FileType.MOVIE)),
         folder_name(find_by_file_type(config, FileType.TVSHOW)),
@@ -81,7 +80,7 @@ def run_verify(
     )
 
     all_results: list[VerifyResult] = []
-    staging = Path(getattr(settings, "staging_dir", "."))
+    staging = config.paths.staging_dir
 
     if not tvshows_only:
         movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
