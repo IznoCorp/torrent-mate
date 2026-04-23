@@ -361,7 +361,7 @@ def run_ingest(
         log.exception("ingest_qbit_unreachable", error=str(e))
         report.error_count += 1
         report.details.append(f"qBittorrent unreachable: {e}. Fix: verify qBit is running and Web UI is enabled.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — safety catch-all for tracker I/O and unexpected qbittorrentapi changes; preserves pipeline continuation on unknown failures
         # Safety catch-all for unexpected errors (e.g. tracker I/O, unexpected API changes)
         log.exception("ingest_unexpected_error", error=str(e), error_type=type(e).__name__)
         report.error_count += 1

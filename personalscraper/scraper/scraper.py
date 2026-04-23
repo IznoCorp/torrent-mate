@@ -990,7 +990,7 @@ class Scraper:
                                     "still_path": ep.get("still_path", ""),
                                 }
                         except (OSError, ConnectionError, TimeoutError) as e:
-                            log.warning("repair_season_fetch_failed", season=s_num, error=str(e))
+                            log.warning("repair_season_fetch_failed", exc_info=True, season=s_num, error=str(e))
 
                     if api_episodes:
                         ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]

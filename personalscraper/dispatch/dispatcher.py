@@ -503,14 +503,20 @@ class Dispatcher:
                 os.rename(dest, tmp_old)
             os.rename(tmp_new, dest)
         except OSError as e:
-            log.error("replace_swap_failed", error=str(e), tmp_old=str(tmp_old), tmp_new=str(tmp_new))
+            log.error("replace_swap_failed", exc_info=True, error=str(e), tmp_old=str(tmp_old), tmp_new=str(tmp_new))
             # Attempt to restore original from backup
             try:
                 if tmp_old.exists() and not dest.exists():
                     os.rename(tmp_old, dest)
                     log.info("replace_restored_from_backup", dest=str(dest))
             except OSError as restore_err:
-                log.error("replace_restore_failed", error=str(restore_err), tmp_old=str(tmp_old), dest=str(dest))
+                log.error(
+                    "replace_restore_failed",
+                    exc_info=True,
+                    error=str(restore_err),
+                    tmp_old=str(tmp_old),
+                    dest=str(dest),
+                )
             return False
 
         # Phase 3: Cleanup (non-critical — replace already succeeded)

@@ -459,6 +459,8 @@ class TMDBClient:
                 media_type=media_type,
                 tmdb_id=tmdb_id,
                 error=str(exc),
+                fallback="empty_list",
+                exc_info=True,
             )
             return []
 
