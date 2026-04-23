@@ -8,15 +8,15 @@ Each fix produces a FixAction describing what was done. In dry-run mode,
 FixActions are created but no filesystem changes are made.
 """
 
-import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult
 
-logger = logging.getLogger(__name__)
+log = get_logger("verify.fixer")
 
 
 @dataclass
@@ -136,7 +136,7 @@ class MediaFixer:
             tree = ET.parse(nfo_path)  # noqa: S314
             root = tree.getroot()
         except (ET.ParseError, OSError) as exc:
-            logger.warning("Cannot parse NFO for dir naming fix: %s: %s", nfo_path.name, exc)
+            log.warning("verify_fixer_nfo_parse_error", nfo=nfo_path.name, exc_info=exc)
             return None
 
         title = root.findtext("title", "").strip()
@@ -156,7 +156,7 @@ class MediaFixer:
 
         new_dir = media_dir.parent / canonical
         if new_dir.exists():
-            logger.warning("Target directory already exists: %s", canonical)
+            log.warning("verify_fixer_target_exists", canonical=canonical)
             return None
 
         description = f"Renamed '{media_dir.name}' → '{canonical}'"
@@ -164,9 +164,9 @@ class MediaFixer:
         if not self.dry_run:
             try:
                 media_dir.rename(new_dir)
-                logger.info("Fixed dir naming: %s", description)
+                log.info("verify_fixer_dir_renamed", description=description)
             except OSError as e:
-                logger.error("Failed to rename directory: %s", e)
+                log.error("verify_fixer_rename_failed", exc_info=e)
                 return None
 
         return FixAction(

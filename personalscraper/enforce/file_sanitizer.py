@@ -5,17 +5,17 @@ removes .DS_Store and ._ resource fork files. Processes directories
 bottom-up to handle nested renames correctly.
 """
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.sorter.file_type import FileType
 from personalscraper.text_utils import sanitize_filename
 
-logger = logging.getLogger(__name__)
+log = get_logger("enforce.sanitizer")
 
 _FILENAME_ILLEGAL_CHARS = set('<>:"/\\|?*')
 
@@ -110,7 +110,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                 try:
                     f.unlink()
                 except OSError as exc:
-                    logger.warning("Cannot delete %s: %s", f.name, exc)
+                    log.warning("enforce_sanitize_delete_failed", name=f.name, exc_info=exc)
                     results.append(SanitizeResult(path=f, action="error", old_name=f.name))
                     continue
             results.append(SanitizeResult(path=f, action="deleted_ds_store", old_name=f.name))
@@ -121,7 +121,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                 try:
                     f.unlink()
                 except OSError as exc:
-                    logger.warning("Cannot delete %s: %s", f.name, exc)
+                    log.warning("enforce_sanitize_delete_failed", name=f.name, exc_info=exc)
                     results.append(SanitizeResult(path=f, action="error", old_name=f.name))
                     continue
             results.append(SanitizeResult(path=f, action="deleted_resource_fork", old_name=f.name))
@@ -136,7 +136,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     try:
                         f.unlink()
                     except OSError as exc:
-                        logger.warning("Cannot delete duplicate %s: %s", f.name, exc)
+                        log.warning("enforce_sanitize_delete_duplicate_failed", name=f.name, exc_info=exc)
                         results.append(
                             SanitizeResult(
                                 path=f,
@@ -159,7 +159,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     try:
                         f.rename(target)
                     except OSError as exc:
-                        logger.warning("Cannot rename %s: %s", f.name, exc)
+                        log.warning("enforce_sanitize_rename_failed", name=f.name, exc_info=exc)
                         results.append(
                             SanitizeResult(
                                 path=f,
@@ -187,13 +187,13 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
             sanitized = sanitize_filename(d.name)
             target = d.parent / sanitized
             if target.exists():
-                logger.warning("Cannot rename dir %s → %s: target exists", d.name, sanitized)
+                log.warning("enforce_sanitize_dir_target_exists", name=d.name, sanitized=sanitized)
             else:
                 if not dry_run:
                     try:
                         d.rename(target)
                     except OSError as exc:
-                        logger.warning("Cannot rename dir %s: %s", d.name, exc)
+                        log.warning("enforce_sanitize_dir_rename_failed", name=d.name, exc_info=exc)
                 results.append(
                     SanitizeResult(
                         path=d,

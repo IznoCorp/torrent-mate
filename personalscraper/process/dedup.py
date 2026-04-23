@@ -7,17 +7,17 @@ merges the less-complete folder into the more-complete one.
 
 from __future__ import annotations
 
-import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.logger import get_logger
 from personalscraper.text_utils import fuzzy_match_score
 
 if TYPE_CHECKING:
     from personalscraper.conf.models import FuzzyMatchConfig
 
-logger = logging.getLogger(__name__)
+log = get_logger("process.dedup")
 
 # Extract year from "Title (YYYY)" pattern
 _YEAR_RE = re.compile(r"\((\d{4})\)\s*$")
@@ -120,36 +120,36 @@ def dedup_folders(
                 source, target = folder_b, folder_a
 
             if dry_run:
-                logger.info(
-                    "[DRY-RUN] Would merge duplicate: %s → %s (score=%.0f)",
-                    source.name,
-                    target.name,
-                    score,
+                log.info(
+                    "process_dedup_would_merge",
+                    source=source.name,
+                    target=target.name,
+                    score=round(score),
                 )
             else:
                 try:
                     moved, merge_failed = _merge_dirs(source, target)
-                    logger.info(
-                        "Dedup merge: %s → %s (%d items, score=%.0f)",
-                        source.name,
-                        target.name,
-                        moved,
-                        score,
+                    log.info(
+                        "process_dedup_merged",
+                        source=source.name,
+                        target=target.name,
+                        moved=moved,
+                        score=round(score),
                     )
                     if merge_failed:
                         failed += 1
-                        logger.warning(
-                            "Dedup partial merge: %s → %s: %d items failed",
-                            source.name,
-                            target.name,
-                            merge_failed,
+                        log.warning(
+                            "process_dedup_partial_merge",
+                            source=source.name,
+                            target=target.name,
+                            failed_count=merge_failed,
                         )
                 except OSError as exc:
-                    logger.warning(
-                        "Dedup merge failed: %s → %s: %s",
-                        source.name,
-                        target.name,
-                        exc,
+                    log.warning(
+                        "process_dedup_merge_failed",
+                        source=source.name,
+                        target=target.name,
+                        exc_info=exc,
                     )
                     failed += 1
                     continue

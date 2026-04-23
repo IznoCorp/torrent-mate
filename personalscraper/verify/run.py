@@ -4,17 +4,16 @@ Instantiates the Verifier, processes movies and TV shows, and
 converts VerifyResult lists to StepReport.
 """
 
-import logging
-
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
-logger = logging.getLogger(__name__)
+log = get_logger("verify.run")
 
 
 def _has_items_to_verify(settings: Settings, config: Config) -> bool:
@@ -68,7 +67,7 @@ def run_verify(
     """
     # Fast-skip: no media folders to verify
     if not _has_items_to_verify(settings, config):
-        logger.info("Verify fast-skip: no media folders found")
+        log.info("verify_fast_skip")
         return StepReport(name="verify"), []
 
     verifier = Verifier(

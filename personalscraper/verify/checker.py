@@ -10,7 +10,6 @@ WARNING is informational) and a fixable flag indicating whether the
 issue can be auto-corrected by MediaFixer.
 """
 
-import logging
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -19,11 +18,12 @@ from pathlib import Path
 
 from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models import Config
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 
-logger = logging.getLogger(__name__)
+log = get_logger("verify.checker")
 
 # Minimum file size (bytes) to not be considered a sample
 _MIN_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
@@ -511,11 +511,7 @@ class MediaChecker:
             tree = ET.parse(nfo_path)  # noqa: S314
             return tree.getroot()
         except (ET.ParseError, OSError) as e:
-            logging.getLogger(__name__).warning(
-                "NFO parse failed for %s: %s",
-                nfo_path.name,
-                e,
-            )
+            log.warning("verify_nfo_parse_failed", nfo=nfo_path.name, exc_info=e)
             return None
 
     @staticmethod

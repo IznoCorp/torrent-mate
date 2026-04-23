@@ -5,7 +5,6 @@ consistency, and checks sort↔process coherence. Produces
 warnings, never modifies the filesystem.
 """
 
-import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,9 +14,10 @@ from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.sorter.file_type import FileType
 
-logger = logging.getLogger(__name__)
+log = get_logger("enforce.coherence")
 
 
 @dataclass
@@ -178,7 +178,7 @@ def _check_genre_coherence(nfo_path: Path, result: CoherenceResult, config: Conf
         if category_id == CID.TV_PROGRAMS:
             result.warnings.append(f"Genre suggests TV program ({CID.TV_PROGRAMS}) not series for {result.path.name}")
     except (ET.ParseError, OSError, ValueError) as exc:
-        logger.warning("Genre check failed for %s: %s", nfo_path.name, exc)
+        log.warning("enforce_coherence_genre_check_failed", nfo=nfo_path.name, exc_info=exc)
         result.warnings.append(f"Genre check failed: {exc}")
 
     result.checks.append("genre_coherence")

@@ -10,17 +10,17 @@ explicit ``staging_dir`` parameter; when config is provided, ingest_dir is
 resolved via staging_path(config, find_ingest_dir(config)).
 """
 
-import logging
 from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
-logger = logging.getLogger(__name__)
+log = get_logger("sorter.run")
 
 
 def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: bool = False) -> StepReport:
@@ -45,7 +45,7 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
 
     # Fast-skip: nothing to sort
     if not _has_unsorted_items(ingest_dir):
-        logger.info("Sort fast-skip: ingest dir is empty")
+        log.info("sort_fast_skip", ingest_dir=str(ingest_dir))
         return StepReport(name="sort")
 
     cleaner = NameCleaner()
@@ -70,11 +70,11 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
 
-    logger.info(
-        "Sort complete: %d moved, %d skipped, %d errors",
-        report.success_count,
-        report.skip_count,
-        report.error_count,
+    log.info(
+        "sort_complete",
+        moved=report.success_count,
+        skipped=report.skip_count,
+        errors=report.error_count,
     )
     return report
 
@@ -114,8 +114,8 @@ def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config) -> 
         return []
     remaining = [item.name for item in ingest_dir.iterdir() if not item.name.startswith(".")]
     if remaining:
-        logger.warning(
-            "Ingest dir not empty after sort: %d items remain",
-            len(remaining),
+        log.warning(
+            "sort_ingest_not_empty",
+            remaining_count=len(remaining),
         )
     return remaining

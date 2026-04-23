@@ -10,7 +10,6 @@ from ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,12 +23,13 @@ from personalscraper.library.models import (
     ValidationItem,
 )
 from personalscraper.library.scanner import parse_title_year
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.text_utils import sanitize_filename
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
 
-logger = logging.getLogger(__name__)
+log = get_logger("library.validator")
 
 
 def _classify_results(
@@ -66,12 +66,12 @@ def _fix_empty_dirs(media_dir: Path, dry_run: bool) -> list[str]:
                     try:
                         subdir.rmdir()
                     except OSError as exc:
-                        logger.warning("Cannot remove empty dir %s: %s", subdir, exc)
+                        log.warning("library_validate_remove_empty_dir_failed", subdir=str(subdir), exc_info=exc)
                         continue
                 prefix = "[DRY-RUN] Would remove" if dry_run else "Removed"
                 fixes.append(f"{prefix} empty dir: {subdir.name}")
     except OSError as exc:
-        logger.warning("Cannot list directory for empty dir fix %s: %s", media_dir, exc)
+        log.warning("library_validate_list_error", media_dir=str(media_dir), exc_info=exc)
     return fixes
 
 
@@ -95,12 +95,12 @@ def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
                         try:
                             item.rename(item.parent / safe_name)
                         except OSError as exc:
-                            logger.warning("Cannot rename %s: %s", item, exc)
+                            log.warning("library_validate_ntfs_rename_failed", item=str(item), exc_info=exc)
                             continue
                     prefix = "[DRY-RUN] Would rename" if dry_run else "Renamed"
                     fixes.append(f"{prefix}: {item.name} → {safe_name}")
     except OSError as exc:
-        logger.warning("Cannot list directory for NTFS name fix %s: %s", media_dir, exc)
+        log.warning("library_validate_ntfs_list_error", media_dir=str(media_dir), exc_info=exc)
     return fixes
 
 
@@ -140,7 +140,7 @@ def validate_library(
         if disk_filter and disk.id != disk_filter:
             continue
         if not disk.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
+            log.warning("library_validate_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
         for category_id in disk.categories:
@@ -151,7 +151,7 @@ def validate_library(
             cat_cfg = config.category(category_id)
             category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
+                log.debug("library_validate_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
             is_series = category_id in TV_CATEGORY_IDS
@@ -168,7 +168,7 @@ def validate_library(
                     else:
                         checks = checker.check_movie(media_dir)
                 except OSError as exc:
-                    logger.warning("Filesystem error checking %s: %s", media_dir, exc)
+                    log.warning("library_validate_fs_error", media_dir=str(media_dir), exc_info=exc)
                     items.append(
                         ValidationItem(
                             path=str(media_dir),

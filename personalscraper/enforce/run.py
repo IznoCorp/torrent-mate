@@ -8,16 +8,15 @@ Executes three sub-components in order:
 Each component works on the state left by the previous one.
 """
 
-import logging
-
 from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.enforce.coherence_checker import check_coherence
 from personalscraper.enforce.file_sanitizer import sanitize_files
 from personalscraper.enforce.structure_validator import validate_structure
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 
-logger = logging.getLogger(__name__)
+log = get_logger("enforce.run")
 
 
 def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:

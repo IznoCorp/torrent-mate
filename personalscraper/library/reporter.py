@@ -7,7 +7,6 @@ with clear explanations and suggested remediation commands.
 
 from __future__ import annotations
 
-import logging
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -15,8 +14,6 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from personalscraper.dispatch.disk_scanner import DiskStatus
-
-logger = logging.getLogger(__name__)
 
 # Human-readable explanations for scan issues
 _ISSUE_EXPLANATIONS: dict[str, str] = {

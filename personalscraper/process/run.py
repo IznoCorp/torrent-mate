@@ -7,15 +7,14 @@ clean (reclean+dedup), scrape, cleanup.
 Each sub-step can be called independently for error isolation.
 """
 
-import logging
-
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.sorter.file_type import FileType
 
-logger = logging.getLogger(__name__)
+log = get_logger("process.run")
 
 
 def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
@@ -63,11 +62,11 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> Step
             clean_report.error_count += dedup_failed
             clean_report.warnings.append(f"Dedup: {dedup_failed} merge(s) failed in {category_dir.name}")
 
-    logger.info(
-        "Clean phase: %d re-cleaned/deduped, %d skipped, %d errors",
-        clean_report.success_count,
-        clean_report.skip_count,
-        clean_report.error_count,
+    log.info(
+        "process_clean_complete",
+        recleaned=clean_report.success_count,
+        skipped=clean_report.skip_count,
+        errors=clean_report.error_count,
     )
     return clean_report
 
@@ -97,7 +96,7 @@ def run_cleanup(settings: Settings, config: Config, dry_run: bool = False) -> St
         cleanup_report.success_count += cat_report.success_count
         cleanup_report.details.extend(cat_report.details)
 
-    logger.info("Cleanup phase: %d empty dirs removed", cleanup_report.success_count)
+    log.info("process_cleanup_complete", removed=cleanup_report.success_count)
     return cleanup_report
 
 
@@ -128,7 +127,7 @@ def run_process(
     try:
         clean_report = run_clean(settings, dry_run=dry_run, config=config)
     except Exception as exc:
-        logger.exception("Clean sub-step failed fatally")
+        log.exception("process_clean_fatal", exc_info=exc)
         clean_report = StepReport(
             name="clean",
             error_count=1,
@@ -138,7 +137,7 @@ def run_process(
     try:
         scrape_report = run_scrape(settings, config=config, dry_run=dry_run, interactive=interactive)
     except Exception as exc:
-        logger.exception("Scrape sub-step failed fatally")
+        log.exception("process_scrape_fatal", exc_info=exc)
         scrape_report = StepReport(
             name="scrape",
             error_count=1,
@@ -148,7 +147,7 @@ def run_process(
     try:
         cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config)
     except Exception as exc:
-        logger.exception("Cleanup sub-step failed fatally")
+        log.exception("process_cleanup_fatal", exc_info=exc)
         cleanup_report = StepReport(
             name="cleanup",
             error_count=1,

@@ -10,7 +10,6 @@ category filter uses ``category_id``.
 
 from __future__ import annotations
 
-import logging
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,7 +18,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from personalscraper.conf.models import Config
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+log = get_logger("library.disk_cleaner")
 
 _JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
 
@@ -56,7 +57,7 @@ def _dir_size(path: Path) -> int:
                 except OSError:
                     continue
     except OSError as exc:
-        logger.warning("Cannot measure directory size %s: %s", path, exc)
+        log.warning("library_clean_dir_size_error", path=str(path), exc_info=exc)
     return total
 
 
@@ -81,11 +82,11 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str) -> N
         result.deleted_count += 1
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path} ({size} bytes)")
-        logger.info("Deleted %s: %s", label, path)
+        log.info("library_clean_deleted_dir", label=label, path=str(path))
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-        logger.warning("NTFS deletion failed for %s: %s — %s", label, path, exc)
+        log.warning("library_clean_ntfs_error", label=label, path=str(path), exc_info=exc)
 
 
 def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str) -> None:
@@ -116,7 +117,7 @@ def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str) -> 
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-        logger.warning("Deletion failed for %s: %s — %s", label, path, exc)
+        log.warning("library_clean_file_delete_failed", label=label, path=str(path), exc_info=exc)
 
 
 def _is_effectively_empty(directory: Path) -> bool:
@@ -164,7 +165,7 @@ def clean_library(
         if disk_filter and disk.id != disk_filter:
             continue
         if not disk.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
+            log.warning("library_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
         for category_id in disk.categories:
@@ -175,7 +176,7 @@ def clean_library(
             cat_cfg = config.category(category_id)
             category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
+                log.debug("library_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
             for media_dir in sorted(category_dir.iterdir()):
@@ -219,7 +220,7 @@ def _clean_media_dir(
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Cannot list directory: {media_dir} — {exc}")
-        logger.warning("Cannot list directory %s: %s", media_dir, exc)
+        log.warning("library_clean_list_error", media_dir=str(media_dir), exc_info=exc)
         return
 
     for item in entries:

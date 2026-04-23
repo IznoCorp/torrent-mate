@@ -7,7 +7,6 @@ then applies only the needed fixes. Reuses existing scraper components.
 
 from __future__ import annotations
 
-import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,6 +34,7 @@ from personalscraper.library.scanner import (
     extract_nfo_ids,
     parse_title_year,
 )
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.nfo_utils import is_nfo_complete
 from personalscraper.scraper.confidence import (
@@ -44,7 +44,7 @@ from personalscraper.scraper.confidence import (
 )
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 
-logger = logging.getLogger(__name__)
+log = get_logger("library.rescraper")
 
 
 def _detect_needs(
@@ -143,7 +143,7 @@ def _resolve_tmdb_id(
         else:
             match = match_tvshow(tvdb_client, tmdb_client, title, year)
     except Exception as exc:
-        logger.warning("Match failed for %s: %s", title, exc)
+        log.warning("library_rescrape_match_failed", title=title, exc_info=exc)
         return None, None, None
 
     if match is None:
@@ -158,10 +158,10 @@ def _resolve_tmdb_id(
             if response.lower() != "y":
                 return None, None, match.confidence
         else:
-            logger.info(
-                "Low confidence match for %s: %.0f%% — skipping",
-                title,
-                match.confidence * 100,
+            log.info(
+                "library_rescrape_low_confidence",
+                title=title,
+                confidence=round(match.confidence * 100),
             )
             return None, None, match.confidence
 
@@ -305,10 +305,10 @@ def _rescrape_item(
             if not dry_run:
                 nfo_gen.write_nfo(xml, nfo_path)
             actions.append(ACTION_NFO_REGENERATED)
-            logger.info("%s NFO for %s", "Would regenerate" if dry_run else "Regenerated", title)
+            log.info("library_rescrape_nfo", title=title, dry_run=dry_run)
         except Exception as exc:
             errors.append(f"NFO generation failed: {exc}")
-            logger.error("NFO generation failed for %s: %s", title, exc)
+            log.error("library_rescrape_nfo_failed", title=title, exc_info=exc)
 
     # Fix artwork
     if needs_artwork:
@@ -319,20 +319,20 @@ def _rescrape_item(
                 else:
                     artwork_dl.download_tvshow_artwork(api_data, media_dir, patterns)
             actions.append(ACTION_ARTWORK_DOWNLOADED)
-            logger.info("%s artwork for %s", "Would download" if dry_run else "Downloaded", title)
+            log.info("library_rescrape_artwork", title=title, dry_run=dry_run)
         except Exception as exc:
             errors.append(f"Artwork download failed: {exc}")
-            logger.error("Artwork download failed for %s: %s", title, exc)
+            log.error("library_rescrape_artwork_failed", title=title, exc_info=exc)
 
     # Fix episodes (TV shows only)
     if needs_episodes and media_type == "tvshow":
         try:
             _rescrape_episodes(media_dir, api_data, api_id, tmdb_client, patterns, dry_run)
             actions.append(ACTION_EPISODES_RENAMED)
-            logger.info("%s episodes for %s", "Would rename" if dry_run else "Renamed", title)
+            log.info("library_rescrape_episodes", title=title, dry_run=dry_run)
         except Exception as exc:
             errors.append(f"Episode rename failed: {exc}")
-            logger.error("Episode rename failed for %s: %s", title, exc)
+            log.error("library_rescrape_episodes_failed", title=title, exc_info=exc)
 
     return RescrapeAction(
         path=str(media_dir),
@@ -389,7 +389,7 @@ def _rescrape_episodes(
                     "still_path": ep.get("still_path"),
                 }
         except Exception as exc:
-            logger.warning("Cannot fetch season %d for %s: %s", season_num, show_dir.name, exc)
+            log.warning("library_rescrape_season_fetch_failed", season=season_num, show=show_dir.name, exc_info=exc)
 
     if not all_episodes:
         return
@@ -457,7 +457,7 @@ def rescrape_library(
         if disk_filter and disk.id != disk_filter:
             continue
         if not disk.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
+            log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
         for category_id in disk.categories:
@@ -468,7 +468,7 @@ def rescrape_library(
             cat_cfg = config.category(category_id)
             category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
+                log.debug("library_rescrape_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
             is_series = category_id in TV_CATEGORY_IDS
@@ -500,7 +500,7 @@ def rescrape_library(
                         dry_run=dry_run,
                     )
                 except Exception as exc:
-                    logger.exception("Error rescaping %s", media_dir)
+                    log.exception("library_rescrape_item_error", media_dir=str(media_dir), exc_info=exc)
                     items.append(
                         RescrapeAction(
                             path=str(media_dir),
