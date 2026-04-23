@@ -206,7 +206,17 @@ class AnimeRule(_StrictModel):
     requires_genre_id: int = Field(default=16, description="TMDB Animation genre ID.")
     requires_origin_country: list[str] = Field(default_factory=lambda: ["JP"], description="Codes ISO origin_country.")
     maps_to: str = Field(default="anime", description="category_id résultat.")
-    applies_to: Literal["movies", "tv", "both"] = Field(default="tv", description="Sur quels types de média appliquer.")
+    applies_to: Literal["movie", "tv", "both"] = Field(default="tv", description="Sur quels types de média appliquer.")
+
+    @field_validator("applies_to", mode="before")
+    @classmethod
+    def _normalize_applies_to(cls, value: object) -> object:
+        # Backward-compat: legacy configs used "movies" (plural). The classifier
+        # compares against media_type values ("movie"/"tv") so plural never matched —
+        # silently disabling the rule. Accept and normalize to keep old configs working.
+        if value == "movies":
+            return "movie"
+        return value
 
 
 class StagingDirConfig(_StrictModel):
