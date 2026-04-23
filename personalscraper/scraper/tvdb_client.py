@@ -16,13 +16,13 @@ See docs/TVDB-API.md for the full API reference.
 See docs/tenacity-reference.md for retry strategy details.
 """
 
-import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 import requests
 from requests.adapters import HTTPAdapter
 from tenacity import (
-    before_sleep_log,
+    RetryCallState,
     retry,
     retry_if_exception,
     stop_after_attempt,
@@ -37,6 +37,29 @@ if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
 log = get_logger("tvdb_client")
+
+
+def _log_retry_warning(event: str) -> Callable[[RetryCallState], None]:
+    """Build a tenacity before_sleep callback that logs via structlog.
+
+    Args:
+        event: structlog event name to use for the warning log entry.
+
+    Returns:
+        Callback accepted by tenacity's before_sleep parameter.
+    """
+
+    def _cb(retry_state: RetryCallState) -> None:
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        log.warning(
+            event,
+            attempt=retry_state.attempt_number,
+            wait=retry_state.next_action.sleep if retry_state.next_action else 0,
+            exc_info=exc,
+        )
+
+    return _cb
+
 
 # TVDB source type IDs for cross-referencing
 TVDB_SOURCE_IMDB = 2
@@ -194,7 +217,7 @@ class TVDBClient:
         retry=retry_if_exception(_is_retryable),
         wait=wait_exponential(multiplier=1, min=1, max=30),
         stop=stop_after_attempt(3),
-        before_sleep=before_sleep_log(log, logging.WARNING),
+        before_sleep=_log_retry_warning("tvdb_retry"),
         reraise=True,
     )
     def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
