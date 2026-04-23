@@ -10,8 +10,8 @@ from personalscraper.sorter.run import run_sort
 class TestSortDoubleRun:
     """Test 6: Sort is idempotent — second run skips everything."""
 
-    def test_sort_double_run_idempotent(self, staging, resilience_settings):
-        """Second sort run skips all items (nothing left in 097-TEMP)."""
+    def test_sort_double_run_idempotent(self, staging, resilience_settings, resilience_config):
+        """Second sort run skips all items (nothing left in ingest dir)."""
         temp = staging / "097-TEMP"
 
         # Create item to sort
@@ -20,11 +20,11 @@ class TestSortDoubleRun:
         (item / "movie.mkv").write_text("video")
 
         # First sort
-        report1 = run_sort(resilience_settings, staging_dir=staging)
+        report1 = run_sort(resilience_settings, staging_dir=staging, config=resilience_config)
         assert report1.success_count >= 1
 
-        # Second sort — 097-TEMP should be empty
-        report2 = run_sort(resilience_settings, staging_dir=staging)
+        # Second sort — ingest dir should be empty
+        report2 = run_sort(resilience_settings, staging_dir=staging, config=resilience_config)
         assert report2.success_count == 0
         assert report2.error_count == 0
 

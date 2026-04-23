@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from personalscraper.conf.models import Config
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -43,11 +44,35 @@ def resilience_settings(staging):
     return s
 
 
+@pytest.fixture
+def resilience_config(staging, tmp_path) -> Config:
+    """Real Config with CANONICAL_STAGING_DIRS pointing at the staging fixture.
+
+    Args:
+        staging: Resilience staging directory fixture.
+        tmp_path: Pytest temporary directory (unique per test).
+
+    Returns:
+        Validated Config with staging_dir matching the staging fixture.
+    """
+    return Config.model_validate(
+        {
+            "paths": {
+                "torrent_complete_dir": str(tmp_path / "torrents"),
+                "staging_dir": str(staging),
+                "data_dir": str(tmp_path / ".data"),
+            },
+            "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+            "staging_dirs": [s.model_dump() for s in CANONICAL_STAGING_DIRS],
+        }
+    )
+
+
 def make_valid_movie_dir(movies_dir: Path, title: str = "Movie", year: int = 2024) -> Path:
     """Create a complete movie directory with valid NFO, poster, and video.
 
     Args:
-        movies_dir: Parent category directory (001-MOVIES/).
+        movies_dir: Parent category directory ({movies_dir}/).
         title: Movie title.
         year: Movie year.
 
@@ -82,7 +107,7 @@ def make_valid_tvshow_dir(tvshows_dir: Path, title: str = "Show", year: int = 20
     """Create a complete TV show directory with valid NFO, poster, and episodes.
 
     Args:
-        tvshows_dir: Parent category directory (002-TVSHOWS/).
+        tvshows_dir: Parent category directory ({tvshows_dir}/).
         title: Show title.
         year: Show year.
 
@@ -111,13 +136,3 @@ def make_valid_tvshow_dir(tvshows_dir: Path, title: str = "Show", year: int = 20
     (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
     (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
     return d
-
-
-@pytest.fixture
-def resilience_config():
-    """Minimal config mock with canonical staging_dirs for resilience tests."""
-    from unittest.mock import MagicMock
-
-    c = MagicMock()
-    c.staging_dirs = CANONICAL_STAGING_DIRS
-    return c

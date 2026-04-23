@@ -5,6 +5,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from personalscraper.conf.models import Config
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
+
 
 @pytest.fixture
 def staging(tmp_path: Path) -> Path:
@@ -21,6 +24,22 @@ def gate_settings() -> MagicMock:
     s.ingest_dir_name = "097-TEMP"
     s.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
     return s
+
+
+@pytest.fixture
+def config(tmp_path: Path) -> Config:
+    """Provide a Config with CANONICAL_STAGING_DIRS for run_sort tests."""
+    return Config.model_validate(
+        {
+            "paths": {
+                "torrent_complete_dir": str(tmp_path / "torrents"),
+                "staging_dir": str(tmp_path / "staging"),
+                "data_dir": str(tmp_path / ".data"),
+            },
+            "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+            "staging_dirs": [s.model_dump() for s in CANONICAL_STAGING_DIRS],
+        }
+    )
 
 
 class TestAssertTempEmpty:
@@ -82,27 +101,33 @@ class TestAssertTempEmpty:
 
 
 class TestSortFastSkip:
-    """Tests for sort fast-skip when 097-TEMP is empty."""
+    """Tests for sort fast-skip when the ingest dir is empty."""
 
-    def test_fast_skip_empty_temp(self, gate_settings: MagicMock, staging: Path) -> None:
-        """Sort returns empty report immediately when 097-TEMP is empty."""
+    def test_fast_skip_empty_temp(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
+        """Sort returns empty report immediately when ingest dir is empty."""
         from personalscraper.sorter.run import run_sort
 
         ingest = staging / "097-TEMP"
         ingest.mkdir(parents=True, exist_ok=True)
-        report = run_sort(gate_settings, staging_dir=staging)
+        report = run_sort(gate_settings, staging_dir=staging, config=config)
         assert report.name == "sort"
         assert report.success_count == 0
         assert report.skip_count == 0
         assert report.error_count == 0
 
-    def test_no_fast_skip_with_items(self, gate_settings: MagicMock, staging: Path) -> None:
-        """Sort processes items when 097-TEMP has content."""
+    def test_no_fast_skip_with_items(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
+        """Sort processes items when ingest dir has content."""
+        from personalscraper.conf.staging import folder_name
         from personalscraper.sorter.run import run_sort
 
-        ingest = staging / "097-TEMP"
-        ingest.mkdir(parents=True, exist_ok=True)
+        # Create staging subdirs so strategies can resolve destinations
+        staging_root = config.paths.staging_dir
+        staging_root.mkdir(parents=True, exist_ok=True)
+        for entry in config.staging_dirs:
+            (staging_root / folder_name(entry)).mkdir(parents=True, exist_ok=True)
+
+        ingest = staging_root / "097-TEMP"
         (ingest / "movie.mkv").write_text("video")
-        report = run_sort(gate_settings, staging_dir=staging)
+        report = run_sort(gate_settings, staging_dir=staging_root, config=config)
         # At least one item was processed (moved or skipped)
         assert report.success_count + report.skip_count + report.error_count > 0

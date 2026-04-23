@@ -12,15 +12,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType
 from personalscraper.sorter.matcher import find_matching_directory
-
-if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
 
 
 class SortingStrategy(ABC):
@@ -31,7 +28,7 @@ class SortingStrategy(ABC):
     """
 
     @abstractmethod
-    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config | None = None) -> Path:
+    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config) -> Path:
         """Compute the destination path for a media item.
 
         Args:
@@ -53,7 +50,7 @@ class MovieStrategy(SortingStrategy):
     Otherwise creates a new folder named 'Title (Year)' or 'Title'.
     """
 
-    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config | None = None) -> Path:
+    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config) -> Path:
         """Return {dirname}/Title (Year)/ or existing matching folder.
 
         Args:
@@ -65,11 +62,8 @@ class MovieStrategy(SortingStrategy):
         Returns:
             Destination path inside the movies staging directory.
         """
-        if config is not None:
-            entry = find_by_file_type(config, FileType.MOVIE)
-            movies_dir = staging_path(config, entry)
-        else:
-            movies_dir = staging_dir / "001-MOVIES"  # fallback for legacy call sites only
+        entry = find_by_file_type(config, FileType.MOVIE)
+        movies_dir = staging_path(config, entry)
         clean_name = cleaner.clean_for_folder(name)
 
         # Check for existing matching folder
@@ -90,7 +84,7 @@ class TVShowStrategy(SortingStrategy):
     to merge new episodes into existing show folders.
     """
 
-    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config | None = None) -> Path:
+    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config) -> Path:
         """Return {dirname}/Show Name/ or existing matching folder.
 
         Args:
@@ -102,11 +96,8 @@ class TVShowStrategy(SortingStrategy):
         Returns:
             Destination path inside the TV shows staging directory.
         """
-        if config is not None:
-            entry = find_by_file_type(config, FileType.TVSHOW)
-            tvshows_dir = staging_path(config, entry)
-        else:
-            tvshows_dir = staging_dir / "002-TVSHOWS"  # fallback for legacy call sites only
+        entry = find_by_file_type(config, FileType.TVSHOW)
+        tvshows_dir = staging_path(config, entry)
 
         # Extract show name without season/episode info and without year.
         # Sort creates "Show Name/"; the scraping step renames to "Show Name (Year)/".
@@ -146,7 +137,7 @@ class DefaultStrategy(SortingStrategy):
         """
         self.file_type = file_type
 
-    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config | None = None) -> Path:
+    def get_destination(self, name: str, staging_dir: Path, cleaner: NameCleaner, config: Config) -> Path:
         """Return the type-specific directory path.
 
         Args:
@@ -158,17 +149,8 @@ class DefaultStrategy(SortingStrategy):
         Returns:
             The type-specific directory path.
         """
-        if config is not None:
-            try:
-                entry = find_by_file_type(config, self.file_type)
-            except KeyError:
-                entry = find_by_file_type(config, FileType.OTHER)
-            return staging_path(config, entry)
-        # Fallback hardcoded names — only reached before config is wired
-        _fallback: dict[FileType, str] = {
-            FileType.EBOOK: "003-EBOOKS",
-            FileType.AUDIO: "004-AUDIO",
-            FileType.APP: "005-APPS",
-            FileType.OTHER: "098-AUTRES",
-        }
-        return staging_dir / _fallback.get(self.file_type, "098-AUTRES")
+        try:
+            entry = find_by_file_type(config, self.file_type)
+        except KeyError:
+            entry = find_by_file_type(config, FileType.OTHER)
+        return staging_path(config, entry)
