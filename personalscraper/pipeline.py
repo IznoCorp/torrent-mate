@@ -336,7 +336,7 @@ class Pipeline:
         """
         from personalscraper.sorter.run import assert_temp_empty
 
-        remaining = assert_temp_empty(self.settings, staging_dir=self.config.paths.staging_dir)
+        remaining = assert_temp_empty(self.settings, staging_dir=self.config.paths.staging_dir, config=self.config)
         if remaining:
             self._log.warning(
                 "Gate 097-TEMP: %d unsorted files remain: %s",

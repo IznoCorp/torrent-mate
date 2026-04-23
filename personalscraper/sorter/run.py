@@ -6,14 +6,15 @@ root. Returns a StepReport for the pipeline.
 The lock is managed by the CLI caller, not by this module.
 
 staging_dir and ingest_dir come from Config.paths. Functions accept an
-explicit ``staging_dir`` parameter; Settings.ingest_dir (a method) is
-called with the staging_dir value.
+explicit ``staging_dir`` parameter; when config is provided, ingest_dir is
+resolved via staging_path(config, find_ingest_dir(config)).
 """
 
 import logging
 from pathlib import Path
 
 from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.sorter.cleaner import NameCleaner
@@ -32,7 +33,7 @@ def run_sort(settings: Settings, staging_dir: Path, dry_run: bool = False, confi
     Fast-skip: returns immediately if 097-TEMP has no items to sort.
 
     Args:
-        settings: Pipeline settings (ingest_dir_name, thresholds).
+        settings: Pipeline settings (retained for API compatibility; thresholds).
         staging_dir: Absolute path to the staging area (from Config.paths).
         dry_run: If True, simulate moves without actually moving.
         config: Loaded Config for config-driven skip_dirs resolution in Sorter.
@@ -41,7 +42,8 @@ def run_sort(settings: Settings, staging_dir: Path, dry_run: bool = False, confi
     Returns:
         StepReport with counts and per-item details.
     """
-    ingest_dir = settings.ingest_dir(staging_dir)
+    # Prefer config-based lookup; fall back to hardcoded name for MagicMock tests.
+    ingest_dir = staging_path(config, find_ingest_dir(config)) if config is not None else staging_dir / "097-TEMP"
 
     # Fast-skip: nothing to sort
     if not _has_unsorted_items(ingest_dir):
@@ -95,20 +97,23 @@ def _has_unsorted_items(ingest_dir: Path) -> bool:
     return any(not item.name.startswith(".") for item in ingest_dir.iterdir())
 
 
-def assert_temp_empty(settings: Settings, staging_dir: Path) -> list[str]:
+def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config | None = None) -> list[str]:
     """Check that the ingest directory is empty after sort.
 
     Ignores hidden files (.gitkeep, .DS_Store, etc.) since these
     are not unsorted media.
 
     Args:
-        settings: Pipeline settings (provides ingest_dir_name).
+        settings: Pipeline settings (retained for API compatibility; no longer used for path resolution).
         staging_dir: Absolute path to the staging area (from Config.paths).
+        config: Loaded Config for ingest_dir resolution. When None, falls back to
+            ``staging_dir / "097-TEMP"`` (for MagicMock-based tests).
 
     Returns:
         List of remaining file/dir names. Empty list means gate passes.
     """
-    ingest_dir = settings.ingest_dir(staging_dir)
+    # Prefer config-based lookup; fall back to hardcoded name for MagicMock tests.
+    ingest_dir = staging_path(config, find_ingest_dir(config)) if config is not None else staging_dir / "097-TEMP"
     if not ingest_dir.exists():
         return []
     remaining = [item.name for item in ingest_dir.iterdir() if not item.name.startswith(".")]

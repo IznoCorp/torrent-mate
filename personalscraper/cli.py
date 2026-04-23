@@ -221,7 +221,7 @@ def sort(
     try:
         _bootstrap_staging(ctx)
         settings = get_settings()
-        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run)
+        report = run_sort(settings, staging_dir=config.paths.staging_dir, dry_run=dry_run, config=config)
         console.print(
             f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
