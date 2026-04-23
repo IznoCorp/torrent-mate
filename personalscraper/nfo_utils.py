@@ -5,11 +5,12 @@ pipeline (scraper, library scanner, verify). Moved from
 scraper/scraper.py to enable cross-module access.
 """
 
-import logging
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+log = get_logger("nfo_utils")
 
 
 # Values that appear in <uniqueid> text but do not identify a real record.
@@ -47,8 +48,8 @@ def is_nfo_complete(nfo_path: Path) -> bool:
                 return True
         return False
     except ET.ParseError:
-        logger.debug("NFO not parsable as XML: %s", nfo_path.name)
+        log.debug("nfo_not_parsable", file=nfo_path.name)
         return False
     except OSError as exc:
-        logger.warning("Cannot read NFO file %s: %s", nfo_path, exc)
+        log.warning("nfo_read_failed", path=str(nfo_path), error=str(exc))
         return False
