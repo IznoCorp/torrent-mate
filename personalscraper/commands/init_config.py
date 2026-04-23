@@ -28,6 +28,58 @@ logger = logging.getLogger(__name__)
 _REQUIRED_DISK_VARS = ["DISK1_DIR", "DISK2_DIR", "DISK3_DIR", "DISK4_DIR"]
 _REQUIRED_PATH_VARS = ["STAGING_DIR", "TORRENT_COMPLETE_DIR"]
 
+
+def _folder_to_name(folder: str) -> str:
+    """Extract kebab-case name from a folder like '001-MOVIES' to 'movies'.
+
+    Strips the leading NNN- numeric prefix and lowercases the remainder.
+    If the string does not match the NNN-NAME pattern the whole string is
+    lowercased and returned unchanged.
+
+    Args:
+        folder: Folder name string in NNN-NAME format (e.g. '001-MOVIES').
+
+    Returns:
+        Lowercase kebab-case name portion (e.g. 'movies', 'tv-shows').
+    """
+    parts = folder.split("-", 1)
+    if len(parts) == 2 and parts[0].isdigit():
+        return parts[1].lower()
+    return folder.lower()
+
+
+def _build_staging_dirs_from_env(env: dict[str, str]) -> list[dict]:
+    """Convert legacy *_dir_name env vars to staging_dirs entries.
+
+    Reads the raw .env dict (not Settings) to extract the 7 old dir name
+    overrides. Missing keys fall back to the canonical defaults matching
+    the layout defined in ``config.example.json5``.
+
+    The android entry (id=6) has no legacy env var equivalent and always
+    uses the canonical default name ``android``.
+
+    Args:
+        env: Dict of env var names to values from the user's .env file.
+
+    Returns:
+        List of 8 staging_dirs dicts ready for injection into config.json5.
+    """
+
+    def _get(key: str, default: str) -> str:
+        return env.get(key, default)
+
+    return [
+        {"id": 1, "name": _folder_to_name(_get("MOVIES_DIR_NAME", "001-MOVIES")), "file_type": "movie"},
+        {"id": 2, "name": _folder_to_name(_get("TVSHOWS_DIR_NAME", "002-TVSHOWS")), "file_type": "tvshow"},
+        {"id": 3, "name": _folder_to_name(_get("EBOOKS_DIR_NAME", "003-EBOOKS")), "file_type": "ebook"},
+        {"id": 4, "name": _folder_to_name(_get("AUDIO_DIR_NAME", "004-AUDIO")), "file_type": "audio"},
+        {"id": 5, "name": _folder_to_name(_get("APPS_DIR_NAME", "005-APPS")), "file_type": "app"},
+        {"id": 6, "name": "android", "file_type": "app"},
+        {"id": 97, "name": _folder_to_name(_get("INGEST_DIR_NAME", "097-TEMP")), "file_type": None, "role": "ingest"},
+        {"id": 98, "name": _folder_to_name(_get("OTHER_DIR_NAME", "098-AUTRES")), "file_type": "other"},
+    ]
+
+
 # Library JSON files migrated by migrate_library_json (preferences excluded).
 _LIBRARY_JSON_FILES = [
     "library_index.json",
@@ -88,10 +140,11 @@ def _run_from_current(
     Performs the full migration from the legacy layout:
     1. Parse ``.env`` for DISK*_DIR, STAGING_DIR, TORRENT_COMPLETE_DIR.
     2. Generate config dict via ``generate_config_from_env``.
-    3. Migrate ``.personalscraper/`` → ``.data/`` (if source exists).
-    4. Rewrite ``library_*.json`` files with current category IDs.
-    5. Merge ``library_preferences.json`` into config["library"].
-    6. Migrate ``.category`` files → NFO ``<category>`` elements.
+    3. Override ``staging_dirs`` from legacy *_dir_name env vars.
+    4. Migrate ``.personalscraper/`` → ``.data/`` (if source exists).
+    5. Rewrite ``library_*.json`` files with current category IDs.
+    6. Merge ``library_preferences.json`` into config["library"].
+    7. Migrate ``.category`` files → NFO ``<category>`` elements.
 
     Args:
         output: Intended output path (for log context only).
@@ -134,7 +187,11 @@ def _run_from_current(
     # Step 2: Generate config dict (with library prefs merged if available).
     config_dict = generate_config_from_env(env_values, library_prefs_path=prefs_path)
 
-    # Step 3: Migrate data directory.
+    # Step 3: Override staging_dirs from legacy *_dir_name env vars so any
+    # custom folder names set by the user are preserved in the generated config.
+    config_dict["staging_dirs"] = _build_staging_dirs_from_env(env_values)
+
+    # Step 4: Migrate data directory.
     if v14_data_dir.is_dir():
         try:
             new_data_dir = migrate_data_dir(staging_dir)
@@ -146,7 +203,7 @@ def _run_from_current(
     else:
         new_data_dir = staging_dir / ".data"
 
-    # Step 4: Rewrite library_*.json files in new data dir.
+    # Step 5: Rewrite library_*.json files in new data dir.
     for fname in _LIBRARY_JSON_FILES:
         fpath = new_data_dir / fname
         if fpath.is_file():
@@ -157,7 +214,7 @@ def _run_from_current(
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Error migrating %s: %s — skipping", fname, exc)
 
-    # Step 5: Back up and remove library_preferences.json after merging.
+    # Step 6: Back up and remove library_preferences.json after merging.
     if prefs_path and prefs_path.is_file():
         bak = prefs_path.with_suffix(".json.v14.bak")
         if not bak.exists():
@@ -166,7 +223,7 @@ def _run_from_current(
         else:
             logger.warning("Preferences backup already exists at %s — not removing original", bak)
 
-    # Step 6: Migrate .category files.
+    # Step 7: Migrate .category files.
     try:
         count = migrate_category_files(staging_dir, data_dir=new_data_dir)
         logger.info("Migrated %d .category file(s) to NFO <category> elements", count)

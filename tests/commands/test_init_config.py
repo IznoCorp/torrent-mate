@@ -306,3 +306,170 @@ class TestInitConfigFromCurrentValid:
         init_config(EXAMPLE_JSON5, output, interactive=False, from_current=True, force=False)
         parsed = json5.loads(output.read_text(encoding="utf-8"))
         assert str(tmp_path) in parsed["paths"]["staging_dir"]
+
+
+# ===========================================================================
+# 2.5 — _folder_to_name helper
+# ===========================================================================
+
+
+class TestFolderToName:
+    """Tests for the _folder_to_name helper."""
+
+    from personalscraper.commands.init_config import _folder_to_name
+
+    def test_strips_nnn_prefix_and_lowercases(self) -> None:
+        """'001-MOVIES' must yield 'movies'."""
+        from personalscraper.commands.init_config import _folder_to_name
+
+        assert _folder_to_name("001-MOVIES") == "movies"
+
+    def test_multi_segment_name(self) -> None:
+        """'002-TVSHOWS' must yield 'tvshows'."""
+        from personalscraper.commands.init_config import _folder_to_name
+
+        assert _folder_to_name("002-TVSHOWS") == "tvshows"
+
+    def test_no_nnn_prefix_returns_lower(self) -> None:
+        """Folder without NNN- prefix is lowercased as-is."""
+        from personalscraper.commands.init_config import _folder_to_name
+
+        assert _folder_to_name("MOVIES") == "movies"
+
+    def test_three_digit_id_97(self) -> None:
+        """'097-TEMP' must yield 'temp'."""
+        from personalscraper.commands.init_config import _folder_to_name
+
+        assert _folder_to_name("097-TEMP") == "temp"
+
+
+# ===========================================================================
+# 2.5 — _build_staging_dirs_from_env helper
+# ===========================================================================
+
+
+class TestBuildStagingDirsFromEnv:
+    """Tests for the _build_staging_dirs_from_env helper."""
+
+    def test_returns_8_entries(self) -> None:
+        """Must always return exactly 8 entries."""
+        from personalscraper.commands.init_config import _build_staging_dirs_from_env
+
+        result = _build_staging_dirs_from_env({})
+        assert len(result) == 8
+
+    def test_canonical_defaults_when_no_env_vars(self) -> None:
+        """Without legacy env vars, canonical defaults are used."""
+        from personalscraper.commands.init_config import _build_staging_dirs_from_env
+
+        result = _build_staging_dirs_from_env({})
+        ids = [e["id"] for e in result]
+        assert ids == [1, 2, 3, 4, 5, 6, 97, 98]
+        names = [e["name"] for e in result]
+        assert names == ["movies", "tvshows", "ebooks", "audio", "apps", "android", "temp", "autres"]
+
+    def test_custom_movies_dir_name_overrides_default(self) -> None:
+        """MOVIES_DIR_NAME env var must override the id=1 entry name."""
+        from personalscraper.commands.init_config import _build_staging_dirs_from_env
+
+        result = _build_staging_dirs_from_env({"MOVIES_DIR_NAME": "001-FILMS"})
+        movies_entry = next(e for e in result if e["id"] == 1)
+        assert movies_entry["name"] == "films"
+
+    def test_ingest_role_preserved(self) -> None:
+        """The id=97 entry must always have role='ingest'."""
+        from personalscraper.commands.init_config import _build_staging_dirs_from_env
+
+        result = _build_staging_dirs_from_env({})
+        ingest = next(e for e in result if e["id"] == 97)
+        assert ingest.get("role") == "ingest"
+
+    def test_android_entry_always_android(self) -> None:
+        """The id=6 entry has no env var override and is always 'android'."""
+        from personalscraper.commands.init_config import _build_staging_dirs_from_env
+
+        result = _build_staging_dirs_from_env({"APPS_DIR_NAME": "005-CUSTOM"})
+        android_entry = next(e for e in result if e["id"] == 6)
+        assert android_entry["name"] == "android"
+
+    def test_file_types_correct(self) -> None:
+        """file_type values must match canonical spec."""
+        from personalscraper.commands.init_config import _build_staging_dirs_from_env
+
+        result = _build_staging_dirs_from_env({})
+        by_id = {e["id"]: e for e in result}
+        assert by_id[1]["file_type"] == "movie"
+        assert by_id[2]["file_type"] == "tvshow"
+        assert by_id[97]["file_type"] is None
+        assert by_id[98]["file_type"] == "other"
+
+
+# ===========================================================================
+# 2.5 — --from-current emits staging_dirs
+# ===========================================================================
+
+
+class TestInitConfigFromCurrentStagingDirs:
+    """Tests that --from-current emits a staging_dirs section."""
+
+    def _setup_env(self, tmp_path: Path) -> None:
+        """Create a minimal valid .env in tmp_path.
+
+        Args:
+            tmp_path: Temporary directory for this test.
+        """
+        disk1 = tmp_path / "disk1"
+        disk1.mkdir()
+        (tmp_path / ".env").write_text(
+            f"DISK1_DIR={disk1}\nSTAGING_DIR={tmp_path}\nTORRENT_COMPLETE_DIR={tmp_path / 'complete'}\n",
+            encoding="utf-8",
+        )
+
+    def test_from_current_emits_staging_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """--from-current must emit a staging_dirs section with 8 entries."""
+        self._setup_env(tmp_path)
+        output = tmp_path / "config.json5"
+        monkeypatch.chdir(tmp_path)
+        for var in ["DISK1_DIR", "DISK2_DIR", "DISK3_DIR", "DISK4_DIR", "STAGING_DIR", "TORRENT_COMPLETE_DIR"]:
+            monkeypatch.delenv(var, raising=False)
+
+        init_config(EXAMPLE_JSON5, output, interactive=False, from_current=True, force=False)
+        parsed = json5.loads(output.read_text(encoding="utf-8"))
+
+        assert "staging_dirs" in parsed, "staging_dirs section must be present in generated config"
+        assert len(parsed["staging_dirs"]) == 8, "staging_dirs must have exactly 8 entries"
+
+    def test_from_current_staging_dirs_has_correct_ids(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """staging_dirs entries must have ids 1-6, 97, 98."""
+        self._setup_env(tmp_path)
+        output = tmp_path / "config.json5"
+        monkeypatch.chdir(tmp_path)
+        for var in ["DISK1_DIR", "DISK2_DIR", "DISK3_DIR", "DISK4_DIR", "STAGING_DIR", "TORRENT_COMPLETE_DIR"]:
+            monkeypatch.delenv(var, raising=False)
+
+        init_config(EXAMPLE_JSON5, output, interactive=False, from_current=True, force=False)
+        parsed = json5.loads(output.read_text(encoding="utf-8"))
+        ids = sorted(e["id"] for e in parsed["staging_dirs"])
+        assert ids == [1, 2, 3, 4, 5, 6, 97, 98]
+
+    def test_from_current_respects_custom_dir_name_env_var(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """MOVIES_DIR_NAME in .env must override the movies staging entry name."""
+        disk1 = tmp_path / "disk1"
+        disk1.mkdir()
+        (tmp_path / ".env").write_text(
+            f"DISK1_DIR={disk1}\nSTAGING_DIR={tmp_path}\n"
+            f"TORRENT_COMPLETE_DIR={tmp_path / 'complete'}\n"
+            "MOVIES_DIR_NAME=001-FILMS\n",
+            encoding="utf-8",
+        )
+        output = tmp_path / "config.json5"
+        monkeypatch.chdir(tmp_path)
+        for var in ["DISK1_DIR", "DISK2_DIR", "DISK3_DIR", "DISK4_DIR", "STAGING_DIR", "TORRENT_COMPLETE_DIR"]:
+            monkeypatch.delenv(var, raising=False)
+
+        init_config(EXAMPLE_JSON5, output, interactive=False, from_current=True, force=False)
+        parsed = json5.loads(output.read_text(encoding="utf-8"))
+        movies = next(e for e in parsed["staging_dirs"] if e["id"] == 1)
+        assert movies["name"] == "films"
