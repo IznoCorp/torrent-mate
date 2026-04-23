@@ -80,6 +80,59 @@ STAGING_DIR=/Volumes/IznoServer SSD/A TRIER
 
 ---
 
+## Configuration config.json5
+
+Depuis la version 0.4.0, les chemins principaux et la disposition du staging sont
+définis dans `config.json5` (en plus du `.env`).
+
+### `paths.staging_dir`
+
+Chemin vers le répertoire de staging racine où les médias arrivent pour traitement.
+
+- **Exemple (config.example.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
+- **Défaut en production :** `/Volumes/IznoServer SSD/staging/`
+- Les chemins relatifs sont résolus en chemins absolus au chargement via `Path.expanduser().resolve()`.
+- L'arborescence de staging est créée automatiquement au premier lancement — aucun `mkdir` manuel requis.
+
+### `paths.data_dir`
+
+Chemin vers le répertoire d'état du pipeline (index, locks, cache d'analyse).
+
+- **Défaut :** `/Volumes/IznoServer SSD/A TRIER/.data`
+- Cette valeur est **explicite** dans `config.json5` — elle peut être déplacée avec
+  une seule modification de config. Le répertoire physique n'a pas bougé.
+- Différent de `staging_dir`.
+
+### `staging_dirs`
+
+**Requis** (depuis la version 0.4.0). Définit la disposition des sous-répertoires de la zone de staging.
+
+Chaque entrée :
+
+| Champ       | Type         | Requis | Description                                                                                  |
+| ----------- | ------------ | ------ | -------------------------------------------------------------------------------------------- |
+| `id`        | int [0–999]  | oui    | Préfixe numérique. Utilisé pour calculer le nom du dossier : `f"{id:03d}-{name.upper()}"`.   |
+| `name`      | string       | oui    | Label kebab-case (ex: `"movies"`, `"tv-shows"`). Mis en majuscules pour le dossier.          |
+| `file_type` | string\|null | non    | Valeur enum FileType : `"movie"`, `"tvshow"`, `"ebook"`, `"audio"`, `"app"`, `"other"`.      |
+| `role`      | string\|null | non    | Rôle fonctionnel. Seul `"ingest"` est défini. Exactement une entrée doit avoir cette valeur. |
+
+**Règles de validation :**
+
+- Les valeurs `id` doivent être uniques parmi toutes les entrées.
+- Exactement une entrée doit avoir `role: "ingest"`.
+- `file_type` doit être un membre valide de l'enum FileType si défini.
+
+**Exemple :**
+
+```json5
+staging_dirs: [
+  {id: 1,  name: "movies",  file_type: "movie"},
+  {id: 97, name: "temp",    file_type: null,   role: "ingest"},
+],
+```
+
+---
+
 ## TMDB (The Movie Database)
 
 Clé API pour la recherche de métadonnées films et séries (Scrape).

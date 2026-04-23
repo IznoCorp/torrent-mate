@@ -14,13 +14,13 @@ qBittorrent  →  A TRIER/ (staging)  →  Disques de stockage (Disk1-4)
                personalscraper run
 ```
 
-| Etape        | Commande                   | Description                                            |
-| ------------ | -------------------------- | ------------------------------------------------------ |
-| **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent |
-| **Sort**     | `personalscraper sort`     | Tri dans 001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.      |
-| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)          |
-| **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre            |
-| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage             |
+| Etape        | Commande                   | Description                                                    |
+| ------------ | -------------------------- | -------------------------------------------------------------- |
+| **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent         |
+| **Sort**     | `personalscraper sort`     | Tri dans les dossiers de staging (définis dans `staging_dirs`) |
+| **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)                  |
+| **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre                    |
+| **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage                     |
 
 Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour prévisualiser).
 
@@ -47,15 +47,18 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées.
 
 ```
 A TRIER/
-├── 001-MOVIES/          # Films en attente de traitement
-├── 002-TVSHOWS/         # Séries en attente
-├── 004-AUDIO/           # Livres audio
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
-├── tests/               # 1466 tests unitaires + 114 E2E
-├── pyproject.toml       # Dépendances et configuration
+├── tests/               # Tests unitaires + E2E
+├── docs/                # Documentation
+├── config.json5         # Configuration utilisateur (suivi par git)
+├── config.example.json5 # Exemple de configuration
 ├── Makefile             # make test/lint/format/install-dev
 └── .env.example         # Template de configuration
 ```
+
+Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
+défini par `paths.staging_dir` dans `config.json5` — en dehors du dépôt par défaut.
+Ils ne sont pas suivis par git.
 
 ## Commandes utiles
 

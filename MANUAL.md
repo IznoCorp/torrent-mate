@@ -13,8 +13,8 @@ Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
 
 **Pipeline automatisé (PersonalScraper) :**
 
-1. **Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers `097-TEMP/`
-2. **Sort** — Les fichiers sont triés dans les sous-dossiers (001-MOVIES, 002-TVSHOWS, etc.)
+1. **Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers le dossier ingest (par défaut `097-TEMP/`, configurable via `staging_dirs`)
+2. **Sort** — Les fichiers sont triés dans les sous-dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc., définis dans `staging_dirs`)
 3. **Clean** — Nettoyage noms (reclean) + dédoublonnage fuzzy (dedup)
 4. **Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
 5. **Cleanup** — Suppression des dossiers vides
@@ -22,6 +22,67 @@ Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
 7. **Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
 
 > **Note :** MediaElch reste disponible comme fallback manuel pour le scraping si l'API ne trouve pas le résultat.
+
+---
+
+## Staging layout
+
+PersonalScraper uses a staging area where downloaded media lands before
+being processed and dispatched to permanent storage. From version 0.4.0,
+the staging tree lives **outside the repository** at the path configured
+in `config.json5` under `paths.staging_dir`.
+
+The subdirectory names are defined by `staging_dirs` in `config.json5`.
+Each entry has an `id` (numeric prefix, 0–999) and a `name` (kebab-case).
+The on-disk folder name is `{id:03d}-{name.upper()}`, e.g.:
+
+| id  | name    | folder name |
+| --- | ------- | ----------- |
+| 1   | movies  | 001-MOVIES  |
+| 2   | tvshows | 002-TVSHOWS |
+| 97  | temp    | 097-TEMP    |
+
+### Migrating from ≤ 0.3.0
+
+After upgrading, your `config.json5` must be updated to include
+`staging_dirs`. Without it, PersonalScraper will exit with:
+
+> `staging_dirs` missing from config.json5 — see MANUAL.md §Staging layout for migration steps.
+
+**Step 1**: Add `staging_dirs` to your `config.json5`. Copy the section
+from `config.example.json5` and adjust if you have custom directory names.
+
+**Step 2**: Set `paths.staging_dir` to the external location. Default
+used in production: `/Volumes/IznoServer SSD/staging/`.
+
+**Step 3**: Move your existing staging content to the new location. One
+command per directory:
+
+```bash
+rsync -a "/Volumes/IznoServer SSD/A TRIER/001-MOVIES/" \
+         "/Volumes/IznoServer SSD/staging/001-MOVIES/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/002-TVSHOWS/" \
+         "/Volumes/IznoServer SSD/staging/002-TVSHOWS/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/003-EBOOKS/" \
+         "/Volumes/IznoServer SSD/staging/003-EBOOKS/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/004-AUDIO/" \
+         "/Volumes/IznoServer SSD/staging/004-AUDIO/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/005-APPS/" \
+         "/Volumes/IznoServer SSD/staging/005-APPS/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/006-ANDROID/" \
+         "/Volumes/IznoServer SSD/staging/006-ANDROID/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/097-TEMP/" \
+         "/Volumes/IznoServer SSD/staging/097-TEMP/"
+rsync -a "/Volumes/IznoServer SSD/A TRIER/098-AUTRES/" \
+         "/Volumes/IznoServer SSD/staging/098-AUTRES/"
+```
+
+After rsync completes, verify the transfer, then delete the originals from
+the repository directory if desired.
+
+**Note on `099-SCRIPTS/`**: This directory has been removed from git
+tracking but its files remain on disk at their original location. The user
+is responsible for moving or archiving these files separately.
 
 ---
 
@@ -137,17 +198,8 @@ df -h /Volumes/Disk{1,2,3,4}
 
 ```
 A TRIER/
-├── 001-MOVIES/          Films en attente
-├── 002-TVSHOWS/         Séries en attente
-├── 003-EBOOKS/          Ebooks
-├── 004-AUDIO/           Livres audio
-├── 005-APPS/            Applications
-├── 006-ANDROID/         APK Android
-├── 097-TEMP/            Espace temporaire
-├── 098-AUTRES/          Divers
-├── 099-SCRIPTS/         Scripts legacy (.bak, gitignored)
 ├── personalscraper/     Package Python (CLI)
-│   ├── ingest/          qBittorrent → 097-TEMP/
+│   ├── ingest/          qBittorrent → dossier ingest (ex: 097-TEMP/)
 │   ├── sorter/          guessit + strategies → dossiers catégorie
 │   ├── process/         reclean, dedup, cleanup
 │   ├── scraper/         TMDB/TVDB matching, NFO, artwork
@@ -157,6 +209,10 @@ A TRIER/
 ├── tests/               Tests unitaires + E2E
 └── assets/torrents/     Fichiers .torrent pour tests E2E
 ```
+
+Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
+défini par `paths.staging_dir` dans `config.json5` — en dehors du dépôt par défaut.
+Ils ne sont pas suivis par git.
 
 ### Nommage des films
 
@@ -214,7 +270,7 @@ Produit : fichiers `.nfo` (XML Kodi), posters, fanarts, banners, et renomme les 
 
 Si l'API ne trouve pas un résultat, MediaElch (application de bureau GUI) peut être utilisé manuellement :
 
-1. Ouvrir MediaElch, charger le dossier 001-MOVIES ou 002-TVSHOWS
+1. Ouvrir MediaElch, charger le dossier de staging des films ou des séries (ex: `001-MOVIES/` ou `002-TVSHOWS/`)
 2. Lancer la recherche (TMDb/TheTVDB)
 3. Télécharger poster, fanart, banner, etc.
 4. Sauvegarder → génère le fichier `.nfo`
