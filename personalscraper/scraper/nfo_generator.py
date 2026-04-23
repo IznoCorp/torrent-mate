@@ -214,18 +214,26 @@ class NFOGenerator:
         )
 
         # --- IDs (TMDB default for TV shows, unlike movies) ---
-        external_ids = show_data.get("external_ids", {})
-        imdb_id = external_ids.get("imdb_id", "")
-        tmdb_id = str(show_data.get("id", ""))
-        tvdb_id = str(external_ids.get("tvdb_id", ""))
+        # When TMDB resolves to 0/empty (show missing from TMDB), promote TVDB
+        # as default so Kodi/Jellyfin lookups don't hit an invalid id.
+        external_ids = show_data.get("external_ids") or {}
+        imdb_id = external_ids.get("imdb_id") or ""
+        raw_tmdb_id = show_data.get("id")
+        raw_tvdb_id = external_ids.get("tvdb_id")
+        tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
+        tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
 
-        uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-        uniqueid_tmdb.set("default", "true")
-        uniqueid_tmdb.set("type", "tmdb")
-        if tvdb_id and tvdb_id not in ("", "None"):
+        tmdb_is_default = bool(tmdb_id)
+        if tmdb_id:
+            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+            uniqueid_tmdb.set("default", "true")
+            uniqueid_tmdb.set("type", "tmdb")
+        if tvdb_id:
             uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
+            if not tmdb_is_default:
+                uniqueid_tvdb.set("default", "true")
             uniqueid_tvdb.set("type", "tvdb")
-        uniqueid_imdb = _sub(root, "uniqueid", imdb_id or "")
+        uniqueid_imdb = _sub(root, "uniqueid", imdb_id)
         uniqueid_imdb.set("type", "imdb")
         _sub(root, "id", tmdb_id)
 
@@ -318,14 +326,24 @@ class NFOGenerator:
         _sub(root, "showtitle", episode_data.get("showtitle", ""))
 
         # --- IDs (TVDB default for episodes) ---
-        tvdb_id = str(episode_data.get("tvdb_id", ""))
-        tmdb_id = str(episode_data.get("id", episode_data.get("tmdb_id", "")))
+        # When an id resolves to None/0/"" the tag is omitted rather than
+        # written as the literal string "None" (Kodi reads "None" as a real
+        # id and tries to look it up, poisoning the scraper cache).
+        raw_tvdb_id = episode_data.get("tvdb_id")
+        raw_tmdb_id = episode_data.get("id", episode_data.get("tmdb_id"))
+        tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
+        tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
 
-        uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
-        uniqueid_tvdb.set("default", "true")
-        uniqueid_tvdb.set("type", "tvdb")
-        uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-        uniqueid_tmdb.set("type", "tmdb")
+        tvdb_is_default = bool(tvdb_id)
+        if tvdb_id:
+            uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
+            uniqueid_tvdb.set("default", "true")
+            uniqueid_tvdb.set("type", "tvdb")
+        if tmdb_id:
+            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+            if not tvdb_is_default:
+                uniqueid_tmdb.set("default", "true")
+            uniqueid_tmdb.set("type", "tmdb")
 
         # --- Ratings (episodes use "tmdb" not "themoviedb") ---
         self._add_ratings(root, episode_data, rating_name="tmdb")

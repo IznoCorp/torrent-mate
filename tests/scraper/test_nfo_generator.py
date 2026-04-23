@@ -415,7 +415,7 @@ SAMPLE_EPISODE_DATA = {
     "name": "La Fin",
     "showtitle": "Fallout",
     "id": 2362884,
-    "tvdb_id": "",
+    "tvdb_id": "9876543",
     "season_number": 1,
     "episode_number": 1,
     "overview": "Fille du superviseur de l'Abri 33...",
