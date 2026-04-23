@@ -270,7 +270,7 @@ class Dispatcher:
             IndexEntry with a validated (existing) path, or ``None`` if the
             item is not present on any disk.
         """
-        entry = self.index.find(name, media_type)
+        entry = self.index.find(name, media_type, fuzzy_config=self.config.fuzzy_match)
         if entry is not None and Path(entry.path).exists():
             return entry
 

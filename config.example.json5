@@ -137,6 +137,20 @@
     default_tv_category: "tv_shows",
   },
 
+  // Seuils du matcher fuzzy (anti-faux-positifs). Tous sont optionnels —
+  // les valeurs ci-dessous sont les défauts codés dans le modèle Pydantic.
+  fuzzy_match: {
+    // Garde 1: rejet si len(shorter) / len(longer) < ce ratio. (0.0, 1.0]
+    min_length_ratio: 0.67,
+    // Frontière inclusive (en nombre de caractères normalisés) entre titres
+    // "courts" et "longs" pour la sélection du seuil adaptatif.
+    short_title_length: 10,
+    // Seuil WRatio (0-100) requis pour les titres ≤ short_title_length.
+    short_title_threshold: 95.0,
+    // Seuil WRatio (0-100) requis pour les titres > short_title_length.
+    long_title_threshold: 90.0,
+  },
+
   // Préférences library (anciennement library_preferences.json V14)
   library: {
     video: {

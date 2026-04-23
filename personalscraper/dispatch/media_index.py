@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from personalscraper.io_utils import atomic_write_json
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import CategoryConfig, DiskConfig
+    from personalscraper.conf.models import CategoryConfig, DiskConfig, FuzzyMatchConfig
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +236,12 @@ class MediaIndex:
         data = {k: asdict(v) for k, v in self._entries.items()}
         atomic_write_json(self._path, data)
 
-    def find(self, name: str, media_type: str) -> IndexEntry | None:
+    def find(
+        self,
+        name: str,
+        media_type: str,
+        fuzzy_config: FuzzyMatchConfig | None = None,
+    ) -> IndexEntry | None:
         """Find a media entry by name.
 
         Strategy: exact normalized lookup first, then fuzzy matching
@@ -246,6 +251,8 @@ class MediaIndex:
         Args:
             name: Media directory name to search.
             media_type: "movie" or "tvshow" to filter results.
+            fuzzy_config: Optional thresholds from ``Config.fuzzy_match``.
+                Defaults applied when None.
 
         Returns:
             Matching IndexEntry, or None if not found.
@@ -275,6 +282,7 @@ class MediaIndex:
                     entry.name,
                     query_year=name_year,
                     candidate_year=entry_year,
+                    config=fuzzy_config,
                 )
                 if score is not None and score > best_score:
                     best_score = score

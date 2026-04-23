@@ -55,7 +55,7 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> Step
             clean_report.warnings.extend(reclean_report.warnings)
 
         # Always run dedup (lightweight fuzzy comparison)
-        dedup_merged, dedup_failed = dedup_folders(category_dir, dry_run=dry_run)
+        dedup_merged, dedup_failed = dedup_folders(category_dir, dry_run=dry_run, fuzzy_config=config.fuzzy_match)
         if dedup_merged:
             clean_report.success_count += dedup_merged
             clean_report.details.append(f"Dedup: {dedup_merged} duplicates merged in {category_dir.name}")

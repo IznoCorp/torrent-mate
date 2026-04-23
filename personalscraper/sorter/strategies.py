@@ -72,7 +72,7 @@ class MovieStrategy(SortingStrategy):
         # Check for existing matching folder
         if movies_dir.is_dir():
             candidates = [d for d in movies_dir.iterdir() if d.is_dir()]
-            match = find_matching_directory(clean_name, candidates, respect_year=True)
+            match = find_matching_directory(clean_name, candidates, respect_year=True, fuzzy_config=config.fuzzy_match)
             if match is not None:
                 return match
 
@@ -119,7 +119,7 @@ class TVShowStrategy(SortingStrategy):
         # Check for existing matching folder (no year check for TV shows)
         if tvshows_dir.is_dir():
             candidates = [d for d in tvshows_dir.iterdir() if d.is_dir()]
-            match = find_matching_directory(show_name, candidates, respect_year=False)
+            match = find_matching_directory(show_name, candidates, respect_year=False, fuzzy_config=config.fuzzy_match)
             if match is not None:
                 return match
 
