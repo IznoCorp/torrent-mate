@@ -1019,8 +1019,9 @@ def info(ctx: typer.Context) -> None:
 
     config = ctx.obj.config
     assert config is not None  # guaranteed non-None by callback
+    console = state["console"]
     report = collect_info(config)
-    print(format_info(report))
+    console.print(format_info(report))
 
 
 # ── Setup commands ────────────────────────────────────────────────────────────
