@@ -71,7 +71,7 @@ class TelegramNotifier:
             log.warning("telegram_send_failed", error=str(exc))
             return False
         except Exception as exc:
-            log.exception("telegram_unexpected_error", exc_info=True, error=str(exc))
+            log.exception("telegram_unexpected_error", error=str(exc))
             return False
 
     def send_report(self, report: PipelineReport) -> bool:

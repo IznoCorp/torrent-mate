@@ -32,7 +32,7 @@ log = get_logger("my_module")
 log.info("dispatch_moved", source=src, dest=dst)
 log.warning("disk_low", free_gb=free, threshold_gb=threshold)
 log.error("scrape_failed", title=title, reason=str(exc))
-log.exception("scrape_failed", exc_info=True, title=title)
+log.exception("scrape_failed", title=title)
 ```
 
 ### CLI UI
@@ -64,11 +64,47 @@ typer.echo("Processing…")
 | `logger = logging.getLogger(__name__)`                   | `log = get_logger("<short-tag>")`                                                         |
 | `logger.info("moved %s to %s", src, dst)`                | `log.info("moved", source=src, dest=dst)`                                                 |
 | `logger.warning("disk low: %s GB free", free)`           | `log.warning("disk_low", free_gb=free)`                                                   |
-| `logger.exception("fail")`                               | `log.exception("event_name", exc_info=True, **context)`                                   |
+| `logger.exception("fail")`                               | `log.exception("event_name", **context)` — `exc_info` implicit, never pass it             |
 | `logger.error(f"Dispatch failed for {title}")`           | `log.error("dispatch_failed", title=title)`                                               |
 | `print(...)` in CLI commands                             | `state["console"].print(...)`                                                             |
 | `print(...)` next to `input(...)`                        | `typer.echo(...)`                                                                         |
 | `before_sleep=before_sleep_log(logger, logging.WARNING)` | custom `_log_retry_warning("event_name")` callback (see `scraper/artwork.py` as template) |
+
+## exc_info rules
+
+Three rules apply to every structlog call site in the codebase:
+
+**Rule A — `log.exception()` never takes `exc_info=...`.**
+`exc_info` is implicit for `.exception()`. Passing it is redundant and confusing.
+
+```python
+# correct
+log.exception("scrape_failed", title=title)
+
+# wrong — do not do this
+log.exception("scrape_failed", exc_info=True, title=title)
+```
+
+**Rule B — Non-exception levels inside `except` use `exc_info=True, error=str(exc)`.**
+For `log.warning()`, `log.error()`, `log.info()` inside an `except` block, attach the
+traceback explicitly with `exc_info=True` and include the message via `error=str(exc)`.
+
+```python
+except OSError as exc:
+    log.warning("disk_scan_failed", disk=disk.id, exc_info=True, error=str(exc))
+```
+
+**Rule C — Never pass an exception instance as `exc_info`.**
+`exc_info=exc` is banned project-wide. Always use `exc_info=True`. If the exception
+message is useful, add `error=str(exc)` alongside.
+
+```python
+# correct
+log.error("nfo_failed", title=title, exc_info=True, error=str(exc))
+
+# wrong — do not do this
+log.error("nfo_failed", title=title, exc_info=exc)
+```
 
 ## Enforcement
 

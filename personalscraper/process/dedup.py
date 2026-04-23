@@ -149,7 +149,8 @@ def dedup_folders(
                         "process_dedup_merge_failed",
                         source=source.name,
                         target=target.name,
-                        exc_info=exc,
+                        exc_info=True,
+                        error=str(exc),
                     )
                     failed += 1
                     continue

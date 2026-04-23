@@ -72,7 +72,7 @@ def cleanup_empty_dirs(
             if not _is_effectively_empty(directory):
                 continue
         except OSError as exc:
-            log.warning("process_cleanup_access_error", dir=directory.name, exc_info=exc)
+            log.warning("process_cleanup_access_error", dir=directory.name, exc_info=True, error=str(exc))
             continue
 
         rel_path = directory.relative_to(category_dir)
@@ -90,7 +90,7 @@ def cleanup_empty_dirs(
                 report.success_count += 1
                 report.details.append(str(rel_path))
             except OSError as exc:
-                log.warning("process_cleanup_remove_failed", rel_path=str(rel_path), exc_info=exc)
+                log.warning("process_cleanup_remove_failed", rel_path=str(rel_path), exc_info=True, error=str(exc))
                 report.error_count += 1
                 report.warnings.append(f"Failed to remove {rel_path}: {exc}")
 

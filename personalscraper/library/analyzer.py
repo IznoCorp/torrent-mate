@@ -94,7 +94,7 @@ def _analyze_video_file(path: Path) -> MediaFileAnalysis | None:
     try:
         info = extract_stream_info(path)
     except Exception as exc:
-        log.warning("library_ffprobe_failed", path=str(path), exc_info=exc)
+        log.warning("library_ffprobe_failed", path=str(path), exc_info=True, error=str(exc))
         return None
 
     if not info:

@@ -212,7 +212,7 @@ class Sorter:
             )
 
         except Exception as exc:
-            log.error("sort_item_error", source=str(item), exc_info=exc)
+            log.error("sort_item_error", source=str(item), exc_info=True, error=str(exc))
             return SortResult(
                 source=item,
                 destination=Path(),

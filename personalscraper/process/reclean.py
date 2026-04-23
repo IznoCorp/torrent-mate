@@ -60,7 +60,7 @@ def _propagate_rename_to_disks(
         try:
             category_dirs = [p for p in disk.path.iterdir() if p.is_dir()]
         except OSError as exc:
-            log.warning("process_reclean_disk_scan_error", disk=disk.id, exc_info=exc)
+            log.warning("process_reclean_disk_scan_error", disk=disk.id, exc_info=True, error=str(exc))
             continue
         for cat_dir in category_dirs:
             src = cat_dir / old_name
@@ -101,7 +101,8 @@ def _propagate_rename_to_disks(
                     "process_reclean_disk_rename_failed",
                     disk=disk.id,
                     category=cat_dir.name,
-                    exc_info=exc,
+                    exc_info=True,
+                    error=str(exc),
                 )
                 touched.append(f"{disk.id}:{cat_dir.name} failed: {exc}")
     return touched
@@ -266,11 +267,11 @@ def reclean_folders(
                         report.details.append(f"  disk-propagate: {', '.join(touched)}")
             report.success_count += 1
         except OSError as exc:
-            log.warning("process_reclean_failed", folder=folder.name, exc_info=exc)
+            log.warning("process_reclean_failed", folder=folder.name, exc_info=True, error=str(exc))
             report.error_count += 1
             report.warnings.append(f"{folder.name}: {exc}")
         except Exception as exc:
-            log.error("process_reclean_unexpected_error", folder=folder.name, exc_info=exc)
+            log.error("process_reclean_unexpected_error", folder=folder.name, exc_info=True, error=str(exc))
             report.error_count += 1
             report.warnings.append(f"{folder.name}: unexpected error: {exc}")
 

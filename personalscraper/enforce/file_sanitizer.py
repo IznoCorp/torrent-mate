@@ -110,7 +110,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                 try:
                     f.unlink()
                 except OSError as exc:
-                    log.warning("enforce_sanitize_delete_failed", name=f.name, exc_info=exc)
+                    log.warning("enforce_sanitize_delete_failed", name=f.name, exc_info=True, error=str(exc))
                     results.append(SanitizeResult(path=f, action="error", old_name=f.name))
                     continue
             results.append(SanitizeResult(path=f, action="deleted_ds_store", old_name=f.name))
@@ -121,7 +121,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                 try:
                     f.unlink()
                 except OSError as exc:
-                    log.warning("enforce_sanitize_delete_failed", name=f.name, exc_info=exc)
+                    log.warning("enforce_sanitize_delete_failed", name=f.name, exc_info=True, error=str(exc))
                     results.append(SanitizeResult(path=f, action="error", old_name=f.name))
                     continue
             results.append(SanitizeResult(path=f, action="deleted_resource_fork", old_name=f.name))
@@ -136,7 +136,12 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     try:
                         f.unlink()
                     except OSError as exc:
-                        log.warning("enforce_sanitize_delete_duplicate_failed", name=f.name, exc_info=exc)
+                        log.warning(
+                            "enforce_sanitize_delete_duplicate_failed",
+                            name=f.name,
+                            exc_info=True,
+                            error=str(exc),
+                        )
                         results.append(
                             SanitizeResult(
                                 path=f,
@@ -159,7 +164,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     try:
                         f.rename(target)
                     except OSError as exc:
-                        log.warning("enforce_sanitize_rename_failed", name=f.name, exc_info=exc)
+                        log.warning("enforce_sanitize_rename_failed", name=f.name, exc_info=True, error=str(exc))
                         results.append(
                             SanitizeResult(
                                 path=f,
@@ -193,7 +198,7 @@ def _sanitize_directory(root: Path, dry_run: bool) -> list[SanitizeResult]:
                     try:
                         d.rename(target)
                     except OSError as exc:
-                        log.warning("enforce_sanitize_dir_rename_failed", name=d.name, exc_info=exc)
+                        log.warning("enforce_sanitize_dir_rename_failed", name=d.name, exc_info=True, error=str(exc))
                 results.append(
                     SanitizeResult(
                         path=d,

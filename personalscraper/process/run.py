@@ -127,7 +127,7 @@ def run_process(
     try:
         clean_report = run_clean(settings, dry_run=dry_run, config=config)
     except Exception as exc:
-        log.exception("process_clean_fatal", exc_info=exc)
+        log.exception("process_clean_fatal", error=str(exc))
         clean_report = StepReport(
             name="clean",
             error_count=1,
@@ -137,7 +137,7 @@ def run_process(
     try:
         scrape_report = run_scrape(settings, config=config, dry_run=dry_run, interactive=interactive)
     except Exception as exc:
-        log.exception("process_scrape_fatal", exc_info=exc)
+        log.exception("process_scrape_fatal", error=str(exc))
         scrape_report = StepReport(
             name="scrape",
             error_count=1,
@@ -147,7 +147,7 @@ def run_process(
     try:
         cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config)
     except Exception as exc:
-        log.exception("process_cleanup_fatal", exc_info=exc)
+        log.exception("process_cleanup_fatal", error=str(exc))
         cleanup_report = StepReport(
             name="cleanup",
             error_count=1,

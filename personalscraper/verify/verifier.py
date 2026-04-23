@@ -153,14 +153,14 @@ class Verifier:
         for d in subdirs:
             try:
                 results.append(self.verify_movie(d))
-            except Exception as e:
-                log.error("verify_movie_error", movie=d.name, exc_info=e)
+            except Exception as exc:
+                log.error("verify_movie_error", movie=d.name, exc_info=True, error=str(exc))
                 results.append(
                     VerifyResult(
                         media_path=d,
                         media_type="movie",
                         status="blocked",
-                        errors=[str(e)],
+                        errors=[str(exc)],
                     )
                 )
 
@@ -184,14 +184,14 @@ class Verifier:
         for d in subdirs:
             try:
                 results.append(self.verify_tvshow(d))
-            except Exception as e:
-                log.error("verify_tvshow_error", show=d.name, exc_info=e)
+            except Exception as exc:
+                log.error("verify_tvshow_error", show=d.name, exc_info=True, error=str(exc))
                 results.append(
                     VerifyResult(
                         media_path=d,
                         media_type="tvshow",
                         status="blocked",
-                        errors=[str(e)],
+                        errors=[str(exc)],
                     )
                 )
 

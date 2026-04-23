@@ -171,8 +171,8 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
             return title, year
     except ImportError:
         log.warning("folder_name_cleaner_unavailable", name=name)
-    except Exception as _exc:
-        log.warning("folder_name_clean_failed", name=name, error=str(_exc), exc_info=True)
+    except Exception as exc:
+        log.warning("folder_name_clean_failed", name=name, error=str(exc), exc_info=True)
 
     return name.strip(), None
 

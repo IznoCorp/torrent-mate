@@ -66,12 +66,17 @@ def _fix_empty_dirs(media_dir: Path, dry_run: bool) -> list[str]:
                     try:
                         subdir.rmdir()
                     except OSError as exc:
-                        log.warning("library_validate_remove_empty_dir_failed", subdir=str(subdir), exc_info=exc)
+                        log.warning(
+                            "library_validate_remove_empty_dir_failed",
+                            subdir=str(subdir),
+                            exc_info=True,
+                            error=str(exc),
+                        )
                         continue
                 prefix = "[DRY-RUN] Would remove" if dry_run else "Removed"
                 fixes.append(f"{prefix} empty dir: {subdir.name}")
     except OSError as exc:
-        log.warning("library_validate_list_error", media_dir=str(media_dir), exc_info=exc)
+        log.warning("library_validate_list_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
     return fixes
 
 
@@ -95,12 +100,17 @@ def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
                         try:
                             item.rename(item.parent / safe_name)
                         except OSError as exc:
-                            log.warning("library_validate_ntfs_rename_failed", item=str(item), exc_info=exc)
+                            log.warning(
+                                "library_validate_ntfs_rename_failed",
+                                item=str(item),
+                                exc_info=True,
+                                error=str(exc),
+                            )
                             continue
                     prefix = "[DRY-RUN] Would rename" if dry_run else "Renamed"
                     fixes.append(f"{prefix}: {item.name} → {safe_name}")
     except OSError as exc:
-        log.warning("library_validate_ntfs_list_error", media_dir=str(media_dir), exc_info=exc)
+        log.warning("library_validate_ntfs_list_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
     return fixes
 
 
@@ -168,7 +178,7 @@ def validate_library(
                     else:
                         checks = checker.check_movie(media_dir)
                 except OSError as exc:
-                    log.warning("library_validate_fs_error", media_dir=str(media_dir), exc_info=exc)
+                    log.warning("library_validate_fs_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
                     items.append(
                         ValidationItem(
                             path=str(media_dir),

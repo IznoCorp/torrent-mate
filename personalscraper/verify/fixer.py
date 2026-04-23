@@ -136,7 +136,7 @@ class MediaFixer:
             tree = ET.parse(nfo_path)  # noqa: S314
             root = tree.getroot()
         except (ET.ParseError, OSError) as exc:
-            log.warning("verify_fixer_nfo_parse_error", nfo=nfo_path.name, exc_info=exc)
+            log.warning("verify_fixer_nfo_parse_error", nfo=nfo_path.name, exc_info=True, error=str(exc))
             return None
 
         title = root.findtext("title", "").strip()
@@ -165,8 +165,8 @@ class MediaFixer:
             try:
                 media_dir.rename(new_dir)
                 log.info("verify_fixer_dir_renamed", description=description)
-            except OSError as e:
-                log.error("verify_fixer_rename_failed", exc_info=e)
+            except OSError as exc:
+                log.error("verify_fixer_rename_failed", exc_info=True, error=str(exc))
                 return None
 
         return FixAction(

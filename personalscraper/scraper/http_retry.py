@@ -36,7 +36,8 @@ def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState
             event,
             attempt=retry_state.attempt_number,
             wait=retry_state.next_action.sleep if retry_state.next_action else 0,
-            exc_info=exc,
+            exc_info=exc is not None,
+            **({"error": str(exc)} if exc is not None else {}),
         )
 
     return _cb

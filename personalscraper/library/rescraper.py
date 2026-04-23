@@ -143,7 +143,7 @@ def _resolve_tmdb_id(
         else:
             match = match_tvshow(tvdb_client, tmdb_client, title, year)
     except Exception as exc:
-        log.warning("library_rescrape_match_failed", title=title, exc_info=exc)
+        log.warning("library_rescrape_match_failed", title=title, exc_info=True, error=str(exc))
         return None, None, None
 
     if match is None:
@@ -308,7 +308,7 @@ def _rescrape_item(
             log.info("library_rescrape_nfo", title=title, dry_run=dry_run)
         except Exception as exc:
             errors.append(f"NFO generation failed: {exc}")
-            log.error("library_rescrape_nfo_failed", title=title, exc_info=exc)
+            log.error("library_rescrape_nfo_failed", title=title, exc_info=True, error=str(exc))
 
     # Fix artwork
     if needs_artwork:
@@ -322,7 +322,7 @@ def _rescrape_item(
             log.info("library_rescrape_artwork", title=title, dry_run=dry_run)
         except Exception as exc:
             errors.append(f"Artwork download failed: {exc}")
-            log.error("library_rescrape_artwork_failed", title=title, exc_info=exc)
+            log.error("library_rescrape_artwork_failed", title=title, exc_info=True, error=str(exc))
 
     # Fix episodes (TV shows only)
     if needs_episodes and media_type == "tvshow":
@@ -332,7 +332,7 @@ def _rescrape_item(
             log.info("library_rescrape_episodes", title=title, dry_run=dry_run)
         except Exception as exc:
             errors.append(f"Episode rename failed: {exc}")
-            log.error("library_rescrape_episodes_failed", title=title, exc_info=exc)
+            log.error("library_rescrape_episodes_failed", title=title, exc_info=True, error=str(exc))
 
     return RescrapeAction(
         path=str(media_dir),
@@ -389,7 +389,13 @@ def _rescrape_episodes(
                     "still_path": ep.get("still_path"),
                 }
         except Exception as exc:
-            log.warning("library_rescrape_season_fetch_failed", season=season_num, show=show_dir.name, exc_info=exc)
+            log.warning(
+                "library_rescrape_season_fetch_failed",
+                season=season_num,
+                show=show_dir.name,
+                exc_info=True,
+                error=str(exc),
+            )
 
     if not all_episodes:
         return
@@ -500,7 +506,7 @@ def rescrape_library(
                         dry_run=dry_run,
                     )
                 except Exception as exc:
-                    log.exception("library_rescrape_item_error", media_dir=str(media_dir), exc_info=exc)
+                    log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))
                     items.append(
                         RescrapeAction(
                             path=str(media_dir),

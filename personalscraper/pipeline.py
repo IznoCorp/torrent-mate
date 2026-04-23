@@ -410,7 +410,7 @@ class Pipeline:
             report.add_step(name, step_report)
         except Exception as exc:
             crashed = True
-            self._log.exception("step_fatal", step=name, exc_info=True, error=str(exc))
+            self._log.exception("step_fatal", step=name, error=str(exc))
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
                 name=name,

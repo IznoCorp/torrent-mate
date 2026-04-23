@@ -57,7 +57,7 @@ def _dir_size(path: Path) -> int:
                 except OSError:
                     continue
     except OSError as exc:
-        log.warning("library_clean_dir_size_error", path=str(path), exc_info=exc)
+        log.warning("library_clean_dir_size_error", path=str(path), exc_info=True, error=str(exc))
     return total
 
 
@@ -86,7 +86,7 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str) -> N
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-        log.warning("library_clean_ntfs_error", label=label, path=str(path), exc_info=exc)
+        log.warning("library_clean_ntfs_error", label=label, path=str(path), exc_info=True, error=str(exc))
 
 
 def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str) -> None:
@@ -117,7 +117,7 @@ def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str) -> 
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-        log.warning("library_clean_file_delete_failed", label=label, path=str(path), exc_info=exc)
+        log.warning("library_clean_file_delete_failed", label=label, path=str(path), exc_info=True, error=str(exc))
 
 
 def _is_effectively_empty(directory: Path) -> bool:
@@ -220,7 +220,7 @@ def _clean_media_dir(
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Cannot list directory: {media_dir} — {exc}")
-        log.warning("library_clean_list_error", media_dir=str(media_dir), exc_info=exc)
+        log.warning("library_clean_list_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
         return
 
     for item in entries:

@@ -107,7 +107,7 @@ def _dir_size_gb(path: Path) -> float:
                 except OSError:
                     continue
     except OSError as exc:
-        log.warning("library_scan_dir_size_error", path=str(path), exc_info=exc)
+        log.warning("library_scan_dir_size_error", path=str(path), exc_info=True, error=str(exc))
     return total / (1024**3)
 
 
@@ -135,7 +135,7 @@ def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
                 imdb_id = text
         return tmdb_id, imdb_id
     except (ET.ParseError, OSError) as exc:
-        log.debug("library_scan_nfo_ids_parse_error", nfo=str(nfo_path), exc_info=exc)
+        log.debug("library_scan_nfo_ids_parse_error", nfo=str(nfo_path), exc_info=True, error=str(exc))
         return None, None
 
 
@@ -442,7 +442,7 @@ def scan_library(
                         item = scan_movie_dir(media_dir, disk.id, category_id)
                     items.append(item)
                 except OSError as exc:
-                    log.warning("library_scan_item_error", media_dir=str(media_dir), exc_info=exc)
+                    log.warning("library_scan_item_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
 
     return LibraryScanResult(
         scanned_at=start,
