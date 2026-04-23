@@ -23,14 +23,14 @@ from personalscraper.conf.models import Config
 from personalscraper.conf.staging import folder_name
 
 _STAGING_DIRS = [
-    {"id": 1,  "name": "movies",  "file_type": "movie"},
-    {"id": 2,  "name": "tvshows", "file_type": "tvshow"},
-    {"id": 3,  "name": "ebooks",  "file_type": "ebook"},
-    {"id": 4,  "name": "audio",   "file_type": "audio"},
-    {"id": 5,  "name": "apps",    "file_type": "app"},
-    {"id": 6,  "name": "android", "file_type": "app"},
-    {"id": 97, "name": "temp",    "file_type": None, "role": "ingest"},
-    {"id": 98, "name": "autres",  "file_type": "other"},
+    {"id": 1, "name": "movies", "file_type": "movie"},
+    {"id": 2, "name": "tvshows", "file_type": "tvshow"},
+    {"id": 3, "name": "ebooks", "file_type": "ebook"},
+    {"id": 4, "name": "audio", "file_type": "audio"},
+    {"id": 5, "name": "apps", "file_type": "app"},
+    {"id": 6, "name": "android", "file_type": "app"},
+    {"id": 97, "name": "temp", "file_type": None, "role": "ingest"},
+    {"id": 98, "name": "autres", "file_type": "other"},
 ]
 
 
@@ -54,9 +54,7 @@ def e2e_env(tmp_path: Path):
             "staging_dir": str(staging),
             "data_dir": str(tmp_path / ".data"),
         },
-        "disks": [
-            {"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}
-        ],
+        "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
         "staging_dirs": _STAGING_DIRS,
     }
     config_file = tmp_path / "config.json5"
@@ -93,9 +91,7 @@ class TestStagingBootstrapE2E:
         # Exit code 0 (empty staging, no errors) or 1 (ingest failed -- qBittorrent
         # not available in test env). Both are acceptable: staging creation happens
         # before ingest and is independent of qBittorrent connectivity.
-        assert result.exit_code in (0, 1), (
-            f"Unexpected exit code {result.exit_code}.\nOutput:\n{result.output}"
-        )
+        assert result.exit_code in (0, 1), f"Unexpected exit code {result.exit_code}.\nOutput:\n{result.output}"
 
         # All 8 subdirectories must have been created regardless of exit code
         assert staging.is_dir(), "staging_dir root must have been created"
