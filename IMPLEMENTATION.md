@@ -19,7 +19,7 @@
 | 3   | print() cleanup              | phase-03-print-cleanup.md    | [x]    |
 | 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
 | 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [x]    |
-| 6   | PR fixes cycle 2             | phase-06-pr-fixes-cycle-2.md | [ ]    |
+| 6   | PR fixes cycle 2             | phase-06-pr-fixes-cycle-2.md | [x]    |
 
 ## Review cycles
 
