@@ -12,13 +12,11 @@ See docs/tenacity-reference.md for retry strategy details.
 """
 
 import json
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import requests
 from requests.adapters import HTTPAdapter
 from tenacity import (
-    RetryCallState,
     retry,
     retry_if_exception,
     stop_after_attempt,
@@ -27,34 +25,12 @@ from tenacity import (
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.http_retry import make_retryable_predicate
+from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
 log = get_logger("tmdb_client")
-
-
-def _log_retry_warning(event: str) -> Callable[[RetryCallState], None]:
-    """Build a tenacity before_sleep callback that logs via structlog.
-
-    Args:
-        event: structlog event name to use for the warning log entry.
-
-    Returns:
-        Callback accepted by tenacity's before_sleep parameter.
-    """
-
-    def _cb(retry_state: RetryCallState) -> None:
-        exc = retry_state.outcome.exception() if retry_state.outcome else None
-        log.warning(
-            event,
-            attempt=retry_state.attempt_number,
-            wait=retry_state.next_action.sleep if retry_state.next_action else 0,
-            exc_info=exc,
-        )
-
-    return _cb
 
 
 # TMDB internal error codes (not HTTP codes)
@@ -168,7 +144,7 @@ class TMDBClient:
         retry=retry_if_exception(_is_retryable),
         wait=wait_exponential_jitter(initial=0.5, max=10, jitter=0.5),
         stop=stop_after_attempt(4),
-        before_sleep=_log_retry_warning("tmdb_retry"),
+        before_sleep=build_retry_logger(log, "tmdb_retry"),
         reraise=True,
     )
     def _get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
