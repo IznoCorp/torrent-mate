@@ -31,8 +31,21 @@ personalscraper library-analyze                      # Deep ffprobe scan (codec,
 personalscraper library-analyze --incremental        # Skip already-analyzed files
 personalscraper library-recommend                    # Generate re-download list
 personalscraper library-recommend --export csv       # Export to CSV
+personalscraper library-rescrape --dry-run           # Preview targeted re-scraping
+personalscraper library-rescrape --only artwork      # Only re-download missing artwork
+personalscraper library-rescrape --only nfo          # Only regenerate broken/missing NFOs
+personalscraper library-rescrape --only episodes     # Only rename episodes via TMDB/TVDB
+personalscraper library-rescrape --disk Disk1        # Single disk
+personalscraper library-rescrape --max-items 50      # Limit items processed
+personalscraper library-rescrape --interactive       # Confirm low-confidence matches
 personalscraper library-report                       # Library health statistics
 personalscraper library-report --format json         # Export as JSON
+```
+
+## Bootstrap
+
+```bash
+personalscraper init-config --from-current           # Create config.json5 from current env
 ```
 
 ## Aliases
