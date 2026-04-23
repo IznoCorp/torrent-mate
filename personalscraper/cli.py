@@ -375,7 +375,7 @@ def process(
     """Run process phase only (reclean + dedup + scrape + cleanup)."""
     from personalscraper.process.run import run_process
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -384,7 +384,9 @@ def process(
         _bootstrap_staging(ctx)
         settings = get_settings()
         try:
-            clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive)
+            clean, scrape, cleanup = run_process(
+                settings, dry_run=dry_run, interactive=interactive, config=config
+            )
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             logging.getLogger("pipeline").exception("Process command failed")
