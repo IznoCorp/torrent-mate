@@ -30,6 +30,15 @@ Integrate existing trailer scraping tool into the pipeline.
 - Scrapes missing trailers for movies and series from YouTube
 - Add as optional pipeline step or standalone command
 
+**Preparation** (not yet implemented):
+
+- Codename: `trailer`
+- Design: `docs/superpowers/roadmap/trailer/specs/DESIGN.md`
+- Plan: `docs/superpowers/roadmap/trailer/plan/INDEX.md`
+- Prepared on: 2026-04-23
+- Target version bump: 0.4.0 → 0.5.0 (minor)
+- Depends on: `ext-staging` merged to `main`
+
 ### Config System Overhaul
 
 Migrate from flat `.env` / pydantic-settings to structured JSON config.
