@@ -57,27 +57,9 @@
 *.gz
 
 # ===========================================
-# Sorting folders - track structure only
+# Sorting folders and scripts - fully ignored
 # ===========================================
-# Ignore all content inside sorting folders
-001-MOVIES/*
-002-TVSHOWS/*
-003-EBOOKS/*
-004-AUDIO/*
-005-APPS/*
-006-ANDROID/*
-097-TEMP/*
-098-AUTRES/*
-
-# But keep the folders themselves
-!001-MOVIES/.gitkeep
-!002-TVSHOWS/.gitkeep
-!003-EBOOKS/.gitkeep
-!004-AUDIO/.gitkeep
-!005-APPS/.gitkeep
-!006-ANDROID/.gitkeep
-!097-TEMP/.gitkeep
-!098-AUTRES/.gitkeep
+[0-9][0-9][0-9]-*/
 
 # ===========================================
 # Root-level media (before torrent-sort dispatch)
@@ -120,7 +102,6 @@ logs/
 # Backups and caches
 # ===========================================
 *.bak
-099-SCRIPTS/plex/contents.json
 
 # ===========================================
 # E2E Tests
