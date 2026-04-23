@@ -49,6 +49,7 @@ def _configure_logging_for_tests(tmp_path_factory: pytest.TempPathFactory) -> No
     # (the function-scoped monkeypatch fixture is not available here).
     mp = pytest.MonkeyPatch()
     mp.setattr(_logger_mod, "LOGS_DIR", session_logs_dir)
+    # Session-scoped patch: no undo needed (all tests share the same logs dir).
 
     try:
         configure_logging(verbose=False, quiet=False)

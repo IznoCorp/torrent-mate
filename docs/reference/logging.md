@@ -18,7 +18,7 @@ Rules:
 
 - **Snake_case throughout** — no camelCase, no hyphens.
 - **Prefix by module concern** — e.g. `ingest_*`, `dispatch_*`, `scrape_*`, `tvdb_*`, `tmdb_*`, `circuit_*`, `verify_*` (illustrative; many other prefixes exist).
-- **Past-tense for state changes** — suffixes follow real usage, e.g. `_failed`, `_started`, `_opened`, `_closed`, `_login_failed`, `_renamed`.
+- **Past-tense preferred for state changes** (`_moved_ok`, `_login_failed`, `_opened`, `_closed`, `_started`, `_completed`). Noun phrases are acceptable for recognized error states (e.g. `_lockout`, `_unexpected_error`) where past tense would be awkward.
 - **Stability** — treat event names as public API: a rename is a breaking change.
 
 ## Channels
@@ -151,7 +151,7 @@ Four rules:
 | `no-print`            | `print(` in `personalscraper/`                                                                                                                                                                      | error    |
 | `no-stdlib-logger`    | `logging.getLogger` in `personalscraper/` (except `personalscraper/logger.py`); also catches aliased imports (`import logging as lg`) and bare imports (`from logging import getLogger [as alias]`) | error    |
 | `no-structlog-direct` | `structlog.get_logger(...)` / `structlog.getLogger(...)` called directly — always go through `personalscraper.logger.get_logger`                                                                    | error    |
-| `no-fstring-log`      | `log.info(f"…")` — f-string as event arg (indicates string-mode logging)                                                                                                                           | warning  |
+| `no-fstring-log`      | `log.info(f"…")` — f-string as event arg (indicates string-mode logging)                                                                                                                            | warning  |
 
 Run manually:
 

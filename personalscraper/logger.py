@@ -83,7 +83,8 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
                     "propagate": True,
                 },
                 # Third-party loggers default to WARNING to reduce noise.
-                # qbittorrentapi is kept at INFO — more useful than WARNING without the verbosity of DEBUG.
+                # qbittorrentapi INFO surfaces session lifecycle events (login, logout, cookie refresh)
+                # that aid ingest debugging without DEBUG-level request traces.
                 "rebulk": {"level": "DEBUG" if verbose else "WARNING"},
                 "guessit": {"level": "DEBUG" if verbose else "WARNING"},
                 "urllib3": {"level": "DEBUG" if verbose else "WARNING"},

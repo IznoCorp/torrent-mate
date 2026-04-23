@@ -22,9 +22,15 @@ def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState
     warning with the attempt number, the upcoming wait duration, and exc_info for
     traceback capture.
 
+    When ``retry_state.outcome`` is ``None`` (tenacity calls before_sleep before
+    the first outcome is recorded), the callback logs with ``exc_info=False`` and
+    ``error=None`` — no traceback, no error field.
+
     Args:
         log: Bound structlog logger for the calling module.
-        event: structlog event name to use for the warning log entry.
+        event: structlog event name to use for the warning log entry.  Must be
+            snake_case and follow the event-naming convention described in
+            docs/reference/logging.md (event-naming-guideline section).
 
     Returns:
         Callback accepted by tenacity's before_sleep parameter.
