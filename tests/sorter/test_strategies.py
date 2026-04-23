@@ -171,3 +171,43 @@ class TestDefaultStrategy:
         strategy = DefaultStrategy(file_type)
         dest = strategy.get_destination("file.ext", staging, cleaner, config)
         assert dest == config.paths.staging_dir / expected_name
+
+    def test_warning_emitted_on_missing_file_type(self, cleaner, tmp_path, caplog):
+        """A warning is logged when a non-OTHER FileType has no staging entry.
+
+        The fallback to FileType.OTHER must still resolve correctly, and the
+        warning must name both the requested type and the available types.
+        """
+        # Build a minimal config that has no 'movie' entry but does have 'other'.
+        minimal_dirs = [
+            {"id": 97, "name": "temp", "file_type": None, "role": "ingest"},
+            {"id": 98, "name": "autres", "file_type": "other"},
+        ]
+        cfg = Config.model_validate(
+            {
+                "paths": {
+                    "torrent_complete_dir": str(tmp_path / "torrents"),
+                    "staging_dir": str(tmp_path / "staging"),
+                    "data_dir": str(tmp_path / ".data"),
+                },
+                "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+                "staging_dirs": minimal_dirs,
+            }
+        )
+        # Create the staging tree so staging_path() can resolve without errors.
+        staging_root = cfg.paths.staging_dir
+        staging_root.mkdir(parents=True, exist_ok=True)
+        (staging_root / "097-TEMP").mkdir(exist_ok=True)
+        (staging_root / "098-AUTRES").mkdir(exist_ok=True)
+
+        strategy = DefaultStrategy(FileType.MOVIE)
+        with caplog.at_level("WARNING", logger="personalscraper.sorter.strategies"):
+            dest = strategy.get_destination("some_movie.mkv", staging_root, cleaner, cfg)
+
+        # Fallback destination must be the OTHER dir
+        assert dest == staging_root / "098-AUTRES"
+
+        # Warning must mention the requested type and available types
+        warning_text = caplog.text
+        assert "movie" in warning_text
+        assert "other" in warning_text

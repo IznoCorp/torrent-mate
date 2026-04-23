@@ -235,10 +235,11 @@ class StagingDirConfig(_StrictModel):
         default=None,
         description="FileType enum member string this dir receives (e.g. 'movie', 'tvshow').",
     )
-    role: str | None = Field(
+    role: Literal["ingest"] | None = Field(
         default=None,
         description=(
-            "Functional role. Only 'ingest' defined. Exactly one entry must have this when staging_dirs present."
+            "Functional role tag. Allowed value: 'ingest' (the only defined role). "
+            "Exactly one staging_dirs entry must declare role='ingest' when staging_dirs is present."
         ),
     )
 
