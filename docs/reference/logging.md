@@ -10,6 +10,17 @@ guessing which style to use in new code. The convention below defines one canoni
 call site per channel so that every new logging call lands in the right place
 automatically.
 
+## Event naming guideline
+
+Event names are part of the **observability contract** — renames break log aggregation dashboards and regression pins in `tests/test_event_names.py`.
+
+Rules:
+
+- **Snake_case throughout** — no camelCase, no hyphens.
+- **Prefix by module concern** — e.g. `ingest_*`, `dispatch_*`, `scrape_*`, `tvdb_*`, `tmdb_*`, `circuit_*`, `verify_*`.
+- **Past-tense for state changes** — use suffixes like `_moved_ok`, `_login_failed`, `_opened`, `_closed`, `_started`, `_completed`.
+- **Stability** — treat event names as public API: a rename is a breaking change.
+
 ## Channels
 
 | Channel                | Use for                                                                                                   | API                                                                                 | Where it lands                |
@@ -29,7 +40,7 @@ log = get_logger("my_module")
 
 # Event name: snake_case, stable, grep-friendly.
 # Context goes in kwargs — never in the event string.
-log.info("dispatch_moved", source=src, dest=dst)
+log.info("rsync_start", source=src, dest=dst)
 log.warning("disk_low", free_gb=free, threshold_gb=threshold)
 log.error("scrape_failed", title=title, reason=str(exc))
 log.exception("scrape_failed", title=title)
