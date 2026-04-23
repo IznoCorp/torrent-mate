@@ -13,7 +13,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Optional, TypedDict
 
 import typer
 from pydantic import ValidationError
@@ -276,7 +276,7 @@ def scrape(
 def verify(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
-    fix: bool = typer.Option(True, "--fix/--no-fix", help="Attempt auto-fixes (default: True)"),
+    fix: Optional[bool] = typer.Option(None, "--fix/--no-fix", help="Attempt auto-fixes (deprecated — use 'enforce' instead)"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
 ) -> None:
@@ -291,15 +291,16 @@ def verify(
     try:
         _bootstrap_staging(ctx)
         settings = get_settings()
-        if fix:
+        if fix is not None:
             console.print(
                 "[yellow]Warning: --fix is deprecated. Use 'personalscraper enforce' before verify instead.[/yellow]"
             )
+        effective_fix = bool(fix) if fix is not None else False
         report, dispatchable = run_verify(
             settings,
             config,
             dry_run=dry_run,
-            fix=fix,
+            fix=effective_fix,
             movies_only=movies_only,
             tvshows_only=tvshows_only,
         )
