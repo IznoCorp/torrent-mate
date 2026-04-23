@@ -12,11 +12,14 @@ from pathlib import Path
 import qbittorrentapi
 import requests
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.sorter.file_type import FileType
 
 log = get_logger("ingest")
 
@@ -172,6 +175,7 @@ def run_ingest(
     dry_run: bool = False,
     ingest_dir: Path | None = None,
     staging_dir: Path | None = None,
+    config: Config | None = None,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -185,6 +189,9 @@ def run_ingest(
             Falls back to ``settings.ingest_dir`` attribute for MagicMock tests.
         staging_dir: Absolute path to the staging area (from Config.paths).
             Falls back to ``settings.staging_dir`` attribute for MagicMock tests.
+        config: Loaded Config for staging dir name resolution. When provided,
+            uses folder_name(find_by_file_type(config, FileType.X)) to derive
+            staging dir names. Falls back to hardcoded defaults when None.
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -245,9 +252,15 @@ def run_ingest(
                         resolved_staging = (
                             staging_dir if staging_dir is not None else Path(getattr(settings, "staging_dir", "."))
                         )
+                        if config is not None:
+                            _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
+                            _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
+                        else:
+                            _movies_dir = getattr(settings, "movies_dir_name", "001-MOVIES")
+                            _tvshows_dir = getattr(settings, "tvshows_dir_name", "002-TVSHOWS")
                         staging_dirs = [
-                            resolved_staging / settings.movies_dir_name,
-                            resolved_staging / settings.tvshows_dir_name,
+                            resolved_staging / _movies_dir,
+                            resolved_staging / _tvshows_dir,
                             resolved_ingest_dir,
                         ]
                         found_in_staging = any((d / source.name).exists() for d in staging_dirs)

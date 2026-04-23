@@ -10,13 +10,16 @@ Each sub-step can be called independently for error isolation.
 import logging
 from pathlib import Path
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
+from personalscraper.sorter.file_type import FileType
 
 logger = logging.getLogger(__name__)
 
 
-def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
+def run_clean(settings: Settings, dry_run: bool = False, config: Config | None = None) -> StepReport:
     """Run reclean + dedup on all category directories.
 
     Skips reclean when no polluted folder names are found.
@@ -25,6 +28,9 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview without modifying files.
+        config: Loaded Config for staging dir name resolution. When provided,
+            derives movie/tvshow dir names from staging_dirs. Falls back to
+            settings attributes via getattr when None.
 
     Returns:
         StepReport with combined reclean + dedup counts.
@@ -33,8 +39,12 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     from personalscraper.process.reclean import _has_polluted_folders, reclean_folders
 
     staging = Path(getattr(settings, "staging_dir", "."))
-    movies_dir = staging / settings.movies_dir_name
-    tvshows_dir = staging / settings.tvshows_dir_name
+    if config is not None:
+        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    else:
+        movies_dir = staging / getattr(settings, "movies_dir_name", "001-MOVIES")
+        tvshows_dir = staging / getattr(settings, "tvshows_dir_name", "002-TVSHOWS")
 
     has_polluted = _has_polluted_folders(movies_dir) or _has_polluted_folders(tvshows_dir)
 
@@ -68,12 +78,15 @@ def run_clean(settings: Settings, dry_run: bool = False) -> StepReport:
     return clean_report
 
 
-def run_cleanup(settings: Settings, dry_run: bool = False) -> StepReport:
+def run_cleanup(settings: Settings, dry_run: bool = False, config: Config | None = None) -> StepReport:
     """Run empty directory cleanup on all category directories.
 
     Args:
         settings: Pipeline configuration.
         dry_run: If True, preview without deleting.
+        config: Loaded Config for staging dir name resolution. When provided,
+            derives movie/tvshow dir names from staging_dirs. Falls back to
+            settings attributes via getattr when None.
 
     Returns:
         StepReport with cleanup counts.
@@ -81,8 +94,12 @@ def run_cleanup(settings: Settings, dry_run: bool = False) -> StepReport:
     from personalscraper.process.cleanup import cleanup_empty_dirs
 
     staging = Path(getattr(settings, "staging_dir", "."))
-    movies_dir = staging / settings.movies_dir_name
-    tvshows_dir = staging / settings.tvshows_dir_name
+    if config is not None:
+        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+    else:
+        movies_dir = staging / getattr(settings, "movies_dir_name", "001-MOVIES")
+        tvshows_dir = staging / getattr(settings, "tvshows_dir_name", "002-TVSHOWS")
 
     cleanup_report = StepReport(name="cleanup")
 
@@ -99,6 +116,7 @@ def run_process(
     settings: Settings,
     dry_run: bool = False,
     interactive: bool = False,
+    config: Config | None = None,
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 
@@ -109,6 +127,8 @@ def run_process(
         settings: Pipeline configuration.
         dry_run: If True, preview without modifying files.
         interactive: If True, prompt for ambiguous scrape matches.
+        config: Loaded Config passed through to run_clean and run_cleanup
+            for staging dir name resolution.
 
     Returns:
         Tuple of (clean_report, scrape_report, cleanup_report).
@@ -117,7 +137,7 @@ def run_process(
 
     # Error isolation: each sub-step runs independently
     try:
-        clean_report = run_clean(settings, dry_run=dry_run)
+        clean_report = run_clean(settings, dry_run=dry_run, config=config)
     except Exception as exc:
         logger.exception("Clean sub-step failed fatally")
         clean_report = StepReport(
@@ -137,7 +157,7 @@ def run_process(
         )
 
     try:
-        cleanup_report = run_cleanup(settings, dry_run=dry_run)
+        cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config)
     except Exception as exc:
         logger.exception("Cleanup sub-step failed fatally")
         cleanup_report = StepReport(

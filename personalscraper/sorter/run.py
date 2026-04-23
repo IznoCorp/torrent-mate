@@ -13,6 +13,7 @@ called with the staging_dir value.
 import logging
 from pathlib import Path
 
+from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.models import StepReport
 from personalscraper.sorter.cleaner import NameCleaner
@@ -21,7 +22,7 @@ from personalscraper.sorter.sorter import Sorter
 logger = logging.getLogger(__name__)
 
 
-def run_sort(settings: Settings, staging_dir: Path, dry_run: bool = False) -> StepReport:
+def run_sort(settings: Settings, staging_dir: Path, dry_run: bool = False, config: Config | None = None) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
     Instantiates NameCleaner and Sorter, processes the ingest directory
@@ -34,6 +35,8 @@ def run_sort(settings: Settings, staging_dir: Path, dry_run: bool = False) -> St
         settings: Pipeline settings (ingest_dir_name, thresholds).
         staging_dir: Absolute path to the staging area (from Config.paths).
         dry_run: If True, simulate moves without actually moving.
+        config: Loaded Config for config-driven skip_dirs resolution in Sorter.
+            When None, Sorter falls back to the hardcoded default frozenset.
 
     Returns:
         StepReport with counts and per-item details.
@@ -49,7 +52,7 @@ def run_sort(settings: Settings, staging_dir: Path, dry_run: bool = False) -> St
     sorter = Sorter(cleaner=cleaner, dry_run=dry_run)
 
     # Sort processes ingest_dir (097-TEMP/) → categorized dirs at staging root
-    results = sorter.process(ingest_dir, dest_root=staging_dir)
+    results = sorter.process(ingest_dir, dest_root=staging_dir, config=config)
 
     report = StepReport(name="sort")
     for r in results:

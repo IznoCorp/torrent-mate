@@ -11,6 +11,8 @@ import os
 import shutil
 from pathlib import Path
 
+from personalscraper.conf.models import Config
+from personalscraper.conf.staging import folder_name
 from personalscraper.models import SortResult
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType, detect_dir_type, detect_file_type
@@ -62,7 +64,12 @@ class Sorter:
         self.cleaner = cleaner or NameCleaner()
         self.dry_run = dry_run
 
-    def process(self, source_dir: Path, dest_root: Path | None = None) -> list[SortResult]:
+    def process(
+        self,
+        source_dir: Path,
+        dest_root: Path | None = None,
+        config: Config | None = None,
+    ) -> list[SortResult]:
         """Sort all items from source_dir into type subdirectories under dest_root.
 
         Iterates over direct children of source_dir (files and directories),
@@ -74,6 +81,8 @@ class Sorter:
             source_dir: Directory to scan for unsorted items (e.g. 097-TEMP/).
             dest_root: Root directory for category subdirectories (001-MOVIES/,
                 002-TVSHOWS/, etc.). Defaults to source_dir for backward compat.
+            config: Loaded Config for config-driven skip_dirs resolution.
+                When None, falls back to the hardcoded default set.
 
         Returns:
             List of SortResult for each processed item.
@@ -90,19 +99,24 @@ class Sorter:
         # Sort the items list to get deterministic ordering
         items = sorted(source_dir.iterdir(), key=lambda p: p.name)
 
-        # Directories that are sorting destinations — skip them during processing
-        # TODO(ext-staging 2.4): replace with config-driven lookup via conf/staging
-        skip_dirs = frozenset(
-            {
-                "001-MOVIES",
-                "002-TVSHOWS",
-                "003-EBOOKS",
-                "004-AUDIO",
-                "005-APPS",
-                "097-TEMP",
-                "098-AUTRES",
-            }
-        )
+        # Directories that are sorting destinations — skip them during processing.
+        # When config is available, derive skip_dirs from staging_dirs entries so
+        # that the set stays in sync with config.json5 without hardcoding.
+        if config is not None:
+            skip_dirs = frozenset(folder_name(entry) for entry in config.staging_dirs)
+        else:
+            # Fallback for tests that call Sorter directly without config
+            skip_dirs = frozenset(
+                {
+                    "001-MOVIES",
+                    "002-TVSHOWS",
+                    "003-EBOOKS",
+                    "004-AUDIO",
+                    "005-APPS",
+                    "097-TEMP",
+                    "098-AUTRES",
+                }
+            )
 
         for item in items:
             # Skip sorted directories and hidden files

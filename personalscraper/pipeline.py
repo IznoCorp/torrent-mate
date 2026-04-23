@@ -189,7 +189,7 @@ class Pipeline:
         try:
             self._run_step(
                 "ingest",
-                lambda: run_ingest(self.settings, dry_run=self.dry_run),
+                lambda: run_ingest(self.settings, dry_run=self.dry_run, config=self.config),
                 report,
                 critical=True,
             )
@@ -207,6 +207,7 @@ class Pipeline:
                     self.settings,
                     staging_dir=self.config.paths.staging_dir,
                     dry_run=self.dry_run,
+                    config=self.config,
                 ),
                 report,
                 critical=True,
@@ -301,7 +302,7 @@ class Pipeline:
 
         self._run_step(
             "clean",
-            lambda: run_clean(self.settings, dry_run=self.dry_run),
+            lambda: run_clean(self.settings, dry_run=self.dry_run, config=self.config),
             report,
         )
 
@@ -318,7 +319,7 @@ class Pipeline:
 
         self._run_step(
             "cleanup",
-            lambda: run_cleanup(self.settings, dry_run=self.dry_run),
+            lambda: run_cleanup(self.settings, dry_run=self.dry_run, config=self.config),
             report,
         )
 
