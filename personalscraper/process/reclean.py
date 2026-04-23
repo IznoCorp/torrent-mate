@@ -106,6 +106,7 @@ def _propagate_rename_to_disks(
                 touched.append(f"{disk.id}:{cat_dir.name} failed: {exc}")
     return touched
 
+
 # guessit keys that indicate a folder name is still "polluted"
 # with release artifacts (not a clean media title)
 _POLLUTION_KEYS = frozenset(

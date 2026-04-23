@@ -63,8 +63,7 @@ def load_config(path: Path | None = None) -> Config:
     resolved = path if path is not None else resolve_config_path()
     if not resolved.is_file():
         raise ConfigNotFoundError(
-            f"No config file at {resolved}. "
-            "Run 'personalscraper init-config' to create one from the example template."
+            f"No config file at {resolved}. Run 'personalscraper init-config' to create one from the example template."
         )
     with resolved.open("r", encoding="utf-8") as f:
         try:

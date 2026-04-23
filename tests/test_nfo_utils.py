@@ -60,9 +60,6 @@ class TestIsNfoComplete:
         """If any <uniqueid> carries a real value, the NFO stays valid."""
         nfo = tmp_path / "tvshow.nfo"
         nfo.write_text(
-            '<tvshow>'
-            '<uniqueid default="true" type="tmdb">0</uniqueid>'
-            '<uniqueid type="tvdb">475278</uniqueid>'
-            "</tvshow>"
+            '<tvshow><uniqueid default="true" type="tmdb">0</uniqueid><uniqueid type="tvdb">475278</uniqueid></tvshow>'
         )
         assert is_nfo_complete(nfo) is True
