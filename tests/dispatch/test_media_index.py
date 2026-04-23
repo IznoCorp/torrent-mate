@@ -68,6 +68,60 @@ class TestMediaIndexCRUD:
         idx = MediaIndex(tmp_path / "index.json")
         assert idx.find("Unknown Movie", "movie") is None
 
+    def test_find_nfc_matches_nfd_entry(self, tmp_path: Path) -> None:
+        """NFC query must match NFD-stored entry (cross-filesystem hazard).
+
+        Staging (APFS) stores precomposed ``è`` (U+00E8) while NTFS disks
+        keep the decomposed form (``e`` + U+0300). Without NFC normalization
+        in _normalize_key, the same show would map to two distinct index
+        keys, breaking exact lookup after a merge.
+        """
+        idx = MediaIndex(tmp_path / "index.json")
+        nfd_name = "Top Chef Le Concours Paralle\u0300le (2026)"
+        nfc_name = "Top Chef Le Concours Parall\u00e8le (2026)"
+        assert nfd_name != nfc_name
+        idx.add(
+            IndexEntry(
+                name=nfd_name,
+                disk="disk_1",
+                category="tv_programs",
+                path=f"/disk_1/emissions/{nfd_name}",
+                media_type="tvshow",
+            )
+        )
+        result = idx.find(nfc_name, "tvshow")
+        assert result is not None
+        assert result.disk == "disk_1"
+
+    def test_add_nfc_after_nfd_does_not_create_duplicate_key(self, tmp_path: Path) -> None:
+        """Adding the NFC form of an NFD-keyed entry must update, not duplicate."""
+        idx = MediaIndex(tmp_path / "index.json")
+        nfd_name = "Acharne\u0301s (2023)"
+        nfc_name = "Acharn\u00e9s (2023)"
+        idx.add(
+            IndexEntry(
+                name=nfd_name,
+                disk="disk_1",
+                category="tv_shows",
+                path=f"/disk_1/series/{nfd_name}",
+                media_type="tvshow",
+            )
+        )
+        idx.add(
+            IndexEntry(
+                name=nfc_name,
+                disk="disk_2",
+                category="tv_shows",
+                path=f"/disk_2/series/{nfc_name}",
+                media_type="tvshow",
+            )
+        )
+        # Only one entry should exist after both adds (NFC normalization collapses keys)
+        assert len(idx._entries) == 1
+        result = idx.find(nfc_name, "tvshow")
+        assert result is not None
+        assert result.disk == "disk_2"
+
 
 # ---------------------------------------------------------------------------
 # Persistence

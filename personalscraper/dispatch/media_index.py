@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -75,7 +76,11 @@ def _extract_year(name: str) -> int | None:
 def _normalize_key(name: str) -> str:
     """Normalize a media name for index lookup.
 
-    Lowercases and strips leading/trailing whitespace.
+    Applies NFC Unicode normalization, lowercases, and strips whitespace.
+    NFC is required because staging (APFS/HFS) and NTFS disks may store
+    the same visual name with different byte sequences (e.g. ``è`` as
+    precomposed U+00E8 vs. decomposed ``e`` + U+0300). Without
+    normalization the index would grow two keys for the same show.
 
     Args:
         name: Media directory name.
@@ -83,7 +88,7 @@ def _normalize_key(name: str) -> str:
     Returns:
         Normalized key string.
     """
-    return name.lower().strip()
+    return unicodedata.normalize("NFC", name).lower().strip()
 
 
 def _is_v14_format(entries: dict[str, Any]) -> bool:
