@@ -41,9 +41,9 @@ log = get_logger("my_module")
 # Event name: snake_case, stable, grep-friendly.
 # Context goes in kwargs — never in the event string.
 log.info("rsync_start", source=src, dest=dst)
-log.warning("disk_usage_failed", free_gb=free, threshold_gb=threshold)
-log.error("movie_artwork_failed", title=title, reason=str(exc))
-log.exception("movie_artwork_failed", title=title)
+log.warning("ffprobe_failed", path=str(path), error=str(exc))
+log.error("nfo_generation_failed", title=title, error=str(exc))
+log.exception("ingest_qbit_login_failed", host=host)
 ```
 
 ### CLI UI
@@ -90,10 +90,10 @@ Three rules apply to every structlog call site in the codebase:
 
 ```python
 # correct
-log.exception("movie_artwork_failed", title=title)
+log.exception("nfo_generation_failed", title=title)
 
 # wrong — do not do this
-log.exception("movie_artwork_failed", exc_info=True, title=title)
+log.exception("nfo_generation_failed", exc_info=True, title=title)
 ```
 
 **Rule B — Non-exception levels inside `except` use `exc_info=True, error=str(exc)`.**
@@ -146,12 +146,12 @@ via `make lint-logging` (also included in the default `make lint` target).
 
 Four rules:
 
-| Rule ID               | Violation                                                                                                                      | Severity |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| `no-print`            | `print(` in `personalscraper/`                                                                                                 | error    |
-| `no-stdlib-logger`    | `logging.getLogger` in `personalscraper/` (except `personalscraper/logger.py`); also catches import aliases and `from` imports | error    |
-| `no-structlog-direct` | `structlog.get_logger()` / `structlog.getLogger()` called directly — must go through `personalscraper.logger.get_logger`       | error    |
-| `no-fstring-log`      | `log.info(f"…")` — f-string as event name arg (indicates string-mode logging instead of structured key=value style)            | warning  |
+| Rule                  | Violation                                                                                                                                                                                           | Severity |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `no-print`            | `print(` in `personalscraper/`                                                                                                                                                                      | error    |
+| `no-stdlib-logger`    | `logging.getLogger` in `personalscraper/` (except `personalscraper/logger.py`); also catches aliased imports (`import logging as lg`) and bare imports (`from logging import getLogger [as alias]`) | error    |
+| `no-structlog-direct` | `structlog.get_logger(...)` / `structlog.getLogger(...)` called directly — always go through `personalscraper.logger.get_logger`                                                                    | error    |
+| `no-fstring-log`      | `log.info(f"…")` — f-string as event arg (indicates string-mode logging)                                                                                                                           | warning  |
 
 Run manually:
 
@@ -160,6 +160,28 @@ python scripts/check_logging.py          # report only
 make lint-logging                        # exit non-zero on errors
 make lint                                # includes lint-logging
 ```
+
+## Broad exception handling convention
+
+When catching `except Exception` is unavoidable (e.g. wrapping third-party adapters with
+unpredictable exception hierarchies, or safety catch-alls that must preserve pipeline
+continuation), annotate the line with `# noqa: BLE001 — <rationale>` explaining why
+narrowing is not feasible.
+
+```python
+# Correct — justification explains why narrowing isn't feasible
+except Exception as exc:  # noqa: BLE001 — best-effort fallback; notification must not mask the underlying operation
+    log.exception("telegram_unexpected_error", error=str(exc))
+
+# Also correct — cross-module exception set makes narrowing impractical
+except Exception as e:  # noqa: BLE001 — catches TVDBError, requests.ConnectionError, CircuitOpenError; narrowing requires 3 cross-module imports
+    log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
+```
+
+Reference templates: `personalscraper/notifier.py:73`, `personalscraper/scraper/confidence.py:241`.
+
+**Scope**: this is mandatory for **new code** added during review. A sweep of the 20+ pre-existing
+broad-except sites is out of scope per DESIGN §2 (only new/touched code is in scope).
 
 ## Pointers
 
