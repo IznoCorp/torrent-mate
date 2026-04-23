@@ -18,7 +18,7 @@
 | 2   | Sorter refactor + Settings cleanup | phase-02-sorter-refactor.md | [x]    |
 | 3   | Auto-create staging tree           | phase-03-auto-create.md     | [x]    |
 | 4   | Repo cleanup (git rm --cached)     | phase-04-repo-cleanup.md    | [x]    |
-| 5   | Docs + E2E + final gate            | phase-05-docs-e2e.md        | [ ]    |
+| 5   | Docs + E2E + final gate            | phase-05-docs-e2e.md        | [x]    |
 
 ## Review cycles
 
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 5 (docs + E2E + final gate).
+All phases complete — run `/implement:feature-pr`.
