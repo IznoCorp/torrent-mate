@@ -89,6 +89,52 @@ class TestDedupFolders:
         """Non-existent category dir returns (0, 0)."""
         assert dedup_folders(tmp_path / "nonexistent") == (0, 0)
 
+    def test_merge_oserror_counts_as_failed(self, movies_dir, monkeypatch):
+        """OSError during merge is caught and increments failed counter."""
+        dup = movies_dir / "Shrinking"
+        dup.mkdir()
+        (dup / "movie.mkv").write_text("video")
+
+        canonical = movies_dir / "Shrinking (2023)"
+        canonical.mkdir()
+        (canonical / "movie.mkv").write_text("video")
+        (canonical / "movie.nfo").write_text("nfo")
+
+        def _raise_permission_denied(*_args, **_kwargs):
+            raise PermissionError("Operation not permitted")
+
+        monkeypatch.setattr("personalscraper.scraper.scraper._merge_dirs", _raise_permission_denied)
+
+        merged, failed = dedup_folders(movies_dir)
+
+        assert merged == 0
+        assert failed == 1
+        # Both folders remain intact — merge never happened
+        assert dup.exists()
+        assert canonical.exists()
+
+    def test_partial_merge_failure_counts_as_failed(self, movies_dir, monkeypatch):
+        """_merge_dirs returning a non-zero failure count marks the merge as failed."""
+        dup = movies_dir / "Shrinking"
+        dup.mkdir()
+        (dup / "movie.mkv").write_text("video")
+
+        canonical = movies_dir / "Shrinking (2023)"
+        canonical.mkdir()
+        (canonical / "movie.mkv").write_text("video")
+        (canonical / "movie.nfo").write_text("nfo")
+
+        def _partial_failure(*_args, **_kwargs):
+            # (moved, failed): some items moved, some failed (typical partial merge)
+            return (1, 2)
+
+        monkeypatch.setattr("personalscraper.scraper.scraper._merge_dirs", _partial_failure)
+
+        merged, failed = dedup_folders(movies_dir)
+
+        assert merged == 1
+        assert failed == 1
+
     def test_merge_keeps_more_complete(self, movies_dir):
         """The folder with more files is kept as target."""
         # Folder with fewer files
