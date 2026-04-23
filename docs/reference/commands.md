@@ -54,20 +54,6 @@ personalscraper init-config --from-current           # Create config.json5 from 
 media-ingest                        # → personalscraper ingest
 ```
 
-## Legacy: torrent-sort
-
-Shell alias replaced by `personalscraper sort`, but still available:
-
-```bash
-torrent-sort
-# Resolves to: python ~/dev/FileMate/main.py "/Volumes/IznoServer SSD/A TRIER" --verbose --sort
-torrent-sort --dry-run
-torrent-sort --clean    # Delete leftovers after sorting
-```
-
-Runs **FileMate** (`~/dev/FileMate/`) — detects file types and moves them into the matching numbered folder.
-Directory name mappings are configured in `~/dev/FileMate/.env`.
-
 ## Disk Space Check
 
 ```bash

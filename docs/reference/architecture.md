@@ -88,8 +88,8 @@ Notes:
 
 ## Shared Utilities (single source of truth)
 
-- `genre_mapper` — lives in `personalscraper/genre_mapper.py` (package root); imported by verify and dispatch for genre→category mapping.
-- `media_processor()` — lives in `personalscraper/text_utils.py`; imported by sorter, scraper, and media_index. NFD accent stripping for French titles.
+- `classify()` — lives in `personalscraper/conf/classifier.py`; imported by verify and dispatch for genre/rule → category mapping (replaces the removed `genre_mapper` module).
+- `media_processor()` — lives in `personalscraper/text_utils.py`; imported by sorter, scraper, and `personalscraper/dispatch/media_index.py`. NFD accent stripping for French titles.
 - `sanitize_filename()` — lives in `personalscraper/text_utils.py`; strips `<>:"/\|?*` and normalizes U+00A0→space. Applied in `NamingPatterns.format()` (all artwork/NFO filenames) and in scraper `clean_name` (folder renames). TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography before `:`).
 - `SortResult`, `StepReport`, `PipelineReport` — defined in `personalscraper/models.py`. Each `run_*()` converts internal results to `StepReport` before returning.
 - TV show folders: sorter creates `Show Name/` (no year), scraper renames to `Show Name (Year)/` after API matching (idempotent rename).

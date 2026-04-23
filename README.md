@@ -33,8 +33,8 @@ cd "/Volumes/IznoServer SSD/A TRIER"
 pip install -e ".[dev]"
 
 # Configuration
-cp .env.example .env
-# Remplir les clés API et credentials — voir CONFIGURATION.md pour le détail
+cp .env.example .env                                # Secrets API uniquement (TMDB_API_KEY, TVDB_API_KEY, ...)
+personalscraper init-config --from-current          # Génère config.json5 (chemins, disques, catégories, règles)
 
 # Lancer le pipeline
 personalscraper run --dry-run   # Prévisualiser
@@ -50,10 +50,11 @@ A TRIER/
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation
-├── config.json5         # Configuration utilisateur (suivi par git)
-├── config.example.json5 # Exemple de configuration
-├── Makefile             # make test/lint/format/install-dev
-└── .env.example         # Template de configuration
+├── config.json5         # Configuration principale — chemins, disques, catégories, règles (gitignored)
+├── config.example.json5 # Exemple de config.json5
+├── .env                 # Secrets API uniquement — TMDB/TVDB keys, qBit credentials (gitignored)
+├── .env.example         # Exemple de .env
+└── Makefile             # make test/lint/format/install-dev
 ```
 
 Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
@@ -82,11 +83,11 @@ make format                             # Formater le code
 
 ## Documentation
 
-| Document                             | Contenu                                                        |
-| ------------------------------------ | -------------------------------------------------------------- |
-| [INSTALLATION.md](INSTALLATION.md)   | Prérequis, installation, scheduling                            |
-| [CONFIGURATION.md](CONFIGURATION.md) | Guide complet du .env — toutes les variables, clés API, seuils |
-| [MANUAL.md](MANUAL.md)               | Manuel d'utilisation — commandes, disques, nommage             |
+| Document                             | Contenu                                                   |
+| ------------------------------------ | --------------------------------------------------------- |
+| [INSTALLATION.md](INSTALLATION.md)   | Prérequis, installation, scheduling                       |
+| [CONFIGURATION.md](CONFIGURATION.md) | Guide config.json5 + .env — toutes les sections, clés API |
+| [MANUAL.md](MANUAL.md)               | Manuel d'utilisation — commandes, disques, nommage        |
 
 ## Technologies
 
