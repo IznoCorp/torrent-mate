@@ -159,8 +159,7 @@ class DefaultStrategy(SortingStrategy):
             # Log available types so the config gap is immediately actionable.
             available = [e.file_type for e in config.staging_dirs if e.file_type is not None]
             _log.warning(
-                "No staging entry for file_type=%r — falling back to FileType.OTHER. "
-                "Available types: %r",
+                "No staging entry for file_type=%r — falling back to FileType.OTHER. Available types: %r",
                 self.file_type.value,
                 available,
             )

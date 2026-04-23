@@ -54,7 +54,9 @@ class TestAssertTempEmpty:
         remaining = assert_temp_empty(gate_settings, staging_dir=staging, config=config)
         assert remaining == []
 
-    def test_gate_returns_names_when_files_remain(self, gate_settings: MagicMock, staging: Path, config: Config) -> None:
+    def test_gate_returns_names_when_files_remain(
+        self, gate_settings: MagicMock, staging: Path, config: Config
+    ) -> None:
         """Non-empty ingest dir returns list of remaining item names."""
         from personalscraper.sorter.run import assert_temp_empty
 
