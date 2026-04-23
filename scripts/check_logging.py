@@ -20,6 +20,8 @@ Usage::
 
 If no path arguments are given the script defaults to scanning ``personalscraper/``
 relative to the repository root (the parent directory of ``scripts/``).
+
+Baseline (as of 2026-04-23): 53 ERROR offenders, 0 WARN offenders.
 """
 
 import argparse
