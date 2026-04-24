@@ -1,8 +1,8 @@
 """Media dispatch orchestrator: replace, merge, and move operations.
 
-Handles cross-filesystem transfers from staging area (A TRIER/) to
-storage disks using rsync for reliability. Movies are replaced
-(delete old + move new), TV shows are merged (add new episodes).
+Handles cross-filesystem transfers from the staging area (``paths.staging_dir``)
+to storage disks using rsync for reliability. Movies are replaced (delete old
++ move new), TV shows are merged (add new episodes).
 
 Dispatcher accepts ``Config`` as first argument. Category routing uses
 ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for``. The

@@ -8,8 +8,8 @@ Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 
 ## Workflow Pipeline
 
-1. **Torrent download** — completed torrents land in `/Volumes/IznoServer SSD/torrents/complete`
-2. **Initial sort (`torrent-sort`)** — files are deposited at the root of `A TRIER/`, then `torrent-sort` dispatches them into the correct subdirectories (001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.) based on file type detection
+1. **Torrent download** — completed torrents land in `/path/to/torrents/complete`
+2. **Initial sort (`torrent-sort`)** — files are deposited at the root of `staging/`, then `torrent-sort` dispatches them into the correct subdirectories (001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.) based on file type detection
 3. **Rename & clean** — strip release-group tags, codec info, resolution labels from filenames
 4. **Scrape metadata** (`personalscraper scrape`) — automated via TMDB/TVDB APIs, produces `.nfo` files and artwork. MediaElch can still be used manually as fallback.
 5. **Move to storage** — files go to one of the 4 destination disks
@@ -30,7 +30,7 @@ INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE 
 ## Directory Structure
 
 ```
-A TRIER/
+staging/
 ├── 001-MOVIES/          # Films awaiting processing (one folder per movie with .mkv + artwork + .nfo)
 ├── 002-TVSHOWS/         # TV series awaiting processing (folder per show, Saison XX subfolders)
 ├── 003-EBOOKS/          # Ebooks staging (currently empty)

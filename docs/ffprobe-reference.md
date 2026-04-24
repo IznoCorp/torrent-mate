@@ -854,7 +854,7 @@ duration_secs = round(float(data["format"]["duration"]))
 
 ### Files with Paths Containing Spaces or Special Characters
 
-The project path `/Volumes/IznoServer SSD/A TRIER/` contains spaces. When using `subprocess.run()` with a list of arguments (not a shell string), this is handled automatically -- no quoting needed.
+The project path `/path/to/staging/` contains spaces. When using `subprocess.run()` with a list of arguments (not a shell string), this is handled automatically -- no quoting needed.
 
 ```python
 # CORRECT: list of args, spaces handled automatically
@@ -1212,7 +1212,7 @@ def streamdetails_to_string(info: dict) -> str:
 ```python
 from pathlib import Path
 
-video = Path("/Volumes/IznoServer SSD/A TRIER/001-MOVIES/The Piano Lesson (2024)/The Piano Lesson.mkv")
+video = Path("/path/to/staging/001-MOVIES/The Piano Lesson (2024)/The Piano Lesson.mkv")
 info = extract_stream_info(video)
 
 if info:
@@ -1383,7 +1383,7 @@ File: 4.9 GB, HEVC Main 10, 3840x2160, HDR10, 3 audio tracks (EAC3 + Atmos), 3 s
     }
   ],
   "format": {
-    "filename": "/Volumes/IznoServer SSD/A TRIER/001-MOVIES/The Piano Lesson (2024)/The Piano Lesson.mkv",
+    "filename": "/path/to/staging/001-MOVIES/The Piano Lesson (2024)/The Piano Lesson.mkv",
     "nb_streams": 7,
     "format_name": "matroska,webm",
     "format_long_name": "Matroska / WebM",

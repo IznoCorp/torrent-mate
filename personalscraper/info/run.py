@@ -39,7 +39,7 @@ class InfoReport:
 
     Attributes:
         version: Current personalscraper version string.
-        staging_path: Staging directory (A TRIER) from config.
+        staging_path: Staging directory from config.
         disks: Status snapshot for each configured disk.
     """
 

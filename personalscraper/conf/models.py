@@ -282,12 +282,12 @@ class PathConfig(_StrictModel):
 
     Attributes:
         torrent_complete_dir: Where qBittorrent deposits completed torrents.
-        staging_dir: Intermediate staging folder (A TRIER) before dispatch.
+        staging_dir: Intermediate staging folder before dispatch.
         data_dir: Pipeline state directory (index, locks, analysis).
     """
 
     torrent_complete_dir: Path = Field(..., description="Où qBittorrent dépose les torrents finis.")
-    staging_dir: Path = Field(..., description="Dossier A TRIER intermédiaire avant dispatch.")
+    staging_dir: Path = Field(..., description="Dossier de staging intermédiaire avant dispatch.")
     data_dir: Path = Field(
         default=Path("./.data"),
         description=(

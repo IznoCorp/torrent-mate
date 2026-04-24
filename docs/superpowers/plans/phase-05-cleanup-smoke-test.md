@@ -143,7 +143,7 @@ See docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md
 
 ## Task 5.4 — Mettre à jour `CLAUDE.md` racine projet
 
-**Fichier** : `/Volumes/IznoServer SSD/A TRIER/CLAUDE.md`
+**Fichier** : `/path/to/staging/CLAUDE.md`
 
 **Spec section** : §10.1 du spec.
 
@@ -209,7 +209,7 @@ git commit -m "docs: migrate CLAUDE.md from version-based to feature-oriented wo
 
 ## Task 5.5 — Mettre à jour `.claude/CLAUDE.md`
 
-**Fichier** : `/Volumes/IznoServer SSD/A TRIER/.claude/CLAUDE.md`
+**Fichier** : `/path/to/staging/.claude/CLAUDE.md`
 
 - [ ] **Step 1 : Lire le fichier actuel**
 

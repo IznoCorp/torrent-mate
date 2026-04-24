@@ -546,7 +546,7 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
 @handle_cli_errors
 def library_scan(
     ctx: typer.Context,
-    disk: str = typer.Option(None, "--disk", help="Scan only this disk (Disk1-4)"),
+    disk: str = typer.Option(None, "--disk", help="Scan only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Scan only this category"),
 ) -> None:
     """Scan library structure and metadata on storage disks.
@@ -586,7 +586,7 @@ def library_clean(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
     only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
-    disk: str = typer.Option(None, "--disk", help="Clean only this disk (Disk1-4)"),
+    disk: str = typer.Option(None, "--disk", help="Clean only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Clean only this category"),
 ) -> None:
     """Remove .actors/, empty dirs, junk files from storage disks.
@@ -731,7 +731,7 @@ def library_analyze(
 
     Examples:
         personalscraper library-analyze --incremental
-        personalscraper library-analyze --disk Disk2 --category series
+        personalscraper library-analyze --disk <disk_id> --category series
         personalscraper library-analyze --max-items 50
     """
     from personalscraper.library.analyzer import analyze_library
@@ -897,7 +897,7 @@ def library_rescrape(
     Examples:
         personalscraper library-rescrape --dry-run
         personalscraper library-rescrape --only artwork
-        personalscraper library-rescrape --disk Disk1 --max-items 50
+        personalscraper library-rescrape --disk <disk_id> --max-items 50
         personalscraper library-rescrape --interactive
     """
     from personalscraper.library.models import write_json

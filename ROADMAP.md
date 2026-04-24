@@ -52,7 +52,7 @@ Migrate from flat `.env` / pydantic-settings to structured JSON config.
 
 Move staging directories out of the git project root.
 
-- Staging path fully configurable (e.g. `/Volumes/IznoServer SSD/staging/`)
+- Staging path fully configurable (e.g. `/Volumes/<disk>/staging/`)
 - Auto-create staging directory tree on first pipeline run if missing
 - Currently staging dirs (001-MOVIES, 002-TVSHOWS, etc.) live inside the repo, mixing code and data
 
@@ -84,6 +84,6 @@ Persistent index of the media library with cache or database backend.
 - Scheduled nightly update (cron/launchd, 1x per night)
 - Auto-refresh on path error detection (desync between index and filesystem = stale entry)
 - Replaces ad-hoc JSON files (`library_scan.json`, `library_analysis.json`) with a single authoritative source
-- Study `/Users/izno/dev/FileMate` for potential integration or shared architecture patterns
+- Study the companion `FileMate` tool for potential integration or shared architecture patterns
 
 **Depends on:** Library maintenance commands (scan/analyze data model), Config System Overhaul (configurable paths)

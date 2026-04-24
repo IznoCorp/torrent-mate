@@ -21,20 +21,46 @@ class TestCleanup:
     Attributes:
         registry: TestRegistry tracking all test-created resources.
         dry_run: If True (default), show plan without deleting.
+        staging_dir: Staging directory bound for cleanup_staging() safety scope.
+            If None, cleanup_staging() skips every path.
+        disk_paths: Storage-disk roots bound for cleanup_disks() safety scope.
+            If empty, cleanup_disks() skips every path.
     """
 
-    def __init__(self, registry: TestRegistry, dry_run: bool = True) -> None:
+    def __init__(
+        self,
+        registry: TestRegistry,
+        dry_run: bool = True,
+        staging_dir: Path | None = None,
+        disk_paths: list[Path] | None = None,
+    ) -> None:
         """Initialize cleanup with safety-first defaults.
 
         Args:
             registry: Registry of all test-created files and torrents.
             dry_run: If True (default), preview without deleting anything.
+            staging_dir: Staging root. Only paths under this directory are
+                considered by cleanup_staging(). When None, staging cleanup
+                is a no-op (safe default).
+            disk_paths: Storage-disk roots. Only paths under one of these
+                directories are considered by cleanup_disks(). When empty,
+                disk cleanup is a no-op (safe default).
         """
         self.registry = registry
         self.dry_run = dry_run
+        self.staging_dir = Path(staging_dir) if staging_dir is not None else None
+        self.disk_paths = [Path(p) for p in (disk_paths or [])]
+
+    def _is_within(self, path: Path, root: Path) -> bool:
+        """Return True when ``path`` is inside ``root`` (resolved)."""
+        try:
+            path.resolve().relative_to(root.resolve())
+        except ValueError:
+            return False
+        return True
 
     def cleanup_staging(self) -> list[Path]:
-        """Clean test files from the staging area (A TRIER/).
+        """Clean test files from the staging area.
 
         Verifies marker + session_id before each deletion.
         Deletes files individually (never rm -rf), then removes
@@ -43,14 +69,22 @@ class TestCleanup:
         Returns:
             List of paths that were (or would be) deleted.
         """
-        deleted = []
+        deleted: list[Path] = []
+        if self.staging_dir is None:
+            if self.registry.get_cleanup_order():
+                logger.warning(
+                    "cleanup_staging skipped: no staging_dir configured "
+                    "(registry has %d path(s) that will NOT be cleaned)",
+                    len(list(self.registry.get_cleanup_order())),
+                )
+            return deleted
         for path in self.registry.get_cleanup_order():
             path = Path(path)
             if not path.exists():
                 continue
 
-            # Only process paths that contain "A TRIER" in their hierarchy
-            if "A TRIER" not in str(path):
+            # Safety: only process paths inside the configured staging root.
+            if not self._is_within(path, self.staging_dir):
                 continue
 
             if path.is_dir():
@@ -74,7 +108,7 @@ class TestCleanup:
         return deleted
 
     def cleanup_disks(self) -> list[Path]:
-        """Clean test files from storage disks (Disk1-4).
+        """Clean test files from the configured storage disks.
 
         TRIPLE VERIFICATION per directory:
         1. .e2e-test-marker exists in the directory
@@ -86,14 +120,22 @@ class TestCleanup:
         Returns:
             List of paths that were (or would be) deleted.
         """
-        deleted = []
+        deleted: list[Path] = []
+        if not self.disk_paths:
+            if self.registry.get_cleanup_order():
+                logger.warning(
+                    "cleanup_disks skipped: no disk_paths configured "
+                    "(registry has %d path(s) that will NOT be cleaned)",
+                    len(list(self.registry.get_cleanup_order())),
+                )
+            return deleted
         for path in self.registry.get_cleanup_order():
             path = Path(path)
             if not path.exists():
                 continue
 
-            # Only process paths on storage disks
-            if "/Volumes/Disk" not in str(path):
+            # Safety: only process paths under one of the configured disk roots.
+            if not any(self._is_within(path, root) for root in self.disk_paths):
                 continue
 
             if not path.is_dir():

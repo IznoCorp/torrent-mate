@@ -7,7 +7,7 @@ Requires:
 - TMDB API key configured in .env
 
 SAFETY: Dispatch runs in DRY-RUN mode only — storage disks are never
-written to. Only the staging area (A TRIER/) is modified and cleaned up.
+written to. Only the staging area is modified and cleaned up.
 
 WARNING: Downloads real torrents — costs upload ratio on private trackers.
 Run MANUALLY only: pytest -m e2e_torrent -v -s
@@ -60,7 +60,11 @@ class TestMovieFullPipeline:
         movies_dir = staging / "001-MOVIES"
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
-        cleanup = TestCleanup(registry=e2e_registry, dry_run=False)
+        cleanup = TestCleanup(
+            registry=e2e_registry,
+            dry_run=False,
+            staging_dir=staging,
+        )
 
         try:
             # ── 1. Setup: add .torrent files and wait for download ──
