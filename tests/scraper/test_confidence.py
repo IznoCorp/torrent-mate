@@ -343,6 +343,27 @@ class TestMatchTvshow:
         assert result is not None
         assert result.api_id == 1  # Best score winner (exact title + exact year)
 
+    def test_tvdb_high_score_bypasses_season_veto(self) -> None:
+        """Score >= 0.95 survives the content-aware filter even without season overlap.
+
+        Covers parallel-numbering spin-offs whose own catalog is e.g. S01..S04
+        but whose releases mirror the main show's season label (S17). A 0.95+
+        title match is assumed unambiguous.
+        """
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            # Very high title match, but catalog only has S01..S04
+            {"tvdb_id": "475278", "name": "Top Chef: Le Concours Parallèle", "year": "2023"},
+            # Weak match, would normally be the second choice
+            {"tvdb_id": "999", "name": "Unrelated", "year": "2020"},
+        ]
+        tvdb.get_series.return_value = {"seasons": [{"number": 1}, {"number": 2}]}
+
+        result = match_tvshow_tvdb(tvdb, "Top Chef Le Concours Parallèle", 2023, local_seasons={17})
+
+        assert result is not None
+        assert result.api_id == 475278
+
     def test_tvdb_candidate_fetch_failure_does_not_veto(self) -> None:
         """Transient get_series failure must not drop a candidate silently."""
         tvdb = MagicMock()

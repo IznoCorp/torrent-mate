@@ -26,6 +26,14 @@ HIGH_CONFIDENCE = 0.8  # Auto-accept in automatic mode
 LOW_CONFIDENCE = 0.5  # Skip in automatic mode (no match)
 # Between LOW and HIGH: caller decides (skip in auto, prompt in interactive)
 
+# Above this fuzzy score, the content-aware season veto in
+# match_tvshow_tvdb is bypassed: a 0.95+ title match is treated as
+# unambiguous, even if the candidate's catalog does not cover the
+# observed seasons (common for spin-offs whose releases mirror the
+# main show's season numbering — e.g. S17 labels on a show with
+# its own S01..S04 catalog).
+SEASON_VETO_BYPASS = 0.95
+
 
 @dataclass
 class MatchResult:
@@ -255,11 +263,16 @@ def match_tvshow_tvdb(
     # Content-aware filter: when local_seasons known and multiple viable
     # candidates, reject those whose catalog doesn't cover the wanted seasons.
     # Capped to the top 5 to avoid hammering TVDB on pathological searches.
+    # A candidate with a very high fuzzy score (>= SEASON_VETO_BYPASS) is
+    # kept regardless — e.g. a parallel-numbering spin-off like "Top Chef:
+    # Le Concours Parallèle" whose own catalog is S01..S04 but whose releases
+    # mirror the main show's S17 numbering. Fuzzy > content only at the very
+    # top of the score curve, where the title itself is unambiguous.
     viable = [(s, m) for s, m in scored if s >= LOW_CONFIDENCE]
     if local_seasons and len(viable) >= 2:
         survivors: list[tuple[float, MatchResult]] = []
         for score, cand in viable[:5]:
-            if _candidate_has_any_season(tvdb_client, cand.api_id, local_seasons):
+            if score >= SEASON_VETO_BYPASS or _candidate_has_any_season(tvdb_client, cand.api_id, local_seasons):
                 survivors.append((score, cand))
             else:
                 log.info(
