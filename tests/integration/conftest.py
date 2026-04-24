@@ -182,6 +182,42 @@ def integration_config_path(integration_config: Config, tmp_path: Path) -> Path:
 
 
 @dataclass
+class FakeCircuit:
+    """Minimal stub for CircuitBreaker used by TMDBClient / TVDBClient.
+
+    Always reports the circuit as closed (``can_proceed() → True``) so
+    integration tests are never short-circuited by the breaker logic.
+
+    Attributes:
+        _open: When True, simulates an open circuit.  Default False (closed).
+    """
+
+    _open: bool = False
+
+    def can_proceed(self) -> bool:
+        """Return True when the circuit is closed (default), False when open.
+
+        Returns:
+            Whether the caller is allowed to proceed with the API call.
+        """
+        return not self._open
+
+    def record_success(self) -> None:
+        """No-op — stub does not track success counts.
+
+        Returns:
+            None.
+        """
+
+    def record_failure(self) -> None:
+        """No-op — stub does not track failure counts.
+
+        Returns:
+            None.
+        """
+
+
+@dataclass
 class FakeTMDB:
     """In-memory stub for TMDBClient.
 
@@ -192,10 +228,13 @@ class FakeTMDB:
     Attributes:
         _responses: Mapping from endpoint path fragment to response dict.
         _default: Fallback response returned when no key matches.
+        circuit: Always-closed circuit breaker stub so process_movies/process_tvshows
+            never short-circuits on ``self._tmdb.circuit.can_proceed()``.
     """
 
     _responses: dict[str, Any] = field(default_factory=dict)
     _default: dict[str, Any] = field(default_factory=lambda: {"results": []})
+    circuit: FakeCircuit = field(default_factory=FakeCircuit)
 
     def seed(self, endpoint_fragment: str, payload: dict[str, Any]) -> None:
         """Register a canned JSON response for a given endpoint fragment.
@@ -312,10 +351,13 @@ class FakeTVDB:
     Attributes:
         _responses: Mapping from endpoint path fragment to response dict.
         _default: Fallback response when no fragment matches.
+        circuit: Always-closed circuit breaker stub so process_tvshows never
+            short-circuits on ``self._tvdb.circuit.can_proceed()``.
     """
 
     _responses: dict[str, Any] = field(default_factory=dict)
     _default: dict[str, Any] = field(default_factory=lambda: {"data": {}})
+    circuit: FakeCircuit = field(default_factory=FakeCircuit)
 
     def seed(self, endpoint_fragment: str, payload: dict[str, Any]) -> None:
         """Register a canned response for a TVDB endpoint fragment.
@@ -555,6 +597,13 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
         "personalscraper.scraper.tmdb_client.TMDBClient",
         lambda *args, **kwargs: stub,
     )
+    # Also patch the already-imported name in scraper.py so that
+    # Scraper.__init__ (which does `from … import TMDBClient` at module level)
+    # receives the stub rather than the real client.
+    monkeypatch.setattr(
+        "personalscraper.scraper.scraper.TMDBClient",
+        lambda *args, **kwargs: stub,
+    )
     return stub
 
 
@@ -580,6 +629,11 @@ def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
 
     monkeypatch.setattr(
         "personalscraper.scraper.tvdb_client.TVDBClient",
+        lambda *args, **kwargs: stub,
+    )
+    # Also patch the already-imported name in scraper.py (same rationale as fake_tmdb).
+    monkeypatch.setattr(
+        "personalscraper.scraper.scraper.TVDBClient",
         lambda *args, **kwargs: stub,
     )
     return stub
