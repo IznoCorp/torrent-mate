@@ -21,8 +21,6 @@ If no path arguments are given the script defaults to scanning ``personalscraper
 relative to the repository root (the parent directory of ``scripts/``).  The exclusion
 of test files is achieved by the default scan root (``personalscraper/``) — there is no
 active filter on test paths; callers control scope via the ``path`` arguments.
-
-Baseline (as of 2026-04-23): 0 ERROR offenders, 0 WARN offenders.
 """
 
 import argparse

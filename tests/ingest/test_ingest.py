@@ -810,7 +810,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(side_effect=OSError("disk full"))
+        mock_client.__enter__ = MagicMock(side_effect=RuntimeError("boom"))
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
 
@@ -824,6 +824,6 @@ class TestRunIngest:
             r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "ingest_unexpected_error"
         ]
         assert matching, "ingest event 'ingest_unexpected_error' was not emitted"
-        assert matching[0].msg.get("error_type") == "OSError", (
-            f"expected error_type='OSError', got {matching[0].msg.get('error_type')!r}"
+        assert matching[0].msg.get("error_type") == "RuntimeError", (
+            f"expected error_type='RuntimeError', got {matching[0].msg.get('error_type')!r}"
         )

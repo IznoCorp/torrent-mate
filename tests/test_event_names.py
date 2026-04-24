@@ -254,6 +254,7 @@ class TestIngestQbitAuthLockoutEvent:
             run_ingest(settings, config=_make_config(tmp_path))
 
         assert _has_event(caplog, "ingest_qbit_auth_lockout"), "ingest event 'ingest_qbit_auth_lockout' was not emitted"
+        assert not _has_event(caplog, "ingest_unexpected_error"), "auth_lockout should not fall through to catch-all"
 
 
 # ---------------------------------------------------------------------------

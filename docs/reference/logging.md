@@ -127,7 +127,7 @@ is empty. Pass the exception INSTANCE directly so structlog can render the trace
 # In a tenacity before_sleep callback
 def _cb(retry_state: RetryCallState) -> None:
     exc = retry_state.outcome.exception() if retry_state.outcome else None
-    log.warning("tmdb_retry", attempt=..., exc_info=exc if exc else False, error=str(exc) if exc else None)
+    log.warning("tmdb_retry", attempt=..., exc_info=exc if exc is not None else False, error=str(exc) if exc is not None else None)
 ```
 
 Wrong:
@@ -136,7 +136,6 @@ Wrong:
 exc_info=True   # sys.exc_info() is empty outside an active except — no traceback will render
 ```
 
-This is the ONLY case where passing an exception instance as `exc_info` is permitted.
 See `personalscraper/scraper/http_retry.py` (`build_retry_logger`) for the canonical implementation.
 
 ## Enforcement
@@ -170,7 +169,7 @@ narrowing is not feasible.
 
 ```python
 # Correct — justification explains why narrowing isn't feasible
-except Exception as exc:  # noqa: BLE001 — best-effort fallback; notification must not mask the underlying operation
+except Exception as exc:  # noqa: BLE001 — python-telegram-bot raises heterogeneous errors (NetworkError, RetryAfter, TimedOut, BadRequest, Unauthorized) plus stdlib exceptions at serialization; notification failures must not abort the pipeline step
     log.exception("telegram_unexpected_error", error=str(exc))
 
 # Also correct — cross-module exception set makes narrowing impractical

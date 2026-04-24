@@ -691,7 +691,7 @@ class Scraper:
                 result.action = "artwork_recovered"
                 result.artwork_downloaded = [p.name for p in downloaded]
                 log.info("artwork_recovered", count=len(downloaded), directory=movie_dir.name)
-        except Exception as e:  # noqa: BLE001 — get_movie() raises TMDBError/CircuitOpenError (lazy imports); download_movie_artwork() adds OSError; mixed API+IO path, narrowing needs 3 cross-module imports
+        except Exception as e:  # noqa: BLE001 — see block comment above
             log.warning("artwork_recovery_failed", directory=movie_dir.name, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork recovery failed: {e}")
 

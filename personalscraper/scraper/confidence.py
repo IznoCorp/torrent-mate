@@ -241,7 +241,7 @@ def match_tvshow(
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year)
         if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
             return tvdb_match
-    except Exception as e:  # noqa: BLE001 — TVDB is optional; TMDB is authoritative. Broad catch silently masks programming bugs in the TVDB adapter as transient TVDB failure — fall back to TMDB. Accepted because the circuit breaker surfaces persistent TVDB errors via circuit_opened, and dashboards can monitor show_tvdb_fallback_tmdb rate.
+    except Exception as e:  # noqa: BLE001 — see block comment above; narrowing requires lazy imports for TVDBError/CircuitOpenError/requests and still masks adapter bugs (tracked: TODO)
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
     # Fallback to TMDB

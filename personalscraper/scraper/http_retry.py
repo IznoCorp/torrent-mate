@@ -41,9 +41,6 @@ def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState
         run outside the active except block, so sys.exc_info() is empty there.
         Passing the exception INSTANCE directly lets structlog render the
         traceback from it even when sys.exc_info() is (None, None, None).
-        exc_info is the exception that triggered the retry (as the instance, so
-        structlog can render the traceback from it), or ``False`` when the retry
-        was triggered by a non-exception outcome.
     """
 
     def _cb(retry_state: RetryCallState) -> None:
