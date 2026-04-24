@@ -60,7 +60,11 @@ class TestMovieFullPipeline:
         movies_dir = staging / "001-MOVIES"
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
-        cleanup = TestCleanup(registry=e2e_registry, dry_run=False)
+        cleanup = TestCleanup(
+            registry=e2e_registry,
+            dry_run=False,
+            staging_dir=staging,
+        )
 
         try:
             # ── 1. Setup: add .torrent files and wait for download ──

@@ -56,7 +56,11 @@ class TestTVShowFullPipeline:
         tvshows_dir = staging / "002-TVSHOWS"
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
-        cleanup = TestCleanup(registry=e2e_registry, dry_run=False)
+        cleanup = TestCleanup(
+            registry=e2e_registry,
+            dry_run=False,
+            staging_dir=staging,
+        )
 
         try:
             # ── 1. Setup: add .torrent files and wait for download ──
@@ -180,7 +184,11 @@ class TestFullPipelineMixed:
         staging = Path(settings.staging_dir)
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
-        cleanup = TestCleanup(registry=e2e_registry, dry_run=False)
+        cleanup = TestCleanup(
+            registry=e2e_registry,
+            dry_run=False,
+            staging_dir=staging,
+        )
 
         try:
             # 1. Setup: download all test torrents
