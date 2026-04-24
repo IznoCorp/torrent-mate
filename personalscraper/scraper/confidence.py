@@ -241,7 +241,7 @@ def match_tvshow(
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year)
         if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
             return tvdb_match
-    except Exception as e:  # noqa: BLE001 — see block comment above; narrowing requires lazy imports for TVDBError/CircuitOpenError/requests and still masks adapter bugs (tracked: TODO)
+    except Exception as e:  # noqa: BLE001 — see block comment above; narrowing requires lazy imports for TVDBError/CircuitOpenError/requests and still masks adapter bugs
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
     # Fallback to TMDB

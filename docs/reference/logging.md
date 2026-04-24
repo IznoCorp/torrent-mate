@@ -177,7 +177,7 @@ except Exception as e:  # noqa: BLE001 — catches TVDBError, requests.Connectio
     log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 ```
 
-Reference templates: `personalscraper/notifier.py:73`, `personalscraper/scraper/confidence.py:241`.
+Reference templates: `personalscraper/notifier.py:73`, `personalscraper/scraper/confidence.py::match_tvshow`.
 
 **Scope**: this is mandatory for **new code** added during review. A sweep of the 20+ pre-existing
 broad-except sites is out of scope per DESIGN §2 (only new/touched code is in scope).

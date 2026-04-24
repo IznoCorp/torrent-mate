@@ -22,9 +22,9 @@ def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState
     warning with the attempt number, the upcoming wait duration, and exc_info for
     traceback capture.
 
-    When ``retry_state.outcome`` is ``None`` (tenacity calls before_sleep before
-    the first outcome is recorded), the callback logs with ``exc_info=False`` and
-    ``error=None`` — no traceback, no error field.
+    When no exception is available (outcome absent, or outcome was a non-exception
+    result), the callback logs with ``exc_info=False`` and ``error=None`` — no
+    traceback, no error field.
 
     Args:
         log: Bound structlog logger for the calling module.
