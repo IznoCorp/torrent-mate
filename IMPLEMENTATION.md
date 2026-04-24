@@ -19,7 +19,7 @@
 | 3   | E2E tests — enforce / verify / dispatch / full-run         | phase-03-e2e-late-stages.md  | [x]    |
 | 4   | Hotspot trimming (dispatcher / cli / pipeline_integration) | phase-04-hotspot-trim.md     | [x]    |
 | 5   | Coverage check + docs                                      | phase-05-verify-and-docs.md  | [x]    |
-| 6   | PR fixes cycle 1                                           | phase-06-pr-fixes-cycle-1.md | [ ]    |
+| 6   | PR fixes cycle 1                                           | phase-06-pr-fixes-cycle-1.md | [x]    |
 
 ## Review cycles
 
@@ -33,4 +33,4 @@
 
 ## Next action
 
-Continue `/implement:phase` for Phase 6 (PR fixes cycle 1).
+All phases complete — run `/implement:feature-pr` (will re-push, re-poll CI, route to /implement:pr-review cycle 2).
