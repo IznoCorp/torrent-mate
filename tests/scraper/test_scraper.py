@@ -475,6 +475,32 @@ class TestScrapeTvshow:
         assert not is_valid
         assert reason.startswith("folder_name_drift")
 
+    def test_verify_tolerates_nfc_nfd_equivalence(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Folder names differing only in NFC/NFD codepoints are NOT drift.
+
+        macOS APFS/HFS+ stores filenames in NFD ("è" → "e" + U+0300), while
+        Python strings built from scraper output are typically NFC ("è" as
+        U+00E8). A naive byte-level compare treats them as different; the
+        drift check must normalize both sides to NFC to avoid a phantom
+        rename-into-self that would empty the folder.
+        """
+        import unicodedata as _ud
+
+        nfc_title = "Top Chef Le Concours Parallèle"  # NFC form in the NFO
+        nfd_folder = _ud.normalize("NFD", f"{nfc_title} (2026)")  # NFD on disk
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            folder_name=nfd_folder,
+            nfo_title=nfc_title,
+            nfo_year="2026",
+        )
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert is_valid, f"NFC/NFD mismatch wrongly treated as drift: {reason}"
+
     def test_verify_rejects_title_less_legacy_episode(
         self,
         scraper: Scraper,

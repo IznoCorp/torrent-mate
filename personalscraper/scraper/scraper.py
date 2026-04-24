@@ -10,6 +10,7 @@ TV show flow: parse folder → match TVDB/TMDB → get details → tvshow.nfo �
 """
 
 import re
+import unicodedata
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -317,6 +318,93 @@ def _local_show_seasons(show_dir: Path) -> set[int]:
         if season and season > 0:
             seasons.add(season)
     return seasons
+
+
+def verify_tvshow_scrape_drift(
+    show_dir: Path,
+    nfo_path: Path,
+    patterns: NamingPatterns,
+) -> tuple[bool, str]:
+    r"""Verify a previously-scraped TV show directory still matches current scraper output.
+
+    Purely filesystem + NFO parsing — no external API calls. Drift found
+    here triggers a full re-scrape upstream (caller deletes the NFO and
+    falls through).
+
+    Checks, all must pass:
+
+    1. ``tvshow.nfo`` parses and exposes non-empty ``<title>``, ``<year>``,
+       and at least one non-empty ``<uniqueid>``.
+    2. Folder name equals the canonical ``sanitize("{title} ({year})")``
+       — catches previous scrapes whose API-sourced folder name drifted
+       from the current policy (e.g. "Top Chef (France) (2010)" vs the
+       TVDB canonical "Top Chef (2010)").
+    3. Every video file under ``Saison XX/`` matches
+       ``S\d{2}E\d{2} - .+\.ext`` — a title segment is required. A bare
+       ``SxxExx.ext`` indicates a legacy title-less fallback that must be
+       upgraded to the synthetic-title form.
+    4. Every episode video has a sibling ``.nfo`` with the same stem.
+    5. ``poster.jpg`` and ``landscape.jpg`` are present.
+
+    Args:
+        show_dir: Path to the TV show directory.
+        nfo_path: Path to ``tvshow.nfo`` (existence already confirmed).
+        patterns: Naming patterns used to compute the canonical folder
+            name and artwork filenames.
+
+    Returns:
+        Tuple ``(is_valid, reason)``. ``reason`` is a short slug suitable
+        for a log field; ``"ok"`` on success.
+    """
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+    except (ET.ParseError, OSError) as exc:
+        return False, f"nfo_parse_failed:{exc}"
+
+    # 1. Mandatory NFO fields.
+    nfo_title = (root.findtext("title") or "").strip()
+    nfo_year = (root.findtext("year") or "").strip()
+    if not nfo_title:
+        return False, "nfo_missing_title"
+    if not nfo_year:
+        return False, "nfo_missing_year"
+    has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
+    if not has_uniqueid:
+        return False, "nfo_missing_uniqueid"
+
+    # 2. Canonical folder name. Compare under NFC normalization so macOS's
+    # NFD-stored filenames don't trip the check (the two strings can look
+    # identical in logs but differ in codepoints — "è" as U+00E8 vs
+    # "e" + U+0300). Without this, the drift check falsely fires and the
+    # subsequent rename-into-itself corrupts the folder.
+    canonical = patterns.format("movie_dir", Title=nfo_title, Year=nfo_year)
+    if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
+        return False, f"folder_name_drift:{show_dir.name}!={canonical}"
+
+    # 5. Show-level artwork.
+    if not (show_dir / patterns.tvshow_poster).exists():
+        return False, "poster_missing"
+    if not (show_dir / patterns.tvshow_landscape).exists():
+        return False, "landscape_missing"
+
+    # 3 + 4. Episode naming + sibling NFO.
+    for season_dir in show_dir.iterdir():
+        if not (season_dir.is_dir() and SEASON_DIR_RE.match(season_dir.name)):
+            continue
+        for ep_file in season_dir.iterdir():
+            if not ep_file.is_file():
+                continue
+            if ep_file.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                continue
+            # Strict: require "SxxExx - Title.ext". A bare "SxxExx.ext" is a
+            # legacy fallback name that must be upgraded.
+            if not _EPISODE_STRICT_RE.match(ep_file.name):
+                return False, f"episode_naming_drift:{ep_file.name}"
+            sibling_nfo = ep_file.with_suffix(".nfo")
+            if not sibling_nfo.exists():
+                return False, f"episode_nfo_missing:{sibling_nfo.name}"
+
+    return True, "ok"
 
 
 def _tvdb_series_to_show_data(
@@ -815,79 +903,19 @@ class Scraper:
         return repaired
 
     def _verify_existing_scrape(self, show_dir: Path, nfo_path: Path) -> tuple[bool, str]:
-        r"""Verify a previously-scraped TV show directory still matches current scraper output.
+        """Thin wrapper over ``verify_tvshow_scrape_drift``.
 
-        Purely filesystem + NFO parsing — no external API calls. Drift found here
-        triggers a full re-scrape (caller deletes the NFO and falls through).
-
-        Checks, all must pass:
-
-        1. ``tvshow.nfo`` parses and exposes non-empty ``<title>``, ``<year>``,
-           and at least one non-empty ``<uniqueid>``.
-        2. Folder name equals the canonical ``sanitize("{title} ({year})")`` —
-           catches previous scrapes whose API-sourced folder name drifted from
-           the current policy (e.g. "Top Chef (France) (2010)" vs the TVDB
-           canonical "Top Chef (2010)").
-        3. Every video file under ``Saison XX/`` matches
-           ``S\\d{2}E\\d{2} - .+\\.ext`` — a title is required. A bare
-           ``SxxExx.ext`` indicates a legacy title-less fallback that should
-           be upgraded to the new synthetic-title form.
-        4. Every episode video has a sibling ``.nfo`` with the same stem.
-        5. ``poster.jpg`` and ``landscape.jpg`` are present.
+        Kept as an instance method so existing call sites keep threading
+        ``self.patterns`` through the class.
 
         Args:
             show_dir: Path to the TV show directory.
-            nfo_path: Path to ``tvshow.nfo`` (existence already confirmed by caller).
+            nfo_path: Path to ``tvshow.nfo``.
 
         Returns:
-            Tuple ``(is_valid, reason)``. ``reason`` is a short slug suitable
-            for a log field; ``"ok"`` on success.
+            ``(is_valid, reason)`` — see ``verify_tvshow_scrape_drift``.
         """
-        try:
-            root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
-        except (ET.ParseError, OSError) as exc:
-            return False, f"nfo_parse_failed:{exc}"
-
-        # 1. Mandatory NFO fields.
-        nfo_title = (root.findtext("title") or "").strip()
-        nfo_year = (root.findtext("year") or "").strip()
-        if not nfo_title:
-            return False, "nfo_missing_title"
-        if not nfo_year:
-            return False, "nfo_missing_year"
-        has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
-        if not has_uniqueid:
-            return False, "nfo_missing_uniqueid"
-
-        # 2. Canonical folder name.
-        canonical = self.patterns.format("movie_dir", Title=nfo_title, Year=nfo_year)
-        if show_dir.name != canonical:
-            return False, f"folder_name_drift:{show_dir.name}!={canonical}"
-
-        # 5. Show-level artwork.
-        if not (show_dir / self.patterns.tvshow_poster).exists():
-            return False, "poster_missing"
-        if not (show_dir / self.patterns.tvshow_landscape).exists():
-            return False, "landscape_missing"
-
-        # 3 + 4. Episode naming + sibling NFO.
-        for season_dir in show_dir.iterdir():
-            if not (season_dir.is_dir() and SEASON_DIR_RE.match(season_dir.name)):
-                continue
-            for ep_file in season_dir.iterdir():
-                if not ep_file.is_file():
-                    continue
-                if ep_file.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
-                    continue
-                # Strict: require "SxxExx - Title.ext". A bare "SxxExx.ext" is a
-                # legacy fallback name and must be upgraded.
-                if not _EPISODE_STRICT_RE.match(ep_file.name):
-                    return False, f"episode_naming_drift:{ep_file.name}"
-                sibling_nfo = ep_file.with_suffix(".nfo")
-                if not sibling_nfo.exists():
-                    return False, f"episode_nfo_missing:{sibling_nfo.name}"
-
-        return True, "ok"
+        return verify_tvshow_scrape_drift(show_dir, nfo_path, self.patterns)
 
     def _repair_tvshow_dir(self, show_dir: Path) -> bool:
         """Repair a TV show directory with valid NFO.
@@ -1580,7 +1608,12 @@ class Scraper:
             Title=resolved_title,
             Year=match.api_year or year or "",
         )
-        if show_dir.name != canonical:
+        # NFC-compare: macOS stores filenames in NFD, Python strings are typically
+        # NFC; a naive string compare treats them as different and triggers a
+        # rename-into-self merge that empties the folder. See
+        # ``verify_tvshow_scrape_drift`` for the matching normalization on the
+        # read side.
+        if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
             new_dir = show_dir.parent / canonical
             if not self.dry_run:
                 try:
