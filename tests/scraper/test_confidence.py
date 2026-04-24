@@ -278,6 +278,86 @@ class TestMatchTvshow:
         result = match_tvshow(tvdb, tmdb, "nonexistent", 2024)
         assert result is None
 
+    def test_tvdb_match_spin_off_filtered_by_local_seasons(self) -> None:
+        """Candidate without the wanted season in its catalog is rejected.
+
+        Regression: "Top Chef France" used to match a 2016 one-season
+        spin-off because it was ranked first by TVDB search. When the
+        local folder holds a S17 file, only candidates whose catalog
+        contains S17 should survive.
+        """
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            # Spin-off: matches keyword but only has S01-S02
+            {"tvdb_id": "346368", "name": "Top Chef France - Dans l'assiette", "year": "2016"},
+            # Main show: slightly lower title score but has S01..S17+
+            {"tvdb_id": "77081", "name": "Top Chef", "year": "2010"},
+        ]
+
+        def fake_get_series(tvdb_id: int) -> dict:
+            if tvdb_id == 346368:
+                return {"seasons": [{"number": 1}, {"number": 2}]}
+            if tvdb_id == 77081:
+                return {"seasons": [{"number": s} for s in range(1, 18)]}
+            return {}
+
+        tvdb.get_series.side_effect = fake_get_series
+
+        result = match_tvshow_tvdb(tvdb, "Top Chef France", None, local_seasons={17})
+
+        assert result is not None
+        assert result.api_id == 77081
+
+    def test_tvdb_no_local_seasons_keeps_score_based_winner(self) -> None:
+        """Without local_seasons, behavior is backwards-compatible (best score)."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "346368", "name": "Top Chef France - Dans l'assiette", "year": "2016"},
+            {"tvdb_id": "77081", "name": "Top Chef", "year": "2010"},
+        ]
+
+        result = match_tvshow_tvdb(tvdb, "Top Chef France", None)
+
+        # get_series must not be called when no local_seasons provided.
+        assert not tvdb.get_series.called
+        assert result is not None
+        # Best fuzzy score wins (as before) — title "Top Chef France - Dans l'assiette"
+        # contains the full query, so it scores higher than "Top Chef".
+        assert result.api_id == 346368
+
+    def test_tvdb_local_seasons_no_survivor_falls_back_to_best_score(self) -> None:
+        """If no candidate has the wanted season, fall back to best fuzzy score.
+
+        Content-aware is a preference, not a veto — we must not return None
+        on a fetch/coverage gap.
+        """
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "1", "name": "Test Show", "year": "2020"},
+            {"tvdb_id": "2", "name": "Test Show B", "year": "2021"},
+        ]
+        tvdb.get_series.return_value = {"seasons": [{"number": 1}]}  # Only S01 everywhere
+
+        result = match_tvshow_tvdb(tvdb, "Test Show", 2020, local_seasons={99})
+
+        assert result is not None
+        assert result.api_id == 1  # Best score winner (exact title + exact year)
+
+    def test_tvdb_candidate_fetch_failure_does_not_veto(self) -> None:
+        """Transient get_series failure must not drop a candidate silently."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "1", "name": "Test Show", "year": "2020"},
+            {"tvdb_id": "2", "name": "Test Show B", "year": "2020"},
+        ]
+        tvdb.get_series.side_effect = RuntimeError("network glitch")
+
+        result = match_tvshow_tvdb(tvdb, "Test Show", 2020, local_seasons={1})
+
+        # Both candidates survive (fetch error → keep), best score wins.
+        assert result is not None
+        assert result.api_id == 1
+
 
 # ---------------------------------------------------------------------------
 # get_episode_titles

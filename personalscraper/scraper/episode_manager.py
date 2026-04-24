@@ -100,8 +100,12 @@ def match_episode_files(
 ) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
-    Uses NameCleaner to extract S/E numbers from filenames, then
-    looks up the episode title in the API data.
+    Uses a filename regex to extract S/E numbers, then looks up the
+    episode title in the API data. Files whose (season, episode) is
+    absent from ``api_episodes`` are still included with ``api_title=""``
+    so ``rename_episodes`` can move them into ``Saison XX/SxxExx.mkv``
+    (no title, no NFO) — this prevents mkv files from being stranded at
+    the show root when the provider lags behind a freshly-aired episode.
 
     Args:
         video_files: List of video file paths.
@@ -111,8 +115,9 @@ def match_episode_files(
     Returns:
         Dict mapping video path to match info:
         {path: {"season": int, "episode": int, "api_title": str,
-                "still_path": str}}.
-        Files with no S/E match or no API match are excluded.
+                "still_path": str}}. ``api_title`` is "" for files not
+        found in the API (fallback move, no NFO).
+        Only files with no extractable S/E are excluded.
     """
     matched: dict[Path, dict[str, Any]] = {}
 
@@ -132,7 +137,21 @@ def match_episode_files(
                 "still_path": ep_info.get("still_path", ""),
             }
         else:
-            log.warning("episode_not_in_api", season=season, episode=episode, filename=video_path.name)
+            # Fallback: file has parseable S/E but provider lacks the episode.
+            # Move it to Saison XX/ under a title-less SxxExx stem so verify/dispatch
+            # don't block on an unorganized root mkv.
+            log.info(
+                "episode_not_in_api_fallback",
+                season=season,
+                episode=episode,
+                filename=video_path.name,
+            )
+            matched[video_path] = {
+                "season": season,
+                "episode": episode,
+                "api_title": "",
+                "still_path": "",
+            }
 
     return matched
 
@@ -170,12 +189,17 @@ def rename_episodes(
         season_dir_name = patterns.format("season_dir", Season=season)
         season_dir = show_dir / season_dir_name
 
-        new_stem = patterns.format(
-            "episode_video",
-            Season=season,
-            Episode=episode,
-            EpisodeTitle=api_title,
-        )
+        if api_title:
+            new_stem = patterns.format(
+                "episode_video",
+                Season=season,
+                Episode=episode,
+                EpisodeTitle=api_title,
+            )
+        else:
+            # Fallback when provider lacks the episode: title-less SxxExx stem.
+            # Keeps the file organized under Saison XX/ without fabricating metadata.
+            new_stem = f"S{season:02d}E{episode:02d}"
         new_video_name = f"{new_stem}{video_path.suffix}"
         dest = season_dir / new_video_name
 

@@ -139,15 +139,23 @@ class TestMatchEpisodeFiles:
         assert result[video1]["still_path"] == "/abc123.jpg"
         assert result[video2]["still_path"] == ""
 
-    def test_unmatched_episode_excluded(self, tmp_path: Path) -> None:
-        """Episodes not in API should be excluded from results."""
+    def test_unmatched_episode_included_with_empty_title(self, tmp_path: Path) -> None:
+        """Episodes with parseable S/E but absent from API are kept as fallback.
+
+        They get empty api_title/still_path so rename_episodes moves them under
+        Saison XX/ with a title-less SxxExx stem — required when the provider
+        lags behind a just-aired episode.
+        """
         video = tmp_path / "Show.S01E99.mkv"
         video.touch()
 
         api_episodes = {(1, 1): {"title": "La Fin", "still_path": ""}}
         result = match_episode_files([video], api_episodes)
 
-        assert len(result) == 0
+        assert len(result) == 1
+        assert result[video]["api_title"] == ""
+        assert result[video]["season"] == 1
+        assert result[video]["episode"] == 99
 
     def test_unparseable_filename_excluded(self, tmp_path: Path) -> None:
         """Files without S/E pattern should be excluded."""
@@ -185,6 +193,31 @@ class TestRenameEpisodes:
 
         assert count == 1
         expected = tmp_path / "Saison 01" / "S01E01 - La Fin.mkv"
+        assert expected.exists()
+        assert not video.exists()
+
+    def test_moves_title_less_fallback_to_season_dir(
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
+    ) -> None:
+        """Fallback entries (api_title="") are moved with a title-less stem.
+
+        Covers the case where the provider lacks a just-aired episode: the
+        file must still land in Saison XX/ as SxxExx.ext so verify doesn't
+        block dispatch on a stranded root mkv.
+        """
+        video = tmp_path / "Show.S17E08.FRENCH.1080p.mkv"
+        video.write_text("video content")
+
+        matched = {
+            video: {"season": 17, "episode": 8, "api_title": ""},
+        }
+
+        count = rename_episodes(matched, tmp_path, patterns)
+
+        assert count == 1
+        expected = tmp_path / "Saison 17" / "S17E08.mkv"
         assert expected.exists()
         assert not video.exists()
 
@@ -341,12 +374,17 @@ class TestEpisodeRenameE2E:
         assert video.exists()  # Not moved
         assert not (show_dir / "Saison 01").exists()  # Not created
 
-    def test_missing_api_episode_kept(
+    def test_missing_api_episode_moved_with_fallback_name(
         self,
         tmp_path: Path,
         patterns: NamingPatterns,
     ) -> None:
-        """Episode not in API should keep original name."""
+        """Episode with S/E in filename but absent from API is still moved.
+
+        Uses a title-less SxxExx stem so verify/dispatch don't block on a
+        stranded root mkv when the provider lags behind a freshly-aired
+        episode (e.g. TVDB doesn't yet list S17E08 the day it airs).
+        """
         show_dir = tmp_path / "Show"
         show_dir.mkdir()
         video_found = show_dir / "Show.S01E01.mkv"
@@ -357,11 +395,17 @@ class TestEpisodeRenameE2E:
         api_episodes = {(1, 1): {"title": "Pilot", "still_path": ""}}  # No S01E99
         matched = match_episode_files([video_found, video_missing], api_episodes)
 
-        assert len(matched) == 1  # Only S01E01 matched
-        assert video_missing not in matched
+        # Both files are now included — the missing one with an empty api_title
+        assert len(matched) == 2
+        assert matched[video_missing]["api_title"] == ""
+        assert matched[video_found]["api_title"] == "Pilot"
 
-        # Rename only the matched one
         rename_episodes(matched, show_dir, patterns)
 
-        # S01E99 still in original location
-        assert video_missing.exists()
+        # Matched file: renamed with title
+        assert (show_dir / "Saison 01" / "S01E01 - Pilot.mkv").exists()
+        # Fallback file: moved to Saison 01/ with title-less SxxExx stem
+        assert (show_dir / "Saison 01" / "S01E99.mkv").exists()
+        # Original root files are gone
+        assert not video_found.exists()
+        assert not video_missing.exists()

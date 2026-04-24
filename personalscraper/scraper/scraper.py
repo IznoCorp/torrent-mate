@@ -32,6 +32,7 @@ from personalscraper.scraper.confidence import (
     match_tvshow,
 )
 from personalscraper.scraper.episode_manager import (
+    _extract_season_episode,
     create_season_dirs,
     match_episode_files,
     rename_episodes,
@@ -284,6 +285,32 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
         except OSError as exc:
             log.warning("release_dir_remove_failed", directory=subdir.name, error=str(exc))
     return removed
+
+
+def _local_show_seasons(show_dir: Path) -> set[int]:
+    """Extract the set of seasons present in a TV show folder.
+
+    Walks the folder recursively and parses S/E from each video filename.
+    Feeds content-aware candidate disambiguation in ``match_tvshow_tvdb``:
+    a candidate whose TVDB catalog does not cover the observed seasons is
+    very likely the wrong show (e.g. a same-keyword spin-off).
+
+    Args:
+        show_dir: Path to the TV show directory.
+
+    Returns:
+        Set of season numbers (> 0). Empty when no parseable S/E found.
+    """
+    seasons: set[int] = set()
+    for f in show_dir.rglob("*"):
+        if not f.is_file():
+            continue
+        if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+            continue
+        season, _ = _extract_season_episode(f.name)
+        if season and season > 0:
+            seasons.add(season)
+    return seasons
 
 
 def _tvdb_series_to_show_data(
@@ -1354,9 +1381,19 @@ class Scraper:
                 log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
                 return result
 
+        # Collect seasons present in the folder's video files — feeds
+        # content-aware candidate disambiguation in match_tvshow_tvdb.
+        local_seasons = _local_show_seasons(show_dir)
+
         # Match against TVDB/TMDB
         try:
-            match = match_tvshow(self._tvdb, self._tmdb, title, year)
+            match = match_tvshow(
+                self._tvdb,
+                self._tmdb,
+                title,
+                year,
+                local_seasons=local_seasons,
+            )
         except Exception as e:
             result.error = f"Match failed: {e}"
             log.error("show_match_failed", title=title, error=str(e))
@@ -1613,6 +1650,12 @@ class Scraper:
             episode = info["episode"]
             api_title = info["api_title"]
             still_path = info.get("still_path", "")
+
+            # Fallback entries (provider lacked the episode) have no title/thumb
+            # data — skip NFO/thumb generation and leave the file as a titleless
+            # SxxExx.mkv under Saison XX/.
+            if not api_title:
+                continue
 
             season_dir_name = self.patterns.format("season_dir", Season=season)
             new_stem = self.patterns.format(

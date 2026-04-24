@@ -152,20 +152,69 @@ def match_movie(
     return best_match
 
 
+def _candidate_has_any_season(
+    tvdb_client: object,
+    tvdb_id: int,
+    wanted_seasons: set[int],
+) -> bool:
+    """Return True if a TVDB candidate's catalog covers any wanted season.
+
+    Content-aware disambiguation: when several shows share a common keyword
+    (e.g. "Top Chef"), the one whose catalog actually contains the seasons
+    present in the local folder is almost certainly the right show. A 2016
+    one-season spin-off cannot be the match for a file tagged S17.
+
+    Args:
+        tvdb_client: TVDBClient instance.
+        tvdb_id: Candidate's TVDB series id.
+        wanted_seasons: Seasons observed in the local folder.
+
+    Returns:
+        True if at least one wanted season exists in the candidate's
+        TVDB seasons list. On any API error, returns True — we refuse to
+        reject a candidate over a transient fetch failure.
+    """
+    if not wanted_seasons or tvdb_id <= 0:
+        return True
+    try:
+        series = tvdb_client.get_series(tvdb_id)  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001 — transient fetch failure; don't veto on infra
+        log.warning("show_tvdb_candidate_seasons_fetch_failed", tvdb_id=tvdb_id)
+        return True
+    available: set[int] = set()
+    for season in series.get("seasons", []) or []:
+        s_num = season.get("number", season.get("season_number", 0))
+        if isinstance(s_num, int) and s_num > 0:
+            available.add(s_num)
+    return bool(available & wanted_seasons)
+
+
 def match_tvshow_tvdb(
     tvdb_client: object,
     title: str,
     year: int | None,
+    local_seasons: set[int] | None = None,
 ) -> MatchResult | None:
     """Match a local TV show against TVDB search results.
 
     TVDB is the primary provider for TV shows. Search results use
     snake_case fields and tvdb_id (string) as the identifier.
 
+    When ``local_seasons`` is provided and the search returns multiple
+    candidates above LOW_CONFIDENCE, candidates whose TVDB catalog does
+    not overlap the local seasons are filtered out before picking the
+    best score. This prevents a same-keyword spin-off (short catalog)
+    from winning over the main show for a file tagged Sxx where xx is
+    beyond the spin-off's range.
+
     Args:
         tvdb_client: TVDBClient instance.
         title: Show title from the local folder.
         year: First air date year (None if not detected).
+        local_seasons: Season numbers observed in the folder's video files
+            (e.g. {17} for a folder containing S17E08). When provided and
+            more than one candidate survives the score filter, candidates
+            whose TVDB seasons don't intersect this set are rejected.
 
     Returns:
         Best MatchResult with source="tvdb", or None if no results.
@@ -175,9 +224,8 @@ def match_tvshow_tvdb(
         log.info("show_no_tvdb_results", title=title, year=year)
         return None
 
-    best_match: MatchResult | None = None
-    best_score = -1.0
-
+    # First pass: score every candidate.
+    scored: list[tuple[float, MatchResult]] = []
     for result in results:
         api_title = result.get("name", "")
         # TVDB search returns year as string in the "year" field
@@ -186,20 +234,45 @@ def match_tvshow_tvdb(
 
         score = score_match(title, year, api_title, api_year)
 
-        if score > best_score:
-            best_score = score
-            # TVDB search uses tvdb_id (string), not id
-            tvdb_id_str = result.get("tvdb_id", "")
-            api_id = int(tvdb_id_str) if tvdb_id_str and str(tvdb_id_str).isdigit() else 0
-            best_match = MatchResult(
-                api_id=api_id,
-                api_title=api_title,
-                api_year=api_year,
-                confidence=score,
-                source="tvdb",
+        # TVDB search uses tvdb_id (string), not id
+        tvdb_id_str = result.get("tvdb_id", "")
+        api_id = int(tvdb_id_str) if tvdb_id_str and str(tvdb_id_str).isdigit() else 0
+        scored.append(
+            (
+                score,
+                MatchResult(
+                    api_id=api_id,
+                    api_title=api_title,
+                    api_year=api_year,
+                    confidence=score,
+                    source="tvdb",
+                ),
             )
+        )
 
-    if best_match:
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    # Content-aware filter: when local_seasons known and multiple viable
+    # candidates, reject those whose catalog doesn't cover the wanted seasons.
+    # Capped to the top 5 to avoid hammering TVDB on pathological searches.
+    viable = [(s, m) for s, m in scored if s >= LOW_CONFIDENCE]
+    if local_seasons and len(viable) >= 2:
+        survivors: list[tuple[float, MatchResult]] = []
+        for score, cand in viable[:5]:
+            if _candidate_has_any_season(tvdb_client, cand.api_id, local_seasons):
+                survivors.append((score, cand))
+            else:
+                log.info(
+                    "show_tvdb_candidate_rejected_by_seasons",
+                    tvdb_id=cand.api_id,
+                    api_title=cand.api_title,
+                    wanted_seasons=sorted(local_seasons),
+                )
+        if survivors:
+            scored = survivors
+
+    _, best_match = scored[0]
+    if best_match is not None:
         log.info(
             "show_tvdb_match",
             title=title,
@@ -216,6 +289,7 @@ def match_tvshow(
     tmdb_client: object,
     title: str,
     year: int | None,
+    local_seasons: set[int] | None = None,
 ) -> MatchResult | None:
     """Match a TV show using TVDB (primary) with TMDB fallback.
 
@@ -227,6 +301,8 @@ def match_tvshow(
         tmdb_client: TMDBClient instance (fallback).
         title: Show title from the local folder.
         year: First air date year (None if not detected).
+        local_seasons: Seasons observed in the folder (content-aware
+            disambiguation — see ``match_tvshow_tvdb``).
 
     Returns:
         Best MatchResult (source="tvdb" or "tmdb"), or None.
@@ -238,7 +314,7 @@ def match_tvshow(
     # impacting the pipeline; TMDB fallback ensures metadata is still populated.
     tvdb_match: MatchResult | None = None
     try:
-        tvdb_match = match_tvshow_tvdb(tvdb_client, title, year)
+        tvdb_match = match_tvshow_tvdb(tvdb_client, title, year, local_seasons=local_seasons)
         if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
             return tvdb_match
     except Exception as e:  # noqa: BLE001 — see block comment above; narrowing requires lazy imports for TVDBError/CircuitOpenError/requests and still masks adapter bugs
