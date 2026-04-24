@@ -20,6 +20,7 @@
 | 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
 | 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [x]    |
 | 6   | PR fixes cycle 2             | phase-06-pr-fixes-cycle-2.md | [x]    |
+| 7   | PR fixes cycle 3             | phase-07-pr-fixes-cycle-3.md | [ ]    |
 
 ## Review cycles
 
@@ -52,11 +53,12 @@
 ### Cycle 3
 
 - Findings received: 4 agents (code-reviewer, silent-failure-hunter, pr-test-analyzer, comment-analyzer)
-- Retained: 6 (0 critical, 0 major, 0 medium, 6 minor)
-- Minor observations (deferred post-merge): `notifier.py:68` `telegram_timeout` no `exc_info`; `tmdb_client.py:447` first fallback arm no `exc_info`; `scraper.py:351/358` tvdb_poster/background_fetch_failed no `exc_info`; duplicate commit subject `41d4e40`/`0cc5f9b` (squash collapses); `http_retry.py:38-46` docstring Note has overlapping sentences; `logging.md` broad-except section references `confidence.py:241` (now line 244)
-- Fix phase created: none — all retained findings are minor, non-blocking
-- Status: clean — proceeding to manual merge
+- Retained: 14 (0 critical, 2 major, 4 medium, 8 minor) — user overrode spec ceiling to fix all
+- Major: SP6.5 narrowing dropped real raise sites — `_parse_folder_name` misses `GuessitException`; `movie_artwork_failed`/`show_artwork_failed` miss `KeyError`/`AttributeError` from `NamingPatterns.format()` and malformed TMDB/TVDB responses
+- Medium: `tmdb_keywords_failed_http` missing `exc_info`; 3 dispatcher cleanup arms missing `exc_info`; `scraper.py:1540` noqa understates catch surface; narrowed arms lack regression tests
+- Fix phase created: phase-07-pr-fixes-cycle-3.md (4 sub-phases)
+- Status: fix phase dispatched → awaiting `/implement:phase` (ceiling override by user)
 
 ## Next action
 
-Review clean (cycle 3 ceiling reached with 0 blockers). Merge PR #10 manually via GitHub UI (squash), then run `/implement:archive`.
+Phase 7 in progress — run `/implement:phase` to execute fixes, then feature-pr + final review.
