@@ -56,9 +56,9 @@ python -c "from personalscraper.trailers.orchestrator import TrailersOrchestrato
 
 ### Files
 
-| Action | Path                                  | Responsibility                              |
-| ------ | ------------------------------------- | ------------------------------------------- |
-| Modify | `personalscraper/conf/models.py`      | Add TrailersConfig + nested models + Config field |
+| Action | Path                             | Responsibility                                    |
+| ------ | -------------------------------- | ------------------------------------------------- |
+| Modify | `personalscraper/conf/models.py` | Add TrailersConfig + nested models + Config field |
 
 ### Step 1: Write failing tests
 
@@ -178,38 +178,31 @@ Add the following classes **before** the main `Config` class. All use `_StrictMo
 
 **Signature table:**
 
-| Class | Key fields (all with defaults) |
-| --- | --- |
-| `TrailersPlacementConfig` | `movie_pattern: str` (`"{folder}/{name}-trailer.{ext}"`), `tvshow_pattern: str` (same — flat convention) |
-| `TrailersTmdbVideoFilters` | `require_youtube_site: bool` (True), `prefer_official: bool` (True), `allowed_types: list[str]` |
-| `TrailersFiltersConfig` | `min_duration_sec`, `max_duration_sec`, `min_file_size_bytes`, `max_resolution: int` (1080), `max_filesize_mb: int` (500), `prefer_official_channels: bool`, `tmdb_video_filters: TrailersTmdbVideoFilters` |
-| `TrailersCircuitBreakerConfig` | `errors_threshold: int`, `cooldown_sec: int` |
-| `TrailersCircuitBreakersConfig` | `tmdb_videos: TrailersCircuitBreakerConfig`, `youtube: TrailersCircuitBreakerConfig` (two distinct instances per DESIGN §1) |
-| `TrailersYoutubeApiConfig` | `daily_quota_units: int` (10 000), `search_list_cost_units: int` (100), `cache_ttl_days: int` (7) |
-| `TrailersYtdlpConfig` | `format: str` (1080p cap), `socket_timeout_sec`, `retries`, `default_search: str` (`"ytsearch1"`) |
-| `TrailersConfig` | `enabled`, `languages`, `fallback_youtube_search`, `search_query_format`, `placement`, `filters`, `state_file`, `retry_after_days`, `bot_detected_max_consecutive_attempts: int` (5), `library_scan_max_age_hours`, `circuit_breakers: TrailersCircuitBreakersConfig`, `youtube_api: TrailersYoutubeApiConfig`, `ytdlp` |
+| Class                           | Key fields (all with defaults)                                                                                                                                                                                                                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TrailersPlacementConfig`       | `movie_pattern: str` (`"{folder}/{name}-trailer.{ext}"`), `tvshow_pattern: str` (same — flat convention)                                                                                                                                                                                                                |
+| `TrailersTmdbVideoFilters`      | `require_youtube_site: bool` (True), `prefer_official: bool` (True), `allowed_types: list[str]`                                                                                                                                                                                                                         |
+| `TrailersFiltersConfig`         | `min_duration_sec`, `max_duration_sec`, `min_file_size_bytes`, `max_resolution: int` (1080), `max_filesize_mb: int` (500), `prefer_official_channels: bool`, `tmdb_video_filters: TrailersTmdbVideoFilters`                                                                                                             |
+| `TrailersCircuitBreakerConfig`  | `errors_threshold: int`, `cooldown_sec: int`                                                                                                                                                                                                                                                                            |
+| `TrailersCircuitBreakersConfig` | `tmdb_videos: TrailersCircuitBreakerConfig`, `youtube: TrailersCircuitBreakerConfig` (two distinct instances per DESIGN §1)                                                                                                                                                                                             |
+| `TrailersYoutubeApiConfig`      | `daily_quota_units: int` (10 000), `search_list_cost_units: int` (100), `cache_ttl_days: int` (7)                                                                                                                                                                                                                       |
+| `TrailersYtdlpConfig`           | `format: str` (1080p cap), `socket_timeout_sec`, `retries`, `default_search: str` (`"ytsearch1"`)                                                                                                                                                                                                                       |
+| `TrailersConfig`                | `enabled`, `languages`, `fallback_youtube_search`, `search_query_format`, `placement`, `filters`, `state_file`, `retry_after_days`, `bot_detected_max_consecutive_attempts: int` (5), `library_scan_max_age_hours`, `circuit_breakers: TrailersCircuitBreakersConfig`, `youtube_api: TrailersYoutubeApiConfig`, `ytdlp` |
 
-All defaults match exactly the values in DESIGN §9:
+All defaults match exactly the values in DESIGN §9.
+
+**Ordering note (critical — Python evaluates `Field(default_factory=ClassName)` at class
+definition time):** declare leaves-first, then composites, so every class is defined
+before any `default_factory=` reference to it. Order used below (top → down):
+`TrailersCircuitBreakerConfig` → `TrailersCircuitBreakersConfig` → `TrailersTmdbVideoFilters`
+→ `TrailersFiltersConfig` → `TrailersYoutubeApiConfig` → `TrailersYtdlpConfig` →
+`TrailersPlacementConfig` → `TrailersConfig`.
 
 ```python
-class TrailersConfig(_StrictModel):
-    enabled: bool = False
-    languages: list[str] = Field(default_factory=lambda: ["fr-FR", "en-US"])
-    fallback_youtube_search: bool = True
-    search_query_format: str = "{title} {year} bande annonce"
-    placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
-    filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
-    state_file: str = ".data/trailers_state.json"
-    retry_after_days: list[int] = Field(default_factory=lambda: [1, 7, 30])
-    bot_detected_max_consecutive_attempts: int = 5
-    library_scan_max_age_hours: int = 24
-    circuit_breakers: TrailersCircuitBreakersConfig = Field(
-        default_factory=TrailersCircuitBreakersConfig
-    )
-    youtube_api: TrailersYoutubeApiConfig = Field(
-        default_factory=TrailersYoutubeApiConfig
-    )
-    ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)
+class TrailersCircuitBreakerConfig(_StrictModel):
+    """One circuit breaker config (per external service)."""
+    errors_threshold: int = 5
+    cooldown_sec: int = 1800
 
 
 class TrailersCircuitBreakersConfig(_StrictModel):
@@ -228,6 +221,63 @@ class TrailersCircuitBreakersConfig(_StrictModel):
             errors_threshold=5, cooldown_sec=3600,
         )
     )
+
+
+class TrailersTmdbVideoFilters(_StrictModel):
+    """Always-on filters applied to TMDB /videos responses."""
+    require_youtube_site: bool = True
+    prefer_official: bool = True
+    allowed_types: list[str] = Field(default_factory=lambda: ["Trailer", "Teaser"])
+
+
+class TrailersFiltersConfig(_StrictModel):
+    min_duration_sec: int = 30
+    max_duration_sec: int = 600
+    min_file_size_bytes: int = 102400
+    max_resolution: int = 1080
+    max_filesize_mb: int = 500
+    prefer_official_channels: bool = True
+    tmdb_video_filters: TrailersTmdbVideoFilters = Field(
+        default_factory=TrailersTmdbVideoFilters
+    )
+
+
+class TrailersYoutubeApiConfig(_StrictModel):
+    daily_quota_units: int = 10_000
+    search_list_cost_units: int = 100
+    cache_ttl_days: int = 7
+
+
+class TrailersYtdlpConfig(_StrictModel):
+    format: str = "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
+    socket_timeout_sec: int = 30
+    retries: int = 3
+    default_search: str = "ytsearch1"
+
+
+class TrailersPlacementConfig(_StrictModel):
+    movie_pattern: str = "{folder}/{name}-trailer.{ext}"
+    tvshow_pattern: str = "{folder}/{name}-trailer.{ext}"
+
+
+class TrailersConfig(_StrictModel):
+    enabled: bool = False
+    languages: list[str] = Field(default_factory=lambda: ["fr-FR", "en-US"])
+    fallback_youtube_search: bool = True
+    search_query_format: str = "{title} {year} bande annonce"
+    placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
+    filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
+    state_file: str = ".data/trailers_state.json"
+    retry_after_days: list[int] = Field(default_factory=lambda: [1, 7, 30])
+    bot_detected_max_consecutive_attempts: int = 5
+    library_scan_max_age_hours: int = 24
+    circuit_breakers: TrailersCircuitBreakersConfig = Field(
+        default_factory=TrailersCircuitBreakersConfig
+    )
+    youtube_api: TrailersYoutubeApiConfig = Field(
+        default_factory=TrailersYoutubeApiConfig
+    )
+    ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)
 ```
 
 ### Step 4: Add `trailers` field to `Config`
@@ -250,7 +300,7 @@ Also verify the full config test suite and existing conf tests:
 pytest tests/conf/ tests/test_config.py -q
 ```
 
-### Step 6: Commit sub-phase 8.1
+### Step 6: Commit sub-phase 7.1
 
 ```bash
 git add personalscraper/conf/models.py
@@ -263,9 +313,9 @@ git commit -m "feat(trailer): add TrailersConfig Pydantic model with sensible de
 
 ### Files
 
-| Action | Path             | Responsibility                          |
-| ------ | ---------------- | --------------------------------------- |
-| Modify | `.env.example`   | Add YouTube cookie env vars             |
+| Action | Path           | Responsibility              |
+| ------ | -------------- | --------------------------- |
+| Modify | `.env.example` | Add YouTube cookie env vars |
 
 ### Step 1: Locate `.env.example`
 
@@ -291,7 +341,7 @@ YOUTUBE_COOKIES_FILE=
 YOUTUBE_COOKIES_FROM_BROWSER=
 ```
 
-### Step 3: Commit sub-phase 8.2
+### Step 3: Commit sub-phase 7.2
 
 ```bash
 git add .env.example
@@ -300,7 +350,7 @@ git commit -m "docs(trailer): add YouTube cookie env vars to .env.example"
 
 ---
 
-## Phase 8 quality gate
+## Phase 7 quality gate
 
 - [ ] `pytest tests/conf/ tests/test_config.py -q` — all green, no regressions
 - [ ] `python -m ruff check personalscraper/conf/models.py` — no errors
@@ -321,9 +371,9 @@ python -c "from personalscraper.conf.models import TrailersConfig; c=TrailersCon
 git commit --allow-empty -m "chore(trailer): phase 07 gate — TrailersConfig Pydantic defaults + .env.example update"
 ```
 
-## Exit condition for Phase 9
+## Exit condition for Phase 8
 
-Phase 9 may start only when:
+Phase 8 may start only when:
 
 - `from personalscraper.conf.models import TrailersConfig` works
 - `TrailersConfig().enabled is False`

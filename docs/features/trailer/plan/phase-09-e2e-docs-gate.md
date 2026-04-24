@@ -46,6 +46,21 @@ All phases 1 through 8.
 
 ---
 
+## Sub-phase 9.0 — Register the `network` pytest marker (pre-requirement)
+
+Before any `@pytest.mark.network` test is created, register the marker in
+`pyproject.toml` under `[tool.pytest.ini_options]` `markers` (markers list sits at
+lines ~65-70 with `e2e`, `roundtrip`, `e2e_torrent`, `e2e_idempotence`). Add:
+
+```toml
+"network: Tests hitting real external networks (opt-in via TRAILER_INTEGRATION_TESTS env var)",
+```
+
+Without this registration, `pytest -W error::pytest.PytestUnknownMarkWarning` (or any
+strict-markers config) aborts with `PytestUnknownMarkWarning`. Commit as
+`chore(trailer): register network pytest marker` before the first `@pytest.mark.network`
+test is added.
+
 ## Sub-phase 9.1 — Check existing E2E fixture
 
 ### Step 1: Inspect `tests/e2e/` for a usable pipeline fixture
@@ -76,11 +91,11 @@ must exercise the full discovery → download → placement → state path at le
 
 **Files:**
 
-| Action | Path                                            | Responsibility                                             |
-| ------ | ----------------------------------------------- | ---------------------------------------------------------- |
-| Create | `tests/trailers/test_integration_hermetic.py`   | Mock-HTTP E2E — runs by default, covers golden path        |
-| Create | `tests/trailers/test_integration_network.py`    | Real-network E2E — opt-in via `TRAILER_INTEGRATION_TESTS`  |
-| Create | `tests/trailers/fixtures/sample-trailer.mp4`    | Tiny CC-licensed mp4 used by the hermetic test             |
+| Action | Path                                          | Responsibility                                            |
+| ------ | --------------------------------------------- | --------------------------------------------------------- |
+| Create | `tests/trailers/test_integration_hermetic.py` | Mock-HTTP E2E — runs by default, covers golden path       |
+| Create | `tests/trailers/test_integration_network.py`  | Real-network E2E — opt-in via `TRAILER_INTEGRATION_TESTS` |
+| Create | `tests/trailers/fixtures/sample-trailer.mp4`  | Tiny CC-licensed mp4 used by the hermetic test            |
 
 ### Hermetic test — `tests/trailers/test_integration_hermetic.py`
 
@@ -141,7 +156,7 @@ def test_trailer_finder_and_download_e2e(tmp_path):
     from personalscraper.scraper.youtube_search import YoutubeSearch
     from personalscraper.scraper.trailer_finder import TrailerFinder
     from personalscraper.scraper.ytdlp_downloader import YtdlpDownloader
-    from personalscraper.trailers.placement import trailer_path_for_movie, trailer_exists
+    from personalscraper.trailers.placement import trailer_path_for, trailer_exists
 
     # Big Buck Bunny TMDB ID
     TMDB_ID = 10378
@@ -150,9 +165,16 @@ def test_trailer_finder_and_download_e2e(tmp_path):
     MIN_SIZE = 100 * 1024  # 100 KiB
 
     # Wire up the discovery stack
+    from personalscraper.scraper.circuit_breaker import CircuitBreaker
+    from personalscraper.scraper.json_ttl_cache import JsonTTLCache
     client = TMDBClient(api_key=api_key, language="en-US")
     cache = TrailersCache(tmp_path / "test_trailers_cache.json")
-    searcher = YoutubeSearch(query_format="{title} {year} trailer")
+    searcher = YoutubeSearch(
+        query_format="{title} {year} trailer",
+        api_key=os.environ.get("YOUTUBE_API_KEY", ""),
+        quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+        breaker=CircuitBreaker(errors_threshold=5, cooldown_sec=60),
+    )
     finder = TrailerFinder(
         tmdb_client=client,
         youtube_search=searcher,
@@ -166,7 +188,7 @@ def test_trailer_finder_and_download_e2e(tmp_path):
     # Download to tmpdir
     movie_dir = tmp_path / f"{TITLE} ({YEAR})"
     movie_dir.mkdir()
-    output_path = trailer_path_for_movie(movie_dir, f"{TITLE} ({YEAR})")
+    output_path = trailer_path_for(movie_dir, f"{TITLE} ({YEAR})", ext="mp4")
 
     downloader = YtdlpDownloader(
         output_dir=tmp_path,
@@ -210,6 +232,7 @@ python -m pytest -q --cov=personalscraper --cov-report=term-missing 2>&1 | tail 
 ### Step 2: Identify uncovered lines in trailer modules
 
 Focus on:
+
 - `personalscraper/trailers/*.py`
 - `personalscraper/scraper/trailer_finder.py`
 - `personalscraper/scraper/ytdlp_downloader.py`
@@ -219,10 +242,12 @@ Focus on:
 
 For each module with coverage below the project baseline (check with
 `pytest --cov-fail-under=N` if the project has a threshold configured):
+
 - Add edge-case unit tests for the uncovered branches.
 - Focus on error paths (exception handlers, boundary conditions).
 
 Commit each test file fix separately:
+
 ```
 test(trailer): improve coverage for <module> edge cases
 ```
@@ -237,15 +262,15 @@ marker / naming / CLI conventions are discoverable without reading source.
 
 ### Files
 
-| Action | Path                                  | What gets added                                                                                     |
-| ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Create | `docs/reference/trailers.md`          | Main reference doc for the trailers feature (see sections below).                                   |
-| Modify | `docs/reference/architecture.md`      | Module map: add `scraper/json_ttl_cache.py`, `scraper/youtube_search.py`, `scraper/trailer_finder.py`, `scraper/ytdlp_downloader.py`, `scraper/trailers_cache.py`, `trailers/` package (step/scanner/orchestrator/state/placement/cli). Update the pipeline-steps diagram from 8 → 9 steps. |
-| Modify | `docs/reference/commands.md`          | New section for `personalscraper trailers scan/download/verify/purge` — flags, exit codes, examples. Add `--skip-trailers` and `--continue-on-trailer-error` to `personalscraper run`. |
-| Modify | `docs/reference/testing.md`           | Document the `@pytest.mark.network` marker and the `TRAILER_INTEGRATION_TESTS=1` env var. Note the hermetic E2E fixture runs by default. |
-| Modify | `docs/reference/naming.md`            | Trailer file naming convention: `{folder}/{name}-trailer.{ext}` (flat, used for movies AND TV shows). Accepted extensions: `.mp4`, `.mkv`, `.webm` (in priority order). NFO `<trailer>` tag carries the YouTube URL. |
-| Modify | `docs/reference/scraping.md`          | TMDB `/videos` endpoint: response shape, `site` field, filtering rules (`site=='YouTube'` required, prefer `official` + `type in {Trailer, Teaser}`). |
-| Modify | `docs/reference/libraries.md`         | Note on yt-dlp version pinning (`>=2025.x,<2026.x`) and ffmpeg dependency (`shutil.which('ffmpeg')` check at startup). |
+| Action | Path                             | What gets added                                                                                                                                                                                                                                                                             |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create | `docs/reference/trailers.md`     | Main reference doc for the trailers feature (see sections below).                                                                                                                                                                                                                           |
+| Modify | `docs/reference/architecture.md` | Module map: add `scraper/json_ttl_cache.py`, `scraper/youtube_search.py`, `scraper/trailer_finder.py`, `scraper/ytdlp_downloader.py`, `scraper/trailers_cache.py`, `trailers/` package (step/scanner/orchestrator/state/placement/cli). Update the pipeline-steps diagram from 8 → 9 steps. |
+| Modify | `docs/reference/commands.md`     | New section for `personalscraper trailers scan/download/verify/purge` — flags, exit codes, examples. Add `--skip-trailers` and `--continue-on-trailer-error` to `personalscraper run`.                                                                                                      |
+| Modify | `docs/reference/testing.md`      | Document the `@pytest.mark.network` marker and the `TRAILER_INTEGRATION_TESTS=1` env var. Note the hermetic E2E fixture runs by default.                                                                                                                                                    |
+| Modify | `docs/reference/naming.md`       | Trailer file naming convention: `{folder}/{name}-trailer.{ext}` (flat, used for movies AND TV shows). Accepted extensions: `.mp4`, `.mkv`, `.webm` (in priority order). NFO `<trailer>` tag carries the YouTube URL.                                                                        |
+| Modify | `docs/reference/scraping.md`     | TMDB `/videos` endpoint: response shape, `site` field, filtering rules (`site=='YouTube'` required, prefer `official` + `type in {Trailer, Teaser}`).                                                                                                                                       |
+| Modify | `docs/reference/libraries.md`    | Note on yt-dlp version pinning (`>=2025.x,<2026.x`) and ffmpeg dependency (`shutil.which('ffmpeg')` check at startup).                                                                                                                                                                      |
 
 ### Step 1: Create `docs/reference/trailers.md`
 
@@ -373,7 +398,7 @@ from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.youtube_search import YoutubeSearch
 from personalscraper.scraper.ytdlp_downloader import YtdlpDownloader, CookieConfig, DownloadResult
 from personalscraper.scraper.trailers_cache import TrailersCache
-from personalscraper.trailers.placement import trailer_path_for_movie, trailer_path_for_tvshow, trailer_exists
+from personalscraper.trailers.placement import trailer_path_for, trailer_exists
 from personalscraper.trailers.state import TrailerStateStore, TrailerStatus, make_state_key
 from personalscraper.trailers.step import run_trailers
 from personalscraper.trailers.scanner import Scanner, ScanItem

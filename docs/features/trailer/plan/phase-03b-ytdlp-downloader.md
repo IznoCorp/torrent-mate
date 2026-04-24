@@ -50,10 +50,30 @@ python -c "from personalscraper.scraper.trailer_finder import TrailerFinder; pri
 
 ### Files
 
-| Action | Path                                            | Responsibility                                       |
-| ------ | ----------------------------------------------- | ---------------------------------------------------- |
-| Create | `personalscraper/scraper/ytdlp_downloader.py`   | Skeleton + `CookieConfig` class                      |
-| Create | `tests/scraper/test_ytdlp_downloader.py`        | Cookie config tests (no network)                     |
+| Action | Path                                          | Responsibility                         |
+| ------ | --------------------------------------------- | -------------------------------------- |
+| Modify | `pyproject.toml`                              | Add yt-dlp to `[project.dependencies]` |
+| Create | `personalscraper/scraper/ytdlp_downloader.py` | Skeleton + `CookieConfig` class        |
+| Create | `tests/scraper/test_ytdlp_downloader.py`      | Cookie config tests (no network)       |
+
+### Step 0: Add `yt-dlp` to `pyproject.toml` dependencies (pre-requirement)
+
+`phase-03b` imports `yt_dlp` at runtime (and in a few places via lazy import), but the
+package is **not** currently listed in `pyproject.toml`. Add it before any implementation
+step; otherwise every subsequent `pytest` invocation under a fresh venv will fail at
+collection time with `ModuleNotFoundError: yt_dlp`.
+
+- Open `pyproject.toml`, locate `[project]` → `dependencies = [...]` (lines ~28-40).
+- Append `"yt-dlp>=2025.1.0"` — the major version is pinned because yt-dlp is often
+  broken by YouTube protocol changes and requires controlled updates on our side.
+- If a `Makefile` exists at the repo root, append an `update-ytdlp` target that runs
+  `python -m pip install -U yt-dlp` (skip this step if no Makefile is present).
+- Commit:
+
+```bash
+git add pyproject.toml Makefile  # Makefile only if present
+git commit -m "chore(trailer): add yt-dlp dependency"
+```
 
 ### Step 1: Write failing cookie tests first
 
@@ -161,8 +181,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# APFS/HFS+ volume roots (macOS) — cookie files must live here for security
-_APFS_NATIVE_PREFIXES = ("/Users", "/opt", "/path/to/<disk>", "/tmp", "/var")
+# APFS/HFS+ volume roots (macOS) — cookie files must live here for security.
+# This list is user-extendable via a future `config.trailers.ytdlp.cookies.native_prefixes`
+# key (follow-up to the phase-07 config additions; not modified in this pass).
+# TODO: replace with runtime check via os.statvfs + mount table in v0.8.0
+_APFS_NATIVE_PREFIXES = ("/Users", "/opt", "/tmp", "/var")
 
 
 def _is_apfs_native(path: Path) -> bool:
@@ -263,10 +286,10 @@ git commit -m "feat(trailer): add CookieConfig with APFS security check and env 
 
 ### Files
 
-| Action | Path                                          | Responsibility           |
-| ------ | --------------------------------------------- | ------------------------ |
-| Modify | `personalscraper/scraper/ytdlp_downloader.py` | Add `YtdlpDownloader`    |
-| Modify | `tests/scraper/test_ytdlp_downloader.py`      | Add downloader unit tests|
+| Action | Path                                          | Responsibility            |
+| ------ | --------------------------------------------- | ------------------------- |
+| Modify | `personalscraper/scraper/ytdlp_downloader.py` | Add `YtdlpDownloader`     |
+| Modify | `tests/scraper/test_ytdlp_downloader.py`      | Add downloader unit tests |
 
 ### Step 1: Write failing tests (append to test file)
 
@@ -518,6 +541,7 @@ class YtdlpDownloader:
 ```
 
 **Implementation notes:**
+
 - Build opts dict: `{"format": ..., "outtmpl": str(output_path), "socket_timeout": ..., "retries": ..., "quiet": True}`.
 - If `cookie_config.cookie_file`: add `"cookiefile": str(path)`.
 - If `cookie_config.cookie_from_browser`: add `"cookiesfrombrowser": (browser,)`.

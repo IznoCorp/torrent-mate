@@ -11,6 +11,7 @@ trailer" detection module that walks either staging or the library — and `orch
 Tests use tmpdir-based fake media trees.
 
 **Architecture:**
+
 - `Scanner.scan_staging(staging_dir) -> list[ScanItem]` — walks sorted staging subdirs
 - `Scanner.scan_library(config, filters) -> list[ScanItem]` — wraps `library.scanner.scan_library()`
   with fresh-scan threshold logic (24h default, configurable)
@@ -54,10 +55,10 @@ python -c "from personalscraper.trailers.step import run_trailers; print('OK')"
 
 ### Files
 
-| Action | Path                                      | Responsibility                               |
-| ------ | ----------------------------------------- | -------------------------------------------- |
-| Create | `personalscraper/trailers/scanner.py`     | Staging + library scan logic                 |
-| Create | `tests/trailers/test_scanner.py`          | Tmpdir-based unit tests                      |
+| Action | Path                                  | Responsibility               |
+| ------ | ------------------------------------- | ---------------------------- |
+| Create | `personalscraper/trailers/scanner.py` | Staging + library scan logic |
+| Create | `tests/trailers/test_scanner.py`      | Tmpdir-based unit tests      |
 
 ### Step 1: Write failing tests
 
@@ -110,9 +111,9 @@ def _make_tvshow_dir(parent: Path, name: str, with_trailer: bool = False) -> Pat
         encoding="utf-8",
     )
     if with_trailer:
-        trailers_dir = d / "trailers"
-        trailers_dir.mkdir()
-        (trailers_dir / "trailer.mp4").write_bytes(b"x" * 200000)
+        # Flat convention per DESIGN §4: `{show_name}-trailer.{ext}` at show root
+        # (no `trailers/` subfolder). Matches the unified trailer_path_for() output.
+        (d / f"{name}-trailer.mp4").write_bytes(b"x" * 200000)
     return d
 
 
@@ -210,8 +211,9 @@ class Scanner:
     def scan_staging(self, staging_dir: Path) -> list[ScanItem]:
         """Walk staging_dir for all sorted media subdirs lacking a trailer.
 
-        Uses ``trailer_path_for_movie()`` and ``trailer_path_for_tvshow()``
-        from placement.py, then calls ``trailer_exists()`` to determine absence.
+        Uses the unified ``trailer_path_for(media_dir, media_name, ext=...)``
+        from placement.py (single convention for movies and TV shows), then
+        calls ``trailer_exists()`` to determine absence.
         Reads TMDb IDs from NFOs via ``library.scanner.extract_nfo_ids()``.
         """
 
@@ -231,12 +233,13 @@ class Scanner:
 ```
 
 **Implementation notes:**
+
 - `scan_staging()` iterates `staging_dir.iterdir()`, skips hidden dirs and non-dirs.
 - For each subdir, detect movie vs. tvshow by checking whether `tvshow.nfo` exists.
 - Use `library.scanner.parse_title_year(dir.name)` for title/year extraction.
 - Use `library.scanner.extract_nfo_ids(nfo_path)` for tmdb_id.
-- Use `placement.trailer_path_for_movie()` / `placement.trailer_path_for_tvshow()` then
-  `placement.trailer_exists()` to check current absence.
+- Use `placement.trailer_path_for(media_dir, media_name, ext=...)` (single unified
+  convention) then `placement.trailer_exists()` to check current absence.
 
 ### Step 3: Run tests
 
@@ -257,10 +260,10 @@ git commit -m "feat(trailer): add Scanner with staging and library scan modes"
 
 ### Files
 
-| Action | Path                                         | Responsibility                                      |
-| ------ | -------------------------------------------- | --------------------------------------------------- |
-| Create | `personalscraper/trailers/orchestrator.py`   | Glue: scanner → finder → downloader → placement     |
-| Create | `tests/trailers/test_orchestrator.py`        | Unit tests (all dependencies mocked)                |
+| Action | Path                                       | Responsibility                                  |
+| ------ | ------------------------------------------ | ----------------------------------------------- |
+| Create | `personalscraper/trailers/orchestrator.py` | Glue: scanner → finder → downloader → placement |
+| Create | `tests/trailers/test_orchestrator.py`      | Unit tests (all dependencies mocked)            |
 
 ### Step 1: Write failing tests
 

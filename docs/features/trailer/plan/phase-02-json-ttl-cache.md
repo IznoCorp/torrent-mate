@@ -555,14 +555,15 @@ if someone tightens `check_ttl()` to reject naive timestamps:
 ```python
 def test_naive_cached_at_still_valid(tmp_path):
     """Pre-migration cache files with naive cached_at must still be readable."""
-    backing = tmp_path / "tmdb_keywords_cache.json"
+    # KeywordsCache takes a directory — it appends `tmdb_keywords_cache.json` internally.
+    data_dir = tmp_path
     # Format used before the check_ttl() refactor — no tzinfo in cached_at.
     naive_now = datetime.now().isoformat()
-    backing.write_text(
+    (data_dir / "tmdb_keywords_cache.json").write_text(
         json.dumps({"movie_550": {"keywords": ["fight club"], "cached_at": naive_now}}),
         encoding="utf-8",
     )
-    cache = KeywordsCache(backing)
+    cache = KeywordsCache(data_dir)
     assert cache.get("movie_550") == ["fight club"]
 ```
 
@@ -582,13 +583,6 @@ git add \
   personalscraper/scraper/keywords_cache.py \
   tests/scraper/test_keywords_cache.py
 git commit -m "refactor(trailer): route KeywordsCache TTL check through shared check_ttl()"
-```
-
-### Step 4: Commit sub-phase 2.2
-
-```bash
-git add personalscraper/scraper/keywords_cache.py
-git commit -m "refactor(trailer): note JsonTTLCache as canonical primitive in keywords_cache"
 ```
 
 ---

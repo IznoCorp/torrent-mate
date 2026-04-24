@@ -19,9 +19,10 @@ dispatched together in one move. The real pipeline today is 8 steps (from `pipel
 `ingest → sort → clean → scrape → cleanup → enforce → verify → dispatch`. After this
 feature lands it becomes 9 steps with `trailers` inserted just before `dispatch`.
 
-**Architecture:** `run_trailers(config, staging_dir) -> StepReport`. Uses the existing
-`StepReport` dataclass from `personalscraper/models.py`. Returns a typed step status
-string via the `details` list field. The pipeline gate reads `status` as a string tag in
+**Architecture:** `run_trailers(config, staging_dir, verified, skip_trailers=False) -> StepReport`.
+Uses the existing `StepReport` dataclass from `personalscraper/models.py`. Returns a typed step
+status string via the `details` list field. The `verified` list is passed from the pipeline so
+the trailers step can skip items that already failed `verify` earlier in the pipeline. The pipeline gate reads `status` as a string tag in
 `step.details` (since `StepReport` does not currently have a `status` field — the extended
 contract is communicated through the `name` field and a convention tag in `details`).
 
@@ -38,6 +39,10 @@ that does not set these fields is unaffected.
 
 **Tech Stack:** Python, `pytest`, `unittest.mock`.
 
+**Logging convention**: this phase uses structlog `get_logger(__name__)` with event-name +
+kwargs (no `%s`/`%d` formatting — structlog BoundLoggers do not interpolate positional
+args). See `docs/reference/logging.md`.
+
 ---
 
 ## Gate (entry condition)
@@ -46,7 +51,7 @@ Phases 3b, 3c, and 4 must be complete:
 
 ```bash
 python -c "from personalscraper.scraper.ytdlp_downloader import YtdlpDownloader; print('OK')"
-python -c "from personalscraper.trailers.placement import trailer_path_for_movie; print('OK')"
+python -c "from personalscraper.trailers.placement import trailer_path_for; print('OK')"
 python -c "from personalscraper.trailers.state import TrailerStateStore; print('OK')"
 ```
 
@@ -171,20 +176,20 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path)
+            result = run_trailers(config, staging_dir=tmp_path, verified=[])
         assert isinstance(result, StepReport)
         assert result.name == "trailers"
 
     def test_skipped_when_disabled(self, config, tmp_path):
         """run_trailers() returns a skipped report when config.trailers.enabled=False."""
         config.trailers.enabled = False
-        result = run_trailers(config, staging_dir=tmp_path)
+        result = run_trailers(config, staging_dir=tmp_path, verified=[])
         assert result.name == "trailers"
         assert result.status == "skipped"
 
     def test_skip_trailers_flag_skips(self, config, tmp_path):
         """run_trailers() respects the skip_trailers flag."""
-        result = run_trailers(config, staging_dir=tmp_path, skip_trailers=True)
+        result = run_trailers(config, staging_dir=tmp_path, verified=[], skip_trailers=True)
         assert result.status == "skipped"
 
     def test_counts_in_step_report(self, config, tmp_path):
@@ -197,7 +202,7 @@ class TestRunTrailers:
                 "skipped_by_state": 2,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path)
+            result = run_trailers(config, staging_dir=tmp_path, verified=[])
         assert result.success_count == 3
         assert result.skip_count == 5 + 2
         assert result.counts.get("downloaded") == 3
@@ -212,7 +217,7 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = [("movie:tmdb:1", "bot_detected", "sign in")]
-            result = run_trailers(config, staging_dir=tmp_path)
+            result = run_trailers(config, staging_dir=tmp_path, verified=[])
         assert result.status == "partial"
 
     def test_success_status_when_no_failures(self, config, tmp_path):
@@ -225,7 +230,7 @@ class TestRunTrailers:
                 "skipped_by_state": 0,
             }
             mock_orch.failed_items = []
-            result = run_trailers(config, staging_dir=tmp_path)
+            result = run_trailers(config, staging_dir=tmp_path, verified=[])
         assert result.status == "success"
 ```
 
@@ -259,7 +264,8 @@ Runs after the ``verify`` step and before ``dispatch``. Non-blocking:
 failures produce ``status='partial'`` and dispatch proceeds. Uses structlog
 (the project-wide logger) — not the stdlib ``logging``.
 
-Public entry point: ``run_trailers(config, staging_dir, verified, skip_trailers=False) -> StepReport``.
+Public entry point:
+``run_trailers(config, staging_dir, verified, skip_trailers=False) -> StepReport``.
 """
 
 from __future__ import annotations
@@ -280,6 +286,7 @@ logger = get_logger(__name__)
 def run_trailers(
     config: "Config",
     staging_dir: Path,
+    verified: list,
     skip_trailers: bool = False,
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
@@ -291,6 +298,8 @@ def run_trailers(
     Args:
         config: Loaded pipeline Config.
         staging_dir: Path to the staging area (where sorted media lives).
+        verified: List of items that passed the previous ``verify`` step. Items
+            absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
 
     Returns:
@@ -299,8 +308,11 @@ def run_trailers(
     """
     # Skipped gate
     if skip_trailers or not config.trailers.enabled:
-        logger.info("Trailers step skipped (enabled=%s, skip_flag=%s)",
-                    config.trailers.enabled, skip_trailers)
+        logger.info(
+            "trailers_step_skipped",
+            enabled=config.trailers.enabled,
+            skip_flag=skip_trailers,
+        )
         return StepReport(name="trailers", status="skipped")
 
     from personalscraper.trailers.orchestrator import TrailersOrchestrator
@@ -329,13 +341,16 @@ def run_trailers(
             failed_items=failed_items,
         )
         logger.info(
-            "Trailers step complete: %s — downloaded=%d, skipped=%d, errors=%d",
-            step_status, success_count, skip_count, error_count,
+            "trailers_step_complete",
+            step_status=step_status,
+            downloaded=success_count,
+            skipped=skip_count,
+            errors=error_count,
         )
         return report
 
     except Exception as exc:
-        logger.error("Trailers step crashed: %s", exc, exc_info=True)
+        logger.exception("trailers_step_crashed", error=str(exc))
         return StepReport(name="trailers", error_count=1, status="error")
 ```
 
@@ -371,7 +386,31 @@ git commit -m "feat(trailer): add trailers pipeline step with non-blocking StepR
 In `personalscraper/models.py`, add `"trailers": "\U0001f3ac"` (🎬) to the `step_icons`
 dict inside `to_html()`.
 
-### Step 2: Wire the step in `pipeline.py` between `verify` and `dispatch`
+### Step 2: Extend `Pipeline.__init__` with the two new flags
+
+`Pipeline.__init__` in `personalscraper/pipeline.py` does NOT currently accept
+`skip_trailers` or `continue_on_trailer_error`. Add them as keyword-only attributes
+(default `False`) and store them on `self` so the wire-up in Step 3 can read them.
+The CLI in Phase 8 is responsible for passing these flags through from the
+`--skip-trailers` and `--continue-on-trailer-error` options to the `Pipeline(...)`
+constructor.
+
+```python
+# Inside Pipeline.__init__
+def __init__(
+    self,
+    config: Config,
+    *,
+    # ... existing kwargs unchanged ...
+    skip_trailers: bool = False,
+    continue_on_trailer_error: bool = False,
+) -> None:
+    # ... existing body ...
+    self.skip_trailers = skip_trailers
+    self.continue_on_trailer_error = continue_on_trailer_error
+```
+
+### Step 3: Wire the step in `pipeline.py` between `verify` and `dispatch`
 
 `pipeline.py` currently wires verify then conditionally dispatch:
 
@@ -399,11 +438,16 @@ Insert the trailers step **between the two blocks above**, before the `if verifi
 branch. When `verified` is empty, the trailers step short-circuits with `status="skipped"`
 (the same pattern dispatch uses on its empty-verified branch):
 
+`_run_step()` returns the _extra_ value (second tuple element) from the step callable, NOT
+the `StepReport` — the StepReport is stored internally in `report.steps` (a
+`dict[str, StepReport]`) via `report.add_step()`. Read the trailers StepReport back
+through `report.steps.get("trailers")` to inspect its status:
+
 ```python
 # Phase 5bis: TRAILERS (non-blocking — partial/skipped does not abort dispatch)
 from personalscraper.trailers.step import run_trailers
 
-trailers_report = self._run_step(
+self._run_step(
     "trailers",
     lambda: run_trailers(
         self.config,
@@ -414,13 +458,17 @@ trailers_report = self._run_step(
     report,
 )
 
+# _run_step does NOT return the StepReport — it appends it to report.steps.
+# Look the report back up via the steps dict (keyed by step name).
+trailers_step = report.steps.get("trailers")
 if (
-    trailers_report is not None
-    and trailers_report.status == "error"
+    trailers_step is not None
+    and trailers_step.status == "error"
     and not self.continue_on_trailer_error
 ):
     self._log.error(
-        "Trailers step crashed; use --continue-on-trailer-error to override."
+        "trailers_step_crashed",
+        hint="use --continue-on-trailer-error to override",
     )
     report.finished_at = datetime.now()
     return report
@@ -430,15 +478,10 @@ if verified:
     …  # existing block, unchanged
 ```
 
-Two new constructor flags on `Pipeline` (default `False`), wired from the CLI in Phase 8:
-
-- `skip_trailers: bool` — maps to the `--skip-trailers` CLI flag
-- `continue_on_trailer_error: bool` — maps to `--continue-on-trailer-error`
-
 `staging_dir` is read from `self.config.paths.staging_dir` (the configurable staging path
 from the `ext-staging` feature this depends on) — **never** hardcoded to any specific directory name.
 
-### Step 3: Verify pipeline tests pass
+### Step 4: Verify pipeline tests pass
 
 ```bash
 pytest tests/test_pipeline.py tests/test_pipeline_integration.py -q
@@ -447,7 +490,7 @@ pytest tests/test_pipeline.py tests/test_pipeline_integration.py -q
 Expected: all green. If the new step is missing a mock in pipeline tests, add it with
 `patch("personalscraper.trailers.step.run_trailers", return_value=StepReport(name="trailers", status="skipped"))`.
 
-### Step 4: Commit sub-phase 5.2
+### Step 5: Commit sub-phase 5.2
 
 ```bash
 git add personalscraper/pipeline.py personalscraper/models.py

@@ -62,11 +62,11 @@ python -c "from personalscraper.conf.models import TrailersConfig; print('OK')"
 
 ### Files
 
-| Action | Path                                   | Responsibility                             |
-| ------ | -------------------------------------- | ------------------------------------------ |
-| Create | `personalscraper/trailers/cli.py`      | Typer sub-app with all subcommands         |
-| Modify | `personalscraper/cli.py`               | Mount `trailers` sub-app                  |
-| Create | `tests/trailers/test_cli.py`           | CLI tests using CliRunner                  |
+| Action | Path                              | Responsibility                     |
+| ------ | --------------------------------- | ---------------------------------- |
+| Create | `personalscraper/trailers/cli.py` | Typer sub-app with all subcommands |
+| Modify | `personalscraper/cli.py`          | Mount `trailers` sub-app           |
+| Create | `tests/trailers/test_cli.py`      | CLI tests using CliRunner          |
 
 ### Step 1: Write failing tests
 
@@ -310,7 +310,7 @@ app.add_typer(trailers_app, name="trailers")
 pytest tests/trailers/test_cli.py -v
 ```
 
-### Step 5: Commit sub-phase 7.1
+### Step 5: Commit sub-phase 8.1
 
 ```bash
 git add \
@@ -322,7 +322,7 @@ git commit -m "feat(trailer): add trailers CLI sub-app with scan, download, veri
 
 ---
 
-## Phase 7 quality gate
+## Phase 8 quality gate
 
 - [ ] `pytest tests/trailers/test_cli.py -q` — all green
 - [ ] `pytest tests/test_cli.py -q` — no regressions in main CLI tests
@@ -345,9 +345,9 @@ python -m personalscraper trailers --help
 git commit --allow-empty -m "chore(trailer): phase 08 gate — trailers CLI wired with full filter set"
 ```
 
-## Exit condition for Phase 8
+## Exit condition for Phase 9
 
-Phase 8 may start only when:
+Phase 9 may start only when:
 
 - `personalscraper trailers --help` prints the subcommand list
 - All CLI tests pass (no regressions in `tests/test_cli.py`)

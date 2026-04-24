@@ -48,10 +48,10 @@ python -c "from personalscraper.trailers.placement import trailer_exists; print(
 
 ### Files
 
-| Action | Path                                      | Responsibility                                 |
-| ------ | ----------------------------------------- | ---------------------------------------------- |
-| Create | `personalscraper/trailers/state.py`       | Full state module (built incrementally)        |
-| Create | `tests/trailers/test_state.py`            | Unit tests                                     |
+| Action | Path                                | Responsibility                          |
+| ------ | ----------------------------------- | --------------------------------------- |
+| Create | `personalscraper/trailers/state.py` | Full state module (built incrementally) |
+| Create | `tests/trailers/test_state.py`      | Unit tests                              |
 
 ### Step 1: Write failing tests for data model
 
@@ -97,9 +97,23 @@ class TestMakeStateKey:
         folders to canonical titles). Hashing title+year+type yields a stable
         key across those moves, closing the reviewer-flagged regression where
         a rename spawned a duplicate state entry.
+
+        The title is normalized before hashing — see
+        ``test_manual_key_normalizes_title`` for the full pipeline
+        (Unicode NFC + casefold + whitespace collapse). So the expected
+        digest is computed from the NORMALIZED string, not from the raw input.
         """
+        import unicodedata
         manual_id = ("Fight Club", 1999, "movie")
-        digest = hashlib.sha256("Fight Club|1999|movie".encode(), usedforsecurity=False).hexdigest()
+        # Same normalization the implementation must apply before hashing:
+        # 1. unicodedata.normalize("NFC", title)
+        # 2. casefold()
+        # 3. collapse runs of whitespace to a single space; strip
+        normalized_title = " ".join(
+            unicodedata.normalize("NFC", "Fight Club").casefold().split()
+        )
+        payload = f"{normalized_title}|1999|movie"
+        digest = hashlib.sha256(payload.encode(), usedforsecurity=False).hexdigest()
         key = make_state_key("movie", "manual", manual_id)
         assert key == f"manual:{digest}"
 
@@ -357,16 +371,17 @@ def compute_next_retry_at(attempts: int, policy: list[int], now: datetime) -> da
 
 **`TrailerStateStore`:**
 
-| Method | Signature | Description |
-| --- | --- | --- |
-| `__init__` | `(state_file: Path)` | Initialize with path to JSON state file |
-| `get` | `(key: str) -> TrailerState \| None` | Load + deserialize entry by key |
-| `set` | `(key: str, state: TrailerState) -> None` | Atomic write (temp + os.replace) |
-| `should_skip` | `(key: str) -> bool` | Skip logic per DESIGN §7 (bot_detected exempt) |
-| `auto_gc` | `() -> None` | Lifecycle check: flip orphan, remove gone trailers |
-| `all_entries` | `() -> dict[str, TrailerState]` | Load all entries (for CLI scan/purge) |
+| Method        | Signature                                 | Description                                        |
+| ------------- | ----------------------------------------- | -------------------------------------------------- |
+| `__init__`    | `(state_file: Path)`                      | Initialize with path to JSON state file            |
+| `get`         | `(key: str) -> TrailerState \| None`      | Load + deserialize entry by key                    |
+| `set`         | `(key: str, state: TrailerState) -> None` | Atomic write (temp + os.replace)                   |
+| `should_skip` | `(key: str) -> bool`                      | Skip logic per DESIGN §7 (bot_detected exempt)     |
+| `auto_gc`     | `() -> None`                              | Lifecycle check: flip orphan, remove gone trailers |
+| `all_entries` | `() -> dict[str, TrailerState]`           | Load all entries (for CLI scan/purge)              |
 
 **JSON on-disk structure** (per DESIGN §7):
+
 ```json
 {"version": 1, "entries": {"movie:tmdb:550": {...}}}
 ```

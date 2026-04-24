@@ -18,6 +18,12 @@ Results cached via `TrailersCache` (backed by `JsonTTLCache`).
 
 **Tech Stack:** Python, `dataclasses`, `pytest`, `ruff`, `mypy`, `requests`.
 
+**Logging convention**: this phase uses structlog `get_logger(__name__)` with event-name
+
+- kwargs (no `%s`/`%d` formatting — structlog BoundLoggers do not interpolate positional
+  args). See `docs/reference/logging.md`. Inside `trailers_cache.py` (which uses stdlib
+  `logging.getLogger`), the `%s` form is correct and intentional — do not convert it.
+
 ---
 
 ## Gate (entry condition)
@@ -53,11 +59,11 @@ python -c "from personalscraper.scraper.json_ttl_cache import JsonTTLCache; prin
 
 ### Files
 
-| Action | Path                                            | Responsibility                               |
-| ------ | ----------------------------------------------- | -------------------------------------------- |
-| Create | `personalscraper/scraper/youtube_search.py`     | HTTP-based YouTube search layer              |
-| Create | `tests/fixtures/youtube/search_fight_club.json` | Golden fixture for YouTube search response   |
-| Create | `tests/scraper/test_youtube_search.py`          | Unit tests (mocked HTTP)                     |
+| Action | Path                                            | Responsibility                             |
+| ------ | ----------------------------------------------- | ------------------------------------------ |
+| Create | `personalscraper/scraper/youtube_search.py`     | HTTP-based YouTube search layer            |
+| Create | `tests/fixtures/youtube/search_fight_club.json` | Golden fixture for YouTube search response |
+| Create | `tests/scraper/test_youtube_search.py`          | Unit tests (mocked HTTP)                   |
 
 ### Step 1: Create `tests/fixtures/youtube/` and golden fixture
 
@@ -72,12 +78,12 @@ Write `tests/fixtures/youtube/search_fight_club.json` — a minimal YouTube Data
 {
   "items": [
     {
-      "id": {"videoId": "6JnN1DmbqoU"},
-      "snippet": {"title": "Fight Club - Official Trailer (1999)"}
+      "id": { "videoId": "6JnN1DmbqoU" },
+      "snippet": { "title": "Fight Club - Official Trailer (1999)" }
     },
     {
-      "id": {"videoId": "BdJKm16Co6M"},
-      "snippet": {"title": "Fight Club - Full Movie Explained"}
+      "id": { "videoId": "BdJKm16Co6M" },
+      "snippet": { "title": "Fight Club - Full Movie Explained" }
     }
   ]
 }
@@ -115,8 +121,15 @@ def _fixture_response(name: str) -> MagicMock:
 
 class TestYoutubeSearch:
     @pytest.fixture()
-    def searcher(self) -> YoutubeSearch:
-        return YoutubeSearch(query_format="{title} {year} bande annonce")
+    def searcher(self, tmp_path) -> YoutubeSearch:
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        return YoutubeSearch(
+            query_format="{title} {year} bande annonce",
+            api_key="test-key",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=CircuitBreaker(errors_threshold=5, cooldown_sec=60),
+        )
 
     def test_returns_first_video_url(self, searcher):
         """search() returns a YouTube URL for the first result."""
@@ -156,9 +169,16 @@ class TestYoutubeSearch:
             url = searcher.search("Fight Club", 1999)
         assert url is None
 
-    def test_custom_query_format(self):
+    def test_custom_query_format(self, tmp_path):
         """YoutubeSearch respects a custom query format string."""
-        s = YoutubeSearch(query_format="{title} {year} trailer")
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        s = YoutubeSearch(
+            query_format="{title} {year} trailer",
+            api_key="test-key",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=CircuitBreaker(errors_threshold=5, cooldown_sec=60),
+        )
         with patch("requests.get", return_value=_fixture_response("search_fight_club.json")) as mock_get:
             s.search("Fight Club", 1999)
         call_url = mock_get.call_args[0][0]
@@ -179,10 +199,10 @@ Expected: `ModuleNotFoundError`.
 
 1. **Primary** — YouTube Data API v3 `/search.list` with `key={YOUTUBE_API_KEY}`. Without
    the `key=` parameter, googleapis returns HTTP 403 for every request — a bare endpoint
-   call *does not work*. The key lives in `.env` and is read by the settings layer.
+   call _does not work_. The key lives in `.env` and is read by the settings layer.
 2. **Fallback** — yt-dlp's built-in `ytsearch1` pseudo-URL
    (`yt_dlp.YoutubeDL({'default_search': 'ytsearch1', 'noplaylist': True})
-   .extract_info(query, download=False)`). Triggered when:
+.extract_info(query, download=False)`). Triggered when:
    - `YOUTUBE_API_KEY` is unset / empty in the environment, OR
    - primary returns HTTP 403 (quota exhausted), OR
    - primary fails a retriable error (5xx / network) after `http_retry` has exhausted its
@@ -283,7 +303,7 @@ class YoutubeSearch:
         year_str = str(year) if year else ""
         query = self._query_format.format(title=title, year=year_str).strip()
 
-        if self._api_key and not self._breaker.is_open() and self._has_quota_left():
+        if self._api_key and self._breaker.can_proceed() and self._has_quota_left():
             url = self._primary_search(query)
             if url is not None:
                 return url
@@ -312,7 +332,7 @@ class YoutubeSearch:
                 query=query,
                 error=str(exc),
             )
-            self._breaker.record_failure()
+            self._breaker.record_failure(exc)
             return None
 
         # Charge quota once the call reaches the server, even on error paths
@@ -329,11 +349,15 @@ class YoutubeSearch:
             return None
         if not resp.ok:
             logger.warning(
-                "YouTube primary search HTTP %d — falling back",
-                resp.status_code,
+                "youtube_search_http_error",
+                status_code=resp.status_code,
                 query=query,
             )
-            self._breaker.record_failure()
+            # No caught exception here — synthesize one so CircuitBreaker.record_failure
+            # receives the required Exception argument.
+            self._breaker.record_failure(
+                RuntimeError(f"YouTube primary HTTP {resp.status_code}")
+            )
             return None
 
         try:
@@ -389,7 +413,7 @@ class YoutubeSearch:
                 query=query,
                 error=str(exc),
             )
-            self._breaker.record_failure()
+            self._breaker.record_failure(exc)
             return None
 
         entries = (info or {}).get("entries") or []
@@ -450,7 +474,7 @@ The corresponding tests must now cover:
 - **Missing API key** (empty `api_key`) skips primary entirely.
 - **Fallback hit** — yt-dlp `extract_info` returns `{entries: [{id: "XYZ"}]}`, URL built.
 - **Fallback miss** — yt-dlp returns no entries → `None`.
-- **Circuit breaker open** — `breaker.is_open() is True` skips primary (falls back).
+- **Circuit breaker open** — `breaker.can_proceed() is False` skips primary (falls back).
 
 The fixture for the "yt-dlp fallback" test case patches
 `personalscraper.scraper.youtube_search.yt_dlp.YoutubeDL` with a MagicMock whose
@@ -478,10 +502,10 @@ git commit -m "feat(trailer): add YoutubeSearch fallback layer with mocked tests
 
 ### Files
 
-| Action | Path                                         | Responsibility                                        |
-| ------ | -------------------------------------------- | ----------------------------------------------------- |
-| Create | `personalscraper/scraper/trailers_cache.py`  | TMDB video + YouTube search result caching            |
-| Create | `tests/scraper/test_trailers_cache.py`       | Unit tests (tmpdir-based, no HTTP)                    |
+| Action | Path                                        | Responsibility                             |
+| ------ | ------------------------------------------- | ------------------------------------------ |
+| Create | `personalscraper/scraper/trailers_cache.py` | TMDB video + YouTube search result caching |
+| Create | `tests/scraper/test_trailers_cache.py`      | Unit tests (tmpdir-based, no HTTP)         |
 
 ### Step 1: Write failing tests
 
@@ -537,20 +561,28 @@ class TestYoutubeSearchCache:
         assert cache.get_youtube_search("Fight Club", 1999) == url
 
     def test_none_url_is_stored(self, cache):
-        """A None result (no trailer found) should also be cacheable."""
+        """A None result (no trailer found) should also be cacheable.
+
+        Uses the public ``has_cached_search()`` API to distinguish a true
+        cache miss from a stored "no trailer found" sentinel — no
+        implementation-private helpers (`_make_yt_key`, `_has_key`) are
+        imported from the test.
+        """
+        # Miss before set
+        assert cache.has_cached_search("Obscure Movie", 2020) is False
+        # Store a None result (the implementation records a sentinel internally)
         cache.set_youtube_search("Obscure Movie", 2020, None)
-        # A stored None means "we searched and found nothing" — must not return miss
+        # Hit after set, even though the cached "value" is None
+        assert cache.has_cached_search("Obscure Movie", 2020) is True
+        # get_youtube_search returns the sentinel marker (implementation-defined;
+        # see TrailersCache docstring for the exact sentinel value).
         result = cache.get_youtube_search("Obscure Movie", 2020)
-        # Either the sentinel is stored (result is a sentinel) or None indicates
-        # "cached as not found" — the implementation must distinguish miss from stored-None.
-        # This test verifies get() does not return None for a stored None (hit vs miss).
-        # Implementation uses a sentinel dict {"no_result": True} for this case.
-        assert result is not None or cache._has_key(_make_yt_key("Obscure Movie", 2020))
+        assert result is not None  # sentinel, not a miss
 ```
 
-> Note: `_make_yt_key` and `cache._has_key` are implementation-internal helpers tested here
-> only to verify the stored-None sentinel behavior. The test above documents the intent;
-> the implementation can expose `_has_key` as a private method for testability.
+> Note: the test uses only the public `TrailersCache.has_cached_search(title, year) -> bool`
+> method to distinguish miss from stored-None — no `_make_yt_key` / `_has_key` imports.
+> `has_cached_search()` is part of the public API table below (Sub-phase 3a.2 implementation).
 
 ### Step 2: Implement `personalscraper/scraper/trailers_cache.py`
 
@@ -558,8 +590,8 @@ class TestYoutubeSearchCache:
 """Cache for TMDB video responses and YouTube search results.
 
 Uses ``JsonTTLCache`` for storage. TMDB video lists are cached for 7 days
-(trailers don't change often). YouTube search results are cached for 30 days
-(avoids re-querying for items already known to have no trailer).
+(trailers don't change often). YouTube search results are cached for 7 days
+(matches DESIGN §9 `youtube_api.cache_ttl_days: 7`).
 
 Key scheme:
     TMDB videos:    ``tmdb_videos:{media_type}:{tmdb_id}:{language}``
@@ -579,7 +611,9 @@ from personalscraper.scraper.tmdb_client import Video
 logger = logging.getLogger(__name__)
 
 _TMDB_TTL_SECONDS = 7 * 24 * 3600       # 7 days
-_YOUTUBE_TTL_SECONDS = 30 * 24 * 3600   # 30 days
+# 7 days matches DESIGN §9 (`youtube_api.cache_ttl_days: 7`) — keep in sync.
+# TODO: read this from config in a follow-up instead of the module-level constant.
+_YOUTUBE_TTL_SECONDS = 7 * 24 * 3600    # 7 days
 
 # Sentinel stored when a YouTube search returned no results, to distinguish
 # a "searched and found nothing" hit from a cache miss.
@@ -689,7 +723,7 @@ class TrailersCache:
         return str(raw)
 
     def set_youtube_search(self, title: str, year: int | None, url: str | None) -> None:
-        """Cache a YouTube search result (URL or no-result) for 30 days.
+        """Cache a YouTube search result (URL or no-result) for 7 days.
 
         Args:
             title: Media title.
@@ -700,17 +734,23 @@ class TrailersCache:
         value: Any = url if url is not None else _NO_RESULT_SENTINEL
         self._cache.set(key, value, ttl_seconds=_YOUTUBE_TTL_SECONDS)
 
-    def _has_key(self, key: str) -> bool:
-        """Return True if the backing cache has the given key (any TTL state).
+    def has_cached_search(self, title: str, year: int | None) -> bool:
+        """Return True if a YouTube search result is cached for (title, year).
 
-        Internal helper for tests.
+        Public API used to distinguish a true cache miss from a stored
+        "no trailer found" sentinel. Disregards TTL expiry — it only checks
+        whether the backing file has the key at all. Callers wanting a
+        TTL-aware hit should use ``get_youtube_search()`` and check for the
+        sentinel marker.
 
         Args:
-            key: Cache key string.
+            title: Media title.
+            year: Release year, or None.
 
         Returns:
-            True if the key is present in the backing file.
+            True when the key is present in the backing file.
         """
+        key = _yt_key(title, year)
         data = self._cache._load()
         return key in data
 ```
@@ -736,10 +776,10 @@ git commit -m "feat(trailer): add TrailersCache for TMDB video + YouTube search 
 
 ### Files
 
-| Action | Path                                         | Responsibility                                       |
-| ------ | -------------------------------------------- | ---------------------------------------------------- |
-| Create | `personalscraper/scraper/trailer_finder.py`  | TMDB-first / YouTube-fallback discovery orchestrator |
-| Create | `tests/scraper/test_trailer_finder.py`       | Unit tests (all dependencies mocked)                 |
+| Action | Path                                        | Responsibility                                       |
+| ------ | ------------------------------------------- | ---------------------------------------------------- |
+| Create | `personalscraper/scraper/trailer_finder.py` | TMDB-first / YouTube-fallback discovery orchestrator |
+| Create | `tests/scraper/test_trailer_finder.py`      | Unit tests (all dependencies mocked)                 |
 
 ### Step 1: Write failing tests
 
@@ -870,25 +910,25 @@ class TrailerFinder:
    a. Check `TrailersCache.get_tmdb_videos(tmdb_id, media_type, language)`.
    b. If cache miss, call `TMDBClient.fetch_movie_videos` or `fetch_tv_videos`; store in cache.
    c. **Filter by `site == "YouTube"` — mandatory**. TMDB `/videos` routinely includes
-      Vimeo and DailyMotion entries; we can only build a `youtube.com/watch?v={key}` URL
-      for YouTube entries, so any non-YouTube video must be dropped before preference
-      selection. This closes the reviewer-flagged hole where `{v.key}` could land on a
-      non-existent YouTube URL.
+   Vimeo and DailyMotion entries; we can only build a `youtube.com/watch?v={key}` URL
+   for YouTube entries, so any non-YouTube video must be dropped before preference
+   selection. This closes the reviewer-flagged hole where `{v.key}` could land on a
+   non-existent YouTube URL.
    d. Within the YouTube subset, prefer `official == True`, then `type == "Trailer"`, then
-      `type == "Teaser"`. Fall through to any remaining YouTube video.
+   `type == "Teaser"`. Fall through to any remaining YouTube video.
    e. If a suitable video found: return `https://www.youtube.com/watch?v={key}`.
 2. If no TMDB video found across all languages:
    a. Check `TrailersCache.get_youtube_search(title, year)`.
    b. If cache miss, call `YoutubeSearch.search(title, year)`; store result (even None —
-      the `__no_result__` sentinel is a module-private singleton, not a magic string, to
-      avoid collision with a legitimate URL).
+   the `__no_result__` sentinel is a module-private singleton, not a magic string, to
+   avoid collision with a legitimate URL).
    c. Return URL (or None if no result).
 
 The implementation is approximately 100 lines. Key helpers:
 
 - `_best_video(videos: list[Video]) -> Video | None`:
-    1. `youtube_only = [v for v in videos if v.site == "YouTube"]` — drop non-YouTube.
-    2. For pass in (`Trailer+official`, `Trailer`, `Teaser+official`, `Teaser`, `any`): return the first match.
+  1. `youtube_only = [v for v in videos if v.site == "YouTube"]` — drop non-YouTube.
+  2. For pass in (`Trailer+official`, `Trailer`, `Teaser+official`, `Teaser`, `any`): return the first match.
 - `_video_to_url(v: Video) -> str` — `f"https://www.youtube.com/watch?v={v.key}"`.
 
 ### Test contract — public API only
