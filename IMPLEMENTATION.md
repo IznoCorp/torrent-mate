@@ -21,7 +21,7 @@
 | 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [x]    |
 | 6   | PR fixes cycle 2             | phase-06-pr-fixes-cycle-2.md | [x]    |
 | 7   | PR fixes cycle 3             | phase-07-pr-fixes-cycle-3.md | [x]    |
-| 8   | PR fixes cycle 4             | phase-08-pr-fixes-cycle-4.md | [ ]    |
+| 8   | PR fixes cycle 4             | phase-08-pr-fixes-cycle-4.md | [x]    |
 
 ## Review cycles
 
@@ -68,8 +68,8 @@
 - Major: `scraper.py:1541` noqa cites `KeyError`/`ep["number"]` but try-body uses exclusively `.get()` — `KeyError` is unreachable
 - Medium: missing regression tests for `show_artwork_failed` narrowed arm and AttributeError sides; dangling `(tracked: TODO)` in `confidence.py:244`; brittle line-pin in `logging.md:180`
 - Fix phase created: phase-08-pr-fixes-cycle-4.md (4 sub-phases)
-- Status: fix phase dispatched → awaiting /implement:phase
+- Status: all cycle-4 findings addressed across 4 commits (SP8.1–8.4)
 
 ## Next action
 
-Phase 8 in progress — run `/implement:phase` to execute fixes, then feature-pr + final review.
+Phase 8 complete — run `/implement:feature-pr` to push and verify CI, then cycle 5 review (ceiling raised to 5).
