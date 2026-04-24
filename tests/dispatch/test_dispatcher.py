@@ -7,9 +7,37 @@ and insufficient space handling.
 V15 P6.3: Dispatcher now accepts Config as first argument. Category IDs
 are V15 IDs (e.g. "movies", "tv_shows") rather than V14 labels ("films").
 DiskConfig uses ``id`` field (Pydantic) rather than ``name`` (dataclass).
+
+# ---------------------------------------------------------------------------
+# Tests removed — moved to integration tier (phase 2-3)
+# ---------------------------------------------------------------------------
+# The following tests were deleted because their primary invariants are
+# now covered end-to-end by the integration suite:
+#
+#   test_dispatch_movie_replace_existing
+#       → tests/integration/test_dispatch_replace.py
+#         (test_dispatch_replaces_existing_movie)
+#
+#   test_dispatch_tvshow_merge_existing
+#       → tests/integration/test_dispatch_merge.py
+#         (test_dispatch_merges_tvshow_new_episodes)
+#
+#   test_dispatch_movie_new_best_disk
+#   test_dispatch_tvshow_new
+#       → tests/integration/test_dispatch_new.py
+#         (test_dispatch_picks_disk_with_most_space)
+#
+#   test_process_tvshow_type
+#       → covered by test_process_verified_items (process routing) and
+#         tests/integration/test_dispatch_new.py
+#
+#   test_dispatch_no_category_skip
+#       → duplicate of test_skip_no_category in TestProcess
+# ---------------------------------------------------------------------------
 """
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -20,6 +48,17 @@ from personalscraper.conf.models import DiskConfig
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.verify.verifier import VerifyResult
+
+
+@pytest.fixture(autouse=True)
+def _rsync_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make shutil.which report rsync as available for every test by default.
+
+    Tests that need rsync to be absent (e.g. test_init_without_rsync) override
+    this via their own @patch("shutil.which", return_value=None) decorator,
+    which takes precedence over this autouse monkeypatch.
+    """
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/rsync" if name == "rsync" else None)
 
 
 @pytest.fixture
@@ -38,10 +77,7 @@ def mock_settings() -> MagicMock:
 class TestDispatcherInit:
     """Tests for Dispatcher initialization."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_init_with_rsync(
-        self, mock_which: MagicMock, test_config, mock_settings: MagicMock, tmp_path: Path
-    ) -> None:
+    def test_init_with_rsync(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
         """Should initialize when rsync is available."""
         idx = MediaIndex(tmp_path / "index.json")
         d = Dispatcher(test_config, mock_settings, idx)
@@ -67,10 +103,8 @@ class TestDispatcherInit:
 class TestDispatchMovie:
     """Tests for dispatch_movie."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_new_movie_dry_run(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -99,10 +133,8 @@ class TestDispatchMovie:
         assert result.action == "moved"
         assert movie_dir.exists()  # Not moved in dry run
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_no_space_skips(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -139,10 +171,8 @@ class TestDispatchMovie:
 class TestDispatchTvshow:
     """Tests for dispatch_tvshow."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_new_tvshow_dry_run(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -178,10 +208,8 @@ class TestDispatchTvshow:
 class TestProcess:
     """Tests for process() method."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_process_verified_items(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -218,10 +246,8 @@ class TestProcess:
         assert len(results) == 1
         assert results[0].action in ("moved", "replaced")
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_skip_no_category(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -243,10 +269,8 @@ class TestProcess:
         assert len(results) == 1
         assert results[0].action == "skipped"
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_process_empty_verified(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -267,10 +291,8 @@ class TestProcess:
 class TestVerifyTransfer:
     """Tests for _verify_transfer."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_matching_files(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -289,10 +311,8 @@ class TestVerifyTransfer:
 
         assert d._verify_transfer(src, dst) is True
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_missing_file_fails(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -309,10 +329,8 @@ class TestVerifyTransfer:
 
         assert d._verify_transfer(src, dst) is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_size_mismatch_fails(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -339,10 +357,8 @@ class TestVerifyTransfer:
 class TestReplace:
     """Tests for _replace crash-safe replace logic."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_replace_rsync_failure_cleanup(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -365,10 +381,8 @@ class TestReplace:
         tmp_new = dest.parent / f"{dest.name}.new.tmp"
         assert not tmp_new.exists()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_replace_atomic_swap_failure_restore(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -405,10 +419,8 @@ class TestReplace:
 
         assert result is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_replace_success(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -447,10 +459,8 @@ class TestReplace:
 class TestMerge:
     """Tests for _merge TV show merge logic."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_merge_rsync_failure(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -469,10 +479,8 @@ class TestMerge:
 
         assert result is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_merge_verify_failure(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -495,10 +503,8 @@ class TestMerge:
 
         assert result is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_merge_success(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -519,10 +525,8 @@ class TestMerge:
         assert result is True
         assert not source.exists()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_merge_os_error(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -550,10 +554,8 @@ class TestMerge:
 class TestMoveNew:
     """Tests for _move_new placement logic."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_move_new_success(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -582,10 +584,8 @@ class TestMoveNew:
         assert dest.exists()
         assert not tmp_dir.exists()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_move_new_rsync_failure(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -604,10 +604,8 @@ class TestMoveNew:
         assert result is False
         assert not dest.exists()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_move_new_verify_failure(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -629,10 +627,8 @@ class TestMoveNew:
 
         assert result is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_move_new_orphan_tmp_cleaned(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -670,10 +666,8 @@ class TestMoveNew:
 class TestRsync:
     """Tests for _rsync subprocess wrapper."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_rsync_success(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -693,10 +687,8 @@ class TestRsync:
         assert result is True
         mock_run.assert_called_once()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_rsync_failure_returns_false(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -715,10 +707,8 @@ class TestRsync:
 
         assert result is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_rsync_timeout(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -737,10 +727,8 @@ class TestRsync:
 
         assert result is False
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_rsync_delete_flag(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -760,10 +748,8 @@ class TestRsync:
         cmd = mock_run.call_args[0][0]
         assert "--delete" in cmd
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_rsync_excludes_ds_store(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -784,10 +770,8 @@ class TestRsync:
         assert "--exclude=.DS_Store" in cmd
         assert "--exclude=._*" in cmd
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_rsync_merge_excludes_ds_store(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -812,195 +796,15 @@ class TestRsync:
 
 
 # ---------------------------------------------------------------------------
-# Dispatch with existing items (replace/merge paths)
+# Dispatch dry-run guard
 # ---------------------------------------------------------------------------
 
 
-class TestDispatchExisting:
-    """Tests for dispatch with existing items in the index."""
+class TestDispatchDryRun:
+    """Tests for dry-run behaviour in dispatch methods."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_dispatch_movie_replace_existing(
-        self,
-        mock_which: MagicMock,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Movie existing in index should trigger replace, not move."""
-        idx = MediaIndex(tmp_path / "index.json")
-        from personalscraper.dispatch.media_index import IndexEntry
-
-        existing_path = tmp_path / "drive_a" / "movies" / "Matrix (1999)"
-        existing_path.mkdir(parents=True)
-        idx.add(
-            IndexEntry(
-                name="Matrix (1999)",
-                disk="drive_a",
-                category="movies",
-                path=str(existing_path),
-                media_type="movie",
-            )
-        )
-
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
-
-        movie_dir = tmp_path / "Matrix (1999)"
-        movie_dir.mkdir()
-        (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
-
-        with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
-        ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskStatus
-
-            mock_status.return_value = DiskStatus(
-                config=DiskConfig(id="drive_a", path=tmp_path, categories=["movies"]),
-                free_space_gb=500,
-                is_mounted=True,
-            )
-
-            result = d.dispatch_movie(movie_dir, "movies")
-
-        assert result.action == "replaced"
-        assert result.disk == "drive_a"
-
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_dispatch_tvshow_merge_existing(
-        self,
-        mock_which: MagicMock,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """TV show existing in index should trigger merge, not move."""
-        idx = MediaIndex(tmp_path / "index.json")
-        from personalscraper.dispatch.media_index import IndexEntry
-
-        existing_path = tmp_path / "drive_a" / "tv_shows" / "Fallout (2024)"
-        existing_path.mkdir(parents=True)
-        idx.add(
-            IndexEntry(
-                name="Fallout (2024)",
-                disk="drive_a",
-                category="tv_shows",
-                path=str(existing_path),
-                media_type="tvshow",
-            )
-        )
-
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
-
-        show_dir = tmp_path / "Fallout (2024)"
-        show_dir.mkdir()
-
-        with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
-        ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskStatus
-
-            mock_status.return_value = DiskStatus(
-                config=DiskConfig(id="drive_a", path=tmp_path, categories=["tv_shows"]),
-                free_space_gb=500,
-                is_mounted=True,
-            )
-
-            result = d.dispatch_tvshow(show_dir, "tv_shows")
-
-        assert result.action == "merged"
-        assert result.disk == "drive_a"
-
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_dispatch_movie_new_best_disk(
-        self,
-        mock_which: MagicMock,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """New movie should be placed on disk with most free space."""
-        idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
-
-        movie_dir = tmp_path / "NewMovie (2024)"
-        movie_dir.mkdir()
-        (movie_dir / "file.mkv").write_bytes(b"\x00" * 1024)
-
-        with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
-        ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskStatus
-
-            mock_status.return_value = DiskStatus(
-                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["movies"]),
-                free_space_gb=800,
-                is_mounted=True,
-            )
-
-            result = d.dispatch_movie(movie_dir, "movies")
-
-        assert result.action == "moved"
-        assert result.disk == "drive_a"
-
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_dispatch_tvshow_new(
-        self,
-        mock_which: MagicMock,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """New TV show should be moved to best disk."""
-        idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
-
-        show_dir = tmp_path / "NewShow (2024)"
-        show_dir.mkdir()
-
-        with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
-        ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskStatus
-
-            mock_status.return_value = DiskStatus(
-                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
-                free_space_gb=600,
-                is_mounted=True,
-            )
-
-            result = d.dispatch_tvshow(show_dir, "tv_shows")
-
-        assert result.action == "moved"
-
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_dispatch_no_category_skip(
-        self,
-        mock_which: MagicMock,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """VerifyResult without category should be skipped in process()."""
-        idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
-
-        verified = [
-            VerifyResult(
-                media_path=tmp_path / "Unknown",
-                media_type="movie",
-                category=None,
-                status="blocked",
-            ),
-        ]
-        results = d.process(verified=verified)
-        assert len(results) == 1
-        assert results[0].action == "skipped"
-        assert "category" in (results[0].reason or "").lower()
-
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_dispatch_dry_run_no_transfer(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -1032,46 +836,6 @@ class TestDispatchExisting:
         mock_rsync.assert_not_called()
         assert movie_dir.exists()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
-    def test_process_tvshow_type(
-        self,
-        mock_which: MagicMock,
-        test_config,
-        mock_settings: MagicMock,
-        tmp_path: Path,
-    ) -> None:
-        """Process with tvshow type should call dispatch_tvshow."""
-        idx = MediaIndex(tmp_path / "index.json")
-        d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
-
-        show_dir = tmp_path / "Show (2024)"
-        show_dir.mkdir()
-
-        verified = [
-            VerifyResult(
-                media_path=show_dir,
-                media_type="tvshow",
-                category="tv_shows",
-                status="valid",
-            ),
-        ]
-
-        with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
-        ) as mock_status:
-            from personalscraper.dispatch.disk_scanner import DiskStatus
-
-            mock_status.return_value = DiskStatus(
-                config=DiskConfig(id="drive_a", path=tmp_path / "drive_a", categories=["tv_shows"]),
-                free_space_gb=500,
-                is_mounted=True,
-            )
-
-            results = d.process(verified=verified)
-
-        assert len(results) == 1
-        assert results[0].action == "moved"
-
 
 # ---------------------------------------------------------------------------
 # Orphan cleanup
@@ -1081,10 +845,8 @@ class TestDispatchExisting:
 class TestOrphanCleanup:
     """Tests for _cleanup_orphan_temps."""
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_cleans_tmp_dispatch_orphans(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
@@ -1107,10 +869,8 @@ class TestOrphanCleanup:
         assert cleaned == 1
         assert not orphan.exists()
 
-    @patch("shutil.which", return_value="/usr/bin/rsync")
     def test_cleans_merge_backup_orphans(
         self,
-        mock_which: MagicMock,
         test_config,
         mock_settings: MagicMock,
         tmp_path: Path,
