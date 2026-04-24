@@ -63,25 +63,6 @@ Migrate from flat `.env` / pydantic-settings to structured JSON config.
 - EVERYTHING configurable: directories, patterns, values, naming conventions, thresholds
 - The existing `encoding_rules.json` is a prototype of this approach
 
-### Test Realism Refactor
-
-Reduce over-mocking in the heaviest test suites and add lightweight E2E coverage.
-
-- Current hotspots: `test_dispatcher.py` (~37 `@patch`), `test_cli.py` (~66 `@patch`), `test_pipeline_orchestration.py` (≤12 `@patch`, trimmed from 42)
-- Goal: cut the patch count where mocks hide real integration bugs (rsync failures, filesystem edge cases, CLI → pipeline wiring)
-- Add ~15 E2E tests using `tmp_path` + small real directories, mocking only external APIs (TMDB/TVDB/qBittorrent)
-- Keep runtime within CI budget (<30s for unit + E2E combined)
-- Pin the invariants uncovered by mocks so future regressions in rsync flags, lock handling, and JSON state are caught
-- No changes to production code required beyond exposing seams if truly needed
-
-**Preparation** (not yet implemented):
-
-- Codename: `test-realism`
-- Design: `docs/superpowers/roadmap/test-realism/specs/DESIGN.md`
-- Plan: `docs/superpowers/roadmap/test-realism/plan/INDEX.md`
-- Prepared on: 2026-04-23
-- Target version bump: minor
-
 ### Library Indexer
 
 Persistent index of the media library with cache or database backend.

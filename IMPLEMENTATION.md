@@ -1,44 +1,35 @@
-# Implementation Progress — test-realism
+# Implementation Progress — trailer
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: Test Realism Refactor (minor)
-**Version bump**: 0.5.0 → 0.6.0
-**Branch**: feat/test-realism
+**Feature**: YoutubeTrailerScraper Integration (minor)
+**Version bump**: 0.6.0 → 0.7.0
+**Branch**: feat/trailer
 **PR merge**: manual
-**PR**: https://github.com/LounisBou/personal-scraper/pull/14
-**Design**: docs/features/test-realism/DESIGN.md
-**Master plan**: docs/features/test-realism/plan/INDEX.md
+**PR**: _(created after last phase)_
+**Design**: docs/features/trailer/DESIGN.md
+**Master plan**: docs/features/trailer/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                                      | File                         | Status |
-| --- | ---------------------------------------------------------- | ---------------------------- | ------ |
-| 1   | E2E scaffolding & shared fixtures                          | phase-01-e2e-scaffolding.md  | [x]    |
-| 2   | E2E tests — ingest / sort / process / scrape               | phase-02-e2e-early-stages.md | [x]    |
-| 3   | E2E tests — enforce / verify / dispatch / full-run         | phase-03-e2e-late-stages.md  | [x]    |
-| 4   | Hotspot trimming (dispatcher / cli / pipeline_integration) | phase-04-hotspot-trim.md     | [x]    |
-| 5   | Coverage check + docs                                      | phase-05-verify-and-docs.md  | [x]    |
-| 6   | PR fixes cycle 1                                           | phase-06-pr-fixes-cycle-1.md | [x]    |
+| #   | Phase                                                                    | File                             | Status |
+| --- | ------------------------------------------------------------------------ | -------------------------------- | ------ |
+| 1   | Extend `TMDBClient` with video endpoints                                 | phase-01-tmdbclient-videos.md    | [ ]    |
+| 2   | Extract `JsonTTLCache` primitive                                         | phase-02-json-ttl-cache.md       | [ ]    |
+| 3a  | Trailer discovery (`trailer_finder`, `youtube_search`, `trailers_cache`) | phase-03a-trailer-discovery.md   | [ ]    |
+| 3b  | Download wrapper (`ytdlp_downloader`)                                    | phase-03b-ytdlp-downloader.md    | [ ]    |
+| 3c  | Placement (`placement.py`)                                               | phase-03c-placement.md           | [ ]    |
+| 4   | State tracking (`state.py`)                                              | phase-04-state-tracking.md       | [ ]    |
+| 5   | Pipeline step (`trailers/step.py`)                                       | phase-05-pipeline-step.md        | [ ]    |
+| 6   | Scanner + orchestrator                                                   | phase-06-scanner-orchestrator.md | [ ]    |
+| 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [ ]    |
+| 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [ ]    |
+| 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [ ]    |
 
 ## Review cycles
 
-### Cycle 1
-
-- Findings received: 19
-- Retained: 12 (0 critical, 5 major, 3 medium, 4 minor)
-- Ignored: 4 (out of scope: regex dedup, mkdir edge case, test_dispatch_new negative, TVDB miss)
-- Fix phase created: phase-06-pr-fixes-cycle-1.md
-- Status: closed — all 12 findings fixed across 4 sub-phase commits (4b9f39e, 4585caf, 5192d1c, 0aa141d)
-
-### Cycle 2
-
-- Findings received: 5 (focused pass on cycle-1 fix commits only)
-- Retained: 3 (0 critical, 0 major, 0 medium, 3 minor)
-- Ignored: 2 (style suggestions: log-level tuning, sentinel DRY)
-- Fix phase created: none
-- Status: clean — all original findings verified addressed; remaining items are minor strength improvements, not correctness issues. Proceeding to merge.
+_(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Review clean — merge PR #14 (squash) manually, then run `/implement:archive`.
+Run `/implement:phase` to execute phases starting from Phase 1.
