@@ -27,7 +27,10 @@
 
 ## Explicit non-goals
 
-- No production code restructure unless a minimal seam is strictly required for a test (the allowed exception: `Pipeline(step_overrides=...)` in phase 4.3).
+- No production code restructure unless a minimal seam is strictly required for a test. Allowed seams (discovered during implementation, aligned with DESIGN §2 "minimal seam allowed for tests"):
+  - `IngestConfig.min_ratio: float = 0.0` in `personalscraper/conf/models.py` + ratio-threshold guard in `personalscraper/ingest/ingest.py` (phase 2.1, catalogue #2 — ratio threshold test)
+  - `Pipeline(step_overrides=...)` in `personalscraper/pipeline.py` (phase 4.3 — orchestrator unit test)
+  - Additional seams may be declared as they are discovered; each must be backward-compatible (default value = no behaviour change) and listed here as it is added.
 - No framework change (pytest stays).
 - No deletion of unit tests that are still the best vehicle for a given invariant.
 - No modification of the existing manual `tests/e2e/` tier.
