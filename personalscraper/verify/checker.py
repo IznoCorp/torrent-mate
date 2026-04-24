@@ -31,8 +31,11 @@ _MIN_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
 # Regex for "Title (Year)" directory format
 _DIR_PATTERN = re.compile(r"^.+ \(\d{4}\)$")
 
-# Episode file pattern
-_EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
+# Episode file pattern — accepts both the normal "SxxExx - Title.ext" and the
+# title-less fallback "SxxExx.ext" produced when the provider lacks an episode
+# (see episode_manager.rename_episodes). The fallback must not trip
+# episode_renamed / season_structure checks.
+_EPISODE_PATTERN = re.compile(r"^S\d{2}E\d{2}(?: - .+)?\.\w+$")
 
 
 class Severity(Enum):
