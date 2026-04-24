@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This is a **media triage pipeline** ("A TRIER" = "to sort"). Downloaded media files
-land in the staging area (defined by `paths.staging_dir` in `config.json5`, outside
-the repository by default), get renamed, cleaned of junk files/folders, scraped for
-metadata (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to
-permanent storage on one of 4 disks.
+This is a **media triage pipeline**. Downloaded media files land in the staging
+area (defined by `paths.staging_dir` in `config.json5`, outside the repository
+by default), get renamed, cleaned of junk files/folders, scraped for metadata
+(via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to
+permanent storage on one of the configured disks.
 
 The staging subdirectory layout (`001-MOVIES/`, `002-TVSHOWS/`, etc.) is configured
 via the `staging_dirs` section of `config.json5` — not hardcoded or tracked by git.
@@ -88,7 +88,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 
 ### Move Rules (dispatch)
 
-- **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
+- **Movies** (category IDs: `movies`, `movies_animation`, `movies_documentary`, `standup`, `theater`): if a folder with the same name already exists on a disk, **replace it** with the new version from the staging area.
 - **TV Shows** (category IDs: `tv_shows`, `tv_shows_animation`, `tv_shows_documentary`, `anime`, `tv_programs`): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
 
