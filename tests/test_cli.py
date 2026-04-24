@@ -136,11 +136,13 @@ def test_sort_command(mock_lock, mock_release, mock_run):
 
 @patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report)
 def test_sort_dry_run(mock_run):
-    """Sort --dry-run flag is passed through."""
+    """Sort --dry-run flag is forwarded as dry_run=True to run_sort."""
     result = runner.invoke(app, ["sort", "--dry-run"])
     assert result.exit_code == 0
     call_kwargs = mock_run.call_args
     assert call_kwargs is not None
+    # Verify the wiring invariant: dry_run=True must reach the service layer.
+    assert call_kwargs.kwargs.get("dry_run") is True
 
 
 @patch("personalscraper.cli.acquire_lock", return_value=False)
@@ -169,12 +171,13 @@ def test_scrape_command(mock_lock, mock_release, mock_run):
 
 @patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report)
 def test_scrape_dry_run(mock_run):
-    """Scrape --dry-run flag is passed through."""
+    """Scrape --dry-run flag is forwarded as dry_run=True to run_scrape."""
     result = runner.invoke(app, ["scrape", "--dry-run"])
     assert result.exit_code == 0
-    # Verify dry_run=True was passed
+    # Verify the wiring invariant: dry_run=True must reach the service layer.
     call_kwargs = mock_run.call_args
     assert call_kwargs is not None
+    assert call_kwargs.kwargs.get("dry_run") is True
 
 
 @patch("personalscraper.cli.acquire_lock", return_value=False)
