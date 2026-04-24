@@ -1,0 +1,56 @@
+{
+  "id": 87739,
+  "name": "Fallout",
+  "original_name": "Fallout",
+  "first_air_date": "2024-04-10",
+  "episode_run_time": [60],
+  "overview": "In a future, post-apocalyptic Los Angeles brought about by nuclear decimation, a young woman emerges from her fallout shelter after 200 years.",
+  "genres": [
+    { "id": 10765, "name": "Science-Fiction & Fantastique" },
+    { "id": 28, "name": "Action & Aventure" }
+  ],
+  "vote_average": 8.2,
+  "number_of_seasons": 1,
+  "aggregate_credits": {
+    "cast": [
+      {
+        "id": 2037390,
+        "name": "Ella Purnell",
+        "roles": [{ "character": "Lucy MacLean", "episode_count": 8 }]
+      },
+      {
+        "id": 10232,
+        "name": "Walton Goggins",
+        "roles": [{ "character": "The Ghoul", "episode_count": 8 }]
+      }
+    ]
+  },
+  "images": {
+    "posters": [
+      {
+        "file_path": "/fallout_poster_fr.jpg",
+        "iso_639_1": "fr",
+        "vote_average": 5.8
+      },
+      {
+        "file_path": "/fallout_poster_en.jpg",
+        "iso_639_1": "en",
+        "vote_average": 5.7
+      }
+    ],
+    "backdrops": [
+      {
+        "file_path": "/fallout_backdrop.jpg",
+        "iso_639_1": null,
+        "vote_average": 5.9
+      }
+    ]
+  },
+  "external_ids": {
+    "imdb_id": "tt12637874",
+    "tvdb_id": 410265
+  },
+  "content_ratings": {
+    "results": [{ "iso_3166_1": "US", "rating": "TV-MA" }]
+  }
+}

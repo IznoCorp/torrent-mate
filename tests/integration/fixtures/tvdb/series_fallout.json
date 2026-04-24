@@ -1,0 +1,20 @@
+{
+  "id": 410265,
+  "name": "Fallout",
+  "slug": "fallout",
+  "firstAired": "2024-04-10",
+  "status": { "name": "Continuing" },
+  "averageRuntime": 60,
+  "genres": [{ "name": "Science Fiction" }, { "name": "Action" }],
+  "seasons": [
+    { "id": 2001001, "number": 1, "type": { "name": "Aired Order" } }
+  ],
+  "remoteIds": [
+    { "id": "tt12637874", "type": 2, "sourceName": "IMDB" },
+    { "id": "87739", "type": 12, "sourceName": "TheMovieDB.com" }
+  ],
+  "contentRatings": [{ "name": "TV-MA", "country": "usa" }],
+  "artworks": null,
+  "characters": null,
+  "trailers": null
+}
