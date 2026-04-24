@@ -30,6 +30,7 @@
 - No production code restructure unless a minimal seam is strictly required for a test. Allowed seams (discovered during implementation, aligned with DESIGN §2 "minimal seam allowed for tests"):
   - `IngestConfig.min_ratio: float = 0.0` in `personalscraper/conf/models.py` + ratio-threshold guard in `personalscraper/ingest/ingest.py` (phase 2.1, catalogue #2 — ratio threshold test)
   - `Pipeline(step_overrides=...)` in `personalscraper/pipeline.py` (phase 4.3 — orchestrator unit test)
+  - `_move_orphan_episodes_to_seasons` logic in `personalscraper/enforce/structure_validator.py::_validate_tvshow` (phase 3.1, catalogue #9 — enforce orphan episode move). Backward-compatible: moves only files matching `SxxEyy`; leaves everything else untouched.
   - Additional seams may be declared as they are discovered; each must be backward-compatible (default value = no behaviour change) and listed here as it is added.
 - No framework change (pytest stays).
 - No deletion of unit tests that are still the best vehicle for a given invariant.
