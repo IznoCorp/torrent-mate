@@ -72,6 +72,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - Docstrings include: description, `Args:`, `Returns:`, `Raises:` (as applicable)
 - **Inline comments** for non-trivial logic explaining the "why" (not the "what")
 - Docstring/comment language: **English**
+- New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
 
 ### Implementation Workflow (feature-oriented)
 
