@@ -64,13 +64,14 @@ class TestCleanup:
           ``root`` is rejected, even if the symlink's lexical path is under
           ``root``. Callers that need lexical (non-followed) matching must
           compare paths before calling ``.resolve()``.
-        - **Non-existent paths are permitted.** ``Path.resolve()`` defaults
-          to ``strict=False`` on Python 3.6+ and returns a best-effort
-          absolute path, so this helper does not require the path to exist
-          on disk.
-        - **Filesystem errors (permission denied, symlink loops on some
-          platforms) return False** — conservatively excluding the path
-          from the scope rather than propagating the error to callers.
+        - **Non-existent paths are permitted.** ``Path.resolve()`` is called
+          with its default ``strict=False``, which returns a best-effort
+          absolute path for non-existent inputs without raising, so this
+          helper does not require the path to exist on disk.
+        - **Filesystem errors (permission denied, symlink loops) return
+          False** — conservatively excluding the path from the scope rather
+          than propagating the error to callers. A ``debug`` trace is
+          emitted so orphan-file investigations can still surface the cause.
 
         Args:
             path: Candidate path to test.
@@ -81,7 +82,8 @@ class TestCleanup:
         """
         try:
             path.resolve().relative_to(root.resolve())
-        except (ValueError, OSError):
+        except (ValueError, OSError) as exc:
+            logger.debug("_is_within: exclude %s under %s: %s", path, root, exc)
             return False
         return True
 
