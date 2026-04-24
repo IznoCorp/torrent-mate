@@ -66,6 +66,52 @@ class TestCleanupStaging:
         assert len(deleted) == 0
         assert staging.exists()  # Not deleted — no marker
 
+    def test_returns_empty_when_staging_dir_is_none(self, tmp_path):
+        """Missing staging_dir scope is a safe no-op — nothing is deleted."""
+        reg = TestRegistry(session_id="s4", base_dir=tmp_path)
+        candidate = tmp_path / "somewhere" / "001-MOVIES" / "Movie"
+        candidate.mkdir(parents=True)
+        place_marker(candidate, "s4")
+        reg.register(candidate)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False)  # no staging_dir
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []
+        assert candidate.exists()  # scope absent → no deletion
+
+    def test_skips_path_outside_staging_dir(self, tmp_path):
+        """Registered paths outside the configured scope are left alone."""
+        reg = TestRegistry(session_id="s5", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        staging_root.mkdir()
+        outside = tmp_path / "elsewhere" / "Movie"
+        outside.mkdir(parents=True)
+        place_marker(outside, "s5")
+        reg.register(outside)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []
+        assert outside.exists()  # scope excluded it
+
+    def test_rejects_sibling_with_shared_prefix(self, tmp_path):
+        """`stage_X` is NOT inside `stage` — guard against str.startswith regressions."""
+        reg = TestRegistry(session_id="s6", base_dir=tmp_path)
+        staging_root = tmp_path / "stage"
+        staging_root.mkdir()
+        sibling = tmp_path / "stage_X" / "Movie"
+        sibling.mkdir(parents=True)
+        place_marker(sibling, "s6")
+        reg.register(sibling)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []
+        assert sibling.exists()
+
 
 class TestCleanupDisks:
     """Tests for cleanup_disks() triple safety verification."""
@@ -113,6 +159,36 @@ class TestCleanupDisks:
 
         assert len(deleted) == 0
         assert disk_dir.exists()  # Safety block
+
+    def test_returns_empty_when_disk_paths_empty(self, tmp_path):
+        """Missing disk_paths scope is a safe no-op — nothing is deleted."""
+        reg = TestRegistry(session_id="d4", base_dir=tmp_path)
+        candidate = tmp_path / "storage" / "disk_a" / "films" / "Movie"
+        candidate.mkdir(parents=True)
+        place_marker(candidate, "d4")
+        reg.register(candidate)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False)  # no disk_paths
+        deleted = cleanup.cleanup_disks()
+
+        assert deleted == []
+        assert candidate.exists()
+
+    def test_skips_path_outside_all_disks(self, tmp_path):
+        """Registered paths under no configured disk root are left alone."""
+        reg = TestRegistry(session_id="d5", base_dir=tmp_path)
+        disk_root = tmp_path / "storage" / "disk_a"
+        disk_root.mkdir(parents=True)
+        outside = tmp_path / "elsewhere" / "Movie"
+        outside.mkdir(parents=True)
+        place_marker(outside, "d5")
+        reg.register(outside)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, disk_paths=[disk_root])
+        deleted = cleanup.cleanup_disks()
+
+        assert deleted == []
+        assert outside.exists()
 
 
 class TestCleanupTorrents:

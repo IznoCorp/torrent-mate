@@ -50,14 +50,14 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 Chemins du système de fichiers utilisés par le pipeline.
 
-| Variable               | Défaut                                      | Description                                                   |
-| ---------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| Variable               | Défaut                       | Description                                                   |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------- |
 | `TORRENT_COMPLETE_DIR` | `/path/to/torrents/complete` | Dossier de destination des torrents terminés dans qBittorrent |
 | `STAGING_DIR`          | `/path/to/staging`           | Zone de tri (staging) — racine du projet                      |
-| `DISK1_DIR`            | `/Volumes/Disk1/medias`                     | Point de montage du disque de stockage 1                      |
-| `DISK2_DIR`            | `/Volumes/Disk2/medias`                     | Point de montage du disque de stockage 2                      |
-| `DISK3_DIR`            | `/Volumes/Disk3/medias`                     | Point de montage du disque de stockage 3                      |
-| `DISK4_DIR`            | `/Volumes/Disk4/medias`                     | Point de montage du disque de stockage 4                      |
+| `DISK1_DIR`            | `/Volumes/Disk1/medias`      | Point de montage du disque de stockage 1                      |
+| `DISK2_DIR`            | `/Volumes/Disk2/medias`      | Point de montage du disque de stockage 2                      |
+| `DISK3_DIR`            | `/Volumes/Disk3/medias`      | Point de montage du disque de stockage 3                      |
+| `DISK4_DIR`            | `/Volumes/Disk4/medias`      | Point de montage du disque de stockage 4                      |
 
 ### Comment configurer
 
@@ -90,7 +90,7 @@ définis dans `config.json5` (en plus du `.env`).
 Chemin vers le répertoire de staging racine où les médias arrivent pour traitement.
 
 - **Exemple (config.example.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
-- **Défaut en production :** `/path/to/staging/`
+- **Pas de défaut en production** — à définir selon votre environnement (par exemple `/Volumes/<disk>/staging/`).
 - Les chemins relatifs sont résolus en chemins absolus au chargement via `Path.expanduser().resolve()`.
 - L'arborescence de staging est créée automatiquement au premier lancement — aucun `mkdir` manuel requis.
 
@@ -98,9 +98,10 @@ Chemin vers le répertoire de staging racine où les médias arrivent pour trait
 
 Chemin vers le répertoire d'état du pipeline (index, locks, cache d'analyse).
 
-- **Défaut :** `/path/to/staging/.data`
+- **Défaut :** `./.data` (résolu relativement à la racine de la config au chargement).
+- **Exemple** : peut être déplacé vers `<staging_dir>/.data` ou tout autre emplacement via `config.json5`.
 - Cette valeur est **explicite** dans `config.json5` — elle peut être déplacée avec
-  une seule modification de config. Le répertoire physique n'a pas bougé.
+  une seule modification de config.
 - Différent de `staging_dir`.
 
 ### `staging_dirs`

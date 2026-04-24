@@ -10,7 +10,7 @@ Les torrents terminés sont automatiquement triés, enrichis de métadonnées (T
 ## Pipeline
 
 ```
-qBittorrent  →  staging/ (staging)  →  Disques de stockage (Disk1-4)
+qBittorrent  →  staging/  →  Disques de stockage (configurés)
                personalscraper run
 ```
 

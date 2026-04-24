@@ -48,7 +48,7 @@ class TestCleanup:
         """
         self.registry = registry
         self.dry_run = dry_run
-        self.staging_dir = Path(staging_dir) if staging_dir else None
+        self.staging_dir = Path(staging_dir) if staging_dir is not None else None
         self.disk_paths = [Path(p) for p in (disk_paths or [])]
 
     def _is_within(self, path: Path, root: Path) -> bool:
@@ -69,8 +69,14 @@ class TestCleanup:
         Returns:
             List of paths that were (or would be) deleted.
         """
-        deleted = []
+        deleted: list[Path] = []
         if self.staging_dir is None:
+            if self.registry.get_cleanup_order():
+                logger.warning(
+                    "cleanup_staging skipped: no staging_dir configured "
+                    "(registry has %d path(s) that will NOT be cleaned)",
+                    len(list(self.registry.get_cleanup_order())),
+                )
             return deleted
         for path in self.registry.get_cleanup_order():
             path = Path(path)
@@ -114,8 +120,14 @@ class TestCleanup:
         Returns:
             List of paths that were (or would be) deleted.
         """
-        deleted = []
+        deleted: list[Path] = []
         if not self.disk_paths:
+            if self.registry.get_cleanup_order():
+                logger.warning(
+                    "cleanup_disks skipped: no disk_paths configured "
+                    "(registry has %d path(s) that will NOT be cleaned)",
+                    len(list(self.registry.get_cleanup_order())),
+                )
             return deleted
         for path in self.registry.get_cleanup_order():
             path = Path(path)
