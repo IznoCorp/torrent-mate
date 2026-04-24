@@ -12,7 +12,7 @@ independent sub-steps, each with its own error isolation.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -60,6 +60,7 @@ class Pipeline:
         interactive: bool = False,
         verbose: bool = False,
         console: Console | None = None,
+        step_overrides: Mapping[str, Callable[..., Any]] | None = None,
     ) -> None:
         """Initialize the pipeline.
 
@@ -70,6 +71,12 @@ class Pipeline:
             interactive: If True, prompt for ambiguous matches.
             verbose: If True, show per-item details.
             console: Rich console. Created if not provided.
+            step_overrides: Optional mapping of step name to replacement
+                callable. Keys: "ingest", "sort", "clean", "scrape",
+                "cleanup", "enforce", "verify". Used by tests to inject
+                fakes without monkey-patching module globals. Default
+                ``None`` means no overrides — production behaviour is
+                unchanged.
         """
         self.config = config
         self.settings = settings
@@ -78,6 +85,8 @@ class Pipeline:
         self.verbose = verbose
         self.console = console or Console()
         self._log = get_logger("pipeline")
+        # Freeze into a plain dict so callers cannot mutate after init.
+        self._step_overrides: dict[str, Callable[..., Any]] = dict(step_overrides or {})
 
     def _recover_from_previous_run(
         self,
@@ -184,12 +193,16 @@ class Pipeline:
         else:
             self._log.info("crash_recovery_skipped", reason="dry_run")
 
+        # Resolve step callables — allow test injection via step_overrides.
+        ingest_fn: Callable[..., Any] = self._step_overrides.get("ingest", run_ingest)
+        sort_fn: Callable[..., Any] = self._step_overrides.get("sort", run_sort)
+
         # Phase 1: INGEST — abort pipeline on fatal crash because
         # sort depends on ingest having deposited files into ingest_dir
         try:
             self._run_step(
                 "ingest",
-                lambda: run_ingest(self.settings, dry_run=self.dry_run, config=self.config),
+                lambda: ingest_fn(self.settings, dry_run=self.dry_run, config=self.config),
                 report,
                 critical=True,
             )
@@ -203,7 +216,7 @@ class Pipeline:
         try:
             self._run_step(
                 "sort",
-                lambda: run_sort(
+                lambda: sort_fn(
                     self.settings,
                     staging_dir=self.config.paths.staging_dir,
                     dry_run=self.dry_run,
@@ -227,9 +240,10 @@ class Pipeline:
         # Phase 4: ENFORCE (validate and correct conventions)
         from personalscraper.enforce.run import run_enforce
 
+        enforce_fn: Callable[..., Any] = self._step_overrides.get("enforce", run_enforce)
         self._run_step(
             "enforce",
-            lambda: run_enforce(self.settings, self.config, dry_run=self.dry_run),
+            lambda: enforce_fn(self.settings, self.config, dry_run=self.dry_run),
             report,
         )
 
@@ -244,9 +258,10 @@ class Pipeline:
         if verified:
             from personalscraper.dispatch.run import run_dispatch
 
+            dispatch_fn: Callable[..., Any] = self._step_overrides.get("dispatch", run_dispatch)
             self._run_step(
                 "dispatch",
-                lambda: run_dispatch(
+                lambda: dispatch_fn(
                     self.settings,
                     config=self.config,
                     dry_run=self.dry_run,
@@ -275,12 +290,21 @@ class Pipeline:
     def _run_verify(self) -> tuple[StepReport, list["VerifyResult"]]:
         """Run verify and return (StepReport, dispatchable list).
 
+        Resolves the verify callable from ``step_overrides`` first so that
+        tests can inject a fake without monkey-patching module globals.
+
         Returns:
             Tuple of (StepReport, list of VerifyResult).
         """
         from personalscraper.verify.run import run_verify
 
-        return run_verify(self.settings, self.config, dry_run=self.dry_run, fix=False)
+        verify_fn: Callable[..., Any] = self._step_overrides.get("verify", run_verify)
+        # Cast required because the override map uses Callable[..., Any] for
+        # flexibility while the declared return type is a concrete tuple.
+        result: tuple[StepReport, list[VerifyResult]] = verify_fn(
+            self.settings, self.config, dry_run=self.dry_run, fix=False
+        )
+        return result
 
     def _run_process_phase(self, report: PipelineReport) -> None:
         """Execute Phase 3: PROCESS as 3 independent steps.
@@ -300,15 +324,20 @@ class Pipeline:
         from personalscraper.process.run import run_clean, run_cleanup
         from personalscraper.scraper.run import run_scrape
 
+        # Resolve process sub-step callables — allow test injection via step_overrides.
+        clean_fn: Callable[..., Any] = self._step_overrides.get("clean", run_clean)
+        scrape_fn: Callable[..., Any] = self._step_overrides.get("scrape", run_scrape)
+        cleanup_fn: Callable[..., Any] = self._step_overrides.get("cleanup", run_cleanup)
+
         self._run_step(
             "clean",
-            lambda: run_clean(self.settings, dry_run=self.dry_run, config=self.config),
+            lambda: clean_fn(self.settings, dry_run=self.dry_run, config=self.config),
             report,
         )
 
         self._run_step(
             "scrape",
-            lambda: run_scrape(
+            lambda: scrape_fn(
                 self.settings,
                 config=self.config,
                 dry_run=self.dry_run,
@@ -319,7 +348,7 @@ class Pipeline:
 
         self._run_step(
             "cleanup",
-            lambda: run_cleanup(self.settings, dry_run=self.dry_run, config=self.config),
+            lambda: cleanup_fn(self.settings, dry_run=self.dry_run, config=self.config),
             report,
         )
 
