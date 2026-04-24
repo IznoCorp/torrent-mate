@@ -7,7 +7,7 @@ Requires:
 - TMDB API key configured in .env
 
 SAFETY: Dispatch runs in DRY-RUN mode only — storage disks are never
-written to. Only the staging area (A TRIER/) is modified and cleaned up.
+written to. Only the staging area is modified and cleaned up.
 
 WARNING: Downloads real torrents — costs upload ratio on private trackers.
 Run MANUALLY only: pytest -m e2e_torrent -v -s

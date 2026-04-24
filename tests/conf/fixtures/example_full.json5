@@ -5,7 +5,7 @@
   paths: {
     // Dossier où qBittorrent dépose les torrents terminés
     torrent_complete_dir: "/path/to/torrents/complete",
-    // Dossier staging intermédiaire (A TRIER) avant dispatch
+    // Dossier de staging intermédiaire avant dispatch
     staging_dir: "/path/to/staging",
     // State du pipeline (index, locks, analyse). Défaut: .data/ à la racine du repo.
     data_dir: "./.data",

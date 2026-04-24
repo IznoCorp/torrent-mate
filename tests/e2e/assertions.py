@@ -15,7 +15,7 @@ def assert_ingest_complete(staging_dir: Path, expected: list[dict]) -> None:
     """Verify torrents were ingested into the staging area.
 
     Args:
-        staging_dir: Path to A TRIER/.
+        staging_dir: Path to the staging area.
         expected: List of magnet dicts with 'name' key.
 
     Raises:

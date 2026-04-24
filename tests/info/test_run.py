@@ -122,7 +122,7 @@ def _make_report(*, mounted: bool = True, used: int = 1_200_000_000_000, total: 
     """Build a minimal InfoReport for formatting tests."""
     return InfoReport(
         version="0.2.0",
-        staging_path=Path("/Volumes/IznoServer SSD/A TRIER"),
+        staging_path=Path("/tmp/staging"),
         disks=[
             DiskStatus(
                 name="drive_a",

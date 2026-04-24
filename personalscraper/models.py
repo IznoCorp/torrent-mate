@@ -18,7 +18,7 @@ class SortResult:
     """Result of sorting a single media file/directory.
 
     Attributes:
-        source: Source path in staging area (A TRIER/).
+        source: Source path in the staging area.
         destination: Target path ({movies_dir}/, {tvshows_dir}/, etc.).
         media_type: Detected type ("movie", "episode", "audio", "ebook", etc.).
         title: Extracted title.
