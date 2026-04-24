@@ -1,43 +1,51 @@
 # Phase 04 — Hotspot trimming
 
-**Goal**: cut `@patch` count in the three hottest files by ≥ 60 % while preserving the invariants they genuinely test. E2E coverage from phases 2–3 absorbs the removed cases.
+**Goal**: cut `@patch` count in the three hottest files from 145 total (37 + 66 + 42 measured on `d98ee04`) to ≤ 58 (≥ 60 % reduction). The new integration tier from phases 2–3 absorbs the removed invariants.
 
-## Sub-phase 4.1 — `tests/dispatch/test_dispatcher.py`
+## Gate (from Phase 03)
 
-- Identify every test whose primary assertion is an effect already covered in the E2E dispatch tests (replace, merge, new, recovery).
-- Delete those tests or collapse them into narrow CLI-wiring tests.
-- Replace the repeated `@patch("shutil.which", return_value="/usr/bin/rsync")` decorator with a module-level `pytest.fixture(autouse=True)` that sets `monkeypatch.setattr(shutil, "which", ...)` only when the test file declares it needs rsync.
-- Keep unit tests for : pure resolver helpers (`_resolve_existing_on_filesystem`, `_has_ntfs_illegal_names`), `DispatchResult` dataclass, the `_force_rmtree` retry semantics.
+- `tests/integration/` has ≥ 15 catalogue tests + smoke, all green.
+- Baseline `@patch` counts re-measured at the start of this phase and recorded in the first commit body.
 
-Target : ≤ 15 `@patch` uses after refactor.
+## Sub-phase 4.1 — `tests/dispatch/test_dispatcher.py` (37 → ≤ 15)
+
+- Introduce a module-level `@pytest.fixture(autouse=True)` `_rsync_on_path(monkeypatch)` that sets `monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/rsync" if name == "rsync" else None)`. Removes the 25 repeated `@patch("shutil.which", return_value="/usr/bin/rsync")` decorators.
+- Identify every test whose primary assertion is an effect already covered in `tests/integration/test_dispatch_*`:
+  - replace (integration 3.2), merge (integration 3.3), new-placement (integration 3.2), crash recovery (integration 3.3).
+  - Delete those tests; leave a pointer comment at the top of the file listing what moved and where.
+- Keep unit tests for: pure resolver helpers (`_resolve_existing_on_filesystem`, `_has_ntfs_illegal_names`), `DispatchResult` dataclass, the `_force_rmtree` retry semantics, and any test that exercises a branch not reachable from integration.
+- Drop any `@patch("personalscraper.dispatch.dispatcher._rsync")` — the integration tier does real rsync.
+
+Target: ≤ 15 `@patch` uses remaining.
 
 ### Commit
 
 `refactor(tests): trim test_dispatcher hotspot, keep resolver unit tests`
 
-## Sub-phase 4.2 — `tests/test_cli.py`
+## Sub-phase 4.2 — `tests/test_cli.py` (66 → ≤ 25)
 
-- Introduce `tests/conftest.py::stub_pipeline_steps` autouse fixture that monkeypatches each `run_*` step to a no-op StepReport when `env_cli_integration` marker is NOT set.
-- Remove per-test `@patch` blocks that were doing the same work.
-- Split existing integration-leaning tests into a new `tests/test_cli_e2e.py` with the `@pytest.mark.e2e` marker — these run against a real `tmp_path` staging tree.
+- Introduce an autouse fixture in `tests/conftest.py` (scoped to the CLI test file via `request.fspath.basename == "test_cli.py"`) named `_stub_pipeline_steps` that monkeypatches each `run_*` step to a no-op `StepReport`. Removes the dozens of per-test `@patch("personalscraper.<module>.run_*")` decorators.
+- Keep narrow per-test patches only where the test itself asserts on the patch-call arguments (wiring tests).
+- Move any test that genuinely exercises the pipeline against a real filesystem into `tests/integration/` — these belong there, not in `test_cli.py`. No new `test_cli_e2e.py` file; the new integration tier is the destination.
 
-Target : ≤ 25 `@patch` uses in `test_cli.py` (down from ~66).
+Target: ≤ 25 `@patch` uses remaining.
 
 ### Commit
 
 `refactor(tests): collapse CLI step-mocks into autouse fixture`
 
-## Sub-phase 4.3 — `tests/test_pipeline_integration.py`
+## Sub-phase 4.3 — `tests/test_pipeline_integration.py` (42 → ≤ 12)
 
-- Rename the file to `tests/test_pipeline_orchestration.py` to reflect its unit-level scope.
-- Keep tests that assert on :
+- Rename the file to `tests/test_pipeline_orchestration.py` via `git mv` — the new name reflects its actual scope (orchestrator unit test). The misleading "integration" label disappears.
+- Keep tests that assert on:
   - Phase ordering (ingest → sort → process → enforce → verify → dispatch).
   - Early-abort behaviour when a critical step crashes.
   - Reporter aggregation (StepReports roll up into a PipelineReport).
-- Delete tests whose invariant is already in the E2E `test_full_pipeline_e2e`.
-- Replace per-test `@patch("personalscraper.pipeline.run_ingest")` (and siblings) with a fixture that injects a dict of fake step callables into `Pipeline(...)` (add a minimal `step_overrides=` kwarg to `Pipeline` if not already present — that's the only production-code seam).
+- Delete tests whose invariant is already in `tests/integration/test_full_pipeline.py`.
+- Replace the per-test `@patch("personalscraper.<module>.run_*")` stacks with a fixture that injects a dict of fake step callables into `Pipeline(...)`. This requires adding a `step_overrides: Mapping[str, Callable] | None = None` kwarg to `Pipeline.__init__` (the only production-code seam added by this feature, as allowed by DESIGN §2 non-goals — "minimal seam only").
+- Drop the `integration_settings` and `integration_config` MagicMock fixtures from this file: use the real `tmp_path`-based fixtures from the new `tests/integration/conftest.py` (imported via `pytest_plugins` if needed, or re-exported from `tests/conftest.py`).
 
-Target : ≤ 12 `@patch` uses (down from ~42).
+Target: ≤ 12 `@patch` uses remaining.
 
 ### Commit
 
@@ -45,6 +53,7 @@ Target : ≤ 12 `@patch` uses (down from ~42).
 
 ## Quality gate (after 4.3)
 
-- `git grep '@patch' tests/dispatch/test_dispatcher.py tests/test_cli.py tests/test_pipeline_orchestration.py | wc -l` ≤ 52 (target).
-- Full suite still green.
-- Coverage delta vs `main` : `pytest --cov` shows no regression in `personalscraper/*` line OR branch coverage.
+- `git grep -c "@patch" tests/dispatch/test_dispatcher.py tests/test_cli.py tests/test_pipeline_orchestration.py` sums to ≤ 52.
+- Full default `pytest` suite still green.
+- `pytest --cov=personalscraper --cov-branch tests/` line + branch coverage ≥ baseline measured against `main`.
+- `tests/e2e/` diff: zero changes.
