@@ -451,6 +451,7 @@ class TMDBClient:
                 http_status=exc.http_status,
                 message=exc.message,
                 fallback="empty_list",
+                exc_info=True,
             )
             return []
         except (requests.RequestException, json.JSONDecodeError, _CircuitOpenError) as exc:

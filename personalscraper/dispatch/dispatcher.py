@@ -494,7 +494,7 @@ class Dispatcher:
                 if tmp_new.exists():
                     _force_rmtree(tmp_new)
             except OSError as e:
-                log.warning("replace_tmp_cleanup_failed", path=str(tmp_new), error=str(e))
+                log.warning("replace_tmp_cleanup_failed", path=str(tmp_new), error=str(e), exc_info=True)
             return False
 
         # Phase 2: Atomic swap (critical — rollback on failure)
@@ -524,11 +524,11 @@ class Dispatcher:
             if tmp_old.exists():
                 _force_rmtree(tmp_old)
         except OSError as e:
-            log.warning("replace_old_copy_cleanup_failed", path=str(tmp_old), error=str(e))
+            log.warning("replace_old_copy_cleanup_failed", path=str(tmp_old), error=str(e), exc_info=True)
         try:
             _force_rmtree(source)
         except OSError as e:
-            log.warning("replace_source_cleanup_failed", path=str(source), error=str(e))
+            log.warning("replace_source_cleanup_failed", path=str(source), error=str(e), exc_info=True)
         return True
 
     def _merge(self, source: Path, dest: Path) -> bool:

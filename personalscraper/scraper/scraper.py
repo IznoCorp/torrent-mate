@@ -1538,7 +1538,7 @@ class Scraper:
                                 "title": ep.get("name", f"Episode {e_num}"),
                                 "still_path": "",  # TVDB episode stills are separate API calls
                             }
-                except Exception as e:  # noqa: BLE001 — both TMDB and TVDB paths raise CircuitOpenError (lazy import)
+                except Exception as e:  # noqa: BLE001 — mixed API + data-shape path: TMDB and TVDB paths raise TMDBError, TVDBError, requests.RequestException, CircuitOpenError (lazy imports), plus KeyError/TypeError on malformed episode payloads (ep["number"]/ep.get())
                     log.warning("show_season_fetch_failed", season=s_num, exc_info=True, error=str(e))
 
             if api_episodes:
