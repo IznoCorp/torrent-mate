@@ -20,7 +20,7 @@
 
 - `test_ingest_ratio_threshold(fake_qbit, staging_tree, integration_config)`
   - Seed two completed torrents, ratios `0.99` and `1.00`.
-  - Run ingest with the ratio threshold configured in `integration_config` (set to `1.0` for this test via a small override fixture).
+  - Run ingest with the ratio threshold configured in `integration_config` (set to `1.0` for this test via a local fixture `_min_ratio_1` defined inside `tests/integration/test_ingest.py`, using `integration_config.ingest.min_ratio = 1.0` — the override is test-local, not shared via `conftest.py`).
   - Assert only the `1.00`-ratio torrent was moved.
 
 ### Commit

@@ -97,7 +97,7 @@ Concretely :
 
 - `test_dispatcher.py` (37 `@patch`, mostly `shutil.which`) : replace the 25 copies of `@patch("shutil.which", return_value="/usr/bin/rsync")` with a session-scoped fixture `rsync_available` that skips if rsync is actually missing. Drop `@patch("personalscraper.dispatch.dispatcher._rsync")` in favour of real small-file rsync covered by the new integration tier. Target : ≤ 15 `@patch` remaining.
 - `test_cli.py` (66 `@patch`) : collapse the pipeline-step mocks into a single `@pytest.fixture(autouse=True)` that stubs all step `run_*` to no-op StepReports, leaving only the test-specific narrow assertion. Tests that genuinely invoke the pipeline (if any) move to integration. Target : ≤ 25 `@patch` remaining.
-- `test_pipeline_integration.py` (42 `@patch`) : split. Three-quarters of it becomes a fast "orchestrator unit test" with a single mocked seam (an injected step dispatcher). The gate / ordering / error-propagation assertions move to integration. Target : ≤ 15 `@patch` remaining, file renamed `tests/test_pipeline_orchestrator.py` to clarify its scope.
+- `test_pipeline_integration.py` (42 `@patch`) : split. Three-quarters of it becomes a fast "orchestrator unit test" with a single mocked seam (an injected step dispatcher). The gate / ordering / error-propagation assertions move to integration. Target : ≤ 12 `@patch` remaining, file renamed `tests/test_pipeline_orchestration.py` to clarify its scope. Live references to the old filename (e.g. `ROADMAP.md:70`) are updated in the same commit.
 
 ## 6. Runtime budget
 
@@ -116,12 +116,12 @@ Concretely :
 | Trimmed hotspot tests lose coverage on a real regression                                                                    | The integration catalogue covers the same invariants at a higher level; net coverage should go up, not down. Measured via `pytest --cov` before/after. |
 | Mocks still needed for TMDB/TVDB need fresh fixtures                                                                        | Reuse existing `tests/scraper/fixtures/*.json` canned responses.                                                                                       |
 | Developer friction when writing a new test (which tier ?)                                                                   | Write `docs/reference/testing.md` decision tree; one-liner in CLAUDE.md.                                                                               |
-| `integration_settings` / `integration_config` fixtures in `test_pipeline_integration.py` already exist as MagicMock hybrids | Phase 4 rename to `test_pipeline_orchestrator.py` explicitly removes these mock hybrids and replaces with real `tmp_path` fixtures from phase 1.       |
+| `integration_settings` / `integration_config` fixtures in `test_pipeline_integration.py` already exist as MagicMock hybrids | Phase 4 rename to `test_pipeline_orchestration.py` explicitly removes these mock hybrids and replaces with real `tmp_path` fixtures from phase 1.      |
 
 ## 8. Success criteria
 
 - `tests/integration/` contains ≥ 15 passing tests collected by the default `pytest` invocation.
-- Default `pytest` still excludes `e2e`, `e2e_torrent`, `e2e_idempotence`, `roundtrip` markers.
+- Default `pytest` still excludes `e2e`, `e2e_torrent`, `e2e_idempotence` markers (as declared in `pyproject.toml` `addopts`). The `roundtrip` marker exists but is not in `addopts`; tests marked `roundtrip` are skipped only when their preconditions (TMDB/TVDB keys) are missing.
 - `@patch` count in the three hotspot files drops by ≥ 60% (from 145 total to ≤ 58).
 - Full default suite runtime ≤ 30 s on reference hardware (measured via `pytest --durations=20`).
 - Coverage (line + branch) does not regress — measured before/after via `pytest --cov`.

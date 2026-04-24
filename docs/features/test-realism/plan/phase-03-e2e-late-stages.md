@@ -87,7 +87,7 @@ Budget 5 s (fixture build + run). Uses `rsync_available` to skip if rsync is mis
 
 ## Quality gate (after 3.4)
 
-- `tests/integration/` collects ≥ 15 tests (smoke + 15 catalogue), all green.
+- `tests/integration/` collects ≥ 16 tests (smoke + 15 catalogue), all green.
 - Default `pytest` runtime still ≤ 30 s.
 - `tests/e2e/` diff: zero changes.
 - `pytest --durations=20` confirms no integration test exceeds 5 s (full-pipeline test cap).

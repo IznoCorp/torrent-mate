@@ -26,7 +26,8 @@ Target: ≤ 15 `@patch` uses remaining.
 
 - Introduce an autouse fixture in `tests/conftest.py` (scoped to the CLI test file via `request.fspath.basename == "test_cli.py"`) named `_stub_pipeline_steps` that monkeypatches each `run_*` step to a no-op `StepReport`. Removes the dozens of per-test `@patch("personalscraper.<module>.run_*")` decorators.
 - Keep narrow per-test patches only where the test itself asserts on the patch-call arguments (wiring tests).
-- Move any test that genuinely exercises the pipeline against a real filesystem into `tests/integration/` — these belong there, not in `test_cli.py`. No new `test_cli_e2e.py` file; the new integration tier is the destination.
+- **Inventory step first, before any change**: enumerate every test function in `test_cli.py` and classify each as `wiring` (keep, narrow mock) / `pure_cli` (keep, remove broad mocks) / `real-fs-candidate` (move to `tests/integration/`). Record this classification as a markdown table in the commit body. No silent moves.
+- Move `real-fs-candidate` tests into the appropriate `tests/integration/test_*.py` file from phases 2–3 (do not create a new `test_cli_e2e.py`; the integration tier is the destination). If a candidate has no integration counterpart yet, leave it in place with a `# TODO(test-realism): move to integration` comment and log it in the commit body.
 
 Target: ≤ 25 `@patch` uses remaining.
 
@@ -37,6 +38,7 @@ Target: ≤ 25 `@patch` uses remaining.
 ## Sub-phase 4.3 — `tests/test_pipeline_integration.py` (42 → ≤ 12)
 
 - Rename the file to `tests/test_pipeline_orchestration.py` via `git mv` — the new name reflects its actual scope (orchestrator unit test). The misleading "integration" label disappears.
+- Update every live reference to the old filename in the same commit. Audit at start of sub-phase via `git grep -n "test_pipeline_integration"` excluding `docs/archive/**` and `docs/features/test-realism/**` (this feature's own docs). Known live reference: `ROADMAP.md:70`. Update each hit.
 - Keep tests that assert on:
   - Phase ordering (ingest → sort → process → enforce → verify → dispatch).
   - Early-abort behaviour when a critical step crashes.

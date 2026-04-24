@@ -19,6 +19,16 @@
   - Hotspot `@patch` total: `145 → N` (% reduction).
 - Fail the phase if any gate regresses.
 
+### Rollback path if a gate regresses
+
+`/implement:phase` has no automatic rollback; recovery is manual:
+
+1. Identify the offending sub-phase: `git log --oneline feat/test-realism ^main` shows every commit since the branch point. The regression almost always lands in phase 4 (hotspot trim) since phases 1–3 only add tests.
+2. Revert the offending commit(s) in LIFO order: `git revert <sha>` (do NOT `reset --hard` — the PR history must show the attempt and the revert).
+3. Re-run the gate: `pytest --cov=personalscraper --cov-branch tests/` and `pytest --durations=20 tests/`.
+4. Re-evaluate what invariant the reverted trim was hiding. Either (a) keep the mock in the unit test (accept less reduction), or (b) add a new integration test covering the invariant before retrying the trim. Record the decision in the phase 5 commit body.
+5. Re-run `/implement:phase` to complete phase 5 with the corrected state.
+
 ### Commit
 
 `test: verify coverage and runtime budget after realism refactor`

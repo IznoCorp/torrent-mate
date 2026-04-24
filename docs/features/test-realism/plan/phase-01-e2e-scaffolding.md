@@ -19,9 +19,19 @@ None — this is the first phase.
   - `fake_qbit(monkeypatch) -> FakeQBitClient` — monkeypatches `qbittorrentapi.Client` (and where `personalscraper.ingest.ingest` imports it) with an in-memory stand-in. Provides `.seed(torrent_list)` helper.
   - `rsync_available() -> bool` — module-level fixture that `pytest.skip`s the test if `shutil.which("rsync")` returns None.
 - Fixture JSON payloads live under `tests/integration/fixtures/`:
-  - `tmdb/movie_shrinking.json`, `tmdb/tv_fallout.json`, `tmdb/search_empty.json` (copy verbatim from `tests/scraper/fixtures/` where equivalents already exist; add what is missing).
+  - `tmdb/movie_shrinking.json`, `tmdb/tv_fallout.json`, `tmdb/search_empty.json`.
   - `tvdb/series_fallout.json`.
   - `qbit/completed_torrents.json`.
+- **Fixture-duplication policy** (conscious anti-DRY choice): JSON payloads that already exist under `tests/scraper/fixtures/` are copied verbatim into `tests/integration/fixtures/` rather than imported. Rationale: the two tiers must be independently evolvable — a change to a scraper-unit canned response must not silently mutate an integration assertion, and vice-versa. Missing payloads are authored from scratch using the same schema as the scraper-unit fixtures.
+- **Tier isolation guard** in `tests/integration/conftest.py`: at module import time, assert that no symbol from `tests.e2e` is importable by this module, and fail collection loudly if it is. Example:
+  ```python
+  # Enforce tier isolation: integration must not depend on the manual e2e tier.
+  import sys
+  assert "tests.e2e" not in sys.modules, (
+      "tests/integration/ must not import from tests/e2e/ — these are distinct tiers."
+  )
+  ```
+  This catches drift at `pytest --collect-only` time, cheaply.
 - Add one trivial smoke test `tests/integration/test_fixtures_smoke.py::test_fixtures_compose` asserting: `staging_tree.is_dir()`, `len(fake_disks) == 4`, `integration_config.paths.staging_dir == staging_tree`, `integration_config_path.exists()`, `fake_qbit` has an empty torrent list. Proves the fixture chain evaluates.
 - Do **not** touch `tests/e2e/` — the manual tier stays untouched.
 
