@@ -74,11 +74,11 @@ python -c "from personalscraper.trailers.state import TrailerStateStore; print('
 
 ### Files
 
-| Action | Path                                      | Responsibility                                  |
-| ------ | ----------------------------------------- | ----------------------------------------------- |
-| Modify | `personalscraper/models.py`               | Add `status` and `counts` optional fields       |
-| Create | `personalscraper/trailers/step.py`        | `run_trailers()` skeleton                       |
-| Create | `tests/trailers/test_step.py`             | Unit tests                                      |
+| Action | Path                               | Responsibility                            |
+| ------ | ---------------------------------- | ----------------------------------------- |
+| Modify | `personalscraper/models.py`        | Add `status` and `counts` optional fields |
+| Create | `personalscraper/trailers/step.py` | `run_trailers()` skeleton                 |
+| Create | `tests/trailers/test_step.py`      | Unit tests                                |
 
 ### Step 0: Audit existing `StepReport(…)` call-sites before mutating the dataclass
 
@@ -346,10 +346,10 @@ git commit -m "feat(trailer): add trailers pipeline step with non-blocking StepR
 
 ### Files
 
-| Action | Path                               | Responsibility                                    |
-| ------ | ---------------------------------- | ------------------------------------------------- |
-| Modify | `personalscraper/pipeline.py`      | Wire `run_trailers` between process and dispatch  |
-| Modify | `personalscraper/models.py`        | Add trailers icon to `to_html()` step_icons dict  |
+| Action | Path                          | Responsibility                                   |
+| ------ | ----------------------------- | ------------------------------------------------ |
+| Modify | `personalscraper/pipeline.py` | Wire `run_trailers` between process and dispatch |
+| Modify | `personalscraper/models.py`   | Add trailers icon to `to_html()` step_icons dict |
 
 ### Step 1: Add trailers icon to `PipelineReport.to_html()`
 
@@ -421,7 +421,7 @@ Two new constructor flags on `Pipeline` (default `False`), wired from the CLI in
 - `continue_on_trailer_error: bool` — maps to `--continue-on-trailer-error`
 
 `staging_dir` is read from `self.config.paths.staging_dir` (the configurable staging path
-from the `ext-staging` feature this depends on) — **never** hardcoded to `A TRIER`.
+from the `ext-staging` feature this depends on) — **never** hardcoded to any specific directory name.
 
 ### Step 3: Verify pipeline tests pass
 

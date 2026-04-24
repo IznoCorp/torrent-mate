@@ -1,13 +1,13 @@
 # Manuel d'utilisation — Zone de tri media
 
-Ce document explique comment utiliser la zone de tri "A TRIER" et les outils disponibles pour organiser les fichiers media.
+Ce document explique comment utiliser la zone de tri "staging area" et les outils disponibles pour organiser les fichiers media.
 
 > Voir aussi : [README.md](README.md) (vue d'ensemble du projet) | [INSTALLATION.md](INSTALLATION.md) (prérequis et installation)
 
 ## Vue d'ensemble
 
 ```
-Torrents terminés  →  A TRIER (staging)  →  Disques de stockage
+Torrents terminés  →  staging area (staging)  →  Disques de stockage
                     personalscraper run     (7 étapes séquentielles)
 ```
 
@@ -53,28 +53,28 @@ After upgrading, your `config.json5` must be updated to include
 from `config.example.json5` and adjust if you have custom directory names.
 
 **Step 2**: Set `paths.staging_dir` to the external location. Default
-used in production: `/Volumes/IznoServer SSD/staging/`.
+used in production: `/path/to/staging/`.
 
 **Step 3**: Move your existing staging content to the new location. One
 command per directory:
 
 ```bash
-rsync -a "/Volumes/IznoServer SSD/A TRIER/001-MOVIES/" \
-         "/Volumes/IznoServer SSD/staging/001-MOVIES/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/002-TVSHOWS/" \
-         "/Volumes/IznoServer SSD/staging/002-TVSHOWS/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/003-EBOOKS/" \
-         "/Volumes/IznoServer SSD/staging/003-EBOOKS/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/004-AUDIO/" \
-         "/Volumes/IznoServer SSD/staging/004-AUDIO/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/005-APPS/" \
-         "/Volumes/IznoServer SSD/staging/005-APPS/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/006-ANDROID/" \
-         "/Volumes/IznoServer SSD/staging/006-ANDROID/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/097-TEMP/" \
-         "/Volumes/IznoServer SSD/staging/097-TEMP/"
-rsync -a "/Volumes/IznoServer SSD/A TRIER/098-AUTRES/" \
-         "/Volumes/IznoServer SSD/staging/098-AUTRES/"
+rsync -a "/path/to/staging/001-MOVIES/" \
+         "/path/to/staging/001-MOVIES/"
+rsync -a "/path/to/staging/002-TVSHOWS/" \
+         "/path/to/staging/002-TVSHOWS/"
+rsync -a "/path/to/staging/003-EBOOKS/" \
+         "/path/to/staging/003-EBOOKS/"
+rsync -a "/path/to/staging/004-AUDIO/" \
+         "/path/to/staging/004-AUDIO/"
+rsync -a "/path/to/staging/005-APPS/" \
+         "/path/to/staging/005-APPS/"
+rsync -a "/path/to/staging/006-ANDROID/" \
+         "/path/to/staging/006-ANDROID/"
+rsync -a "/path/to/staging/097-TEMP/" \
+         "/path/to/staging/097-TEMP/"
+rsync -a "/path/to/staging/098-AUTRES/" \
+         "/path/to/staging/098-AUTRES/"
 ```
 
 After rsync completes, verify the transfer, then delete the originals from
@@ -152,7 +152,7 @@ python -m pytest -m roundtrip -v -s     # 2 tests (matching aller-retour film + 
 
 ### torrent-sort
 
-Trie les fichiers à la racine de A TRIER dans les bons sous-dossiers.
+Trie les fichiers à la racine de staging area dans les bons sous-dossiers.
 
 ```bash
 # Trier (mode normal)
@@ -197,7 +197,7 @@ df -h /Volumes/Disk{1,2,3,4}
 ### Zone de tri
 
 ```
-A TRIER/
+staging/
 ├── personalscraper/     Package Python (CLI)
 │   ├── ingest/          qBittorrent → dossier ingest (ex: 097-TEMP/)
 │   ├── sorter/          guessit + strategies → dossiers catégorie
@@ -310,6 +310,6 @@ Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper.
 
 ## Notes importantes
 
-- **Espaces dans les chemins** — Toujours mettre les chemins entre guillemets dans le terminal : `"/Volumes/IznoServer SSD/A TRIER/"`
+- **Espaces dans les chemins** — Toujours mettre les chemins entre guillemets dans le terminal : `"/path/to/staging/"`
 - **Casse des disques** — Les vrais points de montage sont `/Volumes/Disk1` (pas DISK1). Certains vieux scripts utilisent DISK1 en majuscules.
 - **Configuration FileMate** — Les associations dossier-type sont dans `~/dev/FileMate/.env`

@@ -52,8 +52,8 @@ Chemins du système de fichiers utilisés par le pipeline.
 
 | Variable               | Défaut                                      | Description                                                   |
 | ---------------------- | ------------------------------------------- | ------------------------------------------------------------- |
-| `TORRENT_COMPLETE_DIR` | `/Volumes/IznoServer SSD/torrents/complete` | Dossier de destination des torrents terminés dans qBittorrent |
-| `STAGING_DIR`          | `/Volumes/IznoServer SSD/A TRIER`           | Zone de tri (staging) — racine du projet                      |
+| `TORRENT_COMPLETE_DIR` | `/path/to/torrents/complete` | Dossier de destination des torrents terminés dans qBittorrent |
+| `STAGING_DIR`          | `/path/to/staging`           | Zone de tri (staging) — racine du projet                      |
 | `DISK1_DIR`            | `/Volumes/Disk1/medias`                     | Point de montage du disque de stockage 1                      |
 | `DISK2_DIR`            | `/Volumes/Disk2/medias`                     | Point de montage du disque de stockage 2                      |
 | `DISK3_DIR`            | `/Volumes/Disk3/medias`                     | Point de montage du disque de stockage 3                      |
@@ -68,14 +68,14 @@ Les valeurs par défaut correspondent à l'installation standard. Modifier uniqu
 df -h /Volumes/Disk{1,2,3,4}
 
 # Vérifier le dossier de torrents terminés (dans qBittorrent > Preferences > Downloads > Default Save Path)
-ls "/Volumes/IznoServer SSD/torrents/complete"
+ls "/path/to/torrents/complete"
 ```
 
 > **Attention aux espaces** dans les chemins — les guillemets sont obligatoires en shell mais PAS dans le `.env` (pydantic-settings les gère nativement).
 
 ```ini
-TORRENT_COMPLETE_DIR=/Volumes/IznoServer SSD/torrents/complete
-STAGING_DIR=/Volumes/IznoServer SSD/A TRIER
+TORRENT_COMPLETE_DIR=/path/to/torrents/complete
+STAGING_DIR=/path/to/staging
 ```
 
 ---
@@ -90,7 +90,7 @@ définis dans `config.json5` (en plus du `.env`).
 Chemin vers le répertoire de staging racine où les médias arrivent pour traitement.
 
 - **Exemple (config.example.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
-- **Défaut en production :** `/Volumes/IznoServer SSD/staging/`
+- **Défaut en production :** `/path/to/staging/`
 - Les chemins relatifs sont résolus en chemins absolus au chargement via `Path.expanduser().resolve()`.
 - L'arborescence de staging est créée automatiquement au premier lancement — aucun `mkdir` manuel requis.
 
@@ -98,7 +98,7 @@ Chemin vers le répertoire de staging racine où les médias arrivent pour trait
 
 Chemin vers le répertoire d'état du pipeline (index, locks, cache d'analyse).
 
-- **Défaut :** `/Volumes/IznoServer SSD/A TRIER/.data`
+- **Défaut :** `/path/to/staging/.data`
 - Cette valeur est **explicite** dans `config.json5` — elle peut être déplacée avec
   une seule modification de config. Le répertoire physique n'a pas bougé.
 - Différent de `staging_dir`.
@@ -369,8 +369,8 @@ QBIT_USERNAME=izno
 QBIT_PASSWORD=mon_mot_de_passe
 
 # ── Paths ────────────────────────────────────
-TORRENT_COMPLETE_DIR=/Volumes/IznoServer SSD/torrents/complete
-STAGING_DIR=/Volumes/IznoServer SSD/A TRIER
+TORRENT_COMPLETE_DIR=/path/to/torrents/complete
+STAGING_DIR=/path/to/staging
 DISK1_DIR=/Volumes/Disk1/medias
 DISK2_DIR=/Volumes/Disk2/medias
 DISK3_DIR=/Volumes/Disk3/medias
@@ -406,10 +406,10 @@ CIRCUIT_BREAKER_COOLDOWN=300
 
 ### Le pipeline ne trouve pas le .env
 
-Le fichier `.env` doit être à la racine du projet (`/Volumes/IznoServer SSD/A TRIER/.env`). Vérifier :
+Le fichier `.env` doit être à la racine du projet (`/path/to/staging/.env`). Vérifier :
 
 ```bash
-ls -la "/Volumes/IznoServer SSD/A TRIER/.env"
+ls -la "/path/to/staging/.env"
 ```
 
 ### Les clés API ne fonctionnent pas

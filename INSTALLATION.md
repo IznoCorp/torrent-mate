@@ -41,8 +41,8 @@ Les 4 disques doivent être montés pour que le dispatch fonctionne :
 
 ```bash
 # Cloner le dépôt
-git clone <repo-url> "/Volumes/IznoServer SSD/A TRIER"
-cd "/Volumes/IznoServer SSD/A TRIER"
+git clone <repo-url> "/path/to/staging"
+cd "/path/to/staging"
 
 # Installer en mode développement (package + dépendances dev)
 make install-dev
@@ -140,7 +140,7 @@ tail -f logs/personalscraper.json | python -m json.tool
 ## Mise à jour
 
 ```bash
-cd "/Volumes/IznoServer SSD/A TRIER"
+cd "/path/to/staging"
 git pull
 pip install -e ".[dev]"
 ```

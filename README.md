@@ -10,7 +10,7 @@ Les torrents terminés sont automatiquement triés, enrichis de métadonnées (T
 ## Pipeline
 
 ```
-qBittorrent  →  A TRIER/ (staging)  →  Disques de stockage (Disk1-4)
+qBittorrent  →  staging/ (staging)  →  Disques de stockage (Disk1-4)
                personalscraper run
 ```
 
@@ -28,8 +28,8 @@ Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour
 
 ```bash
 # Installation
-git clone <votre-repo-url> "/Volumes/IznoServer SSD/A TRIER"
-cd "/Volumes/IznoServer SSD/A TRIER"
+git clone <votre-repo-url> "/path/to/staging"
+cd "/path/to/staging"
 pip install -e ".[dev]"
 
 # Configuration
@@ -46,7 +46,7 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées.
 ## Structure du projet
 
 ```
-A TRIER/
+staging/
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation

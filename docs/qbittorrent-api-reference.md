@@ -149,8 +149,8 @@ torrent.name            # "Shrinking.S03.MULTi.1080p..."
 torrent["name"]         # idem
 
 torrent.hash            # "a1b2c3d4e5..."
-torrent.content_path    # "/Volumes/IznoServer SSD/torrents/complete/Shrinking.S03..."
-torrent.save_path       # "/Volumes/IznoServer SSD/torrents/complete/"
+torrent.content_path    # "/path/to/torrents/complete/Shrinking.S03..."
+torrent.save_path       # "/path/to/torrents/complete/"
 torrent.progress        # 1.0
 torrent.size            # 5368709120 (bytes)
 torrent.state           # "uploading"
@@ -354,7 +354,7 @@ with qbittorrentapi.Client(
 from pathlib import Path
 import shutil
 
-STAGING = Path("/Volumes/IznoServer SSD/A TRIER")
+STAGING = Path("/path/to/staging")
 
 with qbittorrentapi.Client(
     host="localhost", port=8081,

@@ -15,7 +15,7 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 
 ## Move Rules (dispatch)
 
-- **Movies** (films, animations, documentaires, spectacles, theatre): if a folder with the same name already exists on a disk, **replace it** with the new version from A TRIER.
+- **Movies** (films, animations, documentaires, spectacles, theatre): if a folder with the same name already exists on a disk, **replace it** with the new version from staging area.
 - **TV Shows** (series, animations, documentaires): if a folder already exists, **merge** new episode files into it, replacing any that already exist.
 - **New media** (no existing folder on any disk): move to the **disk with the most free space**.
 
@@ -38,5 +38,5 @@ free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 
 ## Paths
 
-- Paths contain spaces (`/Volumes/IznoServer SSD/A TRIER/`) — always quote paths in shell commands.
+- Paths contain spaces (`/path/to/staging/`) — always quote paths in shell commands.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails; use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`.

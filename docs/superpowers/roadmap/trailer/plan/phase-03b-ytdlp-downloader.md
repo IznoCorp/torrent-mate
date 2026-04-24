@@ -162,7 +162,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # APFS/HFS+ volume roots (macOS) — cookie files must live here for security
-_APFS_NATIVE_PREFIXES = ("/Users", "/opt", "/Volumes/IznoServer SSD", "/tmp", "/var")
+_APFS_NATIVE_PREFIXES = ("/Users", "/opt", "/path/to/<disk>", "/tmp", "/var")
 
 
 def _is_apfs_native(path: Path) -> bool:

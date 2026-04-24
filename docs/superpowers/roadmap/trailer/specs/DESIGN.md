@@ -395,7 +395,7 @@ The YouTube breaker (see below) tracks only primary-path errors; fallback failur
 
 - `.env` is already gitignored; no new credential surface is committed.
 - Cookie files (`YOUTUBE_COOKIES_FILE`) should have mode `600`. The loader emits a WARNING if stricter mode is not set on POSIX filesystems. On macFUSE/NTFS-mounted volumes the permission bits are not reliable — the loader detects the mount type and skips the check silently (documented as intentional).
-- `.env` and `YOUTUBE_COOKIES_FILE` are expected on **APFS-native storage only** (e.g. `~/`, `/opt/`, `/Volumes/IznoServer SSD/A TRIER/`). Cookie files on NTFS/macFUSE disks are rejected at load time with a clear error — the filesystem can leak the file on sharing and the permission model doesn't protect it.
+- `.env` and `YOUTUBE_COOKIES_FILE` are expected on **APFS-native storage only** (e.g. `~/`, `/opt/`, `/path/to/staging/`). Cookie files on NTFS/macFUSE disks are rejected at load time with a clear error — the filesystem can leak the file on sharing and the permission model doesn't protect it.
 - `yt-dlp` is invoked via its Python API (`yt_dlp.YoutubeDL(opts).download([url])`), never shell-interpolated user input — no command-injection surface.
 - TMDB keys reuse the existing personalscraper key; do not duplicate in `/opt/YoutubeTrailerScraper/.env`.
 
