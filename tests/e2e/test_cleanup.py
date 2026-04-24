@@ -114,6 +114,58 @@ class TestCleanupStaging:
         assert deleted == []
         assert sibling.exists()
 
+    def test_symlink_into_scope_is_followed(self, tmp_path):
+        """A symlink whose target lives inside staging resolves as in-scope."""
+        reg = TestRegistry(session_id="s7", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        real_target = staging_root / "Movie"
+        real_target.mkdir(parents=True)
+        place_marker(real_target, "s7")
+
+        link_parent = tmp_path / "aliases"
+        link_parent.mkdir()
+        link = link_parent / "MovieLink"
+        link.symlink_to(real_target)
+        reg.register(link)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert len(deleted) == 1  # symlink resolved to target inside scope
+        assert not real_target.exists()  # target was removed
+
+    def test_symlink_to_outside_scope_is_rejected(self, tmp_path):
+        """A symlink under staging that targets outside is NOT in-scope."""
+        reg = TestRegistry(session_id="s8", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        staging_root.mkdir()
+        outside_target = tmp_path / "elsewhere" / "Movie"
+        outside_target.mkdir(parents=True)
+        place_marker(outside_target, "s8")
+
+        link = staging_root / "MovieLink"
+        link.symlink_to(outside_target)
+        reg.register(link)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []  # symlink target resolves outside scope
+        assert outside_target.exists()
+
+    def test_nonexistent_registered_path_is_skipped(self, tmp_path):
+        """Registry paths that no longer exist are silently skipped."""
+        reg = TestRegistry(session_id="s9", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        staging_root.mkdir()
+        ghost = staging_root / "AlreadyDeleted"
+        reg.register(ghost)  # registered but never created
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []  # no crash, no spurious delete
+
 
 class TestCleanupDisks:
     """Tests for cleanup_disks() triple safety verification."""

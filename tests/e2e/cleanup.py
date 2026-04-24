@@ -54,10 +54,34 @@ class TestCleanup:
         self.disk_paths = [Path(p) for p in (disk_paths or [])]
 
     def _is_within(self, path: Path, root: Path) -> bool:
-        """Return True when ``path`` is inside ``root`` (resolved)."""
+        """Return True when ``path`` is inside ``root`` after resolution.
+
+        Both ``path`` and ``root`` are resolved via ``Path.resolve()`` before
+        the relative_to check, which means:
+
+        - **Symlinks are followed.** A symlink that points inside ``root``
+          is considered in-scope; a symlink whose target lives outside
+          ``root`` is rejected, even if the symlink's lexical path is under
+          ``root``. Callers that need lexical (non-followed) matching must
+          compare paths before calling ``.resolve()``.
+        - **Non-existent paths are permitted.** ``Path.resolve()`` defaults
+          to ``strict=False`` on Python 3.6+ and returns a best-effort
+          absolute path, so this helper does not require the path to exist
+          on disk.
+        - **Filesystem errors (permission denied, symlink loops on some
+          platforms) return False** — conservatively excluding the path
+          from the scope rather than propagating the error to callers.
+
+        Args:
+            path: Candidate path to test.
+            root: Scope root directory.
+
+        Returns:
+            True iff ``path`` resolves to a location inside ``root``.
+        """
         try:
             path.resolve().relative_to(root.resolve())
-        except ValueError:
+        except (ValueError, OSError):
             return False
         return True
 

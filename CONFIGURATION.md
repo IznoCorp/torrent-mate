@@ -24,7 +24,7 @@ Variables de connexion à l'interface Web de qBittorrent (Ingest).
 | --------------- | ----------- | ------------------------------------- |
 | `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent |
 | `QBIT_PORT`     | `8081`      | Port de l'interface Web API           |
-| `QBIT_USERNAME` | `izno`      | Nom d'utilisateur Web UI              |
+| `QBIT_USERNAME` | `admin`     | Nom d'utilisateur Web UI              |
 | `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                   |
 
 ### Comment configurer
@@ -38,7 +38,7 @@ Variables de connexion à l'interface Web de qBittorrent (Ingest).
 ```ini
 QBIT_HOST=localhost
 QBIT_PORT=8081
-QBIT_USERNAME=izno
+QBIT_USERNAME=admin
 QBIT_PASSWORD=mon_mot_de_passe
 ```
 
@@ -48,35 +48,19 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 ## Chemins
 
-Chemins du système de fichiers utilisés par le pipeline.
+> **Depuis la version 0.4.0**, tous les chemins du pipeline
+> (`torrent_complete_dir`, `staging_dir`, `data_dir`, disques de stockage)
+> sont définis dans `config.json5`. Les anciennes variables d'environnement
+> `TORRENT_COMPLETE_DIR`, `STAGING_DIR`, `DISK1_DIR`…`DISK4_DIR` **ont été
+> retirées** — les positionner dans `.env` n'a plus aucun effet.
+>
+> Voir la section [Configuration config.json5](#configuration-configjson5)
+> ci-dessous pour la nouvelle disposition (`paths:` et `disks:`).
 
-| Variable               | Défaut                       | Description                                                   |
-| ---------------------- | ---------------------------- | ------------------------------------------------------------- |
-| `TORRENT_COMPLETE_DIR` | `/path/to/torrents/complete` | Dossier de destination des torrents terminés dans qBittorrent |
-| `STAGING_DIR`          | `/path/to/staging`           | Zone de tri (staging) — racine du projet                      |
-| `DISK1_DIR`            | `/Volumes/Disk1/medias`      | Point de montage du disque de stockage 1                      |
-| `DISK2_DIR`            | `/Volumes/Disk2/medias`      | Point de montage du disque de stockage 2                      |
-| `DISK3_DIR`            | `/Volumes/Disk3/medias`      | Point de montage du disque de stockage 3                      |
-| `DISK4_DIR`            | `/Volumes/Disk4/medias`      | Point de montage du disque de stockage 4                      |
-
-### Comment configurer
-
-Les valeurs par défaut correspondent à l'installation standard. Modifier uniquement si les chemins sont différents sur votre machine.
-
-```bash
-# Vérifier que les disques sont montés
-df -h /Volumes/Disk{1,2,3,4}
-
-# Vérifier le dossier de torrents terminés (dans qBittorrent > Preferences > Downloads > Default Save Path)
-ls "/path/to/torrents/complete"
-```
-
-> **Attention aux espaces** dans les chemins — les guillemets sont obligatoires en shell mais PAS dans le `.env` (pydantic-settings les gère nativement).
-
-```ini
-TORRENT_COMPLETE_DIR=/path/to/torrents/complete
-STAGING_DIR=/path/to/staging
-```
+> **Attention aux espaces** dans les chemins définis dans `config.json5` :
+> json5 accepte les espaces dans les valeurs de chaîne sans quoting
+> supplémentaire, mais chaque invocation shell qui consomme ces chemins
+> doit les placer entre guillemets.
 
 ---
 
@@ -366,16 +350,12 @@ CIRCUIT_BREAKER_COOLDOWN=300
 # ── qBittorrent ────────────────────────────��─
 QBIT_HOST=localhost
 QBIT_PORT=8081
-QBIT_USERNAME=izno
+QBIT_USERNAME=admin
 QBIT_PASSWORD=mon_mot_de_passe
 
 # ── Paths ────────────────────────────────────
-TORRENT_COMPLETE_DIR=/path/to/torrents/complete
-STAGING_DIR=/path/to/staging
-DISK1_DIR=/Volumes/Disk1/medias
-DISK2_DIR=/Volumes/Disk2/medias
-DISK3_DIR=/Volumes/Disk3/medias
-DISK4_DIR=/Volumes/Disk4/medias
+# (Removed — paths live in config.json5 since v0.4.0;
+#  see the Configuration config.json5 section above.)
 
 # ── TMDB / TVDB ──────────────────────────────
 TMDB_API_KEY=abcdef1234567890abcdef1234567890
