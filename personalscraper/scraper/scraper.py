@@ -53,6 +53,12 @@ _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 # Regex for extracting SxxExx episode identifiers from filenames
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 
+# Strict episode filename pattern used by _verify_existing_scrape to detect
+# legacy title-less fallbacks. Current scraper output always includes a title
+# segment after ``SxxExx`` (real or synthetic); a bare ``SxxExx.ext`` means
+# the show was scraped before the title-less fallback was upgraded.
+_EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
+
 
 def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     """Merge contents of source directory into target, then remove source.
@@ -808,6 +814,81 @@ class Scraper:
 
         return repaired
 
+    def _verify_existing_scrape(self, show_dir: Path, nfo_path: Path) -> tuple[bool, str]:
+        r"""Verify a previously-scraped TV show directory still matches current scraper output.
+
+        Purely filesystem + NFO parsing — no external API calls. Drift found here
+        triggers a full re-scrape (caller deletes the NFO and falls through).
+
+        Checks, all must pass:
+
+        1. ``tvshow.nfo`` parses and exposes non-empty ``<title>``, ``<year>``,
+           and at least one non-empty ``<uniqueid>``.
+        2. Folder name equals the canonical ``sanitize("{title} ({year})")`` —
+           catches previous scrapes whose API-sourced folder name drifted from
+           the current policy (e.g. "Top Chef (France) (2010)" vs the TVDB
+           canonical "Top Chef (2010)").
+        3. Every video file under ``Saison XX/`` matches
+           ``S\\d{2}E\\d{2} - .+\\.ext`` — a title is required. A bare
+           ``SxxExx.ext`` indicates a legacy title-less fallback that should
+           be upgraded to the new synthetic-title form.
+        4. Every episode video has a sibling ``.nfo`` with the same stem.
+        5. ``poster.jpg`` and ``landscape.jpg`` are present.
+
+        Args:
+            show_dir: Path to the TV show directory.
+            nfo_path: Path to ``tvshow.nfo`` (existence already confirmed by caller).
+
+        Returns:
+            Tuple ``(is_valid, reason)``. ``reason`` is a short slug suitable
+            for a log field; ``"ok"`` on success.
+        """
+        try:
+            root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+        except (ET.ParseError, OSError) as exc:
+            return False, f"nfo_parse_failed:{exc}"
+
+        # 1. Mandatory NFO fields.
+        nfo_title = (root.findtext("title") or "").strip()
+        nfo_year = (root.findtext("year") or "").strip()
+        if not nfo_title:
+            return False, "nfo_missing_title"
+        if not nfo_year:
+            return False, "nfo_missing_year"
+        has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
+        if not has_uniqueid:
+            return False, "nfo_missing_uniqueid"
+
+        # 2. Canonical folder name.
+        canonical = self.patterns.format("movie_dir", Title=nfo_title, Year=nfo_year)
+        if show_dir.name != canonical:
+            return False, f"folder_name_drift:{show_dir.name}!={canonical}"
+
+        # 5. Show-level artwork.
+        if not (show_dir / self.patterns.tvshow_poster).exists():
+            return False, "poster_missing"
+        if not (show_dir / self.patterns.tvshow_landscape).exists():
+            return False, "landscape_missing"
+
+        # 3 + 4. Episode naming + sibling NFO.
+        for season_dir in show_dir.iterdir():
+            if not (season_dir.is_dir() and SEASON_DIR_RE.match(season_dir.name)):
+                continue
+            for ep_file in season_dir.iterdir():
+                if not ep_file.is_file():
+                    continue
+                if ep_file.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                    continue
+                # Strict: require "SxxExx - Title.ext". A bare "SxxExx.ext" is a
+                # legacy fallback name and must be upgraded.
+                if not _EPISODE_STRICT_RE.match(ep_file.name):
+                    return False, f"episode_naming_drift:{ep_file.name}"
+                sibling_nfo = ep_file.with_suffix(".nfo")
+                if not sibling_nfo.exists():
+                    return False, f"episode_nfo_missing:{sibling_nfo.name}"
+
+        return True, "ok"
+
     def _repair_tvshow_dir(self, show_dir: Path) -> bool:
         """Repair a TV show directory with valid NFO.
 
@@ -1376,18 +1457,38 @@ class Scraper:
         # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
         if _is_nfo_complete(nfo_path):
-            # Check for missing artwork — recover without re-scraping
-            missing_art = self._check_missing_tvshow_artwork(show_dir)
-            if missing_art and not self.dry_run:
-                self._recover_tvshow_artwork(nfo_path, show_dir, result)
-            # Repair pass: remove residual NFOs, root MKV duplicates, etc.
-            repaired = self._repair_tvshow_dir(show_dir)
-            if repaired and result.action != "artwork_recovered":
-                result.action = "repaired"
-            elif result.action != "artwork_recovered":
-                result.action = "skipped_already_done"
-            log.info("nfo_valid", action=result.action, directory=show_dir.name)
-            return result
+            # Fast path only when the previous scrape is still coherent with
+            # the current scraper output (folder name, episode naming, NFO
+            # content, artwork). Any drift → delete the NFO so the normal
+            # scrape flow below rebuilds from a clean slate.
+            is_valid, drift_reason = self._verify_existing_scrape(show_dir, nfo_path)
+            if not is_valid:
+                log.info(
+                    "show_rescrape_drift",
+                    directory=show_dir.name,
+                    reason=drift_reason,
+                )
+                if not self.dry_run:
+                    try:
+                        nfo_path.unlink()
+                    except OSError as exc:
+                        result.error = f"Cannot delete drifted NFO: {exc}"
+                        log.error("nfo_drift_delete_failed", path=str(nfo_path), error=str(exc))
+                        return result
+                # Fall through to the full rescrape path below.
+            else:
+                # Existing fast path: artwork recovery + dir repair.
+                missing_art = self._check_missing_tvshow_artwork(show_dir)
+                if missing_art and not self.dry_run:
+                    self._recover_tvshow_artwork(nfo_path, show_dir, result)
+                # Repair pass: remove residual NFOs, root MKV duplicates, etc.
+                repaired = self._repair_tvshow_dir(show_dir)
+                if repaired and result.action != "artwork_recovered":
+                    result.action = "repaired"
+                elif result.action != "artwork_recovered":
+                    result.action = "skipped_already_done"
+                log.info("nfo_valid", action=result.action, directory=show_dir.name)
+                return result
 
         # Corrupt NFO: delete before re-scrape
         if nfo_path.exists():
