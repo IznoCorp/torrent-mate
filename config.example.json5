@@ -151,6 +151,14 @@
     long_title_threshold: 90.0,
   },
 
+  // Tunables scraper (fallbacks de nommage, etc.)
+  scraper: {
+    // Préfixe utilisé pour forger un titre d'épisode synthétique quand le
+    // fournisseur ne référence pas l'épisode (concaténé avec le numéro:
+    // "Episode 8"). S'applique aussi quand un remap phantom-season échoue.
+    episode_default_name: "Episode",
+  },
+
   // Préférences library (anciennement library_preferences.json V14)
   library: {
     video: {

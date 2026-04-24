@@ -1563,6 +1563,10 @@ class Scraper:
         )
 
         if video_files:
+            # Resolve the synthetic-title prefix once per show so in-provider
+            # episodes with empty names and post-facto fallbacks share the same
+            # user-configurable wording (default "Episode").
+            episode_default_name = self.config.scraper.episode_default_name if self.config is not None else "Episode"
             api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
             for season in show_data.get("seasons", []):
                 s_num = season.get("season_number", 0)
@@ -1578,7 +1582,7 @@ class Scraper:
                         for ep in tvdb_eps:
                             e_num = ep.get("number", ep.get("episode_number", 0))
                             ep_id = ep.get("id", 0)
-                            title = ep.get("name", f"Episode {e_num}")
+                            title = ep.get("name") or f"{episode_default_name} {e_num}"
                             if ep_id:
                                 trans = self._tvdb.get_episode_translation(ep_id, "fra")
                                 if trans and trans.get("name"):
@@ -1599,7 +1603,7 @@ class Scraper:
                         for ep in s_detail.get("episodes", []):
                             e_num = ep.get("episode_number", 0)
                             api_episodes[(s_num, e_num)] = {
-                                "title": ep.get("name", f"Episode {e_num}"),
+                                "title": ep.get("name") or f"{episode_default_name} {e_num}",
                                 "still_path": ep.get("still_path", ""),
                             }
                 except Exception as e:  # noqa: BLE001 — mixed API + data-shape path: TMDB/TVDB paths raise TMDBError, TVDBError, requests.RequestException, CircuitOpenError (lazy imports); plus AttributeError/TypeError on malformed payloads (non-dict ep; non-iterable seasons/episodes)
@@ -1608,7 +1612,11 @@ class Scraper:
             if api_episodes:
                 ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
                 create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
-                matched = match_episode_files(video_files, api_episodes)
+                matched = match_episode_files(
+                    video_files,
+                    api_episodes,
+                    episode_default_name=episode_default_name,
+                )
                 if matched:
                     total_renamed = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
                     self._generate_episode_nfos(matched, show_dir, show_data)
@@ -1678,10 +1686,11 @@ class Scraper:
             api_title = info["api_title"]
             still_path = info.get("still_path", "")
 
-            # Fallback entries (provider lacked the episode) have no title/thumb
-            # data — skip NFO/thumb generation and leave the file as a titleless
-            # SxxExx.mkv under Saison XX/.
-            if not api_title:
+            # Fallback entries (no provider record — synthetic "Episode N" title)
+            # skip NFO/thumb generation: the file lands as "SxxExx - Episode N.mkv"
+            # under its Saison XX/ dir so verify/dispatch don't block, but we refuse
+            # to fabricate episode metadata.
+            if info.get("fallback"):
                 continue
 
             season_dir_name = self.patterns.format("season_dir", Season=season)
