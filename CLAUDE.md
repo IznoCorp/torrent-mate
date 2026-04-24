@@ -95,7 +95,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 ### Security & Paths
 
 - **Never include API keys** in documentation or brainstorming files — use `.env` references only.
-- Paths contain spaces (`/Volumes/IznoServer SSD/A TRIER/`) — always quote paths in shell commands.
+- Storage/staging paths may contain spaces (e.g. `/Volumes/<disk>/<staging-dir>/`) — always quote paths in shell commands.
 - macOS filesystem is case-insensitive — `git mv FILE.md file.md` fails, use intermediate rename: `git mv FILE.md tmp.md && git mv tmp.md file.md`.
 
 ### Language

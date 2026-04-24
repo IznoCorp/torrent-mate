@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-    {name = "LounisBou", email = "lounis.bou@gmail.com"}
+    {name = "LounisBou", email = "LounisBou@users.noreply.github.com"}
 ]
 keywords = ["media", "plex", "kodi", "nfo", "scraper", "automation", "pipeline"]
 classifiers = [

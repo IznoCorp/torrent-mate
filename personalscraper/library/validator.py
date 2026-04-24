@@ -2,7 +2,7 @@
 
 Wraps existing verify/checker.py checks for use on storage disks.
 Supports --fix mode for local corrections (empty dirs, NTFS names, dir naming).
-Distinction with enforce: enforce = staging (A TRIER/), validate = library (Disk1-4).
+Distinction with enforce: enforce = staging (``paths.staging_dir``), validate = library (configured storage disks).
 
 ``validate_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
