@@ -156,10 +156,63 @@ def _validate_movie(movie_dir: Path, dry_run: bool) -> StructureResult:
     return result
 
 
+_EPISODE_SEASON_RE = re.compile(r"S(\d{1,2})E\d+", re.IGNORECASE)
+_VIDEO_SUFFIXES = {".mkv", ".mp4", ".avi", ".mov", ".wmv", ".m4v", ".ts"}
+
+
+def _move_orphan_episodes_to_seasons(show_dir: Path, result: StructureResult, dry_run: bool) -> None:
+    """Move root-level episode video files into the matching ``Saison NN/`` subdir.
+
+    Scans ``show_dir`` for video files that sit directly at the show root
+    (i.e. not inside any ``Saison NN/`` subdirectory) and whose filename
+    contains a season pattern such as ``S01E03``.  Each matching file is
+    moved into ``Saison 01/`` (zero-padded two digits), which is created
+    if it does not yet exist.  Files without a recognisable season number
+    are left in place.
+
+    Args:
+        show_dir: Path to the TV show directory (e.g. ``Show (2025)/``).
+        result: :class:`StructureResult` to append fix/warning messages to.
+        dry_run: When ``True``, report planned moves without touching the
+            filesystem.
+    """
+    for f in list(show_dir.iterdir()):
+        if not f.is_file() or f.suffix.lower() not in _VIDEO_SUFFIXES:
+            continue
+        match = _EPISODE_SEASON_RE.search(f.name)
+        if not match:
+            # No season number extractable — leave the file alone, but emit
+            # an info event so operators know about extras/specials at the root.
+            log.info("enforce.orphan_episode_no_season", path=str(f))
+            continue
+        season_num = int(match.group(1))
+        season_dir = show_dir / f"Saison {season_num:02d}"
+        dst = season_dir / f.name
+        if not dry_run:
+            season_dir.mkdir(exist_ok=True)
+            try:
+                f.rename(dst)
+            except OSError as exc:
+                log.warning(
+                    "enforce.orphan_episode_move_failed",
+                    src=str(f),
+                    dst=str(dst),
+                    exc_info=True,
+                    error=str(exc),
+                )
+                result.warnings.append(f"Failed to move orphan episode '{f.name}' into Saison folder: {exc}")
+                continue
+        log.info("enforce.orphan_episode_moved", src=str(f), dst=str(dst))
+        result.fixes.append(f"Moved orphan episode: {f.name} → {season_dir.name}/")
+
+
 def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
     """Validate a single TV show directory.
 
     Checks:
+    - Orphan episode video files at the show root that match ``SxxEyy`` —
+      moved into the corresponding ``Saison NN/`` subdirectory (created if
+      missing).
     - Empty non-season subdirectories (leftover torrent extraction dirs).
 
     Also warns when ``tvshow.nfo`` is absent, but does not mark this as
@@ -174,6 +227,9 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
         A :class:`StructureResult` for this show directory.
     """
     result = StructureResult(path=show_dir, media_type="tvshow", action="validated")
+
+    # Move orphan episode files at root level into their Saison NN/ subdir.
+    _move_orphan_episodes_to_seasons(show_dir, result, dry_run)
 
     # Remove empty non-season subdirs left behind by torrent extractors.
     # Season dirs match ``Saison \d+`` and are always preserved.

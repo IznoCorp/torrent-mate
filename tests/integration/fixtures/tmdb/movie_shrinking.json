@@ -1,0 +1,63 @@
+{
+  "id": 1020053,
+  "title": "Shrinking",
+  "original_title": "Shrinking",
+  "release_date": "2023-01-27",
+  "runtime": 35,
+  "overview": "A grieving therapist starts breaking the rules and telling his patients exactly what he thinks.",
+  "genres": [
+    { "id": 35, "name": "Comédie" },
+    { "id": 18, "name": "Drame" }
+  ],
+  "vote_average": 8.1,
+  "credits": {
+    "cast": [
+      { "id": 10859, "name": "Jason Segel", "character": "Jimmy", "order": 0 },
+      {
+        "id": 1325005,
+        "name": "Harrison Ford",
+        "character": "Dr. Phil Rhodes",
+        "order": 1
+      }
+    ],
+    "crew": [
+      { "id": 1586349, "name": "Brett Goldstein", "job": "Creator" },
+      { "id": 1586350, "name": "Jason Segel", "job": "Creator" }
+    ]
+  },
+  "images": {
+    "posters": [
+      {
+        "file_path": "/shrinking_poster_fr.jpg",
+        "iso_639_1": "fr",
+        "vote_average": 5.4
+      },
+      {
+        "file_path": "/shrinking_poster_en.jpg",
+        "iso_639_1": "en",
+        "vote_average": 5.2
+      }
+    ],
+    "backdrops": [
+      {
+        "file_path": "/shrinking_backdrop.jpg",
+        "iso_639_1": null,
+        "vote_average": 5.6
+      }
+    ]
+  },
+  "external_ids": {
+    "imdb_id": "tt15677150",
+    "tvdb_id": null
+  },
+  "release_dates": {
+    "results": [
+      {
+        "iso_3166_1": "US",
+        "release_dates": [
+          { "type": 3, "certification": "TV-MA", "release_date": "2023-01-27" }
+        ]
+      }
+    ]
+  }
+}

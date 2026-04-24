@@ -67,7 +67,7 @@ Migrate from flat `.env` / pydantic-settings to structured JSON config.
 
 Reduce over-mocking in the heaviest test suites and add lightweight E2E coverage.
 
-- Current hotspots: `test_dispatcher.py` (~37 `@patch`), `test_cli.py` (~66 `@patch`), `test_pipeline_integration.py` (~42 `@patch`)
+- Current hotspots: `test_dispatcher.py` (~37 `@patch`), `test_cli.py` (~66 `@patch`), `test_pipeline_orchestration.py` (≤12 `@patch`, trimmed from 42)
 - Goal: cut the patch count where mocks hide real integration bugs (rsync failures, filesystem edge cases, CLI → pipeline wiring)
 - Add ~15 E2E tests using `tmp_path` + small real directories, mocking only external APIs (TMDB/TVDB/qBittorrent)
 - Keep runtime within CI budget (<30s for unit + E2E combined)

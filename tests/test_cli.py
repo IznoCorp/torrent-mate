@@ -43,8 +43,6 @@ _PATCH_CLI_RUN_INGEST = "personalscraper.cli.run_ingest"
 
 # Patches for the `run` command (delegates to Pipeline)
 _PATCH_PIPELINE_RUN = "personalscraper.pipeline.Pipeline.run"
-_PATCH_PING_HC = "personalscraper.notifier.ping_healthcheck"
-_PATCH_CLEANUP = "personalscraper.logger.cleanup_old_logs"
 _PATCH_NOTIFIER_CONFIGURED = "personalscraper.notifier.TelegramNotifier.is_configured"
 
 
@@ -137,14 +135,14 @@ def test_sort_command(mock_lock, mock_release, mock_run):
 
 
 @patch("personalscraper.sorter.run.run_sort", return_value=_mock_sort_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_sort_dry_run(mock_lock, mock_release, mock_run):
-    """Sort --dry-run flag is passed through."""
+def test_sort_dry_run(mock_run):
+    """Sort --dry-run flag is forwarded as dry_run=True to run_sort."""
     result = runner.invoke(app, ["sort", "--dry-run"])
     assert result.exit_code == 0
     call_kwargs = mock_run.call_args
     assert call_kwargs is not None
+    # Verify the wiring invariant: dry_run=True must reach the service layer.
+    assert call_kwargs.kwargs.get("dry_run") is True
 
 
 @patch("personalscraper.cli.acquire_lock", return_value=False)
@@ -172,15 +170,14 @@ def test_scrape_command(mock_lock, mock_release, mock_run):
 
 
 @patch("personalscraper.scraper.run.run_scrape", return_value=_mock_scrape_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_scrape_dry_run(mock_lock, mock_release, mock_run):
-    """Scrape --dry-run flag is passed through."""
+def test_scrape_dry_run(mock_run):
+    """Scrape --dry-run flag is forwarded as dry_run=True to run_scrape."""
     result = runner.invoke(app, ["scrape", "--dry-run"])
     assert result.exit_code == 0
-    # Verify dry_run=True was passed
+    # Verify the wiring invariant: dry_run=True must reach the service layer.
     call_kwargs = mock_run.call_args
     assert call_kwargs is not None
+    assert call_kwargs.kwargs.get("dry_run") is True
 
 
 @patch("personalscraper.cli.acquire_lock", return_value=False)
@@ -192,9 +189,7 @@ def test_scrape_lock_blocked(mock_lock):
 
 
 @patch("personalscraper.process.run.run_process")
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_process_command(mock_lock, mock_release, mock_run_process):
+def test_process_command(mock_run_process):
     """Process command runs and shows 3 step reports."""
     mock_run_process.return_value = (
         StepReport(name="clean", success_count=2),
@@ -208,10 +203,7 @@ def test_process_command(mock_lock, mock_release, mock_run_process):
     assert "Cleanup" in result.output
 
 
-@patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_quiet_mode(mock_lock, mock_release, mock_run):
+def test_quiet_mode():
     """--quiet flag suppresses console output."""
     result = runner.invoke(app, ["--quiet", "ingest"])
     assert result.exit_code == 0
@@ -222,20 +214,8 @@ def test_quiet_mode(mock_lock, mock_release, mock_run):
 # is tested in tests/test_pipeline.py. These tests verify CLI wiring.
 
 
-@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
-@patch(_PATCH_CLEANUP, return_value=0)
-@patch(_PATCH_PING_HC)
 @patch(_PATCH_PIPELINE_RUN)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_run_delegates_to_pipeline(
-    mock_lock,
-    mock_release,
-    mock_pipeline_run,
-    mock_ping,
-    mock_cleanup,
-    mock_notifier_cfg,
-):
+def test_run_delegates_to_pipeline(mock_pipeline_run):
     """Run command delegates to Pipeline and shows 7-step summary panel."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
@@ -246,20 +226,8 @@ def test_run_delegates_to_pipeline(
         assert step_name in result.output
 
 
-@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
-@patch(_PATCH_CLEANUP, return_value=0)
-@patch(_PATCH_PING_HC)
 @patch(_PATCH_PIPELINE_RUN, autospec=True)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_run_dry_run_and_interactive_flags(
-    mock_lock,
-    mock_release,
-    mock_pipeline_run,
-    mock_ping,
-    mock_cleanup,
-    mock_notifier_cfg,
-):
+def test_run_dry_run_and_interactive_flags(mock_pipeline_run):
     """--dry-run and --interactive flags are passed to Pipeline."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--dry-run", "--interactive"])
@@ -280,82 +248,31 @@ def test_run_lock_blocked(mock_lock):
 
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
 @patch("personalscraper.notifier.requests.post")
-@patch(_PATCH_CLEANUP, return_value=0)
-@patch(_PATCH_PING_HC)
-@patch(_PATCH_PIPELINE_RUN)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_run_sends_telegram_when_configured(
-    mock_lock,
-    mock_release,
-    mock_pipeline_run,
-    mock_ping,
-    mock_cleanup,
-    mock_post,
-    mock_notifier_cfg,
-):
+def test_run_sends_telegram_when_configured(mock_post, mock_notifier_cfg):
     """Telegram notification is sent when configured."""
-    mock_pipeline_run.return_value = _make_pipeline_report()
     mock_post.return_value = MagicMock(ok=True)
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
     mock_post.assert_called_once()
 
 
-@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
-@patch(_PATCH_CLEANUP, return_value=0)
-@patch(_PATCH_PING_HC)
-@patch(_PATCH_PIPELINE_RUN)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_run_no_telegram_when_not_configured(
-    mock_lock,
-    mock_release,
-    mock_pipeline_run,
-    mock_ping,
-    mock_cleanup,
-    mock_notifier_cfg,
-):
+def test_run_no_telegram_when_not_configured():
     """No Telegram call when not configured (no error)."""
-    mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
 
 
-@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
-@patch(_PATCH_CLEANUP, return_value=0)
-@patch(_PATCH_PING_HC)
 @patch(_PATCH_PIPELINE_RUN)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_run_exit_code_1_on_errors(
-    mock_lock,
-    mock_release,
-    mock_pipeline_run,
-    mock_ping,
-    mock_cleanup,
-    mock_notifier_cfg,
-):
+def test_run_exit_code_1_on_errors(mock_pipeline_run):
     """Run exits with code 1 when pipeline has errors."""
     mock_pipeline_run.return_value = _make_pipeline_report(has_errors=True)
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 1
 
 
-@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
-@patch(_PATCH_CLEANUP, return_value=0)
-@patch(_PATCH_PING_HC)
 @patch(_PATCH_PIPELINE_RUN, side_effect=RuntimeError("pipeline crash"))
 @patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
-def test_run_releases_lock_on_pipeline_crash(
-    mock_lock,
-    mock_release,
-    mock_pipeline_run,
-    mock_ping,
-    mock_cleanup,
-    mock_notifier_cfg,
-):
+def test_run_releases_lock_on_pipeline_crash(mock_release, mock_pipeline_run):
     """Lock is released even when Pipeline.run() crashes."""
     runner.invoke(app, ["run"])
     mock_release.assert_called_once()
@@ -364,11 +281,8 @@ def test_run_releases_lock_on_pipeline_crash(
 # ── Config error decorator tests ──────────────────────
 
 
-@patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report)
-@patch("personalscraper.cli.release_lock")
-@patch("personalscraper.cli.acquire_lock", return_value=True)
 @patch("personalscraper.cli.get_settings")
-def test_invalid_config_shows_friendly_error(mock_get_settings, mock_lock, mock_release, mock_run):
+def test_invalid_config_shows_friendly_error(mock_get_settings):
     """ValidationError from get_settings() is shown as friendly 'Configuration error'."""
     from pydantic import ValidationError
 
