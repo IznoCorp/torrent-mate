@@ -121,5 +121,6 @@ jobs:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
           restore-keys: pip-${{ runner.os }}-3.13-
+      - run: pip install --upgrade pip
       - run: pip install -e . pip-audit
       - run: pip-audit
