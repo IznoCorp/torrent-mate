@@ -11,7 +11,6 @@ independent sub-steps, each with its own error isolation.
 
 from __future__ import annotations
 
-import logging
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -22,6 +21,7 @@ from rich.console import Console
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
 
 if TYPE_CHECKING:
@@ -77,7 +77,7 @@ class Pipeline:
         self.interactive = interactive
         self.verbose = verbose
         self.console = console or Console()
-        self._log = logging.getLogger("pipeline")
+        self._log = get_logger("pipeline")
 
     def _recover_from_previous_run(
         self,
@@ -116,16 +116,16 @@ class Pipeline:
                         if item.name.startswith("_tmp_dispatch_"):
                             try:
                                 shutil.rmtree(item)
-                                self._log.info("Crash recovery: cleaned dispatch orphan %s", item)
+                                self._log.info("crash_recovery_dispatch_orphan", path=str(item))
                                 cleaned += 1
                             except OSError as exc:
                                 self._log.warning(
-                                    "Crash recovery: cannot clean %s: %s",
-                                    item,
-                                    exc,
+                                    "crash_recovery_cannot_clean",
+                                    path=str(item),
+                                    error=str(exc),
                                 )
             except OSError as exc:
-                self._log.warning("Crash recovery: cannot scan disk %s: %s", disk_config.path, exc)
+                self._log.warning("crash_recovery_cannot_scan_disk", path=str(disk_config.path), error=str(exc))
                 continue
 
         # 2. Clean expired qBit lockout
@@ -136,10 +136,10 @@ class Pipeline:
                 age = time.time() - lockout_path.stat().st_mtime
                 if age > 3600:
                     lockout_path.unlink(missing_ok=True)
-                    self._log.info("Crash recovery: cleaned expired lockout (%ds old)", int(age))
+                    self._log.info("crash_recovery_lockout_cleaned", age_s=int(age))
                     cleaned += 1
             except OSError as exc:
-                self._log.warning("Crash recovery: cannot clean lockout %s: %s", lockout_path, exc)
+                self._log.warning("crash_recovery_cannot_clean_lockout", path=str(lockout_path), error=str(exc))
 
         # 3. Clean .ingest_tmp_* in staging
         ingest_dir = staging_path(self.config, find_ingest_dir(self.config))
@@ -147,7 +147,7 @@ class Pipeline:
             cleaned += _cleanup_orphan_temps(ingest_dir)
 
         if cleaned:
-            self._log.info("Crash recovery: cleaned %d artifact(s)", cleaned)
+            self._log.info("crash_recovery_done", cleaned=cleaned)
         return cleaned
 
     def run(self) -> PipelineReport:
@@ -180,9 +180,9 @@ class Pipeline:
             try:
                 self._recover_from_previous_run()
             except Exception as exc:
-                self._log.error("Crash recovery failed (pipeline continues): %s", exc)
+                self._log.error("crash_recovery_failed", error=str(exc), message="Pipeline continues")
         else:
-            self._log.info("[DRY RUN] Crash recovery skipped")
+            self._log.info("crash_recovery_skipped", reason="dry_run")
 
         # Phase 1: INGEST — abort pipeline on fatal crash because
         # sort depends on ingest having deposited files into ingest_dir
@@ -194,7 +194,7 @@ class Pipeline:
                 critical=True,
             )
         except _CriticalStepError:
-            self._log.error("Ingest crashed fatally, aborting pipeline")
+            self._log.error("pipeline_aborted", step="ingest", reason="fatal_crash")
             report.finished_at = datetime.now()
             return report
 
@@ -213,7 +213,7 @@ class Pipeline:
                 critical=True,
             )
         except _CriticalStepError:
-            self._log.error("Sort crashed fatally, aborting pipeline")
+            self._log.error("pipeline_aborted", step="sort", reason="fatal_crash")
             report.finished_at = datetime.now()
             return report
 
@@ -255,7 +255,7 @@ class Pipeline:
                 report,
             )
         else:
-            self._log.warning("Skipping dispatch: no dispatchable items")
+            self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
             self.console.print(
                 f"\n{self._step_icon('dispatch')} [bold]DISPATCH[/bold]",
                 highlight=False,
@@ -335,9 +335,9 @@ class Pipeline:
         remaining = assert_temp_empty(self.settings, staging_dir=self.config.paths.staging_dir, config=self.config)
         if remaining:
             self._log.warning(
-                "Gate ingest dir: %d unsorted files remain: %s",
-                len(remaining),
-                ", ".join(remaining[:5]),
+                "ingest_dir_not_empty",
+                count=len(remaining),
+                sample=remaining[:5],
             )
             self.console.print(
                 f"   [yellow]! Ingest dir not empty: {len(remaining)} files remain[/yellow]",
@@ -395,7 +395,7 @@ class Pipeline:
         """
         icon = self._step_icon(name)
         self.console.print(f"\n{icon} [bold]{name.upper()}[/bold]", highlight=False)
-        self._log.info("Step %s started", name)
+        self._log.info("step_started", step=name)
         t0 = time.monotonic()
         extra = None
         crashed = False
@@ -410,7 +410,7 @@ class Pipeline:
             report.add_step(name, step_report)
         except Exception as exc:
             crashed = True
-            self._log.exception("Step %s failed fatally", name)
+            self._log.exception("step_fatal", step=name, error=str(exc))
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
                 name=name,
@@ -447,12 +447,12 @@ class Pipeline:
                 self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
 
         self._log.info(
-            "Step %s finished: ok=%d skip=%d err=%d (%.1fs)",
-            name,
-            ok,
-            skip,
-            err,
-            elapsed,
+            "step_finished",
+            step=name,
+            ok=ok,
+            skip=skip,
+            err=err,
+            elapsed_s=round(elapsed, 1),
         )
 
         if crashed and critical:

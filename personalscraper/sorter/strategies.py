@@ -10,17 +10,17 @@ Strategies use fuzzy matching to find existing folders and prevent duplicates.
 
 from __future__ import annotations
 
-import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
+from personalscraper.logger import get_logger
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType
 from personalscraper.sorter.matcher import find_matching_directory
 
-_log = logging.getLogger(__name__)
+_log = get_logger("sorter.strategies")
 
 
 class SortingStrategy(ABC):
@@ -159,9 +159,9 @@ class DefaultStrategy(SortingStrategy):
             # Log available types so the config gap is immediately actionable.
             available = [e.file_type for e in config.staging_dirs if e.file_type is not None]
             _log.warning(
-                "No staging entry for file_type=%r — falling back to FileType.OTHER. Available types: %r",
-                self.file_type.value,
-                available,
+                "sort_no_staging_entry",
+                file_type=self.file_type.value,
+                available=available,
             )
             entry = find_by_file_type(config, FileType.OTHER)
         return staging_path(config, entry)

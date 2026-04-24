@@ -10,7 +10,6 @@ names from ``config.category(id).folder_name``. TV detection uses
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -28,9 +27,10 @@ from personalscraper.library.models import (
     VideoInfo,
 )
 from personalscraper.library.scanner import _VIDEO_EXTENSIONS, parse_title_year
+from personalscraper.logger import get_logger
 from personalscraper.scraper.mediainfo import extract_stream_info
 
-logger = logging.getLogger(__name__)
+log = get_logger("library.analyzer")
 
 # French language codes (ISO 639-2/T and /B variants)
 _FRENCH_CODES = frozenset({"fra", "fre"})
@@ -94,7 +94,7 @@ def _analyze_video_file(path: Path) -> MediaFileAnalysis | None:
     try:
         info = extract_stream_info(path)
     except Exception as exc:
-        logger.warning("ffprobe failed for %s: %s", path, exc)
+        log.warning("library_ffprobe_failed", path=str(path), exc_info=True, error=str(exc))
         return None
 
     if not info:
@@ -212,7 +212,7 @@ def analyze_library(
         if disk_filter and disk.id != disk_filter:
             continue
         if not disk.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
+            log.warning("library_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
         for category_id in disk.categories:
@@ -223,7 +223,7 @@ def analyze_library(
             cat_cfg = config.category(category_id)
             category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
+                log.debug("library_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
             is_series = category_id in TV_CATEGORY_IDS
@@ -256,7 +256,7 @@ def analyze_library(
                             current_size_gb = -1.0  # force re-analyze
                         prev_size_gb = existing.get(str(vf))
                         if prev_size_gb is not None and prev_size_gb == current_size_gb:
-                            logger.debug("Skipping unchanged: %s", vf)
+                            log.debug("library_analyze_skip_unchanged", path=str(vf))
                             continue
 
                     analysis = _analyze_video_file(vf)

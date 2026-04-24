@@ -12,7 +12,6 @@ Key design decisions:
     - ``DiskStatus`` is a pure runtime state dataclass (not config).
 """
 
-import logging
 import shutil
 from dataclasses import dataclass
 
@@ -20,8 +19,9 @@ from dataclasses import dataclass
 #   ``from personalscraper.dispatch.disk_scanner import DiskConfig``
 # continue to work without modification.
 from personalscraper.conf.models import Config, DiskConfig  # noqa: F401
+from personalscraper.logger import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger("disk_scanner")
 
 
 @dataclass
@@ -74,11 +74,7 @@ def get_disk_status(config: DiskConfig) -> DiskStatus:
         except OSError as exc:
             # Cannot read disk usage — treat as unmounted to avoid
             # dispatching to an unusable disk.
-            logger.error(
-                "Cannot read disk usage for %s: %s — treating as unmounted",
-                config.id,
-                exc,
-            )
+            log.error("disk_usage_failed", disk=config.id, error=str(exc))
             is_mounted = False
 
     return DiskStatus(
@@ -138,17 +134,9 @@ def choose_disk(
             chosen = fallback[0]
             disk_id = chosen.config.id
             if category not in chosen.config.categories:
-                logger.warning(
-                    "Category '%s' not in %s config — creating anyway (overflow: no configured disk has space)",
-                    category,
-                    disk_id,
-                )
+                log.warning("choose_disk_overflow", category=category, disk=disk_id)
             else:
-                logger.info(
-                    "No disk has category '%s' with space — falling back to %s (most free)",
-                    category,
-                    disk_id,
-                )
+                log.info("choose_disk_fallback", category=category, disk=disk_id)
             return chosen
 
     return None

@@ -1,8 +1,8 @@
 # Plan INDEX — Logging Convention Unification (`logging`)
 
-**Design**: `docs/superpowers/roadmap/logging/specs/DESIGN.md`
-**Target version bump**: minor (Y + 1)
-**Branch (future)**: `feat/logging`
+**Design**: `docs/features/logging/DESIGN.md`
+**Version bump**: 0.4.0 → 0.5.0 (minor)
+**Branch**: `feat/logging`
 
 ## Phases
 

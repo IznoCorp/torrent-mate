@@ -56,25 +56,6 @@ Move staging directories out of the git project root.
 - Auto-create staging directory tree on first pipeline run if missing
 - Currently staging dirs (001-MOVIES, 002-TVSHOWS, etc.) live inside the repo, mixing code and data
 
-### Logging Convention Unification
-
-Consolidate logging calls across the package onto a single convention.
-
-- Inventory current call sites: structlog, stdlib `logging`, raw `print()` scattered across ~46 Python files
-- Pick one canonical path: structlog for structured/production logs, `rich.Console` for user-facing CLI output, Typer prompts for interactive I/O
-- Migrate offenders; forbid `print()` in production modules (CLI prompt readers excluded)
-- Add a lint/CI check (ruff custom rule or Python AST script) to prevent regressions
-- Document the convention in `docs/reference/` and in `CLAUDE.md`
-- Avoid breaking changes in observable output (messages must still land in the same destinations users expect)
-
-**Preparation** (not yet implemented):
-
-- Codename: `logging`
-- Design: `docs/superpowers/roadmap/logging/specs/DESIGN.md`
-- Plan: `docs/superpowers/roadmap/logging/plan/INDEX.md`
-- Prepared on: 2026-04-23
-- Target version bump: minor
-
 ### Test Realism Refactor
 
 Reduce over-mocking in the heaviest test suites and add lightweight E2E coverage.

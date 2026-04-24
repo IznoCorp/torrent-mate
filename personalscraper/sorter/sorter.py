@@ -6,13 +6,13 @@ subdirectory ({movies_dir}/, {tvshows_dir}/, etc.) under a destination root.
 Returns a list of SortResult for reporting and downstream pipeline steps.
 """
 
-import logging
 import os
 import shutil
 from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import folder_name
+from personalscraper.logger import get_logger
 from personalscraper.models import SortResult
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType, detect_dir_type, detect_file_type
@@ -23,7 +23,7 @@ from personalscraper.sorter.strategies import (
     TVShowStrategy,
 )
 
-logger = logging.getLogger(__name__)
+log = get_logger("sorter")
 
 
 def _get_strategy(file_type: FileType) -> SortingStrategy:
@@ -95,7 +95,7 @@ class Sorter:
         results: list[SortResult] = []
 
         if not source_dir.exists():
-            logger.warning("Source directory does not exist: %s", source_dir)
+            log.warning("sort_source_missing", source=str(source_dir))
             return results
 
         # Sort the items list to get deterministic ordering
@@ -154,7 +154,7 @@ class Sorter:
             # Movie dirs replace existing; everything else skips
             is_movie_dir_replace = item.is_dir() and file_type == FileType.MOVIE and dest_path.exists()
             if dest_path.exists() and not is_movie_dir_replace:
-                logger.warning("Already exists at destination: %s", dest_path)
+                log.warning("sort_item_exists", dest=str(dest_path))
                 return SortResult(
                     source=item,
                     destination=dest_path,
@@ -169,7 +169,7 @@ class Sorter:
 
             if self.dry_run:
                 action = "replace" if is_movie_dir_replace else "move"
-                logger.info("[DRY-RUN] Would %s %s -> %s", action, item, dest_path)
+                log.info("sort_dry_run", action=action, source=str(item), dest=str(dest_path))
                 return SortResult(
                     source=item,
                     destination=dest_path,
@@ -198,7 +198,7 @@ class Sorter:
             else:
                 shutil.move(str(item), str(dest_path))
 
-            logger.info("Moved %s -> %s", item, dest_path)
+            log.info("sort_item_moved", source=str(item), dest=str(dest_path))
             return SortResult(
                 source=item,
                 destination=dest_path,
@@ -212,7 +212,7 @@ class Sorter:
             )
 
         except Exception as exc:
-            logger.error("Error sorting %s: %s", item, exc, exc_info=True)
+            log.error("sort_item_error", source=str(item), exc_info=True, error=str(exc))
             return SortResult(
                 source=item,
                 destination=Path(),

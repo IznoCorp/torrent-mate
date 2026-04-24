@@ -12,15 +12,15 @@ Cache file format:
 """
 
 import json
-import logging
 import os
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from personalscraper.conf.classifier import MediaType
+from personalscraper.logger import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger("keywords_cache")
 
 # Time-to-live: entries older than this are treated as cache misses.
 _TTL = timedelta(days=30)
@@ -97,7 +97,7 @@ class KeywordsCache:
         try:
             cached_at = datetime.fromisoformat(str(entry["cached_at"]))
         except (KeyError, ValueError):
-            logger.warning("Cannot parse cached_at for cache key %s, treating as miss", key)
+            log.warning("keywords_cache_parse_error", cache_key=key)
             return None
 
         if datetime.now() - cached_at > _TTL:
@@ -149,7 +149,7 @@ class KeywordsCache:
                 return {}
             return {k: v for k, v in raw.items() if isinstance(v, dict)}
         except (OSError, json.JSONDecodeError, ValueError) as exc:
-            logger.warning("Cannot read keywords cache %s: %s — starting fresh", self._path, exc)
+            log.warning("keywords_cache_read_error", path=str(self._path), error=str(exc))
             return {}
 
     def _atomic_save(self, data: dict[str, dict[str, object]]) -> None:

@@ -27,6 +27,7 @@ jobs:
       - run: pip install ruff
       - run: ruff check personalscraper/ tests/
       - run: ruff format --check personalscraper/ tests/
+      - run: python scripts/check_logging.py personalscraper/
 
   typecheck:
     name: typecheck

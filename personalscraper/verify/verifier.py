@@ -5,18 +5,18 @@ before dispatch. Produces VerifyResult for each media item with
 status (valid/fixed/blocked) and category assignment.
 """
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from personalscraper.conf.classifier import classify_from_nfo
 from personalscraper.conf.models import Config
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer
 
-logger = logging.getLogger(__name__)
+log = get_logger("verify.verifier")
 
 
 @dataclass
@@ -153,14 +153,14 @@ class Verifier:
         for d in subdirs:
             try:
                 results.append(self.verify_movie(d))
-            except Exception as e:
-                logger.error("Error verifying movie %s: %s", d.name, e)
+            except Exception as exc:
+                log.error("verify_movie_error", movie=d.name, exc_info=True, error=str(exc))
                 results.append(
                     VerifyResult(
                         media_path=d,
                         media_type="movie",
                         status="blocked",
-                        errors=[str(e)],
+                        errors=[str(exc)],
                     )
                 )
 
@@ -184,14 +184,14 @@ class Verifier:
         for d in subdirs:
             try:
                 results.append(self.verify_tvshow(d))
-            except Exception as e:
-                logger.error("Error verifying show %s: %s", d.name, e)
+            except Exception as exc:
+                log.error("verify_tvshow_error", show=d.name, exc_info=True, error=str(exc))
                 results.append(
                     VerifyResult(
                         media_path=d,
                         media_type="tvshow",
                         status="blocked",
-                        errors=[str(e)],
+                        errors=[str(exc)],
                     )
                 )
 

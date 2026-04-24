@@ -4,7 +4,6 @@ Checks NFO count, artwork duplicates, season structure, and torrent
 residuals. Fixes what can be fixed, reports what can't.
 """
 
-import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,11 +11,12 @@ from pathlib import Path
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.sorter.file_type import FileType
 from personalscraper.text_utils import sanitize_filename
 
-logger = logging.getLogger(__name__)
+log = get_logger("enforce.structure")
 _ARTWORK_SUFFIXES = (
     "-poster",
     "-fanart",
@@ -116,7 +116,7 @@ def _validate_movie(movie_dir: Path, dry_run: bool) -> StructureResult:
                 try:
                     nfo.unlink()
                 except OSError as exc:
-                    logger.warning("Cannot delete extra NFO %s: %s", nfo.name, exc)
+                    log.warning("enforce_structure_nfo_delete_failed", name=nfo.name, exc_info=True, error=str(exc))
                     continue
             result.fixes.append(f"Removed extra NFO: {nfo.name}")
 
@@ -147,7 +147,7 @@ def _validate_movie(movie_dir: Path, dry_run: bool) -> StructureResult:
                 try:
                     f.unlink()
                 except OSError as exc:
-                    logger.warning("Cannot delete duplicate artwork %s: %s", f.name, exc)
+                    log.warning("enforce_structure_artwork_delete_failed", name=f.name, exc_info=True, error=str(exc))
                     continue
             result.fixes.append(f"Removed duplicate artwork: {f.name}")
 
@@ -189,7 +189,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
                 try:
                     subdir.rmdir()
                 except OSError as exc:
-                    logger.warning("Cannot remove empty torrent dir %s: %s", subdir.name, exc)
+                    log.warning("enforce_structure_torrent_dir_failed", name=subdir.name, exc_info=True, error=str(exc))
                     continue
             result.fixes.append(f"Removed empty torrent dir: {subdir.name}")
 
@@ -212,7 +212,7 @@ def _validate_tvshow(show_dir: Path, dry_run: bool) -> StructureResult:
                 try:
                     f.unlink()
                 except OSError as exc:
-                    logger.warning("Cannot remove orphan season poster %s: %s", f.name, exc)
+                    log.warning("enforce_structure_orphan_poster_failed", name=f.name, exc_info=True, error=str(exc))
                     continue
             result.fixes.append(f"Removed orphan season poster: {f.name}")
 

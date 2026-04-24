@@ -1,10 +1,11 @@
-.PHONY: help clean test lint format install-dev version
+.PHONY: help clean test lint lint-logging format install-dev version
 
 help:
 	@echo "PersonalScraper — Available commands:"
 	@echo "  make clean       - Remove build artifacts and cache files"
 	@echo "  make test        - Run all tests with pytest"
-	@echo "  make lint        - Run ruff linter"
+	@echo "  make lint        - Run ruff linter + logging convention audit"
+	@echo "  make lint-logging - Run logging convention audit (fails on errors)"
 	@echo "  make format      - Format code with ruff"
 	@echo "  make install-dev - Install package in development mode with dev deps"
 	@echo "  make version     - Show current version"
@@ -24,6 +25,11 @@ test:
 lint:
 	@echo "Running linter..."
 	python -m ruff check personalscraper/ tests/
+	$(MAKE) lint-logging
+
+lint-logging:
+	@echo "Running logging convention audit..."
+	python scripts/check_logging.py personalscraper/
 
 format:
 	@echo "Formatting code..."

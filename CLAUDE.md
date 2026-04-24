@@ -106,22 +106,23 @@ The user communicates in **French**. Code comments are a mix of French and Engli
 
 Load these docs on-demand based on your task — they are **not** auto-loaded:
 
-| When working on...                                                     | Read                                   |
-| ---------------------------------------------------------------------- | -------------------------------------- |
-| CLI commands, pipeline invocation, scheduling (launchd), make targets  | `docs/reference/commands.md`           |
-| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details | `docs/reference/storage.md`            |
-| Directory layout, module map, shared utilities, dependencies           | `docs/reference/architecture.md`       |
-| Movie/TV folder naming, episode patterns, filename sanitization        | `docs/reference/naming.md`             |
-| Unit tests, E2E, roundtrip, golden files, test markers, timeouts       | `docs/reference/testing.md`            |
-| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes        | `docs/reference/scraping.md`           |
-| rapidfuzz, tenacity, structlog, rich, guessit gotchas                  | `docs/reference/libraries.md`          |
-| Circuit breaker, fast-skip, dispatch/verify internals, idempotence     | `docs/reference/pipeline-internals.md` |
+| When working on...                                                        | Read                                   |
+| ------------------------------------------------------------------------- | -------------------------------------- |
+| CLI commands, pipeline invocation, scheduling (launchd), make targets     | `docs/reference/commands.md`           |
+| Disks, NTFS/macFUSE, rsync flags, disk space rules, move rules details    | `docs/reference/storage.md`            |
+| Directory layout, module map, shared utilities, dependencies              | `docs/reference/architecture.md`       |
+| Movie/TV folder naming, episode patterns, filename sanitization           | `docs/reference/naming.md`             |
+| Unit tests, E2E, roundtrip, golden files, test markers, timeouts          | `docs/reference/testing.md`            |
+| TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes           | `docs/reference/scraping.md`           |
+| rapidfuzz, tenacity, structlog, rich, guessit gotchas                     | `docs/reference/libraries.md`          |
+| Circuit breaker, fast-skip, dispatch/verify internals, idempotence        | `docs/reference/pipeline-internals.md` |
+| Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/reference/logging.md`            |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
 ## Current Feature
 
-**Feature**: ext-staging — external staging directories
-**Branch**: `feat/ext-staging`
-**Design**: `docs/features/ext-staging/DESIGN.md`
-**Plan**: `docs/features/ext-staging/plan/`
+**Feature**: _(awaiting /implement:feature)_
+**Branch**: _(to be defined)_
+**Design**: _(to be defined)_
+**Plan**: _(to be defined)_

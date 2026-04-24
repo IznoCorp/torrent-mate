@@ -10,7 +10,6 @@ Dispatcher accepts ``Config`` as first argument. Category routing uses
 a legacy label (e.g. ``"films"``).
 """
 
-import logging
 import os
 import shutil
 import stat
@@ -26,8 +25,11 @@ from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
+from personalscraper.logger import get_logger
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
+
+log = get_logger("dispatcher")
 
 
 def _force_rmtree(path: Path) -> None:
@@ -68,15 +70,8 @@ def _force_rmtree(path: Path) -> None:
 
     if errors and path.exists():
         for fpath, err in errors[:5]:
-            logging.getLogger(__name__).warning(
-                "rmtree: could not remove %s: %s",
-                fpath,
-                err,
-            )
+            log.warning("rmtree_partial_failure", path=fpath, error=str(err))
         raise OSError(f"_force_rmtree incomplete for {path}: {len(errors)} file(s) could not be removed")
-
-
-logger = logging.getLogger(__name__)
 
 
 class DispatchError(Exception):
@@ -164,11 +159,7 @@ class Dispatcher:
             try:
                 category_dirs = list(config.path.iterdir())
             except OSError as e:
-                logger.warning(
-                    "Cannot scan %s for orphans: %s",
-                    config.id,
-                    e,
-                )
+                log.warning("orphan_scan_failed", disk=config.id, error=str(e))
                 continue
             for category_dir in category_dirs:
                 if not category_dir.is_dir():
@@ -176,34 +167,30 @@ class Dispatcher:
                 try:
                     items = list(category_dir.iterdir())
                 except OSError as e:
-                    logger.warning(
-                        "Cannot scan %s for orphans: %s",
-                        category_dir,
-                        e,
-                    )
+                    log.warning("orphan_scan_failed", path=str(category_dir), error=str(e))
                     continue
                 for item in items:
                     if not item.is_dir():
                         continue
                     # Clean _tmp_dispatch_* orphans
                     if item.name.startswith("_tmp_dispatch_"):
-                        logger.warning("Cleaning orphan tmp: %s", item)
+                        log.warning("orphan_tmp_found", path=str(item))
                         try:
                             _force_rmtree(item)
                             cleaned += 1
                         except OSError as e:
-                            logger.error("Failed to clean orphan %s: %s", item, e)
+                            log.error("orphan_tmp_cleanup_failed", path=str(item), error=str(e))
                     # Clean .merge_backup/ orphans inside media dirs
                     backup = item / ".merge_backup"
                     if backup.exists():
-                        logger.warning("Cleaning orphan merge backup: %s", backup)
+                        log.warning("orphan_backup_found", path=str(backup))
                         try:
                             _force_rmtree(backup)
                             cleaned += 1
                         except OSError as e:
-                            logger.error("Failed to clean backup %s: %s", backup, e)
+                            log.error("orphan_backup_cleanup_failed", path=str(backup), error=str(e))
         if cleaned:
-            logger.info("Cleaned %d orphan temp directories", cleaned)
+            log.info("orphans_cleaned", count=cleaned)
         return cleaned
 
     def process(
@@ -286,13 +273,12 @@ class Dispatcher:
                 candidate = category_dir / name
                 if candidate.is_dir():
                     if entry is not None:
-                        logger.warning(
-                            "media_index drift detected for '%s': index says %s at %s, "
-                            "filesystem has it on %s — using filesystem truth",
-                            name,
-                            entry.disk,
-                            entry.path,
-                            disk_cfg.id,
+                        log.warning(
+                            "index_drift_detected",
+                            name=name,
+                            index_disk=entry.disk,
+                            index_path=entry.path,
+                            fs_disk=disk_cfg.id,
                         )
                     return IndexEntry(
                         name=name,
@@ -303,11 +289,10 @@ class Dispatcher:
                     )
 
         if entry is not None:
-            logger.warning(
-                "media_index stale entry for '%s': path %s does not exist on any disk, "
-                "treating as NEW (dispatch will pick best disk)",
-                name,
-                entry.path,
+            log.warning(
+                "index_stale_entry",
+                name=name,
+                stale_path=entry.path,
             )
         return None
 
@@ -327,7 +312,7 @@ class Dispatcher:
         if self._has_ntfs_illegal_names(movie_dir):
             result.action = "skipped"
             result.reason = f"NTFS-illegal filenames in {movie_dir.name}. Run 'personalscraper process' to sanitize."
-            logger.error("dispatch_ntfs_illegal: %s", movie_dir)
+            log.error("dispatch_ntfs_illegal", path=str(movie_dir))
             return result
 
         # Get disk statuses keyed by disk ID for resolver
@@ -415,7 +400,7 @@ class Dispatcher:
         if self._has_ntfs_illegal_names(show_dir):
             result.action = "skipped"
             result.reason = f"NTFS-illegal filenames in {show_dir.name}. Run 'personalscraper process' to sanitize."
-            logger.error("dispatch_ntfs_illegal: %s", show_dir)
+            log.error("dispatch_ntfs_illegal", path=str(show_dir))
             return result
 
         disk_statuses = [get_disk_status(c) for c in self._disk_configs]
@@ -509,7 +494,7 @@ class Dispatcher:
                 if tmp_new.exists():
                     _force_rmtree(tmp_new)
             except OSError as e:
-                logger.warning("Failed to clean partial tmp_new %s: %s", tmp_new, e)
+                log.warning("replace_tmp_cleanup_failed", path=str(tmp_new), error=str(e), exc_info=True)
             return False
 
         # Phase 2: Atomic swap (critical — rollback on failure)
@@ -518,19 +503,20 @@ class Dispatcher:
                 os.rename(dest, tmp_old)
             os.rename(tmp_new, dest)
         except OSError as e:
-            logger.error(
-                "Replace failed: %s (tmp_old=%s, tmp_new=%s)",
-                e,
-                tmp_old,
-                tmp_new,
-            )
+            log.error("replace_swap_failed", exc_info=True, error=str(e), tmp_old=str(tmp_old), tmp_new=str(tmp_new))
             # Attempt to restore original from backup
             try:
                 if tmp_old.exists() and not dest.exists():
                     os.rename(tmp_old, dest)
-                    logger.info("Restored original from backup: %s", dest)
+                    log.info("replace_restored_from_backup", dest=str(dest))
             except OSError as restore_err:
-                logger.error("Failed to restore backup: %s", restore_err)
+                log.error(
+                    "replace_restore_failed",
+                    exc_info=True,
+                    error=str(restore_err),
+                    tmp_old=str(tmp_old),
+                    dest=str(dest),
+                )
             return False
 
         # Phase 3: Cleanup (non-critical — replace already succeeded)
@@ -538,11 +524,11 @@ class Dispatcher:
             if tmp_old.exists():
                 _force_rmtree(tmp_old)
         except OSError as e:
-            logger.warning("Failed to clean old copy %s: %s", tmp_old, e)
+            log.warning("replace_old_copy_cleanup_failed", path=str(tmp_old), error=str(e), exc_info=True)
         try:
             _force_rmtree(source)
         except OSError as e:
-            logger.warning("Failed to clean source %s: %s", source, e)
+            log.warning("replace_source_cleanup_failed", path=str(source), error=str(e), exc_info=True)
         return True
 
     def _merge(self, source: Path, dest: Path) -> bool:
@@ -575,11 +561,11 @@ class Dispatcher:
                 _force_rmtree(source)
                 return True
 
-            logger.error("Merge verification failed for %s", source.name)
+            log.error("merge_verify_failed", source=source.name)
             self._restore_merge_backup(dest, backup_dir)
             return False
         except OSError as e:
-            logger.error("Merge failed: %s", e)
+            log.error("merge_failed", error=str(e))
             self._restore_merge_backup(dest, backup_dir)
             return False
 
@@ -619,7 +605,7 @@ class Dispatcher:
             str(dest),
         ]
 
-        logger.info("rsync merge: %s → %s (backup: %s)", source.name, dest, backup_dir)
+        log.info("rsync_merge_start", source=source.name, dest=str(dest), backup=str(backup_dir))
         try:
             proc = subprocess.run(
                 cmd,
@@ -630,11 +616,11 @@ class Dispatcher:
                 errors="replace",
             )
             if proc.returncode != 0:
-                logger.error("rsync merge failed (rc=%d): %s", proc.returncode, proc.stderr)
+                log.error("rsync_merge_failed", returncode=proc.returncode, stderr=proc.stderr)
                 return False
             return True
         except subprocess.TimeoutExpired:
-            logger.error("rsync merge timed out for %s", source.name)
+            log.error("rsync_merge_timeout", source=source.name)
             return False
 
     @staticmethod
@@ -666,23 +652,19 @@ class Dispatcher:
                 original.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(backup_file, original)
                 restored += 1
-                logger.info("Restored from backup: %s", rel)
+                log.info("backup_file_restored", rel=str(rel))
             except OSError as e:
                 failed += 1
-                logger.error("Failed to restore %s: %s", rel, e)
+                log.error("backup_file_restore_failed", rel=str(rel), error=str(e))
 
         if failed:
-            logger.error(
-                "Merge backup restore: %d restored, %d failed",
-                restored,
-                failed,
-            )
+            log.error("merge_backup_restore_partial", restored=restored, failed=failed)
         else:
             # All files restored — safe to remove backup
             try:
                 _force_rmtree(backup_dir)
             except OSError as e:
-                logger.warning("Failed to clean backup dir: %s", e)
+                log.warning("backup_dir_cleanup_failed", path=str(backup_dir), error=str(e))
 
         return restored
 
@@ -708,7 +690,7 @@ class Dispatcher:
 
             # Clean orphan tmp from a previous failed attempt
             if tmp_dir.exists():
-                logger.warning("Cleaning orphan tmp: %s", tmp_dir)
+                log.warning("orphan_tmp_found", path=str(tmp_dir))
                 _force_rmtree(tmp_dir)
 
             # Stage: rsync to temporary directory
@@ -726,23 +708,23 @@ class Dispatcher:
                 return True
 
             # Verification failed — remove dest to restore clean state
-            logger.error("Transfer verification failed for %s", source.name)
+            log.error("transfer_verify_failed", source=source.name)
             try:
                 if dest.exists():
                     _force_rmtree(dest)
-                    logger.info("Cleaned failed destination: %s", dest)
+                    log.info("failed_dest_cleaned", dest=str(dest))
             except OSError as cleanup_err:
-                logger.warning("Failed to clean dest %s: %s", dest, cleanup_err)
+                log.warning("failed_dest_cleanup_failed", dest=str(dest), error=str(cleanup_err))
             return False
         except OSError as e:
-            logger.error("Move failed: %s", e)
+            log.error("move_failed", error=str(e))
             # Clean up temp or dest on any failure
             for path in (tmp_dir, dest):
                 try:
                     if path.exists():
                         _force_rmtree(path)
                 except OSError as cleanup_err:
-                    logger.warning("Failed to clean %s: %s", path, cleanup_err)
+                    log.warning("move_cleanup_failed", path=str(path), error=str(cleanup_err))
             return False
 
     def _rsync(self, source: Path, dest: Path, delete: bool = False) -> bool:
@@ -774,7 +756,7 @@ class Dispatcher:
             cmd.append("--delete")
         cmd.extend([f"{source}/", str(dest)])
 
-        logger.info("rsync: %s → %s", source.name, dest)
+        log.info("rsync_start", source=source.name, dest=str(dest))
         try:
             proc = subprocess.run(
                 cmd,
@@ -785,11 +767,11 @@ class Dispatcher:
                 errors="replace",
             )
             if proc.returncode != 0:
-                logger.error("rsync failed (rc=%d): %s", proc.returncode, proc.stderr)
+                log.error("rsync_failed", returncode=proc.returncode, stderr=proc.stderr)
                 return False
             return True
         except subprocess.TimeoutExpired:
-            logger.error("rsync timed out for %s", source.name)
+            log.error("rsync_timeout", source=source.name)
             return False
 
     def _verify_transfer(self, source: Path, dest: Path) -> bool:
@@ -811,14 +793,14 @@ class Dispatcher:
             rel = src_file.relative_to(source)
             dst_file = dest / rel
             if not dst_file.exists():
-                logger.warning("Missing after transfer: %s", rel)
+                log.warning("verify_missing_file", rel=str(rel))
                 return False
             try:
                 if src_file.stat().st_size != dst_file.stat().st_size:
-                    logger.warning("Size mismatch: %s", rel)
+                    log.warning("verify_size_mismatch", rel=str(rel))
                     return False
             except OSError as exc:
-                logger.warning("Cannot verify %s: %s", rel, exc)
+                log.warning("verify_stat_failed", rel=str(rel), error=str(exc))
         return True
 
     @staticmethod
@@ -836,7 +818,7 @@ class Dispatcher:
         """
         illegal = [f for f in directory.rglob("*") if f.is_file() and _FILENAME_ILLEGAL.search(f.name)]
         for f in illegal:
-            logger.warning("NTFS-illegal filename: %s", f)
+            log.warning("ntfs_illegal_filename", path=str(f))
         return len(illegal) > 0
 
     @staticmethod

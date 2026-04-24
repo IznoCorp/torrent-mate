@@ -11,7 +11,6 @@ the category_id (not the folder label).
 
 from __future__ import annotations
 
-import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,10 +34,11 @@ from personalscraper.library.models import (
     NfoStatus,
     SeasonInfo,
 )
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete
 
-logger = logging.getLogger(__name__)
+log = get_logger("library.scanner")
 
 # Title (Year) pattern — same as _parse_folder_name in scraper
 _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
@@ -107,7 +107,7 @@ def _dir_size_gb(path: Path) -> float:
                 except OSError:
                     continue
     except OSError as exc:
-        logger.warning("Cannot measure directory size %s: %s", path, exc)
+        log.warning("library_scan_dir_size_error", path=str(path), exc_info=True, error=str(exc))
     return total / (1024**3)
 
 
@@ -135,7 +135,7 @@ def extract_nfo_ids(nfo_path: Path) -> tuple[str | None, str | None]:
                 imdb_id = text
         return tmdb_id, imdb_id
     except (ET.ParseError, OSError) as exc:
-        logger.debug("Cannot parse NFO IDs from %s: %s", nfo_path, exc)
+        log.debug("library_scan_nfo_ids_parse_error", nfo=str(nfo_path), exc_info=True, error=str(exc))
         return None, None
 
 
@@ -413,7 +413,7 @@ def scan_library(
 
         # Skip unmounted disks
         if not disk.path.exists():
-            logger.warning("Disk not mounted: %s (%s)", disk.id, disk.path)
+            log.warning("library_scan_disk_not_mounted", disk=disk.id, path=str(disk.path))
             continue
 
         # Iterate category IDs on this disk
@@ -425,7 +425,7 @@ def scan_library(
             cat_cfg = config.category(category_id)
             category_dir = disk.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                logger.debug("Category folder not found: %s (disk=%s)", category_dir, disk.id)
+                log.debug("library_scan_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
             # TV shows have season/episode structure; movies have single-file structure
@@ -442,7 +442,7 @@ def scan_library(
                         item = scan_movie_dir(media_dir, disk.id, category_id)
                     items.append(item)
                 except OSError as exc:
-                    logger.warning("Error scanning %s: %s", media_dir, exc)
+                    log.warning("library_scan_item_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
 
     return LibraryScanResult(
         scanned_at=start,

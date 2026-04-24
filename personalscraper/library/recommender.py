@@ -7,7 +7,6 @@ Output format is the contract for future auto-download integration.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timezone
 
 from personalscraper.conf.models import LibraryPrefs
@@ -21,8 +20,9 @@ from personalscraper.library.models import (
     Recommendation,
     TargetState,
 )
+from personalscraper.logger import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger("library.recommender")
 
 
 def _max_priority(*priorities: str) -> str:

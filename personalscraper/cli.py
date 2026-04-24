@@ -9,7 +9,6 @@ and stored in ``ctx.obj`` (AppCtx) for all subcommands.
 from __future__ import annotations
 
 import functools
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,9 +26,9 @@ from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
-from personalscraper.logger import configure_logging
+from personalscraper.logger import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger("cli")
 
 
 @dataclass
@@ -112,7 +111,7 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
             return func(*args, **kwargs)
         except ValidationError as exc:
             msg = _format_validation(exc)
-            logging.getLogger("cli").error("Configuration error: %s", msg)
+            get_logger("cli").error("config_error", message=msg)
             state["console"].print(f"[red]Configuration error:[/red] {msg}")
             raise typer.Exit(1)
 
@@ -394,7 +393,7 @@ def process(
             clean, scrape, cleanup = run_process(settings, dry_run=dry_run, interactive=interactive, config=config)
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
-            logging.getLogger("pipeline").exception("Process command failed")
+            get_logger("pipeline").exception("process_command_failed", error=str(exc))
             raise typer.Exit(1)
 
         for label, report in [("Clean", clean), ("Scrape", scrape), ("Cleanup", cleanup)]:
@@ -430,7 +429,7 @@ def run(
     _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
-    log = logging.getLogger("pipeline")
+    _run_log = get_logger("pipeline")
 
     if not acquire_lock():
         console.print("[red]Another instance is running. Exiting.[/red]")
@@ -453,7 +452,7 @@ def run(
             f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
             highlight=False,
         )
-        log.info("Pipeline started (dry_run=%s, run_id=%s)", dry_run, run_id)
+        _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
 
         # Delegate to Pipeline orchestrator (8-step sequential flow)
         config = ctx.obj.config
@@ -471,7 +470,7 @@ def run(
         minutes = int(dur.total_seconds()) // 60
         seconds = int(dur.total_seconds()) % 60
         dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
-        log.info("Pipeline finished (duration=%s)", dur_str)
+        _run_log.info("pipeline_finished", duration=dur_str)
 
         # Final summary table (8 steps)
         table = Table(show_header=True, header_style="bold")
@@ -753,7 +752,7 @@ def library_analyze(
                     path = f.get("path", "")
                     existing[path] = f.get("size_gb", 0.0)
         except (OSError, KeyError, ValueError, TypeError) as exc:
-            logger.warning("Cannot load existing analysis for incremental mode: %s", exc)
+            log.warning("incremental_analysis_load_failed", error=str(exc))
             console.print(f"[yellow]Warning:[/yellow] Cannot read existing analysis ({exc}), re-analyzing all files.")
             existing = {}
 
@@ -978,7 +977,7 @@ def library_report(
             try:
                 return read_json(path)
             except (OSError, ValueError) as exc:
-                logger.warning("Cannot load %s: %s", name, exc)
+                log.warning("report_data_load_failed", file=name, error=str(exc))
                 console.print(f"[yellow]Warning: {name} corrupted ({exc}), skipping.[/yellow]")
                 return None
         return None
@@ -1020,8 +1019,9 @@ def info(ctx: typer.Context) -> None:
 
     config = ctx.obj.config
     assert config is not None  # guaranteed non-None by callback
+    console = state["console"]
     report = collect_info(config)
-    print(format_info(report))
+    console.print(format_info(report))
 
 
 # ── Setup commands ────────────────────────────────────────────────────────────

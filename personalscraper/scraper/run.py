@@ -7,19 +7,19 @@ for the pipeline framework.
 Lock is acquired at the CLI level, not here.
 """
 
-import logging
 from pathlib import Path
 
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper.scraper import Scraper, ScrapeResult
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
 
-logger = logging.getLogger(__name__)
+log = get_logger("run")
 
 
 def _has_unscraped_items(settings: Settings, config: Config) -> bool:
@@ -165,15 +165,15 @@ def run_scrape(
     try:
         needs_movie_repair = _needs_repair(staging / movies_dir_name, FileType.MOVIE)
     except OSError as exc:
-        logger.warning("Cannot check movie repair status: %s", exc)
+        log.warning("scrape_repair_check_failed", category="movies", error=str(exc))
         needs_movie_repair = True
     try:
         needs_tvshow_repair = _needs_repair(staging / tvshows_dir_name, FileType.TVSHOW)
     except OSError as exc:
-        logger.warning("Cannot check tvshow repair status: %s", exc)
+        log.warning("scrape_repair_check_failed", category="tvshows", error=str(exc))
         needs_tvshow_repair = True
     if not _has_unscraped_items(settings, config) and not needs_movie_repair and not needs_tvshow_repair:
-        logger.info("Scrape fast-skip: all NFOs valid, artwork present, no repairs needed")
+        log.info("scrape_fast_skip")
         return StepReport(name="scrape")
 
     scraper = Scraper(

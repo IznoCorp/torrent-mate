@@ -9,13 +9,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import structlog
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.conf.models import Config, StagingDirConfig
     from personalscraper.sorter.file_type import FileType
 
-_log = structlog.get_logger(__name__)
+_log = get_logger("staging")
 
 
 def folder_name(entry: "StagingDirConfig") -> str:

@@ -5,10 +5,12 @@ match integration, and batch processing. Uses mocked API clients and
 filesystem operations.
 """
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from guessit.api import GuessitException
 
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
@@ -1741,3 +1743,434 @@ class TestClassifierIntegration:
 
         assert result.action == "scraped"
         assert result.category_id is None  # classification skipped
+
+
+# ---------------------------------------------------------------------------
+# Narrowed exception arm regression tests (SP6.5 + SP7.1)
+# ---------------------------------------------------------------------------
+
+
+class TestParseFolderNameNarrowedExceptions:
+    """Regression tests for the narrowed exception arms in _parse_folder_name.
+
+    Covers the TypeError arm added in SP6.5 and the GuessitException arm added
+    in SP7.1. Each test verifies that:
+    - The function does NOT raise.
+    - The ``folder_name_clean_failed`` warning event is emitted via structlog.
+    - The return value is ``(name.strip(), None)``.
+    """
+
+    def test_parse_folder_name_handles_guessit_exception(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """GuessitException from NameCleaner.clean is caught and logged gracefully.
+
+        Patches NameCleaner.clean with side_effect=GuessitException so the
+        narrowed except arm introduced in SP7.1 is exercised without crashing.
+
+        Args:
+            caplog: Pytest log capture fixture.
+        """
+        raw_name = "Some.Malformed.Release.Name.2024"
+
+        with (
+            patch(
+                "personalscraper.sorter.cleaner.NameCleaner.clean",
+                side_effect=GuessitException("bad name", {}),
+            ),
+            caplog.at_level(logging.WARNING, logger="scraper"),
+        ):
+            title, year = _parse_folder_name(raw_name)
+
+        assert title == raw_name.strip()
+        assert year is None
+        assert any(
+            isinstance(r.msg, dict) and r.msg.get("event") == "folder_name_clean_failed" for r in caplog.records
+        ), "expected 'folder_name_clean_failed' warning event in caplog"
+
+    def test_parse_folder_name_handles_type_error(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """TypeError from NameCleaner.clean is caught and logged gracefully.
+
+        Patches NameCleaner.clean with side_effect=TypeError to exercise the
+        TypeError arm of the narrowed except tuple introduced in SP6.5.
+
+        Args:
+            caplog: Pytest log capture fixture.
+        """
+        raw_name = "Another.Bad.Release.2023"
+
+        with (
+            patch(
+                "personalscraper.sorter.cleaner.NameCleaner.clean",
+                side_effect=TypeError("unexpected type"),
+            ),
+            caplog.at_level(logging.WARNING, logger="scraper"),
+        ):
+            title, year = _parse_folder_name(raw_name)
+
+        assert title == raw_name.strip()
+        assert year is None
+        assert any(
+            isinstance(r.msg, dict) and r.msg.get("event") == "folder_name_clean_failed" for r in caplog.records
+        ), "expected 'folder_name_clean_failed' warning event in caplog"
+
+
+class TestMovieArtworkFailedNarrowedExceptions:
+    """Regression tests for the narrowed artwork exception arm in scrape_movie.
+
+    Covers the KeyError/AttributeError arms added to the artwork download
+    try/except in SP7.1 (scraper.py line 1239). Verifies that:
+    - Processing continues (action == "scraped", no propagated exception).
+    - The ``movie_artwork_failed`` warning event is emitted via structlog.
+    - A warning string is appended to ScrapeResult.warnings.
+    """
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings with minimal API key attributes.
+
+        Returns:
+            MagicMock with tmdb_api_key and tvdb_api_key set.
+        """
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with a patched TMDBClient.
+
+        Args:
+            mock_settings: Mock Settings fixture.
+
+        Returns:
+            Scraper instance with patched TMDBClient.
+        """
+        with patch("personalscraper.scraper.scraper.TMDBClient"):
+            return Scraper(mock_settings, NamingPatterns())
+
+    def test_movie_artwork_failed_on_key_error(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """KeyError from download_movie_artwork is caught, logged, and added to warnings.
+
+        Patches ArtworkDownloader.download_movie_artwork with
+        side_effect=KeyError("missing_template_var") so the narrowed except arm
+        covering KeyError (added in SP7.1) is exercised inside scrape_movie.
+        Processing must continue — no exception propagates, action stays "scraped".
+
+        Args:
+            scraper: Scraper fixture with mocked clients.
+            tmp_path: Pytest temporary directory fixture.
+            caplog: Pytest log capture fixture.
+        """
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "The Matrix.mkv").write_bytes(b"\x00" * 100)
+
+        match = MatchResult(
+            api_id=603,
+            api_title="The Matrix",
+            api_year=1999,
+            confidence=0.95,
+            source="tmdb",
+        )
+        movie_data = {
+            "id": 603,
+            "title": "The Matrix",
+            "overview": "A computer hacker...",
+            "vote_average": 8.2,
+            "vote_count": 20000,
+            "genres": [{"name": "Action"}],
+            "release_date": "1999-03-31",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt0133093"},
+            "release_dates": {"results": []},
+            "production_countries": [],
+            "production_companies": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(
+                scraper._artwork,
+                "download_movie_artwork",
+                side_effect=KeyError("missing_template_var"),
+            ),
+            caplog.at_level(logging.WARNING, logger="scraper"),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        # Processing must continue — action must be "scraped", not "error"
+        assert result.action == "scraped", f"Expected 'scraped', got '{result.action}' ({result.error})"
+        # Warning must be appended to the result
+        assert any("Artwork failed" in w for w in result.warnings), (
+            f"Expected 'Artwork failed' in result.warnings, got: {result.warnings}"
+        )
+        # movie_artwork_failed event must be emitted
+        assert any(isinstance(r.msg, dict) and r.msg.get("event") == "movie_artwork_failed" for r in caplog.records), (
+            "expected 'movie_artwork_failed' warning event in caplog"
+        )
+
+    def test_movie_artwork_failed_on_attribute_error(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AttributeError from download_movie_artwork is caught, logged, and added to warnings.
+
+        Patches ArtworkDownloader.download_movie_artwork with
+        side_effect=AttributeError("missing_attr") so the narrowed except arm
+        covering AttributeError (added in SP7.1) is exercised inside scrape_movie.
+        Processing must continue — no exception propagates, action stays "scraped".
+
+        Args:
+            scraper: Scraper fixture with mocked clients.
+            tmp_path: Pytest temporary directory fixture.
+            caplog: Pytest log capture fixture.
+        """
+        movie_dir = tmp_path / "The Matrix (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "The Matrix.mkv").write_bytes(b"\x00" * 100)
+
+        match = MatchResult(
+            api_id=603,
+            api_title="The Matrix",
+            api_year=1999,
+            confidence=0.95,
+            source="tmdb",
+        )
+        movie_data = {
+            "id": 603,
+            "title": "The Matrix",
+            "overview": "A computer hacker...",
+            "vote_average": 8.2,
+            "vote_count": 20000,
+            "genres": [{"name": "Action"}],
+            "release_date": "1999-03-31",
+            "credits": {"cast": [], "crew": []},
+            "images": {"posters": [], "backdrops": []},
+            "external_ids": {"imdb_id": "tt0133093"},
+            "release_dates": {"results": []},
+            "production_countries": [],
+            "production_companies": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_movie", return_value=match),
+            patch.object(scraper._tmdb, "get_movie", return_value=movie_data),
+            patch("personalscraper.scraper.scraper.extract_stream_info", return_value=None),
+            patch.object(
+                scraper._artwork,
+                "download_movie_artwork",
+                side_effect=AttributeError("missing_attr"),
+            ),
+            caplog.at_level(logging.WARNING, logger="scraper"),
+        ):
+            result = scraper.scrape_movie(movie_dir)
+
+        # Processing must continue — action must be "scraped", not "error"
+        assert result.action == "scraped", f"Expected 'scraped', got '{result.action}' ({result.error})"
+        # Warning must be appended to the result
+        assert any("Artwork failed" in w for w in result.warnings), (
+            f"Expected 'Artwork failed' in result.warnings, got: {result.warnings}"
+        )
+        # movie_artwork_failed event must be emitted
+        assert any(isinstance(r.msg, dict) and r.msg.get("event") == "movie_artwork_failed" for r in caplog.records), (
+            "expected 'movie_artwork_failed' warning event in caplog"
+        )
+
+
+class TestShowArtworkFailedNarrowedExceptions:
+    """Regression tests for the narrowed artwork exception arm in scrape_tvshow.
+
+    Covers the KeyError/AttributeError arms added to the artwork download
+    try/except in SP7.1 (scraper.py line 1501). Verifies that:
+    - Processing continues (action == "scraped", no propagated exception).
+    - The ``show_artwork_failed`` warning event is emitted via structlog.
+    - A warning string is appended to ScrapeResult.warnings.
+    """
+
+    @pytest.fixture
+    def mock_settings(self) -> MagicMock:
+        """Create mock Settings with minimal API key attributes.
+
+        Returns:
+            MagicMock with tmdb_api_key and tvdb_api_key set.
+        """
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        return settings
+
+    @pytest.fixture
+    def scraper(self, mock_settings: MagicMock) -> Scraper:
+        """Create a Scraper with patched TMDBClient and TVDBClient.
+
+        Args:
+            mock_settings: Mock Settings fixture.
+
+        Returns:
+            Scraper instance with patched API clients.
+        """
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient"),
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            return Scraper(mock_settings, NamingPatterns())
+
+    def test_show_artwork_failed_on_key_error(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """KeyError from download_tvshow_artwork is caught, logged, and added to warnings.
+
+        Patches ArtworkDownloader.download_tvshow_artwork with
+        side_effect=KeyError("missing_template_var") so the narrowed except arm
+        covering KeyError (added in SP7.1) is exercised inside scrape_tvshow.
+        Processing must continue — no exception propagates, action stays "scraped".
+
+        Args:
+            scraper: Scraper fixture with mocked clients.
+            tmp_path: Pytest temporary directory fixture.
+            caplog: Pytest log capture fixture.
+        """
+        show_dir = tmp_path / "Fallout (2024)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=106379,
+            api_title="Fallout",
+            api_year=2024,
+            confidence=0.95,
+            source="tmdb",
+        )
+        show_data = {
+            "id": 106379,
+            "name": "Fallout",
+            "original_name": "Fallout",
+            "overview": "Test",
+            "vote_average": 8.1,
+            "vote_count": 2000,
+            "genres": [],
+            "first_air_date": "2024-04-10",
+            "status": "Returning Series",
+            "networks": [{"name": "Prime Video"}],
+            "origin_country": ["US"],
+            "number_of_episodes": 8,
+            "number_of_seasons": 1,
+            "external_ids": {"imdb_id": "tt12637874", "tvdb_id": 416744},
+            "aggregate_credits": {"cast": []},
+            "images": {"posters": [], "backdrops": []},
+            "content_ratings": {"results": []},
+            "seasons": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(
+                scraper._artwork,
+                "download_tvshow_artwork",
+                side_effect=KeyError("missing_template_var"),
+            ),
+            caplog.at_level(logging.WARNING, logger="scraper"),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        # Processing must continue — action must be "scraped", not "error"
+        assert result.action == "scraped", f"Expected 'scraped', got '{result.action}' ({result.error})"
+        # Warning must be appended to the result
+        assert any("Artwork failed" in w for w in result.warnings), (
+            f"Expected 'Artwork failed' in result.warnings, got: {result.warnings}"
+        )
+        # show_artwork_failed event must be emitted
+        assert any(isinstance(r.msg, dict) and r.msg.get("event") == "show_artwork_failed" for r in caplog.records), (
+            "expected 'show_artwork_failed' warning event in caplog"
+        )
+
+    def test_show_artwork_failed_on_attribute_error(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """AttributeError from download_tvshow_artwork is caught, logged, and added to warnings.
+
+        Patches ArtworkDownloader.download_tvshow_artwork with
+        side_effect=AttributeError("missing_attr") so the narrowed except arm
+        covering AttributeError (added in SP7.1) is exercised inside scrape_tvshow.
+        Processing must continue — no exception propagates, action stays "scraped".
+
+        Args:
+            scraper: Scraper fixture with mocked clients.
+            tmp_path: Pytest temporary directory fixture.
+            caplog: Pytest log capture fixture.
+        """
+        show_dir = tmp_path / "Fallout (2024)"
+        show_dir.mkdir()
+
+        match = MatchResult(
+            api_id=106379,
+            api_title="Fallout",
+            api_year=2024,
+            confidence=0.95,
+            source="tmdb",
+        )
+        show_data = {
+            "id": 106379,
+            "name": "Fallout",
+            "original_name": "Fallout",
+            "overview": "Test",
+            "vote_average": 8.1,
+            "vote_count": 2000,
+            "genres": [],
+            "first_air_date": "2024-04-10",
+            "status": "Returning Series",
+            "networks": [{"name": "Prime Video"}],
+            "origin_country": ["US"],
+            "number_of_episodes": 8,
+            "number_of_seasons": 1,
+            "external_ids": {"imdb_id": "tt12637874", "tvdb_id": 416744},
+            "aggregate_credits": {"cast": []},
+            "images": {"posters": [], "backdrops": []},
+            "content_ratings": {"results": []},
+            "seasons": [],
+        }
+
+        with (
+            patch("personalscraper.scraper.scraper.match_tvshow", return_value=match),
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(
+                scraper._artwork,
+                "download_tvshow_artwork",
+                side_effect=AttributeError("missing_attr"),
+            ),
+            caplog.at_level(logging.WARNING, logger="scraper"),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        # Processing must continue — action must be "scraped", not "error"
+        assert result.action == "scraped", f"Expected 'scraped', got '{result.action}' ({result.error})"
+        # Warning must be appended to the result
+        assert any("Artwork failed" in w for w in result.warnings), (
+            f"Expected 'Artwork failed' in result.warnings, got: {result.warnings}"
+        )
+        # show_artwork_failed event must be emitted
+        assert any(isinstance(r.msg, dict) and r.msg.get("event") == "show_artwork_failed" for r in caplog.records), (
+            "expected 'show_artwork_failed' warning event in caplog"
+        )

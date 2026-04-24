@@ -9,10 +9,10 @@ and the next dispatch treats the item as a merge rather than a
 new (duplicate) folder.
 """
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.text_utils import sanitize_filename
@@ -20,7 +20,7 @@ from personalscraper.text_utils import sanitize_filename
 if TYPE_CHECKING:
     from personalscraper.conf.models import Config
 
-logger = logging.getLogger(__name__)
+log = get_logger("process.reclean")
 
 
 def _propagate_rename_to_disks(
@@ -60,7 +60,7 @@ def _propagate_rename_to_disks(
         try:
             category_dirs = [p for p in disk.path.iterdir() if p.is_dir()]
         except OSError as exc:
-            logger.warning("Cannot scan disk %s for rename propagation: %s", disk.id, exc)
+            log.warning("process_reclean_disk_scan_error", disk=disk.id, exc_info=True, error=str(exc))
             continue
         for cat_dir in category_dirs:
             src = cat_dir / old_name
@@ -68,40 +68,41 @@ def _propagate_rename_to_disks(
                 continue
             dst = cat_dir / new_name
             if dst.exists():
-                logger.warning(
-                    "Cannot rename on %s:%s — target '%s' already exists (dispatch will merge)",
-                    disk.id,
-                    cat_dir.name,
-                    new_name,
+                log.warning(
+                    "process_reclean_disk_target_exists",
+                    disk=disk.id,
+                    category=cat_dir.name,
+                    new_name=new_name,
                 )
                 touched.append(f"{disk.id}:{cat_dir.name} target exists (skipped)")
                 continue
             if dry_run:
-                logger.info(
-                    "[DRY-RUN] Would rename on %s:%s: %s → %s",
-                    disk.id,
-                    cat_dir.name,
-                    old_name,
-                    new_name,
+                log.info(
+                    "process_reclean_disk_would_rename",
+                    disk=disk.id,
+                    category=cat_dir.name,
+                    old_name=old_name,
+                    new_name=new_name,
                 )
                 touched.append(f"{disk.id}:{cat_dir.name} (dry-run)")
                 continue
             try:
                 src.rename(dst)
-                logger.info(
-                    "Propagated reclean rename on %s:%s: %s → %s",
-                    disk.id,
-                    cat_dir.name,
-                    old_name,
-                    new_name,
+                log.info(
+                    "process_reclean_disk_renamed",
+                    disk=disk.id,
+                    category=cat_dir.name,
+                    old_name=old_name,
+                    new_name=new_name,
                 )
                 touched.append(f"{disk.id}:{cat_dir.name}")
             except OSError as exc:
-                logger.warning(
-                    "Failed to propagate rename on %s:%s: %s",
-                    disk.id,
-                    cat_dir.name,
-                    exc,
+                log.warning(
+                    "process_reclean_disk_rename_failed",
+                    disk=disk.id,
+                    category=cat_dir.name,
+                    exc_info=True,
+                    error=str(exc),
                 )
                 touched.append(f"{disk.id}:{cat_dir.name} failed: {exc}")
     return touched
@@ -239,7 +240,7 @@ def reclean_folders(
 
         if dry_run:
             action = "merge into" if target.exists() else "rename"
-            logger.info("[DRY-RUN] Would %s: %s → %s", action, folder.name, clean_name)
+            log.info("process_reclean_dry_run", action=action, folder=folder.name, clean_name=clean_name)
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {folder.name} → {clean_name}")
             if config is not None and not target.exists():
@@ -251,14 +252,14 @@ def reclean_folders(
         try:
             if target.exists():
                 moved, merge_failed = _merge_dirs(folder, target)
-                logger.info("Reclean+merge: %s → %s (%d items)", folder.name, clean_name, moved)
+                log.info("process_reclean_merged", folder=folder.name, clean_name=clean_name, moved=moved)
                 report.details.append(f"{folder.name} → {clean_name} (merged {moved} items)")
                 if merge_failed:
                     report.warnings.append(f"{folder.name}: {merge_failed} item(s) failed during merge")
             else:
                 old_name = folder.name
                 folder.rename(target)
-                logger.info("Reclean: %s → %s", old_name, clean_name)
+                log.info("process_reclean_renamed", old_name=old_name, clean_name=clean_name)
                 report.details.append(f"{old_name} → {clean_name}")
                 if config is not None:
                     touched = _propagate_rename_to_disks(config, old_name, clean_name, dry_run=False)
@@ -266,11 +267,11 @@ def reclean_folders(
                         report.details.append(f"  disk-propagate: {', '.join(touched)}")
             report.success_count += 1
         except OSError as exc:
-            logger.warning("Reclean failed for %s: %s", folder.name, exc)
+            log.warning("process_reclean_failed", folder=folder.name, exc_info=True, error=str(exc))
             report.error_count += 1
             report.warnings.append(f"{folder.name}: {exc}")
         except Exception as exc:
-            logger.error("Unexpected error recleaning %s: %s", folder.name, exc, exc_info=True)
+            log.error("process_reclean_unexpected_error", folder=folder.name, exc_info=True, error=str(exc))
             report.error_count += 1
             report.warnings.append(f"{folder.name}: unexpected error: {exc}")
 

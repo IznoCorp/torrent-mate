@@ -6,14 +6,13 @@ fault-tolerant and never raise — failures are logged as warnings
 but never halt the pipeline.
 """
 
-import logging
-
 import requests
 
 from personalscraper.config import Settings
+from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport
 
-logger = logging.getLogger(__name__)
+log = get_logger("notifier")
 
 # Telegram API base URL (Bot API)
 _TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
@@ -61,18 +60,18 @@ class TelegramNotifier:
         try:
             resp = requests.post(url, json=payload, timeout=_TIMEOUT)
             if resp.ok:
-                logger.info("Telegram message sent to %s", self.chat_id)
+                log.info("telegram_sent", chat_id=self.chat_id)
                 return True
-            logger.warning("Telegram API error %d: %s", resp.status_code, resp.text[:200])
+            log.warning("telegram_api_error", status_code=resp.status_code, body=resp.text[:200])
             return False
         except requests.Timeout:
-            logger.warning("Telegram request timed out (%ds)", _TIMEOUT)
+            log.warning("telegram_timeout", timeout_s=_TIMEOUT)
             return False
         except requests.RequestException as exc:
-            logger.warning("Telegram send failed: %s", exc)
+            log.warning("telegram_send_failed", exc_info=True, error=str(exc))
             return False
-        except Exception as exc:
-            logger.error("Unexpected error in Telegram notifier: %s", exc, exc_info=True)
+        except Exception as exc:  # noqa: BLE001 — best-effort fallback; notification must not mask the underlying operation
+            log.exception("telegram_unexpected_error", error=str(exc))
             return False
 
     def send_report(self, report: PipelineReport) -> bool:
@@ -116,6 +115,6 @@ def ping_healthcheck(url: str, status: str = "") -> None:
     try:
         requests.get(f"{url}{status}", timeout=5)
     except requests.RequestException as exc:
-        logger.warning("Healthcheck ping failed for %s%s: %s", url, status, exc)
+        log.warning("healthcheck_ping_failed", url=url, status=status, error=str(exc))
     except Exception as exc:
-        logger.warning("Unexpected error pinging healthcheck %s%s: %s", url, status, exc, exc_info=True)
+        log.warning("healthcheck_unexpected_error", url=url, status=status, error=str(exc), exc_info=True)

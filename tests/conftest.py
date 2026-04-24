@@ -1,4 +1,9 @@
-"""Shared pytest fixtures for PersonalScraper tests."""
+"""Shared pytest fixtures for PersonalScraper tests.
+
+Installs structlog via :func:`personalscraper.logger.configure_logging` before any test runs,
+so that stdlib-bridged `caplog` assertions see the expected records irrespective of which
+subset of tests is collected (e.g. ``pytest tests/sorter/`` in isolation).
+"""
 
 import os
 from pathlib import Path
@@ -6,7 +11,9 @@ from unittest.mock import patch
 
 import pytest
 
+import personalscraper.logger as _logger_mod
 from personalscraper.config import Settings
+from personalscraper.logger import configure_logging
 
 # Expose shared fixtures from the fixtures package
 pytest_plugins = ["tests.fixtures.config"]
@@ -19,6 +26,35 @@ os.environ.setdefault("TERM", "dumb")
 # Patch targets for the eager config load in the CLI callback.
 _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _configure_logging_for_tests(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Configure structlog once per session for caplog interop.
+
+    Points LOGS_DIR to a temporary directory so tests never write to the
+    real ``logs/`` directory at the repository root.  Wraps the call in
+    try/except so a misconfiguration surfaces as an explicit pytest failure
+    rather than a silent no-op that lets later assertions fail for obscure
+    reasons.
+
+    Args:
+        tmp_path_factory: Session-scoped factory for temporary directories.
+    """
+    # Redirect log output to a per-session temp dir so the real logs/ dir is
+    # never touched during the test run.
+    session_logs_dir: Path = tmp_path_factory.mktemp("logs", numbered=True)
+
+    # Use pytest.MonkeyPatch.context() for session-scoped attribute patching
+    # (the function-scoped monkeypatch fixture is not available here).
+    mp = pytest.MonkeyPatch()
+    mp.setattr(_logger_mod, "LOGS_DIR", session_logs_dir)
+    # Session-scoped patch: no undo needed (all tests share the same logs dir).
+
+    try:
+        configure_logging(verbose=False, quiet=False)
+    except Exception as exc:  # noqa: BLE001 — surface any misconfiguration
+        pytest.fail(f"configure_logging() failed: {exc}")
 
 
 @pytest.fixture(autouse=True)

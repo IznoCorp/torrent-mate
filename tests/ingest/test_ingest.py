@@ -6,8 +6,11 @@ already ingested, copy (seeding), move (done), disk space check, verify
 fail, dry run, and multiple torrents.
 """
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from personalscraper.ingest.ingest import (
     _check_disk_space,
@@ -784,3 +787,43 @@ class TestRunIngest:
 
         assert report.skip_count == 1
         mock_tracker.mark_ingested.assert_called_once()
+
+    @patch("personalscraper.ingest.ingest.QBitClient")
+    def test_ingest_unexpected_error_logs_and_increments(
+        self,
+        mock_qbit_cls: MagicMock,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Unexpected exception on QBitClient.__enter__ emits ingest_unexpected_error and increments error_count.
+
+        The catch-all ``except Exception`` handler in ``run_ingest`` must emit
+        the ``ingest_unexpected_error`` event with ``error_type`` set to the
+        exception class name and must increment ``report.error_count``.
+
+        Args:
+            mock_qbit_cls: Patched QBitClient class.
+            tmp_path: Pytest temporary directory fixture.
+            caplog: Pytest log capture fixture.
+        """
+        settings = MagicMock()
+        settings.ingest_dir = tmp_path / "097-TEMP"
+
+        mock_client = MagicMock()
+        mock_client.__enter__ = MagicMock(side_effect=RuntimeError("boom"))
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_qbit_cls.return_value = mock_client
+
+        with caplog.at_level(logging.ERROR, logger="ingest"):
+            report = run_ingest(settings, config=_make_config(tmp_path))
+
+        assert report.error_count >= 1
+
+        # Verify the ingest_unexpected_error event was emitted with error_type
+        matching = [
+            r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "ingest_unexpected_error"
+        ]
+        assert matching, "ingest event 'ingest_unexpected_error' was not emitted"
+        assert matching[0].msg.get("error_type") == "RuntimeError", (
+            f"expected error_type='RuntimeError', got {matching[0].msg.get('error_type')!r}"
+        )

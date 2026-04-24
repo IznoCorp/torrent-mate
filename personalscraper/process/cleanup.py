@@ -5,12 +5,12 @@ if parents became empty. Treats directories containing only .DS_Store
 as empty. Never removes the category root directory itself.
 """
 
-import logging
 from pathlib import Path
 
+from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 
-logger = logging.getLogger(__name__)
+log = get_logger("process.cleanup")
 
 # Files that don't count as "content" (macOS metadata)
 _JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
@@ -72,12 +72,12 @@ def cleanup_empty_dirs(
             if not _is_effectively_empty(directory):
                 continue
         except OSError as exc:
-            logger.warning("Cannot access dir %s: %s", directory.name, exc)
+            log.warning("process_cleanup_access_error", dir=directory.name, exc_info=True, error=str(exc))
             continue
 
         rel_path = directory.relative_to(category_dir)
         if dry_run:
-            logger.info("[DRY-RUN] Would remove empty dir: %s", rel_path)
+            log.info("process_cleanup_dry_run", rel_path=str(rel_path))
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {rel_path}")
         else:
@@ -86,11 +86,11 @@ def cleanup_empty_dirs(
                 for junk in directory.iterdir():
                     junk.unlink()
                 directory.rmdir()
-                logger.info("Removed empty dir: %s", rel_path)
+                log.info("process_cleanup_removed", rel_path=str(rel_path))
                 report.success_count += 1
                 report.details.append(str(rel_path))
             except OSError as exc:
-                logger.warning("Failed to remove dir %s: %s", rel_path, exc)
+                log.warning("process_cleanup_remove_failed", rel_path=str(rel_path), exc_info=True, error=str(exc))
                 report.error_count += 1
                 report.warnings.append(f"Failed to remove {rel_path}: {exc}")
 

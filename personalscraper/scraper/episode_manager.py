@@ -9,14 +9,14 @@ These functions are used by the TV show orchestrator (scraper.py)
 to organize episodes after metadata matching.
 """
 
-import logging
 import re
 from pathlib import Path
 from typing import Any
 
+from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 
-logger = logging.getLogger(__name__)
+log = get_logger("episode_manager")
 
 # Subtitle extensions to rename alongside video files
 SUBTITLE_EXTENSIONS = frozenset({"srt", "sub", "vtt", "ass", "ssa", "idx"})
@@ -80,15 +80,15 @@ def create_season_dirs(
         dir_name = patterns.format("season_dir", Season=season_num)
         season_dir = show_dir / dir_name
         if season_dir.exists():
-            logger.info("Season directory already exists: %s", dir_name)
+            log.info("season_dir_exists", directory=dir_name)
             created.append(season_dir)
             continue
         if dry_run:
-            logger.info("[DRY RUN] Would create directory: %s", dir_name)
+            log.info("season_dir_would_create", directory=dir_name)
             created.append(season_dir)
             continue
         season_dir.mkdir(parents=True, exist_ok=True)
-        logger.info("Created season directory: %s", dir_name)
+        log.info("season_dir_created", directory=dir_name)
         created.append(season_dir)
 
     return created
@@ -119,10 +119,7 @@ def match_episode_files(
     for video_path in video_files:
         season, episode = _extract_season_episode(video_path.name)
         if season is None or episode is None:
-            logger.warning(
-                "Could not extract S/E from filename: %s",
-                video_path.name,
-            )
+            log.warning("episode_se_not_found", filename=video_path.name)
             continue
 
         key = (season, episode)
@@ -135,12 +132,7 @@ def match_episode_files(
                 "still_path": ep_info.get("still_path", ""),
             }
         else:
-            logger.warning(
-                "Episode S%02dE%02d not found in API data: %s",
-                season,
-                episode,
-                video_path.name,
-            )
+            log.warning("episode_not_in_api", season=season, episode=episode, filename=video_path.name)
 
     return matched
 
@@ -189,16 +181,16 @@ def rename_episodes(
 
         # Skip if already correctly named and in the right place
         if video_path == dest:
-            logger.info("Episode already correctly named: %s", dest.name)
+            log.info("episode_already_named", filename=dest.name)
             renamed_count += 1
             continue
 
         if dry_run:
-            logger.info("[DRY RUN] Would rename: %s → %s", video_path.name, dest)
+            log.info("episode_would_rename", source=video_path.name, dest=str(dest))
         else:
             season_dir.mkdir(parents=True, exist_ok=True)
             video_path.rename(dest)
-            logger.info("Renamed: %s → %s", video_path.name, dest.name)
+            log.info("episode_renamed", source=video_path.name, dest=dest.name)
 
         renamed_count += 1
 
@@ -252,7 +244,7 @@ def _rename_subtitles(
             continue
 
         if dry_run:
-            logger.info("[DRY RUN] Would rename subtitle: %s → %s", sub_file.name, new_sub_name)
+            log.info("subtitle_would_rename", source=sub_file.name, dest=new_sub_name)
         else:
             sub_file.rename(dest)
-            logger.info("Renamed subtitle: %s → %s", sub_file.name, new_sub_name)
+            log.info("subtitle_renamed", source=sub_file.name, dest=new_sub_name)

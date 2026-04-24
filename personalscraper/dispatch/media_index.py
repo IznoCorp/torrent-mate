@@ -16,7 +16,6 @@ default is no longer supported.
 from __future__ import annotations
 
 import json
-import logging
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
@@ -25,11 +24,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from personalscraper.io_utils import atomic_write_json
+from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
     from personalscraper.conf.models import CategoryConfig, DiskConfig, FuzzyMatchConfig
 
-logger = logging.getLogger(__name__)
+log = get_logger("media_index")
 
 _YEAR_PATTERN = re.compile(r"\b((?:19|20)\d{2})\b")
 
@@ -134,11 +134,7 @@ class MediaIndex:
             raw: dict[str, Any] = json.loads(self._path.read_text(encoding="utf-8"))
             self._entries = {k: IndexEntry(**v) for k, v in raw.items()}
         except (json.JSONDecodeError, TypeError, KeyError) as exc:
-            logger.error(
-                "Corrupted index %s: %s — starting fresh (risk of duplicates on disks)",
-                self._path,
-                exc,
-            )
+            log.error("index_load_corrupted", path=str(self._path), error=str(exc))
             self._entries = {}
 
     def save(self) -> None:
@@ -205,7 +201,7 @@ class MediaIndex:
 
             return best_entry
         except ImportError:
-            logger.warning("rapidfuzz not available — fuzzy matching disabled, exact match only")
+            log.warning("fuzzy_match_disabled", reason="rapidfuzz_not_available")
             return None
 
     def add(self, entry: IndexEntry) -> None:
@@ -254,7 +250,7 @@ class MediaIndex:
 
         for config in disk_configs:
             if not config.path.exists():
-                logger.info("Disk not mounted, skipping: %s", config.id)
+                log.info("disk_not_mounted", disk=config.id)
                 continue
 
             for category_dir in config.path.iterdir():
@@ -291,7 +287,7 @@ class MediaIndex:
                     )
                     self.add(entry)
 
-        logger.info("Index rebuilt: %d entries", len(self._entries))
+        log.info("index_rebuilt", entries=len(self._entries))
         return len(self._entries)
 
     def remove_stale(self, disk_configs: list["DiskConfig"]) -> int:
@@ -312,7 +308,7 @@ class MediaIndex:
             del self._entries[key]
 
         if stale_keys:
-            logger.info("Removed %d stale index entries", len(stale_keys))
+            log.info("index_stale_removed", count=len(stale_keys))
         return len(stale_keys)
 
     @property
