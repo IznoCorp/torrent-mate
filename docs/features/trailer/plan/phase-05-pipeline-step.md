@@ -106,10 +106,25 @@ git add -p personalscraper/  # only the rewrite hunks
 git commit -m "refactor(trailer): use kwargs for StepReport constructions (pre-extension)"
 ```
 
-Expected audit targets (based on current layout — re-run grep to confirm):
+Expected audit targets (as of commit `6bd2b66` — re-run grep to confirm exact line numbers):
 
-- `personalscraper/pipeline.py` — `_run_step()` wrappers, the empty-dispatch skip branch
-- `personalscraper/notifier.py` — Telegram summary builder
+- `personalscraper/pipeline.py` (lines 284, 444) — `_run_step()` wrappers, empty-dispatch skip branch
+- `personalscraper/scraper/run.py` (lines 182, 256)
+- `personalscraper/sorter/run.py` (lines 49, 57)
+- `personalscraper/verify/run.py` (lines 71, 128)
+- `personalscraper/enforce/run.py` (line 74)
+- `personalscraper/dispatch/run.py` (line 173)
+- `personalscraper/ingest/ingest.py` (line 198)
+- `personalscraper/process/run.py` (lines 44, 92, 131, 141, 151)
+- `personalscraper/process/cleanup.py` (line 51)
+- `personalscraper/process/reclean.py` (line 216)
+- `personalscraper/notifier.py` — consumes `report.to_html()` (no direct `StepReport(…)` construction as of audit)
+
+Pre-audit finding (commit `6bd2b66`): ~20 call-sites across 11 files, **all** already use
+keyword arguments after the first positional `name=` field. The preparatory kwargs-rewrite
+commit may therefore be a no-op — confirm before committing. If all call-sites are already
+kwargs-safe, skip the rewrite commit entirely and proceed to Step 1.
+
 - `personalscraper/models.py` — `PipelineReport.to_html()` / `.add_step()`
 
 Also add a non-regression test in `tests/test_models.py` that constructs `StepReport`

@@ -1,15 +1,10 @@
 # trailer — Implementation Plan Index
 
-> **Note:** This plan was prepared ahead of time by `/implement:prepare-feature`. When
-> `/implement:feature trailer` runs later, it will move this plan to
-> `docs/features/trailer/plan/` and wire it into `IMPLEMENTATION.md`.
-
 **Feature**: YoutubeTrailerScraper Integration
 **Codename**: `trailer`
-**Design**: `docs/superpowers/roadmap/trailer/specs/DESIGN.md`
-**Branch (future)**: `feat/trailer`
-**Version bump**: 0.4.0 → 0.5.0 (minor — applied at `/implement:create-branch` time, after `ext-staging` merges)
-**Depends on**: `ext-staging` merged to `main` (staging paths must be fully configurable before this feature lands)
+**Design**: `docs/features/trailer/DESIGN.md`
+**Branch**: `feat/trailer`
+**Version bump**: 0.6.0 → 0.7.0 (minor — applied at branch creation on 2026-04-24)
 
 ## Phases
 

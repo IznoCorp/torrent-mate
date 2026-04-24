@@ -3,9 +3,8 @@
 **Date**: 2026-04-23
 **Codename**: `trailer`
 **Type**: minor (feat)
-**Version bump**: 0.4.0 → 0.5.0 (applied at `/implement:create-branch` time, after `ext-staging` merges)
-**Branch (future)**: `feat/trailer`
-**Depends on**: `ext-staging` merged to `main` (staging paths must be fully configurable before this feature lands)
+**Version bump**: 0.6.0 → 0.7.0 (applied at branch creation on 2026-04-24)
+**Branch**: `feat/trailer`
 
 ## Context
 
@@ -145,7 +144,7 @@ Idempotent: re-running `download` on a clean library is a no-op. Skip rule: trai
 - **Extension** `{ext}`: whatever yt-dlp delivers (mp4 in practice with the `best[ext=mp4]/best` format hint, may be `mkv`/`webm` in edge cases). The filename suffix is dynamic, not hardcoded.
 - **Language fallback**: ordered list, default `["fr-FR", "en-US"]`.
 - **Discovery**: TMDB primary (per language), YouTube direct search fallback with query format `{title} {year} bande annonce`.
-- **NFO**: in addition to the file on disk, the NFO `<trailer>` tag (currently emitted empty by `nfo_generator.py` lines 160, 269) is populated with the YouTube URL — Plex uses this as a remote-trailer fallback when Local Media Assets doesn't pick up the file, Kodi ignores it but it costs nothing to write.
+- **NFO**: in addition to the file on disk, the NFO `<trailer>` tag (currently emitted empty by `nfo_generator.py` lines 181, 290 — line numbers current as of commit 6bd2b66) is populated with the YouTube URL — Plex uses this as a remote-trailer fallback when Local Media Assets doesn't pick up the file, Kodi ignores it but it costs nothing to write.
 
 **Why flat `{name}-trailer.{ext}` for both movies and TV** (deviates from YTS's `{tvshow}/trailers/trailer.mp4`):
 

@@ -49,10 +49,10 @@ None. Phase 2 is independent of Phase 1.
 
 ### Files
 
-| Action | Path                                         | Responsibility                           |
-| ------ | -------------------------------------------- | ---------------------------------------- |
-| Create | `personalscraper/scraper/json_ttl_cache.py`  | Generic TTL cache primitive              |
-| Create | `tests/scraper/test_json_ttl_cache.py`       | Unit tests for `JsonTTLCache`            |
+| Action | Path                                        | Responsibility                |
+| ------ | ------------------------------------------- | ----------------------------- |
+| Create | `personalscraper/scraper/json_ttl_cache.py` | Generic TTL cache primitive   |
+| Create | `tests/scraper/test_json_ttl_cache.py`      | Unit tests for `JsonTTLCache` |
 
 ### Step 1: Write failing tests first
 
@@ -470,9 +470,9 @@ git commit -m "feat(trailer): add JsonTTLCache generic file-backed cache primiti
 
 ### Files
 
-| Action | Path                                         | Responsibility                                             |
-| ------ | -------------------------------------------- | ---------------------------------------------------------- |
-| Modify | `personalscraper/scraper/keywords_cache.py`  | Use `json_ttl_cache.check_ttl()` for TTL comparison logic  |
+| Action | Path                                        | Responsibility                                            |
+| ------ | ------------------------------------------- | --------------------------------------------------------- |
+| Modify | `personalscraper/scraper/keywords_cache.py` | Use `json_ttl_cache.check_ttl()` for TTL comparison logic |
 
 ### Step 1: Why a partial refactor, not full delegation
 
@@ -500,9 +500,10 @@ Open `personalscraper/scraper/keywords_cache.py` and apply **only** these edits:
    ```python
    from personalscraper.scraper.json_ttl_cache import check_ttl
    ```
-2. Find the freshness check inside `get()` — currently something like:
+2. Find the freshness check inside `get()` — as of commit `6bd2b66` the check is an inline
+   one-liner at `keywords_cache.py:103` (there is NO `_is_expired()` method):
    ```python
-   if datetime.now() - cached_at >= _TTL:
+   if datetime.now() - cached_at > _TTL:
        return None
    ```
    Replace it with:
@@ -510,6 +511,13 @@ Open `personalscraper/scraper/keywords_cache.py` and apply **only** these edits:
    if not check_ttl(cached_at, int(_TTL.total_seconds())):
        return None
    ```
+   **Edge-case note**: the original uses strict `>` (entry aged exactly `_TTL` is still
+   valid). The shared `check_ttl()` helper uses strict `<` on the fresh side (`elapsed <
+ttl_seconds`), which means an entry aged exactly `_TTL` becomes expired after the
+   refactor. This is considered acceptable (30-day TTL, microsecond-exact equality is
+   effectively unreachable) and intentional — it aligns both caches on the same edge
+   semantics. The regression test in Step 3 must NOT fixture a `cached_at` at exactly
+   `now - _TTL` unless it expects expiry.
 3. Expose `_TTL_SECONDS` as a module-level constant alongside `_TTL` so the seconds value
    has a readable name and the refactor stays self-documenting:
    ```python
@@ -519,6 +527,7 @@ Open `personalscraper/scraper/keywords_cache.py` and apply **only** these edits:
    Downstream code keeps using `_TTL` where a `timedelta` is needed and `_TTL_SECONDS`
    where an `int` is needed (i.e. inside the `check_ttl()` call).
 4. Update the module docstring to note the shared helper:
+
    ```python
    """TMDB keywords cache.
 
@@ -529,6 +538,7 @@ Open `personalscraper/scraper/keywords_cache.py` and apply **only** these edits:
    compatibility; new caches should use ``JsonTTLCache`` directly.
    """
    ```
+
 5. In `_parse_cached_at()` (or wherever `datetime.fromisoformat` is called on the stored
    timestamp), if the codebase was previously using naive timestamps, the promotion to UTC
    is handled inside `check_ttl()` — no additional changes needed here.
