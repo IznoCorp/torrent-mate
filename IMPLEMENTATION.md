@@ -19,11 +19,18 @@
 | 3   | E2E tests — enforce / verify / dispatch / full-run         | phase-03-e2e-late-stages.md  | [x]    |
 | 4   | Hotspot trimming (dispatcher / cli / pipeline_integration) | phase-04-hotspot-trim.md     | [x]    |
 | 5   | Coverage check + docs                                      | phase-05-verify-and-docs.md  | [x]    |
+| 6   | PR fixes cycle 1                                           | phase-06-pr-fixes-cycle-1.md | [ ]    |
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+- Findings received: 19
+- Retained: 12 (0 critical, 5 major, 3 medium, 4 minor)
+- Ignored: 4 (out of scope: regex dedup, mkdir edge case, test_dispatch_new negative, TVDB miss)
+- Fix phase created: phase-06-pr-fixes-cycle-1.md
+- Status: fix phase dispatched → awaiting /implement:phase
 
 ## Next action
 
-All phases complete — run `/implement:feature-pr`.
+Continue `/implement:phase` for Phase 6 (PR fixes cycle 1).
