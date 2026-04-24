@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+from qbittorrentapi.exceptions import NotFound404Error
+
 from tests.e2e.cleanup import TestCleanup
 from tests.e2e.markers import place_marker
 from tests.e2e.registry import TestRegistry
@@ -216,12 +218,12 @@ class TestCleanupTorrents:
         assert cleanup.cleanup_torrents(client=None) == 0
 
     def test_handles_delete_failure(self, tmp_path):
-        """Logs warning but doesn't crash on delete failure."""
+        """Logs warning but doesn't crash on a qBittorrent API error."""
         reg = TestRegistry(session_id="t3", base_dir=tmp_path)
         reg.register_torrent("bad_hash")
 
         mock_client = MagicMock()
-        mock_client.torrents_delete.side_effect = Exception("not found")
+        mock_client.torrents_delete.side_effect = NotFound404Error("not found")
 
         cleanup = TestCleanup(registry=reg, dry_run=False)
         count = cleanup.cleanup_torrents(client=mock_client)

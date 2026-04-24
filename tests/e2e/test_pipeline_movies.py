@@ -55,8 +55,11 @@ class TestMovieFullPipeline:
         if not movie_torrents:
             pytest.skip("No movie .torrent files in assets/torrents/")
 
+        from personalscraper.conf.loader import load_config, resolve_config_path
+
         settings = e2e_settings
-        staging = Path(settings.staging_dir)
+        e2e_config = load_config(resolve_config_path(None))
+        staging = Path(e2e_config.paths.staging_dir)
         movies_dir = staging / "001-MOVIES"
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
@@ -64,6 +67,7 @@ class TestMovieFullPipeline:
             registry=e2e_registry,
             dry_run=False,
             staging_dir=staging,
+            disk_paths=[Path(d.path) for d in e2e_config.disks],
         )
 
         try:
@@ -81,10 +85,8 @@ class TestMovieFullPipeline:
                     e2e_registry.register(downloaded)
 
             # ── 2. V1 Ingest (REAL) ──
-            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.ingest.ingest import run_ingest
 
-            e2e_config = load_config(resolve_config_path(None))
             ingest_report = run_ingest(settings, dry_run=False, config=e2e_config)
             print(
                 f"  V1 Ingest: {ingest_report.success_count} ingested, "
@@ -98,7 +100,7 @@ class TestMovieFullPipeline:
             # ── 3. V2 Sort (REAL) ──
             from personalscraper.sorter.run import run_sort
 
-            sort_report = run_sort(settings, dry_run=False)
+            sort_report = run_sort(settings, staging_dir=staging, config=e2e_config, dry_run=False)
             print(f"  V2 Sort: {sort_report.success_count} sorted")
             assert_sort_complete(movies_dir, staging / "002-TVSHOWS", expected)
 
@@ -139,7 +141,7 @@ class TestMovieFullPipeline:
             # ── 5. V4 Verify (REAL) ──
             from personalscraper.verify.run import run_verify
 
-            verify_report, verified = run_verify(settings, dry_run=False, movies_only=True)
+            verify_report, verified = run_verify(settings, config=e2e_config, dry_run=False, movies_only=True)
             print(f"  V4 Verify: {verify_report.success_count} valid, {verify_report.error_count} errors")
             # Filter verified results to test movies only
             test_results = [v for v in verified if any(n.lower() in str(v.media_path).lower() for n in names.values())]
@@ -148,7 +150,7 @@ class TestMovieFullPipeline:
             # ── 6. V5 Dispatch (DRY-RUN — disks are NEVER modified) ──
             from personalscraper.dispatch.run import run_dispatch
 
-            dispatch_report = run_dispatch(settings, dry_run=True, verified=verified)
+            dispatch_report = run_dispatch(settings, config=e2e_config, dry_run=True, verified=verified)
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
 
             # Note: golden dispatch assertions require DispatchResult objects,

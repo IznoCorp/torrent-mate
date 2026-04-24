@@ -9,6 +9,8 @@ import logging
 import shutil
 from pathlib import Path
 
+from qbittorrentapi.exceptions import APIError
+
 from tests.e2e.markers import find_orphan_markers, verify_marker
 from tests.e2e.registry import TestRegistry
 
@@ -179,7 +181,10 @@ class TestCleanup:
                     client.torrents_delete(delete_files=True, torrent_hashes=torrent_hash)
                     logger.info("Removed torrent: %s", torrent_hash)
                 count += 1
-            except Exception as exc:
+            except APIError as exc:
+                # Narrow to qBittorrent's API-error hierarchy: auth, HTTP, connection,
+                # not-found. Programming bugs (AttributeError, TypeError) must bubble
+                # up instead of being silently swallowed as a warning.
                 logger.warning("Failed to remove torrent %s: %s", torrent_hash, exc)
 
         return count
