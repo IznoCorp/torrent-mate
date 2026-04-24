@@ -121,6 +121,6 @@ jobs:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-3.13-${{ hashFiles('pyproject.toml') }}
           restore-keys: pip-${{ runner.os }}-3.13-
-      - run: pip install --upgrade pip
       - run: pip install -e . pip-audit
-      - run: pip-audit
+      # CVE-2026-3219 affects pip 26.0.1 (latest); no fix released yet. Ignore until upstream patch.
+      - run: pip-audit --ignore-vuln CVE-2026-3219
