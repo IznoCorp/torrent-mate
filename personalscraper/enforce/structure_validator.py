@@ -181,7 +181,9 @@ def _move_orphan_episodes_to_seasons(show_dir: Path, result: StructureResult, dr
             continue
         match = _EPISODE_SEASON_RE.search(f.name)
         if not match:
-            # No season number extractable — leave the file alone.
+            # No season number extractable — leave the file alone, but emit
+            # an info event so operators know about extras/specials at the root.
+            log.info("enforce.orphan_episode_no_season", path=str(f))
             continue
         season_num = int(match.group(1))
         season_dir = show_dir / f"Saison {season_num:02d}"
@@ -198,6 +200,7 @@ def _move_orphan_episodes_to_seasons(show_dir: Path, result: StructureResult, dr
                     exc_info=True,
                     error=str(exc),
                 )
+                result.warnings.append(f"Failed to move orphan episode '{f.name}' into Saison folder: {exc}")
                 continue
         log.info("enforce.orphan_episode_moved", src=str(f), dst=str(dst))
         result.fixes.append(f"Moved orphan episode: {f.name} → {season_dir.name}/")
