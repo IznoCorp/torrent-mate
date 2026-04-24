@@ -8,11 +8,17 @@
 **PR merge**: manual
 **PR**: _(created after last phase)_
 **Design**: docs/features/test-realism/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/test-realism/plan/INDEX.md
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                                      | File                         | Status |
+| --- | ---------------------------------------------------------- | ---------------------------- | ------ |
+| 1   | E2E scaffolding & shared fixtures                          | phase-01-e2e-scaffolding.md  | [ ]    |
+| 2   | E2E tests — ingest / sort / process / scrape               | phase-02-e2e-early-stages.md | [ ]    |
+| 3   | E2E tests — enforce / verify / dispatch / full-run         | phase-03-e2e-late-stages.md  | [ ]    |
+| 4   | Hotspot trimming (dispatcher / cli / pipeline_integration) | phase-04-hotspot-trim.md     | [ ]    |
+| 5   | Coverage check + docs                                      | phase-05-verify-and-docs.md  | [ ]    |
 
 ## Review cycles
 
@@ -20,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
