@@ -397,26 +397,72 @@ class FakeTVDB:
 
 
 @dataclass
+class FakeTorrent:
+    """Minimal torrent record for integration tests.
+
+    Carries only the attributes consumed by ``ingest.run_ingest()`` and
+    ``FakeQBitClient.get_content_path()``.  Extend fields here (not in
+    production code) when new ingest invariants need to be exercised.
+
+    Attributes:
+        name: Human-readable torrent name.
+        hash: Unique torrent hash string.
+        content_path: Absolute filesystem path to torrent content.
+        ratio: Seeding ratio (upload / download).  Default 0.0.
+    """
+
+    name: str
+    hash: str  # noqa: A003 — mirrors qbittorrentapi TorrentDictionary attribute name
+    content_path: str
+    ratio: float = 0.0
+
+
+@dataclass
 class FakeQBitClient:
     """In-memory stub for QBitClient / qbittorrentapi.Client.
 
-    Provides ``.seed()`` to inject a list of torrent-like objects, and
-    exposes ``get_completed_torrents()`` / ``get_all_torrent_hashes()``
-    matching the QBitClient interface used by ``ingest.run_ingest()``.
+    Supports separate completed-torrent and all-torrent lists so that tests
+    can model incomplete torrents (present in qBittorrent but not yet done).
+
+    - ``seed(torrent_list)`` sets the completed list (returned by
+      ``get_completed_torrents``). The all-torrent list is set to the same
+      value unless ``seed_all`` was also called.
+    - ``seed_all(torrent_list)`` sets the broader all-torrent list used by
+      ``get_all_torrent_hashes``.  Call this **after** ``seed()`` to add
+      incomplete torrents without including them in the completed list.
 
     Attributes:
-        _torrents: List of torrent objects returned by get_completed_torrents.
+        _torrents: Completed torrents returned by get_completed_torrents.
+        _all_torrents: All torrents (completed + incomplete) used for hash lookup.
     """
 
     _torrents: list[Any] = field(default_factory=list)
+    _all_torrents: list[Any] = field(default_factory=list)
 
     def seed(self, torrent_list: list[Any]) -> None:
-        """Inject a list of torrent objects to return from get_completed_torrents.
+        """Inject completed torrents.  Also resets the all-torrent list to match.
+
+        Call ``seed_all()`` afterwards to extend the all-torrent list with
+        incomplete torrents without including them in the completed list.
 
         Args:
-            torrent_list: List of torrent-like objects (MagicMock or dataclass).
+            torrent_list: List of torrent-like objects (FakeTorrent or MagicMock).
         """
         self._torrents = list(torrent_list)
+        # Keep all-torrent list in sync with completed by default.
+        self._all_torrents = list(torrent_list)
+
+    def seed_all(self, torrent_list: list[Any]) -> None:
+        """Extend the all-torrent list with additional (e.g. incomplete) torrents.
+
+        The completed list is unaffected.  Duplicates (same objects as in the
+        completed list) are harmless — ``get_all_torrent_hashes`` uses a set.
+
+        Args:
+            torrent_list: Additional torrent-like objects to add to the
+                all-torrent list (not the completed list).
+        """
+        self._all_torrents = list(self._all_torrents) + list(torrent_list)
 
     def get_completed_torrents(self) -> list[Any]:
         """Return the seeded list of completed torrents.
@@ -427,12 +473,23 @@ class FakeQBitClient:
         return list(self._torrents)
 
     def get_all_torrent_hashes(self) -> set[str]:
-        """Return hashes of all seeded torrents.
+        """Return hashes of all torrents (completed + incomplete).
 
         Returns:
-            Set of hash strings from the seeded torrent list.
+            Set of hash strings from both the completed and all-torrent lists.
         """
-        return {t.hash for t in self._torrents if hasattr(t, "hash")}
+        return {t.hash for t in self._all_torrents if hasattr(t, "hash")}
+
+    def get_content_path(self, torrent: Any) -> Path:
+        """Resolve the filesystem path of a torrent's content.
+
+        Args:
+            torrent: A FakeTorrent or any object with a ``content_path`` attribute.
+
+        Returns:
+            Path to the torrent's content.
+        """
+        return Path(torrent.content_path)
 
     def is_seeding(self, torrent: Any) -> bool:
         """Return False — stub never reports a torrent as seeding.

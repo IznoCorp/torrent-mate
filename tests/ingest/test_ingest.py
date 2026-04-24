@@ -202,6 +202,7 @@ def _make_config(tmp_path: Path) -> MagicMock:
     c = MagicMock()
     c.staging_dirs = CANONICAL_STAGING_DIRS
     c.paths.staging_dir = tmp_path
+    c.ingest.min_ratio = 0.0  # disable ratio guard — matches IngestConfig default
     return c
 
 

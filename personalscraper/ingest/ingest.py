@@ -243,6 +243,20 @@ def run_ingest(
                         report.skip_count += 1
                         continue
 
+                    # Skip torrents that have not yet reached the minimum ratio threshold.
+                    # config.ingest.min_ratio == 0.0 (default) disables this guard so
+                    # existing deployments that don't configure a threshold are unaffected.
+                    torrent_ratio = getattr(torrent, "ratio", 0.0)
+                    if config.ingest.min_ratio > 0.0 and torrent_ratio < config.ingest.min_ratio:
+                        log.debug(
+                            "ratio_below_threshold",
+                            name=name,
+                            ratio=torrent_ratio,
+                            min_ratio=config.ingest.min_ratio,
+                        )
+                        report.skip_count += 1
+                        continue
+
                     # Resolve content path — if missing, check if already in staging
                     source = client.get_content_path(torrent)
                     if not source.exists():

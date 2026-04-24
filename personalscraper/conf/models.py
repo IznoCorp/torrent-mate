@@ -510,6 +510,24 @@ class ScraperConfig(_StrictModel):
     episode_default_name: str = Field(default="Episode", min_length=1)
 
 
+class IngestConfig(_StrictModel):
+    """Ingest step runtime tunables.
+
+    Attributes:
+        min_ratio: Minimum seeding ratio required before a completed torrent
+            is eligible for ingest. Torrents whose ratio is below this
+            threshold are skipped (left in qBittorrent for continued seeding).
+            Default ``0.0`` disables the threshold (all completed torrents
+            are eligible regardless of ratio).
+    """
+
+    min_ratio: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=("Minimum seeding ratio for ingest eligibility. 0.0 (default) disables the guard."),
+    )
+
+
 class Config(_StrictModel):
     """Top-level config.json5 parsed model.
 
@@ -523,6 +541,7 @@ class Config(_StrictModel):
         anime_rule: Special anime detection rule (TMDB has no dedicated Anime genre).
         genre_mapping: Genre ID → category_id mapping by API provider.
         library: Library maintenance preferences.
+        ingest: Ingest step tunables (min_ratio threshold, etc.).
     """
 
     config_version: int = Field(default=1, description="Schéma version pour migration future.")
@@ -548,6 +567,8 @@ class Config(_StrictModel):
     fuzzy_match: FuzzyMatchConfig = Field(default_factory=FuzzyMatchConfig)
 
     scraper: ScraperConfig = Field(default_factory=ScraperConfig)
+
+    ingest: IngestConfig = Field(default_factory=IngestConfig)
 
     library: LibraryPrefs = Field(default_factory=LibraryPrefs)
 
