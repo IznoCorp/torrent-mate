@@ -20,7 +20,7 @@
 | 4   | Enforcement + docs           | phase-04-enforcement-docs.md | [x]    |
 | 5   | PR fixes cycle 1             | phase-05-pr-fixes-cycle-1.md | [x]    |
 | 6   | PR fixes cycle 2             | phase-06-pr-fixes-cycle-2.md | [x]    |
-| 7   | PR fixes cycle 3             | phase-07-pr-fixes-cycle-3.md | [ ]    |
+| 7   | PR fixes cycle 3             | phase-07-pr-fixes-cycle-3.md | [x]    |
 
 ## Review cycles
 
@@ -57,8 +57,8 @@
 - Major: SP6.5 narrowing dropped real raise sites — `_parse_folder_name` misses `GuessitException`; `movie_artwork_failed`/`show_artwork_failed` miss `KeyError`/`AttributeError` from `NamingPatterns.format()` and malformed TMDB/TVDB responses
 - Medium: `tmdb_keywords_failed_http` missing `exc_info`; 3 dispatcher cleanup arms missing `exc_info`; `scraper.py:1540` noqa understates catch surface; narrowed arms lack regression tests
 - Fix phase created: phase-07-pr-fixes-cycle-3.md (4 sub-phases)
-- Status: fix phase dispatched → awaiting `/implement:phase` (ceiling override by user)
+- Status: all cycle-3 findings addressed across 4 commits (SP7.1–7.4)
 
 ## Next action
 
-Phase 7 in progress — run `/implement:phase` to execute fixes, then feature-pr + final review.
+Phase 7 complete — run `/implement:feature-pr` to push and verify CI, then manual merge.
