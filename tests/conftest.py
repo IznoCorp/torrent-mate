@@ -83,6 +83,90 @@ def _mock_cli_config_load(request, test_config):
         yield
 
 
+@pytest.fixture(autouse=True)
+def _stub_pipeline_steps(request, monkeypatch):
+    """No-op stub for all pipeline step run_* functions, scoped to test_cli.py.
+
+    Eliminates the repetitive per-test ``@patch("personalscraper.<module>.run_*")``
+    decorators that stub out step execution in CLI tests.  Only active when
+    ``test_cli.py`` is being collected; all other test files are unaffected.
+
+    The fixture patches:
+
+    * ``personalscraper.cli.acquire_lock``     → returns ``True``
+    * ``personalscraper.cli.release_lock``     → no-op
+    * ``personalscraper.cli.run_ingest``       → returns a no-op ``StepReport``
+    * ``personalscraper.sorter.run.run_sort``  → returns a no-op ``StepReport``
+    * ``personalscraper.scraper.run.run_scrape`` → returns a no-op ``StepReport``
+    * ``personalscraper.process.run.run_process`` → returns a 3-tuple of ``StepReport``
+    * ``personalscraper.pipeline.Pipeline.run``  → returns a minimal ``PipelineReport``
+    * ``personalscraper.notifier.ping_healthcheck``             → no-op
+    * ``personalscraper.logger.cleanup_old_logs``               → returns ``0``
+    * ``personalscraper.notifier.TelegramNotifier.is_configured`` → returns ``False``
+
+    Per-test ``@patch`` decorators override these defaults where a test must
+    assert on specific call arguments or return values (wiring tests).
+
+    Args:
+        request: Pytest request object used to inspect the active test file.
+        monkeypatch: Pytest monkeypatch fixture for attribute replacement.
+    """
+    if request.fspath.basename != "test_cli.py":
+        yield
+        return
+
+    from datetime import datetime, timedelta
+
+    from personalscraper.models import PipelineReport, StepReport
+
+    # Build a minimal 7-step PipelineReport for the `run` command default stub.
+    _report = PipelineReport(started_at=datetime(2026, 1, 1))
+    for _name in ("ingest", "sort", "clean", "scrape", "cleanup", "verify", "dispatch"):
+        _report.add_step(_name, StepReport(name=_name))
+    _report.finished_at = datetime(2026, 1, 1) + timedelta(seconds=1)
+
+    # Lock helpers — every CLI command acquires/releases the pipeline lock.
+    monkeypatch.setattr("personalscraper.cli.acquire_lock", lambda *a, **kw: True)
+    monkeypatch.setattr("personalscraper.cli.release_lock", lambda *a, **kw: None)
+
+    # Standalone step commands.
+    monkeypatch.setattr(
+        "personalscraper.cli.run_ingest",
+        lambda *a, **kw: StepReport(name="ingest"),
+    )
+    monkeypatch.setattr(
+        "personalscraper.sorter.run.run_sort",
+        lambda *a, **kw: StepReport(name="sort"),
+    )
+    monkeypatch.setattr(
+        "personalscraper.scraper.run.run_scrape",
+        lambda *a, **kw: StepReport(name="scrape"),
+    )
+    monkeypatch.setattr(
+        "personalscraper.process.run.run_process",
+        lambda *a, **kw: (
+            StepReport(name="clean"),
+            StepReport(name="scrape"),
+            StepReport(name="cleanup"),
+        ),
+    )
+
+    # Pipeline orchestrator used by `personalscraper run`.
+    import personalscraper.pipeline as _pipeline_mod
+
+    monkeypatch.setattr(_pipeline_mod.Pipeline, "run", lambda self: _report)
+
+    # Notifier + healthcheck helpers called inside the `run` command.
+    monkeypatch.setattr("personalscraper.notifier.ping_healthcheck", lambda *a, **kw: None)
+    monkeypatch.setattr("personalscraper.logger.cleanup_old_logs", lambda *a, **kw: 0)
+    monkeypatch.setattr(
+        "personalscraper.notifier.TelegramNotifier.is_configured",
+        classmethod(lambda cls, *a, **kw: False),
+    )
+
+    yield
+
+
 @pytest.fixture
 def mock_settings(tmp_path, monkeypatch):
     """Provide a Settings instance with temp paths and no real .env.
