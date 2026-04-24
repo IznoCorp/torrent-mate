@@ -48,6 +48,12 @@ python -c "from personalscraper.trailers.step import run_trailers; print('OK')"
   `config.trailers.library_scan_max_age_hours` (default 24). `--no-refresh` bypasses this.
 - The pipeline `trailers` step uses `scan_staging()` only — no library refresh during pipeline.
 - Existing `tests/library/` tests remain green.
+- **Season scanning is opt-in** (DESIGN §4): when `config.trailers.seasons.enabled` is False
+  (the default), the scanner emits show-level `ScanItem`s only — same behaviour as before.
+- **Library-aware SOT recheck** (DESIGN §8 extension): controlled by
+  `config.trailers.check_library_before_download` (default True). When enabled, the
+  orchestrator consults `library.scanner` once per run and short-circuits items whose
+  trailers already exist on one of the storage disks.
 
 ---
 
@@ -200,6 +206,12 @@ class ScanItem:
     year: int | None
     tmdb_id: str | None   # from NFO, or None if not found
     imdb_id: str | None = None
+    # DESIGN §4 "Season trailers" extension. None for movies and show-level
+    # TV ScanItems. Positive integer for season-level ScanItems emitted when
+    # `config.trailers.seasons.enabled` is True. The expected trailer path
+    # for a season-level ScanItem is computed via
+    # `placement.trailer_path_for_season(show_dir, season_number, ext)`.
+    season_number: int | None = None
 ```
 
 **`Scanner` class — key methods:**
@@ -240,6 +252,86 @@ class Scanner:
 - Use `library.scanner.extract_nfo_ids(nfo_path)` for tmdb_id.
 - Use `placement.trailer_path_for(media_dir, media_name, ext=...)` (single unified
   convention) then `placement.trailer_exists()` to check current absence.
+
+**Season-aware scanning** (DESIGN §4 — opt-in via `config.trailers.seasons.enabled`):
+
+- `Scanner.__init__` gains a `seasons_enabled: bool = False` parameter, plumbed from
+  `config.trailers.seasons.enabled` at construction time.
+- When scanning a TV show directory AND `seasons_enabled` is True:
+  - Always emit the show-level `ScanItem` (with `season_number=None`) as before.
+  - Additionally enumerate `Saison XX/` subfolders inside the show directory using the
+    regex `^Saison \d{2}$`. For each match, parse the integer season number and emit a
+    second `ScanItem` with `media_type="tvshow"`, `season_number=<N>`, and an
+    `expected_trailer_path` computed via
+    `placement.trailer_path_for_season(show_dir, N, ext)`.
+  - Skip seasons whose expected trailer path already exists with size
+    ≥ `min_file_size_bytes` (same skip rule as show-level).
+- When `seasons_enabled` is False, behaviour is unchanged (show-level ScanItems only).
+  The regex enumeration is short-circuited; no `Saison XX/` walking is performed.
+
+### Season-aware scanner tests (DESIGN §4 extension — opt-in)
+
+Add the following tests to `tests/trailers/test_scanner.py` to cover the
+`seasons_enabled` parameter and per-season `ScanItem` emission. The fixture helper
+`_make_tvshow_dir` is extended (or a sibling helper added) to create
+`Saison 01/`, `Saison 02/` subfolders so the regex walker has something to find.
+
+```python
+def _make_tvshow_with_seasons(parent: Path, name: str, season_count: int) -> Path:
+    """Create a fake TV show directory with N `Saison XX/` subfolders.
+
+    No trailers are placed — every season is missing its trailer file.
+    """
+    d = _make_tvshow_dir(parent, name, with_trailer=False)
+    for n in range(1, season_count + 1):
+        (d / f"Saison {n:02d}").mkdir()
+    return d
+
+
+class TestSeasonAwareScanning:
+    def test_season_scanner_emits_one_item_per_saison_folder_when_enabled(self, tmp_path):
+        """With seasons_enabled=True, scan emits show-level item + one item per season."""
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        _make_tvshow_with_seasons(tvshows_dir, "Breaking Bad (2008)", season_count=3)
+
+        scanner = Scanner(min_file_size_bytes=102400, seasons_enabled=True)
+        items = scanner.scan_staging(tmp_path)
+        # Show-level + 3 seasons = 4 items
+        assert len(items) == 4
+        season_numbers = sorted(i.season_number for i in items if i.season_number is not None)
+        assert season_numbers == [1, 2, 3]
+        # Exactly one show-level entry (season_number is None)
+        assert sum(1 for i in items if i.season_number is None) == 1
+
+    def test_season_scanner_skips_seasons_when_disabled(self, tmp_path):
+        """With seasons_enabled=False (default), only the show-level ScanItem is emitted."""
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        _make_tvshow_with_seasons(tvshows_dir, "Breaking Bad (2008)", season_count=3)
+
+        scanner = Scanner(min_file_size_bytes=102400, seasons_enabled=False)
+        items = scanner.scan_staging(tmp_path)
+        assert len(items) == 1
+        assert items[0].season_number is None
+```
+
+### Library-aware orchestrator recheck tests (DESIGN §8 extension)
+
+These tests live in `tests/trailers/test_orchestrator.py` (added in Sub-phase 6.2) but
+the contract is anchored here so the scanner author understands the orchestrator's
+expectations on `library.scanner` integration:
+
+- `test_library_aware_recheck_skips_when_trailer_on_disk` — orchestrator queries
+  `library.scanner.scan_library` once; for an item whose tmdb_id matches a
+  `LibraryScanItem`, if a trailer file exists at the library location, the item is
+  marked `already_present_on_disk` and the downloader is NOT called.
+- `test_library_aware_recheck_falls_through_when_library_item_absent` — when the
+  scanner returns no matching library item (new media not on any disk yet), the
+  orchestrator falls through to the staging SOT recheck and continues normally.
+- `test_library_aware_recheck_disabled_falls_through` — when
+  `config.trailers.check_library_before_download=False`, the library scan is never
+  performed and the orchestrator behaves as if no library existed.
 
 ### Step 3: Run tests
 
@@ -298,6 +390,11 @@ def _make_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.ytdlp.format = "best[ext=mp4]/best"
     cfg.trailers.ytdlp.socket_timeout_sec = 30
     cfg.trailers.ytdlp.retries = 3
+    # DESIGN §4 + §8 extensions
+    cfg.trailers.seasons.enabled = False
+    cfg.trailers.seasons.language_fallback = None
+    cfg.trailers.seasons.search_query_format = "{title} {year} saison {season} bande annonce"
+    cfg.trailers.check_library_before_download = True
     return cfg
 
 
@@ -436,8 +533,9 @@ class TrailersOrchestrator:
         """Execute the full trailer acquisition loop.
 
         Returns:
-            Counts dict with keys: downloaded, already_present, no_trailer,
-            bot_detected, http_error, ytdlp_error, skipped_by_state, error.
+            Counts dict with keys: downloaded, already_present,
+            already_present_on_disk, no_trailer, bot_detected, http_error,
+            ytdlp_error, skipped_by_state, error.
         """
 
     @property
@@ -450,21 +548,46 @@ class TrailersOrchestrator:
 1. `state_store.auto_gc()` once at start of `run()`.
 2. **Step budget**: record `step_start = time.monotonic()`. Read
    `config.trailers.step.max_duration_sec` (default 1800 s — DESIGN §12 Timeouts).
+   2bis. **Library index init (lazy)**: if `config.trailers.check_library_before_download`
+   is True, build `self._library_index` once on first access by calling
+   `library.scanner.scan_library(config.disks, config)` and indexing the returned
+   `LibraryScanItem`s by `(category, tmdb_id)` and `(category, tvdb_id)` tuples
+   (skip entries whose ids are None). The cache lives for the orchestrator instance's
+   lifetime — one scan per run is enough; the cache is invalidated on the next
+   orchestrator instantiation. When the flag is False, the index stays empty and the
+   library-aware recheck is skipped entirely.
 3. For each `ScanItem`:
-   a. Build composite state key via `make_state_key()`.
+   a. Build composite state key via `make_state_key()`. For season-level ScanItems,
+   pass `season_number=item.season_number` so the key carries the `:season:{N}` suffix.
    b. `state_store.should_skip(key)` → if True, increment `skipped_by_state`.
-   c. **SOT recheck**: `trailer_exists(expected_path, min_size_bytes)` → if True, increment `already_present`.
-   d. **Disk-space pre-check** (DESIGN §12 Disk space): compute
-   `required = config.trailers.filters.max_filesize_mb * 1024 * 1024 * 1.5`
-   (50% safety margin). If `shutil.disk_usage(expected_path.parent).free < required`,
-   log event `trailers_disk_space_low` with bytes free + required, increment
-   `skipped_by_filter`, and continue to next item (do NOT call the downloader).
-   e. **Step-budget check**: if `time.monotonic() - step_start >= max_duration_sec`, log
-   `trailers_step_budget_exceeded` and break the loop. Remaining items are not
-   attempted; the StepReport returned by `run_trailers()` is `partial`.
-   f. `finder.find(tmdb_id, media_type, title, year)` → if None, record `no_trailer`.
-   g. `downloader.download(url, output_path)` → handle each `DownloadStatus`.
-   h. Update state via `state_store.set()` with appropriate `TrailerState`.
+   b-new. **Library-aware SOT recheck** (DESIGN §8 extension, controlled by
+   `config.trailers.check_library_before_download`, default `True`):
+   1. Build a library lookup key from the ScanItem's NFO ids (`tmdb_id` preferred,
+      `tvdb_id` fallback).
+   2. Look up the matching `LibraryScanItem` in `self._library_index`. If found:
+      - Compute the expected trailer path at the library location (using
+        `trailer_path_for(library_item.path, library_item.path.name, ext)` for
+        movies / show-level TV, or
+        `trailer_path_for_season(library_item.path, item.season_number, ext)`
+        for season-level items — using the LIBRARY path, not the staging path).
+      - If that file exists with size ≥ `config.trailers.filters.min_file_size_bytes`,
+        write a state entry with `status=ALREADY_PRESENT_ON_DISK`,
+        `trailer_path=<library_path>`, increment the `already_present_on_disk`
+        counter, and continue to the next item (no network call).
+   3. If not found on disk OR no trailer present at the library location, fall
+      through to step c (staging SOT recheck) as before.
+      c. **SOT recheck**: `trailer_exists(expected_path, min_size_bytes)` → if True, increment `already_present`.
+      d. **Disk-space pre-check** (DESIGN §12 Disk space): compute
+      `required = config.trailers.filters.max_filesize_mb * 1024 * 1024 * 1.5`
+      (50% safety margin). If `shutil.disk_usage(expected_path.parent).free < required`,
+      log event `trailers_disk_space_low` with bytes free + required, increment
+      `skipped_by_filter`, and continue to next item (do NOT call the downloader).
+      e. **Step-budget check**: if `time.monotonic() - step_start >= max_duration_sec`, log
+      `trailers_step_budget_exceeded` and break the loop. Remaining items are not
+      attempted; the StepReport returned by `run_trailers()` is `partial`.
+      f. `finder.find(tmdb_id, media_type, title, year)` → if None, record `no_trailer`.
+      g. `downloader.download(url, output_path)` → handle each `DownloadStatus`.
+      h. Update state via `state_store.set()` with appropriate `TrailerState`.
 4. Return counts dict.
 
 **Tests to add** (in `tests/trailers/test_orchestrator.py`):
@@ -474,6 +597,20 @@ class TrailersOrchestrator:
   `skipped_by_filter` count incremented; downloader never called.
 - `test_step_budget_exceeded_breaks_loop` — set `max_duration_sec=0` in config; assert only
   the first item is attempted; remaining items produce no state updates.
+- `test_library_aware_recheck_skips_when_trailer_on_disk` — patch
+  `library.scanner.scan_library` to return a `LibraryScanItem` whose path matches the
+  ScanItem's tmdb_id; create the trailer file at the library location with size ≥
+  `min_file_size_bytes`. Assert the orchestrator increments `already_present_on_disk`,
+  writes a state entry with `status=ALREADY_PRESENT_ON_DISK` and
+  `trailer_path=<library_path>`, and never calls the downloader nor the finder.
+- `test_library_aware_recheck_falls_through_when_library_item_absent` — patch
+  `library.scanner.scan_library` to return an empty list. Assert the orchestrator falls
+  through to the staging SOT recheck and proceeds normally (downloader is reachable
+  if the staging trailer is missing).
+- `test_library_aware_recheck_disabled_falls_through` — set
+  `config.trailers.check_library_before_download = False`. Assert
+  `library.scanner.scan_library` is NEVER called and behaviour is identical to a
+  staging-only orchestrator.
 
 ### Step 3: Run tests
 

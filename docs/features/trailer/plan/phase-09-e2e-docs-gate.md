@@ -218,6 +218,58 @@ produces a `StepReport` with `name="trailers"`.
 
 Commit: `test(trailer): extend pipeline E2E fixture to cover trailers step`
 
+### Sub-phase 9.1c — Season trailer E2E fixture (DESIGN §4 extension)
+
+Add a new hermetic E2E case to `tests/trailers/test_integration_hermetic.py`
+exercising the season-level trailer path:
+
+```python
+def test_season_trailer_placed_in_saison_folder(tmp_path, monkeypatch):
+    """E2E: season trailer lands in Saison XX/ subfolder with correct filename.
+
+    Fixture creates a TV show with `Saison 01/` subfolder. Config enables
+    `trailers.seasons.enabled = True`. The TMDB layer is stubbed to return a
+    season trailer URL via `fetch_tv_season_videos`. The yt-dlp downloader is
+    patched to copy `tests/trailers/fixtures/sample-trailer.mp4` to the
+    target output path.
+
+    Assertions:
+    - The trailer file lands at:
+        {show}/Saison 01/{show} - Saison 01-trailer.mp4
+    - The state store has an entry keyed
+        tv:tmdb:{id}:season:1
+      with status=DOWNLOADED and `season_number=1`.
+    - No file is written at the show-level trailer path (the show-level
+      ScanItem is also processed but its TMDB stub returns no videos →
+      `no_trailer_available`).
+    """
+    ...
+```
+
+Commit: `test(trailer): hermetic E2E for season-level trailer placement`
+
+### Sub-phase 9.1d — Library-aware idempotence E2E (DESIGN §8 extension)
+
+Add a hermetic E2E case asserting that an item present on a storage disk with a
+valid trailer is NEVER re-downloaded:
+
+```python
+def test_library_aware_recheck_skips_when_trailer_already_on_disk(tmp_path):
+    """E2E: orchestrator marks `already_present_on_disk` and skips network call.
+
+    Fixture creates a fake library disk with an existing show + valid trailer
+    file (size ≥ min_file_size_bytes). A new episode of the same show appears
+    in staging. With `check_library_before_download=True`, the orchestrator
+    must:
+      - Mark the state entry with status=ALREADY_PRESENT_ON_DISK,
+        trailer_path=<library path>.
+      - NOT call TrailerFinder.find or YtdlpDownloader.download.
+    """
+    ...
+```
+
+Commit: `test(trailer): hermetic E2E for library-aware idempotence`
+
 ---
 
 ## Sub-phase 9.2 — Coverage audit
@@ -262,15 +314,15 @@ marker / naming / CLI conventions are discoverable without reading source.
 
 ### Files
 
-| Action | Path                             | What gets added                                                                                                                                                                                                                                                                             |
-| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Create | `docs/reference/trailers.md`     | Main reference doc for the trailers feature (see sections below).                                                                                                                                                                                                                           |
-| Modify | `docs/reference/architecture.md` | Module map: add `scraper/json_ttl_cache.py`, `scraper/youtube_search.py`, `scraper/trailer_finder.py`, `scraper/ytdlp_downloader.py`, `scraper/trailers_cache.py`, `trailers/` package (step/scanner/orchestrator/state/placement/cli). Update the pipeline-steps diagram from 8 → 9 steps. |
-| Modify | `docs/reference/commands.md`     | New section for `personalscraper trailers scan/download/verify/purge` — flags, exit codes, examples. Add `--skip-trailers` and `--continue-on-trailer-error` to `personalscraper run`.                                                                                                      |
-| Modify | `docs/reference/testing.md`      | Document the `@pytest.mark.network` marker and the `TRAILER_INTEGRATION_TESTS=1` env var. Note the hermetic E2E fixture runs by default.                                                                                                                                                    |
-| Modify | `docs/reference/naming.md`       | Trailer file naming convention: `{folder}/{name}-trailer.{ext}` (flat, used for movies AND TV shows). Accepted extensions: `.mp4`, `.mkv`, `.webm` (in priority order). NFO `<trailer>` tag carries the YouTube URL.                                                                        |
-| Modify | `docs/reference/scraping.md`     | TMDB `/videos` endpoint: response shape, `site` field, filtering rules (`site=='YouTube'` required, prefer `official` + `type in {Trailer, Teaser}`).                                                                                                                                       |
-| Modify | `docs/reference/libraries.md`    | Note on yt-dlp version pinning (`>=2025.x,<2026.x`) and ffmpeg dependency (`shutil.which('ffmpeg')` check at startup).                                                                                                                                                                      |
+| Action | Path                             | What gets added                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------ | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create | `docs/reference/trailers.md`     | Main reference doc for the trailers feature (see sections below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Modify | `docs/reference/architecture.md` | Module map: add `scraper/json_ttl_cache.py`, `scraper/youtube_search.py`, `scraper/trailer_finder.py`, `scraper/ytdlp_downloader.py`, `scraper/trailers_cache.py`, `trailers/` package (step/scanner/orchestrator/state/placement/cli). Update the pipeline-steps diagram from 8 → 9 steps. **Note that `library.scanner` is now a first-class consumer by the `trailers/` subsystem** (DESIGN §8 extension — library-aware idempotence — the orchestrator calls `library.scanner.scan_library()` once per run to detect trailers already present on storage disks). |
+| Modify | `docs/reference/commands.md`     | New section for `personalscraper trailers scan/download/verify/purge` — flags, exit codes, examples. Add `--skip-trailers` and `--continue-on-trailer-error` to `personalscraper run`.                                                                                                                                                                                                                                                                                                                                                                               |
+| Modify | `docs/reference/testing.md`      | Document the `@pytest.mark.network` marker and the `TRAILER_INTEGRATION_TESTS=1` env var. Note the hermetic E2E fixture runs by default.                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Modify | `docs/reference/naming.md`       | Trailer file naming convention: `{folder}/{name}-trailer.{ext}` (flat, used for movies AND TV shows). Accepted extensions: `.mp4`, `.mkv`, `.webm` (in priority order). NFO `<trailer>` tag carries the YouTube URL. **New section** explaining the season trailer file naming convention (DESIGN §4 extension): `{show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}`, alongside the existing show-level / movie naming rules.                                                                                                               |
+| Modify | `docs/reference/scraping.md`     | TMDB `/videos` endpoint: response shape, `site` field, filtering rules (`site=='YouTube'` required, prefer `official` + `type in {Trailer, Teaser}`).                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Modify | `docs/reference/libraries.md`    | Note on yt-dlp version pinning (`>=2025.x,<2026.x`) and ffmpeg dependency (`shutil.which('ffmpeg')` check at startup).                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ### Step 1: Create `docs/reference/trailers.md`
 
@@ -288,10 +340,21 @@ The reference doc must cover (English, following existing docs/reference/ style)
 5. **CLI commands** — `personalscraper trailers scan|download|verify|purge` with all flags,
    exit codes (0/1/2), and examples using the project `Disk1-4` convention.
 6. **State file** — `.data/trailers_state.json` format, composite keys
-   (`movie:tmdb:{id}` / `tv:tmdb:{id}` / `manual:{sha256(title|year|type)}`), retry policy,
-   `bot_detected_max_consecutive_attempts`.
+   (`movie:tmdb:{id}` / `tv:tmdb:{id}` / `tv:tmdb:{id}:season:{N}` /
+   `manual:{sha256(title|year|type)}`), retry policy,
+   `bot_detected_max_consecutive_attempts`. Status enum includes
+   `already_present_on_disk` (DESIGN §8 extension — distinct from staging-only
+   `already_present`).
 7. **Placement convention** — flat `{folder}/{name}-trailer.{ext}` for movies AND TV shows.
+   Season trailers (opt-in via `trailers.seasons.enabled`) land at
+   `{show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}`.
    NFO `<trailer>` tag is populated with the YouTube URL (Plex remote-trailer fallback).
+   7bis. **Library-aware idempotence** (DESIGN §8 extension) — `trailers.check_library_before_download`
+   default ON. Before any discovery/download, the orchestrator consults
+   `library.scanner` to detect whether the media item already exists on one of the 4
+   storage disks with a valid trailer. If so, the entry is marked
+   `already_present_on_disk` and no network call is made. Operationally important when
+   a new episode of an existing show arrives in staging.
 8. **Security** — cookie file requirements (APFS-only, mode 600); `.env` gitignored.
 9. **ToS note** — downloading YouTube content is grey-area; this feature is for personal
    use only, per YouTube Terms of Service §5. Do not redistribute downloaded content.

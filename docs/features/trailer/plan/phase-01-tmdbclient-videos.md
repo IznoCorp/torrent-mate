@@ -50,11 +50,11 @@ None. This phase is the root node of the dependency graph.
 
 ### Files
 
-| Action | Path                                                    | Responsibility                         |
-| ------ | ------------------------------------------------------- | -------------------------------------- |
-| Modify | `personalscraper/scraper/tmdb_client.py`                | Add `Video` dataclass (before class)   |
-| Create | `tests/fixtures/tmdb/movie_550_videos.json`             | Golden fixture: movie videos response  |
-| Create | `tests/fixtures/tmdb/tv_1399_videos.json`               | Golden fixture: TV show videos response|
+| Action | Path                                        | Responsibility                          |
+| ------ | ------------------------------------------- | --------------------------------------- |
+| Modify | `personalscraper/scraper/tmdb_client.py`    | Add `Video` dataclass (before class)    |
+| Create | `tests/fixtures/tmdb/movie_550_videos.json` | Golden fixture: movie videos response   |
+| Create | `tests/fixtures/tmdb/tv_1399_videos.json`   | Golden fixture: TV show videos response |
 
 ### Step 1: Create `tests/fixtures/tmdb/` directory if it does not exist
 
@@ -167,10 +167,10 @@ git commit -m "feat(trailer): add Video dataclass and golden fixtures for TMDB /
 
 ### Files
 
-| Action | Path                                       | Responsibility                                           |
-| ------ | ------------------------------------------ | -------------------------------------------------------- |
+| Action | Path                                       | Responsibility                                             |
+| ------ | ------------------------------------------ | ---------------------------------------------------------- |
 | Modify | `personalscraper/scraper/tmdb_client.py`   | Add `fetch_movie_videos()` and `fetch_tv_videos()` methods |
-| Create | `tests/scraper/test_tmdb_client_videos.py` | Unit tests with mocked HTTP transport                    |
+| Create | `tests/scraper/test_tmdb_client_videos.py` | Unit tests with mocked HTTP transport                      |
 
 ### Step 1: Write the failing test first
 
@@ -409,6 +409,147 @@ git add \
   personalscraper/scraper/tmdb_client.py \
   tests/scraper/test_tmdb_client_videos.py
 git commit -m "feat(trailer): implement fetch_movie_videos and fetch_tv_videos on TMDBClient"
+```
+
+---
+
+## Sub-phase 1.3 — `fetch_tv_season_videos` method (season-level trailer support)
+
+This sub-phase adds the third TMDB videos endpoint, used by the opt-in season-level trailer
+download path (DESIGN §4 "Season trailers" extension, opt-in via
+`config.trailers.seasons.enabled`).
+
+### Files
+
+| Action | Path                                               | Responsibility                            |
+| ------ | -------------------------------------------------- | ----------------------------------------- |
+| Modify | `personalscraper/scraper/tmdb_client.py`           | Add `fetch_tv_season_videos()` method     |
+| Create | `tests/fixtures/tmdb/tv_1399_season_1_videos.json` | Golden fixture: TV season videos response |
+| Modify | `tests/scraper/test_tmdb_client_videos.py`         | Add three season-videos tests             |
+
+### Step 1: Write the golden fixture `tests/fixtures/tmdb/tv_1399_season_1_videos.json`
+
+This is the shape returned by `GET /tv/1399/season/1/videos?language=en-US` (same schema as
+the show-level `/tv/{id}/videos` response, with the season number reflected in `id`).
+
+```json
+{
+  "id": 3624,
+  "results": [
+    {
+      "id": "5e8c69f0e7e8c1001754ce9d",
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "key": "BpJYNVhGf1s",
+      "name": "Game of Thrones - Season 1 Trailer",
+      "official": true,
+      "published_at": "2011-03-25T00:00:00.000Z",
+      "site": "YouTube",
+      "size": 1080,
+      "type": "Trailer"
+    }
+  ]
+}
+```
+
+### Step 2: Write the failing tests
+
+Add the following test class to `tests/scraper/test_tmdb_client_videos.py`:
+
+```python
+# ── fetch_tv_season_videos ────────────────────────────────────────────────────
+
+class TestFetchTvSeasonVideos:
+    def test_fetch_tv_season_videos_returns_videos(self, client):
+        """Happy path: season-level fetch returns the canonical Video list."""
+        fixture = _load("tv_1399_season_1_videos.json")
+        with patch.object(client, "_get", return_value=fixture):
+            videos = client.fetch_tv_season_videos(1399, season_number=1, language="en-US")
+        assert len(videos) == 1
+        assert isinstance(videos[0], Video)
+        assert videos[0].key == "BpJYNVhGf1s"
+
+    def test_fetch_tv_season_videos_404_returns_empty(self, client):
+        """Fail-soft on 404 — many shows have no season-level videos on TMDB."""
+        with patch.object(client, "_get", side_effect=TMDBError(404, 34, "Not Found")):
+            result = client.fetch_tv_season_videos(99999, season_number=3, language="en-US")
+        assert result == []
+
+    def test_fetch_tv_season_videos_uses_circuit_breaker(self, client):
+        """Same circuit breaker (`_get`) covers show- and season-level video fetches.
+
+        Asserted indirectly: the implementation funnels through `_fetch_videos`
+        which delegates to `self._get` — the same path show-level fetches use,
+        therefore the same `tmdb_videos` breaker (DESIGN §1) applies.
+        """
+        mock_get = MagicMock(return_value={"id": 1, "results": []})
+        with patch.object(client, "_get", mock_get):
+            client.fetch_tv_season_videos(1, season_number=2, language="fr-FR")
+        mock_get.assert_called_once_with("/tv/1/season/2/videos", {"language": "fr-FR"})
+```
+
+### Step 3: Run failing tests
+
+```bash
+pytest tests/scraper/test_tmdb_client_videos.py::TestFetchTvSeasonVideos -v 2>&1 | head -10
+```
+
+Expected: `AttributeError` — method does not exist yet.
+
+### Step 4: Implement the method in `tmdb_client.py`
+
+Reuse the existing `_fetch_videos` helper (single source of truth — the only difference is
+the URL path construction). Add the following method to `TMDBClient`, after `fetch_tv_videos()`:
+
+```python
+def fetch_tv_season_videos(
+    self, tv_id: int, season_number: int, language: str
+) -> list[Video]:
+    """Fetch videos for a specific TV show season from TMDB.
+
+    Calls ``GET /tv/{tv_id}/season/{season_number}/videos``. TMDB indexes
+    seasons starting at 1 (specials are season 0).
+
+    Args:
+        tv_id: TMDB TV show id.
+        season_number: TMDB season number (1-indexed; specials = 0).
+        language: BCP-47 language code (e.g. "fr-FR", "en-US").
+
+    Returns:
+        List of Video dataclass instances. Empty list on 404 (no videos
+        for this season — common for older shows or non-flagship seasons)
+        or any other error (fail-soft, same as show-level).
+
+    Raises:
+        Same as fetch_tv_videos — propagates circuit-breaker open, fails
+        fast on unrecoverable 5xx after retries, fail-soft on 404 (returns []).
+    """
+    return self._fetch_videos(
+        f"/tv/{tv_id}/season/{season_number}/videos",
+        tv_id,
+        f"tv-season-{season_number}",
+        language,
+    )
+```
+
+URL template: `/tv/{tv_id}/season/{season_number}/videos?language={language}`. The existing
+`_fetch_videos` helper handles the query parameter wiring, JSON deserialization, and
+fail-soft policy (404 → `[]`, other exceptions → `[]` + WARNING log).
+
+### Step 5: Run tests — all must pass
+
+```bash
+pytest tests/scraper/test_tmdb_client_videos.py::TestFetchTvSeasonVideos -v
+```
+
+### Step 6: Commit sub-phase 1.3
+
+```bash
+git add \
+  personalscraper/scraper/tmdb_client.py \
+  tests/fixtures/tmdb/tv_1399_season_1_videos.json \
+  tests/scraper/test_tmdb_client_videos.py
+git commit -m "feat(trailer): add fetch_tv_season_videos for season-level trailer discovery"
 ```
 
 ---

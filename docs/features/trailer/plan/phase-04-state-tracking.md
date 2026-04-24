@@ -14,6 +14,23 @@ Tests use tmpdir with fake media trees.
 start of every `trailers` command/step. Retry-after respects DESIGN §7's explicit progression:
 `config.trailers.retry_after_days[min(attempts-1, len-1)]`.
 
+**Key precedence (extended for season-level trailers, DESIGN §4 / §7):**
+
+```
+movie:tmdb:{id}                    # primary: movie with TMDB id
+movie:tvdb:{id}                    # TMDB miss, TVDB fallback
+tv:tmdb:{id}                       # primary for TV (show-level)
+tv:tvdb:{id}                       # TV with TVDB-only metadata
+tv:tmdb:{id}:season:{N}            # season-level trailer (NEW — opt-in via config.trailers.seasons.enabled)
+tv:tvdb:{id}:season:{N}            # TVDB fallback, same shape
+manual:{sha256(title|year|type)}   # no external ID
+```
+
+Season-level entries coexist with show-level entries — both can be present for the same
+TV show (one entry for the show trailer, one per season). They are tracked independently:
+a missing season trailer does not affect the show trailer's retry-after schedule and
+vice-versa.
+
 **Tech Stack:** Python, `dataclasses`, `datetime`, `json`, `hashlib`, `pytest`.
 
 ---
@@ -82,13 +99,33 @@ from personalscraper.trailers.state import (
 
 class TestMakeStateKey:
     def test_movie_tmdb_key(self):
-        assert make_state_key("movie", "tmdb", 550) == "movie:tmdb:550"
+        assert make_state_key("movie", {"tmdb": 550}) == "movie:tmdb:550"
 
     def test_tv_tmdb_key(self):
-        assert make_state_key("tv", "tmdb", 1399) == "tv:tmdb:1399"
+        assert make_state_key("tv", {"tmdb": 1399}) == "tv:tmdb:1399"
 
     def test_movie_tvdb_key(self):
-        assert make_state_key("movie", "tvdb", 12345) == "movie:tvdb:12345"
+        assert make_state_key("movie", {"tvdb": 12345}) == "movie:tvdb:12345"
+
+    def test_make_state_key_tv_season(self):
+        """Season-level TV key carries an explicit ``:season:{N}`` suffix.
+
+        This is the canonical key shape for season-level trailers
+        (opt-in via ``config.trailers.seasons.enabled``, see DESIGN §4).
+        """
+        key = make_state_key("tv", {"tmdb": 1399}, season_number=3)
+        assert key == "tv:tmdb:1399:season:3"
+
+    def test_make_state_key_tv_without_season(self):
+        """Show-level TV key has NO ``:season:`` suffix when season_number is None."""
+        key = make_state_key("tv", {"tmdb": 1399})
+        assert ":season:" not in key
+        assert key == "tv:tmdb:1399"
+
+    def test_make_state_key_tv_season_uses_tvdb_fallback(self):
+        """TVDB fallback for season-level keys mirrors the show-level precedence."""
+        key = make_state_key("tv", {"tmdb": None, "tvdb": 81189}, season_number=2)
+        assert key == "tv:tvdb:81189:season:2"
 
     def test_manual_key_hashes_title_year_type(self):
         """Manual keys hash (title, year, media_type) — NOT the on-disk path.
@@ -104,7 +141,8 @@ class TestMakeStateKey:
         digest is computed from the NORMALIZED string, not from the raw input.
         """
         import unicodedata
-        manual_id = ("Fight Club", 1999, "movie")
+        # No external IDs → manual fallback. The new signature accepts an
+        # `ids` dict whose entries are all None/missing, plus title/year/type.
         # Same normalization the implementation must apply before hashing:
         # 1. unicodedata.normalize("NFC", title)
         # 2. casefold()
@@ -114,25 +152,24 @@ class TestMakeStateKey:
         )
         payload = f"{normalized_title}|1999|movie"
         digest = hashlib.sha256(payload.encode(), usedforsecurity=False).hexdigest()
-        key = make_state_key("movie", "manual", manual_id)
+        key = make_state_key("movie", {}, title="Fight Club", year=1999)
         assert key == f"manual:{digest}"
 
     def test_manual_key_is_path_independent(self):
         """Re-scrape that renames the folder must NOT change the manual key."""
-        manual_id = ("Fight Club", 1999, "movie")
-        k1 = make_state_key("movie", "manual", manual_id)
-        k2 = make_state_key("movie", "manual", manual_id)
+        k1 = make_state_key("movie", {}, title="Fight Club", year=1999)
+        k2 = make_state_key("movie", {}, title="Fight Club", year=1999)
         assert k1 == k2
 
     def test_manual_key_normalizes_title(self):
         """Title is NFC-normalized and casefolded before hashing — stable across scrape runs."""
-        a = make_state_key("movie", "manual", ("The Wire", 2002, "tv"))
-        b = make_state_key("movie", "manual", ("the  wire", 2002, "tv"))  # extra space + case
+        a = make_state_key("tv", {}, title="The Wire", year=2002)
+        b = make_state_key("tv", {}, title="the  wire", year=2002)  # extra space + case
         assert a == b
 
     def test_key_format_is_consistent(self):
-        k1 = make_state_key("movie", "tmdb", 550)
-        k2 = make_state_key("movie", "tmdb", 550)
+        k1 = make_state_key("movie", {"tmdb": 550})
+        k2 = make_state_key("movie", {"tmdb": 550})
         assert k1 == k2
 
 
@@ -144,8 +181,18 @@ class TestTrailerStatus:
         expected = {
             "downloaded", "no_trailer_available", "bot_detected",
             "http_error", "ytdlp_error", "skipped_by_filter", "orphan",
+            "already_present_on_disk",
         }
         assert statuses == expected
+
+    def test_status_enum_includes_already_present_on_disk(self):
+        """`already_present_on_disk` is distinct from `already_present` (staging-only).
+
+        It is recorded by the orchestrator's library-aware SOT recheck (DESIGN §8
+        extension) when a valid trailer is found at the library location and
+        no network call is made.
+        """
+        assert TrailerStatus.ALREADY_PRESENT_ON_DISK.value == "already_present_on_disk"
 
 
 # ── TrailerState dataclass ────────────────────────────────────────────────────
@@ -441,6 +488,10 @@ class TrailerStatus(Enum):
     YTDLP_ERROR = "ytdlp_error"
     SKIPPED_BY_FILTER = "skipped_by_filter"
     ORPHAN = "orphan"
+    # NEW (DESIGN §8 extension — library-aware SOT recheck):
+    # the trailer was found on one of the storage disks before any network
+    # call. Distinct from the staging-only "already_present" runtime counter.
+    ALREADY_PRESENT_ON_DISK = "already_present_on_disk"
 
 @dataclass
 class TrailerState:
@@ -456,6 +507,11 @@ class TrailerState:
     # DESIGN §5 "Counter semantics": incremented each consecutive bot_detected,
     # reset on any non-bot_detected outcome BEFORE the new status is written.
     bot_detected_consecutive_attempts: int = 0
+    # DESIGN §4 "Season trailers" extension. None for movies and show-level
+    # TV trailers; positive integer for season-level entries (1-indexed).
+    # Persisted as a top-level field for fast filtering/queries via
+    # `state_store.all_entries()` in CLI subcommands.
+    season_number: int | None = None
 ```
 
 **JSON schema example** (reflects `bot_detected_consecutive_attempts` field):
@@ -478,8 +534,36 @@ class TrailerState:
 **Key functions:**
 
 ```python
-def make_state_key(media_type: str, id_kind: str, id_value: int | str) -> str:
-    """Build a composite state key. id_kind="manual" hashes id_value as a path."""
+def make_state_key(
+    media_type: str,
+    ids: dict[str, int | str | None],   # keys: "tmdb", "tvdb"
+    title: str | None = None,
+    year: int | None = None,
+    season_number: int | None = None,    # NEW — None for movies / show-level TV
+) -> str:
+    """Build a composite state key.
+
+    Precedence:
+        1. ids["tmdb"]  → "{media_type}:tmdb:{id}"
+        2. ids["tvdb"]  → "{media_type}:tvdb:{id}"
+        3. fall back to manual: "manual:{sha256(NFC+casefold(title)|year|media_type)}"
+
+    When ``season_number`` is provided AND a TMDB/TVDB id is present, the
+    season suffix is appended:
+
+        "tv:tmdb:{id}:season:{N}"
+        "tv:tvdb:{id}:season:{N}"
+
+    When ``season_number`` is None (movies, show-level TV), no suffix is
+    appended. Manual keys do NOT receive a season suffix — season-level
+    trailers without external IDs are out of scope for v0.7.0.
+
+    Returns:
+        "movie:tmdb:{id}"
+        "tv:tmdb:{id}"
+        "tv:tmdb:{id}:season:{N}"   when season_number is not None
+        "manual:{sha256(...)}"
+    """
 
 def compute_next_retry_at(
     attempts: int,

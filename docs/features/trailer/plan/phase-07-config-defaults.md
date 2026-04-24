@@ -177,6 +177,30 @@ def test_trailers_bot_detected_bounded_retry():
     from personalscraper.conf.models import TrailersConfig
     cfg = TrailersConfig()
     assert cfg.bot_detected_max_consecutive_attempts == 5
+
+
+def test_trailers_config_has_seasons_default_disabled():
+    """DESIGN §4 extension: season-level trailer download is opt-in (default off).
+
+    Most shows lack TMDB season-level trailers; enabling by default would spam
+    YouTube searches that return nothing.
+    """
+    from personalscraper.conf.models import TrailersConfig
+    cfg = TrailersConfig()
+    assert cfg.seasons.enabled is False
+    assert cfg.seasons.language_fallback is None
+    assert cfg.seasons.search_query_format == "{title} {year} saison {season} bande annonce"
+
+
+def test_trailers_config_check_library_default_true():
+    """DESIGN §8 extension: library-aware idempotence is on by default.
+
+    Prevents re-downloading trailers for media that already exists on one of
+    the storage disks (e.g. a new episode of an already-shelved show).
+    """
+    from personalscraper.conf.models import TrailersConfig
+    cfg = TrailersConfig()
+    assert cfg.check_library_before_download is True
 ```
 
 ### Step 2: Run failing tests
@@ -194,15 +218,16 @@ Add the following classes **before** the main `Config` class. All use `_StrictMo
 
 **Signature table:**
 
-| Class                           | Key fields (all with defaults)                                                                                                                                                                                                                                                               |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TrailersPlacementConfig`       | `movie_pattern: str` (`"{folder}/{name}-trailer.{ext}"`), `tvshow_pattern: str` (same — flat convention)                                                                                                                                                                                     |
-| `TrailersFiltersConfig`         | `min_file_size_bytes: int` (102400), `max_filesize_mb: int` (500), `allowed_extensions: list[str]` (`["mp4", "mkv", "webm"]`) — v0.7.0 minimal set; advanced filters deferred to v0.8.0                                                                                                      |
-| `TrailersCircuitBreakerConfig`  | `errors_threshold: int`, `cooldown_sec: int`                                                                                                                                                                                                                                                 |
-| `TrailersCircuitBreakersConfig` | `tmdb_videos: TrailersCircuitBreakerConfig`, `youtube: TrailersCircuitBreakerConfig` (two distinct instances per DESIGN §1)                                                                                                                                                                  |
-| `TrailersYoutubeApiConfig`      | `daily_quota_units: int` (10 000), `search_list_cost_units: int` (100), `cache_ttl_days: int` (7)                                                                                                                                                                                            |
-| `TrailersYtdlpConfig`           | `format: str` (1080p cap), `socket_timeout_sec`, `retries`, `default_search: str` (`"ytsearch1"`)                                                                                                                                                                                            |
-| `TrailersConfig`                | `enabled`, `languages`, `search_query_format`, `placement`, `filters`, `state_file`, `retry_after_days`, `bot_detected_max_consecutive_attempts: int` (5), `library_scan_max_age_hours`, `circuit_breakers: TrailersCircuitBreakersConfig`, `youtube_api: TrailersYoutubeApiConfig`, `ytdlp` |
+| Class                           | Key fields (all with defaults)                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TrailersPlacementConfig`       | `movie_pattern: str` (`"{folder}/{name}-trailer.{ext}"`), `tvshow_pattern: str` (same — flat convention)                                                                                                                                                                                                                                                                                          |
+| `TrailersFiltersConfig`         | `min_file_size_bytes: int` (102400), `max_filesize_mb: int` (500), `allowed_extensions: list[str]` (`["mp4", "mkv", "webm"]`) — v0.7.0 minimal set; advanced filters deferred to v0.8.0                                                                                                                                                                                                           |
+| `TrailersCircuitBreakerConfig`  | `errors_threshold: int`, `cooldown_sec: int`                                                                                                                                                                                                                                                                                                                                                      |
+| `TrailersCircuitBreakersConfig` | `tmdb_videos: TrailersCircuitBreakerConfig`, `youtube: TrailersCircuitBreakerConfig` (two distinct instances per DESIGN §1)                                                                                                                                                                                                                                                                       |
+| `TrailersYoutubeApiConfig`      | `daily_quota_units: int` (10 000), `search_list_cost_units: int` (100), `cache_ttl_days: int` (7)                                                                                                                                                                                                                                                                                                 |
+| `TrailersYtdlpConfig`           | `format: str` (1080p cap), `socket_timeout_sec`, `retries`, `default_search: str` (`"ytsearch1"`)                                                                                                                                                                                                                                                                                                 |
+| `TrailersSeasonsConfig`         | `enabled: bool` (False, opt-in per DESIGN §4), `language_fallback: list[str] \| None` (None → inherit `TrailersConfig.languages`), `search_query_format: str` (`"{title} {year} saison {season} bande annonce"`)                                                                                                                                                                                  |
+| `TrailersConfig`                | `enabled`, `languages`, `search_query_format`, `placement`, `filters`, `state_file`, `retry_after_days`, `bot_detected_max_consecutive_attempts: int` (5), `library_scan_max_age_hours`, `circuit_breakers: TrailersCircuitBreakersConfig`, `youtube_api: TrailersYoutubeApiConfig`, `ytdlp`, `seasons: TrailersSeasonsConfig`, `check_library_before_download: bool` (True, DESIGN §8 extension) |
 
 All defaults match exactly the values in DESIGN §9.
 
@@ -276,6 +301,28 @@ class TrailersPlacementConfig(_StrictModel):
     tvshow_pattern: str = "{folder}/{name}-trailer.{ext}"
 
 
+class TrailersSeasonsConfig(_StrictModel):
+    """Opt-in season-level trailer download (DESIGN §4 extension).
+
+    Default off — most shows lack TMDB season-level trailers, so enabling by
+    default would spam YouTube searches that return nothing. The path
+    convention is fixed (see ``placement.trailer_path_for_season``); only
+    discovery knobs are exposed here.
+
+    Attributes:
+        enabled: Master switch. Default ``False``.
+        language_fallback: Optional override for the language order used when
+            calling TMDB ``/tv/{id}/season/{N}/videos``. When ``None``, the
+            top-level ``TrailersConfig.languages`` list is reused.
+        search_query_format: YouTube fallback query template. Available
+            placeholders: ``{title}``, ``{year}``, ``{season}``.
+    """
+
+    enabled: bool = False
+    language_fallback: list[str] | None = None
+    search_query_format: str = "{title} {year} saison {season} bande annonce"
+
+
 class TrailersStepConfig(_StrictModel):
     """Operational safeguards for the pipeline step (DESIGN §12)."""
     max_duration_sec: int = 1800  # 30-minute step-level budget
@@ -306,19 +353,34 @@ class TrailersConfig(_StrictModel):
     ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)
     step: TrailersStepConfig = Field(default_factory=TrailersStepConfig)
     pipeline: TrailersPipelineConfig = Field(default_factory=TrailersPipelineConfig)
+    # DESIGN §4 extension: opt-in season-level trailer discovery.
+    seasons: TrailersSeasonsConfig = Field(default_factory=TrailersSeasonsConfig)
+    # DESIGN §8 extension: library-aware idempotence — consult library.scanner
+    # before any discovery call to avoid re-downloading trailers that already
+    # exist on one of the storage disks. Default ON.
+    check_library_before_download: bool = True
 ```
 
-**Class ordering reminder**: declare `TrailersStepConfig` and `TrailersPipelineConfig` BEFORE
-`TrailersConfig` (alongside the other leaf classes — same reason as other nested configs:
-`Field(default_factory=X)` needs `X` defined).
+**Class ordering reminder**: declare `TrailersStepConfig`, `TrailersPipelineConfig`, and
+`TrailersSeasonsConfig` BEFORE `TrailersConfig` (alongside the other leaf classes — same
+reason as other nested configs: `Field(default_factory=X)` needs `X` defined).
 
 **Wiring note for consumer phases** (ensures no dead config keys):
 
 - **Phase 3a (`trailers_cache`)**: replace any module-level `_YOUTUBE_TTL_SECONDS`
   constant with a runtime read of
   `config.trailers.youtube_api.cache_ttl_days * 24 * 3600`.
+- **Phase 3a (`trailer_finder`)**: when handling season-level ScanItems, read
+  `config.trailers.seasons.language_fallback` (falling back to
+  `config.trailers.languages` if `None`). Use
+  `config.trailers.seasons.search_query_format` for the YouTube fallback search query
+  (placeholders: `{title}`, `{year}`, `{season}`).
 - **Phase 3b (`ytdlp_downloader`)**: in the opts dict built by `download()` (Steps 4/5),
   add `"max_filesize": config.trailers.filters.max_filesize_mb * 1024 * 1024`.
+- **Phase 6 (orchestrator)**: read `config.trailers.check_library_before_download`
+  to enable/disable the library-aware SOT recheck. Read
+  `config.trailers.seasons.enabled` to decide whether the scanner emits per-season
+  `ScanItem`s in addition to show-level ones.
 - **Phase 8 (`trailers verify`)**: use `config.trailers.filters.allowed_extensions` for
   the extension check instead of a hardcoded `{"mp4", "mkv", "webm"}` set.
 

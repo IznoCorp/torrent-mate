@@ -164,6 +164,12 @@ Idempotent: re-running `download` on a clean library is a no-op. Skip rule: trai
 
 These placements are canonical and not re-opened downstream. `docs/reference/naming.md` is updated in Phase 9 to document them alongside the existing movie/TV naming rules.
 
+**Season trailers** (opt-in via `config.trailers.seasons.enabled`):
+
+- **Path**: `{show_folder}/Saison {SS:02d}/{show_name} - Saison {SS:02d}-trailer.{ext}`
+- **Discovery**: TMDB `/tv/{id}/season/{N}/videos` endpoint (distinct from show-level `/tv/{id}/videos`). YouTube fallback query format: `"{show_title} {year} saison {N} bande annonce"`.
+- **Rationale for convention**: mirrors the existing `Saison XX/` structure used everywhere in personalscraper for TV shows. Keeping the show-name prefix allows Plex Local Media Assets to recognise it as a trailer for the parent show, even though Plex does not natively model season-scoped trailers.
+
 ### 5. Cookie authentication on a headless server
 
 Hybrid configuration — either or both can be set in `.env`:
@@ -225,6 +231,8 @@ movie:tmdb:{id}                    # primary: media has a valid TMDB id
 movie:tvdb:{id}                    # TMDB miss, TVDB fallback (movies rarely — but possible via imdb→tvdb chain)
 tv:tmdb:{id}                       # primary for TV
 tv:tvdb:{id}                       # TV with TVDB-only metadata
+tv:tmdb:{id}:season:{N}            # season-level trailer for TV show {id}
+tv:tvdb:{id}:season:{N}            # TVDB fallback, same shape
 manual:{sha256(title|year|type)}   # no external ID — stable hash of normalized (title, year, media_type)
 ```
 
@@ -265,7 +273,9 @@ The orchestrator picks the key based on the NFO it reads for the media; it never
 }
 ```
 
-**Status enum** (complete): `downloaded | no_trailer_available | bot_detected | http_error | ytdlp_error | skipped_by_filter | orphan`.
+**Status enum** (complete): `downloaded | no_trailer_available | bot_detected | http_error | ytdlp_error | skipped_by_filter | orphan | already_present_on_disk`.
+
+The `already_present_on_disk` status is distinct from `already_present` (which refers to the trailer being present in the staging folder). It is recorded when the library-aware SOT recheck (see invariant below) finds a valid trailer at the expected library location and skips the download. Distinguishing the two preserves observability — operators can tell apart "downloaded earlier this session, file still here" from "skipped because the storage disks already have it".
 
 **Retry-after policy (explicit)**:
 
@@ -276,6 +286,8 @@ The orchestrator picks the key based on the NFO it reads for the media; it never
 - Timestamps are UTC ISO 8601. Schedule robustness relies on `datetime.now(UTC)`; a backwards clock reset will compress the effective schedule (accepted — system time is the user's responsibility).
 
 **Lookup logic** (before any network call): if an entry exists AND `status ∈ {no_trailer_available, http_error, ytdlp_error}` AND `next_retry_at > now` → skip, don't contact TMDB/YouTube.
+
+**Library-aware SOT recheck** (DESIGN §8 extension): before any discovery call, the orchestrator consults `library.scanner` to detect whether the media item already exists on one of the 4 storage disks with a valid trailer. If found, the state entry is updated with `status=already_present_on_disk`, `trailer_path=<library-path>`, and no network call is made. This prevents re-downloading when a new episode of an existing show arrives in staging.
 
 **Lifecycle / auto-GC** (runs at the start of every `trailers` step and every `trailers *` subcommand):
 
@@ -289,7 +301,10 @@ No separate remap-detection for TMDB ID changes: if a re-scrape changes `tmdbid`
 
 `personalscraper/library/scanner.py` exposes `scan_library()`, `scan_movie_dir()`, `scan_tvshow_dir()` and caches results. The cache can be stale. Design rules:
 
-1. **Presence check goes to the filesystem.** Before `download`, re-verify the trailer file is still absent at the expected path. Before `purge`, re-verify the media is actually missing from disk.
+1. **Presence check goes to the filesystem, and to BOTH staging and library locations.** Order of check:
+   a. Expected placement path in the current media's staging folder.
+   b. If the media corresponds to a known library item (by tmdb_id/tvdb_id lookup via `library.scanner`), the library path and its expected trailer location.
+   If a trailer file is present at EITHER location with size ≥ `min_file_size_bytes`, skip the download. Before `download`, re-verify the trailer file is still absent at the expected path. Before `purge`, re-verify the media is actually missing from disk.
 2. **Desync detection.** If a state entry references a `media_path` that no longer exists, flip `status=orphan` and move on. `trailers purge --include-state` uses these markers to clean up.
 3. **No write without filesystem-verified intent.** Do not delete trailers based on library cache stating "media missing" — re-check the disk first.
 
@@ -462,7 +477,7 @@ Production hardening. Every item here closes a specific risk surfaced during pla
 The `trailers` step follows the existing pipeline `StepReport` pattern (same as `process/`, `dispatch/`, `verify/`). It returns a report with:
 
 - `status`: one of `success` (all items had a trailer or got one), `partial` (some items failed/skipped, pipeline continues), `skipped` (`config.trailers.enabled=false` or `--skip-trailers`), `error` (step itself crashed — unusual, e.g. bug in scanner).
-- `counts`: `{"downloaded": N, "already_present": M, "no_trailer": K, "bot_detected": L, "error": X, "skipped_by_state": Y}`.
+- `counts`: `{"downloaded": N, "already_present": M, "already_present_on_disk": M2, "no_trailer": K, "bot_detected": L, "error": X, "skipped_by_state": Y, "skipped_by_filter": Z}`.
 - `failed_items`: list of `(key, status, reason)` for each item that did not land a trailer, used by `notifier.py` for the Telegram summary.
 
 **Non-blocking semantics**:

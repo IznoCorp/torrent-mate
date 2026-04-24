@@ -96,10 +96,13 @@ git commit -m "chore(trailer): scaffold trailers/ package and tests/trailers/ sk
 
 ### Files
 
-| Action | Path                                      | Responsibility                                      |
-| ------ | ----------------------------------------- | --------------------------------------------------- |
-| Create | `personalscraper/trailers/placement.py`   | Flat path computation + existence check + NFO write |
-| Create | `tests/trailers/test_placement.py`        | Tmpdir-based unit tests                             |
+| Action | Path                                    | Responsibility                                                          |
+| ------ | --------------------------------------- | ----------------------------------------------------------------------- |
+| Create | `personalscraper/trailers/placement.py` | Flat path computation + season-aware path + existence check + NFO write |
+| Create | `tests/trailers/test_placement.py`      | Tmpdir-based unit tests                                                 |
+
+This module exposes both `trailer_path_for()` (movies + show-level) and
+`trailer_path_for_season()` (season-level, opt-in via `config.trailers.seasons.enabled`).
 
 ### Step 1: Write failing tests
 
@@ -120,6 +123,7 @@ from personalscraper.trailers.placement import (
     find_existing_trailer,
     trailer_exists,
     trailer_path_for,
+    trailer_path_for_season,
     write_trailer_url_to_nfo,
 )
 
@@ -163,6 +167,50 @@ class TestTrailerPathFor:
         a = trailer_path_for(d, "X", ext="mp4")
         b = trailer_path_for(d, "X", ext=".mp4")
         assert a == b
+
+
+# ── season-level path computation (opt-in via config.trailers.seasons.enabled) ──
+
+class TestTrailerPathForSeason:
+    def test_trailer_path_for_season_builds_conventional_path(self, tmp_path):
+        """Season trailer lands at {show}/Saison {SS:02d}/{show} - Saison {SS:02d}-trailer.{ext}.
+
+        Mirrors the existing personalscraper French season layout (`Saison XX/`) and
+        keeps the show-name prefix so Plex Local Media Assets recognises it as a
+        trailer for the parent show. See DESIGN §4 "Season trailers" for the
+        rationale (Plex does not natively model season-scoped trailers).
+        """
+        show_dir = tmp_path / "Breaking Bad (2008)"
+        show_dir.mkdir()
+        path = trailer_path_for_season(show_dir, season_number=1, extension="mp4")
+        assert path == show_dir / "Saison 01" / "Breaking Bad (2008) - Saison 01-trailer.mp4"
+
+    def test_trailer_path_for_season_respects_custom_extension(self, tmp_path):
+        """Caller decides the extension — yt-dlp may yield mkv/webm in edge cases."""
+        show_dir = tmp_path / "Breaking Bad (2008)"
+        show_dir.mkdir()
+        webm_path = trailer_path_for_season(show_dir, season_number=2, extension="webm")
+        assert webm_path.suffix == ".webm"
+        assert webm_path.name == "Breaking Bad (2008) - Saison 02-trailer.webm"
+
+    def test_trailer_path_for_season_handles_unicode_show_names(self, tmp_path):
+        """Show names with non-ASCII characters round-trip through the path build."""
+        show_dir = tmp_path / "Téléphérique (2019)"
+        show_dir.mkdir()
+        path = trailer_path_for_season(show_dir, season_number=3, extension="mp4")
+        assert path.parent.name == "Saison 03"
+        assert path.name == "Téléphérique (2019) - Saison 03-trailer.mp4"
+
+    def test_trailer_path_for_season_does_not_use_trailers_subfolder(self, tmp_path):
+        """Guard: season trailers are NOT placed in a `trailers/` subdirectory.
+
+        Same guard as the show-level convention — the only structural folder
+        introduced is the canonical `Saison XX/` season folder.
+        """
+        show_dir = tmp_path / "Breaking Bad (2008)"
+        show_dir.mkdir()
+        path = trailer_path_for_season(show_dir, season_number=1, extension="mp4")
+        assert "trailers" not in [p.name.lower() for p in path.parents]
 
 
 # ── tolerant lookup across known extensions ──────────────────────────────────
@@ -334,6 +382,36 @@ def trailer_path_for(media_dir: Path, media_name: str, *, ext: str = "mp4") -> P
     return media_dir / f"{media_name}-trailer.{ext_clean}"
 
 
+def trailer_path_for_season(
+    show_dir: Path, season_number: int, extension: str
+) -> Path:
+    """Return the expected season-trailer placement path.
+
+    Convention (DESIGN §4 "Season trailers"):
+    ``{show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}``.
+
+    This is opt-in via ``config.trailers.seasons.enabled`` (default off — most
+    shows lack TMDB season trailers). The path mirrors the existing
+    personalscraper French season layout (``Saison XX/``) and keeps the
+    show-name prefix so Plex Local Media Assets recognises the file as a
+    trailer for the parent show. The trailer is NOT placed in a ``trailers/``
+    subfolder — same guard as the show-level convention.
+
+    Args:
+        show_dir: Path to the root show folder (contains ``Saison XX``
+            subdirectories).
+        season_number: 1-indexed season number (TMDB convention; specials = 0).
+        extension: File extension without the leading dot (e.g. ``"mp4"``).
+            A leading dot, if present, is tolerated and stripped.
+
+    Returns:
+        Full path where the season trailer should be written.
+    """
+    ext_clean = extension.lstrip(".")
+    season_dir = show_dir / f"Saison {season_number:02d}"
+    return season_dir / f"{show_dir.name} - Saison {season_number:02d}-trailer.{ext_clean}"
+
+
 def find_existing_trailer(media_dir: Path, media_name: str) -> Path | None:
     """Locate an existing trailer file across known extensions.
 
@@ -460,7 +538,7 @@ git commit --allow-empty -m "chore(trailer): phase 03c gate — flat placement +
 
 Phase 4 may start only when:
 
-- `trailer_path_for`, `find_existing_trailer`, `trailer_exists`, `write_trailer_url_to_nfo`
-  are importable from `personalscraper.trailers.placement`
+- `trailer_path_for`, `trailer_path_for_season`, `find_existing_trailer`, `trailer_exists`,
+  `write_trailer_url_to_nfo` are importable from `personalscraper.trailers.placement`
 - `pytest tests/trailers/ -q` exits 0
 - The milestone commit is on the branch

@@ -102,6 +102,9 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.library_scan_max_age_hours = 24
     cfg.paths.staging_dir = tmp_path
     cfg.disks = []
+    # DESIGN §4 + §8 extensions
+    cfg.trailers.seasons.enabled = False
+    cfg.trailers.check_library_before_download = True
     return cfg
 
 
@@ -254,6 +257,17 @@ def scan(
     since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
     limit: int | None = typer.Option(None, "--limit", help="Max items to scan."),
     no_refresh: bool = typer.Option(False, "--no-refresh", help="Use cached library scan even if stale."),
+    level: str = typer.Option(
+        "both",
+        "--level",
+        help="Which trailer levels to process: show | season | both. "
+             "Season-level is silently ignored when seasons.enabled is False.",
+    ),
+    season: int | None = typer.Option(
+        None,
+        "--season",
+        help="Target a specific season number (1-indexed). Implies --level=season.",
+    ),
 ) -> None:
     """Dry-run: list media items missing trailers."""
     ...  # implementation: scan then print table
@@ -267,6 +281,17 @@ def download(
     limit: int | None = typer.Option(None, "--limit"),
     dry_run: bool = typer.Option(False, "--dry-run"),
     no_refresh: bool = typer.Option(False, "--no-refresh"),
+    level: str = typer.Option(
+        "both",
+        "--level",
+        help="Which trailer levels to process: show | season | both. "
+             "Season-level is silently ignored when seasons.enabled is False.",
+    ),
+    season: int | None = typer.Option(
+        None,
+        "--season",
+        help="Target a specific season number (1-indexed). Implies --level=season.",
+    ),
 ) -> None:
     """Discover and download missing trailers."""
     ...
@@ -279,6 +304,17 @@ def verify(
     since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
     deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
     no_refresh: bool = typer.Option(False, "--no-refresh"),
+    level: str = typer.Option(
+        "both",
+        "--level",
+        help="Which trailer levels to audit: show | season | both. "
+             "Season-level is silently ignored when seasons.enabled is False.",
+    ),
+    season: int | None = typer.Option(
+        None,
+        "--season",
+        help="Target a specific season number (1-indexed). Implies --level=season.",
+    ),
 ) -> None:
     """Audit existing trailers.
 
@@ -304,6 +340,17 @@ def purge(
     dry_run: bool = typer.Option(False, "--dry-run"),
     include_state: bool = typer.Option(False, "--include-state",
                                        help="Also wipe orphan state entries."),
+    level: str = typer.Option(
+        "both",
+        "--level",
+        help="Which trailer levels to purge: show | season | both. "
+             "Season-level is silently ignored when seasons.enabled is False.",
+    ),
+    season: int | None = typer.Option(
+        None,
+        "--season",
+        help="Target a specific season number (1-indexed). Implies --level=season.",
+    ),
 ) -> None:
     """Remove orphan trailers whose media parent is absent.
 
@@ -325,6 +372,27 @@ datetime. The helper lives in `personalscraper/trailers/cli.py` (module-level) s
 subcommands share a single implementation, and its unit tests go into
 `tests/trailers/test_cli.py` (fake library items with varied mtimes).
 
+**Shared `--level` / `--season` helper** (DESIGN §4 extension): a module-level helper
+`_resolve_level_and_season(level: str, season: int | None, seasons_enabled: bool) ->
+tuple[str, int | None]` normalizes the pair before scanner output is filtered:
+
+- Validates `level ∈ {"show", "season", "both"}`. Invalid values exit with code 2.
+- When `season` is not None, it FORCES `level="season"` regardless of the user-provided
+  value (the explicit season number wins).
+- When `seasons_enabled` is False (i.e. `config.trailers.seasons.enabled=False`),
+  any season-level work is silently skipped — `level="season"` becomes a no-op rather
+  than an error, mirroring the "silently ignored" UX in the help text.
+
+After resolving, each subcommand filters scanner output:
+
+- `level="show"` → drop ScanItems with `season_number is not None`.
+- `level="season"` → drop ScanItems with `season_number is None`. Additionally, when
+  `season=N` is provided, also drop ScanItems whose `season_number != N`.
+- `level="both"` → no filtering.
+
+The helper's unit tests live next to the existing `--since` helper tests in
+`tests/trailers/test_cli.py`.
+
 **Verify subcommand test scaffold.** Add one test per check category to
 `tests/trailers/test_cli.py::TestTrailersVerifyCommand` (mock `Scanner.scan_library` /
 filesystem):
@@ -334,6 +402,24 @@ filesystem):
 - `test_verify_flags_wrong_extension` — file suffix not in allowed list → exit 2.
 - `test_verify_deep_flag_invokes_ffprobe` — `--deep` calls a mocked ffprobe helper;
   non-zero duration returned → exit 0. Exception from ffprobe → exit 4.
+
+**Level / season filter tests** (DESIGN §4 extension). Add to
+`tests/trailers/test_cli.py` (cover `scan` as the canonical case; analogous coverage
+applies to `download`, `verify`, `purge` via the shared helper):
+
+- `test_scan_level_show_excludes_season_items` — patch the scanner to return a mix of
+  show-level and season-level ScanItems; invoke `scan --level show`; assert the printed
+  output mentions only the show-level items (and the count reflects exclusion of season
+  items). Exit code 0.
+- `test_scan_level_season_excludes_show_items` — same fixture; invoke `scan --level
+season` (with `seasons.enabled=True` in the fake config); assert only season-level
+  items appear in the output. Exit code 0.
+- `test_scan_season_N_filters_single_season` — fixture returns season items for
+  seasons 1, 2, 3; invoke `scan --season 2`; assert only the season 2 entry appears,
+  the level was forced to `"season"`, and the show-level item is excluded.
+- `test_season_flag_is_noop_when_seasons_disabled` — set
+  `cfg.trailers.seasons.enabled = False`; invoke `scan --season 1`; assert exit code 0
+  and no season items processed (the flag is silently ignored, matching the help text).
 
 ### Step 3: Mount sub-app in `personalscraper/cli.py`
 
