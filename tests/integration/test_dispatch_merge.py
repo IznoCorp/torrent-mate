@@ -197,8 +197,18 @@ def test_dispatch_merges_tvshow_new_episodes(
     backup_residue = list(disk1_root.rglob(".merge_backup"))
     assert not backup_residue, f"Unexpected .merge_backup residue on Disk1: {backup_residue}"
 
-    # media_index.json must contain an entry for the show.
+    # media_index.json must be re-written by dispatch (not just the pre-seeded copy).
+    # We assert the entry's last_updated differs from the pre-seeded sentinel
+    # "2024-01-01T00:00:00+00:00" — a stale value means dispatch never saved the index.
+    _PRESEED_LAST_UPDATED = "2024-01-01T00:00:00+00:00"
     updated_index = json.loads(index_path.read_text(encoding="utf-8"))
     assert any(folder.lower() in k for k in updated_index), (
         f"media_index.json should have an entry for '{folder}'. Keys: {list(updated_index.keys())}"
+    )
+    entry_key = next(k for k in updated_index if folder.lower() in k)
+    entry_last_updated = updated_index[entry_key].get("last_updated")
+    assert entry_last_updated != _PRESEED_LAST_UPDATED, (
+        f"media_index.json entry for '{folder}' has the pre-seeded last_updated "
+        f"({_PRESEED_LAST_UPDATED!r}) — dispatch did not re-write the index. "
+        f"Got last_updated={entry_last_updated!r}"
     )

@@ -189,6 +189,26 @@ def test_dry_run_three_torrents(
         f"{name}: {s.details}" for name, s in report.steps.items() if s.error_count > 0
     )
 
+    # --- Per-step success_count invariants (concrete expectations) -------
+    # ingest processes all 3 torrents: 2 movies + 1 TV episode.
+    assert report.steps["ingest"].success_count == 3, (
+        f"ingest must process all 3 torrents. Got: {report.steps['ingest'].success_count}"
+    )
+    # sort, scrape, verify fast-skip when no staged content is ready (no
+    # items were moved to typed staging dirs by the ingest step alone).
+    for step_name in ("sort", "scrape", "verify"):
+        step = report.steps[step_name]
+        assert step.success_count + step.skip_count + step.error_count == 0, (
+            f"{step_name!r} expected fast-skip with zero items processed, "
+            f"got success={step.success_count} skip={step.skip_count} err={step.error_count}"
+        )
+    # dispatch produces no successes in dry-run because there are no
+    # dispatchable (verified) items after the verify fast-skip.
+    assert report.steps["dispatch"].success_count == 0, (
+        f"dispatch must report 0 successes in dry-run (no verified items). "
+        f"Got: {report.steps['dispatch'].success_count}"
+    )
+
     # --- Dry-run invariant: no files on any disk -------------------------
     for disk in fake_disks:
         children = list(disk.iterdir())

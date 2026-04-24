@@ -105,19 +105,15 @@ def test_verify_accepts_complete_folder(staging_tree: Path, integration_config: 
         movies_only=True,
     )
 
-    assert results or True  # ensure the run completed
-    # Find the result for our movie folder
+    assert results, "run_verify returned no results — verify step did not run or produced no output"
+    # Find the result for our movie folder — it must be present in the dispatchable list.
     movie_result = next((r for r in results if r.media_path.name == "CompleteFilm (2024)"), None)
-    # If not in dispatchable list it means it was blocked — check all_results via report details
-    if movie_result is None:
-        # Dispatchable only contains valid/fixed; check report details for "valid"
-        assert any("CompleteFilm (2024)" in d and "[valid]" in d for d in _report.details), (
-            f"Expected [valid] for CompleteFilm (2024) in report details. Got: {_report.details}"
-        )
-    else:
-        assert movie_result.status in ("valid", "fixed"), (
-            f"Expected 'valid' or 'fixed', got '{movie_result.status}'. Errors: {movie_result.errors}"
-        )
+    assert movie_result is not None, (
+        f"CompleteFilm (2024) must appear in verify results. Got: {[r.media_path.name for r in results]}"
+    )
+    assert movie_result.status in ("valid", "fixed"), (
+        f"Expected 'valid' or 'fixed', got '{movie_result.status}'. Errors: {movie_result.errors}"
+    )
 
 
 def test_verify_blocks_missing_poster(staging_tree: Path, integration_config: Config) -> None:
