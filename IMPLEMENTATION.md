@@ -6,7 +6,7 @@
 **Version bump**: 0.5.0 → 0.6.0
 **Branch**: feat/test-realism
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/14
 **Design**: docs/features/test-realism/DESIGN.md
 **Master plan**: docs/features/test-realism/plan/INDEX.md
 
