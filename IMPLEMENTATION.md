@@ -16,7 +16,7 @@
 | --- | ---------------------------------------------------------- | ---------------------------- | ------ |
 | 1   | E2E scaffolding & shared fixtures                          | phase-01-e2e-scaffolding.md  | [x]    |
 | 2   | E2E tests — ingest / sort / process / scrape               | phase-02-e2e-early-stages.md | [x]    |
-| 3   | E2E tests — enforce / verify / dispatch / full-run         | phase-03-e2e-late-stages.md  | [ ]    |
+| 3   | E2E tests — enforce / verify / dispatch / full-run         | phase-03-e2e-late-stages.md  | [x]    |
 | 4   | Hotspot trimming (dispatcher / cli / pipeline_integration) | phase-04-hotspot-trim.md     | [ ]    |
 | 5   | Coverage check + docs                                      | phase-05-verify-and-docs.md  | [ ]    |
 
@@ -26,4 +26,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Continue `/implement:phase` for Phase 3.
+Continue `/implement:phase` for Phase 4.
