@@ -259,7 +259,7 @@ def test_library_aware_recheck_skips_when_trailer_already_on_disk(tmp_path):
 
     Fixture creates a fake library disk with an existing show + valid trailer
     file (size ≥ min_file_size_bytes). A new episode of the same show appears
-    in staging. With `check_library_before_download=True`, the orchestrator
+    in staging. With `library_check.tv_shows=True` (default), the orchestrator
     must:
       - Mark the state entry with status=ALREADY_PRESENT_ON_DISK,
         trailer_path=<library path>.
@@ -349,12 +349,14 @@ The reference doc must cover (English, following existing docs/reference/ style)
    Season trailers (opt-in via `trailers.seasons.enabled`) land at
    `{show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}`.
    NFO `<trailer>` tag is populated with the YouTube URL (Plex remote-trailer fallback).
-   7bis. **Library-aware idempotence** (DESIGN §8 extension) — `trailers.check_library_before_download`
-   default ON. Before any discovery/download, the orchestrator consults
-   `library.scanner` to detect whether the media item already exists on one of the 4
-   storage disks with a valid trailer. If so, the entry is marked
-   `already_present_on_disk` and no network call is made. Operationally important when
-   a new episode of an existing show arrives in staging.
+   7bis. **Library-aware idempotence** (DESIGN §8 extension) — per-media-type toggles
+   `trailers.library_check.movies` (default OFF — films rarely re-ingested) and
+   `trailers.library_check.tv_shows` (default ON — new episodes arrive frequently).
+   When enabled for the item's media type, the orchestrator consults `library.scanner`
+   to detect whether the media item already exists on one of the 4 storage disks with
+   a valid trailer. If so, the entry is marked `already_present_on_disk` and no
+   network call is made. Operationally important when a new episode of an existing
+   show arrives in staging.
 8. **Security** — cookie file requirements (APFS-only, mode 600); `.env` gitignored.
 9. **ToS note** — downloading YouTube content is grey-area; this feature is for personal
    use only, per YouTube Terms of Service §5. Do not redistribute downloaded content.

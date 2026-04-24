@@ -104,7 +104,8 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.disks = []
     # DESIGN §4 + §8 extensions
     cfg.trailers.seasons.enabled = False
-    cfg.trailers.check_library_before_download = True
+    cfg.trailers.library_check.movies = False
+    cfg.trailers.library_check.tv_shows = True
     return cfg
 
 

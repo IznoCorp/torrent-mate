@@ -50,10 +50,11 @@ python -c "from personalscraper.trailers.step import run_trailers; print('OK')"
 - Existing `tests/library/` tests remain green.
 - **Season scanning is opt-in** (DESIGN §4): when `config.trailers.seasons.enabled` is False
   (the default), the scanner emits show-level `ScanItem`s only — same behaviour as before.
-- **Library-aware SOT recheck** (DESIGN §8 extension): controlled by
-  `config.trailers.check_library_before_download` (default True). When enabled, the
-  orchestrator consults `library.scanner` once per run and short-circuits items whose
-  trailers already exist on one of the storage disks.
+- **Library-aware SOT recheck** (DESIGN §8 extension): controlled per media type by
+  `config.trailers.library_check.movies` (default False) and
+  `config.trailers.library_check.tv_shows` (default True). When enabled for the
+  item's media type, the orchestrator consults `library.scanner` once per run and
+  short-circuits items whose trailers already exist on one of the storage disks.
 
 ---
 
@@ -329,9 +330,14 @@ expectations on `library.scanner` integration:
 - `test_library_aware_recheck_falls_through_when_library_item_absent` — when the
   scanner returns no matching library item (new media not on any disk yet), the
   orchestrator falls through to the staging SOT recheck and continues normally.
-- `test_library_aware_recheck_disabled_falls_through` — when
-  `config.trailers.check_library_before_download=False`, the library scan is never
-  performed and the orchestrator behaves as if no library existed.
+- `test_library_aware_recheck_disabled_for_movies_falls_through` — when
+  `config.trailers.library_check.movies=False` (default), a movie ScanItem
+  bypasses the library check regardless of `tv_shows` setting.
+- `test_library_aware_recheck_enabled_only_for_tvshows_by_default` — with default
+  config (`movies=False`, `tv_shows=True`), a TV show item triggers the library
+  check while a movie item skips it.
+- `test_library_aware_recheck_enabled_for_movies_when_opted_in` — when
+  `config.trailers.library_check.movies=True`, movie items also get the check.
 
 ### Step 3: Run tests
 
@@ -394,7 +400,9 @@ def _make_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.seasons.enabled = False
     cfg.trailers.seasons.language_fallback = None
     cfg.trailers.seasons.search_query_format = "{title} {year} saison {season} bande annonce"
-    cfg.trailers.check_library_before_download = True
+    # Library-aware idempotence — per-media-type toggles. Defaults: movies=False, tv_shows=True.
+    cfg.trailers.library_check.movies = False
+    cfg.trailers.library_check.tv_shows = True
     return cfg
 
 
@@ -548,20 +556,24 @@ class TrailersOrchestrator:
 1. `state_store.auto_gc()` once at start of `run()`.
 2. **Step budget**: record `step_start = time.monotonic()`. Read
    `config.trailers.step.max_duration_sec` (default 1800 s — DESIGN §12 Timeouts).
-   2bis. **Library index init (lazy)**: if `config.trailers.check_library_before_download`
-   is True, build `self._library_index` once on first access by calling
-   `library.scanner.scan_library(config.disks, config)` and indexing the returned
-   `LibraryScanItem`s by `(category, tmdb_id)` and `(category, tvdb_id)` tuples
-   (skip entries whose ids are None). The cache lives for the orchestrator instance's
-   lifetime — one scan per run is enough; the cache is invalidated on the next
-   orchestrator instantiation. When the flag is False, the index stays empty and the
-   library-aware recheck is skipped entirely.
+   2bis. **Library index init (lazy)**: if EITHER `config.trailers.library_check.movies`
+   OR `config.trailers.library_check.tv_shows` is True, build `self._library_index`
+   once on first access by calling `library.scanner.scan_library(config.disks, config)`
+   and indexing the returned `LibraryScanItem`s by `(category, tmdb_id)` and
+   `(category, tvdb_id)` tuples (skip entries whose ids are None). The cache lives for
+   the orchestrator instance's lifetime — one scan per run is enough; the cache is
+   invalidated on the next orchestrator instantiation. When BOTH flags are False, the
+   index stays empty and the library-aware recheck is skipped entirely.
 3. For each `ScanItem`:
    a. Build composite state key via `make_state_key()`. For season-level ScanItems,
    pass `season_number=item.season_number` so the key carries the `:season:{N}` suffix.
    b. `state_store.should_skip(key)` → if True, increment `skipped_by_state`.
-   b-new. **Library-aware SOT recheck** (DESIGN §8 extension, controlled by
-   `config.trailers.check_library_before_download`, default `True`):
+   b-new. **Library-aware SOT recheck** (DESIGN §8 extension, per-media-type toggles): 0. Resolve the applicable toggle: if `item.media_type == "movie"` read
+   `config.trailers.library_check.movies` (default False); if
+   `item.media_type == "tv"` (including season-level items) read
+   `config.trailers.library_check.tv_shows` (default True). If the toggle is
+   False for this item, SKIP the library check entirely and fall through to
+   step c (staging SOT recheck).
    1. Build a library lookup key from the ScanItem's NFO ids (`tmdb_id` preferred,
       `tvdb_id` fallback).
    2. Look up the matching `LibraryScanItem` in `self._library_index`. If found:
@@ -607,10 +619,19 @@ class TrailersOrchestrator:
   `library.scanner.scan_library` to return an empty list. Assert the orchestrator falls
   through to the staging SOT recheck and proceeds normally (downloader is reachable
   if the staging trailer is missing).
-- `test_library_aware_recheck_disabled_falls_through` — set
-  `config.trailers.check_library_before_download = False`. Assert
+- `test_library_aware_recheck_disabled_for_both_types_skips_scan` — set
+  `config.trailers.library_check.movies = False` and
+  `config.trailers.library_check.tv_shows = False`. Assert
   `library.scanner.scan_library` is NEVER called and behaviour is identical to a
-  staging-only orchestrator.
+  staging-only orchestrator for ALL items.
+- `test_library_aware_recheck_movies_off_tvshows_on_default` — with default config
+  (`movies=False`, `tv_shows=True`), assert: a movie ScanItem skips the library
+  check and falls through to staging; a TV show ScanItem triggers the library
+  index init + recheck. `library.scanner.scan_library` is called lazily on the
+  first TV item only.
+- `test_library_aware_recheck_movies_opted_in` — set
+  `config.trailers.library_check.movies = True`. Assert movie items also go
+  through the library recheck path.
 
 ### Step 3: Run tests
 

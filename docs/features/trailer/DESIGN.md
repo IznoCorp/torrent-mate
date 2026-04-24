@@ -287,7 +287,13 @@ The `already_present_on_disk` status is distinct from `already_present` (which r
 
 **Lookup logic** (before any network call): if an entry exists AND `status ∈ {no_trailer_available, http_error, ytdlp_error}` AND `next_retry_at > now` → skip, don't contact TMDB/YouTube.
 
-**Library-aware SOT recheck** (DESIGN §8 extension): before any discovery call, the orchestrator consults `library.scanner` to detect whether the media item already exists on one of the 4 storage disks with a valid trailer. If found, the state entry is updated with `status=already_present_on_disk`, `trailer_path=<library-path>`, and no network call is made. This prevents re-downloading when a new episode of an existing show arrives in staging.
+**Library-aware SOT recheck** (DESIGN §8 extension): before any discovery call, the orchestrator consults `library.scanner` to detect whether the media item already exists on one of the 4 storage disks with a valid trailer. If found, the state entry is updated with `status=already_present_on_disk`, `trailer_path=<library-path>`, and no network call is made.
+
+**Per-media-type toggles** (`config.trailers.library_check.movies` / `config.trailers.library_check.tv_shows`):
+
+- `library_check.tv_shows: true` (default) — new episodes of existing shows arrive frequently in staging. Without this check, the trailer step would spam TMDB/YouTube on every scrape run for every already-trailered show. The library-aware check reads the disk once per orchestrator run, avoiding the spam.
+- `library_check.movies: false` (default) — movies rarely get re-ingested once on disk (no "new episodes" equivalent). Keeping the check off for movies means the default case (fresh staging item not yet on disk) skips the library-scan cost entirely. Users who re-ingest remastered/redubbed versions of existing films can opt-in by setting `library_check.movies: true`.
+- When the check is disabled for a media type, the orchestrator falls through directly to the staging-local SOT check (see §8).
 
 **Lifecycle / auto-GC** (runs at the start of every `trailers` step and every `trailers *` subcommand):
 
@@ -301,9 +307,9 @@ No separate remap-detection for TMDB ID changes: if a re-scrape changes `tmdbid`
 
 `personalscraper/library/scanner.py` exposes `scan_library()`, `scan_movie_dir()`, `scan_tvshow_dir()` and caches results. The cache can be stale. Design rules:
 
-1. **Presence check goes to the filesystem, and to BOTH staging and library locations.** Order of check:
+1. **Presence check goes to the filesystem, and (when enabled per media type) to BOTH staging and library locations.** Order of check:
    a. Expected placement path in the current media's staging folder.
-   b. If the media corresponds to a known library item (by tmdb_id/tvdb_id lookup via `library.scanner`), the library path and its expected trailer location.
+   b. If `config.trailers.library_check.{movies|tv_shows}` is True for the item's media type, and the media corresponds to a known library item (by tmdb_id/tvdb_id lookup via `library.scanner`), the library path and its expected trailer location.
    If a trailer file is present at EITHER location with size ≥ `min_file_size_bytes`, skip the download. Before `download`, re-verify the trailer file is still absent at the expected path. Before `purge`, re-verify the media is actually missing from disk.
 2. **Desync detection.** If a state entry references a `media_path` that no longer exists, flip `status=orphan` and move on. `trailers purge --include-state` uses these markers to clean up.
 3. **No write without filesystem-verified intent.** Do not delete trailers based on library cache stating "media missing" — re-check the disk first.
