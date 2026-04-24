@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import requests
+from guessit.api import GuessitException
 
 from personalscraper.conf import classifier as _classifier
 from personalscraper.conf.models import Config
@@ -171,7 +172,7 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
             return title, year
     except ImportError:
         log.warning("folder_name_cleaner_unavailable", name=name)
-    except (ValueError, AttributeError, TypeError) as exc:
+    except (ValueError, AttributeError, TypeError, GuessitException) as exc:
         log.warning("folder_name_clean_failed", name=name, error=str(exc), exc_info=True)
 
     return name.strip(), None
@@ -1235,7 +1236,7 @@ class Scraper:
                 self.patterns,
             )
             result.artwork_downloaded = [p.name for p in downloaded]
-        except (requests.RequestException, OSError) as e:
+        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
             log.warning("movie_artwork_failed", title=title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
@@ -1497,7 +1498,7 @@ class Scraper:
                 self.patterns,
             )
             result.artwork_downloaded = [p.name for p in downloaded]
-        except (requests.RequestException, OSError) as e:
+        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
             log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
             result.warnings.append(f"Artwork failed: {e}")
 
