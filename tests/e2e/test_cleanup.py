@@ -1,6 +1,9 @@
 """Tests for E2E cleanup — staging, disk, torrent cleanup with safety checks."""
 
+from pathlib import Path
 from unittest.mock import MagicMock
+
+from qbittorrentapi.exceptions import NotFound404Error
 
 from tests.e2e.cleanup import TestCleanup
 from tests.e2e.markers import place_marker
@@ -112,6 +115,96 @@ class TestCleanupStaging:
         assert deleted == []
         assert sibling.exists()
 
+    def test_symlink_into_scope_is_followed(self, tmp_path):
+        """A symlink whose target lives inside staging resolves as in-scope.
+
+        TestRegistry.register() resolves symlinks before storing, so the
+        registered entry is the already-resolved target. cleanup removes
+        the target and records the resolved path as deleted.
+        """
+        reg = TestRegistry(session_id="s7", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        real_target = staging_root / "Movie"
+        real_target.mkdir(parents=True)
+        place_marker(real_target, "s7")
+
+        link_parent = tmp_path / "aliases"
+        link_parent.mkdir()
+        link = link_parent / "MovieLink"
+        link.symlink_to(real_target)
+        reg.register(link)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == [real_target]  # registry resolved the link at registration
+        assert not real_target.exists()  # target was removed via shutil.rmtree
+
+    def test_symlink_to_outside_scope_is_rejected(self, tmp_path):
+        """A symlink under staging that targets outside is NOT in-scope.
+
+        TestRegistry.register() resolves the symlink to its outside target
+        before storing, so cleanup iterates on the outside path and the
+        scope guard rejects it. Both the symlink node and its target survive.
+        """
+        reg = TestRegistry(session_id="s8", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        staging_root.mkdir()
+        outside_target = tmp_path / "elsewhere" / "Movie"
+        outside_target.mkdir(parents=True)
+        place_marker(outside_target, "s8")
+
+        link = staging_root / "MovieLink"
+        link.symlink_to(outside_target)
+        reg.register(link)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []  # resolved target is outside staging scope
+        assert link.is_symlink()  # symlink node untouched
+        assert outside_target.exists()  # target untouched
+
+    def test_nonexistent_registered_path_is_skipped(self, tmp_path):
+        """Registry paths that no longer exist are silently skipped."""
+        reg = TestRegistry(session_id="s9", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        staging_root.mkdir()
+        ghost = staging_root / "AlreadyDeleted"
+        reg.register(ghost)  # registered but never created
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []  # no crash, no spurious delete
+
+    def test_is_within_returns_false_on_oserror(self, tmp_path, monkeypatch):
+        """Filesystem errors during Path.resolve() are swallowed and return False.
+
+        Documents the OSError-tolerance branch of _is_within: when .resolve()
+        raises (e.g. permission denied on a parent dir, or a symlink loop),
+        the path is conservatively excluded from the scope rather than crashing.
+        """
+        reg = TestRegistry(session_id="s10", base_dir=tmp_path)
+        staging_root = tmp_path / "staging"
+        staging_root.mkdir()
+        candidate = staging_root / "Movie"
+        candidate.mkdir()
+        place_marker(candidate, "s10")
+        reg.register(candidate)
+
+        # Monkeypatch Path.resolve to raise OSError for any call.
+        def _raise_oserror(self, *_a, **_kw):
+            raise OSError("simulated EACCES")
+
+        monkeypatch.setattr(Path, "resolve", _raise_oserror)
+
+        cleanup = TestCleanup(registry=reg, dry_run=False, staging_dir=staging_root)
+        deleted = cleanup.cleanup_staging()
+
+        assert deleted == []  # _is_within returned False under OSError
+        assert candidate.exists()  # cleanup left the path alone
+
 
 class TestCleanupDisks:
     """Tests for cleanup_disks() triple safety verification."""
@@ -216,16 +309,35 @@ class TestCleanupTorrents:
         assert cleanup.cleanup_torrents(client=None) == 0
 
     def test_handles_delete_failure(self, tmp_path):
-        """Logs warning but doesn't crash on delete failure."""
+        """Logs warning but doesn't crash on a qBittorrent API error."""
         reg = TestRegistry(session_id="t3", base_dir=tmp_path)
         reg.register_torrent("bad_hash")
 
         mock_client = MagicMock()
-        mock_client.torrents_delete.side_effect = Exception("not found")
+        mock_client.torrents_delete.side_effect = NotFound404Error("not found")
 
         cleanup = TestCleanup(registry=reg, dry_run=False)
         count = cleanup.cleanup_torrents(client=mock_client)
         assert count == 0  # Failed, not counted
+
+    def test_propagates_programming_errors(self, tmp_path):
+        """Non-APIError exceptions bubble up — narrowing the except was the point.
+
+        Regression guard: if someone widens the except back to ``Exception``,
+        this test fails. Programming bugs (AttributeError, TypeError) must
+        reach pytest instead of being silently downgraded to a warning.
+        """
+        import pytest
+
+        reg = TestRegistry(session_id="t4", base_dir=tmp_path)
+        reg.register_torrent("bug_hash")
+
+        mock_client = MagicMock()
+        mock_client.torrents_delete.side_effect = AttributeError("API shape drifted")
+
+        cleanup = TestCleanup(registry=reg, dry_run=False)
+        with pytest.raises(AttributeError, match="API shape drifted"):
+            cleanup.cleanup_torrents(client=mock_client)
 
 
 class TestCleanupAll:

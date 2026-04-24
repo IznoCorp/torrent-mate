@@ -51,8 +51,11 @@ class TestTVShowFullPipeline:
         if not tvshow_torrents:
             pytest.skip("No TV show .torrent files in assets/torrents/")
 
+        from personalscraper.conf.loader import load_config, resolve_config_path
+
         settings = e2e_settings
-        staging = Path(settings.staging_dir)
+        e2e_config = load_config(resolve_config_path(None))
+        staging = Path(e2e_config.paths.staging_dir)
         tvshows_dir = staging / "002-TVSHOWS"
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
@@ -60,6 +63,7 @@ class TestTVShowFullPipeline:
             registry=e2e_registry,
             dry_run=False,
             staging_dir=staging,
+            disk_paths=[Path(d.path) for d in e2e_config.disks],
         )
 
         try:
@@ -76,10 +80,8 @@ class TestTVShowFullPipeline:
                     e2e_registry.register(downloaded)
 
             # ── 2. V1 Ingest (REAL) ──
-            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.ingest.ingest import run_ingest
 
-            e2e_config = load_config(resolve_config_path(None))
             ingest_report = run_ingest(settings, dry_run=False, config=e2e_config)
             print(f"  V1 Ingest: {ingest_report.success_count} ingested")
 
@@ -89,7 +91,7 @@ class TestTVShowFullPipeline:
             # ── 3. V2 Sort (REAL) ──
             from personalscraper.sorter.run import run_sort
 
-            sort_report = run_sort(settings, dry_run=False)
+            sort_report = run_sort(settings, staging_dir=staging, config=e2e_config, dry_run=False)
             print(f"  V2 Sort: {sort_report.success_count} sorted")
             assert_sort_complete(staging / "001-MOVIES", tvshows_dir, expected)
 
@@ -139,7 +141,7 @@ class TestTVShowFullPipeline:
             # ── 5. V4 Verify (REAL) ──
             from personalscraper.verify.run import run_verify
 
-            verify_report, verified = run_verify(settings, dry_run=False, tvshows_only=True)
+            verify_report, verified = run_verify(settings, config=e2e_config, dry_run=False, tvshows_only=True)
             print(f"  V4 Verify: {verify_report.success_count} valid")
             test_results = [v for v in verified if any(n.lower() in str(v.media_path).lower() for n in names.values())]
             assert_verify_complete(test_results)
@@ -147,7 +149,7 @@ class TestTVShowFullPipeline:
             # ── 6. V5 Dispatch (DRY-RUN — disks are NEVER modified) ──
             from personalscraper.dispatch.run import run_dispatch
 
-            dispatch_report = run_dispatch(settings, dry_run=True, verified=verified)
+            dispatch_report = run_dispatch(settings, config=e2e_config, dry_run=True, verified=verified)
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
 
             print("\n  Pipeline complete (dispatch was dry-run, disks untouched)")
@@ -180,14 +182,18 @@ class TestFullPipelineMixed:
         if len(e2e_torrent_files) < 2:
             pytest.skip("Need at least 2 .torrent files (movie + tvshow) for mixed test")
 
+        from personalscraper.conf.loader import load_config, resolve_config_path
+
         settings = e2e_settings
-        staging = Path(settings.staging_dir)
+        e2e_config = load_config(resolve_config_path(None))
+        staging = Path(e2e_config.paths.staging_dir)
 
         setup = TorrentSetup(client=e2e_qbit_client, registry=e2e_registry)
         cleanup = TestCleanup(
             registry=e2e_registry,
             dry_run=False,
             staging_dir=staging,
+            disk_paths=[Path(d.path) for d in e2e_config.disks],
         )
 
         try:
@@ -204,10 +210,9 @@ class TestFullPipelineMixed:
                     e2e_registry.register(downloaded)
 
             # 2. Ingest first so there's data in staging for the run command
-            from personalscraper.conf.loader import load_config, resolve_config_path
             from personalscraper.ingest.ingest import run_ingest
 
-            run_ingest(settings, dry_run=False, config=load_config(resolve_config_path(None)))
+            run_ingest(settings, dry_run=False, config=e2e_config)
 
             # Register ingested items for cleanup
             for item in staging.iterdir():
