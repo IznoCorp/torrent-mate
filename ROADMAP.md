@@ -4,6 +4,22 @@
 
 ## Future Ideas
 
+### Web Management UI
+
+Web-based graphical interface to pilot and supervise the whole project from a browser.
+
+- **Pipeline control**: start / pause / resume / kill each step (`ingest`, `sort`, `process`, `dispatch`), view live logs, step status, and per-run history
+- **Configuration editor**: visual editor for `config.json5` (paths, categories, disks, thresholds, patterns) with schema validation and safe reload — no shell required
+- **Maintenance dashboard**: disk usage / free space per disk, orphan files (`_tmp_ingest_*`, `_tmp_dispatch_*`), stale locks, library index health, pipeline-runs history
+- **Interactive scraping**: front-end for the manual-decision points currently handled via MediaElch / CLI prompts — ambiguous TMDB/TVDB matches, multi-result picks, low-fuzzy-score arbitration, manual override of detected title/year/season
+- **Future-ready**: UI shell designed to host pages for upcoming roadmap items, notably:
+  - **Auto-Download System** — tracker search, format preferences, subscription list CRUD, override rules editor
+  - **Watcher Service** — live watcher status, trigger history
+  - **Library Indexer** — browse/search indexed media, trigger re-scan, view stale entries
+  - **YoutubeTrailerScraper Integration** — missing-trailer queue, per-item scrape trigger
+- **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`)
+- **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX
+
 ### Auto-Download System
 
 Automatic torrent download pipeline with tracker API integration.
@@ -37,7 +53,6 @@ Integrate existing trailer scraping tool into the pipeline.
 - Plan: `docs/superpowers/roadmap/trailer/plan/INDEX.md`
 - Prepared on: 2026-04-23
 - Target version bump: 0.4.0 → 0.5.0 (minor)
-- Depends on: `ext-staging` merged to `main`
 
 ### Config System Overhaul
 
@@ -47,14 +62,6 @@ Migrate from flat `.env` / pydantic-settings to structured JSON config.
 - JSON files per topic: `encoding.json`, `audio.json`, `paths.json`, `patterns.json`, `disks.json`
 - EVERYTHING configurable: directories, patterns, values, naming conventions, thresholds
 - The existing `encoding_rules.json` is a prototype of this approach
-
-### Decouple Staging from Project
-
-Move staging directories out of the git project root.
-
-- Staging path fully configurable (e.g. `/Volumes/<disk>/staging/`)
-- Auto-create staging directory tree on first pipeline run if missing
-- Currently staging dirs (001-MOVIES, 002-TVSHOWS, etc.) live inside the repo, mixing code and data
 
 ### Test Realism Refactor
 
