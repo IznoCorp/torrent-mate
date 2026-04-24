@@ -4,6 +4,20 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Scope note (v0.7.0)**: only filters actually wired in phases 3a/3b/6/8 are included in
+> `TrailersConfig`. Advanced filters (duration bounds, official-channel preference, custom
+> TMDB video filters, explicit `max_resolution` knob) are documented in DESIGN §9 but
+> deferred to v0.8.0. This prevents dead config keys that users set without effect.
+>
+> Concretely, v0.7.0 KEEPS: `filters.min_file_size_bytes`, `filters.max_filesize_mb`,
+> `filters.allowed_extensions`, `youtube_api.cache_ttl_days`.
+>
+> v0.7.0 REMOVES (deferred to v0.8.0): `fallback_youtube_search` (YouTube API 403 fallback
+> stays on by design, no knob), `filters.min_duration_sec`, `filters.max_duration_sec`,
+> `filters.prefer_official_channels`, `filters.max_resolution` (yt-dlp `format` string
+> already caps at 1080p), `tmdb_video_filters` (the `_best_video` helper hard-codes
+> `site == "YouTube"` + Trailer/Teaser preference; acceptable for v0.7.0).
+
 **Goal:** Implement DESIGN §9 (Configuration split). Add `TrailersConfig` Pydantic model
 to `personalscraper/conf/models.py` with `Field(default_factory=...)` so that omitting the
 `trailers` section in `config.json5` yields sensible defaults with `enabled: false`. Update
@@ -114,23 +128,25 @@ def test_trailers_placement_defaults():
     assert cfg.placement.tvshow_pattern == "{folder}/{name}-trailer.{ext}"
 
 def test_trailers_filters_defaults():
-    """TrailersFiltersConfig defaults match DESIGN §9 spec."""
+    """TrailersFiltersConfig defaults match DESIGN §9 spec (v0.7.0 minimal set).
+
+    Advanced filters (duration bounds, official-channel preference, max_resolution,
+    tmdb_video_filters) are deferred to v0.8.0 — see the Scope note at the top of
+    this phase.
+    """
     from personalscraper.conf.models import TrailersConfig
     cfg = TrailersConfig()
     assert cfg.filters.min_file_size_bytes == 102400
-    assert cfg.filters.min_duration_sec == 30
-    assert cfg.filters.max_duration_sec == 600
-    assert cfg.filters.max_resolution == 1080
     assert cfg.filters.max_filesize_mb == 500
-    assert cfg.filters.prefer_official_channels is True
-    # TMDB /videos filtering is always-on: non-YouTube entries are dropped,
-    # officials preferred, allowed types capped.
-    assert cfg.filters.tmdb_video_filters.require_youtube_site is True
-    assert cfg.filters.tmdb_video_filters.prefer_official is True
-    assert cfg.filters.tmdb_video_filters.allowed_types == ["Trailer", "Teaser"]
+    # Allowed extensions drive the Phase 8 `verify` subcommand's extension check.
+    assert set(cfg.filters.allowed_extensions) == {"mp4", "mkv", "webm"}
 
 def test_trailers_ytdlp_defaults():
-    """TrailersYtdlpConfig defaults match DESIGN §9 spec (1080p cap + fallback search)."""
+    """TrailersYtdlpConfig defaults match DESIGN §9 spec (1080p cap + fallback search).
+
+    `fallback_youtube_search` was removed in v0.7.0 — the YouTube API 403 → yt-dlp
+    fallback is always on. Only `default_search = "ytsearch1"` remains configurable.
+    """
     from personalscraper.conf.models import TrailersConfig
     cfg = TrailersConfig()
     assert "height<=1080" in cfg.ytdlp.format
@@ -178,25 +194,24 @@ Add the following classes **before** the main `Config` class. All use `_StrictMo
 
 **Signature table:**
 
-| Class                           | Key fields (all with defaults)                                                                                                                                                                                                                                                                                          |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TrailersPlacementConfig`       | `movie_pattern: str` (`"{folder}/{name}-trailer.{ext}"`), `tvshow_pattern: str` (same — flat convention)                                                                                                                                                                                                                |
-| `TrailersTmdbVideoFilters`      | `require_youtube_site: bool` (True), `prefer_official: bool` (True), `allowed_types: list[str]`                                                                                                                                                                                                                         |
-| `TrailersFiltersConfig`         | `min_duration_sec`, `max_duration_sec`, `min_file_size_bytes`, `max_resolution: int` (1080), `max_filesize_mb: int` (500), `prefer_official_channels: bool`, `tmdb_video_filters: TrailersTmdbVideoFilters`                                                                                                             |
-| `TrailersCircuitBreakerConfig`  | `errors_threshold: int`, `cooldown_sec: int`                                                                                                                                                                                                                                                                            |
-| `TrailersCircuitBreakersConfig` | `tmdb_videos: TrailersCircuitBreakerConfig`, `youtube: TrailersCircuitBreakerConfig` (two distinct instances per DESIGN §1)                                                                                                                                                                                             |
-| `TrailersYoutubeApiConfig`      | `daily_quota_units: int` (10 000), `search_list_cost_units: int` (100), `cache_ttl_days: int` (7)                                                                                                                                                                                                                       |
-| `TrailersYtdlpConfig`           | `format: str` (1080p cap), `socket_timeout_sec`, `retries`, `default_search: str` (`"ytsearch1"`)                                                                                                                                                                                                                       |
-| `TrailersConfig`                | `enabled`, `languages`, `fallback_youtube_search`, `search_query_format`, `placement`, `filters`, `state_file`, `retry_after_days`, `bot_detected_max_consecutive_attempts: int` (5), `library_scan_max_age_hours`, `circuit_breakers: TrailersCircuitBreakersConfig`, `youtube_api: TrailersYoutubeApiConfig`, `ytdlp` |
+| Class                           | Key fields (all with defaults)                                                                                                                                                                                                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TrailersPlacementConfig`       | `movie_pattern: str` (`"{folder}/{name}-trailer.{ext}"`), `tvshow_pattern: str` (same — flat convention)                                                                                                                                                                                     |
+| `TrailersFiltersConfig`         | `min_file_size_bytes: int` (102400), `max_filesize_mb: int` (500), `allowed_extensions: list[str]` (`["mp4", "mkv", "webm"]`) — v0.7.0 minimal set; advanced filters deferred to v0.8.0                                                                                                      |
+| `TrailersCircuitBreakerConfig`  | `errors_threshold: int`, `cooldown_sec: int`                                                                                                                                                                                                                                                 |
+| `TrailersCircuitBreakersConfig` | `tmdb_videos: TrailersCircuitBreakerConfig`, `youtube: TrailersCircuitBreakerConfig` (two distinct instances per DESIGN §1)                                                                                                                                                                  |
+| `TrailersYoutubeApiConfig`      | `daily_quota_units: int` (10 000), `search_list_cost_units: int` (100), `cache_ttl_days: int` (7)                                                                                                                                                                                            |
+| `TrailersYtdlpConfig`           | `format: str` (1080p cap), `socket_timeout_sec`, `retries`, `default_search: str` (`"ytsearch1"`)                                                                                                                                                                                            |
+| `TrailersConfig`                | `enabled`, `languages`, `search_query_format`, `placement`, `filters`, `state_file`, `retry_after_days`, `bot_detected_max_consecutive_attempts: int` (5), `library_scan_max_age_hours`, `circuit_breakers: TrailersCircuitBreakersConfig`, `youtube_api: TrailersYoutubeApiConfig`, `ytdlp` |
 
 All defaults match exactly the values in DESIGN §9.
 
 **Ordering note (critical — Python evaluates `Field(default_factory=ClassName)` at class
 definition time):** declare leaves-first, then composites, so every class is defined
 before any `default_factory=` reference to it. Order used below (top → down):
-`TrailersCircuitBreakerConfig` → `TrailersCircuitBreakersConfig` → `TrailersTmdbVideoFilters`
-→ `TrailersFiltersConfig` → `TrailersYoutubeApiConfig` → `TrailersYtdlpConfig` →
-`TrailersPlacementConfig` → `TrailersConfig`.
+`TrailersCircuitBreakerConfig` → `TrailersCircuitBreakersConfig` → `TrailersFiltersConfig`
+→ `TrailersYoutubeApiConfig` → `TrailersYtdlpConfig` → `TrailersPlacementConfig` →
+`TrailersConfig`.
 
 ```python
 class TrailersCircuitBreakerConfig(_StrictModel):
@@ -223,28 +238,29 @@ class TrailersCircuitBreakersConfig(_StrictModel):
     )
 
 
-class TrailersTmdbVideoFilters(_StrictModel):
-    """Always-on filters applied to TMDB /videos responses."""
-    require_youtube_site: bool = True
-    prefer_official: bool = True
-    allowed_types: list[str] = Field(default_factory=lambda: ["Trailer", "Teaser"])
-
-
 class TrailersFiltersConfig(_StrictModel):
-    min_duration_sec: int = 30
-    max_duration_sec: int = 600
+    """v0.7.0 minimal filter set.
+
+    Advanced filters (duration bounds, prefer_official_channels, max_resolution,
+    tmdb_video_filters) are deferred to v0.8.0 — see the Scope note at the top
+    of this phase. Each key below is wired into a concrete consumer phase:
+
+    - ``min_file_size_bytes``: ``has_existing_trailer`` skip check (phases 3c/6/8).
+    - ``max_filesize_mb``: passed into yt-dlp opts (phase 3b Steps 4/5) as
+      ``"max_filesize": max_filesize_mb * 1024 * 1024``.
+    - ``allowed_extensions``: extension check in the ``verify`` subcommand (phase 8).
+    """
     min_file_size_bytes: int = 102400
-    max_resolution: int = 1080
     max_filesize_mb: int = 500
-    prefer_official_channels: bool = True
-    tmdb_video_filters: TrailersTmdbVideoFilters = Field(
-        default_factory=TrailersTmdbVideoFilters
+    allowed_extensions: list[str] = Field(
+        default_factory=lambda: ["mp4", "mkv", "webm"]
     )
 
 
 class TrailersYoutubeApiConfig(_StrictModel):
     daily_quota_units: int = 10_000
     search_list_cost_units: int = 100
+    # Consumed by trailers_cache in phase 3a: TTL = cache_ttl_days * 24 * 3600.
     cache_ttl_days: int = 7
 
 
@@ -260,10 +276,20 @@ class TrailersPlacementConfig(_StrictModel):
     tvshow_pattern: str = "{folder}/{name}-trailer.{ext}"
 
 
+class TrailersStepConfig(_StrictModel):
+    """Operational safeguards for the pipeline step (DESIGN §12)."""
+    max_duration_sec: int = 1800  # 30-minute step-level budget
+
+
+class TrailersPipelineConfig(_StrictModel):
+    """Defaults for pipeline-level flags. CLI flags take precedence at runtime."""
+    skip: bool = False
+    continue_on_error: bool = False
+
+
 class TrailersConfig(_StrictModel):
     enabled: bool = False
     languages: list[str] = Field(default_factory=lambda: ["fr-FR", "en-US"])
-    fallback_youtube_search: bool = True
     search_query_format: str = "{title} {year} bande annonce"
     placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
     filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
@@ -278,7 +304,23 @@ class TrailersConfig(_StrictModel):
         default_factory=TrailersYoutubeApiConfig
     )
     ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)
+    step: TrailersStepConfig = Field(default_factory=TrailersStepConfig)
+    pipeline: TrailersPipelineConfig = Field(default_factory=TrailersPipelineConfig)
 ```
+
+**Class ordering reminder**: declare `TrailersStepConfig` and `TrailersPipelineConfig` BEFORE
+`TrailersConfig` (alongside the other leaf classes — same reason as other nested configs:
+`Field(default_factory=X)` needs `X` defined).
+
+**Wiring note for consumer phases** (ensures no dead config keys):
+
+- **Phase 3a (`trailers_cache`)**: replace any module-level `_YOUTUBE_TTL_SECONDS`
+  constant with a runtime read of
+  `config.trailers.youtube_api.cache_ttl_days * 24 * 3600`.
+- **Phase 3b (`ytdlp_downloader`)**: in the opts dict built by `download()` (Steps 4/5),
+  add `"max_filesize": config.trailers.filters.max_filesize_mb * 1024 * 1024`.
+- **Phase 8 (`trailers verify`)**: use `config.trailers.filters.allowed_extensions` for
+  the extension check instead of a hardcoded `{"mp4", "mkv", "webm"}` set.
 
 ### Step 4: Add `trailers` field to `Config`
 

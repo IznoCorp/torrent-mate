@@ -262,18 +262,21 @@ class TestShouldSkip:
         assert store.should_skip("movie:tmdb:99999") is False
 
     def test_retry_after_progression(self):
-        """compute_next_retry returns days from [1, 7, 30] based on attempt count."""
+        """compute_next_retry returns days from [1, 7, 30] based on attempt count.
+
+        Clock reference is ``last_attempt`` per DESIGN §7.
+        """
         from personalscraper.trailers.state import compute_next_retry_at
         policy = [1, 7, 30]
-        now = datetime.now(UTC)
-        r1 = compute_next_retry_at(attempts=1, policy=policy, now=now)
-        r2 = compute_next_retry_at(attempts=2, policy=policy, now=now)
-        r3 = compute_next_retry_at(attempts=3, policy=policy, now=now)
-        r4 = compute_next_retry_at(attempts=4, policy=policy, now=now)
-        assert (r1 - now).days == 1
-        assert (r2 - now).days == 7
-        assert (r3 - now).days == 30
-        assert (r4 - now).days == 30  # last element repeats
+        last_attempt = datetime.now(UTC)
+        r1 = compute_next_retry_at(attempts=1, policy=policy, last_attempt=last_attempt)
+        r2 = compute_next_retry_at(attempts=2, policy=policy, last_attempt=last_attempt)
+        r3 = compute_next_retry_at(attempts=3, policy=policy, last_attempt=last_attempt)
+        r4 = compute_next_retry_at(attempts=4, policy=policy, last_attempt=last_attempt)
+        assert (r1 - last_attempt).days == 1
+        assert (r2 - last_attempt).days == 7
+        assert (r3 - last_attempt).days == 30
+        assert (r4 - last_attempt).days == 30  # last element repeats
 
 
 # ── auto-GC ───────────────────────────────────────────────────────────────────
@@ -311,6 +314,99 @@ class TestAutoGC:
         store.auto_gc()
         # Entry is removed so the trailer can be re-downloaded
         assert store.get("movie:tmdb:2") is None
+
+    def test_purge_orphans_removes_orphan_entries_only(self, store, tmp_path):
+        """purge_orphans() removes only orphan entries; returns count removed."""
+        now = datetime.now(UTC).isoformat()
+        downloaded = TrailerState(
+            last_attempt=now, attempts=1,
+            status=TrailerStatus.DOWNLOADED, media_path="/a",
+        )
+        orphan = TrailerState(
+            last_attempt=now, attempts=1,
+            status=TrailerStatus.ORPHAN, media_path="/b",
+        )
+        bot_detected = TrailerState(
+            last_attempt=now, attempts=1,
+            status=TrailerStatus.BOT_DETECTED, media_path="/c",
+        )
+        store.set("movie:tmdb:1", downloaded)
+        store.set("movie:tmdb:2", orphan)
+        store.set("movie:tmdb:3", bot_detected)
+        removed = store.purge_orphans()
+        assert removed == 1
+        assert store.get("movie:tmdb:1") is not None
+        assert store.get("movie:tmdb:2") is None
+        assert store.get("movie:tmdb:3") is not None
+
+    def test_next_retry_measured_from_last_attempt_not_first_failure(self):
+        """compute_next_retry_at uses last_attempt as its clock reference (DESIGN §7)."""
+        from personalscraper.trailers.state import compute_next_retry_at
+        first_failure = datetime(2026, 1, 1, tzinfo=UTC)  # noqa: F841 — documentation only
+        last_attempt = datetime(2026, 4, 1, tzinfo=UTC)
+        result = compute_next_retry_at(
+            attempts=3,
+            policy=[1, 7, 30],
+            last_attempt=last_attempt,
+        )
+        assert result == datetime(2026, 5, 1, tzinfo=UTC)
+
+    def test_bot_detected_counter_resets_on_non_bot_outcome(self, store):
+        """bot_detected_consecutive_attempts resets BEFORE writing a non-bot status."""
+        now = datetime.now(UTC).isoformat()
+        # Three consecutive bot_detected attempts build up the counter.
+        state_bot = TrailerState(
+            last_attempt=now, attempts=3,
+            status=TrailerStatus.BOT_DETECTED, media_path="/x",
+            bot_detected_consecutive_attempts=3,
+        )
+        store.set("movie:tmdb:7", state_bot)
+        loaded = store.get("movie:tmdb:7")
+        assert loaded is not None
+        assert loaded.bot_detected_consecutive_attempts == 3
+        # Next outcome is DOWNLOADED → counter must reset to 0 before write.
+        state_success = TrailerState(
+            last_attempt=now, attempts=1,
+            status=TrailerStatus.DOWNLOADED, media_path="/x",
+            trailer_path="/x/trailer.mp4",
+            bot_detected_consecutive_attempts=0,  # reset before writing per DESIGN §5
+        )
+        store.set("movie:tmdb:7", state_success)
+        reloaded = store.get("movie:tmdb:7")
+        assert reloaded is not None
+        assert reloaded.bot_detected_consecutive_attempts == 0
+        assert reloaded.status == TrailerStatus.DOWNLOADED
+
+    def test_concurrent_writes_do_not_corrupt_state(self, tmp_path):
+        """Two concurrent writers under fcntl.flock produce a valid JSON file.
+
+        Uses multiprocessing.Process to simulate concurrent writers on the same
+        state file. After both finish, the file must parse cleanly and contain
+        both entries (no lost update, no torn write).
+        """
+        import multiprocessing
+        from personalscraper.trailers.state import TrailerStateStore
+
+        state_file = tmp_path / "trailers_state.json"
+
+        def write_entry(key: str) -> None:
+            s = TrailerStateStore(state_file=state_file)
+            s.set(key, TrailerState(
+                last_attempt=datetime.now(UTC).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path=f"/fake/{key}",
+            ))
+
+        p1 = multiprocessing.Process(target=write_entry, args=("movie:tmdb:1",))
+        p2 = multiprocessing.Process(target=write_entry, args=("movie:tmdb:2",))
+        p1.start(); p2.start()
+        p1.join(); p2.join()
+
+        reader = TrailerStateStore(state_file=state_file)
+        # Both entries must survive (neither write was lost under the lock).
+        assert reader.get("movie:tmdb:1") is not None
+        assert reader.get("movie:tmdb:2") is not None
 
     def test_gc_leaves_valid_entries_intact(self, store, tmp_path):
         """auto_gc does not modify entries with existing media and trailer."""
@@ -357,6 +453,26 @@ class TrailerState:
     source: str | None = None       # "tmdb" or "youtube"
     youtube_url: str | None = None
     notes: str | None = None
+    # DESIGN §5 "Counter semantics": incremented each consecutive bot_detected,
+    # reset on any non-bot_detected outcome BEFORE the new status is written.
+    bot_detected_consecutive_attempts: int = 0
+```
+
+**JSON schema example** (reflects `bot_detected_consecutive_attempts` field):
+
+```json
+{
+  "version": 1,
+  "entries": {
+    "movie:tmdb:99999": {
+      "last_attempt": "2026-04-23T03:18:02Z",
+      "attempts": 2,
+      "status": "bot_detected",
+      "media_path": "/Volumes/DISK_C/001-MOVIES/Obscure (2017)",
+      "bot_detected_consecutive_attempts": 2
+    }
+  }
+}
 ```
 
 **Key functions:**
@@ -365,26 +481,70 @@ class TrailerState:
 def make_state_key(media_type: str, id_kind: str, id_value: int | str) -> str:
     """Build a composite state key. id_kind="manual" hashes id_value as a path."""
 
-def compute_next_retry_at(attempts: int, policy: list[int], now: datetime) -> datetime:
-    """Return next retry datetime using policy[min(attempts-1, len(policy)-1)]."""
+def compute_next_retry_at(
+    attempts: int,
+    policy: list[int],
+    *,
+    last_attempt: datetime,
+) -> datetime:
+    """Return next retry datetime using policy[min(attempts-1, len(policy)-1)].
+
+    Clock reference: always from last_attempt (DESIGN §7). See impl sketch below.
+    """
 ```
 
 **`TrailerStateStore`:**
 
-| Method        | Signature                                 | Description                                        |
-| ------------- | ----------------------------------------- | -------------------------------------------------- |
-| `__init__`    | `(state_file: Path)`                      | Initialize with path to JSON state file            |
-| `get`         | `(key: str) -> TrailerState \| None`      | Load + deserialize entry by key                    |
-| `set`         | `(key: str, state: TrailerState) -> None` | Atomic write (temp + os.replace)                   |
-| `should_skip` | `(key: str) -> bool`                      | Skip logic per DESIGN §7 (bot_detected exempt)     |
-| `auto_gc`     | `() -> None`                              | Lifecycle check: flip orphan, remove gone trailers |
-| `all_entries` | `() -> dict[str, TrailerState]`           | Load all entries (for CLI scan/purge)              |
+| Method          | Signature                                 | Description                                                              |
+| --------------- | ----------------------------------------- | ------------------------------------------------------------------------ |
+| `__init__`      | `(state_file: Path)`                      | Initialize with path to JSON state file                                  |
+| `get`           | `(key: str) -> TrailerState \| None`      | Load + deserialize entry by key                                          |
+| `set`           | `(key: str, state: TrailerState) -> None` | Atomic write (temp + os.replace), under `fcntl.flock(LOCK_EX)`           |
+| `should_skip`   | `(key: str) -> bool`                      | Skip logic per DESIGN §7 (bot_detected exempt)                           |
+| `auto_gc`       | `() -> None`                              | Lifecycle check: flip orphan, remove gone trailers                       |
+| `all_entries`   | `() -> dict[str, TrailerState]`           | Load all entries (for CLI scan/purge)                                    |
+| `purge_orphans` | `() -> int`                               | Remove all entries whose `status == "orphan"`. Return count of removals. |
 
 **JSON on-disk structure** (per DESIGN §7):
 
 ```json
 {"version": 1, "entries": {"movie:tmdb:550": {...}}}
 ```
+
+**`purge_orphans()` impl sketch:**
+
+```python
+def purge_orphans(self) -> int:
+    before = len(self._entries)
+    self._entries = {k: v for k, v in self._entries.items() if v.status != "orphan"}
+    self._save()
+    return before - len(self._entries)
+```
+
+**`compute_next_retry_at()` clock reference (DESIGN §7):**
+
+```python
+# Clock reference: always from last_attempt, never from first_failure (DESIGN §7).
+# A stuck entry keeps pushing retry forward; a recovered entry resets attempts=1
+# on its next successful result.
+def compute_next_retry_at(
+    attempts: int,
+    policy: list[int],
+    *,
+    last_attempt: datetime,
+) -> datetime:
+    days = policy[min(attempts - 1, len(policy) - 1)]
+    return last_attempt + timedelta(days=days)
+```
+
+**Concurrency (DESIGN §12 Operational Safeguards):** wrap `_load()` + `_save()` in
+`fcntl.flock(lockfile_fd, LOCK_EX)` on a sibling lockfile `.data/trailers_state.lock`. The
+lock is acquired before the read-modify-write cycle and released after `os.replace()`
+completes. Under the lock, read the full JSON, mutate the in-memory dict, write to a temp
+file, `os.replace()` onto the real file — standard atomic write. Concurrent readers (from
+a second `personalscraper trailers download` invocation) block on the lock rather than
+racing. On non-Unix platforms where `fcntl` is unavailable, fall back to best-effort
+write-temp-then-replace without the lock (log a one-time WARN at import).
 
 ### Step 3: Run tests — all must pass
 

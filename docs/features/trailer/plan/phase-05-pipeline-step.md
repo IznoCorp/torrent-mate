@@ -4,7 +4,7 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 > Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement DESIGN §2 (pipeline position) and DESIGN §13 (StepReport contract).
+**Goal:** Implement DESIGN §2 (pipeline position) and DESIGN §14 (StepReport contract).
 Create `personalscraper/trailers/step.py` and wire the `trailers` step into
 `personalscraper/pipeline.py` **between `verify` and `dispatch`** — specifically before the
 existing `if verified:` branch that guards dispatch. The step is non-blocking: `partial` and
@@ -26,7 +26,7 @@ the trailers step can skip items that already failed `verify` earlier in the pip
 `step.details` (since `StepReport` does not currently have a `status` field — the extended
 contract is communicated through the `name` field and a convention tag in `details`).
 
-**Important note on `StepReport` extension:** DESIGN §13 defines a richer report
+**Important note on `StepReport` extension:** DESIGN §14 defines a richer report
 (`status`, `counts`, `failed_items`) that the existing `StepReport` dataclass does not
 support. Two options:
 
@@ -495,6 +495,76 @@ Expected: all green. If the new step is missing a mock in pipeline tests, add it
 ```bash
 git add personalscraper/pipeline.py personalscraper/models.py
 git commit -m "feat(trailer): wire trailers step into pipeline between process and dispatch"
+```
+
+---
+
+## Sub-phase 5.3 — Disk-space pre-check (Operational Safeguard)
+
+**Note**: the orchestrator itself is implemented in phase-06, but this sub-phase pins the
+contract so phase-06 can wire it without a second design pass.
+
+Before each `YtdlpDownloader.download(...)` call, the orchestrator MUST call
+`shutil.disk_usage(staging_dir)` and compare `free` against
+`config.trailers.filters.max_filesize_mb * 1024 * 1024 * 1.5` (50% safety margin per
+DESIGN §12 Operational Safeguards). If insufficient:
+
+- Do not invoke the downloader.
+- Mark the state entry `status=skipped_by_filter`, `notes="disk_space_low"`.
+- Log event `trailers_disk_space_low` with the number of bytes free.
+- Continue to the next item (non-fatal).
+
+The check lives in the orchestrator, **never** in the downloader, so that yt-dlp does not
+spin up just to abort. Phase 6's orchestrator test suite must include
+`test_skips_item_when_disk_space_low` patching `shutil.disk_usage` to return a tuple with
+`free` below the threshold.
+
+---
+
+## Sub-phase 5.4 — Telegram summary integration (verification-only)
+
+The existing Telegram notifier consumes `PipelineReport.to_html()` which iterates
+`report.steps`. Because `StepReport` now includes `counts` (sub-phase 5.1 extension) and
+`to_html()` already renders `step.name` + icon + counts, **no code change to
+`notifier.py` is required**. This sub-phase verifies the claim and only adapts
+`to_html()` if the assertion fails.
+
+### Verification test
+
+Add to `tests/trailers/test_step.py` (single test, no new source file):
+
+```python
+def test_step_report_renders_in_pipeline_html():
+    """StepReport(name='trailers', counts={...}) renders via PipelineReport.to_html().
+
+    DESIGN §11 promises a Telegram summary like "N trailers downloaded, M skipped,
+    K failed". This test asserts the counts flow through to_html() so Telegram
+    delivery works without touching notifier.py.
+    """
+    from personalscraper.models import PipelineReport, StepReport
+
+    step = StepReport(
+        name="trailers",
+        counts={"downloaded": 2, "skipped": 3, "error": 1},
+    )
+    report = PipelineReport()
+    report.add_step(step)
+    html = report.to_html()
+    # Trailers step name and at least one count number must appear in the HTML.
+    assert "trailers" in html.lower()
+    assert "2" in html  # downloaded
+```
+
+If the test passes: no commit needed, the notifier integration is verification-only.
+
+If the test fails (e.g. `to_html()` does not surface `counts`): patch `to_html()` in
+`personalscraper/models.py` to render a compact counts summary next to the step name —
+`f"{icon} {name}: downloaded={counts['downloaded']}, skipped={counts['skipped']}, error={counts['error']}"`
+for the `trailers` step. Commit as:
+
+```bash
+git add personalscraper/models.py
+git commit -m "feat(trailer): surface StepReport counts in PipelineReport.to_html() for Telegram summary"
 ```
 
 ---

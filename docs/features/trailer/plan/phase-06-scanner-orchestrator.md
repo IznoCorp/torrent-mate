@@ -448,14 +448,32 @@ class TrailersOrchestrator:
 **Algorithm per item:**
 
 1. `state_store.auto_gc()` once at start of `run()`.
-2. For each `ScanItem`:
+2. **Step budget**: record `step_start = time.monotonic()`. Read
+   `config.trailers.step.max_duration_sec` (default 1800 s — DESIGN §12 Timeouts).
+3. For each `ScanItem`:
    a. Build composite state key via `make_state_key()`.
    b. `state_store.should_skip(key)` → if True, increment `skipped_by_state`.
    c. **SOT recheck**: `trailer_exists(expected_path, min_size_bytes)` → if True, increment `already_present`.
-   d. `finder.find(tmdb_id, media_type, title, year)` → if None, record `no_trailer`.
-   e. `downloader.download(url, output_path)` → handle each `DownloadStatus`.
-   f. Update state via `state_store.set()` with appropriate `TrailerState`.
-3. Return counts dict.
+   d. **Disk-space pre-check** (DESIGN §12 Disk space): compute
+   `required = config.trailers.filters.max_filesize_mb * 1024 * 1024 * 1.5`
+   (50% safety margin). If `shutil.disk_usage(expected_path.parent).free < required`,
+   log event `trailers_disk_space_low` with bytes free + required, increment
+   `skipped_by_filter`, and continue to next item (do NOT call the downloader).
+   e. **Step-budget check**: if `time.monotonic() - step_start >= max_duration_sec`, log
+   `trailers_step_budget_exceeded` and break the loop. Remaining items are not
+   attempted; the StepReport returned by `run_trailers()` is `partial`.
+   f. `finder.find(tmdb_id, media_type, title, year)` → if None, record `no_trailer`.
+   g. `downloader.download(url, output_path)` → handle each `DownloadStatus`.
+   h. Update state via `state_store.set()` with appropriate `TrailerState`.
+4. Return counts dict.
+
+**Tests to add** (in `tests/trailers/test_orchestrator.py`):
+
+- `test_skips_item_when_disk_space_low` — monkeypatch `shutil.disk_usage` to return free
+  bytes less than `max_filesize_mb * 1024 * 1024 * 1.5`; assert item skipped with
+  `skipped_by_filter` count incremented; downloader never called.
+- `test_step_budget_exceeded_breaks_loop` — set `max_duration_sec=0` in config; assert only
+  the first item is attempted; remaining items produce no state updates.
 
 ### Step 3: Run tests
 

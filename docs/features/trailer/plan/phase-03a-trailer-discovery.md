@@ -55,6 +55,113 @@ python -c "from personalscraper.scraper.json_ttl_cache import JsonTTLCache; prin
 
 ---
 
+## Sub-phase 3a.0 — Log redaction prerequisites (security invariant from DESIGN §12)
+
+Before any code in this phase sends HTTP requests with `YOUTUBE_API_KEY` or emits logs
+from `youtube_search.py` / `trailer_finder.py`, install two safety nets so the API key
+never reaches log output.
+
+### Files
+
+| Action | Path                          | Responsibility                               |
+| ------ | ----------------------------- | -------------------------------------------- |
+| Modify | `personalscraper/logger.py`   | Add `redact_secrets` structlog processor     |
+| Create | `tests/test_log_redaction.py` | Verify processor redacts api_key/cookie/auth |
+
+### Step 1: Add `redact_secrets` structlog processor to `personalscraper/logger.py`
+
+Insert the processor in the existing structlog processor chain, before rendering:
+
+```python
+import re
+
+_SECRET_KEY_RE = re.compile(r"^(api[_-]?key|authorization|cookie|key)$", re.IGNORECASE)
+_URL_KEY_PARAM_RE = re.compile(r"([?&])key=[^&]*")
+
+
+def redact_secrets(_logger, _method_name, event_dict):
+    """Recursively redact secret-looking values from the event dict.
+
+    Also strips the ``key=<value>`` query parameter from any string field
+    that looks like a URL (contains ``?key=`` or ``&key=``).
+    """
+    def _walk(obj):
+        if isinstance(obj, dict):
+            return {
+                k: ("***REDACTED***" if _SECRET_KEY_RE.match(k) else _walk(v))
+                for k, v in obj.items()
+            }
+        if isinstance(obj, list):
+            return [_walk(x) for x in obj]
+        if isinstance(obj, str) and "key=" in obj and ("?" in obj or "&" in obj):
+            return _URL_KEY_PARAM_RE.sub(r"\1key=***REDACTED***", obj)
+        return obj
+
+    return _walk(event_dict)
+```
+
+Add `redact_secrets` to the structlog processor chain in `configure_logging()`, positioned
+BEFORE the final renderer (JSONRenderer / ConsoleRenderer) so rendered output is already
+redacted.
+
+### Step 2: Write tests in `tests/test_log_redaction.py`
+
+```python
+import structlog
+from personalscraper.logger import redact_secrets
+
+
+def test_redact_top_level_api_key():
+    result = redact_secrets(None, "info", {"event": "test", "api_key": "secret123"})
+    assert result["api_key"] == "***REDACTED***"
+    assert "secret123" not in str(result)
+
+
+def test_redact_nested_cookie():
+    result = redact_secrets(
+        None, "info", {"event": "test", "request": {"headers": {"cookie": "sid=abc"}}}
+    )
+    assert result["request"]["headers"]["cookie"] == "***REDACTED***"
+
+
+def test_redact_url_key_param():
+    url = "https://www.googleapis.com/youtube/v3/search?key=AIzaSecret&q=foo"
+    result = redact_secrets(None, "info", {"event": "test", "url": url})
+    assert "AIzaSecret" not in result["url"]
+    assert "***REDACTED***" in result["url"]
+
+
+def test_non_secret_fields_unchanged():
+    result = redact_secrets(None, "info", {"event": "test", "count": 42, "title": "x"})
+    assert result == {"event": "test", "count": 42, "title": "x"}
+```
+
+### Step 3: URL sanitization in `youtube_search.py`
+
+When constructing the request URL in `YoutubeSearch.search()`, ensure the `key=` query
+parameter is present for the actual HTTP request but NEVER logged. Helper:
+
+```python
+def _redact_url_key(url: str) -> str:
+    """Strip the key= param from a URL for logging."""
+    return re.sub(r"([?&])key=[^&]*", r"\1key=***REDACTED***", url)
+```
+
+Every `logger.info`/`logger.warning` in `youtube_search.py` that includes a URL must use
+`_redact_url_key(url)` in its kwargs. Belt-and-suspenders: even if a developer forgets,
+the `redact_secrets` processor catches it.
+
+### Step 4: Commit
+
+```bash
+git add personalscraper/logger.py tests/test_log_redaction.py
+git commit -m "feat(trailer): add redact_secrets structlog processor (DESIGN §12)"
+```
+
+Only then proceed to Sub-phase 3a.1.
+
+---
+
 ## Sub-phase 3a.1 — `YoutubeSearch` + fixtures
 
 ### Files

@@ -251,6 +251,7 @@ def scan(
     ctx: typer.Context,
     disk: str | None = typer.Option(None, "--disk", help="Restrict to one disk by ID."),
     category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
+    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
     limit: int | None = typer.Option(None, "--limit", help="Max items to scan."),
     no_refresh: bool = typer.Option(False, "--no-refresh", help="Use cached library scan even if stale."),
 ) -> None:
@@ -262,6 +263,7 @@ def download(
     ctx: typer.Context,
     disk: str | None = typer.Option(None, "--disk"),
     category: str | None = typer.Option(None, "--category"),
+    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
     limit: int | None = typer.Option(None, "--limit"),
     dry_run: bool = typer.Option(False, "--dry-run"),
     no_refresh: bool = typer.Option(False, "--no-refresh"),
@@ -274,26 +276,64 @@ def verify(
     ctx: typer.Context,
     disk: str | None = typer.Option(None, "--disk"),
     category: str | None = typer.Option(None, "--category"),
+    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
+    deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
     no_refresh: bool = typer.Option(False, "--no-refresh"),
 ) -> None:
-    """Audit existing trailers for size, extension, playability."""
+    """Audit existing trailers.
+
+    Runs four checks per trailer:
+
+    1. **Existence** — trailer file present at the expected placement path.
+    2. **Size** — file size ≥ ``config.trailers.filters.min_file_size_bytes``.
+    3. **Extension** — file suffix in ``config.trailers.filters.allowed_extensions``
+       (default ``{"mp4", "mkv", "webm"}``).
+    4. **Playable** (opt-in, ``--deep``) — ffprobe returns non-zero duration.
+
+    Failures report a category: ``missing``, ``undersized``, ``wrong_extension``,
+    ``unplayable``. Exit codes: ``0`` if all pass, ``2`` if any functional check
+    fails, ``4`` if a ``--deep`` ffprobe call errors out (probe itself broken).
+    """
     ...
 
 @app.command()
 def purge(
     ctx: typer.Context,
     disk: str | None = typer.Option(None, "--disk"),
+    since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
     dry_run: bool = typer.Option(False, "--dry-run"),
     include_state: bool = typer.Option(False, "--include-state",
                                        help="Also wipe orphan state entries."),
 ) -> None:
-    """Remove orphan trailers whose media parent is absent."""
+    """Remove orphan trailers whose media parent is absent.
+
+    When ``--include-state`` is set, after the filesystem purge completes call
+    ``state_store.purge_orphans()`` and log the count in the CLI output.
+    """
     ...
 ```
 
 Fill in each command body with: load config from `ctx.obj.config`, instantiate the right
 scanner/orchestrator/state_store, apply filters, call the relevant operation, print a Rich
 summary table or plain count to stdout.
+
+**Shared `--since` filter helper:** parse `YYYY-MM-DD` into a `datetime` at UTC midnight,
+then drop items whose "added date" is earlier. The added date comes from
+`LibraryScanItem` if the field is exposed (check `personalscraper/library/models.py`); if
+no such field exists, fall back to `Path(nfo_path).stat().st_mtime` converted to a UTC
+datetime. The helper lives in `personalscraper/trailers/cli.py` (module-level) so all four
+subcommands share a single implementation, and its unit tests go into
+`tests/trailers/test_cli.py` (fake library items with varied mtimes).
+
+**Verify subcommand test scaffold.** Add one test per check category to
+`tests/trailers/test_cli.py::TestTrailersVerifyCommand` (mock `Scanner.scan_library` /
+filesystem):
+
+- `test_verify_flags_missing_trailer` — trailer path does not exist → exit 2.
+- `test_verify_flags_undersized_trailer` — file size below `min_file_size_bytes` → exit 2.
+- `test_verify_flags_wrong_extension` — file suffix not in allowed list → exit 2.
+- `test_verify_deep_flag_invokes_ffprobe` — `--deep` calls a mocked ffprobe helper;
+  non-zero duration returned → exit 0. Exception from ffprobe → exit 4.
 
 ### Step 3: Mount sub-app in `personalscraper/cli.py`
 
@@ -318,6 +358,69 @@ git add \
   personalscraper/cli.py \
   tests/trailers/test_cli.py
 git commit -m "feat(trailer): add trailers CLI sub-app with scan, download, verify, purge"
+```
+
+---
+
+## Sub-phase 8.2 — Wire top-level `run` flags
+
+Extend `personalscraper run` (in `personalscraper/cli.py`) to accept:
+
+- `--skip-trailers` (bool flag) — passed to `Pipeline(..., skip_trailers=True)`; causes
+  `run_trailers()` to return a skipped `StepReport`.
+- `--continue-on-trailer-error` (bool flag) — passed to
+  `Pipeline(..., continue_on_trailer_error=True)`; when True, a trailers step error does not
+  abort dispatch.
+
+Both flags default to their `config.trailers.pipeline.{skip,continue_on_error}` values if
+set, falling back to `False`. The default values flow through the config layer so the
+operator can flip them permanently via `config.json5` without re-invoking cron scripts.
+
+### Files
+
+| Action | Path                     | Responsibility                                      |
+| ------ | ------------------------ | --------------------------------------------------- |
+| Modify | `personalscraper/cli.py` | Add two flags to the top-level `run` command        |
+| Modify | `tests/test_cli.py`      | Cover both flags (accept + passthrough to Pipeline) |
+
+### Step 1: Add the two flags to the `run` command
+
+In the existing `run()` function (or equivalent) of `personalscraper/cli.py`, add:
+
+```python
+skip_trailers: bool = typer.Option(
+    False,
+    "--skip-trailers",
+    help="Skip the trailers pipeline step for this invocation.",
+),
+continue_on_trailer_error: bool = typer.Option(
+    False,
+    "--continue-on-trailer-error",
+    help="Do not abort dispatch when the trailers step crashes.",
+),
+```
+
+Forward both values into the `Pipeline(...)` constructor call (the corresponding kwargs
+were added in Phase 5 sub-phase 5.2). Read defaults from
+`config.trailers.pipeline.skip` / `config.trailers.pipeline.continue_on_error` when the CLI
+flag was not provided — if these sub-keys are absent in the Pydantic model at this point,
+treat the default as `False` and note the follow-up for Phase 7 (add a
+`TrailersPipelineConfig` nested model with `skip: bool = False` and
+`continue_on_error: bool = False`).
+
+### Step 2: CLI tests
+
+Add to `tests/test_cli.py` (or wherever `personalscraper run` is tested):
+
+- `test_run_accepts_skip_trailers` — `runner.invoke(app, ["run", "--skip-trailers", …])`
+  exits 0 and the patched `Pipeline` was called with `skip_trailers=True`.
+- `test_run_accepts_continue_on_trailer_error` — same shape for the other flag.
+
+### Step 3: Commit sub-phase 8.2
+
+```bash
+git add personalscraper/cli.py tests/test_cli.py
+git commit -m "feat(trailer): add --skip-trailers and --continue-on-trailer-error run flags"
 ```
 
 ---

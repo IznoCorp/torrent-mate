@@ -40,7 +40,7 @@ python -c "from personalscraper.scraper.trailer_finder import TrailerFinder; pri
 
 - `yt_dlp.YoutubeDL` is **never called with real network** in unit tests — always patched.
 - Cookie files on NTFS/macFUSE paths are rejected at load time with a clear error message
-  (DESIGN §12 security requirement).
+  (DESIGN §13 security requirement).
 - The `@pytest.mark.network` test is skipped in CI by default — guarded by
   `pytest.mark.skipif(not os.getenv("TRAILER_INTEGRATION_TESTS"), reason="network test")`.
 
@@ -64,15 +64,42 @@ step; otherwise every subsequent `pytest` invocation under a fresh venv will fai
 collection time with `ModuleNotFoundError: yt_dlp`.
 
 - Open `pyproject.toml`, locate `[project]` → `dependencies = [...]` (lines ~28-40).
-- Append `"yt-dlp>=2025.1.0"` — the major version is pinned because yt-dlp is often
-  broken by YouTube protocol changes and requires controlled updates on our side.
+- Append `"yt-dlp>=2026.1.1,<2027"` — major+minor floor, major ceiling. yt-dlp is broken
+  by YouTube protocol changes every 2–6 weeks and an unpinned install silently ships a
+  broken extractor. The major-version ceiling prevents accidental breakage on
+  `pip install --upgrade` (DESIGN §12 Operational Safeguards — yt-dlp version pin).
 - If a `Makefile` exists at the repo root, append an `update-ytdlp` target that runs
-  `python -m pip install -U yt-dlp` (skip this step if no Makefile is present).
+  `python -m pip install -U yt-dlp` and the integration test (skip this step if no
+  Makefile is present).
+- **ffmpeg runtime check**: in `YtdlpDownloader.__init__`, call `shutil.which("ffmpeg")`
+  once; if absent, log `ytdlp_ffmpeg_missing` at WARN (structlog) and continue —
+  single-stream downloads still work, but multi-stream merges (video + audio separate)
+  require ffmpeg. Document the dependency in `.env.example`
+  (comment line: `# Requires ffmpeg on PATH: brew install ffmpeg / apt-get install ffmpeg`)
+  and in `docs/reference/libraries.md`.
 - Commit:
 
 ```bash
 git add pyproject.toml Makefile  # Makefile only if present
 git commit -m "chore(trailer): add yt-dlp dependency"
+```
+
+**Test for ffmpeg missing warning** (add to `tests/scraper/test_ytdlp_downloader.py`):
+
+```python
+def test_init_warns_when_ffmpeg_missing(tmp_path, caplog):
+    """YtdlpDownloader.__init__ warns when ffmpeg is not on PATH."""
+    from unittest.mock import patch
+    with patch("shutil.which", return_value=None):
+        with caplog.at_level("WARNING"):
+            YtdlpDownloader(
+                output_dir=tmp_path,
+                ytdlp_format="best",
+                socket_timeout_sec=10,
+                retries=1,
+                cookie_config=None,
+            )
+    assert "ytdlp_ffmpeg_missing" in caplog.text
 ```
 
 ### Step 1: Write failing cookie tests first
@@ -543,11 +570,20 @@ class YtdlpDownloader:
 **Implementation notes:**
 
 - Build opts dict: `{"format": ..., "outtmpl": str(output_path), "socket_timeout": ..., "retries": ..., "quiet": True}`.
+- **Filesize cap** (phase-07 wiring — Gap 21): add
+  `"max_filesize": config.trailers.filters.max_filesize_mb * 1024 * 1024` to the opts
+  dict. Read the config from the downloader instance (constructor argument) rather than
+  env vars.
 - If `cookie_config.cookie_file`: add `"cookiefile": str(path)`.
 - If `cookie_config.cookie_from_browser`: add `"cookiesfrombrowser": (browser,)`.
 - Use context manager: `with yt_dlp.YoutubeDL(opts) as ydl: ydl.download([url])`.
 - Bot-detection detection: check exception message for `"Sign in"` or `"bot"` (case-insensitive).
 - On bot-detection: retry once with cookies stripped from opts; set `status=BOT_DETECTED` if retry also fails.
+- **Wall-clock timeout** (DESIGN §12 Operational Safeguards): wrap the `ydl.download(...)`
+  call in a `signal.SIGALRM` handler on Unix (`signal.signal(signal.SIGALRM, _raise_timeout); signal.alarm(max_wall_clock_sec); try: ... finally: signal.alarm(0)`).
+  Default `max_wall_clock_sec=180`. On non-Unix platforms (Windows, where `signal.SIGALRM`
+  is unavailable), skip the alarm and rely on `socket_timeout` as best-effort.
+  On timeout, return `DownloadResult(status=YTDLP_ERROR, error_message="wall-clock timeout")`.
 
 ### Step 3: Run tests
 

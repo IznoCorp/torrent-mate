@@ -123,9 +123,18 @@ After this feature lands it becomes 9 steps:
 ```
 personalscraper trailers scan      [filters]            # dry-run: list missing trailers
 personalscraper trailers download  [filters]            # scan + download
-personalscraper trailers verify    [filters]            # audit existing trailers (size > threshold, playable, correct extension)
+personalscraper trailers verify    [filters] [--deep]   # audit existing trailers (see expanded bullet below)
 personalscraper trailers purge     [filters] [--dry-run]  # remove orphan trailers (media parent absent)
 ```
+
+`personalscraper trailers verify [filters] [--deep]` — audit existing trailers:
+
+- **Existence**: trailer file present at the expected placement path
+- **Size**: file size ≥ `config.trailers.filters.min_file_size_bytes` (default 100 KiB)
+- **Extension**: file suffix in `{mp4, mkv, webm}` (configurable via `config.trailers.filters.allowed_extensions`)
+- **Playable** (opt-in, `--deep` flag): ffprobe returns non-zero duration for the file (expensive — disabled by default)
+
+Report each failing check with its category (`missing`, `undersized`, `wrong_extension`, `unplayable`). Exit code: 0 if all pass, 2 if any fail (4 for `--deep` probe errors).
 
 Filters (shared across subcommands):
 
@@ -169,6 +178,14 @@ Priority: `YOUTUBE_COOKIES_FILE` > `YOUTUBE_COOKIES_FROM_BROWSER` > no cookies.
 Failure policy when cookies absent/expired and yt-dlp reports bot-detection: **retry once without cookies** (public videos sometimes pass) → if still fails, log warning, mark the item in the state file with `status=bot_detected`, continue to next. Never abort the pipeline step.
 
 **Bounded retry for `bot_detected`** (closes the "always retry → infinite YouTube spam on age-restricted content" hole): while `bot_detected` is normally exempt from the retry-after progression (user-fixable), we cap the consecutive `bot_detected` attempts per key. After `config.trailers.bot_detected_max_consecutive_attempts` (default `5`) without a successful download, the entry transitions into the standard retry-after progression and `bot_detected_consecutive_attempts` is reset the next time a non-`bot_detected` outcome is observed. This prevents the "age-restricted → retry forever → rate-limit ban" failure mode while still letting the user fix cookies and have work resume immediately after the next success.
+
+**Counter semantics (explicit)**:
+
+- A dedicated field `bot_detected_consecutive_attempts: int` (default 0) is persisted on each state entry.
+- **Increment**: every time an attempt produces `status=bot_detected`.
+- **Reset**: on **any** non-`bot_detected` outcome (success, http_error, ytdlp_error, no_trailer_available). Reset happens BEFORE the new status is written.
+- **Scope**: per state entry. Two different movies each tracked independently; no global counter.
+- **Threshold behavior**: once the counter reaches `bot_detected_max_consecutive_attempts`, the entry transitions to the standard retry-after progression (`status=http_error` for conservative exponential backoff) AND `bot_detected_consecutive_attempts` is NOT reset. A subsequent successful run resets both `attempts` (to 1) and `bot_detected_consecutive_attempts` (to 0).
 
 ### 6. Toolkit additions: extend `TMDBClient`, extract `JsonTTLCache`
 
@@ -254,6 +271,7 @@ The orchestrator picks the key based on the NFO it reads for the media; it never
 
 - `config.trailers.retry_after_days: [1, 7, 30]` — progression array.
 - Attempt `N` → retry after `retry_after_days[min(N-1, len-1)]` days. The last element repeats indefinitely for any further attempt. Documented invariant.
+- **Clock reference**: `next_retry_at` is computed as `last_attempt + timedelta(days=retry_after_days[min(N-1, len-1)])` — **always measured from the last attempt, never from the first failure**. This means a stuck entry keeps pushing its retry forward; a recovered entry resets `attempts=1` on its next successful result.
 - `bot_detected`: **exempt from the progression** — always retry on the next run (cookies issue is user-fixable).
 - Timestamps are UTC ISO 8601. Schedule robustness relies on `datetime.now(UTC)`; a backwards clock reset will compress the effective schedule (accepted — system time is the user's responsibility).
 
@@ -390,7 +408,48 @@ The YouTube breaker (see below) tracks only primary-path errors; fallback failur
 - Failures log at WARNING with a reason code matching the state status.
 - `notifier.py` (Telegram) receives a pipeline summary: "N trailers downloaded, M skipped, K failed" at the end of the `trailers` step.
 
-### 12. Security
+### 12. Operational Safeguards
+
+Production hardening. Every item here closes a specific risk surfaced during plan review.
+
+#### Timeouts
+
+- **Per-item yt-dlp wall-clock**: `config.trailers.ytdlp.max_wall_clock_sec` (default **180 s**). Implemented via `signal.SIGALRM` in `YtdlpDownloader.download()` (Unix-only; on non-Unix platforms the timeout is best-effort via `socket_timeout`). Exceeding this timeout produces `status=ytdlp_error` with `notes="wall-clock timeout"`.
+- **Per-step global budget**: `config.trailers.step.max_duration_sec` (default **1800 s** = 30 minutes). When exceeded, the orchestrator stops pulling new items, logs `trailers_step_budget_exceeded`, and returns a partial StepReport. Already-downloaded trailers are kept.
+
+#### Disk space
+
+- Before each download: `shutil.disk_usage(staging_dir)` must report ≥ `config.trailers.filters.max_filesize_mb * 1024 * 1024 * 1.5` (50% safety margin) free. If not, skip the item with `status=skipped_by_filter`, `notes="disk_space_low"`. Log event `trailers_disk_space_low` with bytes free. Implemented in the orchestrator, not the downloader (so the check happens once per item before yt-dlp spins up).
+
+#### Concurrency
+
+- `.data/trailers_state.json` writes use `fcntl.flock(LOCK_EX)` on the state file's directory-level lockfile `.data/trailers_state.lock`. Read-then-write cycles are atomic under the lock.
+- `.data/youtube_quota_cache.json` (used for YouTube Data API v3 quota accounting) uses the same lock strategy on `.data/youtube_quota.lock`.
+- Pipeline-level coordination: the existing `pipeline.lock` (see `personalscraper/lock.py`) covers the `trailers` pipeline step automatically. Standalone CLI invocations (`personalscraper trailers download`) acquire the state lock only — they do NOT take `pipeline.lock` (intentional: a user-driven back-fill should not block a scheduled pipeline run or vice-versa). Document this asymmetry in `docs/reference/pipeline-internals.md`.
+
+#### Log redaction
+
+- **YOUTUBE_API_KEY must never appear in logs**. Enforcement:
+  - HTTP requests to the YouTube Data API v3 strip the `key=` query parameter before logging any URL (`youtube_search.py`).
+  - A structlog processor `redact_secrets` is added to `personalscraper/logger.py` that recursively redacts any dict key matching `/^(api[_-]?key|authorization|cookie|key)$/i` anywhere in the event dict, replacing values with `"***REDACTED***"`.
+  - Cookie file contents are never logged (only the file path is logged, at INFO level).
+- **Verification**: `tests/trailers/test_security.py` with tests asserting that `logger.warning("fake_event", url="https://example.com?key=secret123")` does not emit `secret123` in the captured output. Same for `api_key=`, `authorization=`, etc.
+
+#### yt-dlp version pin
+
+- `pyproject.toml` pins `yt-dlp>=2026.1.1,<2027` (major+minor floor, major ceiling). Rationale: yt-dlp is broken by YouTube changes every 2–6 weeks; an unpinned install silently ships a broken extractor. The major-version ceiling prevents accidental breakage on `pip install --upgrade`.
+- A `make update-ytdlp` target bumps the pin and runs the integration test, giving maintainers a one-shot refresh path.
+
+#### ffmpeg dependency
+
+- `YtdlpDownloader.__init__` runs `shutil.which("ffmpeg")` once. If absent, logs `ytdlp_ffmpeg_missing` at WARN level; downloads still proceed for single-stream formats but multi-stream merges fail with `status=ytdlp_error`, `notes="ffmpeg_required"`.
+- Installation guidance in `docs/reference/libraries.md`: `brew install ffmpeg` (macOS), `apt-get install ffmpeg` (Debian/Ubuntu).
+
+#### Circuit breaker tuning for YouTube
+
+- The default `cooldown_sec=3600` (1 h) for the YouTube breaker is aggressive — a 1-minute YouTube blip during cron would skip an entire night's trailer batch. For v0.7.0 keep this conservative default (cron runs once per night; a 1-h cooldown costs at most one night). Future tuning proposal: migrate to a sliding-window breaker that counts failures in the last N seconds rather than consecutive failures. Tracked as ROADMAP follow-up.
+
+### 13. Security
 
 - `.env` is already gitignored; no new credential surface is committed.
 - Cookie files (`YOUTUBE_COOKIES_FILE`) should have mode `600`. The loader emits a WARNING if stricter mode is not set on POSIX filesystems. On macFUSE/NTFS-mounted volumes the permission bits are not reliable — the loader detects the mount type and skips the check silently (documented as intentional).
@@ -398,7 +457,7 @@ The YouTube breaker (see below) tracks only primary-path errors; fallback failur
 - `yt-dlp` is invoked via its Python API (`yt_dlp.YoutubeDL(opts).download([url])`), never shell-interpolated user input — no command-injection surface.
 - TMDB keys reuse the existing personalscraper key; do not duplicate in `/opt/YoutubeTrailerScraper/.env`.
 
-### 13. Pipeline step contract (non-blocking semantics)
+### 14. Pipeline step contract (non-blocking semantics)
 
 The `trailers` step follows the existing pipeline `StepReport` pattern (same as `process/`, `dispatch/`, `verify/`). It returns a report with:
 
