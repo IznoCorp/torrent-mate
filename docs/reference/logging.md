@@ -168,8 +168,8 @@ continuation), annotate the line with `# noqa: BLE001 — <rationale>` explainin
 narrowing is not feasible.
 
 ```python
-# Correct — justification explains why narrowing isn't feasible
-except Exception as exc:  # noqa: BLE001 — python-telegram-bot raises heterogeneous errors (NetworkError, RetryAfter, TimedOut, BadRequest, Unauthorized) plus stdlib exceptions at serialization; notification failures must not abort the pipeline step
+# Correct — best-effort fallback where narrowing would suppress legitimate unknowns
+except Exception as exc:  # noqa: BLE001 — best-effort fallback; notification must not mask the underlying operation
     log.exception("telegram_unexpected_error", error=str(exc))
 
 # Also correct — cross-module exception set makes narrowing impractical
