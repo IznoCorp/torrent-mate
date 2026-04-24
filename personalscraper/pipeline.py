@@ -73,10 +73,10 @@ class Pipeline:
             console: Rich console. Created if not provided.
             step_overrides: Optional mapping of step name to replacement
                 callable. Keys: "ingest", "sort", "clean", "scrape",
-                "cleanup", "enforce", "verify". Used by tests to inject
-                fakes without monkey-patching module globals. Default
-                ``None`` means no overrides — production behaviour is
-                unchanged.
+                "cleanup", "enforce", "verify", "dispatch". Used by tests
+                to inject fakes without monkey-patching module globals.
+                Default ``None`` means no overrides — production behaviour
+                is unchanged.
         """
         self.config = config
         self.settings = settings
@@ -380,7 +380,7 @@ class Pipeline:
             name: Step name.
 
         Returns:
-            Formatted step number string (e.g. "[cyan]1/7[/cyan]").
+            Formatted step number string (e.g. "[cyan]1/8[/cyan]").
         """
         icons = {
             "ingest": "[cyan]1/8[/cyan]",

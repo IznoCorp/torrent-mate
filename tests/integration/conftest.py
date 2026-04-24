@@ -40,9 +40,8 @@ from personalscraper.conf.staging import folder_name  # noqa: E402
 # any drift (accidental import of e2e symbols) is caught here at collection time.
 # ---------------------------------------------------------------------------
 if not _e2e_in_sys_before_our_imports:
-    assert "tests.e2e" not in sys.modules, (
-        "tests/integration/ must not import from tests/e2e/ — these are distinct tiers."
-    )
+    if "tests.e2e" in sys.modules:
+        raise RuntimeError("tests/integration/ must not import from tests/e2e/ — these are distinct tiers.")
 
 # ---------------------------------------------------------------------------
 # Fixture JSON payload directory

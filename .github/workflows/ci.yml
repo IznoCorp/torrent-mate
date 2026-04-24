@@ -123,4 +123,6 @@ jobs:
           restore-keys: pip-${{ runner.os }}-3.13-
       - run: pip install -e . pip-audit
       # CVE-2026-3219 affects pip 26.0.1 (latest); no fix released yet. Ignore until upstream patch.
+      # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip > 26.0.1 is released with a fix.
+      #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219

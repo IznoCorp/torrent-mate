@@ -31,15 +31,15 @@ What does the test touch?
         requires: qBit running + API keys in .env
 ```
 
-Rule of thumb: mock **network and subprocess** → integration.
+Rule of thumb: mock **network** → integration.
 Mock **everything** → unit. Mock **nothing** → manual E2E.
 
 ## Runtime Budget per Tier
 
 | Tier                                  | Budget                         | Enforced by                         |
 | ------------------------------------- | ------------------------------ | ----------------------------------- |
-| Unit                                  | ≤ 10 s                         | `pytest-timeout` per-test default   |
-| Integration                           | ≤ 20 s                         | `pytest-timeout` per-test default   |
+| Unit                                  | ≤ 10 s                         | Budget (advisory)                   |
+| Integration                           | ≤ 20 s                         | Budget (advisory)                   |
 | **Total default suite** (`make test`) | **≤ 30 s**                     | CI hard limit                       |
 | Manual E2E (per test)                 | `ceil(GB) × 3 min, min 10 min` | `@pytest.mark.timeout` on each test |
 
