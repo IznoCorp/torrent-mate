@@ -10,6 +10,7 @@ TV show flow: parse folder → match TVDB/TMDB → get details → tvshow.nfo �
 """
 
 import re
+import unicodedata
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,6 +33,7 @@ from personalscraper.scraper.confidence import (
     match_tvshow,
 )
 from personalscraper.scraper.episode_manager import (
+    _extract_season_episode,
     create_season_dirs,
     match_episode_files,
     rename_episodes,
@@ -51,6 +53,12 @@ _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 
 # Regex for extracting SxxExx episode identifiers from filenames
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
+
+# Strict episode filename pattern used by _verify_existing_scrape to detect
+# legacy title-less fallbacks. Current scraper output always includes a title
+# segment after ``SxxExx`` (real or synthetic); a bare ``SxxExx.ext`` means
+# the show was scraped before the title-less fallback was upgraded.
+_EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
 
 
 def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
@@ -286,16 +294,134 @@ def _cleanup_empty_release_dirs(show_dir: Path) -> int:
     return removed
 
 
+def _local_show_seasons(show_dir: Path) -> set[int]:
+    """Extract the set of seasons present in a TV show folder.
+
+    Walks the folder recursively and parses S/E from each video filename.
+    Feeds content-aware candidate disambiguation in ``match_tvshow_tvdb``:
+    a candidate whose TVDB catalog does not cover the observed seasons is
+    very likely the wrong show (e.g. a same-keyword spin-off).
+
+    Args:
+        show_dir: Path to the TV show directory.
+
+    Returns:
+        Set of season numbers (> 0). Empty when no parseable S/E found.
+    """
+    seasons: set[int] = set()
+    for f in show_dir.rglob("*"):
+        if not f.is_file():
+            continue
+        if f.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+            continue
+        season, _ = _extract_season_episode(f.name)
+        if season and season > 0:
+            seasons.add(season)
+    return seasons
+
+
+def verify_tvshow_scrape_drift(
+    show_dir: Path,
+    nfo_path: Path,
+    patterns: NamingPatterns,
+) -> tuple[bool, str]:
+    r"""Verify a previously-scraped TV show directory still matches current scraper output.
+
+    Purely filesystem + NFO parsing — no external API calls. Drift found
+    here triggers a full re-scrape upstream (caller deletes the NFO and
+    falls through).
+
+    Checks, all must pass:
+
+    1. ``tvshow.nfo`` parses and exposes non-empty ``<title>``, ``<year>``,
+       and at least one non-empty ``<uniqueid>``.
+    2. Folder name equals the canonical ``sanitize("{title} ({year})")``
+       — catches previous scrapes whose API-sourced folder name drifted
+       from the current policy (e.g. "Top Chef (France) (2010)" vs the
+       TVDB canonical "Top Chef (2010)").
+    3. Every video file under ``Saison XX/`` matches
+       ``S\d{2}E\d{2} - .+\.ext`` — a title segment is required. A bare
+       ``SxxExx.ext`` indicates a legacy title-less fallback that must be
+       upgraded to the synthetic-title form.
+    4. Every episode video has a sibling ``.nfo`` with the same stem.
+    5. ``poster.jpg`` and ``landscape.jpg`` are present.
+
+    Args:
+        show_dir: Path to the TV show directory.
+        nfo_path: Path to ``tvshow.nfo`` (existence already confirmed).
+        patterns: Naming patterns used to compute the canonical folder
+            name and artwork filenames.
+
+    Returns:
+        Tuple ``(is_valid, reason)``. ``reason`` is a short slug suitable
+        for a log field; ``"ok"`` on success.
+    """
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+    except (ET.ParseError, OSError) as exc:
+        return False, f"nfo_parse_failed:{exc}"
+
+    # 1. Mandatory NFO fields.
+    nfo_title = (root.findtext("title") or "").strip()
+    nfo_year = (root.findtext("year") or "").strip()
+    if not nfo_title:
+        return False, "nfo_missing_title"
+    if not nfo_year:
+        return False, "nfo_missing_year"
+    has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
+    if not has_uniqueid:
+        return False, "nfo_missing_uniqueid"
+
+    # 2. Canonical folder name. Compare under NFC normalization so macOS's
+    # NFD-stored filenames don't trip the check (the two strings can look
+    # identical in logs but differ in codepoints — "è" as U+00E8 vs
+    # "e" + U+0300). Without this, the drift check falsely fires and the
+    # subsequent rename-into-itself corrupts the folder.
+    canonical = patterns.format("movie_dir", Title=nfo_title, Year=nfo_year)
+    if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
+        return False, f"folder_name_drift:{show_dir.name}!={canonical}"
+
+    # 5. Show-level artwork.
+    if not (show_dir / patterns.tvshow_poster).exists():
+        return False, "poster_missing"
+    if not (show_dir / patterns.tvshow_landscape).exists():
+        return False, "landscape_missing"
+
+    # 3 + 4. Episode naming + sibling NFO.
+    for season_dir in show_dir.iterdir():
+        if not (season_dir.is_dir() and SEASON_DIR_RE.match(season_dir.name)):
+            continue
+        for ep_file in season_dir.iterdir():
+            if not ep_file.is_file():
+                continue
+            if ep_file.suffix.lstrip(".").lower() not in VIDEO_EXTENSIONS:
+                continue
+            # Strict: require "SxxExx - Title.ext". A bare "SxxExx.ext" is a
+            # legacy fallback name that must be upgraded.
+            if not _EPISODE_STRICT_RE.match(ep_file.name):
+                return False, f"episode_naming_drift:{ep_file.name}"
+            sibling_nfo = ep_file.with_suffix(".nfo")
+            if not sibling_nfo.exists():
+                return False, f"episode_nfo_missing:{sibling_nfo.name}"
+
+    return True, "ok"
+
+
 def _tvdb_series_to_show_data(
     tvdb_data: dict[str, Any],
     tvdb_id: int,
     tvdb_client: Any = None,
+    tmdb_id: int = 0,
+    imdb_id: str = "",
 ) -> dict[str, Any]:
     """Convert TVDB series data to a TMDB-like show_data dict.
 
-    Builds a minimal show_data compatible with generate_tvshow_nfo() and
-    download_tvshow_artwork() using only TVDB fields. Used when no TMDB
-    cross-reference is available (TVDB-only shows).
+    Builds a show_data compatible with generate_tvshow_nfo() and
+    download_tvshow_artwork() using TVDB fields. Whenever a TV show is
+    matched via TVDB, this is the source of truth for folder naming,
+    NFO content, artwork, and episode lookups — the TMDB id is only
+    embedded as a secondary uniqueid cross-reference and never queried
+    for content.
 
     TVDB field mapping:
     - name / originalName → name / original_name
@@ -313,6 +439,10 @@ def _tvdb_series_to_show_data(
         tvdb_client: Optional TVDB client used to fetch artworks. When None, the
             returned dict has empty ``images`` (legacy call sites that don't
             need artwork).
+        tmdb_id: Optional TMDB cross-reference id. Embedded as the default
+            ``uniqueid type="tmdb"`` when non-zero — strictly for Kodi/Jellyfin
+            cross-linking, never used to fetch content.
+        imdb_id: Optional IMDB cross-reference id (same rationale as tmdb_id).
 
     Returns:
         Dict with TMDB-compatible fields for NFO/artwork generation.
@@ -359,22 +489,31 @@ def _tvdb_series_to_show_data(
         except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
             log.warning("tvdb_background_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
 
+    # first_air_date: TVDB uses firstAired ("YYYY-MM-DD"); fallback to year field.
+    first_air = tvdb_data.get("firstAired") or ""
+    if not first_air:
+        year_val = tvdb_data.get("year")
+        if isinstance(year_val, int) and year_val > 0:
+            first_air = f"{year_val}-01-01"
+        elif isinstance(year_val, str) and year_val.isdigit():
+            first_air = f"{year_val}-01-01"
+
     return {
-        "id": 0,  # No TMDB ID — will not be embedded as tmdb uniqueid
+        "id": tmdb_id,  # Cross-ref TMDB id (0 when none) — NFO-only, never queried
         "name": tvdb_data.get("name", ""),
         "original_name": tvdb_data.get("originalName", tvdb_data.get("name", "")),
         "overview": tvdb_data.get("overview", ""),
         "status": status_name,
         "genres": [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])],
         "networks": [],
-        "first_air_date": "",
+        "first_air_date": first_air,
         "vote_average": 0.0,
         "vote_count": 0,
         "number_of_episodes": 0,
         "number_of_seasons": len(seasons),
         "external_ids": {
             "tvdb_id": tvdb_id,
-            "imdb_id": "",
+            "imdb_id": imdb_id,
         },
         "content_ratings": {"results": content_ratings_results},
         "seasons": seasons,
@@ -762,6 +901,21 @@ class Scraper:
                     repaired = True
 
         return repaired
+
+    def _verify_existing_scrape(self, show_dir: Path, nfo_path: Path) -> tuple[bool, str]:
+        """Thin wrapper over ``verify_tvshow_scrape_drift``.
+
+        Kept as an instance method so existing call sites keep threading
+        ``self.patterns`` through the class.
+
+        Args:
+            show_dir: Path to the TV show directory.
+            nfo_path: Path to ``tvshow.nfo``.
+
+        Returns:
+            ``(is_valid, reason)`` — see ``verify_tvshow_scrape_drift``.
+        """
+        return verify_tvshow_scrape_drift(show_dir, nfo_path, self.patterns)
 
     def _repair_tvshow_dir(self, show_dir: Path) -> bool:
         """Repair a TV show directory with valid NFO.
@@ -1331,18 +1485,38 @@ class Scraper:
         # Check for existing valid NFO
         nfo_path = show_dir / self.patterns.tvshow_nfo
         if _is_nfo_complete(nfo_path):
-            # Check for missing artwork — recover without re-scraping
-            missing_art = self._check_missing_tvshow_artwork(show_dir)
-            if missing_art and not self.dry_run:
-                self._recover_tvshow_artwork(nfo_path, show_dir, result)
-            # Repair pass: remove residual NFOs, root MKV duplicates, etc.
-            repaired = self._repair_tvshow_dir(show_dir)
-            if repaired and result.action != "artwork_recovered":
-                result.action = "repaired"
-            elif result.action != "artwork_recovered":
-                result.action = "skipped_already_done"
-            log.info("nfo_valid", action=result.action, directory=show_dir.name)
-            return result
+            # Fast path only when the previous scrape is still coherent with
+            # the current scraper output (folder name, episode naming, NFO
+            # content, artwork). Any drift → delete the NFO so the normal
+            # scrape flow below rebuilds from a clean slate.
+            is_valid, drift_reason = self._verify_existing_scrape(show_dir, nfo_path)
+            if not is_valid:
+                log.info(
+                    "show_rescrape_drift",
+                    directory=show_dir.name,
+                    reason=drift_reason,
+                )
+                if not self.dry_run:
+                    try:
+                        nfo_path.unlink()
+                    except OSError as exc:
+                        result.error = f"Cannot delete drifted NFO: {exc}"
+                        log.error("nfo_drift_delete_failed", path=str(nfo_path), error=str(exc))
+                        return result
+                # Fall through to the full rescrape path below.
+            else:
+                # Existing fast path: artwork recovery + dir repair.
+                missing_art = self._check_missing_tvshow_artwork(show_dir)
+                if missing_art and not self.dry_run:
+                    self._recover_tvshow_artwork(nfo_path, show_dir, result)
+                # Repair pass: remove residual NFOs, root MKV duplicates, etc.
+                repaired = self._repair_tvshow_dir(show_dir)
+                if repaired and result.action != "artwork_recovered":
+                    result.action = "repaired"
+                elif result.action != "artwork_recovered":
+                    result.action = "skipped_already_done"
+                log.info("nfo_valid", action=result.action, directory=show_dir.name)
+                return result
 
         # Corrupt NFO: delete before re-scrape
         if nfo_path.exists():
@@ -1354,9 +1528,19 @@ class Scraper:
                 log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
                 return result
 
+        # Collect seasons present in the folder's video files — feeds
+        # content-aware candidate disambiguation in match_tvshow_tvdb.
+        local_seasons = _local_show_seasons(show_dir)
+
         # Match against TVDB/TMDB
         try:
-            match = match_tvshow(self._tvdb, self._tmdb, title, year)
+            match = match_tvshow(
+                self._tvdb,
+                self._tmdb,
+                title,
+                year,
+                local_seasons=local_seasons,
+            )
         except Exception as e:
             result.error = f"Match failed: {e}"
             log.error("show_match_failed", title=title, error=str(e))
@@ -1380,41 +1564,35 @@ class Scraper:
             confidence=round(match.confidence, 2),
         )
 
-        # Get full show details: prefer TMDB (richer metadata); fall back to
-        # TVDB-only when no cross-ref exists or TMDB returns 404 (show absent
-        # from TMDB, e.g. local-only productions like "Top Chef France").
-        from personalscraper.scraper.tmdb_client import TMDBError
-
+        # Fetch show details. Design: TVDB is the authoritative source for
+        # every show identified via TVDB — NFO, folder name, artwork, and
+        # episode titles all come from TVDB. The TMDB cross-reference id
+        # (from remote_ids) is kept purely to embed as a secondary uniqueid
+        # for Kodi/Jellyfin lookups — never queried for content. TMDB is
+        # used for scraping ONLY when match.source == "tmdb" (fallback path
+        # taken when TVDB returned no match above LOW_CONFIDENCE).
         tmdb_id: int | None = None
-        show_data: dict[str, Any]
-        tvdb_data: dict[str, Any] = {}
+        show_data: dict[str, Any] = {}
         try:
             if match.source == "tvdb":
                 tvdb_data = self._tvdb.get_series(match.api_id)
                 remote_ids = self._tvdb.get_remote_ids(tvdb_data)
-                raw_id = remote_ids.get("tmdb_id")
-                tmdb_id = int(raw_id) if raw_id else None
+                raw_tmdb = remote_ids.get("tmdb_id")
+                tmdb_id = int(raw_tmdb) if raw_tmdb else None
+                imdb_id = remote_ids.get("imdb_id") or ""
                 if not tmdb_id:
                     log.info("show_tvdb_only", tvdb_id=match.api_id)
+                show_data = _tvdb_series_to_show_data(
+                    tvdb_data,
+                    match.api_id,
+                    self._tvdb,
+                    tmdb_id=tmdb_id or 0,
+                    imdb_id=imdb_id,
+                )
             else:
+                # Fallback path: TVDB had no match → use TMDB for content.
                 tmdb_id = match.api_id
-
-            if tmdb_id:
-                try:
-                    show_data = self._tmdb.get_tv(tmdb_id)
-                except TMDBError as tmdb_err:
-                    if tmdb_err.http_status == 404:
-                        log.info("show_tmdb_404_tvdb_only", tvdb_id=match.api_id)
-                        # Fall through to TVDB-only path below
-                        tmdb_id = None
-                        show_data = {}
-                    else:
-                        raise  # Non-404 TMDB errors propagate normally
-            if not tmdb_id:
-                if not tvdb_data:
-                    result.error = "No TMDB ID available and no TVDB data fetched"
-                    return result
-                show_data = _tvdb_series_to_show_data(tvdb_data, match.api_id, self._tvdb)
+                show_data = self._tmdb.get_tv(tmdb_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
             log.error("show_details_failed", error=str(e))
@@ -1430,7 +1608,12 @@ class Scraper:
             Title=resolved_title,
             Year=match.api_year or year or "",
         )
-        if show_dir.name != canonical:
+        # NFC-compare: macOS stores filenames in NFD, Python strings are typically
+        # NFC; a naive string compare treats them as different and triggers a
+        # rename-into-self merge that empties the folder. See
+        # ``verify_tvshow_scrape_drift`` for the matching normalization on the
+        # read side.
+        if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
             new_dir = show_dir.parent / canonical
             if not self.dry_run:
                 try:
@@ -1514,29 +1697,48 @@ class Scraper:
         )
 
         if video_files:
+            # Resolve the synthetic-title prefix once per show so in-provider
+            # episodes with empty names and post-facto fallbacks share the same
+            # user-configurable wording (default "Episode").
+            episode_default_name = self.config.scraper.episode_default_name if self.config is not None else "Episode"
             api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
             for season in show_data.get("seasons", []):
                 s_num = season.get("season_number", 0)
                 if s_num == 0:
                     continue
                 try:
-                    if tmdb_id:
-                        # Primary path: fetch episode list from TMDB
+                    # Episode source follows the match source — TVDB matches
+                    # never consult TMDB for episodes, even when a tmdb_id
+                    # cross-ref exists.
+                    if match.source == "tvdb":
+                        # TVDB episodes + per-episode French translation.
+                        tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
+                        for ep in tvdb_eps:
+                            e_num = ep.get("number", ep.get("episode_number", 0))
+                            ep_id = ep.get("id", 0)
+                            title = ep.get("name") or f"{episode_default_name} {e_num}"
+                            if ep_id:
+                                trans = self._tvdb.get_episode_translation(ep_id, "fra")
+                                if trans and trans.get("name"):
+                                    title = trans["name"]
+                                else:
+                                    en_trans = self._tvdb.get_episode_translation(ep_id, "eng")
+                                    if en_trans and en_trans.get("name"):
+                                        title = en_trans["name"]
+                            api_episodes[(s_num, e_num)] = {
+                                "title": title,
+                                "still_path": "",  # TVDB episode stills are separate API calls
+                            }
+                    else:
+                        # match.source == "tmdb" (fallback path — TVDB had no match).
+                        # tmdb_id was set to match.api_id just above, so it is non-None here.
+                        assert tmdb_id is not None
                         s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
                         for ep in s_detail.get("episodes", []):
                             e_num = ep.get("episode_number", 0)
                             api_episodes[(s_num, e_num)] = {
-                                "title": ep.get("name", f"Episode {e_num}"),
+                                "title": ep.get("name") or f"{episode_default_name} {e_num}",
                                 "still_path": ep.get("still_path", ""),
-                            }
-                    else:
-                        # TVDB-only fallback: use TVDB episode list
-                        tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
-                        for ep in tvdb_eps:
-                            e_num = ep.get("number", ep.get("episode_number", 0))
-                            api_episodes[(s_num, e_num)] = {
-                                "title": ep.get("name", f"Episode {e_num}"),
-                                "still_path": "",  # TVDB episode stills are separate API calls
                             }
                 except Exception as e:  # noqa: BLE001 — mixed API + data-shape path: TMDB/TVDB paths raise TMDBError, TVDBError, requests.RequestException, CircuitOpenError (lazy imports); plus AttributeError/TypeError on malformed payloads (non-dict ep; non-iterable seasons/episodes)
                     log.warning("show_season_fetch_failed", season=s_num, exc_info=True, error=str(e))
@@ -1544,7 +1746,11 @@ class Scraper:
             if api_episodes:
                 ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
                 create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
-                matched = match_episode_files(video_files, api_episodes)
+                matched = match_episode_files(
+                    video_files,
+                    api_episodes,
+                    episode_default_name=episode_default_name,
+                )
                 if matched:
                     total_renamed = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
                     self._generate_episode_nfos(matched, show_dir, show_data)
@@ -1613,6 +1819,13 @@ class Scraper:
             episode = info["episode"]
             api_title = info["api_title"]
             still_path = info.get("still_path", "")
+
+            # Fallback entries (no provider record — synthetic "Episode N" title)
+            # skip NFO/thumb generation: the file lands as "SxxExx - Episode N.mkv"
+            # under its Saison XX/ dir so verify/dispatch don't block, but we refuse
+            # to fabricate episode metadata.
+            if info.get("fallback"):
+                continue
 
             season_dir_name = self.patterns.format("season_dir", Season=season)
             new_stem = self.patterns.format(

@@ -195,6 +195,25 @@ class TestCheckTvshow:
         assert len(failed) >= 1
         assert failed[0].severity == Severity.WARNING
 
+    def test_title_less_fallback_episode_accepted(self, checker: MediaChecker, tmp_path: Path) -> None:
+        """Title-less SxxExx.ext (fallback rename) must satisfy episode checks.
+
+        Regression: verify's episode pattern previously required ``SxxExx - Title``,
+        which blocked dispatch on the fallback move produced when the provider
+        lacks an episode (see episode_manager.rename_episodes).
+        """
+        d = _make_tvshow_dir(tmp_path)
+        # Add a title-less fallback alongside the canonical episode.
+        season = d / "Saison 01"
+        (season / "S01E08.mkv").write_bytes(b"\x00" * 1024)
+
+        results = checker.check_tvshow(d)
+
+        season_struct = next(r for r in results if r.name == "season_structure")
+        assert season_struct.passed
+        renamed = next(r for r in results if r.name == "episode_renamed")
+        assert renamed.passed, renamed.message
+
 
 # ---------------------------------------------------------------------------
 # NTFS-safe filename checks

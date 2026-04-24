@@ -497,6 +497,19 @@ class FuzzyMatchConfig(_StrictModel):
     long_title_threshold: float = Field(default=90.0, ge=0.0, le=100.0)
 
 
+class ScraperConfig(_StrictModel):
+    """Scraper runtime tunables.
+
+    Attributes:
+        episode_default_name: Prefix for the synthetic episode title used when
+            the provider lacks the episode and no phantom-season remap was
+            found (``"{episode_default_name} {N}"``). Default ``"Episode"``
+            gives ``"Episode 8"`` for an E08 fallback.
+    """
+
+    episode_default_name: str = Field(default="Episode", min_length=1)
+
+
 class Config(_StrictModel):
     """Top-level config.json5 parsed model.
 
@@ -533,6 +546,8 @@ class Config(_StrictModel):
     genre_mapping: GenreMapping = Field(default_factory=GenreMapping)
 
     fuzzy_match: FuzzyMatchConfig = Field(default_factory=FuzzyMatchConfig)
+
+    scraper: ScraperConfig = Field(default_factory=ScraperConfig)
 
     library: LibraryPrefs = Field(default_factory=LibraryPrefs)
 

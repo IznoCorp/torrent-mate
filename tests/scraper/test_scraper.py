@@ -396,14 +396,174 @@ class TestScrapeTvshow:
         scraper: Scraper,
         tmp_path: Path,
     ) -> None:
-        """Should skip show if valid tvshow.nfo already exists."""
+        """Should skip show when the previous scrape is coherent.
+
+        The fast path requires more than a parseable NFO with a uniqueid:
+        ``_verify_existing_scrape`` also enforces canonical folder name,
+        NFO title/year, show-level artwork, episode naming, and sibling
+        episode NFOs. Any drift re-triggers a full scrape.
+        """
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
-        # Valid NFO must have <uniqueid> to pass _is_nfo_complete
-        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">123</uniqueid></tvshow>')
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tvdb">123</uniqueid></tvshow>'
+        )
+        (show_dir / "poster.jpg").write_bytes(b"\xff")
+        (show_dir / "landscape.jpg").write_bytes(b"\xff")
+        season_dir = show_dir / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        (season_dir / "S01E01 - The Beginning.nfo").write_text(
+            "<episodedetails><title>The Beginning</title></episodedetails>"
+        )
 
         result = scraper.scrape_tvshow(show_dir)
         assert result.action == "skipped_already_done"
+
+    def _build_coherent_show_dir(
+        self,
+        tmp_path: Path,
+        folder_name: str = "Fallout (2024)",
+        nfo_title: str = "Fallout",
+        nfo_year: str = "2024",
+        with_poster: bool = True,
+        with_landscape: bool = True,
+        episode_name: str = "S01E01 - The Beginning",
+        with_episode_nfo: bool = True,
+    ) -> Path:
+        """Build a minimal TV show dir that passes _verify_existing_scrape."""
+        show_dir = tmp_path / folder_name
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            f'<tvshow><title>{nfo_title}</title><year>{nfo_year}</year><uniqueid type="tvdb">123</uniqueid></tvshow>'
+        )
+        if with_poster:
+            (show_dir / "poster.jpg").write_bytes(b"\xff")
+        if with_landscape:
+            (show_dir / "landscape.jpg").write_bytes(b"\xff")
+        season_dir = show_dir / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / f"{episode_name}.mkv").write_bytes(b"\x00")
+        if with_episode_nfo:
+            (season_dir / f"{episode_name}.nfo").write_text(
+                "<episodedetails><title>The Beginning</title></episodedetails>"
+            )
+        return show_dir
+
+    def test_verify_existing_scrape_passes_on_coherent_dir(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Coherent show dir returns (True, "ok")."""
+        show_dir = self._build_coherent_show_dir(tmp_path)
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert is_valid
+        assert reason == "ok"
+
+    def test_verify_rejects_folder_name_drift(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Folder name not equal to sanitize(title (year)) → drift detected."""
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            folder_name="Fallout (FR) (2024)",  # non-canonical
+        )
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert not is_valid
+        assert reason.startswith("folder_name_drift")
+
+    def test_verify_tolerates_nfc_nfd_equivalence(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Folder names differing only in NFC/NFD codepoints are NOT drift.
+
+        macOS APFS/HFS+ stores filenames in NFD ("è" → "e" + U+0300), while
+        Python strings built from scraper output are typically NFC ("è" as
+        U+00E8). A naive byte-level compare treats them as different; the
+        drift check must normalize both sides to NFC to avoid a phantom
+        rename-into-self that would empty the folder.
+        """
+        import unicodedata as _ud
+
+        nfc_title = "Top Chef Le Concours Parallèle"  # NFC form in the NFO
+        nfd_folder = _ud.normalize("NFD", f"{nfc_title} (2026)")  # NFD on disk
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            folder_name=nfd_folder,
+            nfo_title=nfc_title,
+            nfo_year="2026",
+        )
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert is_valid, f"NFC/NFD mismatch wrongly treated as drift: {reason}"
+
+    def test_verify_rejects_title_less_legacy_episode(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Legacy "SxxExx.ext" fallback is detected as drift.
+
+        The previous fallback form (before the synthetic-title fallback) left
+        episodes named "S17E08.mkv". The verify now requires every episode
+        file to include a title segment so those legacy files get re-scraped.
+        """
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            episode_name="S01E01",  # no title segment
+            with_episode_nfo=False,
+        )
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert not is_valid
+        assert reason.startswith("episode_naming_drift")
+
+    def test_verify_rejects_missing_episode_nfo(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Episode video without a sibling NFO → drift."""
+        show_dir = self._build_coherent_show_dir(tmp_path, with_episode_nfo=False)
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert not is_valid
+        assert reason.startswith("episode_nfo_missing")
+
+    def test_verify_rejects_missing_poster(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Missing poster.jpg → drift (dispatch needs artwork)."""
+        show_dir = self._build_coherent_show_dir(tmp_path, with_poster=False)
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert not is_valid
+        assert reason == "poster_missing"
+
+    def test_verify_rejects_missing_landscape(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Missing landscape.jpg → drift."""
+        show_dir = self._build_coherent_show_dir(tmp_path, with_landscape=False)
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert not is_valid
+        assert reason == "landscape_missing"
+
+    def test_verify_rejects_nfo_without_title(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """NFO missing <title> → drift."""
+        show_dir = self._build_coherent_show_dir(tmp_path, nfo_title="")
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert not is_valid
+        assert reason == "nfo_missing_title"
 
     def test_skip_low_confidence(
         self,

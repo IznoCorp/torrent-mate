@@ -16,7 +16,7 @@ from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
-from personalscraper.scraper.scraper import Scraper, ScrapeResult
+from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
 
 log = get_logger("run")
@@ -69,9 +69,14 @@ def _has_unscraped_items(settings: Settings, config: Config) -> bool:
                 nfo_path = folder / PATTERNS.tvshow_nfo
                 if not _is_nfo_complete(nfo_path):
                     return True
-                if not (folder / PATTERNS.tvshow_poster).exists():
-                    return True
-                if not (folder / PATTERNS.tvshow_landscape).exists():
+                # Drift check: even with a complete NFO + both artworks,
+                # re-scraping is required when the folder or episodes no
+                # longer match what the current scraper would produce
+                # (folder rename policy, legacy title-less episodes,
+                # missing episode NFOs).
+                is_valid, reason = verify_tvshow_scrape_drift(folder, nfo_path, PATTERNS)
+                if not is_valid:
+                    log.info("show_rescrape_drift_detected", directory=folder.name, reason=reason)
                     return True
     return False
 

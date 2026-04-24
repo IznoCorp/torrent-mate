@@ -139,15 +139,103 @@ class TestMatchEpisodeFiles:
         assert result[video1]["still_path"] == "/abc123.jpg"
         assert result[video2]["still_path"] == ""
 
-    def test_unmatched_episode_excluded(self, tmp_path: Path) -> None:
-        """Episodes not in API should be excluded from results."""
+    def test_unmatched_episode_gets_synthetic_title(self, tmp_path: Path) -> None:
+        """Parseable S/E absent from API → synthetic "Episode N" title + fallback flag.
+
+        The season exists in the catalog but the specific episode does not
+        (e.g. provider lags a freshly-aired E99). File is still moved under
+        the labeled season, named with the configured default prefix.
+        """
         video = tmp_path / "Show.S01E99.mkv"
         video.touch()
 
         api_episodes = {(1, 1): {"title": "La Fin", "still_path": ""}}
         result = match_episode_files([video], api_episodes)
 
-        assert len(result) == 0
+        assert len(result) == 1
+        assert result[video]["api_title"] == "Episode 99"
+        assert result[video]["season"] == 1
+        assert result[video]["episode"] == 99
+        assert result[video]["fallback"] is True
+
+    def test_unmatched_episode_uses_configured_default_name(self, tmp_path: Path) -> None:
+        """episode_default_name overrides the "Episode" prefix in synthetic titles."""
+        video = tmp_path / "Show.S01E99.mkv"
+        video.touch()
+
+        api_episodes = {(1, 1): {"title": "La Fin", "still_path": ""}}
+        result = match_episode_files([video], api_episodes, episode_default_name="Épisode")
+
+        assert result[video]["api_title"] == "Épisode 99"
+        assert result[video]["fallback"] is True
+
+    def test_phantom_season_remaps_to_max_season(self, tmp_path: Path) -> None:
+        """Phantom labeled season + episode exists in max_season → remap with title.
+
+        Covers parallel-numbering spin-offs: a torrent tagged S17E08 against
+        a show whose catalog is S01..S04 is remapped to (S04, E08) when the
+        provider actually has an episode 8 in its latest season. Metadata
+        (title) from the provider is preserved.
+        """
+        video = tmp_path / "Show.S17E08.mkv"
+        video.touch()
+
+        # Catalog: S01..S04, each with E01..E08; labeled S17 is phantom.
+        api_episodes = {
+            (s, e): {"title": f"Ep S{s:02d}E{e:02d}", "still_path": ""} for s in range(1, 5) for e in range(1, 9)
+        }
+        result = match_episode_files([video], api_episodes)
+
+        assert len(result) == 1
+        # File is remapped to the max season (4), keeping the episode number.
+        assert result[video]["season"] == 4
+        assert result[video]["episode"] == 8
+        assert result[video]["api_title"] == "Ep S04E08"
+        assert result[video]["fallback"] is False
+
+    def test_phantom_season_no_remap_uses_synthetic_title(self, tmp_path: Path) -> None:
+        """Phantom season + episode not in max_season → synthetic title, keeps labeled season."""
+        video = tmp_path / "Show.S17E08.mkv"
+        video.touch()
+
+        # Catalog only has S04 with E01..E07 (E08 hasn't aired yet per the API).
+        api_episodes = {(4, e): {"title": f"Ep E{e:02d}", "still_path": ""} for e in range(1, 8)}
+        result = match_episode_files([video], api_episodes)
+
+        assert len(result) == 1
+        # No remap possible → keep the labeled season, synthesize a title.
+        assert result[video]["season"] == 17
+        assert result[video]["episode"] == 8
+        assert result[video]["api_title"] == "Episode 8"
+        assert result[video]["fallback"] is True
+
+    def test_direct_match_wins_over_phantom_heuristic(self, tmp_path: Path) -> None:
+        """When the labeled (S, E) exists in the catalog, don't trigger remap."""
+        video = tmp_path / "Show.S01E01.mkv"
+        video.touch()
+
+        api_episodes = {
+            (1, 1): {"title": "Pilot S01", "still_path": ""},
+            # S04E01 also exists — must NOT be chosen since S01E01 is a direct match.
+            (4, 1): {"title": "S04 opener", "still_path": ""},
+        }
+        result = match_episode_files([video], api_episodes)
+
+        assert result[video]["season"] == 1
+        assert result[video]["api_title"] == "Pilot S01"
+        assert result[video]["fallback"] is False
+
+    def test_empty_api_episodes_triggers_plain_fallback(self, tmp_path: Path) -> None:
+        """No catalog at all → synthetic title, labeled season preserved."""
+        video = tmp_path / "Show.S03E05.mkv"
+        video.touch()
+
+        result = match_episode_files([video], {})
+
+        assert result[video]["season"] == 3
+        assert result[video]["episode"] == 5
+        assert result[video]["api_title"] == "Episode 5"
+        assert result[video]["fallback"] is True
 
     def test_unparseable_filename_excluded(self, tmp_path: Path) -> None:
         """Files without S/E pattern should be excluded."""
@@ -185,6 +273,31 @@ class TestRenameEpisodes:
 
         assert count == 1
         expected = tmp_path / "Saison 01" / "S01E01 - La Fin.mkv"
+        assert expected.exists()
+        assert not video.exists()
+
+    def test_moves_synthetic_title_fallback_to_season_dir(
+        self,
+        tmp_path: Path,
+        patterns: NamingPatterns,
+    ) -> None:
+        """Fallback entries (synthetic "Episode N" title) are moved like real ones.
+
+        The file must land in Saison XX/ as "SxxExx - Episode N.ext" so verify
+        doesn't block dispatch. The synthetic title is produced by
+        ``match_episode_files`` from the configured ``episode_default_name``.
+        """
+        video = tmp_path / "Show.S17E08.FRENCH.1080p.mkv"
+        video.write_text("video content")
+
+        matched = {
+            video: {"season": 17, "episode": 8, "api_title": "Episode 8", "fallback": True},
+        }
+
+        count = rename_episodes(matched, tmp_path, patterns)
+
+        assert count == 1
+        expected = tmp_path / "Saison 17" / "S17E08 - Episode 8.mkv"
         assert expected.exists()
         assert not video.exists()
 
@@ -341,12 +454,17 @@ class TestEpisodeRenameE2E:
         assert video.exists()  # Not moved
         assert not (show_dir / "Saison 01").exists()  # Not created
 
-    def test_missing_api_episode_kept(
+    def test_missing_api_episode_moved_with_synthetic_title(
         self,
         tmp_path: Path,
         patterns: NamingPatterns,
     ) -> None:
-        """Episode not in API should keep original name."""
+        """Episode with S/E in filename but absent from API is still moved.
+
+        Gets a synthetic "Episode N" title (configurable prefix) and is flagged
+        as fallback so NFO generation can skip it. The file lands under its
+        labeled season — verify/dispatch don't block on a stranded root mkv.
+        """
         show_dir = tmp_path / "Show"
         show_dir.mkdir()
         video_found = show_dir / "Show.S01E01.mkv"
@@ -357,11 +475,19 @@ class TestEpisodeRenameE2E:
         api_episodes = {(1, 1): {"title": "Pilot", "still_path": ""}}  # No S01E99
         matched = match_episode_files([video_found, video_missing], api_episodes)
 
-        assert len(matched) == 1  # Only S01E01 matched
-        assert video_missing not in matched
+        # Both files are included — the missing one with a synthetic title.
+        assert len(matched) == 2
+        assert matched[video_missing]["api_title"] == "Episode 99"
+        assert matched[video_missing]["fallback"] is True
+        assert matched[video_found]["api_title"] == "Pilot"
+        assert matched[video_found]["fallback"] is False
 
-        # Rename only the matched one
         rename_episodes(matched, show_dir, patterns)
 
-        # S01E99 still in original location
-        assert video_missing.exists()
+        # Matched file: renamed with real title.
+        assert (show_dir / "Saison 01" / "S01E01 - Pilot.mkv").exists()
+        # Fallback file: moved to Saison 01/ with synthetic title.
+        assert (show_dir / "Saison 01" / "S01E99 - Episode 99.mkv").exists()
+        # Original root files are gone.
+        assert not video_found.exists()
+        assert not video_missing.exists()

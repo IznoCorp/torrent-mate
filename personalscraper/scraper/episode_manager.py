@@ -97,24 +97,48 @@ def create_season_dirs(
 def match_episode_files(
     video_files: list[Path],
     api_episodes: dict[tuple[int, int], dict[str, Any]],
+    episode_default_name: str = "Episode",
 ) -> dict[Path, dict[str, Any]]:
     """Match video files to API episode data by season/episode numbers.
 
-    Uses NameCleaner to extract S/E numbers from filenames, then
-    looks up the episode title in the API data.
+    Resolves each file in three cascading passes:
+
+    1. **Direct match** — the ``(season, episode)`` parsed from the filename
+       exists in ``api_episodes``. Uses the provider title and still_path.
+    2. **Phantom-season remap** — the filename labels a season the show's
+       catalog doesn't have (common for parallel-numbering spin-offs whose
+       releases mirror the main show's season, e.g. an S17 label on a show
+       whose own catalog is S01..S04). When the provider's catalog does
+       contain ``(max_season_in_catalog, episode)``, the file is remapped
+       to that season with the provider's title.
+    3. **Synthetic fallback** — no API entry available and no remap worked.
+       The title becomes ``"{episode_default_name} {episode}"`` and the
+       entry is flagged ``fallback=True`` so NFO generation can skip it.
+       The file stays under its labeled season (the release group's
+       numbering is honored even when it doesn't align with the catalog).
+
+    Only files with no extractable S/E are excluded — every parseable file
+    ends up in the returned dict so ``rename_episodes`` can move it under
+    ``Saison XX/``.
 
     Args:
         video_files: List of video file paths.
         api_episodes: Mapping from (season, episode) to episode info dict
             with keys "title" and "still_path".
+        episode_default_name: Prefix used to forge a synthetic title when
+            no API entry and no remap are available. Combined with the
+            episode number (e.g. ``"Episode" + " 8"`` → ``"Episode 8"``).
 
     Returns:
         Dict mapping video path to match info:
         {path: {"season": int, "episode": int, "api_title": str,
-                "still_path": str}}.
-        Files with no S/E match or no API match are excluded.
+                "still_path": str, "fallback": bool}}.
+        ``fallback=True`` signals synthetic data (no provider record) —
+        downstream NFO generation should skip these entries.
     """
     matched: dict[Path, dict[str, Any]] = {}
+    available_seasons = {s for s, _ in api_episodes.keys()}
+    max_season = max(available_seasons) if available_seasons else None
 
     for video_path in video_files:
         season, episode = _extract_season_episode(video_path.name)
@@ -122,6 +146,7 @@ def match_episode_files(
             log.warning("episode_se_not_found", filename=video_path.name)
             continue
 
+        # Pass 1: direct API match.
         key = (season, episode)
         if key in api_episodes:
             ep_info = api_episodes[key]
@@ -130,9 +155,57 @@ def match_episode_files(
                 "episode": episode,
                 "api_title": ep_info["title"],
                 "still_path": ep_info.get("still_path", ""),
+                "fallback": False,
             }
+            continue
+
+        is_phantom_season = bool(available_seasons) and season not in available_seasons
+
+        # Pass 2: phantom-season remap via (max_season, episode).
+        if is_phantom_season and max_season is not None:
+            remap_key = (max_season, episode)
+            if remap_key in api_episodes:
+                ep_info = api_episodes[remap_key]
+                log.info(
+                    "episode_phantom_season_remapped",
+                    filename=video_path.name,
+                    labeled_season=season,
+                    remapped_season=max_season,
+                    episode=episode,
+                    api_title=ep_info["title"],
+                )
+                matched[video_path] = {
+                    "season": max_season,
+                    "episode": episode,
+                    "api_title": ep_info["title"],
+                    "still_path": ep_info.get("still_path", ""),
+                    "fallback": False,
+                }
+                continue
+
+        # Pass 3: synthetic fallback — keep the labeled season, synthesize a title.
+        if is_phantom_season:
+            log.warning(
+                "episode_phantom_season_fallback",
+                filename=video_path.name,
+                labeled_season=season,
+                episode=episode,
+                available_seasons=sorted(available_seasons),
+            )
         else:
-            log.warning("episode_not_in_api", season=season, episode=episode, filename=video_path.name)
+            log.warning(
+                "episode_not_in_api_fallback",
+                filename=video_path.name,
+                season=season,
+                episode=episode,
+            )
+        matched[video_path] = {
+            "season": season,
+            "episode": episode,
+            "api_title": f"{episode_default_name} {episode}",
+            "still_path": "",
+            "fallback": True,
+        }
 
     return matched
 
