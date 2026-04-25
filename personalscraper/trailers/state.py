@@ -2,8 +2,9 @@
 
 Implements DESIGN §7 (State tracking), §8 (lifecycle GC and orphan purge), and
 §12 (concurrency with fcntl.flock). The state file lives at
-``.data/trailers_state.json`` relative to the project root; callers pass the
-absolute path to ``TrailerStateStore.__init__``.
+``.data/trailers_state.json`` relative to the project root (default; configurable
+via ``config.trailers.state_file``); callers pass the absolute path to
+``TrailerStateStore.__init__``.
 
 Key design decisions:
 - Atomic writes via ``tempfile.NamedTemporaryFile`` + ``os.replace``.
@@ -303,7 +304,7 @@ def make_state_key(
         "tv:tvdb:{id}:season:{N}"
 
     Manual keys do NOT receive a season suffix — season-level trailers without
-    external IDs are out of scope for v0.7.0.
+    external IDs are out of scope in this initial trailer feature release.
 
     The manual key hashes the NORMALIZED title (NFC + casefold + collapsed
     whitespace) concatenated with year and media_type, separated by ``|``.

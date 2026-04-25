@@ -110,18 +110,18 @@ class TrailersOrchestrator:
 
         1. state_store.auto_gc() once.
         2. Record step-budget start time.
-        2bis. Resolve library_check toggles; library index built lazily on first need.
-        3. For each ScanItem:
+        3. Resolve library_check toggles; library index built lazily on first need.
+        4. For each ScanItem:
            a. Build composite state key.
            b. state_store.should_skip() -> skipped_by_state.
-           b-new. Library-aware SOT recheck (per-type toggle).
-           c. SOT recheck (staging).
-           d. Disk-space pre-check.
-           e. Step-budget check.
-           f. finder.find() -> no_trailer.
-           g. downloader.download() -> handle DownloadStatus.
-           h. Update state.
-        4. Return counts dict.
+           c. Library-aware SOT recheck (per-type toggle).
+           d. SOT recheck (staging).
+           e. Disk-space pre-check.
+           f. Step-budget check.
+           g. finder.find() -> no_trailer.
+           h. downloader.download() -> handle DownloadStatus.
+           i. Update state.
+        5. Return counts dict.
 
         Args:
             items: Pre-filtered list of ScanItems to process. When None
@@ -129,7 +129,7 @@ class TrailersOrchestrator:
                 scans staging itself. The CLI passes a list that has been
                 filtered by --disk/--category/--since/--limit/--level/--season
                 upstream — without this hook the real download path would
-                ignore every CLI filter (2026-04-25 incident).
+                ignore every CLI filter (see commit 28d9f75).
 
         Returns:
             Counts dict with keys: downloaded, already_present,

@@ -95,8 +95,8 @@ class Scanner:
         Only the staging subdirs configured for FileType.MOVIE and
         FileType.TVSHOW are scanned. Other category dirs (audio, ebooks,
         scripts…) are skipped — the trailer feature is meaningless for them
-        and scanning would produce false positives classified as movies (the
-        2026-04-25 incident: 47 audio books triggered YouTube downloads).
+        and scanning would produce false positives classified as movies (see
+        commit 3792ea9: 47 audio books triggered YouTube downloads).
 
         When ``config`` is None, the legacy permissive walk is used: every
         subdir is scanned and items without ``tvshow.nfo`` default to movies.
@@ -137,9 +137,7 @@ class Scanner:
         return items
 
     @staticmethod
-    def _resolve_scan_specs(
-        staging_dir: Path, config: Any | None
-    ) -> list[tuple[Path, MediaTypeLiteral | None]]:
+    def _resolve_scan_specs(staging_dir: Path, config: Any | None) -> list[tuple[Path, MediaTypeLiteral | None]]:
         """Return the (category_dir, forced_media_type) pairs to scan.
 
         With ``config``: lookup FileType.MOVIE and FileType.TVSHOW staging
@@ -157,9 +155,7 @@ class Scanner:
         """
         if config is None:
             return [
-                (sub, None)
-                for sub in sorted(staging_dir.iterdir())
-                if sub.is_dir() and not sub.name.startswith(".")
+                (sub, None) for sub in sorted(staging_dir.iterdir()) if sub.is_dir() and not sub.name.startswith(".")
             ]
 
         # Lazy import to avoid a hard dependency on conf/sorter from tests
@@ -253,9 +249,7 @@ class Scanner:
         age_seconds = (datetime.now(tz=timezone.utc) - self._last_scan_time).total_seconds()
         return age_seconds < max_age_hours * 3600
 
-    def _scan_media_dir(
-        self, media_dir: Path, forced_type: MediaTypeLiteral | None = None
-    ) -> list[ScanItem]:
+    def _scan_media_dir(self, media_dir: Path, forced_type: MediaTypeLiteral | None = None) -> list[ScanItem]:
         """Scan a single media directory and return missing-trailer ScanItems.
 
         Args:

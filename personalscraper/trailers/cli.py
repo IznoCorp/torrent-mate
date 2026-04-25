@@ -8,15 +8,17 @@ Subcommands:
     verify    - Audit existing trailers (size, extension)
     purge     - Remove orphan trailers (media parent absent)
 
-Common filters (all subcommands)::
+Common filters (scan, download, verify, purge)::
     --disk DISK_ID
     --category CATEGORY_ID
     --since YYYY-MM-DD
     --limit N
-    --dry-run
     --no-refresh   (skip library cache refresh)
     --level {show|season|both}
     --season N
+
+Flags specific to ``download`` and ``purge`` only::
+    --dry-run
 """
 
 from __future__ import annotations
@@ -271,7 +273,7 @@ def _apply_filters(
 
     Centralises the filtering so the dry-run path AND the real download path
     apply EXACTLY the same predicates. Without this helper, the real download
-    path historically silently ignored every CLI filter (2026-04-25 incident).
+    path historically silently ignored every CLI filter (see commit 28d9f75).
 
     Args:
         items: ScanItems produced by ``Scanner.scan_staging``.
@@ -442,7 +444,7 @@ def download(
     # or hand it to the orchestrator (real). Sharing the same _apply_filters
     # path is the load-bearing invariant: it makes the dry-run faithfully
     # represent the real run, and prevents the real run from silently
-    # ignoring CLI filters (2026-04-25 incident).
+    # ignoring CLI filters (see commit 28d9f75).
     scanner = Scanner(
         min_file_size_bytes=_min_file_size(config),
         seasons_enabled=seasons_enabled,
@@ -461,13 +463,9 @@ def download(
     )
 
     if dry_run:
-        console.print(
-            f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items."
-        )
+        console.print(f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items.")
         for item in items:
-            season_col = (
-                f" (season {item.season_number})" if item.season_number is not None else ""
-            )
+            season_col = f" (season {item.season_number})" if item.season_number is not None else ""
             console.print(f"  - {item.title}{season_col}  [dim]{item.path}[/dim]")
         return
 

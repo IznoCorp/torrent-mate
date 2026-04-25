@@ -323,7 +323,7 @@ class YtdlpDownloader:
             "retries": self._retries,
             "max_filesize": self._max_filesize_bytes,
             "quiet": True,
-            # Suppress yt-dlp's own progress output — structlog handles our logging.
+            # Forward yt-dlp warnings; we already silence the progress bar via `quiet`.
             "no_warnings": False,
         }
 
