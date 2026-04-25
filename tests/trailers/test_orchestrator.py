@@ -420,6 +420,57 @@ class TestLibraryAwareRecheck:
         assert counts["downloaded"] == 1
         assert counts["already_present_on_disk"] == 0
 
+    def test_run_raises_when_finder_unavailable(self, tmp_path: Path) -> None:
+        """run() raises RuntimeError immediately when _finder is None (C10).
+
+        When the finder could not be constructed (import failure / misconfig),
+        run() must raise rather than silently persisting NO_TRAILER_AVAILABLE
+        for every item it never actually inspected.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        cfg = _make_config(tmp_path)
+        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+        # Force finder to None to simulate import/config failure.
+        orch._finder = None
+
+        with pytest.raises(RuntimeError, match="trailers finder unavailable"):
+            orch.run()
+
+    def test_finder_exception_persisted_as_http_error_not_skipped_by_filter(self, tmp_path: Path) -> None:
+        """finder.find() exception persists HTTP_ERROR state, not SKIPPED_BY_FILTER (I5).
+
+        A transient network or API error from the finder must be recorded with
+        TrailerStatus.HTTP_ERROR so the item is retried with backoff — not
+        SKIPPED_BY_FILTER which implies an intentional filter exclusion.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        cfg = _make_config(tmp_path)
+        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+
+        persisted_states: list[TrailerStatus] = []
+
+        def capturing_set(key: str, state: object) -> None:
+            from personalscraper.trailers.state import TrailerState
+
+            assert isinstance(state, TrailerState)
+            persisted_states.append(state.status)
+
+        with (
+            patch.object(orch._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orch._finder, "find", side_effect=ConnectionError("network timeout")),
+            patch.object(orch._state_store, "set", side_effect=capturing_set),
+        ):
+            counts = orch.run()
+
+        assert counts["error"] == 1
+        assert persisted_states == [TrailerStatus.HTTP_ERROR], (
+            "finder exception must persist HTTP_ERROR, not SKIPPED_BY_FILTER"
+        )
+
     def test_library_aware_recheck_disabled_for_both_types_skips_scan(self, tmp_path: Path) -> None:
         """When both library_check toggles are False, scan_library is never called.
 

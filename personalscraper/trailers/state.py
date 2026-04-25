@@ -68,6 +68,16 @@ _LOCK_RETRY_SLEEP_SEC = 0.5
 # ---------------------------------------------------------------------------
 
 
+class TrailerStepFailed(Exception):
+    """Raised by the pipeline when the trailers step returns status=error.
+
+    Only raised when ``continue_on_trailer_error`` is False (the default).
+    Caught by the CLI's ``run`` command handler, which exits with code 2 so
+    the caller (e.g. a launchd job or CI script) can distinguish a
+    trailers-specific abort from the generic exit-1 for partial pipeline errors.
+    """
+
+
 class TrailerStateLocked(Exception):
     """Raised when the state-file lock cannot be acquired within the retry budget.
 

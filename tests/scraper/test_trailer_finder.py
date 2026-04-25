@@ -138,6 +138,85 @@ class TestTrailerFinder:
         assert "/tv/1399/season/1/videos" in call_args[0][0]
 
 
+class TestSeasonFallbackQuotaConfig:
+    """Tests for season YouTube fallback quota parameter forwarding (I4)."""
+
+    def test_season_fallback_respects_configured_quota(self, tmp_path: Path) -> None:
+        """_youtube_fallback_strict() constructs the passthrough searcher with explicit quota params.
+
+        The one-shot ``YoutubeSearch`` built for the pre-formatted season query
+        must receive the same ``daily_quota_units`` and ``search_list_cost_units``
+        as the primary searcher — not the module-level defaults.  This test also
+        asserts that the attributes are accessed as public attributes, not via
+        private ``_daily_quota_units`` / ``_search_list_cost_units`` names.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.scraper.youtube_search import YoutubeSearch
+
+        # Build a YoutubeSearch with non-default quota values.
+        custom_daily = 5000
+        custom_cost = 200
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        quota_cache = JsonTTLCache(tmp_path / "quota.json")
+        searcher = YoutubeSearch(
+            "{title} {year} trailer",
+            api_key="FAKE_KEY",
+            quota_cache=quota_cache,
+            breaker=yt_breaker,
+            daily_quota_units=custom_daily,
+            search_list_cost_units=custom_cost,
+        )
+
+        # Verify public attributes are exposed correctly.
+        assert searcher.daily_quota_units == custom_daily
+        assert searcher.search_list_cost_units == custom_cost
+
+        # Build a finder using this searcher and assert the passthrough searcher
+        # for a season query inherits the quota parameters.
+        cache = TrailersCache(tmp_path / "tc.json")
+        client = MagicMock()
+        client._fetch_videos_strict.return_value = []  # Force YouTube fallback
+
+        constructed_searchers: list[YoutubeSearch] = []
+        _original_init = YoutubeSearch.__init__
+
+        def capturing_init(self_inner: YoutubeSearch, *args: object, **kwargs: object) -> None:
+            _original_init(self_inner, *args, **kwargs)
+            constructed_searchers.append(self_inner)
+
+        finder = TrailerFinder(
+            tmdb_client=client,
+            youtube_search=searcher,
+            cache=cache,
+            languages=["en-US"],
+        )
+
+        # Patch YoutubeSearch.__init__ to capture construction of the passthrough searcher.
+        from unittest.mock import patch
+
+        with patch.object(YoutubeSearch, "__init__", capturing_init):
+            # season_number != None triggers the passthrough-searcher construction path.
+            finder.find(1399, "tv", title="Game of Thrones", year=2011, season_number=2)
+
+        # The passthrough searcher constructed for the season query must carry
+        # the same quota parameters as the primary searcher.
+        passthrough = next(
+            (s for s in constructed_searchers if s._query_format == "{title}"),
+            None,
+        )
+        assert passthrough is not None, "A passthrough YoutubeSearch must have been constructed for the season query"
+        assert passthrough.daily_quota_units == custom_daily, (
+            "passthrough searcher must inherit daily_quota_units from primary"
+        )
+        assert passthrough.search_list_cost_units == custom_cost, (
+            "passthrough searcher must inherit search_list_cost_units from primary"
+        )
+
+
 class TestCachePoisoningPrevention:
     """Tests for C5/C6 — outage errors must NOT poison the cache."""
 

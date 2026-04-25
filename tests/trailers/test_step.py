@@ -127,6 +127,89 @@ class TestStepReportBackwardCompat:
         assert "3 OK" in html
 
 
+class TestRunTrailersVerifiedFiltering:
+    """Tests for verified-path filtering in run_trailers() (C8)."""
+
+    def test_run_trailers_filters_orchestrator_items_to_verified_paths(self, config, tmp_path):
+        """run_trailers() passes only verified-path items to orchestrator.run().
+
+        When a non-empty ``verified`` list is provided, run_trailers() must scan
+        staging, filter to items whose path is in the verified set, and pass
+        that filtered list to ``orchestrator.run(items=...)``.  Items not in the
+        verified set must be excluded even if the scanner sees them.
+
+        Args:
+            config: Mock Config fixture.
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.trailers.scanner import ScanItem
+
+        verified_path = tmp_path / "Movie A (2020)"
+        excluded_path = tmp_path / "Movie B (2021)"
+
+        # Two ScanItems — only verified_path is in the verified list.
+        item_a = ScanItem(path=verified_path, media_type="movie", title="Movie A", year=2020, tmdb_id="111")
+        item_b = ScanItem(path=excluded_path, media_type="movie", title="Movie B", year=2021, tmdb_id="222")
+
+        # Build verified list — only item_a's path is marked success.
+        verified_item = MagicMock()
+        verified_item.path = str(verified_path)
+        verified_item.status = "success"
+
+        with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
+            mock_orch = MockOrch.return_value
+            # Scanner returns both items; only item_a should be passed to run().
+            mock_orch._scanner.scan_staging.return_value = [item_a, item_b]
+            mock_orch.run.return_value = {
+                "downloaded": 1,
+                "already_present": 0,
+                "no_trailer": 0,
+                "bot_detected": 0,
+                "error": 0,
+                "skipped_by_state": 0,
+            }
+            mock_orch.failed_items = []
+
+            run_trailers(config, staging_dir=tmp_path, verified=[verified_item])
+
+        # orchestrator.run() must have been called with only item_a
+        mock_orch.run.assert_called_once()
+        call_args = mock_orch.run.call_args
+        # items is always passed as a keyword argument from step.py
+        passed_items = call_args.kwargs.get("items")
+        assert passed_items is not None, "orchestrator.run() must be called with items keyword argument"
+        assert len(passed_items) == 1
+        assert passed_items[0].path == verified_path
+
+    def test_run_trailers_passes_none_when_verified_empty(self, config, tmp_path):
+        """run_trailers() passes items=None to orchestrator when verified is empty.
+
+        An empty verified list means the step was invoked directly (CLI or
+        unit test), so the orchestrator should fall back to its own staging scan.
+
+        Args:
+            config: Mock Config fixture.
+            tmp_path: Pytest tmp_path fixture.
+        """
+        with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
+            mock_orch = MockOrch.return_value
+            mock_orch.run.return_value = {
+                "downloaded": 0,
+                "already_present": 0,
+                "no_trailer": 0,
+                "bot_detected": 0,
+                "error": 0,
+                "skipped_by_state": 0,
+            }
+            mock_orch.failed_items = []
+
+            run_trailers(config, staging_dir=tmp_path, verified=[])
+
+        mock_orch.run.assert_called_once_with(items=None)
+
+
 class TestStepReportTelegramSummary:
     """Verify StepReport counts flow through to PipelineReport.to_html() for Telegram delivery.
 

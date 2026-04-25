@@ -475,6 +475,8 @@ def run(
         effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
         effective_continue_on_trailer_error = continue_on_trailer_error or config.trailers.pipeline.continue_on_error
 
+        from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
+
         # Delegate to Pipeline orchestrator (8-step sequential flow)
         pipeline = Pipeline(
             config,
@@ -486,7 +488,15 @@ def run(
             skip_trailers=effective_skip_trailers,
             continue_on_trailer_error=effective_continue_on_trailer_error,
         )
-        report = pipeline.run()
+        try:
+            report = pipeline.run()
+        except TrailerStepFailed as exc:
+            # Trailers step failed and --continue-on-trailer-error was not set.
+            # Exit with code 2 (distinct from generic pipeline error exit 1) so
+            # scripts / launchd jobs can handle this case explicitly.
+            console.print(f"[red]ABORTED: {exc}[/red]", highlight=False)
+            _run_log.error("pipeline_aborted_trailer_step_failed", reason=str(exc))
+            raise typer.Exit(code=2) from exc
 
         dur = report.duration()
         minutes = int(dur.total_seconds()) // 60

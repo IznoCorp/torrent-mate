@@ -58,7 +58,37 @@ def run_trailers(
 
     try:
         orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir)
-        counts = orchestrator.run()
+
+        # Build the items list to pass to the orchestrator.
+        #
+        # When `verified` is non-empty (pipeline step invocation), restrict the
+        # orchestrator to paths that were confirmed clean by the verify step.  We
+        # perform a fresh scan and filter by allowed paths so ScanItem objects
+        # carry the full metadata (title, year, tmdb_id) the orchestrator needs —
+        # the VerifyResult items in `verified` do not carry that payload.
+        #
+        # When `verified` is empty or None (CLI-direct invocation, unit tests),
+        # pass items=None so the orchestrator falls back to its own staging scan.
+        orchestrator_items: list[Any] | None
+        if verified:
+            allowed_paths: set[Path] = {
+                Path(item.path) for item in verified if getattr(item, "status", None) in ("success", "pass")
+            }
+            # scan_staging returns ScanItems whose .path matches staging entries;
+            # filter to only those whose path is in the allowed set.
+            all_scan_items = orchestrator._scanner.scan_staging(staging_dir, config)
+            orchestrator_items = [si for si in all_scan_items if si.path in allowed_paths]
+            logger.debug(
+                "trailers_step_filtered_items",
+                verified_count=len(verified),
+                allowed_paths=len(allowed_paths),
+                filtered_count=len(orchestrator_items),
+            )
+        else:
+            # No verified list — let the orchestrator scan staging itself.
+            orchestrator_items = None
+
+        counts = orchestrator.run(items=orchestrator_items)
         failed_items = orchestrator.failed_items
 
         success_count = counts.get("downloaded", 0)

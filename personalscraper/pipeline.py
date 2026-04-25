@@ -288,14 +288,23 @@ class Pipeline:
         # Read it back to inspect status without relying on the return value of _run_step,
         # which returns the extra tuple element (None for steps returning only StepReport).
         trailers_step = report.steps.get("trailers")
-        if trailers_step is not None and trailers_step.status == "error" and not self.continue_on_trailer_error:
-            # Log the error but proceed to dispatch -- trailers are non-blocking per DESIGN section 2.
-            # continue_on_trailer_error=True is the future override if callers ever want to
-            # abort dispatch on a trailer crash; for now both paths log and continue.
-            self._log.error(
-                "trailers_step_error",
+        if trailers_step is not None and trailers_step.status == "error":
+            if not self.continue_on_trailer_error:
+                # Trailers step failed and the caller did not opt into ignoring it.
+                # Abort before dispatch so a broken trailer acquisition never silently
+                # lets corrupted or missing state reach the library.  The CLI catches
+                # TrailerStepFailed and exits with code 2 to distinguish this abort
+                # from a generic pipeline error (exit 1).
+                from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
+
+                raise TrailerStepFailed(
+                    "trailers step failed; use --continue-on-trailer-error to proceed to dispatch anyway"
+                )
+            # continue_on_trailer_error=True: log the error and fall through to dispatch.
+            self._log.warning(
+                "trailers_step_error_suppressed",
                 status=trailers_step.status,
-                hint="use --continue-on-trailer-error to suppress this warning",
+                hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
             )
 
         # Phase 6: DISPATCH (only if verified items exist)

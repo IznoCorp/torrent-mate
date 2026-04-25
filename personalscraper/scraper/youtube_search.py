@@ -51,8 +51,14 @@ def _redact_url_key(url: str) -> str:
 class YoutubeSearch:
     """Two-tier YouTube searcher — v3 API primary + yt-dlp ytsearch fallback.
 
-    All instance state is private (single-underscore prefix) — see ``__init__``
-    for the per-attribute documentation. Public API: ``search()``.
+    Quota-related configuration (``daily_quota_units``, ``search_list_cost_units``)
+    is exposed as public attributes so callers (e.g. TrailerFinder._youtube_fallback)
+    can construct sibling searchers with the same quota parameters without reaching
+    into private attributes.  Other mutable state (``_api_key``, ``_quota``,
+    ``_breaker``) remains private since it is shared state that callers should not
+    modify directly.
+
+    Public API: ``search()``, ``daily_quota_units``, ``search_list_cost_units``.
     """
 
     def __init__(
@@ -79,8 +85,8 @@ class YoutubeSearch:
         self._api_key = api_key
         self._quota = quota_cache
         self._breaker = breaker
-        self._daily_quota_units = daily_quota_units
-        self._search_list_cost_units = search_list_cost_units
+        self.daily_quota_units = daily_quota_units
+        self.search_list_cost_units = search_list_cost_units
 
     def search(self, title: str, year: int | None) -> str | None:
         """Search YouTube for a trailer and return the first video URL.
@@ -143,7 +149,7 @@ class YoutubeSearch:
 
         # Charge quota once the call reaches the server, even on error paths
         # (Google bills quota even for 403/404 responses on some endpoints).
-        self._consume_quota(self._search_list_cost_units)
+        self._consume_quota(self.search_list_cost_units)
 
         if resp.status_code == 403:
             log.info(
@@ -291,7 +297,7 @@ class YoutubeSearch:
             True if ``consumed + search_list_cost_units <= daily_quota_units``.
         """
         consumed = int(self._quota.get(self._quota_key()) or 0)
-        return (consumed + self._search_list_cost_units) <= self._daily_quota_units
+        return (consumed + self.search_list_cost_units) <= self.daily_quota_units
 
     def _consume_quota(self, units: int) -> None:
         """Record ``units`` consumed against today's budget.
@@ -308,7 +314,7 @@ class YoutubeSearch:
         """Pin today's counter to the daily limit to force fallback immediately."""
         self._quota.set(
             self._quota_key(),
-            self._daily_quota_units,
+            self.daily_quota_units,
             ttl_seconds=36 * 3600,
         )
 

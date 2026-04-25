@@ -138,6 +138,14 @@ class TrailersOrchestrator:
         """
         self._failed_items = []
 
+        # Guard: if the finder could not be constructed (import failure or
+        # misconfiguration), raise immediately rather than processing items and
+        # persisting NO_TRAILER_AVAILABLE for every entry the orchestrator never
+        # actually inspected.  step.py catches this as a generic Exception and
+        # returns status="error", which the pipeline treats appropriately.
+        if self._finder is None:
+            raise RuntimeError("trailers finder unavailable — check earlier trailers_finder_init_failed log entries")
+
         counts: dict[str, int] = {
             "downloaded": 0,
             "already_present": 0,
@@ -237,9 +245,7 @@ class TrailersOrchestrator:
             if item.season_number is not None:
                 expected_path = trailer_path_for_season(item.path, item.season_number, _DEFAULT_EXT)
             else:
-                expected_path = trailer_path_for(
-                    item.path, media_name, media_type=item.media_type, ext=_DEFAULT_EXT
-                )
+                expected_path = trailer_path_for(item.path, media_name, media_type=item.media_type, ext=_DEFAULT_EXT)
             if trailer_exists(expected_path, min_size):
                 log.debug("trailers_already_present", key=key, title=item.title)
                 counts["already_present"] += 1
@@ -288,44 +294,49 @@ class TrailersOrchestrator:
                 )
                 break
 
+            # self._finder is guaranteed non-None here: run() raises RuntimeError
+            # before the loop when _finder is None (C10 guard at run() entry).
             url: str | None = None
-            if self._finder is not None:
-                try:
-                    tmdb_id_int: int | None = int(item.tmdb_id) if item.tmdb_id else None
-                    find_media_type = "tv" if item.media_type == "tvshow" else item.media_type
-                    url = self._finder.find(
-                        tmdb_id_int,  # type: ignore[arg-type]
-                        find_media_type,
-                        title=item.title,
-                        year=item.year,
+            try:
+                tmdb_id_int: int | None = int(item.tmdb_id) if item.tmdb_id else None
+                find_media_type = "tv" if item.media_type == "tvshow" else item.media_type
+                url = self._finder.find(
+                    tmdb_id_int,  # type: ignore[arg-type]
+                    find_media_type,
+                    title=item.title,
+                    year=item.year,
+                    season_number=item.season_number,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.error(
+                    "trailers_finder_error",
+                    key=key,
+                    title=item.title,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    exc_info=True,
+                )
+                counts["error"] += 1
+                self._failed_items.append((key, "error", str(exc)))
+                # Persist HTTP_ERROR (not SKIPPED_BY_FILTER) so the state taxonomy
+                # correctly reflects a transient network/API failure rather than an
+                # intentional filter exclusion.  next_retry_at gives the item a
+                # backoff window before the next attempt.
+                self._state_store.set(
+                    key,
+                    TrailerState(
+                        last_attempt=datetime.now(timezone.utc).isoformat(),
+                        attempts=1,
+                        status=TrailerStatus.HTTP_ERROR,
+                        media_path=str(item.path),
+                        next_retry_at=compute_next_retry_at(
+                            1, retry_policy, last_attempt=datetime.now(timezone.utc)
+                        ).isoformat(),
+                        notes=str(exc),
                         season_number=item.season_number,
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    log.error(
-                        "trailers_finder_error",
-                        key=key,
-                        title=item.title,
-                        error=str(exc),
-                        error_type=type(exc).__name__,
-                        exc_info=True,
-                    )
-                    counts["error"] += 1
-                    self._failed_items.append((key, "error", str(exc)))
-                    self._state_store.set(
-                        key,
-                        TrailerState(
-                            last_attempt=datetime.now(timezone.utc).isoformat(),
-                            attempts=1,
-                            status=TrailerStatus.SKIPPED_BY_FILTER,
-                            media_path=str(item.path),
-                            next_retry_at=compute_next_retry_at(
-                                1, retry_policy, last_attempt=datetime.now(timezone.utc)
-                            ).isoformat(),
-                            notes=str(exc),
-                            season_number=item.season_number,
-                        ),
-                    )
-                    continue
+                    ),
+                )
+                continue
 
             if url is None:
                 log.info("trailers_no_trailer_found", key=key, title=item.title)

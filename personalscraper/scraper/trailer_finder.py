@@ -371,8 +371,8 @@ class TrailerFinder:
                 api_key=self._youtube_search._api_key,
                 quota_cache=self._youtube_search._quota,
                 breaker=self._youtube_search._breaker,
-                daily_quota_units=self._youtube_search._daily_quota_units,
-                search_list_cost_units=self._youtube_search._search_list_cost_units,
+                daily_quota_units=self._youtube_search.daily_quota_units,
+                search_list_cost_units=self._youtube_search.search_list_cost_units,
             )
             return self._call_youtube_search(passthrough_searcher, query_text, None)
 
