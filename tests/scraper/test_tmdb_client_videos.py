@@ -112,3 +112,37 @@ class TestFetchTvVideos:
         with patch.object(client, "_get", mock_get):
             client.fetch_tv_videos(1, language="fr-FR")
         mock_get.assert_called_once_with("/tv/1/videos", {"language": "fr-FR"})
+
+
+# ── fetch_tv_season_videos ────────────────────────────────────────────────────
+
+
+class TestFetchTvSeasonVideos:
+    """Tests for TMDBClient.fetch_tv_season_videos."""
+
+    def test_fetch_tv_season_videos_returns_videos(self, client):
+        """Happy path: season-level fetch returns the canonical Video list."""
+        fixture = _load("tv_1399_season_1_videos.json")
+        with patch.object(client, "_get", return_value=fixture):
+            videos = client.fetch_tv_season_videos(1399, season_number=1, language="en-US")
+        assert len(videos) == 1
+        assert isinstance(videos[0], Video)
+        assert videos[0].key == "BpJYNVhGf1s"
+
+    def test_fetch_tv_season_videos_404_returns_empty(self, client):
+        """Fail-soft on 404 — many shows have no season-level videos on TMDB."""
+        with patch.object(client, "_get", side_effect=TMDBError(404, 34, "Not Found")):
+            result = client.fetch_tv_season_videos(99999, season_number=3, language="en-US")
+        assert result == []
+
+    def test_fetch_tv_season_videos_uses_circuit_breaker(self, client):
+        """Same circuit breaker (`_get`) covers show- and season-level video fetches.
+
+        Asserted indirectly: the implementation funnels through `_fetch_videos`
+        which delegates to `self._get` — the same path show-level fetches use,
+        therefore the same `tmdb_videos` breaker (DESIGN §1) applies.
+        """
+        mock_get = MagicMock(return_value={"id": 1, "results": []})
+        with patch.object(client, "_get", mock_get):
+            client.fetch_tv_season_videos(1, season_number=2, language="fr-FR")
+        mock_get.assert_called_once_with("/tv/1/season/2/videos", {"language": "fr-FR"})

@@ -527,6 +527,33 @@ class TMDBClient:
         """
         return self._fetch_videos(f"/tv/{tmdb_id}/videos", tmdb_id, "tv", language)
 
+    def fetch_tv_season_videos(self, tv_id: int, season_number: int, language: str) -> list[Video]:
+        """Fetch videos for a specific TV show season from TMDB.
+
+        Calls ``GET /tv/{tv_id}/season/{season_number}/videos``. TMDB indexes
+        seasons starting at 1 (specials are season 0).
+
+        Args:
+            tv_id: TMDB TV show id.
+            season_number: TMDB season number (1-indexed; specials = 0).
+            language: BCP-47 language code (e.g. "fr-FR", "en-US").
+
+        Returns:
+            List of Video dataclass instances. Empty list on 404 (no videos
+            for this season — common for older shows or non-flagship seasons)
+            or any other error (fail-soft, same as show-level).
+
+        Raises:
+            Same as fetch_tv_videos — propagates circuit-breaker open, fails
+            fast on unrecoverable 5xx after retries, fail-soft on 404 (returns []).
+        """
+        return self._fetch_videos(
+            f"/tv/{tv_id}/season/{season_number}/videos",
+            tv_id,
+            f"tv-season-{season_number}",
+            language,
+        )
+
     def _fetch_videos(self, endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
         """Internal: call /videos endpoint and deserialize into Video list.
 
