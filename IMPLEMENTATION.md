@@ -26,7 +26,7 @@
 | 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [x]    |
 | 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [x]    |
 | 10  | PR fixes cycle 3 (40 findings)                                           | phase-10-pr-review-cycle-3.md    | [x]    |
-| 11  | PR fixes cycle 4 (22 findings)                                           | phase-11-pr-fixes-cycle-4.md     | [ ]    |
+| 11  | PR fixes cycle 4 (22 findings)                                           | phase-11-pr-fixes-cycle-4.md     | [x]    |
 
 ## Review cycles
 
@@ -117,7 +117,13 @@
   futures, polish (see Phase 11 "Out of scope")
 - Fix phase created: `docs/features/trailer/plan/phase-11-pr-fixes-cycle-4.md`
   (7 sub-phases organised by code area)
-- Status: fix phase dispatched → awaiting `/implement:phase`
+- Status: clean — all 7 implementation sub-phases done (11.1 lock contention,
+  11.2 cache poisoning closure + DownloadError catch, 11.3 cache hygiene,
+  11.4 atomic NFO + redaction, 11.5 docs, 11.6 state-store error semantics,
+  11.7 test sentinel + coverage); milestone gate ready
+- Final test count: 1981 passing, 3 skipped (+19 from cycle-3 baseline of 1962)
+- Sub-phase commits: af9feee, 75c2b37, f1637cd, e7291e8, 0270381, e207fe0,
+  d3a2d46, 234feaf
 
 **Critical themes**:
 
@@ -136,6 +142,7 @@
 
 ## Next action
 
-Execute Phase 11 via `/implement:phase`. After all sub-phases complete and the
-milestone commit lands, push and let the auto PR-review cycle decide whether
-a Cycle 5 is needed.
+All phases complete. Run `/implement:feature-pr` to push and update PR #15
+with the cycle-4 commits. `/implement:pr-review` then decides whether a
+Cycle 5 is warranted (cycle 5 is the ceiling — at cycle 5 with remaining
+findings, escalation to user).
