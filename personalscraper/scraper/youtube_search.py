@@ -57,8 +57,9 @@ def _redact_url_key(url: str) -> str:
 def _build_youtube_session() -> requests.Session:
     """Build a requests.Session with a retry-capable HTTPAdapter.
 
-    Mirrors the TMDB client's ``Retry`` strategy: retries on connection errors
-    and 5xx responses (up to 2 retries) with exponential backoff.
+    Mirrors the TMDB client's ``Retry`` strategy: retries on connection errors,
+    429 rate-limit responses, and 5xx responses (up to 2 retries) with
+    exponential backoff.
 
     Returns:
         Configured ``requests.Session`` instance.
@@ -67,7 +68,8 @@ def _build_youtube_session() -> requests.Session:
     urllib3_retry = Urllib3Retry(
         total=_PRIMARY_MAX_ATTEMPTS - 1,
         backoff_factor=0.5,
-        status_forcelist=[500, 502, 503, 504],
+        # 429 = YouTube quota / rate-limit; 5xx = upstream server errors.
+        status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET"],
         raise_on_status=False,
     )

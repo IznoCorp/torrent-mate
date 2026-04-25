@@ -194,6 +194,11 @@ class KeywordsCache:
         On parse error the corrupt file is backed up to
         ``<name>.corrupt-<unix_ts>.json`` before returning ``{}``.
 
+        ``OSError`` (broken mount, EBUSY, stale NFS handle) does NOT trigger a
+        backup because the file is likely intact but temporarily inaccessible;
+        creating ``.corrupt-*`` files on every transient I/O hiccup would flood
+        the directory.  Mirrors the pattern used by ``state.py:_load``.
+
         Returns:
             Parsed JSON dict (may be empty on error or missing file).
         """
@@ -206,9 +211,21 @@ class KeywordsCache:
                 self._backup_corrupt(reason="root_not_object")
                 return {}
             return {k: v for k, v in raw.items() if isinstance(v, dict)}
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Corrupt JSON — back up the file before the next write overwrites it.
             self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
-            log.warning("keywords_cache_read_error", path=str(self._path), error=str(exc))
+            log.error("keywords_cache_load_failed", path=str(self._path), error=str(exc), exc_info=True)
+            return {}
+        except OSError as exc:
+            # Transient I/O error (broken mount, EBUSY, stale NFS handle).
+            # Do NOT backup — the file is likely healthy but temporarily unreachable.
+            log.warning(
+                "keywords_cache_read_failed",
+                path=str(self._path),
+                errno=exc.errno,
+                error=str(exc),
+                exc_info=True,
+            )
             return {}
 
     def _atomic_save(self, data: dict[str, dict[str, object]]) -> None:

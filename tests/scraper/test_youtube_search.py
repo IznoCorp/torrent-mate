@@ -441,6 +441,63 @@ class TestPrimarySearchRetry:
             f"expected 2 retries, got {adapter.max_retries.total}"
         )
 
+    def test_session_includes_429_in_status_forcelist(self, searcher: YoutubeSearch) -> None:
+        """The session adapter's status_forcelist includes 429 (YouTube rate-limit).
+
+        YouTube returns 429 when quota is temporarily exhausted; the retry layer
+        must back off and retry rather than propagating the error to application
+        code.
+
+        Args:
+            searcher: YoutubeSearch fixture.
+        """
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry as Urllib3Retry
+
+        adapter = searcher._session.get_adapter("https://www.googleapis.com/")
+        assert isinstance(adapter, HTTPAdapter)
+        retry: Urllib3Retry = adapter.max_retries  # type: ignore[assignment]
+        assert isinstance(retry, Urllib3Retry)
+        assert 429 in retry.status_forcelist, (
+            f"429 must be in status_forcelist to retry on YouTube rate-limit; got {retry.status_forcelist}"
+        )
+
+    def test_primary_search_retries_on_429(self, searcher: YoutubeSearch) -> None:
+        """A 429 response is absorbed by the retry layer; application sees one success.
+
+        The test is split into two complementary assertions:
+
+        1. **Configuration** — 429 is in ``status_forcelist``, so urllib3 will
+           schedule a retry instead of surfacing the status to application code.
+        2. **Application outcome** — given that urllib3 retries and eventually
+           returns a 200, ``search()`` returns the expected YouTube URL (i.e. the
+           application layer only processes one successful response, never the
+           429 itself).
+
+        We simulate the application-layer outcome by patching ``Session.get`` to
+        return the 200 response directly.  The urllib3-level retry mechanics are
+        covered by the ``status_forcelist`` configuration test above.
+
+        Args:
+            searcher: YoutubeSearch fixture.
+        """
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry as Urllib3Retry
+
+        # Part 1 — configuration: 429 must be in the retry forcelist.
+        adapter = searcher._session.get_adapter("https://www.googleapis.com/")
+        assert isinstance(adapter, HTTPAdapter)
+        retry: Urllib3Retry = adapter.max_retries  # type: ignore[assignment]
+        assert 429 in retry.status_forcelist
+
+        # Part 2 — application outcome: after the retry delivers a 200, search()
+        # returns the URL.  We patch Session.get directly to simulate the post-retry
+        # response the application would receive.
+        with patch("requests.Session.get", return_value=_fixture_response("search_fight_club.json")):
+            url = searcher.search("Fight Club", 1999)
+
+        assert url == "https://www.youtube.com/watch?v=6JnN1DmbqoU"
+
     def test_primary_search_pushes_breaker_after_terminal_transport_failure(self, searcher: YoutubeSearch) -> None:
         """After a fatal ConnectionError _primary_search pushes the circuit breaker.
 

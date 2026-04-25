@@ -4,8 +4,10 @@ Tests cover: get/set round-trip, TTL expiry, invalidate, compact,
 missing file, corrupt file, and atomic write guarantees.
 """
 
+import errno
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -165,3 +167,22 @@ class TestRobustness:
         # After set(), no leftover .tmp files should exist
         tmp_files = list(tmp_path.glob("*.tmp"))
         assert tmp_files == [], f"Leftover temp files: {tmp_files}"
+
+    def test_oserror_during_load_does_not_create_backup(self, tmp_path: Path) -> None:
+        """OSError (e.g. EBUSY) during _load does not create a .corrupt-* backup.
+
+        A flaky NFS mount or device-busy error should NOT be treated as a
+        corrupt file — the original is likely healthy.  Only JSONDecodeError /
+        ValueError should trigger a backup.
+        """
+        backing = tmp_path / "healthy.json"
+        entry = '{"k": {"value": 1, "cached_at": "2099-01-01T00:00:00", "ttl_seconds": 3600}}'
+        backing.write_text(entry, encoding="utf-8")
+        cache = JsonTTLCache(backing)
+
+        with patch.object(Path, "open", side_effect=OSError(errno.EBUSY, "device or resource busy")):
+            result = cache.get("k")
+
+        assert result is None
+        corrupt_files = list(tmp_path.glob("*.corrupt-*"))
+        assert corrupt_files == [], f"Unexpected .corrupt-* files created: {corrupt_files}"

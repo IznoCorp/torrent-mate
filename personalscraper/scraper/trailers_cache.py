@@ -185,18 +185,17 @@ class TrailersCache:
         return self._cache.get(key) is not None
 
     def has_cached_search(self, title: str, year: int | None) -> bool:
-        """Return True if a YouTube search result is cached for (title, year).
+        """Deprecated alias for ``contains_search``.
 
-        .. deprecated::
-            Use :meth:`contains_search` instead.  This method bypasses TTL by
-            reading the backing file directly and will return True even for
-            expired entries.  It is retained for backward compatibility only.
+        Originally TTL-unaware, now delegates to the TTL-aware variant; new
+        code should use ``contains_search``.  The legacy TTL-bypassing behavior
+        is gone.
 
         Args:
             title: Media title.
             year: Release year, or None.
 
         Returns:
-            True when the key is present in the backing file (TTL not checked).
+            True when the key is present and the entry has not yet expired.
         """
         return self.contains_search(title, year)
