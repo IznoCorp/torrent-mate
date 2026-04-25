@@ -23,7 +23,7 @@
 | 5   | Pipeline step (`trailers/step.py`)                                       | phase-05-pipeline-step.md        | [x]    |
 | 6   | Scanner + orchestrator                                                   | phase-06-scanner-orchestrator.md | [x]    |
 | 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [x]    |
-| 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [ ]    |
+| 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [x]    |
 | 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [ ]    |
 
 ## Review cycles
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 7 complete (TrailersConfig Pydantic schema with 11 nested models + .env.example YOUTUBE_API_KEY; 14 tests). Continue to Phase 8 — CLI.
+Phase 8 complete (trailers sub-app with scan/download/verify/purge + run-flag wiring; 27 tests). Continue to Phase 9 — E2E + docs.
