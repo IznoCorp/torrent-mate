@@ -19,7 +19,7 @@ import stat
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import ValidationError
 
@@ -363,7 +363,7 @@ class YtdlpDownloader:
             signal.alarm(self._max_wall_clock_sec)
 
         try:
-            with yt_dlp.YoutubeDL(opts) as ydl:
+            with yt_dlp.YoutubeDL(cast("Any", opts)) as ydl:
                 ydl.download([url])
         finally:
             if has_sigalrm:

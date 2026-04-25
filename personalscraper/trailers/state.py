@@ -444,6 +444,7 @@ class TrailerStateStore:
             TrailerStateLocked: If the lock cannot be acquired within the
                 configured retry budget.
         """
+        assert _fcntl is not None  # caller (set()) gates on _FCNTL_AVAILABLE
         for attempt in range(_LOCK_MAX_ATTEMPTS):
             try:
                 _fcntl.flock(lock_fh, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
