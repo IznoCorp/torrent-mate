@@ -19,8 +19,9 @@ from tests.integration.conftest import FakeQBitClient, FakeTMDB, FakeTorrent, Fa
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-# Expected pipeline step names in declaration order (8 total, matching pipeline.py).
-_EXPECTED_STEPS = ("ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch")
+# Expected pipeline step names in declaration order (9 total, matching pipeline.py).
+# trailers step sits between verify and dispatch (non-blocking).
+_EXPECTED_STEPS = ("ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "trailers", "dispatch")
 
 
 def _make_settings() -> Settings:

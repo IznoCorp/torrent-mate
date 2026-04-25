@@ -1,6 +1,6 @@
 """Resilience test: full pipeline double-run idempotence.
 
-Runs the complete 8-step pipeline twice and verifies that the
+Runs the complete 9-step pipeline twice and verifies that the
 second run fast-skips most phases.
 """
 
@@ -55,7 +55,7 @@ class TestPipelineDoubleRun:
         pipeline = Pipeline(config, resilience_settings, console=console)
         report1 = pipeline.run()
 
-        assert len(report1.steps) == 8
+        assert len(report1.steps) == 9
         assert report1.steps["ingest"].success_count == 2
 
         # Second run: simulate "nothing to do" state
@@ -71,7 +71,7 @@ class TestPipelineDoubleRun:
 
         report2 = pipeline.run()
 
-        assert len(report2.steps) == 8
+        assert len(report2.steps) == 9
         # Ingest should show skips (all already ingested)
         assert report2.steps["ingest"].skip_count >= 0
         # Sort should show zero (fast-skip)

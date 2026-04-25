@@ -476,3 +476,172 @@ class TestHelpers:
             MockScanner.return_value.scan_staging.return_value = [s1]
             result = runner.invoke(app, ["trailers", "scan", "--season", "1"])
         assert result.exit_code == 0, result.output
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage tests for cli.py edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestCliHelperFunctions:
+    """Tests for _item_added_at, _parse_since, _seasons_enabled_from_config, etc."""
+
+    def test_item_added_at_oserror_fallback(self, tmp_path):
+        """_item_added_at returns epoch when stat raises OSError."""
+        from datetime import timezone
+        from personalscraper.trailers.cli import _item_added_at
+        from personalscraper.trailers.scanner import ScanItem
+
+        item = ScanItem(
+            path=tmp_path / "nonexistent",
+            media_type="movie",
+            title="X",
+            year=2020,
+            tmdb_id=None,
+            nfo_path=tmp_path / "nonexistent.nfo",
+        )
+        result = _item_added_at(item)
+        from datetime import datetime
+        assert result == datetime.fromtimestamp(0, tz=timezone.utc)
+
+    def test_filter_since_with_date(self, tmp_path):
+        """_filter_since with a date filters out old items."""
+        from datetime import datetime, timezone
+        from personalscraper.trailers.cli import _filter_since
+        from personalscraper.trailers.scanner import ScanItem
+
+        # Create a real dir so stat works
+        d = tmp_path / "old_movie"
+        d.mkdir()
+
+        item = ScanItem(
+            path=d,
+            media_type="movie",
+            title="Old Movie",
+            year=2000,
+            tmdb_id=None,
+        )
+        # Since = far future date, item should be filtered out
+        future = datetime(2099, 1, 1, tzinfo=timezone.utc)
+        result = _filter_since([item], future)
+        assert result == []
+
+    def test_seasons_enabled_from_config_attribute_error(self, tmp_path):
+        """_seasons_enabled_from_config returns False when config lacks trailers."""
+        from unittest.mock import MagicMock
+        from personalscraper.trailers.cli import _seasons_enabled_from_config
+
+        config = MagicMock(spec=["disks"])
+        assert _seasons_enabled_from_config(config) is False
+
+    def test_min_file_size_attribute_error(self, tmp_path):
+        """_min_file_size returns 102400 when config lacks trailers.filters."""
+        from unittest.mock import MagicMock
+        from personalscraper.trailers.cli import _min_file_size
+
+        config = MagicMock(spec=["disks"])
+        assert _min_file_size(config) == 102400
+
+    def test_allowed_extensions_attribute_error(self, tmp_path):
+        """_allowed_extensions returns default set when config lacks trailers.filters."""
+        from unittest.mock import MagicMock
+        from personalscraper.trailers.cli import _allowed_extensions
+
+        config = MagicMock(spec=["disks"])
+        result = _allowed_extensions(config)
+        assert result == {"mp4", "mkv", "webm"}
+
+
+class TestTrailersDownloadErrors:
+    """Tests for download command error paths."""
+
+    def test_download_exits_one_on_errors(self, tmp_path):
+        """Trailers download exits 1 when orchestrator reports errors."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_ORCH) as MockOrch,
+        ):
+            mock_orch = MockOrch.return_value
+            mock_orch.run.return_value = {
+                "downloaded": 0,
+                "already_present": 0,
+                "no_trailer": 0,
+                "bot_detected": 0,
+                "error": 3,
+                "skipped_by_state": 0,
+            }
+            mock_orch.failed_items = []
+            result = runner.invoke(app, ["trailers", "download"])
+        assert result.exit_code == 1, result.output
+
+    def test_download_dry_run_with_disk_filter(self, tmp_path):
+        """Trailers download --dry-run --disk Disk1 applies disk filter."""
+        from personalscraper.trailers.scanner import ScanItem
+
+        cfg = _fake_config(tmp_path)
+        # Simulate a disk config
+        fake_disk = MagicMock()
+        fake_disk.id = "Disk1"
+        fake_disk.path = str(tmp_path)
+        cfg.disks = [fake_disk]
+
+        item = ScanItem(
+            path=tmp_path / "Movie (2020)",
+            media_type="movie",
+            title="Movie",
+            year=2020,
+            tmdb_id=None,
+        )
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_ORCH),
+        ):
+            MockScanner.return_value.scan_staging.return_value = [item]
+            result = runner.invoke(app, ["trailers", "download", "--dry-run", "--disk", "Disk1"])
+        assert result.exit_code == 0, result.output
+
+    def test_scan_with_disk_filter(self, tmp_path):
+        """Trailers scan --disk Disk1 applies disk filter without error."""
+        from personalscraper.trailers.scanner import ScanItem
+
+        cfg = _fake_config(tmp_path)
+        fake_disk = MagicMock()
+        fake_disk.id = "Disk1"
+        fake_disk.path = str(tmp_path)
+        cfg.disks = [fake_disk]
+
+        item = ScanItem(
+            path=tmp_path / "Movie (2020)",
+            media_type="movie",
+            title="Movie",
+            year=2020,
+            tmdb_id=None,
+        )
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCANNER) as MockScanner,
+        ):
+            MockScanner.return_value.scan_staging.return_value = [item]
+            result = runner.invoke(app, ["trailers", "scan", "--disk", "Disk1"])
+        assert result.exit_code == 0, result.output
+
+    def test_scan_with_since_filter(self, tmp_path):
+        """Trailers scan --since 2020-01-01 is accepted and applied."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+        ):
+            MockScanner.return_value.scan_staging.return_value = []
+            result = runner.invoke(app, ["trailers", "scan", "--since", "2020-01-01"])
+        assert result.exit_code == 0, result.output
+
+    def test_scan_invalid_since_exits_two(self, tmp_path):
+        """Trailers scan --since bad-date exits with code 2."""
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+        ):
+            MockScanner.return_value.scan_staging.return_value = []
+            result = runner.invoke(app, ["trailers", "scan", "--since", "not-a-date"])
+        assert result.exit_code == 2, result.output

@@ -580,3 +580,112 @@ class TestLibraryAwareRecheck:
 
         # Only one library scan regardless of item count
         assert mock_scan.call_count == 1
+
+
+class TestTrailersOrchestratorEdgeCases:
+    """Edge-case tests for uncovered orchestrator branches."""
+
+    def test_run_with_config_missing_optional_attrs(self, tmp_path: "Path") -> None:
+        """Orchestrator.run() falls back to defaults when AttributeError on optional config."""
+        from unittest.mock import MagicMock, patch
+
+        # Config with only required fields -- optional ones raise AttributeError
+        cfg = MagicMock(spec=["trailers"])
+        cfg.trailers.enabled = True
+        cfg.trailers.languages = ["en-US"]
+        cfg.trailers.fallback_youtube_search = False
+        cfg.trailers.filters.min_file_size_bytes = 102400
+        cfg.trailers.state_file = str(tmp_path / ".data/trailers_state.json")
+        cfg.trailers.ytdlp.format = "best"
+        cfg.trailers.ytdlp.socket_timeout_sec = 30
+        cfg.trailers.ytdlp.retries = 3
+        cfg.trailers.seasons.enabled = False
+        cfg.trailers.library_check.movies = False
+        cfg.trailers.library_check.tv_shows = False
+        # These will raise AttributeError to cover fallback branches
+        del cfg.trailers.step
+        del cfg.trailers.filters.max_filesize_mb
+        del cfg.trailers.retry_after_days
+
+        from personalscraper.trailers.orchestrator import TrailersOrchestrator
+
+        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+
+        with patch.object(orch._scanner, "scan_staging", return_value=[]):
+            counts = orch.run()
+
+        assert counts["downloaded"] == 0
+
+    def test_run_bot_detected_increments_counter(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
+        """counts[bot_detected] is incremented when downloader returns BOT_DETECTED."""
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from unittest.mock import patch
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(
+                    status=DownloadStatus.BOT_DETECTED,
+                    output_path=None,
+                    error_message="bot detected",
+                ),
+            ),
+        ):
+            counts = orchestrator.run()
+        assert counts["bot_detected"] == 1
+
+    def test_run_http_error_increments_counter(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
+        """counts[http_error] is incremented when downloader returns HTTP_ERROR."""
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from unittest.mock import patch
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(
+                    status=DownloadStatus.HTTP_ERROR,
+                    output_path=None,
+                    error_message="403 forbidden",
+                ),
+            ),
+        ):
+            counts = orchestrator.run()
+        assert counts["http_error"] == 1
+
+    def test_run_finder_exception_increments_error(self, orchestrator: "TrailersOrchestrator") -> None:
+        """counts[error] is incremented when TrailerFinder.find() raises an exception."""
+        from unittest.mock import patch
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", side_effect=RuntimeError("network down")),
+        ):
+            counts = orchestrator.run()
+        assert counts["error"] == 1
+
+    def test_run_ytdlp_error_increments_counter(self, orchestrator: "TrailersOrchestrator") -> None:
+        """counts[ytdlp_error] is incremented when downloader returns an unhandled status."""
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from unittest.mock import patch
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(
+                    status=DownloadStatus.YTDLP_ERROR,
+                    output_path=None,
+                    error_message="ytdlp failed",
+                ),
+            ),
+        ):
+            counts = orchestrator.run()
+        assert counts["ytdlp_error"] == 1

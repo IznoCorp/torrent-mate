@@ -193,3 +193,204 @@ class TestSeasonAwareScanning:
         items = scanner.scan_staging(tmp_path)
         assert len(items) == 1
         assert items[0].season_number is None
+
+
+# ---------------------------------------------------------------------------
+# Edge-case and library-scan coverage
+# ---------------------------------------------------------------------------
+
+
+class TestScanStagingEdgeCases:
+    """Edge-case tests for Scanner.scan_staging() to cover missing-dir and hidden dirs."""
+
+    def test_missing_staging_dir_returns_empty_list(self, tmp_path: "Path") -> None:
+        """scan_staging returns [] and logs a warning when staging_dir does not exist."""
+        missing = tmp_path / "does_not_exist"
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_staging(missing)
+        assert items == []
+
+    def test_hidden_category_dir_is_skipped(self, tmp_path: "Path") -> None:
+        """Directories starting with "." inside staging are silently skipped."""
+        hidden = tmp_path / ".hidden_category"
+        hidden.mkdir()
+        movie_dir = hidden / "Some Movie (2020)"
+        movie_dir.mkdir()
+        (movie_dir / "Some Movie.nfo").write_text(
+            '<movie><title>Some Movie</title><uniqueid type="tmdb">9999</uniqueid></movie>',
+            encoding="utf-8",
+        )
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_staging(tmp_path)
+        assert items == []
+
+    def test_hidden_media_dir_is_skipped(self, tmp_path: "Path") -> None:
+        """Media directories starting with "." are silently skipped."""
+        cat = tmp_path / "001-MOVIES"
+        cat.mkdir()
+        hidden_media = cat / ".hidden_movie"
+        hidden_media.mkdir()
+        (hidden_media / "title.nfo").write_text(
+            '<movie><title>Title</title></movie>', encoding="utf-8"
+        )
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_staging(tmp_path)
+        assert items == []
+
+    def test_season_with_existing_trailer_is_skipped(self, tmp_path: "Path") -> None:
+        """scan_staging skips season whose trailer file already exists and is large enough."""
+        tvshows_dir = tmp_path / "002-TVSHOWS"
+        tvshows_dir.mkdir()
+        show_dir = _make_tvshow_dir(tvshows_dir, "Breaking Bad (2008)", with_trailer=False)
+        saison_dir = show_dir / "Saison 01"
+        saison_dir.mkdir()
+        trailer_file = show_dir / "Saison 01" / "Breaking Bad (2008) - Saison 01-trailer.mp4"
+        trailer_file.write_bytes(b"x" * 200000)
+
+        scanner = Scanner(min_file_size_bytes=102400, seasons_enabled=True)
+        items = scanner.scan_staging(tmp_path)
+        season_items = [i for i in items if i.season_number is not None]
+        assert season_items == [], f"Expected no season items but got {season_items}"
+
+
+class TestScanLibrary:
+    """Tests for Scanner.scan_library() -- uses mocked library.scanner.scan_library()."""
+
+    def test_scan_library_returns_items_missing_trailers(self, tmp_path: "Path") -> None:
+        """scan_library returns ScanItems for library entries without trailers."""
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.library.models import ArtworkStatus, LibraryScanItem, LibraryScanResult, NfoStatus
+
+        movie_dir = tmp_path / "Fight Club (1999)"
+        movie_dir.mkdir()
+
+        fake_item = LibraryScanItem(
+            path=str(movie_dir),
+            disk="disk_1",
+            category="movies",
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            folder_size_gb=4.2,
+            nfo=NfoStatus(present=True, valid=True, tmdb_id="550", imdb_id="tt0137523"),
+            artwork=ArtworkStatus(
+                poster=True, fanart=True, landscape=False, banner=False,
+                clearlogo=False, clearart=False, discart=False,
+            ),
+            actors_dir=False,
+        )
+        fake_result = LibraryScanResult(
+            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
+            item_count=1, items=[fake_item],
+        )
+
+        config = MagicMock()
+        config.disks = []
+        config.trailers.library_scan_max_age_hours = 24
+
+        with patch("personalscraper.trailers.scanner._lib_scan", return_value=fake_result):
+            scanner = Scanner(min_file_size_bytes=102400)
+            items = scanner.scan_library(config)
+
+        assert len(items) == 1
+        assert items[0].title == "Fight Club"
+        assert items[0].tmdb_id == "550"
+
+    def test_scan_library_skips_item_with_existing_trailer(self, tmp_path: "Path") -> None:
+        """scan_library skips library items whose trailer file already exists."""
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.library.models import ArtworkStatus, LibraryScanItem, LibraryScanResult, NfoStatus
+
+        movie_dir = tmp_path / "Fight Club (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "Fight Club (1999)-trailer.mp4").write_bytes(b"x" * 200000)
+
+        fake_item = LibraryScanItem(
+            path=str(movie_dir), disk="disk_1", category="movies", media_type="movie",
+            title="Fight Club", year=1999, folder_size_gb=4.2,
+            nfo=NfoStatus(present=True, valid=True, tmdb_id="550", imdb_id=None),
+            artwork=ArtworkStatus(
+                poster=True, fanart=True, landscape=False, banner=False,
+                clearlogo=False, clearart=False, discart=False,
+            ),
+            actors_dir=False,
+        )
+        fake_result = LibraryScanResult(
+            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
+            item_count=1, items=[fake_item],
+        )
+
+        config = MagicMock()
+        config.disks = []
+        config.trailers.library_scan_max_age_hours = 24
+
+        with patch("personalscraper.trailers.scanner._lib_scan", return_value=fake_result):
+            scanner = Scanner(min_file_size_bytes=102400)
+            items = scanner.scan_library(config)
+
+        assert items == []
+
+    def test_scan_library_fresh_cache_returns_empty(self, tmp_path: "Path") -> None:
+        """scan_library returns [] without calling _lib_scan when cache is still fresh."""
+        from datetime import datetime, timezone
+        from unittest.mock import MagicMock, patch
+
+        config = MagicMock()
+        config.disks = []
+        config.trailers.library_scan_max_age_hours = 24
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        scanner._last_scan_time = datetime.now(tz=timezone.utc)
+
+        with patch("personalscraper.trailers.scanner._lib_scan") as mock_lib:
+            items = scanner.scan_library(config)
+            mock_lib.assert_not_called()
+
+        assert items == []
+
+    def test_scan_library_force_refresh_bypasses_cache(self, tmp_path: "Path") -> None:
+        """force_refresh=True bypasses freshness check and always rescans."""
+        from datetime import datetime, timezone
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.library.models import LibraryScanResult
+
+        config = MagicMock()
+        config.disks = []
+        config.trailers.library_scan_max_age_hours = 24
+
+        empty_result = LibraryScanResult(
+            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
+            item_count=0, items=[],
+        )
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        scanner._last_scan_time = datetime.now(tz=timezone.utc)
+
+        with patch("personalscraper.trailers.scanner._lib_scan", return_value=empty_result) as mock_lib:
+            items = scanner.scan_library(config, force_refresh=True)
+            mock_lib.assert_called_once()
+
+        assert items == []
+
+    def test_scan_library_missing_trailers_config_uses_default(self, tmp_path: "Path") -> None:
+        """AttributeError on config.trailers falls back to default max_age_hours=24."""
+        from unittest.mock import MagicMock, patch
+
+        from personalscraper.library.models import LibraryScanResult
+
+        config = MagicMock(spec=["disks"])
+        config.disks = []
+
+        empty_result = LibraryScanResult(
+            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
+            item_count=0, items=[],
+        )
+
+        with patch("personalscraper.trailers.scanner._lib_scan", return_value=empty_result):
+            scanner = Scanner(min_file_size_bytes=102400)
+            items = scanner.scan_library(config)
+
+        assert items == []
