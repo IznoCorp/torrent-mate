@@ -15,7 +15,7 @@
 | #   | Phase                                                                    | File                             | Status |
 | --- | ------------------------------------------------------------------------ | -------------------------------- | ------ |
 | 1   | Extend `TMDBClient` with video endpoints                                 | phase-01-tmdbclient-videos.md    | [x]    |
-| 2   | Extract `JsonTTLCache` primitive                                         | phase-02-json-ttl-cache.md       | [ ]    |
+| 2   | Extract `JsonTTLCache` primitive                                         | phase-02-json-ttl-cache.md       | [x]    |
 | 3a  | Trailer discovery (`trailer_finder`, `youtube_search`, `trailers_cache`) | phase-03a-trailer-discovery.md   | [ ]    |
 | 3b  | Download wrapper (`ytdlp_downloader`)                                    | phase-03b-ytdlp-downloader.md    | [ ]    |
 | 3c  | Placement (`placement.py`)                                               | phase-03c-placement.md           | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 1 complete (3 sub-phases, 13 new tests, 485 suite green). Continue to Phase 2 — Extract `JsonTTLCache` primitive.
+Phase 2 complete (2 sub-phases + DST docstring clarification, 36 cache tests green). Continue to Phase 3a — Trailer discovery.
