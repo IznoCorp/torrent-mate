@@ -9,9 +9,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.library.models import LibraryScanItem, NfoStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerStatus
+
+# Silence F401: imported for use in MagicMock(spec=…) calls below.
+_ = (LibraryScanItem, NfoStatus)
 
 
 def _make_config(tmp_path: Path) -> MagicMock:
@@ -868,3 +872,118 @@ class TestCircuitOpenCounter:
         assert counts["circuit_open"] == 1
         # Generic error counter must NOT be incremented for a circuit-open event.
         assert counts["error"] == 0
+
+
+# ── Sub-phase 10.5 new tests ──────────────────────────────────────────────────
+
+
+class TestYtdlpRetryRoundTrip:
+    """End-to-end retry contract: YTDLP_ERROR → cool-down skip → re-attempt.
+
+    Finding 10.5/5 — pieces of the retry contract are unit-tested individually
+    (compute_next_retry_at, should_skip, counter increments) but there was no
+    integrated three-run scenario asserting the full life-cycle.
+    """
+
+    def test_ytdlp_failure_round_trip_persists_retry_then_skips_then_retries(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Run 1 errors → Run 2 (in cool-down) skips → Run 3 (past cool-down) re-attempts.
+
+        Uses a real TrailerStateStore backed by a temp file so persistence and
+        should_skip are exercised together rather than mocked individually.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture for isolated state file.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.state import TrailerState, TrailerStatus, make_state_key
+
+        cfg = _make_config(tmp_path)
+        # Single-day retry so the cool-down window is easy to reason about.
+        cfg.trailers.retry_after_days = [1, 7, 30]
+
+        media_dir = tmp_path / "Fight Club (1999)"
+        media_dir.mkdir()
+        scan_item = ScanItem(
+            path=media_dir,
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            tmdb_id="550",
+        )
+
+        # ── Run 1: downloader returns YTDLP_ERROR ────────────────────────────
+        orch1 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+        fail_result = DownloadResult(
+            status=DownloadStatus.YTDLP_ERROR,
+            output_path=None,
+            error_message="yt-dlp crashed",
+        )
+
+        with (
+            patch.object(orch1._scanner, "scan_staging", return_value=[scan_item]),
+            patch.object(orch1._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(orch1._downloader, "download", return_value=fail_result) as _mock_dl1,
+        ):
+            counts1 = orch1.run()
+
+        assert counts1["ytdlp_error"] == 1
+        # State must have been persisted with next_retry_at in the future.
+        state_key = make_state_key("movie", {"tmdb": "550"})
+        state_entry = orch1._state_store.get(state_key)
+        assert state_entry is not None, "State entry not written after YTDLP_ERROR"
+        assert state_entry.status == TrailerStatus.YTDLP_ERROR
+        assert state_entry.attempts == 1
+        assert state_entry.next_retry_at is not None
+
+        UTC = timezone.utc
+        next_retry_iso = (
+            state_entry.next_retry_at
+            if isinstance(state_entry.next_retry_at, str)
+            else state_entry.next_retry_at.isoformat()
+        )
+        next_retry = datetime.fromisoformat(next_retry_iso).replace(tzinfo=UTC)
+        assert next_retry > datetime.now(UTC), "next_retry_at should be in the future after Run 1"
+
+        # ── Run 2: within cool-down → should be skipped ──────────────────────
+        orch2 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+        with (
+            patch.object(orch2._scanner, "scan_staging", return_value=[scan_item]),
+            patch.object(orch2._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(orch2._downloader, "download", return_value=fail_result) as mock_dl2,
+        ):
+            counts2 = orch2.run()
+
+        assert counts2["skipped_by_state"] == 1, "Run 2 (within cool-down) must skip the item"
+        mock_dl2.assert_not_called()
+
+        # ── Run 3: simulate cool-down elapsed by backdating next_retry_at ────
+        # Overwrite the stored state entry so next_retry_at is in the past.
+        past_retry = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        orch2._state_store.set(
+            state_key,
+            TrailerState(
+                last_attempt=state_entry.last_attempt,
+                attempts=1,
+                status=TrailerStatus.YTDLP_ERROR,
+                media_path=str(scan_item.path),
+                next_retry_at=past_retry,
+                youtube_url=state_entry.youtube_url,
+            ),
+        )
+
+        orch3 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+        with (
+            patch.object(orch3._scanner, "scan_staging", return_value=[scan_item]),
+            patch.object(orch3._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(orch3._downloader, "download", return_value=fail_result) as mock_dl3,
+        ):
+            counts3 = orch3.run()
+
+        # The cool-down has elapsed — download must have been attempted again.
+        mock_dl3.assert_called_once()
+        assert counts3["ytdlp_error"] == 1, "Run 3 (past cool-down) must re-attempt download"

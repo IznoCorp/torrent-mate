@@ -59,7 +59,7 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
         query_format="{title} {year} trailer",
         api_key=os.environ.get("YOUTUBE_API_KEY", ""),
         quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-        breaker=CircuitBreaker(errors_threshold=5, cooldown_sec=60),
+        breaker=CircuitBreaker(name="youtube-network-test", failure_threshold=5, cooldown_seconds=60),
     )
     finder = TrailerFinder(
         tmdb_client=client,

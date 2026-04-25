@@ -52,6 +52,14 @@ def orch_config(tmp_path):
     that ``find_by_file_type()`` and ``folder_name()`` resolve correctly
     without a ``config.json5`` on disk.
 
+    ``trailers.enabled`` is set to ``False`` as a defence against
+    MagicMock-string filesystem leaks (finding 10.5/C1): without this guard
+    ``run_trailers`` would instantiate a real ``TrailersOrchestrator``,
+    which calls ``state_file.with_suffix(".lock")`` on the MagicMock repr
+    string and creates a literal ``<MagicMock …>.lock`` file in cwd.
+    Tests that explicitly exercise trailers behaviour use ``step_overrides``
+    or a module-level ``@patch("personalscraper.trailers.step.run_trailers")``.
+
     Args:
         tmp_path: Pytest-provided unique temporary directory.
 
@@ -69,6 +77,8 @@ def orch_config(tmp_path):
         StagingDirConfig(id=2, name="tvshows", file_type="tvshow"),
         StagingDirConfig(id=97, name="temp", role="ingest"),
     ]
+    # Defence against MagicMock-string filesystem leaks (finding 10.5/C1).
+    config.trailers.enabled = False
     return config
 
 

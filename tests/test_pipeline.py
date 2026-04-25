@@ -32,11 +32,19 @@ def pipeline_settings(tmp_path):
 
 @pytest.fixture
 def pipeline_config(tmp_path):
-    """Provide a mock Config for pipeline tests."""
+    """Provide a mock Config for pipeline tests.
+
+    Sets ``config.trailers.enabled = False`` so that the trailers step is
+    never executed against a MagicMock string path.  Without this guard,
+    ``state.py`` calls ``state_file.with_suffix(".lock")`` on the MagicMock
+    repr string, which creates a literal ``<MagicMock …> .lock`` file in cwd.
+    """
     config = MagicMock()
     config.paths.staging_dir = tmp_path
     config.paths.data_dir = tmp_path / ".data"
     config.disks = []
+    # Defence against MagicMock-string filesystem leaks (finding 10.5/C1).
+    config.trailers.enabled = False
     return config
 
 
@@ -155,6 +163,13 @@ class TestPipelineRun:
             patch("personalscraper.sorter.run.assert_temp_empty", return_value=[]),
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
             patch("personalscraper.verify.run.run_verify") as mock_verify,
+            # Defence-in-depth stub — prevents the real orchestrator from
+            # running against MagicMock strings even if trailers.enabled
+            # somehow becomes truthy again (finding 10.5/C1).
+            patch(
+                "personalscraper.trailers.step.run_trailers",
+                return_value=StepReport(name="trailers", status="skipped"),
+            ),
         ):
             mock_verify.return_value = (
                 StepReport(name="verify", error_count=3),
@@ -185,6 +200,11 @@ class TestPipelineRun:
             patch("personalscraper.sorter.run.assert_temp_empty", return_value=[]),
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
             patch("personalscraper.verify.run.run_verify", side_effect=RuntimeError("boom")),
+            # Defence-in-depth stub (finding 10.5/C1).
+            patch(
+                "personalscraper.trailers.step.run_trailers",
+                return_value=StepReport(name="trailers", status="skipped"),
+            ),
         ):
             pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
             report = pipeline.run()
@@ -211,6 +231,11 @@ class TestPipelineRun:
             patch("personalscraper.sorter.run.assert_temp_empty", return_value=["leftover.mkv"]),
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
             patch("personalscraper.verify.run.run_verify") as mock_verify,
+            # Defence-in-depth stub (finding 10.5/C1).
+            patch(
+                "personalscraper.trailers.step.run_trailers",
+                return_value=StepReport(name="trailers", status="skipped"),
+            ),
         ):
             mock_verify.return_value = (StepReport(name="verify"), [])
 

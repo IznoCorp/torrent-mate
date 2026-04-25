@@ -167,6 +167,39 @@ def _stub_pipeline_steps(request, monkeypatch):
     yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _no_magicmock_files_leaked(tmp_path_factory: pytest.TempPathFactory):
+    """Assert that no ``<MagicMock …>`` files are leaked to the working directory.
+
+    Session-scoped sentinel that snapshots the current working directory before
+    any test runs and fails at session teardown if any file whose name starts
+    with ``<MagicMock`` still exists.  These files are produced when a
+    ``MagicMock()`` config is passed to code that calls
+    ``state_file.with_suffix(".lock")`` — the mock's ``__str__`` repr is used
+    as the file-system path (finding 10.5/C1).
+
+    The fixture is session-scoped and autouse so it always runs, regardless of
+    which subset of tests is collected.
+
+    Args:
+        tmp_path_factory: Required by session-scoped fixtures; unused directly
+            but ensures this fixture runs in the same session as the other
+            session-scoped autouse fixtures.
+    """
+    import glob as _glob
+
+    cwd = Path.cwd()
+    yield
+    # Teardown: look for leaked MagicMock files in cwd.
+    leaked = _glob.glob(str(cwd / "<MagicMock*"))
+    if leaked:
+        paths_str = "\n  ".join(leaked)
+        pytest.fail(
+            f"MagicMock file(s) leaked to working directory — a test passed a "
+            f"bare MagicMock to code that writes to the filesystem:\n  {paths_str}"
+        )
+
+
 @pytest.fixture
 def mock_settings(tmp_path, monkeypatch):
     """Provide a Settings instance with temp paths and no real .env.
