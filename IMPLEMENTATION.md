@@ -26,6 +26,7 @@
 | 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [x]    |
 | 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [x]    |
 | 10  | PR fixes cycle 3 (40 findings)                                           | phase-10-pr-review-cycle-3.md    | [x]    |
+| 11  | PR fixes cycle 4 (22 findings)                                           | phase-11-pr-fixes-cycle-4.md     | [ ]    |
 
 ## Review cycles
 
