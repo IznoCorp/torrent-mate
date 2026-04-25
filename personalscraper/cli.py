@@ -419,6 +419,16 @@ def run(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview full pipeline"),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Prompt for ambiguous matches"),
+    skip_trailers: bool = typer.Option(
+        False,
+        "--skip-trailers",
+        help="Skip the trailers pipeline step for this invocation.",
+    ),
+    continue_on_trailer_error: bool = typer.Option(
+        False,
+        "--continue-on-trailer-error",
+        help="Do not abort dispatch when the trailers step crashes.",
+    ),
 ) -> None:
     """Run full pipeline (ingest -> sort -> process -> verify -> dispatch)."""
     from datetime import datetime
@@ -431,7 +441,7 @@ def run(
     from personalscraper.notifier import TelegramNotifier, ping_healthcheck
     from personalscraper.pipeline import Pipeline
 
-    _ = ctx.obj.config  # Phase 6 will use this; guaranteed non-None by callback.
+    config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
     verbose = state["verbose"]
     _run_log = get_logger("pipeline")
@@ -459,8 +469,13 @@ def run(
         )
         _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
 
+        # Resolve flag defaults from config when not explicitly set by the caller.
+        # config.trailers.pipeline.skip / continue_on_error act as persistent
+        # operator-level defaults; CLI flags take precedence when provided.
+        effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
+        effective_continue_on_trailer_error = continue_on_trailer_error or config.trailers.pipeline.continue_on_error
+
         # Delegate to Pipeline orchestrator (8-step sequential flow)
-        config = ctx.obj.config
         pipeline = Pipeline(
             config,
             settings,
@@ -468,6 +483,8 @@ def run(
             interactive=interactive,
             verbose=verbose,
             console=console,
+            skip_trailers=effective_skip_trailers,
+            continue_on_trailer_error=effective_continue_on_trailer_error,
         )
         report = pipeline.run()
 
