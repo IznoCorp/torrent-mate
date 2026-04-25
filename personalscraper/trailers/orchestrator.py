@@ -21,6 +21,7 @@ from personalscraper.trailers.placement import (
     trailer_exists,
     trailer_path_for,
     trailer_path_for_season,
+    write_trailer_url_to_nfo,
 )
 from personalscraper.trailers.scanner import Scanner
 from personalscraper.trailers.state import (
@@ -218,13 +219,20 @@ class TrailersOrchestrator:
                                 status=TrailerStatus.ALREADY_PRESENT_ON_DISK,
                                 media_path=str(item.path),
                                 trailer_path=str(lib_trailer),
+                                season_number=item.season_number,
                             ),
                         )
                         counts["already_present_on_disk"] += 1
                         continue
 
             media_name = item.path.name
-            expected_path = trailer_path_for(item.path, media_name, ext=_DEFAULT_EXT)
+            # Season-level ScanItems use item.path = show_dir (verified in scanner.py).
+            # Use the seasonal placement path so the SOT check and downloader target
+            # match the correct per-season file; show-level items use the flat convention.
+            if item.season_number is not None:
+                expected_path = trailer_path_for_season(item.path, item.season_number, _DEFAULT_EXT)
+            else:
+                expected_path = trailer_path_for(item.path, media_name, ext=_DEFAULT_EXT)
             if trailer_exists(expected_path, min_size):
                 log.debug("trailers_already_present", key=key, title=item.title)
                 counts["already_present"] += 1
@@ -286,6 +294,7 @@ class TrailersOrchestrator:
                                 1, retry_policy, last_attempt=datetime.now(timezone.utc)
                             ).isoformat(),
                             notes=str(exc),
+                            season_number=item.season_number,
                         ),
                     )
                     continue
@@ -304,6 +313,7 @@ class TrailersOrchestrator:
                         next_retry_at=compute_next_retry_at(
                             1, retry_policy, last_attempt=datetime.now(timezone.utc)
                         ).isoformat(),
+                        season_number=item.season_number,
                     ),
                 )
                 continue
@@ -338,8 +348,14 @@ class TrailersOrchestrator:
                         trailer_path=str(result.output_path) if result.output_path else None,
                         youtube_url=url,
                         source="youtube",
+                        season_number=item.season_number,
                     ),
                 )
+                # Propagate the trailer URL into the NFO <trailer> tag so that
+                # Plex / Kodi can display the remote trailer as a fallback.
+                # Silently skip when there is no NFO (movies without scrape, etc.).
+                if item.nfo_path is not None:
+                    write_trailer_url_to_nfo(item.nfo_path, url)
 
             elif result.status == DownloadStatus.BOT_DETECTED:
                 log.warning("trailers_bot_detected", key=key, title=item.title, url=url)
@@ -355,6 +371,7 @@ class TrailersOrchestrator:
                         youtube_url=url,
                         notes=result.error_message,
                         bot_detected_consecutive_attempts=1,
+                        season_number=item.season_number,
                     ),
                 )
 
@@ -374,6 +391,7 @@ class TrailersOrchestrator:
                         ).isoformat(),
                         youtube_url=url,
                         notes=result.error_message,
+                        season_number=item.season_number,
                     ),
                 )
 
@@ -393,6 +411,7 @@ class TrailersOrchestrator:
                         ).isoformat(),
                         youtube_url=url,
                         notes=result.error_message,
+                        season_number=item.season_number,
                     ),
                 )
 

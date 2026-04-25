@@ -18,10 +18,11 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from xml.etree import ElementTree as ET
 
 from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
-from personalscraper.trailers.placement import trailer_exists, trailer_path_for
+from personalscraper.trailers.placement import trailer_exists, trailer_path_for, trailer_path_for_season
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerStatus
 
@@ -89,6 +90,7 @@ def _copy_fixture_on_download(url: str, output_path: Path) -> DownloadResult:  #
     shutil.copy2(_SAMPLE_TRAILER, output_path)
     return DownloadResult(status=DownloadStatus.SUCCESS, output_path=output_path)
 
+
 # ---------------------------------------------------------------------------
 # Sub-phase 9.1a -- Hermetic E2E: movie trailer golden path
 # ---------------------------------------------------------------------------
@@ -152,14 +154,18 @@ class TestHermeticMovieTrailer:
         assert state.youtube_url == _FAKE_YT_URL
 
     def test_youtube_url_stored_in_state_for_nfo_propagation(self, tmp_path: Path) -> None:
-        """The youtube_url in state enables downstream NFO <trailer> population.
+        """Successful download propagates YouTube URL into NFO <trailer> tag.
 
-        The state entry persists the YouTube URL so that the NFO update
-        (write_trailer_url_to_nfo) can be triggered by the caller if needed.
-        This test asserts the URL is available in the state entry after download.
+        The state entry persists the YouTube URL; simultaneously the orchestrator
+        calls write_trailer_url_to_nfo to populate the <trailer> element in the
+        NFO file so that Plex / Kodi have a remote-trailer fallback.
         """
         movie_dir = tmp_path / "Inception (2010)"
         movie_dir.mkdir()
+
+        # Create a minimal NFO file with an empty <trailer> tag.
+        nfo_path = movie_dir / "Inception.nfo"
+        nfo_path.write_bytes(b'<?xml version="1.0" encoding="utf-8"?><movie><trailer></trailer></movie>')
 
         cfg = _make_config(tmp_path)
         cfg.trailers.library_check.movies = False
@@ -172,6 +178,7 @@ class TestHermeticMovieTrailer:
             title="Inception",
             year=2010,
             tmdb_id="27205",
+            nfo_path=nfo_path,
         )
 
         with (
@@ -181,16 +188,23 @@ class TestHermeticMovieTrailer:
         ):
             orch.run()
 
-        # State entry must carry the youtube_url for downstream NFO propagation.
+        # Assert: state entry carries youtube_url and trailer_path.
         state = orch._state_store.get("movie:tmdb:27205")
         assert state is not None, "State entry not written"
         assert state.youtube_url == _FAKE_YT_URL, (
             f"Expected youtube_url={_FAKE_YT_URL!r} in state, got {state.youtube_url!r}"
         )
-        # Trailer path must also be set for Plex library scan.
         assert state.trailer_path is not None, "trailer_path not set in state"
         expected_trailer = trailer_path_for(movie_dir, "Inception (2010)", ext="mp4")
         assert state.trailer_path == str(expected_trailer)
+
+        # Assert: NFO <trailer> tag was populated with the YouTube URL.
+        tree = ET.parse(nfo_path)
+        trailer_elem = tree.getroot().find("trailer")
+        assert trailer_elem is not None, "<trailer> element missing from NFO"
+        assert trailer_elem.text == _FAKE_YT_URL, (
+            f"Expected <trailer>{_FAKE_YT_URL}</trailer> in NFO, got {trailer_elem.text!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -199,36 +213,35 @@ class TestHermeticMovieTrailer:
 
 
 class TestHermeticSeasonTrailer:
-    """E2E: season-level ScanItem is processed and its state entry is season-qualified.
+    """E2E: season-level ScanItem is processed and placed at the seasonal path.
 
     Fixture creates a TV show with a Saison 01/ subfolder and seasons_enabled=True.
     The TrailerFinder is stubbed to return a season trailer URL only for season-level
     queries. The yt-dlp downloader is patched to copy the sample fixture to the
     orchestrator-computed output path.
 
-    Current orchestrator behaviour (Phase 6):
-    - Season ScanItems share ``path=show_dir`` with show-level items and therefore
-      use the same flat ``{show_dir}/{show_dir.name}-trailer.mp4`` download target.
+    Fixed orchestrator behaviour (Phase 9.2):
+    - Season ScanItems use ``item.path = show_dir`` but are routed to
+      ``trailer_path_for_season(show_dir, season_number, ext)`` — the correct
+      per-season file inside ``Saison {SS:02d}/``.
     - The state KEY is correctly season-qualified: ``tv:tmdb:{id}:season:1``.
-    - ``TrailerState.season_number`` is stored as 1 in the persisted entry.
+    - ``TrailerState.season_number`` is populated as 1 in the persisted entry.
 
     Assertions:
-    - After downloading, ``trailer_exists()`` passes for the flat show-level path.
+    - After downloading, ``trailer_exists()`` passes for the seasonal placement path.
     - State key ``tv:tmdb:1396:season:1`` has status=DOWNLOADED and season_number=1.
     - Show-level item (finder returns None) is counted as no_trailer.
     """
 
     def test_season_scan_item_downloads_and_state_is_season_qualified(self, tmp_path: Path) -> None:
-        """Season ScanItem triggers a download and its state is keyed by season.
+        """Season ScanItem triggers a download placed at the seasonal path.
 
         The show-level ScanItem gets no URL (finder returns None -> no_trailer).
         The season ScanItem receives the URL; the downloader places the fixture at
-        the flat show-level path (current orchestrator behaviour -- both season and
-        show-level items share item.path = show_dir, so both map to the same flat
-        ``{show_dir}/{show_dir.name}-trailer.mp4`` target path).
+        the per-season path: ``{show_dir}/Saison 01/{show_dir.name} - Saison 01-trailer.mp4``.
 
-        State key is correctly qualified with ``:season:1`` and
-        ``TrailerState.season_number == 1``.
+        State key is correctly qualified with ``:season:1``,
+        ``TrailerState.season_number == 1``, and the state entry is DOWNLOADED.
         """
         # Arrange: create show directory with Saison 01/ subfolder.
         show_dir = tmp_path / "Breaking Bad (2008)"
@@ -284,19 +297,19 @@ class TestHermeticSeasonTrailer:
         assert counts["downloaded"] == 1, f"Expected 1 downloaded, got {counts}"
         assert counts["no_trailer"] == 1, f"Expected 1 no_trailer (show-level), got {counts}"
 
-        # Assert: trailer file placed at the flat show-level path (current behaviour).
-        # Both show_item and season_item share item.path = show_dir, so the orchestrator
-        # computes trailer_path_for(show_dir, show_dir.name) = flat path for both.
-        flat_trailer = trailer_path_for(show_dir, "Breaking Bad (2008)", ext="mp4")
-        assert flat_trailer.exists(), f"Trailer not found at flat path: {flat_trailer}"
-        assert trailer_exists(flat_trailer, min_size_bytes=_MIN_SIZE)
+        # Assert: trailer file placed at the seasonal path (fixed behaviour).
+        # Season ScanItems use item.path = show_dir; the orchestrator routes them to
+        # trailer_path_for_season(show_dir, 1) = Saison 01/{show_dir.name} - Saison 01-trailer.mp4.
+        seasonal_trailer = trailer_path_for_season(show_dir, 1, "mp4")
+        assert seasonal_trailer.exists(), f"Trailer not found at seasonal path: {seasonal_trailer}"
+        assert trailer_exists(seasonal_trailer, min_size_bytes=_MIN_SIZE)
 
-        # Assert: state entry for season item is keyed correctly by the composite key.
-        # Note: TrailerState.season_number is not populated by the current orchestrator;
-        # season information is encoded in the state KEY (tv:tmdb:1396:season:1) only.
+        # Assert: state entry for season item is keyed correctly by the composite key,
+        # season_number is populated in the persisted TrailerState entry.
         season_state = orch._state_store.get("tv:tmdb:1396:season:1")
         assert season_state is not None, "State entry for season not written"
         assert season_state.status == TrailerStatus.DOWNLOADED
+        assert season_state.season_number == 1, f"Expected season_number=1 in state, got {season_state.season_number!r}"
 
 
 class TestHermeticLibraryAwareIdempotence:
@@ -368,9 +381,7 @@ class TestHermeticLibraryAwareIdempotence:
         mock_download.assert_not_called()
 
         # Assert: counters.
-        assert counts["already_present_on_disk"] == 1, (
-            f"Expected 1 already_present_on_disk, got {counts}"
-        )
+        assert counts["already_present_on_disk"] == 1, f"Expected 1 already_present_on_disk, got {counts}"
         assert counts["downloaded"] == 0
 
         # Assert: state entry written with ALREADY_PRESENT_ON_DISK status and library path.
