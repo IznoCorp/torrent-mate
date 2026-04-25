@@ -268,8 +268,8 @@ class Pipeline:
 
         # Phase 5bis: TRAILERS (non-blocking -- partial/skipped does not abort dispatch)
         # Runs after verify so items that failed verify are never downloaded.
-        # Runs before dispatch so trailers land next to media in staging and are
-        # moved together in one atomic dispatch operation.
+        # Runs before dispatch so trailers are placed (Plex-conformant) alongside
+        # media in staging and moved together in one atomic dispatch operation.
         from personalscraper.trailers.step import run_trailers
 
         trailers_fn: Callable[..., Any] = self._step_overrides.get("trailers", run_trailers)

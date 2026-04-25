@@ -28,7 +28,8 @@ def run_trailers(
     """Run the trailers pipeline step for all staged media items.
 
     Scans ``staging_dir`` for media without trailers, discovers YouTube URLs
-    via TMDB/YouTube, downloads via yt-dlp, and places files next to media.
+    via TMDB/YouTube, downloads via yt-dlp, and places files using the per-type
+    Plex placement convention (see ``trailers.placement``).
     Non-blocking: failures log a warning and dispatch continues.
 
     Args:

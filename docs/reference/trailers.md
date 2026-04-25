@@ -157,12 +157,12 @@ Location: .data/trailers_state.json (via trailers.state_file).
 
 ### Composite key format
 
-| Pattern                 | Example                | When                         |
-| ----------------------- | ---------------------- | ---------------------------- | ---- | ----- |
-| movie:tmdb:{id}         | movie:tmdb:550         | Movie with TMDB ID           |
-| tv:tmdb:{id}            | tv:tmdb:1396           | TV show trailer              |
-| tv:tmdb:{id}:season:{N} | tv:tmdb:1396:season:2  | Season-level trailer         |
-| manual:sha256:{hash}    | manual:sha256:abcd1234 | No TMDB ID (SHA-256 of title | year | type) |
+| Pattern                 | Example               | When                                      |
+| ----------------------- | --------------------- | ----------------------------------------- |
+| movie:tmdb:{id}         | movie:tmdb:550        | Movie with TMDB ID                        |
+| tv:tmdb:{id}            | tv:tmdb:1396          | TV show trailer                           |
+| tv:tmdb:{id}:season:{N} | tv:tmdb:1396:season:2 | Season-level trailer                      |
+| manual:{hash}           | manual:abcd1234       | No TMDB ID (SHA-256 of title\|year\|type) |
 
 ### TrailerStatus values
 
@@ -185,17 +185,23 @@ Location: .data/trailers_state.json (via trailers.state_file).
 
 ## Placement Convention
 
-Flat naming (Plex, Kodi, Jellyfin compatible):
+Plex-conformant naming — placement depends on media type:
 
-{media_folder}/{media_folder_name}-trailer.{ext}
+**Movies** (Plex Local Media Assets — flat):
+{media_dir}/{media_name}-trailer.{ext}
+Example: Fight Club (1999)/Fight Club (1999)-trailer.mp4
 
-Examples:
+**TV shows — show level** (Plex TV Series agent extras — subfolder only):
+{show_dir}/Trailers/{show_name}.{ext}
+Example: Breaking Bad (2008)/Trailers/Breaking Bad (2008).mp4
 
-- Fight Club (1999)/Fight Club (1999)-trailer.mp4
-- Breaking Bad (2008)/Breaking Bad (2008)-trailer.mp4
-- Breaking Bad (2008)/Saison 01/Breaking Bad (2008) - Saison 01-trailer.mp4
+**TV shows — season level** (opt-in via trailers.seasons.enabled):
+{show_dir}/Saison {NN}/Trailers/{show_name} - Saison {NN}.{ext}
+Example: Breaking Bad (2008)/Saison 01/Trailers/Breaking Bad (2008) - Saison 01.mp4
 
-Season path: {show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}
+The Plex TV Series agent requires the `Trailers/` subfolder for show-level and
+season-level extras. Using the flat `{show}-trailer.{ext}` convention at show or
+season level produces an unrecognised orphan video in Plex.
 
 Accepted extensions: .mp4, .mkv, .webm (priority order).
 
