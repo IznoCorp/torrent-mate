@@ -9,13 +9,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.library.models import LibraryScanItem, NfoStatus
+from personalscraper.library.models import LibraryScanItem, LibraryScanResult, NfoStatus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerStatus
 
 # Silence F401: imported for use in MagicMock(spec=…) calls below.
-_ = (LibraryScanItem, NfoStatus)
+_ = (LibraryScanItem, LibraryScanResult, NfoStatus)
 
 
 def _make_config(tmp_path: Path) -> MagicMock:
@@ -302,11 +302,14 @@ class TestLibraryAwareRecheck:
             tmdb_id: TMDB ID string to set on nfo.tmdb_id.
 
         Returns:
-            MagicMock with the fields the orchestrator reads.
+            MagicMock(spec=LibraryScanItem) with the fields the orchestrator reads.
+            The ``.nfo`` sub-object uses MagicMock(spec=NfoStatus) so attribute
+            access is also spec-checked one level deep.
         """
-        lib_item = MagicMock()
+        lib_item = MagicMock(spec=LibraryScanItem)
         lib_item.path = str(tmp_path / "Fight Club (1999)")
         lib_item.category = "movies"
+        lib_item.nfo = MagicMock(spec=NfoStatus)
         lib_item.nfo.tmdb_id = tmdb_id
         lib_item.nfo.imdb_id = None
         return lib_item
@@ -347,12 +350,13 @@ class TestLibraryAwareRecheck:
         lib_trailer.write_bytes(b"x" * 200000)
 
         # Build fake LibraryScanResult
-        lib_item = MagicMock()
+        lib_item = MagicMock(spec=LibraryScanItem)
         lib_item.path = str(lib_show_dir)
         lib_item.category = "tv_shows"
+        lib_item.nfo = MagicMock(spec=NfoStatus)
         lib_item.nfo.tmdb_id = "1396"
         lib_item.nfo.imdb_id = None
-        lib_result = MagicMock()
+        lib_result = MagicMock(spec=LibraryScanResult)
         lib_result.items = [lib_item]
 
         with (
@@ -399,7 +403,7 @@ class TestLibraryAwareRecheck:
             tmdb_id="1396",
         )
 
-        empty_result = MagicMock()
+        empty_result = MagicMock(spec=LibraryScanResult)
         empty_result.items = []
 
         with (
@@ -542,7 +546,7 @@ class TestLibraryAwareRecheck:
             tmdb_id="1396",
         )
 
-        empty_result = MagicMock()
+        empty_result = MagicMock(spec=LibraryScanResult)
         empty_result.items = []
 
         with (
@@ -577,7 +581,7 @@ class TestLibraryAwareRecheck:
             tmdb_id="550",
         )
 
-        empty_result = MagicMock()
+        empty_result = MagicMock(spec=LibraryScanResult)
         empty_result.items = []
 
         with (
@@ -621,7 +625,7 @@ class TestLibraryAwareRecheck:
             tmdb_id="2222",
         )
 
-        empty_result = MagicMock()
+        empty_result = MagicMock(spec=LibraryScanResult)
         empty_result.items = []
 
         with (
@@ -948,6 +952,20 @@ class TestYtdlpRetryRoundTrip:
         )
         next_retry = datetime.fromisoformat(next_retry_iso).replace(tzinfo=UTC)
         assert next_retry > datetime.now(UTC), "next_retry_at should be in the future after Run 1"
+
+        # ── Disk read: verify state was actually flushed to disk, not only held
+        # in memory.  A regression that caches in a class-level dict would
+        # silently satisfy the in-memory assertions above while this check fails.
+        import json as _json  # noqa: PLC0415
+
+        state_text = (tmp_path / ".data/trailers_state.json").read_text()
+        state_disk = _json.loads(state_text)
+        # The state file wraps entries under an "entries" key (versioned format).
+        disk_entries = state_disk.get("entries", state_disk)
+        assert state_key in disk_entries, "State key must be written to disk after Run 1"
+        assert disk_entries[state_key].get("status") == "ytdlp_error", (
+            "Disk-persisted status must be 'ytdlp_error' after Run 1"
+        )
 
         # ── Run 2: within cool-down → should be skipped ──────────────────────
         orch2 = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)

@@ -607,7 +607,14 @@ def verify(
                     text=True,
                     timeout=30,
                 )
-                if result.returncode != 0 or not result.stdout.strip():
+                # Flag corrupt files (non-zero returncode or empty output) and
+                # zero-duration files (ffprobe parsed a 0.0 or negative value).
+                duration_str = result.stdout.strip()
+                try:
+                    duration_val = float(duration_str) if duration_str else 0.0
+                except ValueError:
+                    duration_val = 0.0
+                if result.returncode != 0 or duration_val <= 0.0:
                     issues.append((item.title, str(trailer_p), "unplayable"))
             except (subprocess.SubprocessError, FileNotFoundError, OSError) as exc:
                 log.error("trailers_verify_ffprobe_error", trailer_path=str(trailer_p), error=str(exc))

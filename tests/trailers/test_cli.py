@@ -295,6 +295,114 @@ class TestTrailersVerifyCommand:
             result = runner.invoke(app, ["trailers", "verify", "--deep"])
         assert result.exit_code == 0, result.output
 
+    def test_verify_deep_flags_corrupt_trailer(self, tmp_path):
+        """--deep exits 4 (ffprobe error) when ffprobe returns non-zero returncode.
+
+        When ffprobe itself indicates failure (returncode != 0), the CLI must
+        treat this as a probe error (exit 4) rather than a content issue (exit 2).
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        import subprocess
+
+        from personalscraper.trailers.scanner import ScanItem
+
+        show_dir = tmp_path / "ShowE (2023)"
+        show_dir.mkdir()
+        trailer_file = show_dir / "ShowE-trailer.mp4"
+        trailer_file.write_bytes(b"x" * 200000)
+
+        item = ScanItem(path=show_dir, media_type="tvshow", title="ShowE", year=2023, tmdb_id=None)
+
+        corrupt_proc = subprocess.CompletedProcess(
+            args=["ffprobe"],
+            returncode=1,
+            stdout="",
+            stderr="corrupt: Invalid data found",
+        )
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
+            patch("personalscraper.trailers.cli.subprocess.run", return_value=corrupt_proc),
+        ):
+            MockScanner.return_value.scan_library.return_value = [item]
+            mock_tp.return_value = trailer_file
+            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+        # Non-zero returncode → appends "unplayable" issue → exit 2
+        assert result.exit_code == 2, result.output
+
+    def test_verify_deep_flags_zero_duration_trailer(self, tmp_path):
+        """--deep exits 2 when ffprobe returns stdout '0.0' (zero-duration file).
+
+        A trailer with zero reported duration is considered unplayable (corrupt
+        or not yet written). The CLI must flag it as an issue (exit 2).
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        import subprocess
+
+        from personalscraper.trailers.scanner import ScanItem
+
+        show_dir = tmp_path / "ShowF (2024)"
+        show_dir.mkdir()
+        trailer_file = show_dir / "ShowF-trailer.mp4"
+        trailer_file.write_bytes(b"x" * 200000)
+
+        item = ScanItem(path=show_dir, media_type="tvshow", title="ShowF", year=2024, tmdb_id=None)
+
+        zero_dur_proc = subprocess.CompletedProcess(
+            args=["ffprobe"],
+            returncode=0,
+            stdout="0.0\n",
+            stderr="",
+        )
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
+            patch("personalscraper.trailers.cli.subprocess.run", return_value=zero_dur_proc),
+        ):
+            MockScanner.return_value.scan_library.return_value = [item]
+            mock_tp.return_value = trailer_file
+            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+        assert result.exit_code == 2, result.output
+
+    def test_verify_deep_handles_missing_ffprobe(self, tmp_path):
+        """--deep exits 4 when ffprobe binary is not found (FileNotFoundError).
+
+        A missing ffprobe installation is a probe-infrastructure failure, not a
+        content problem.  The CLI must report it as a probe error (exit 4) without
+        crashing, so the operator knows to install ffprobe rather than re-scanning.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from personalscraper.trailers.scanner import ScanItem
+
+        show_dir = tmp_path / "ShowG (2024)"
+        show_dir.mkdir()
+        trailer_file = show_dir / "ShowG-trailer.mp4"
+        trailer_file.write_bytes(b"x" * 200000)
+
+        item = ScanItem(path=show_dir, media_type="tvshow", title="ShowG", year=2024, tmdb_id=None)
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
+            patch("personalscraper.trailers.cli.subprocess.run", side_effect=FileNotFoundError("ffprobe not found")),
+        ):
+            MockScanner.return_value.scan_library.return_value = [item]
+            mock_tp.return_value = trailer_file
+            result = runner.invoke(app, ["trailers", "verify", "--deep"])
+        # FileNotFoundError is caught → ffprobe_error=True → exit 4
+        assert result.exit_code == 4, result.output
+
 
 class TestTrailersPurgeCommand:
     """Tests for trailers purge CLI subcommand."""
