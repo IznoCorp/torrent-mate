@@ -17,7 +17,7 @@
 | 1   | Extend `TMDBClient` with video endpoints                                 | phase-01-tmdbclient-videos.md    | [x]    |
 | 2   | Extract `JsonTTLCache` primitive                                         | phase-02-json-ttl-cache.md       | [x]    |
 | 3a  | Trailer discovery (`trailer_finder`, `youtube_search`, `trailers_cache`) | phase-03a-trailer-discovery.md   | [x]    |
-| 3b  | Download wrapper (`ytdlp_downloader`)                                    | phase-03b-ytdlp-downloader.md    | [ ]    |
+| 3b  | Download wrapper (`ytdlp_downloader`)                                    | phase-03b-ytdlp-downloader.md    | [x]    |
 | 3c  | Placement (`placement.py`)                                               | phase-03c-placement.md           | [ ]    |
 | 4   | State tracking (`state.py`)                                              | phase-04-state-tracking.md       | [ ]    |
 | 5   | Pipeline step (`trailers/step.py`)                                       | phase-05-pipeline-step.md        | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 3a complete (4 sub-phases: redact_secrets, YoutubeSearch, TrailersCache, TrailerFinder; 28 new tests). Continue to Phase 3b — yt-dlp downloader.
+Phase 3b complete (yt-dlp pin, CookieConfig, YtdlpDownloader with SIGALRM timeout + bot-detection; 15 tests). Continue to Phase 3c — placement.
