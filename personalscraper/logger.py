@@ -5,7 +5,7 @@ import logging.config
 import re
 from collections.abc import MutableMapping
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, cast
 
 import structlog
 from structlog.types import Processor
@@ -18,7 +18,7 @@ def redact_secrets(
     _logger: Any,
     _method_name: str,
     event_dict: MutableMapping[str, Any],
-) -> Union[MutableMapping[str, Any], str, bytes]:
+) -> MutableMapping[str, Any]:
     """Recursively redact secret-looking values from the event dict.
 
     Also strips the ``key=<value>`` query parameter from any string field
