@@ -26,11 +26,8 @@ from personalscraper.logger import get_logger
 logger = get_logger(__name__)
 
 # APFS/HFS+ volume roots (macOS) — cookie files must live here for security.
-# This list is user-extendable via a future `config.trailers.ytdlp.cookies.native_prefixes`
-# key (follow-up to the phase-07 config additions; not modified in this pass).
-# TODO: replace with runtime check via os.statvfs + mount table in v0.8.0
-# /private is added because macOS symlinks /tmp → /private/tmp and /var → /private/var;
-# path.resolve() dereferences the symlink, so we must recognise the canonical prefix too.
+# /private is included because macOS symlinks /tmp → /private/tmp and /var → /private/var;
+# path.resolve() dereferences the symlink, so we must also recognise the canonical prefix.
 _APFS_NATIVE_PREFIXES = ("/Users", "/opt", "/private", "/tmp", "/var")
 
 # Bot-detection patterns sourced from yt-dlp error messages.
@@ -40,7 +37,7 @@ _BOT_DETECTION_PHRASES = ("sign in", "not a bot", "confirm your age")
 _DEFAULT_WALL_CLOCK_SEC = 180
 
 # Default max filesize cap; overridden by caller via max_filesize_bytes constructor arg.
-# 500 MiB is a safe ceiling for trailer-quality clips (phase-07 will wire config here).
+# 500 MiB is a safe ceiling for trailer-quality clips.
 _DEFAULT_MAX_FILESIZE_BYTES = 500 * 1024 * 1024
 
 
@@ -95,9 +92,14 @@ class CookieError(Exception):
     """Raised when cookie configuration is invalid or insecure."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CookieConfig:
     """Cookie authentication configuration for yt-dlp.
+
+    Exactly one of ``cookie_file`` and ``cookie_from_browser`` must be set;
+    the dual-empty case has no meaning (callers should pass ``None`` instead
+    of a CookieConfig). The mutual-exclusion check runs at construction so
+    the dual-source ambiguity never reaches yt-dlp.
 
     Attributes:
         cookie_file: Path to a static Netscape-format cookies.txt, or None.
@@ -107,21 +109,54 @@ class CookieConfig:
     cookie_file: Path | None
     cookie_from_browser: str | None
 
+    def __post_init__(self) -> None:
+        """Enforce mutual exclusion between cookie sources.
+
+        Raises:
+            CookieError: If both fields are set or both are None.
+        """
+        has_file = self.cookie_file is not None
+        has_browser = self.cookie_from_browser is not None
+        if has_file and has_browser:
+            raise CookieError(
+                "CookieConfig accepts at most one of cookie_file / cookie_from_browser",
+            )
+        if not has_file and not has_browser:
+            raise CookieError(
+                "CookieConfig requires one of cookie_file / cookie_from_browser; "
+                "callers should pass None instead of an empty CookieConfig",
+            )
+
     @classmethod
     def from_env(cls) -> "CookieConfig | None":
-        """Build CookieConfig from environment variables.
+        """Build CookieConfig from Settings (.env-loaded) or process env.
+
+        Reads ``settings.youtube_cookies_file`` and
+        ``settings.youtube_cookies_from_browser`` first (so values from a
+        ``.env`` file load via pydantic-settings), then falls back to raw env
+        vars for backward compatibility with explicit ``os.environ`` overrides.
 
         Priority: YOUTUBE_COOKIES_FILE > YOUTUBE_COOKIES_FROM_BROWSER > None.
 
         Returns:
-            CookieConfig if any env var is set, None otherwise.
+            CookieConfig if any value is set, None otherwise.
 
         Raises:
             CookieError: If YOUTUBE_COOKIES_FILE is set but the file does not
                 exist, or is on an NTFS/macFUSE volume.
         """
-        file_path_str = os.getenv("YOUTUBE_COOKIES_FILE")
-        browser = os.getenv("YOUTUBE_COOKIES_FROM_BROWSER")
+        # Settings is the canonical source — it auto-loads .env via pydantic-settings.
+        # Falling back to os.getenv preserves the contract for callers who prefer to set
+        # the env var directly (CI, tests with monkeypatch.setenv).
+        try:
+            from personalscraper.config import get_settings  # noqa: PLC0415
+
+            settings = get_settings()
+            file_path_str: str | None = settings.youtube_cookies_file or os.getenv("YOUTUBE_COOKIES_FILE")
+            browser: str | None = settings.youtube_cookies_from_browser or os.getenv("YOUTUBE_COOKIES_FROM_BROWSER")
+        except Exception:  # noqa: BLE001 — Settings unavailable (e.g. during test fixture setup)
+            file_path_str = os.getenv("YOUTUBE_COOKIES_FILE")
+            browser = os.getenv("YOUTUBE_COOKIES_FROM_BROWSER")
 
         if file_path_str:
             cookie_file = Path(file_path_str)
@@ -144,9 +179,14 @@ class CookieConfig:
                         mode=oct(mode),
                         recommended="600",
                     )
-            except OSError:
-                # Silently skip on filesystems that don't support mode bits.
-                pass
+            except OSError as exc:
+                # NTFS/macFUSE-style mounts don't expose mode bits reliably.
+                # Log at DEBUG so a permission audit can still see the failure.
+                logger.debug(
+                    "cookie_file_stat_failed",
+                    path=str(cookie_file),
+                    error=str(exc),
+                )
             return cls(cookie_file=cookie_file, cookie_from_browser=None)
 
         if browser:
@@ -197,10 +237,16 @@ class YtdlpDownloader:
         retries: Number of HTTP retries passed to yt-dlp.
         cookie_config: Optional cookie authentication configuration.
         max_filesize_bytes: Maximum allowed download size in bytes. Passed to yt-dlp
-            as ``max_filesize``. Defaults to 500 MiB. Phase-07 will wire this from
-            ``config.trailers.filters.max_filesize_mb``.
-        max_wall_clock_sec: Wall-clock timeout for a single download attempt (Unix only).
-            Defaults to 180 seconds.
+            as ``max_filesize``. Caller wires this from
+            ``config.trailers.filters.max_filesize_mb`` × 1 MiB.
+        max_wall_clock_sec: Wall-clock SIGALRM timeout for a single download attempt
+            (Unix only). On Windows the alarm is skipped; ``socket_timeout_sec``
+            provides best-effort protection. NOTE: SIGALRM only fires on the main
+            thread, so calling ``download()`` from a worker thread silently disables
+            the wall-clock guard.
+        ffmpeg: Required on PATH for multi-stream formats (separate video+audio).
+            Construction logs a warning when missing; single-stream formats still
+            work without it.
     """
 
     def __init__(
@@ -332,7 +378,12 @@ class YtdlpDownloader:
             error_msg = str(exc)
             if not _is_bot_detection_error(error_msg):
                 # Non-bot error — do not retry.
-                logger.warning("ytdlp_download_error", url=url, error=error_msg)
+                logger.warning(
+                    "ytdlp_download_error",
+                    url=url,
+                    error=error_msg,
+                    error_type=type(exc).__name__,
+                )
                 return DownloadResult(
                     status=DownloadStatus.YTDLP_ERROR,
                     error_message=error_msg,

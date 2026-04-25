@@ -101,13 +101,14 @@ class KeywordsCache:
             log.warning("keywords_cache_parse_error", cache_key=key)
             return None
 
-        # Delegate to the shared TTL helper.  Legacy cache files store naive
-        # local timestamps; convert the elapsed duration to a UTC-aware point
-        # so check_ttl's arithmetic is timezone-safe on all machines.
+        # New entries are written tz-aware UTC by set(); legacy cache files
+        # may still hold naive-local timestamps. For legacy entries, compute
+        # the elapsed duration in naive-local arithmetic and project it onto
+        # UTC. This is best-effort across DST boundaries (the elapsed delta
+        # can be off by 1h during the transition itself); legacy entries age
+        # out within the 30-day TTL after this code ships.
         now_utc = datetime.now(UTC)
         if cached_at.tzinfo is None:
-            # Preserve the naive-local elapsed duration: compute the UTC point
-            # that is exactly that many seconds before now_utc.
             elapsed_naive = datetime.now() - cached_at
             cached_at = now_utc - elapsed_naive
 
@@ -133,9 +134,12 @@ class KeywordsCache:
         """
         data = self._load()
         key = _cache_key(tmdb_id, media_type)
+        # Always write tz-aware UTC: the legacy naive-local format on the read
+        # side is preserved (see get()), but new entries no longer poison the
+        # cache around DST transitions on local-tz machines.
         data[key] = {
             "keywords": list(keywords),
-            "cached_at": datetime.now().isoformat(),
+            "cached_at": datetime.now(UTC).isoformat(),
         }
         self._atomic_save(data)
 

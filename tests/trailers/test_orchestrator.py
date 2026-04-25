@@ -585,37 +585,6 @@ class TestLibraryAwareRecheck:
 class TestTrailersOrchestratorEdgeCases:
     """Edge-case tests for uncovered orchestrator branches."""
 
-    def test_run_with_config_missing_optional_attrs(self, tmp_path: "Path") -> None:
-        """Orchestrator.run() falls back to defaults when AttributeError on optional config."""
-        from unittest.mock import MagicMock, patch
-
-        # Config with only required fields -- optional ones raise AttributeError
-        cfg = MagicMock(spec=["trailers"])
-        cfg.trailers.enabled = True
-        cfg.trailers.languages = ["en-US"]
-        cfg.trailers.fallback_youtube_search = False
-        cfg.trailers.filters.min_file_size_bytes = 102400
-        cfg.trailers.state_file = str(tmp_path / ".data/trailers_state.json")
-        cfg.trailers.ytdlp.format = "best"
-        cfg.trailers.ytdlp.socket_timeout_sec = 30
-        cfg.trailers.ytdlp.retries = 3
-        cfg.trailers.seasons.enabled = False
-        cfg.trailers.library_check.movies = False
-        cfg.trailers.library_check.tv_shows = False
-        # These will raise AttributeError to cover fallback branches
-        del cfg.trailers.step
-        del cfg.trailers.filters.max_filesize_mb
-        del cfg.trailers.retry_after_days
-
-        from personalscraper.trailers.orchestrator import TrailersOrchestrator
-
-        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
-
-        with patch.object(orch._scanner, "scan_staging", return_value=[]):
-            counts = orch.run()
-
-        assert counts["downloaded"] == 0
-
     def test_run_bot_detected_increments_counter(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
         """counts[bot_detected] is incremented when downloader returns BOT_DETECTED."""
         from unittest.mock import patch
@@ -692,3 +661,129 @@ class TestTrailersOrchestratorEdgeCases:
         ):
             counts = orchestrator.run()
         assert counts["ytdlp_error"] == 1
+
+
+class TestTrailersOrchestratorNfoPropagation:
+    """Verify ``write_trailer_url_to_nfo`` is called only on SUCCESS and only when nfo_path is set.
+
+    Without these tests a regression that wrote the URL on every status — or
+    forgot to call write at all — would silently ship.
+    """
+
+    @staticmethod
+    def _scan_item_with_nfo(tmp_path: "Path") -> ScanItem:
+        """Build a ScanItem whose ``nfo_path`` exists as an empty NFO."""
+        nfo = tmp_path / "Fight Club (1999).nfo"
+        nfo.write_text("<movie><title>Fight Club</title></movie>", encoding="utf-8")
+        media_dir = tmp_path / "Fight Club (1999)"
+        media_dir.mkdir()
+        return ScanItem(
+            path=media_dir,
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            tmdb_id="550",
+            nfo_path=nfo,
+        )
+
+    def test_nfo_written_on_success(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
+        """A successful download propagates the trailer URL into <trailer>."""
+        from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        item = self._scan_item_with_nfo(tmp_path)
+        url = "https://youtube.com/watch?v=Z"
+        out = item.path / "Fight Club (1999)-trailer.mp4"
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[item]),
+            patch.object(orchestrator._finder, "find", return_value=url),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(status=DownloadStatus.SUCCESS, output_path=out),
+            ),
+        ):
+            orchestrator.run()
+
+        # The file must contain the URL we returned.
+        assert "watch?v=Z" in item.nfo_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
+
+    def test_nfo_not_written_on_bot_detected(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
+        """BOT_DETECTED must NOT touch the NFO (no successful download yet)."""
+        from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        item = self._scan_item_with_nfo(tmp_path)
+        original_nfo = item.nfo_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[item]),
+            patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(status=DownloadStatus.BOT_DETECTED, error_message="not a bot"),
+            ),
+        ):
+            orchestrator.run()
+
+        assert item.nfo_path.read_text(encoding="utf-8") == original_nfo  # type: ignore[union-attr]
+
+    def test_nfo_not_written_on_http_error(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
+        """HTTP_ERROR must NOT touch the NFO."""
+        from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        item = self._scan_item_with_nfo(tmp_path)
+        original_nfo = item.nfo_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[item]),
+            patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(status=DownloadStatus.HTTP_ERROR, error_message="403"),
+            ),
+        ):
+            orchestrator.run()
+
+        assert item.nfo_path.read_text(encoding="utf-8") == original_nfo  # type: ignore[union-attr]
+
+    def test_nfo_not_written_when_nfo_path_is_none(
+        self, orchestrator: "TrailersOrchestrator", tmp_path: "Path"
+    ) -> None:
+        """A SUCCESS with item.nfo_path=None must not call write_trailer_url_to_nfo."""
+        from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+
+        media_dir = tmp_path / "Fight Club (1999)"
+        media_dir.mkdir()
+        item = ScanItem(
+            path=media_dir,
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            tmdb_id="550",
+            nfo_path=None,
+        )
+        out = media_dir / "Fight Club (1999)-trailer.mp4"
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[item]),
+            patch.object(orchestrator._finder, "find", return_value="https://youtube.com/watch?v=X"),
+            patch.object(
+                orchestrator._downloader,
+                "download",
+                return_value=DownloadResult(status=DownloadStatus.SUCCESS, output_path=out),
+            ),
+            patch("personalscraper.trailers.orchestrator.write_trailer_url_to_nfo") as mock_write,
+        ):
+            orchestrator.run()
+
+        mock_write.assert_not_called()

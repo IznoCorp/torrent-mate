@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import re
 import urllib.parse
-from datetime import date
+from datetime import datetime, timezone
 from typing import Any
 
 import requests
@@ -30,7 +30,7 @@ _WATCH_URL = "https://www.youtube.com/watch?v={video_id}"
 # Timeout for the primary HTTP call (seconds).
 _SEARCH_TIMEOUT_SEC = 10
 
-# Default quota accounting (overridable from config in Phase 7).
+# Default quota accounting. Caller (orchestrator) overrides these from config.
 _DEFAULT_DAILY_QUOTA_UNITS = 10_000
 _DEFAULT_SEARCH_LIST_COST = 100
 
@@ -51,13 +51,8 @@ def _redact_url_key(url: str) -> str:
 class YoutubeSearch:
     """Two-tier YouTube searcher — v3 API primary + yt-dlp ytsearch fallback.
 
-    Attributes:
-        _query_format: Python str.format template with {title} and {year}.
-        _api_key: YouTube Data API v3 key (may be ``""`` to force fallback).
-        _quota: JsonTTLCache-backed quota counter (daily reset).
-        _breaker: CircuitBreaker dedicated to the YouTube domain.
-        _daily_quota_units: Total units available per day.
-        _search_list_cost_units: Units charged per ``search.list`` call.
+    All instance state is private (single-underscore prefix) — see ``__init__``
+    for the per-attribute documentation. Public API: ``search()``.
     """
 
     def __init__(
@@ -90,6 +85,9 @@ class YoutubeSearch:
     def search(self, title: str, year: int | None) -> str | None:
         """Search YouTube for a trailer and return the first video URL.
 
+        Never raises: transport, schema, and quota failures all return ``None``
+        and are recorded against the circuit breaker / quota counter.
+
         Args:
             title: Media title to search for.
             year: Release year (substituted into the query format, may be None).
@@ -104,7 +102,15 @@ class YoutubeSearch:
             url = self._primary_search(query)
             if url is not None:
                 return url
-            # Primary reported 403 / exhausted — fall through to fallback.
+            # Primary returned None (transport, HTTP, schema, or quota error). Log the
+            # transition so JSON logs link the primary failure to the fallback attempt.
+            log.info("youtube_fallback_invoked", reason="primary_returned_none", query=query)
+        elif not self._api_key:
+            log.debug("youtube_fallback_invoked", reason="no_api_key", query=query)
+        elif not self._breaker.can_proceed():
+            log.info("youtube_fallback_invoked", reason="breaker_open", query=query)
+        else:
+            log.info("youtube_fallback_invoked", reason="quota_exhausted", query=query)
 
         return self._fallback_search(query)
 
@@ -156,15 +162,21 @@ class YoutubeSearch:
                 query=query,
                 url=_redact_url_key(url),
             )
-            # Synthesize an exception so CircuitBreaker.record_failure
-            # receives the required Exception argument.
-            self._breaker.record_failure(RuntimeError(f"YouTube primary HTTP {resp.status_code}"))
+            # Build a real requests.HTTPError (which the breaker counts on
+            # status >= 500) so a sustained outage trips the circuit.
+            http_err = requests.exceptions.HTTPError(f"YouTube primary HTTP {resp.status_code}")
+            http_err.response = resp
+            self._breaker.record_failure(http_err)
             return None
 
         try:
             data = resp.json()
-        except ValueError:
-            log.warning("youtube_primary_non_json_response", query=query)
+        except ValueError as exc:
+            log.warning("youtube_primary_non_json_response", query=query, error=str(exc))
+            # Schema drift / HTML error page from a proxy: synthesize a
+            # ConnectionError (which the breaker counts) so a sustained outage
+            # eventually opens the circuit instead of being retried forever.
+            self._breaker.record_failure(requests.exceptions.ConnectionError("YouTube primary returned non-JSON"))
             return None
 
         items = data.get("items") or []
@@ -173,8 +185,9 @@ class YoutubeSearch:
 
         try:
             video_id = items[0]["id"]["videoId"]
-        except (KeyError, TypeError):
-            log.warning("youtube_primary_missing_video_id", query=query)
+        except (KeyError, TypeError) as exc:
+            log.warning("youtube_primary_missing_video_id", query=query, error=str(exc))
+            self._breaker.record_failure(requests.exceptions.ConnectionError("YouTube primary missing videoId"))
             return None
 
         self._breaker.record_success()
@@ -229,6 +242,11 @@ class YoutubeSearch:
         first = entries[0]
         video_id = first.get("id")
         if not video_id:
+            log.warning(
+                "youtube_fallback_missing_video_id",
+                query=query,
+                entry_keys=list(first.keys()),
+            )
             return None
 
         self._breaker.record_success()
@@ -239,12 +257,16 @@ class YoutubeSearch:
     # ------------------------------------------------------------------
 
     def _quota_key(self) -> str:
-        """Return today's quota cache key (UTC date).
+        """Return today's quota cache key, anchored to the UTC calendar date.
+
+        Anchoring to UTC (not local time) keeps the rollover boundary aligned
+        with Google's quota reset and avoids DST transitions silently
+        re-using yesterday's bucket on local-tz machines.
 
         Returns:
             Cache key string in the form ``quota:YYYY-MM-DD``.
         """
-        return f"quota:{date.today().isoformat()}"
+        return f"quota:{datetime.now(timezone.utc).date().isoformat()}"
 
     def _has_quota_left(self) -> bool:
         """Return True when today's consumed units leave room for one more call.

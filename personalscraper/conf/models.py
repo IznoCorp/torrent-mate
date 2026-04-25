@@ -536,8 +536,8 @@ class TrailersCircuitBreakerConfig(_StrictModel):
         cooldown_sec: Seconds the breaker stays open before half-opening.
     """
 
-    errors_threshold: int = 5
-    cooldown_sec: int = 1800
+    errors_threshold: int = Field(default=5, ge=1)
+    cooldown_sec: int = Field(default=1800, ge=0)
 
 
 class TrailersCircuitBreakersConfig(_StrictModel):
@@ -568,9 +568,11 @@ class TrailersFiltersConfig(_StrictModel):
         allowed_extensions: File extensions accepted by the verify subcommand.
     """
 
-    min_file_size_bytes: int = 102400
-    max_filesize_mb: int = 500
-    allowed_extensions: list[str] = Field(default_factory=lambda: ["mp4", "mkv", "webm"])
+    min_file_size_bytes: int = Field(default=102400, ge=0)
+    max_filesize_mb: int = Field(default=500, gt=0)
+    allowed_extensions: Annotated[list[str], Field(min_length=1)] = Field(
+        default_factory=lambda: ["mp4", "mkv", "webm"]
+    )
 
 
 class TrailersYoutubeApiConfig(_StrictModel):
@@ -582,10 +584,9 @@ class TrailersYoutubeApiConfig(_StrictModel):
         cache_ttl_days: TTL for cached YouTube search results in days.
     """
 
-    daily_quota_units: int = 10_000
-    search_list_cost_units: int = 100
-    # Consumed by trailers_cache in phase 3a: TTL = cache_ttl_days * 24 * 3600.
-    cache_ttl_days: int = 7
+    daily_quota_units: int = Field(default=10_000, gt=0)
+    search_list_cost_units: int = Field(default=100, gt=0)
+    cache_ttl_days: int = Field(default=7, ge=1)
 
 
 class TrailersYtdlpConfig(_StrictModel):
@@ -598,16 +599,17 @@ class TrailersYtdlpConfig(_StrictModel):
         default_search: yt-dlp search prefix used when YOUTUBE_API_KEY is absent or quota is exhausted.
     """
 
-    format: str = "bestvideo[height<=1080]+bestaudio/best[height<=1080]"
-    socket_timeout_sec: int = 30
-    retries: int = 3
-    default_search: str = "ytsearch1"
+    format: str = Field(default="bestvideo[height<=1080]+bestaudio/best[height<=1080]", min_length=1)
+    socket_timeout_sec: int = Field(default=30, gt=0)
+    retries: int = Field(default=3, ge=0)
+    default_search: str = Field(default="ytsearch1", min_length=1)
 
 
 class TrailersPlacementConfig(_StrictModel):
     """Output path patterns for trailer files.
 
     Both patterns use the flat convention compatible with Plex, Kodi, and Jellyfin.
+    Each pattern must reference ``{folder}``, ``{name}`` and ``{ext}`` placeholders.
 
     Attributes:
         movie_pattern: Pattern template for movie trailers.
@@ -616,6 +618,30 @@ class TrailersPlacementConfig(_StrictModel):
 
     movie_pattern: str = "{folder}/{name}-trailer.{ext}"
     tvshow_pattern: str = "{folder}/{name}-trailer.{ext}"
+
+    @field_validator("movie_pattern", "tvshow_pattern")
+    @classmethod
+    def _validate_placeholders(cls, value: str) -> str:
+        """Fail-fast at config load if a placeholder is missing.
+
+        Args:
+            value: Raw pattern string.
+
+        Returns:
+            The same value when valid.
+
+        Raises:
+            ValueError: If any of ``{folder}``, ``{name}``, ``{ext}`` is absent
+                or the pattern fails a ``str.format`` smoke test.
+        """
+        for placeholder in ("{folder}", "{name}", "{ext}"):
+            if placeholder not in value:
+                raise ValueError(f"placement pattern must contain {placeholder!r}: {value!r}")
+        try:
+            value.format(folder="x", name="y", ext="mp4")
+        except (KeyError, IndexError, ValueError) as exc:
+            raise ValueError(f"placement pattern is not a valid str.format template: {value!r} ({exc})") from exc
+        return value
 
 
 class TrailersSeasonsConfig(_StrictModel):
@@ -631,7 +657,7 @@ class TrailersSeasonsConfig(_StrictModel):
 
     enabled: bool = False
     language_fallback: list[str] | None = None
-    search_query_format: str = "{title} {year} saison {season} bande annonce"
+    search_query_format: str = Field(default="{title} {year} saison {season} bande annonce", min_length=1)
 
 
 class TrailersStepConfig(_StrictModel):
@@ -641,7 +667,7 @@ class TrailersStepConfig(_StrictModel):
         max_duration_sec: Step-level time budget in seconds. Default 1800 (30 min).
     """
 
-    max_duration_sec: int = 1800  # 30-minute step-level budget
+    max_duration_sec: int = Field(default=1800, gt=0)  # 30-minute step-level budget
 
 
 class TrailersPipelineConfig(_StrictModel):
@@ -691,14 +717,14 @@ class TrailersConfig(_StrictModel):
     """
 
     enabled: bool = False
-    languages: list[str] = Field(default_factory=lambda: ["fr-FR", "en-US"])
-    search_query_format: str = "{title} {year} bande annonce"
+    languages: Annotated[list[str], Field(min_length=1)] = Field(default_factory=lambda: ["fr-FR", "en-US"])
+    search_query_format: str = Field(default="{title} {year} bande annonce", min_length=1)
     placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
     filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
-    state_file: str = ".data/trailers_state.json"
-    retry_after_days: list[int] = Field(default_factory=lambda: [1, 7, 30])
-    bot_detected_max_consecutive_attempts: int = 5
-    library_scan_max_age_hours: int = 24
+    state_file: str = Field(default=".data/trailers_state.json", min_length=1)
+    retry_after_days: Annotated[list[int], Field(min_length=1)] = Field(default_factory=lambda: [1, 7, 30])
+    bot_detected_max_consecutive_attempts: int = Field(default=5, ge=1)
+    library_scan_max_age_hours: int = Field(default=24, ge=1)
     circuit_breakers: TrailersCircuitBreakersConfig = Field(default_factory=TrailersCircuitBreakersConfig)
     youtube_api: TrailersYoutubeApiConfig = Field(default_factory=TrailersYoutubeApiConfig)
     ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)

@@ -66,8 +66,10 @@ class TestFetchMovieVideos:
         assert result == []
 
     def test_returns_empty_on_unexpected_exception(self, client):
-        """fetch_movie_videos returns [] and logs warning on unexpected errors."""
-        with patch.object(client, "_get", side_effect=ConnectionError("timeout")):
+        """fetch_movie_videos returns [] and logs warning on transport errors."""
+        import requests
+
+        with patch.object(client, "_get", side_effect=requests.ConnectionError("timeout")):
             result = client.fetch_movie_videos(550, language="en-US")
         assert result == []
 

@@ -22,8 +22,7 @@ from personalscraper.scraper.tmdb_client import Video
 logger = get_logger(__name__)
 
 _TMDB_TTL_SECONDS = 7 * 24 * 3600  # 7 days
-# 7 days matches DESIGN §9 (`youtube_api.cache_ttl_days: 7`) — keep in sync.
-# TODO: read this from config in a follow-up instead of the module-level constant.
+# 7 days matches DESIGN §9 (`youtube_api.cache_ttl_days: 7`).
 _YOUTUBE_TTL_SECONDS = 7 * 24 * 3600  # 7 days
 
 # Sentinel stored when a YouTube search returned no results, to distinguish
@@ -101,7 +100,7 @@ class TrailersCache:
         try:
             return [Video(**v) for v in raw]
         except (TypeError, KeyError) as exc:
-            logger.warning("Cannot deserialize cached videos for key %r: %s", key, exc)
+            logger.warning("trailers_cache_deserialize_failed", key=key, error=str(exc))
             return None
 
     def set_tmdb_videos(self, tmdb_id: int, media_type: str, language: str, videos: list[Video]) -> None:

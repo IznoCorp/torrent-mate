@@ -8,7 +8,8 @@ Used for both movies and TV shows -- this is the single convention that
 works across Plex, Kodi, Jellyfin and Emby.
 
 This module is pure path computation + a small NFO XML tweak. It does NOT
-write media files -- download is owned by YtdlpDownloader (Phase 3b).
+write media files -- download is owned by
+``personalscraper.scraper.ytdlp_downloader.YtdlpDownloader``.
 """
 
 from __future__ import annotations
@@ -128,13 +129,13 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
         youtube_url: Full YouTube URL to write into the ``<trailer>`` tag.
     """
     if not nfo_path.is_file():
-        logger.warning("NFO not found -- skipping trailer URL write: %s", nfo_path)
+        logger.warning("trailer_nfo_missing", nfo_path=str(nfo_path))
         return
 
     try:
         tree = ET.parse(nfo_path)
     except ET.ParseError as exc:
-        logger.warning("Cannot parse NFO %s -- skipping trailer URL write: %s", nfo_path, exc)
+        logger.warning("trailer_nfo_parse_failed", nfo_path=str(nfo_path), error=str(exc))
         return
 
     root = tree.getroot()
@@ -146,4 +147,11 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
     try:
         tree.write(nfo_path, encoding="utf-8", xml_declaration=True)
     except OSError as exc:
-        logger.warning("Cannot write NFO %s -- trailer URL not persisted: %s", nfo_path, exc)
+        # The trailer file downloaded successfully; failing to record the URL
+        # in NFO leaves Plex without the remote-trailer fallback.
+        logger.error(
+            "trailer_nfo_write_failed",
+            nfo_path=str(nfo_path),
+            error=str(exc),
+            exc_info=True,
+        )

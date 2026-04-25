@@ -27,8 +27,9 @@ logger = get_logger(__name__)
 # YouTube watch URL template — only valid for ``site == "YouTube"`` entries.
 _YT_WATCH_URL = "https://www.youtube.com/watch?v={key}"
 
-# Default season-level YouTube query format.
-# TODO: read from config.trailers.seasons.search_query_format in Phase 7.
+# Default season-level YouTube query format. French: matches the project's
+# primary library language. Callers can override via TrailerFinder.find when a
+# different season-aware template is needed.
 _DEFAULT_SEASON_QUERY_FORMAT = "{title} {year} saison {season} bande annonce"
 
 

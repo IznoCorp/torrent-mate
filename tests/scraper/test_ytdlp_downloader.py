@@ -74,17 +74,84 @@ class TestCookieConfig:
             with pytest.raises(CookieError, match="NTFS"):
                 CookieConfig.from_env()
 
-    def test_loose_permissions_logged(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_loose_permissions_logged(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """CookieConfig logs a warning when cookie file permissions are not 600."""
         cookie_file = tmp_path / "cookies.txt"
         cookie_file.write_text("# Netscape cookies", encoding="utf-8")
         # Set world-readable permissions (644) to trigger the warning.
         cookie_file.chmod(0o644)
         monkeypatch.setenv("YOUTUBE_COOKIES_FILE", str(cookie_file))
-        # Should not raise — warning is logged but execution continues.
-        cfg = CookieConfig.from_env()
+        with caplog.at_level(logging.WARNING):
+            cfg = CookieConfig.from_env()
         assert cfg is not None
         assert cfg.cookie_file == cookie_file
+        assert "cookie_file_permissions_loose" in caplog.text
+
+    def test_direct_constructor_rejects_both_sources(self, tmp_path: Path) -> None:
+        """CookieConfig(cookie_file=..., cookie_from_browser=...) raises CookieError."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        with pytest.raises(CookieError, match="at most one"):
+            CookieConfig(cookie_file=cookie_file, cookie_from_browser="firefox")
+
+    def test_direct_constructor_rejects_no_source(self) -> None:
+        """CookieConfig(None, None) raises CookieError — callers must pass None instead."""
+        with pytest.raises(CookieError, match="requires one of"):
+            CookieConfig(cookie_file=None, cookie_from_browser=None)
+
+
+class TestBotDetectionPhrases:
+    """All known bot-detection phrases must trigger the retry-without-cookies path."""
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "Sign in to confirm your age",
+            "We need to make sure you're not a bot",
+            "Please confirm your age to continue",
+        ],
+    )
+    def test_phrase_triggers_bot_detected_path(self, tmp_path: Path, phrase: str) -> None:
+        """A typo dropping any phrase from the tuple would fail this test."""
+        from personalscraper.scraper.ytdlp_downloader import _is_bot_detection_error
+
+        assert _is_bot_detection_error(phrase) is True
+
+
+class TestSigalrmTimeout:
+    """SIGALRM-based wall-clock timeout fires when yt-dlp hangs."""
+
+    def test_timeout_returns_ytdlp_error(self, tmp_path: Path) -> None:
+        """A yt-dlp call exceeding max_wall_clock_sec returns YTDLP_ERROR."""
+        import signal as _signal
+        import time as _time
+
+        if not hasattr(_signal, "SIGALRM"):  # pragma: no cover — Windows
+            pytest.skip("SIGALRM not available on this platform")
+
+        downloader = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=0,
+            cookie_config=None,
+            max_wall_clock_sec=1,
+        )
+
+        def slow_download(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            mock = _make_mock_ydl()
+            # Block longer than the 1s alarm; SIGALRM should interrupt this.
+            mock.download.side_effect = lambda urls: _time.sleep(5)
+            return mock
+
+        out = tmp_path / "trailer.mp4"
+        with patch("yt_dlp.YoutubeDL", side_effect=slow_download):
+            result = downloader.download("https://www.youtube.com/watch?v=t", out)
+
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        assert result.error_message == "wall-clock timeout"
 
 
 # ── ffmpeg missing warning ────────────────────────────────────────────────────

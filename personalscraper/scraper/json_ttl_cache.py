@@ -120,8 +120,8 @@ class JsonTTLCache:
         try:
             cached_at = datetime.fromisoformat(str(entry["cached_at"]))
             ttl_seconds = int(entry["ttl_seconds"])
-        except (KeyError, ValueError, TypeError):
-            logger.warning("Cannot parse cache entry for key %r — treating as miss", key)
+        except (KeyError, ValueError, TypeError) as exc:
+            logger.warning("json_ttl_cache_entry_malformed", key=key, error=str(exc))
             return None
 
         if not check_ttl(cached_at, ttl_seconds):
@@ -173,9 +173,9 @@ class JsonTTLCache:
                 ttl_seconds = int(entry["ttl_seconds"])
                 if check_ttl(cached_at, ttl_seconds, now=now):
                     fresh[key] = entry
-            except (KeyError, ValueError, TypeError):
-                # Malformed entry — drop it during compaction
-                logger.debug("Dropping malformed cache entry during compact: %r", key)
+            except (KeyError, ValueError, TypeError) as exc:
+                # Malformed entry — drop it during compaction.
+                logger.debug("json_ttl_cache_entry_dropped_during_compact", key=key, error=str(exc))
         if len(fresh) != len(data):
             self._atomic_save(fresh)
 
@@ -200,7 +200,12 @@ class JsonTTLCache:
                 return {}
             return {k: v for k, v in raw.items() if isinstance(v, dict)}
         except (OSError, json.JSONDecodeError, ValueError) as exc:
-            logger.warning("Cannot read cache %s: %s — starting fresh", self._path, exc)
+            logger.warning(
+                "json_ttl_cache_load_failed",
+                path=str(self._path),
+                error=str(exc),
+                hint="starting with empty cache",
+            )
             return {}
 
     def _atomic_save(self, data: dict[str, Any]) -> None:

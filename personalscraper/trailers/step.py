@@ -51,8 +51,8 @@ def run_trailers(
         )
         return StepReport(name="trailers", status="skipped")
 
-    # Deferred import -- orchestrator is implemented in Phase 6; importing here
-    # avoids a circular dependency and keeps the module importable without Phase 6.
+    # Deferred import: avoids a circular dependency between this step entry-point
+    # and the orchestrator (which imports from this module's siblings).
     from personalscraper.trailers.orchestrator import (  # noqa: PLC0415
         TrailersOrchestrator,
     )
@@ -91,6 +91,10 @@ def run_trailers(
         )
         return report
 
-    except Exception as exc:
-        logger.exception("trailers_step_crashed", error=str(exc))
+    except Exception as exc:  # noqa: BLE001 — last-resort guard so the pipeline can dispatch
+        logger.exception(
+            "trailers_step_crashed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
         return StepReport(name="trailers", error_count=1, status="error")

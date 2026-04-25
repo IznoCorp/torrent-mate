@@ -109,13 +109,40 @@ class TestYoutubeSearch:
         assert url is None
 
     def test_returns_none_on_403(self, searcher: YoutubeSearch) -> None:
-        """search() returns None on HTTP 403 (quota exhausted or bad key)."""
+        """search() returns None on HTTP 403 (quota exhausted or bad key) AND marks the quota."""
         error_resp = MagicMock()
         error_resp.ok = False
         error_resp.status_code = 403
         with _patch_yt_dlp_no_result(), patch("requests.get", return_value=error_resp):
             url = searcher.search("Fight Club", 1999)
         assert url is None
+        # The 403 path must mark the quota exhausted so subsequent calls bypass HTTP entirely.
+        # Without this, a quota-exceeded YouTube account keeps wasting HTTP calls all day.
+        assert not searcher._has_quota_left()
+
+    def test_non_json_response_records_breaker_failure(self, searcher: YoutubeSearch) -> None:
+        """A 200 OK with HTML body (proxy error page) must hit the breaker."""
+        bad = MagicMock()
+        bad.ok = True
+        bad.status_code = 200
+        bad.json.side_effect = ValueError("not json")
+        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=bad):
+            url = searcher.search("Fight Club", 1999)
+        assert url is None
+        # Schema drift / HTML-from-proxy must register against the breaker so a
+        # sustained outage opens the circuit instead of retrying forever.
+        assert searcher._breaker._failure_count >= 1
+
+    def test_missing_video_id_records_breaker_failure(self, searcher: YoutubeSearch) -> None:
+        """A response missing items[0]['id']['videoId'] is treated as schema drift."""
+        weird = MagicMock()
+        weird.ok = True
+        weird.status_code = 200
+        weird.json.return_value = {"items": [{"id": "scalar_not_dict"}]}  # malformed
+        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=weird):
+            url = searcher.search("Fight Club", 1999)
+        assert url is None
+        assert searcher._breaker._failure_count >= 1
 
     def test_query_format_substitution(self, searcher: YoutubeSearch) -> None:
         """search() sends a query with title and year substituted."""

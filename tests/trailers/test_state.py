@@ -27,6 +27,25 @@ def _write_entry(key: str, state_file: Path) -> None:
     )
 
 
+def _write_specific_entry(key: str, attempts: int, state_file: Path) -> None:
+    """Write a parametrised entry. Used to detect lost writes when two writers race."""
+    import time as _time
+
+    # Synchronise the two processes so they actually overlap inside the lock.
+    s = TrailerStateStore(state_file=state_file)
+    _time.sleep(0.05)
+    s.set(
+        key,
+        TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=attempts,
+            status=TrailerStatus.DOWNLOADED,
+            media_path=f"/fake/{key}",
+            notes=f"writer_{attempts}",
+        ),
+    )
+
+
 class TestMakeStateKey:
     """Tests for make_state_key() composite key builder."""
 
@@ -124,6 +143,61 @@ class TestTrailerState:
         )
         assert state.attempts == 1
         assert state.status == TrailerStatus.DOWNLOADED
+
+    def test_frozen_blocks_mutation(self) -> None:
+        """TrailerState is frozen — direct attribute assignment must fail."""
+        from dataclasses import FrozenInstanceError
+
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/x",
+        )
+        with pytest.raises(FrozenInstanceError):
+            state.attempts = 2  # type: ignore[misc]
+
+    def test_naive_iso_string_rejected(self) -> None:
+        """A naive ISO timestamp (no tz offset) is rejected at construction."""
+        with pytest.raises(ValueError, match="must include timezone offset"):
+            TrailerState(
+                last_attempt="2026-04-25T12:00:00",  # no tz
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+            )
+
+    def test_naive_datetime_rejected(self) -> None:
+        """A naive datetime is rejected at construction."""
+        with pytest.raises(ValueError, match="must be tz-aware"):
+            TrailerState(
+                last_attempt=datetime(2026, 4, 25, 12, 0, 0),  # no tzinfo
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+            )
+
+    def test_aware_datetime_coerced_to_iso(self) -> None:
+        """A tz-aware datetime is coerced to its ISO 8601 string at construction."""
+        now = datetime.now(timezone.utc)
+        state = TrailerState(
+            last_attempt=now,  # type: ignore[arg-type]
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/x",
+        )
+        assert state.last_attempt == now.isoformat()
+
+    def test_negative_season_rejected(self) -> None:
+        """A negative season_number is rejected at construction."""
+        with pytest.raises(ValueError, match="season_number"):
+            TrailerState(
+                last_attempt=datetime.now(timezone.utc).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+                season_number=-1,
+            )
 
 
 @pytest.fixture()
@@ -342,6 +416,63 @@ class TestAutoGC:
         reader = TrailerStateStore(state_file=state_file)
         assert reader.get("movie:tmdb:1") is not None
         assert reader.get("movie:tmdb:2") is not None
+
+    def test_concurrent_writes_to_different_keys_both_survive(self, tmp_path: Path) -> None:
+        """Two writers targeting different keys must both succeed (no last-writer-wins).
+
+        Without ``fcntl.flock`` the read-modify-write cycles interleave: writer A
+        reads {}, writer B reads {}, writer A writes {a: ...}, writer B overwrites
+        with {b: ...}. The lock must serialise the cycles so both keys survive.
+        """
+        import multiprocessing
+
+        state_file = tmp_path / "trailers_state.json"
+
+        p1 = multiprocessing.Process(target=_write_specific_entry, args=("movie:tmdb:101", 1, state_file))
+        p2 = multiprocessing.Process(target=_write_specific_entry, args=("movie:tmdb:202", 2, state_file))
+        p1.start()
+        p2.start()
+        p1.join(timeout=10)
+        p2.join(timeout=10)
+
+        reader = TrailerStateStore(state_file=state_file)
+        s1 = reader.get("movie:tmdb:101")
+        s2 = reader.get("movie:tmdb:202")
+        # Both writes must persist — the lock prevents lost updates.
+        assert s1 is not None and s1.notes == "writer_1"
+        assert s2 is not None and s2.notes == "writer_2"
+
+    def test_corrupt_state_file_is_backed_up(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """A parse-error state file is copied to .corrupt-<ts> before being overwritten."""
+        # Pre-populate with a real entry so we can prove the new write doesn't propagate
+        # the corrupt content (the file would otherwise be silently overwritten).
+        store.set(
+            "movie:tmdb:bad",
+            TrailerState(
+                last_attempt=datetime.now(timezone.utc).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+            ),
+        )
+        # Corrupt the file in-place.
+        store._state_file.write_text("{not valid json", encoding="utf-8")
+
+        # Trigger a load (via .set) which now must produce a sibling backup.
+        store.set(
+            "movie:tmdb:fresh",
+            TrailerState(
+                last_attempt=datetime.now(timezone.utc).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/y",
+            ),
+        )
+
+        # At least one .corrupt-<ts> sibling must exist next to the state file.
+        backups = list(tmp_path.glob("trailers_state.corrupt-*"))
+        assert len(backups) >= 1, "expected a corrupt-state backup file"
+        assert "{not valid json" in backups[0].read_text(encoding="utf-8")
 
     def test_gc_leaves_valid_entries_intact(self, store: TrailerStateStore, tmp_path: Path) -> None:
         """auto_gc does not modify entries with existing media and trailer."""

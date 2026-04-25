@@ -631,3 +631,48 @@ class TestTrailersConfig:
         cfg_file.write_text(content, encoding="utf-8")
         config = load_config(cfg_file)
         assert config.trailers.enabled is False
+
+    def test_placement_pattern_missing_placeholder_rejected(self):
+        """A pattern without {ext} fails at config load (not at first download)."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersPlacementConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersPlacementConfig(movie_pattern="{folder}/{name}-trailer.mp4")  # missing {ext}
+
+    def test_placement_pattern_invalid_format_rejected(self):
+        """A pattern with an unknown placeholder fails fast."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersPlacementConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersPlacementConfig(tvshow_pattern="{folder}/{unknown}-trailer.{ext}")
+
+    def test_negative_circuit_breaker_threshold_rejected(self):
+        """errors_threshold must be >= 1 — a 0 means the breaker would never trip OR trip on first call."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersCircuitBreakerConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersCircuitBreakerConfig(errors_threshold=0, cooldown_sec=60)
+
+    def test_zero_max_filesize_rejected(self):
+        """max_filesize_mb must be > 0 (a zero cap would block every download)."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersFiltersConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersFiltersConfig(max_filesize_mb=0)
+
+    def test_empty_languages_rejected(self):
+        """Languages must be non-empty so the finder always has at least one tier-1 query."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersConfig(languages=[])

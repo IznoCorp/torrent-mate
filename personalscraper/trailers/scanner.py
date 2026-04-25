@@ -6,10 +6,10 @@ Media-without-trailer detection for staging and library.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from personalscraper.library.scanner import extract_nfo_ids, parse_title_year
 from personalscraper.library.scanner import scan_library as _lib_scan
@@ -25,31 +25,48 @@ log = get_logger(__name__)
 _SEASON_DIR_RE = re.compile(r"^Saison (\d{2})$")
 _DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS: int = 24
 
+MediaTypeLiteral = Literal["movie", "tvshow"]
 
-@dataclass
+
+@dataclass(frozen=True, slots=True)
 class ScanItem:
     """One piece of media that requires a trailer download attempt.
 
+    Frozen and slotted: scanner output is treated as immutable downstream.
+    The orchestrator never mutates a ScanItem; it constructs new state-store
+    entries instead.
+
     Attributes:
-        path: Absolute path to the media directory on disk.
-        media_type: The media type string ("movie" or "tvshow").
+        path: Absolute path to the media directory on disk. For season-level
+            items this is the show directory (NOT the season subfolder).
+        media_type: Literal "movie" or "tvshow" — narrowed at construction.
         title: Human-readable title from directory name or NFO.
         year: Release year, or None when absent from the directory name.
         tmdb_id: TMDB numeric ID as a string, or None if unavailable.
         imdb_id: IMDB tt-prefixed ID, or None if unavailable.
         nfo_path: Path to the NFO file, or None.
-        season_number: None for movies/show-level items. Positive integer for
-            season-level ScanItems when seasons_enabled is True.
+        season_number: None for movies/show-level items. Positive integer
+            (1-indexed, TMDB convention; 0 = "specials") for season-level
+            ScanItems when seasons_enabled is True.
     """
 
     path: Path
-    media_type: str
+    media_type: MediaTypeLiteral
     title: str
     year: int | None
     tmdb_id: str | None
     imdb_id: str | None = None
     nfo_path: Path | None = None
-    season_number: int | None = field(default=None)
+    season_number: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate season_number domain (TMDB convention: 0 for specials, ≥1 for regular).
+
+        Raises:
+            ValueError: If season_number is negative.
+        """
+        if self.season_number is not None and self.season_number < 0:
+            raise ValueError(f"ScanItem.season_number must be >= 0 (got {self.season_number})")
 
 
 class Scanner:
@@ -120,11 +137,16 @@ class Scanner:
         Returns:
             List of ScanItem objects for library entries missing a valid trailer.
         """
-        max_age_hours: int = _DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS
+        # Pydantic strict guarantees this attribute exists on a Config object.
+        # The fallback only triggers if the caller passes a non-Config object.
         try:
             max_age_hours = int(config.trailers.library_scan_max_age_hours)
         except AttributeError:
-            pass
+            log.debug(
+                "scanner_library_scan_max_age_hours_default",
+                default=_DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS,
+            )
+            max_age_hours = _DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS
         if not force_refresh and self._is_scan_fresh(max_age_hours):
             log.debug("scanner_library_scan_skipped_fresh", max_age_hours=max_age_hours)
             return []
@@ -135,7 +157,15 @@ class Scanner:
         for lib_item in result.items:
             media_dir = Path(lib_item.path)
             media_name = media_dir.name
-            media_type: str = lib_item.media_type
+            # Narrow library_scanner's str media_type to the strict Literal.
+            if lib_item.media_type not in ("movie", "tvshow"):
+                log.debug(
+                    "scanner_unknown_media_type",
+                    media_type=lib_item.media_type,
+                    path=str(media_dir),
+                )
+                continue
+            media_type: MediaTypeLiteral = "tvshow" if lib_item.media_type == "tvshow" else "movie"
             nfo_path: Path | None = self._nfo_path_for(media_dir, lib_item.title, media_type)
             expected = trailer_path_for(media_dir, media_name)
             if trailer_exists(expected, self._min_size):
@@ -157,15 +187,32 @@ class Scanner:
         return items
 
     def _is_scan_fresh(self, max_age_hours: int) -> bool:
+        """Return True when the cached scan is younger than max_age_hours.
+
+        Args:
+            max_age_hours: Threshold for treating the cached scan as fresh.
+
+        Returns:
+            True if a previous scan completed within the window.
+        """
         if self._last_scan_time is None:
             return False
         age_seconds = (datetime.now(tz=timezone.utc) - self._last_scan_time).total_seconds()
         return age_seconds < max_age_hours * 3600
 
     def _scan_media_dir(self, media_dir: Path) -> list[ScanItem]:
+        """Scan a single media directory and return missing-trailer ScanItems.
+
+        Args:
+            media_dir: Absolute path to the media directory.
+
+        Returns:
+            List of ScanItem instances for the show-level item plus any
+            season-level entries when seasons_enabled is True.
+        """
         media_name = media_dir.name
         is_tvshow = (media_dir / "tvshow.nfo").is_file()
-        media_type = "tvshow" if is_tvshow else "movie"
+        media_type: MediaTypeLiteral = "tvshow" if is_tvshow else "movie"
         title, year = parse_title_year(media_name)
         nfo_path = self._nfo_path_for(media_dir, title, media_type)
         tmdb_id: str | None = None
@@ -191,6 +238,16 @@ class Scanner:
         return items
 
     def _scan_seasons(self, show_dir: Path, show_item: ScanItem) -> list[ScanItem]:
+        """Enumerate Saison NN/ subfolders and return missing-trailer ScanItems.
+
+        Args:
+            show_dir: TV-show root directory containing Saison XX subfolders.
+            show_item: Show-level ScanItem whose IDs/title are inherited.
+
+        Returns:
+            List of season-level ScanItems whose ``path`` is the show directory
+            and ``season_number`` is 1-indexed (TMDB convention).
+        """
         season_items: list[ScanItem] = []
         for sub in sorted(show_dir.iterdir()):
             if not sub.is_dir():
@@ -218,6 +275,16 @@ class Scanner:
 
     @staticmethod
     def _nfo_path_for(media_dir: Path, title: str, media_type: str) -> Path | None:
+        """Compute the conventional NFO path for a media directory.
+
+        Args:
+            media_dir: Directory holding the NFO.
+            title: Movie title used as the NFO filename for movies.
+            media_type: ``"movie"`` or ``"tvshow"``.
+
+        Returns:
+            Path to the expected NFO file, or None for unknown media types.
+        """
         if media_type == "tvshow":
             return media_dir / "tvshow.nfo"
         if media_type == "movie":

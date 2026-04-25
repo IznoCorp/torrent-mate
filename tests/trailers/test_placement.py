@@ -223,7 +223,7 @@ class TestWriteTrailerUrlToNfo:
         assert elem.text == "https://www.youtube.com/watch?v=Z"
 
     def test_missing_nfo_is_noop(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """A missing NFO logs a warning and returns — never raises."""
+        """A missing NFO logs a structured warning and returns — never raises."""
         missing = tmp_path / "does_not_exist.nfo"
         write_trailer_url_to_nfo(missing, "https://example")  # must not raise
-        assert any("NFO not found" in rec.message for rec in caplog.records)
+        assert any("trailer_nfo_missing" in rec.message for rec in caplog.records)

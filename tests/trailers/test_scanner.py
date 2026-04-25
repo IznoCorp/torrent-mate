@@ -6,6 +6,8 @@ trailers). Library scanning path uses mocked library.scanner.scan_library().
 
 from pathlib import Path
 
+import pytest
+
 from personalscraper.trailers.scanner import Scanner
 
 # ---------------------------------------------------------------------------
@@ -158,6 +160,36 @@ class TestScanItem:
         assert item.media_type == "movie"
         assert item.title == "Fight Club"
         assert item.year == 1999
+
+    def test_scan_item_is_frozen(self, tmp_path: Path) -> None:
+        """ScanItem is frozen — mutation raises FrozenInstanceError."""
+        from dataclasses import FrozenInstanceError
+
+        from personalscraper.trailers.scanner import ScanItem
+
+        item = ScanItem(
+            path=tmp_path,
+            media_type="movie",
+            title="X",
+            year=2020,
+            tmdb_id="1",
+        )
+        with pytest.raises(FrozenInstanceError):
+            item.title = "Y"  # type: ignore[misc]
+
+    def test_scan_item_negative_season_rejected(self, tmp_path: Path) -> None:
+        """ScanItem rejects negative season_number values at construction."""
+        from personalscraper.trailers.scanner import ScanItem
+
+        with pytest.raises(ValueError, match="season_number"):
+            ScanItem(
+                path=tmp_path,
+                media_type="tvshow",
+                title="X",
+                year=2020,
+                tmdb_id="1",
+                season_number=-3,
+            )
 
 
 # ---------------------------------------------------------------------------

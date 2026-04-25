@@ -31,6 +31,10 @@ from personalscraper.scraper.http_retry import build_retry_logger, make_retryabl
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
 
+# Module-level alias used by narrow except clauses without paying the import cost
+# inside hot paths. The runtime `from ... import` lives next to the call sites.
+from personalscraper.scraper.circuit_breaker import CircuitOpenError as _CircuitOpenError  # noqa: E402
+
 log = get_logger("tmdb_client")
 
 
@@ -68,13 +72,20 @@ class TMDBError(Exception):
 class Video:
     """A video entry from the TMDB /videos endpoint.
 
+    Frozen and validated at construction: ``site`` is normalised to its
+    canonical form so downstream filters comparing against ``"YouTube"`` /
+    ``"Trailer"`` work regardless of TMDB's casing changes. ``size`` is
+    rejected when non-positive (TMDB always returns a vertical-resolution
+    integer, but a future schema-drift would otherwise produce silent zeros).
+
     Attributes:
         id: TMDB internal video UUID.
-        site: Hosting platform, typically "YouTube".
+        site: Hosting platform, typically "YouTube" (canonical case enforced).
         key: Platform video identifier (YouTube video ID).
         type: Video category: "Trailer", "Teaser", "Clip", "Featurette", etc.
+            (canonical case enforced — first letter upper, rest lower).
         official: Whether the video is from an official channel.
-        size: Vertical resolution in pixels (e.g. 1080, 720, 480).
+        size: Vertical resolution in pixels (e.g. 1080, 720, 480). Must be > 0.
         iso_639_1: Language code (e.g. "en", "fr").
     """
 
@@ -85,6 +96,28 @@ class Video:
     official: bool
     size: int
     iso_639_1: str
+
+    def __post_init__(self) -> None:
+        """Normalise ``site`` and ``type`` to canonical case and validate ``size``.
+
+        Raises:
+            ValueError: If ``size`` is negative.
+        """
+        # site: TMDB has historically used "YouTube" / "Vimeo"; preserve that
+        # casing convention even if upstream returns variants.
+        site_canonical = {
+            "youtube": "YouTube",
+            "vimeo": "Vimeo",
+            "dailymotion": "DailyMotion",
+        }.get(self.site.lower(), self.site)
+        # ``type`` field: TMDB returns "Trailer" / "Teaser" / "Clip" / "Featurette".
+        type_canonical = self.type.strip().capitalize() if self.type else self.type
+        if site_canonical != self.site:
+            object.__setattr__(self, "site", site_canonical)
+        if type_canonical != self.type:
+            object.__setattr__(self, "type", type_canonical)
+        if self.size < 0:
+            raise ValueError(f"Video.size must be >= 0 (got {self.size})")
 
 
 _is_retryable = make_retryable_predicate(TMDBError)
@@ -581,12 +614,13 @@ class TMDBClient:
                 exc_info=True,
             )
             return []
-        except Exception as exc:
+        except (_CircuitOpenError, requests.RequestException, json.JSONDecodeError) as exc:
             log.warning(
                 "tmdb_videos_failed",
                 media_type=media_type,
                 tmdb_id=tmdb_id,
                 error=str(exc),
+                error_type=type(exc).__name__,
                 fallback="empty_list",
                 exc_info=True,
             )

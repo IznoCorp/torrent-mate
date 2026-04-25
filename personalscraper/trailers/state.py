@@ -10,7 +10,10 @@ Key design decisions:
 - ``fcntl.flock(LOCK_EX)`` on a sibling ``.lock`` file prevents torn writes
   when multiple ``personalscraper trailers download`` processes run concurrently.
   Falls back to best-effort write on non-Unix platforms where ``fcntl`` is absent.
-- All timestamps are stored as UTC ISO 8601 strings.
+  The Windows fallback warning fires at *import time*, not on first call —
+  callers wrapping the import in try/except should be aware.
+- All timestamps are stored as UTC ISO 8601 strings; ``TrailerState`` is frozen
+  and validates tz-aware datetimes at construction.
 - ``BOT_DETECTED`` status is exempt from retry-after (always retried on next run).
 """
 
@@ -19,10 +22,12 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import tempfile
+import time
 import unicodedata
 import warnings
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
@@ -83,20 +88,28 @@ class TrailerStatus(Enum):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class TrailerState:
     """Persisted state for a single media item's trailer download lifecycle.
 
-    All timestamps are UTC ISO 8601 strings. ``media_path`` and
-    ``trailer_path`` are absolute filesystem paths.
+    Frozen and slotted: state mutations create a new instance via
+    ``dataclasses.replace`` rather than in-place modification, which prevents
+    accidental drift when references are passed around.
+
+    Timestamps accept either UTC ISO 8601 strings (legacy callers) or
+    tz-aware ``datetime`` objects. Naive datetimes are rejected at
+    construction so DST/timezone bugs surface immediately rather than at
+    serialisation time. ``media_path`` and ``trailer_path`` are absolute
+    filesystem paths.
 
     Attributes:
-        last_attempt: UTC ISO 8601 timestamp of the most recent download attempt.
+        last_attempt: UTC ISO 8601 string of the most recent download attempt.
+            A tz-aware ``datetime`` is converted to ISO 8601 at construction.
         attempts: Total number of download attempts (incremented on each try).
         status: Current lifecycle status (see ``TrailerStatus``).
         media_path: Absolute path to the media directory on disk. Used by GC to
             detect orphaned entries when the media has been deleted or moved.
-        next_retry_at: UTC ISO 8601 timestamp after which a retry is allowed.
+        next_retry_at: UTC ISO 8601 string after which a retry is allowed.
             ``None`` means retry immediately (e.g. status ``DOWNLOADED``).
         trailer_path: Absolute path to the downloaded trailer file, or ``None``
             if the trailer has not been successfully downloaded yet.
@@ -121,12 +134,40 @@ class TrailerState:
     source: str | None = None
     youtube_url: str | None = None
     notes: str | None = None
-    # DESIGN §5 "Counter semantics": incremented on each consecutive bot_detected,
-    # reset on any non-bot_detected outcome BEFORE the new status is written.
     bot_detected_consecutive_attempts: int = 0
-    # DESIGN §4 "Season trailers" extension. None for movies and show-level TV
-    # trailers; positive integer for season-level entries (1-indexed).
     season_number: int | None = None
+
+    def __post_init__(self) -> None:
+        """Validate that all timestamp fields are tz-aware ISO 8601 strings.
+
+        Naive datetimes are silently corrupted across DST transitions, so we
+        reject them at construction. Strings are checked by parsing, datetimes
+        are coerced to ISO 8601 via ``isoformat``.
+
+        Raises:
+            ValueError: If a timestamp string is naive, malformed, or a
+                datetime is naive.
+        """
+        for attr in ("last_attempt", "next_retry_at"):
+            raw = getattr(self, attr)
+            if raw is None:
+                continue
+            if isinstance(raw, datetime):
+                if raw.tzinfo is None:
+                    raise ValueError(f"TrailerState.{attr} datetime must be tz-aware (got naive: {raw!r})")
+                # Coerce to ISO string in-place (frozen dataclass — use object.__setattr__).
+                object.__setattr__(self, attr, raw.isoformat())
+                continue
+            if not isinstance(raw, str):
+                raise TypeError(f"TrailerState.{attr} must be str or datetime, got {type(raw).__name__}")
+            try:
+                parsed = datetime.fromisoformat(raw)
+            except ValueError as exc:
+                raise ValueError(f"TrailerState.{attr} is not valid ISO 8601: {raw!r}") from exc
+            if parsed.tzinfo is None:
+                raise ValueError(f"TrailerState.{attr} ISO string must include timezone offset (got naive: {raw!r})")
+        if self.season_number is not None and self.season_number < 0:
+            raise ValueError(f"TrailerState.season_number must be >= 0 (got {self.season_number})")
 
 
 # ---------------------------------------------------------------------------
@@ -448,14 +489,50 @@ class TrailerStateStore:
             with self._state_file.open("r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if not isinstance(raw, dict):
+                self._backup_corrupt(reason="root_not_object")
                 return {}
             entries = raw.get("entries", {})
             if not isinstance(entries, dict):
+                self._backup_corrupt(reason="entries_not_object")
                 return {}
             return {k: v for k, v in entries.items() if isinstance(v, dict)}
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            log.warning("trailer_state.load_failed", path=str(self._state_file), error=str(exc))
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Parse error — preserve the bad file before the next set() overwrites it.
+            self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
+            log.warning("trailer_state_load_failed", path=str(self._state_file), error=str(exc))
             return {}
+        except OSError as exc:
+            # Read failure (permissions, broken mount). Do NOT backup — the file is
+            # likely intact but inaccessible; return empty so the run continues.
+            log.warning("trailer_state_read_failed", path=str(self._state_file), error=str(exc))
+            return {}
+
+    def _backup_corrupt(self, reason: str) -> None:
+        """Copy the state file aside before it gets overwritten by a fresh save.
+
+        Without this, a parse failure followed by ``set()`` silently destroys
+        every prior entry. The backup keeps a forensic copy at
+        ``<state_file>.corrupt-<unix_ts>``.
+
+        Args:
+            reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
+        """
+        try:
+            backup = self._state_file.with_suffix(f".corrupt-{int(time.time())}")
+            shutil.copy(self._state_file, backup)
+            log.warning(
+                "trailer_state_corrupt_backup",
+                original=str(self._state_file),
+                backup=str(backup),
+                reason=reason,
+            )
+        except OSError as exc:
+            log.error(
+                "trailer_state_corrupt_backup_failed",
+                path=str(self._state_file),
+                error=str(exc),
+                reason=reason,
+            )
 
     def _save(self, entries: dict[str, Any]) -> None:
         """Write ``entries`` to the state file atomically via temp + os.replace.
@@ -480,8 +557,9 @@ class TrailerStateStore:
         except OSError:
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as exc:
+                # tmp file leak is an operational symptom (read-only fs, inode exhaustion).
+                log.warning("trailer_state_tmp_cleanup_failed", tmp_path=tmp_path, error=str(exc))
             raise
 
     @staticmethod
@@ -587,6 +665,3 @@ __all__ = [
     "make_state_key",
     "compute_next_retry_at",
 ]
-
-# Expose the field annotation used by TrailerState for external type-checkers
-_TRAILER_STATE_FIELDS = field  # keep field in module scope to satisfy dataclasses import

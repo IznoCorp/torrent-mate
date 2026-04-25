@@ -15,7 +15,12 @@ from typing import TYPE_CHECKING, Any
 
 from personalscraper.library import scanner as library_scanner
 from personalscraper.logger import get_logger
-from personalscraper.scraper.ytdlp_downloader import DownloadStatus, YtdlpDownloader
+from personalscraper.scraper.ytdlp_downloader import (
+    CookieConfig,
+    CookieError,
+    DownloadStatus,
+    YtdlpDownloader,
+)
 from personalscraper.trailers.placement import (
     trailer_exists,
     trailer_path_for,
@@ -36,7 +41,6 @@ if TYPE_CHECKING:
 
 log = get_logger(__name__)
 
-_DEFAULT_MAX_DURATION_SEC: int = 1800
 _DEFAULT_EXT: str = "mp4"
 
 
@@ -69,18 +73,22 @@ class TrailersOrchestrator:
         self._failed_items: list[tuple[str, str, str]] = []
 
         min_size = int(config.trailers.filters.min_file_size_bytes)
-        seasons_enabled: bool = False
-        try:
-            seasons_enabled = bool(config.trailers.seasons.enabled)
-        except AttributeError:
-            pass
-
         self._scanner = Scanner(
             min_file_size_bytes=min_size,
-            seasons_enabled=seasons_enabled,
+            seasons_enabled=bool(config.trailers.seasons.enabled),
         )
 
         self._finder: TrailerFinder | None = self._build_finder()
+
+        # Resolve cookie configuration from env. CookieError surfaces a misconfigured
+        # YOUTUBE_COOKIES_FILE (path missing or on a non-APFS volume) loudly so the user
+        # learns about it rather than silently downloading without auth.
+        cookie_config: CookieConfig | None
+        try:
+            cookie_config = CookieConfig.from_env()
+        except CookieError as exc:
+            log.warning("trailers_cookie_config_invalid", error=str(exc))
+            cookie_config = None
 
         output_dir = staging_dir if staging_dir is not None else Path(".")
         self._downloader = YtdlpDownloader(
@@ -88,7 +96,8 @@ class TrailersOrchestrator:
             ytdlp_format=str(config.trailers.ytdlp.format),
             socket_timeout_sec=int(config.trailers.ytdlp.socket_timeout_sec),
             retries=int(config.trailers.ytdlp.retries),
-            cookie_config=None,
+            cookie_config=cookie_config,
+            max_filesize_bytes=int(config.trailers.filters.max_filesize_mb) * 1024 * 1024,
         )
 
         state_file = Path(str(config.trailers.state_file))
@@ -137,33 +146,14 @@ class TrailersOrchestrator:
         self._state_store.auto_gc()
 
         step_start = time.monotonic()
-        max_duration_sec: int = _DEFAULT_MAX_DURATION_SEC
-        try:
-            max_duration_sec = int(self._config.trailers.step.max_duration_sec)
-        except AttributeError:
-            pass
-
+        # Pydantic strict guarantees these attributes exist; access them directly.
+        max_duration_sec = int(self._config.trailers.step.max_duration_sec)
         min_size = int(self._config.trailers.filters.min_file_size_bytes)
-        max_filesize_mb: int = 500
-        try:
-            max_filesize_mb = int(self._config.trailers.filters.max_filesize_mb)
-        except AttributeError:
-            pass
+        max_filesize_mb = int(self._config.trailers.filters.max_filesize_mb)
         required_free: float = max_filesize_mb * 1024 * 1024 * 1.5
-
-        retry_policy: list[int] = [1, 7, 30]
-        try:
-            retry_policy = list(self._config.trailers.retry_after_days)
-        except AttributeError:
-            pass
-
-        movies_check: bool = False
-        tvshows_check: bool = False
-        try:
-            movies_check = bool(self._config.trailers.library_check.movies)
-            tvshows_check = bool(self._config.trailers.library_check.tv_shows)
-        except AttributeError:
-            pass
+        retry_policy: list[int] = list(self._config.trailers.retry_after_days)
+        movies_check = bool(self._config.trailers.library_check.movies)
+        tvshows_check = bool(self._config.trailers.library_check.tv_shows)
 
         self._library_index = None
 
@@ -249,10 +239,19 @@ class TrailersOrchestrator:
                         required_bytes=required_free,
                     )
                     _disk_ok = False
-            except OSError:
-                # Parent directory does not exist yet; downloader will create it.
-                # Treat as sufficient space and proceed.
+            except FileNotFoundError:
+                # Parent directory does not exist yet (typical for unscraped staging).
+                # Downloader will create it; treat as sufficient space and proceed.
                 pass
+            except OSError as exc:
+                # Permission denied, broken NTFS/macFUSE mount, stale handle, etc.
+                # Log loudly; the precheck is advisory only — let the download try.
+                log.warning(
+                    "trailers_disk_usage_unavailable",
+                    path=str(expected_path.parent),
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
             if not _disk_ok:
                 counts["skipped_by_filter"] += 1
                 continue
@@ -279,7 +278,14 @@ class TrailersOrchestrator:
                         season_number=item.season_number,
                     )
                 except Exception as exc:  # noqa: BLE001
-                    log.warning("trailers_finder_error", key=key, title=item.title, error=str(exc))
+                    log.error(
+                        "trailers_finder_error",
+                        key=key,
+                        title=item.title,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                        exc_info=True,
+                    )
                     counts["error"] += 1
                     self._failed_items.append((key, "error", str(exc)))
                     self._state_store.set(
@@ -426,29 +432,72 @@ class TrailersOrchestrator:
         return list(self._failed_items)
 
     def _build_finder(self) -> "TrailerFinder | None":
-        """Attempt to construct a TrailerFinder from config values.
+        """Construct a fully wired TrailerFinder from config values.
 
-        Returns None when the TMDB/YouTube clients are not yet wired (pre-Phase-7).
-        Tests replace self._finder via patch.object.
+        Wires the TMDB and YouTube circuit breakers from
+        ``config.trailers.circuit_breakers``, the YouTube quota cache (sidecar
+        ``JsonTTLCache``), and the YouTube API key from ``YOUTUBE_API_KEY`` env.
+        Returns None only on import-time failure (developer error); other
+        misconfigurations log loudly with exc_info so users see them.
 
         Returns:
-            A TrailerFinder instance, or None when clients are unavailable.
+            A TrailerFinder instance, or None when import fails.
         """
         try:
+            from personalscraper.config import get_settings  # noqa: PLC0415
+            from personalscraper.scraper.circuit_breaker import CircuitBreaker  # noqa: PLC0415
+            from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
             from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
             from personalscraper.scraper.trailer_finder import TrailerFinder  # noqa: PLC0415
             from personalscraper.scraper.trailers_cache import TrailersCache  # noqa: PLC0415
-            from personalscraper.scraper.youtube_search import YoutubeSearch  # noqa: PLC0415
+            from personalscraper.scraper.youtube_search import (  # noqa: PLC0415
+                YoutubeSearch,
+                youtube_api_key_from_env,
+            )
+        except ImportError as exc:
+            log.error("trailers_finder_import_failed", error=str(exc), exc_info=True)
+            return None
 
-            tmdb_key = str(self._config.tmdb.api_key)
+        try:
+            settings = get_settings()
+            tmdb_key = settings.tmdb_api_key
             cache_dir = Path(str(self._config.trailers.state_file)).parent
+            cache_dir.mkdir(parents=True, exist_ok=True)
             cache = TrailersCache(cache_dir / "trailers_cache.json")
-            tmdb_client = TMDBClient(api_key=tmdb_key)
+
+            cb_cfg = self._config.trailers.circuit_breakers
+            # TMDBClient builds its own breaker internally; pass the trailers-specific
+            # threshold/cooldown so a YouTube outage does not trip the main TMDB breaker
+            # used elsewhere in the scraper.
+            tmdb_client = TMDBClient(
+                api_key=tmdb_key,
+                circuit_breaker_threshold=int(cb_cfg.tmdb_videos.errors_threshold),
+                circuit_breaker_cooldown=int(cb_cfg.tmdb_videos.cooldown_sec),
+            )
+            youtube_breaker = CircuitBreaker(
+                name="trailers_youtube",
+                failure_threshold=int(cb_cfg.youtube.errors_threshold),
+                cooldown_seconds=float(cb_cfg.youtube.cooldown_sec),
+            )
+
+            quota_cache = JsonTTLCache(cache_dir / "youtube_quota.json")
+            yt_api_cfg = self._config.trailers.youtube_api
+            # Settings auto-loads .env via pydantic-settings; fall back to bare env var
+            # for callers who export YOUTUBE_API_KEY explicitly (CI, monkeypatched tests).
+            yt_api_key = settings.youtube_api_key or youtube_api_key_from_env()
+            if not yt_api_key:
+                log.warning(
+                    "trailers_youtube_api_key_missing",
+                    hint="set YOUTUBE_API_KEY in .env to enable the primary tier",
+                )
+
             youtube_search = YoutubeSearch(
                 query_format=str(self._config.trailers.search_query_format),
-                api_key=None,  # type: ignore[arg-type]
-                quota_cache=None,  # type: ignore[arg-type]
-                breaker=None,  # type: ignore[arg-type]
+                api_key=yt_api_key,
+                quota_cache=quota_cache,
+                breaker=youtube_breaker,
+                daily_quota_units=int(yt_api_cfg.daily_quota_units),
+                search_list_cost_units=int(yt_api_cfg.search_list_cost_units),
             )
             languages: list[str] = list(self._config.trailers.languages)
             return TrailerFinder(
@@ -457,7 +506,13 @@ class TrailersOrchestrator:
                 cache=cache,
                 languages=languages,
             )
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001 — surface any misconfig loudly
+            log.error(
+                "trailers_finder_init_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
             return None
 
     def _build_library_index(self) -> dict[tuple[str, str], Any]:
@@ -474,8 +529,13 @@ class TrailersOrchestrator:
         index: dict[tuple[str, str], Any] = {}
         try:
             result = library_scanner.scan_library(self._config.disks, self._config)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("trailers_library_index_build_failed", error=str(exc))
+        except Exception as exc:  # noqa: BLE001 — degraded, but loudly logged
+            log.error(
+                "trailers_library_index_build_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
             return index
         for lib_item in result.items:
             if lib_item.nfo.tmdb_id:
