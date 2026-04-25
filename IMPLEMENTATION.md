@@ -25,7 +25,7 @@
 | 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [x]    |
 | 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [x]    |
 | 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [x]    |
-| 10  | PR fixes cycle 3 (40 findings)                                           | phase-10-pr-review-cycle-3.md    | [ ]    |
+| 10  | PR fixes cycle 3 (40 findings)                                           | phase-10-pr-review-cycle-3.md    | [x]    |
 
 ## Review cycles
 
@@ -84,7 +84,13 @@
   `purge --legacy-paths` helper)
 - Fix phase: Phase 10 (`docs/features/trailer/plan/phase-10-pr-review-cycle-3.md`),
   organised into 7 sub-phases by code area
-- Status: planned — Phase 10 not yet executed
+- Status: clean — all 6 implementation sub-phases done (10.1 downloader/state-store
+  correctness, 10.2 cache integrity, 10.3 orchestrator status taxonomy + flag wiring,
+  10.4 error-handling hardening, 10.5 test gaps + MagicMock leak fix, 10.6 docs refresh);
+  10.7 milestone gate completed
+- Final test count: 1955 passing, 3 skipped, 18 deselected (+15 from baseline of 1940)
+- Sub-phase commits: a6364c3, 0bb883e, 62e25b3, 9eae956, 1f2dc6d, 97c0bd0, d34e906, caf4665,
+  aeea2d5, 8a99320, 3340bf1
 
 **Critical themes** (cluster of root-cause pathologies surviving cycles 1-2):
 
@@ -103,6 +109,6 @@
 
 ## Next action
 
-Execute Phase 10 via `/implement:phase`. After all sub-phases complete and the
-milestone commit lands, push and let the auto PR-review cycle decide whether
-a Cycle 4 is needed.
+All phases complete. Run `/implement:feature-pr` to execute the local quality gate,
+push the branch, and update PR #15 with the cycle-3 commits. Then `/implement:pr-review`
+will decide whether a Cycle 4 is warranted.
