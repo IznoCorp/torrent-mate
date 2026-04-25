@@ -4,10 +4,11 @@ yt_dlp.YoutubeDL is fully mocked; no network calls in unit tests.
 The @pytest.mark.network E2E test is opt-in via TRAILER_INTEGRATION_TESTS env var.
 """
 
+import logging
 import os
 import stat
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -86,27 +87,24 @@ class TestCookieConfig:
         assert cfg.cookie_file == cookie_file
 
 
-# ── ffmpeg missing warning (stub — YtdlpDownloader implemented in 3b.2) ──────
+# ── ffmpeg missing warning ────────────────────────────────────────────────────
 
 
-@pytest.mark.skip(reason="YtdlpDownloader.__init__ implemented in sub-phase 3b.2")
-def test_init_warns_when_ffmpeg_missing(tmp_path: Path) -> None:
-    """YtdlpDownloader.__init__ warns when ffmpeg is not on PATH."""
-    import logging
-
+def test_init_warns_when_ffmpeg_missing(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """YtdlpDownloader.__init__ logs ytdlp_ffmpeg_missing at WARNING when ffmpeg absent."""
     with patch("shutil.which", return_value=None):
-        with pytest.raises(Exception):  # noqa: B017 — NotImplementedError until 3b.2
-            with pytest.warns(logging.WARNING):
-                YtdlpDownloader(
-                    output_dir=tmp_path,
-                    ytdlp_format="best",
-                    socket_timeout_sec=10,
-                    retries=1,
-                    cookie_config=None,
-                )
+        with caplog.at_level(logging.WARNING):
+            YtdlpDownloader(
+                output_dir=tmp_path,
+                ytdlp_format="best",
+                socket_timeout_sec=10,
+                retries=1,
+                cookie_config=None,
+            )
+    assert "ytdlp_ffmpeg_missing" in caplog.text
 
 
-# ── DownloadResult / DownloadStatus (basic smoke tests) ──────────────────────
+# ── DownloadResult / DownloadStatus ──────────────────────────────────────────
 
 
 class TestDownloadResult:
@@ -129,6 +127,173 @@ class TestDownloadResult:
         )
         assert result.status == DownloadStatus.BOT_DETECTED
         assert result.output_path is None
+
+
+# ── YtdlpDownloader (mocked yt_dlp) ──────────────────────────────────────────
+
+
+def _make_mock_ydl(return_value: int = 0) -> MagicMock:
+    """Return a context-manager-compatible YoutubeDL mock.
+
+    Args:
+        return_value: Value returned by mock.download().
+
+    Returns:
+        A MagicMock whose __enter__ returns itself and download() returns return_value.
+    """
+    mock = MagicMock()
+    mock.__enter__ = MagicMock(return_value=mock)
+    mock.__exit__ = MagicMock(return_value=False)
+    mock.download.return_value = return_value
+    return mock
+
+
+@pytest.fixture()
+def downloader(tmp_path: Path) -> YtdlpDownloader:
+    """Provide a default YtdlpDownloader for unit tests (no cookies, no network)."""
+    return YtdlpDownloader(
+        output_dir=tmp_path,
+        ytdlp_format="best[ext=mp4]/best",
+        socket_timeout_sec=30,
+        retries=3,
+        cookie_config=None,
+    )
+
+
+class TestYtdlpDownloader:
+    """Unit tests for YtdlpDownloader.download() — yt_dlp.YoutubeDL fully mocked."""
+
+    def test_download_success(self, downloader: YtdlpDownloader, tmp_path: Path) -> None:
+        """download() returns SUCCESS when YoutubeDL.download() exits cleanly."""
+        output_file = tmp_path / "test-trailer.mp4"
+
+        with patch("yt_dlp.YoutubeDL") as MockYDL:
+            instance = MockYDL.return_value.__enter__.return_value
+            # Simulate yt-dlp writing the output file.
+            instance.download.side_effect = lambda urls: output_file.write_bytes(b"x") or 0
+            result = downloader.download(
+                "https://www.youtube.com/watch?v=test",
+                output_file,
+            )
+
+        assert result.status == DownloadStatus.SUCCESS
+
+    def test_opts_dict_contains_format(self, downloader: YtdlpDownloader, tmp_path: Path) -> None:
+        """download() passes format option to YoutubeDL."""
+        output_file = tmp_path / "trailer.mp4"
+        captured_opts: list[dict] = []  # type: ignore[type-arg]
+
+        def capture_opts(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            captured_opts.append(opts)
+            return _make_mock_ydl()
+
+        with patch("yt_dlp.YoutubeDL", side_effect=capture_opts):
+            downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert captured_opts[0]["format"] == "best[ext=mp4]/best"
+
+    def test_opts_dict_contains_retries(self, downloader: YtdlpDownloader, tmp_path: Path) -> None:
+        """download() passes retries option to YoutubeDL."""
+        output_file = tmp_path / "trailer.mp4"
+        captured_opts: list[dict] = []  # type: ignore[type-arg]
+
+        def capture_opts(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            captured_opts.append(opts)
+            return _make_mock_ydl()
+
+        with patch("yt_dlp.YoutubeDL", side_effect=capture_opts):
+            downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert captured_opts[0]["retries"] == 3
+
+    def test_cookie_file_added_to_opts(self, tmp_path: Path) -> None:
+        """download() adds cookiefile to opts when CookieConfig provides a file."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cfg = CookieConfig(cookie_file=cookie_file, cookie_from_browser=None)
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=1,
+            cookie_config=cfg,
+        )
+        output_file = tmp_path / "trailer.mp4"
+        captured_opts: list[dict] = []  # type: ignore[type-arg]
+
+        def capture_opts(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            captured_opts.append(opts)
+            return _make_mock_ydl()
+
+        with patch("yt_dlp.YoutubeDL", side_effect=capture_opts):
+            d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert str(cookie_file) in str(captured_opts[0].get("cookiefile", ""))
+
+    def test_bot_detected_retry_succeeds_without_cookies(self, tmp_path: Path) -> None:
+        """First attempt fails with bot detection; retry without cookies SUCCEEDS."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cfg = CookieConfig(cookie_file=cookie_file, cookie_from_browser=None)
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=1,
+            cookie_config=cfg,
+        )
+        call_count = 0
+        captured_opts: list[dict] = []  # type: ignore[type-arg]
+
+        def fake_ydl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            nonlocal call_count
+            call_count += 1
+            captured_opts.append(opts)
+            mock = _make_mock_ydl()
+            if call_count == 1:
+                # First call: simulate bot detection.
+                mock.download.side_effect = Exception("Sign in to confirm your age")
+            return mock
+
+        output_file = tmp_path / "trailer.mp4"
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl):
+            result = d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert call_count == 2, "bot-detection retry was not attempted"
+        # Retry must have dropped the cookiefile — critical invariant.
+        assert "cookiefile" not in captured_opts[1]
+        assert result.status == DownloadStatus.SUCCESS
+
+    def test_bot_detected_retry_fails_marks_status(self, tmp_path: Path) -> None:
+        """First attempt fails with bot detection AND retry fails → BOT_DETECTED."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cfg = CookieConfig(cookie_file=cookie_file, cookie_from_browser=None)
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=1,
+            cookie_config=cfg,
+        )
+        call_count = 0
+
+        def fake_ydl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            nonlocal call_count
+            call_count += 1
+            mock = _make_mock_ydl()
+            # Both attempts fail with bot-detection error.
+            mock.download.side_effect = Exception("Sign in to confirm your age")
+            return mock
+
+        output_file = tmp_path / "trailer.mp4"
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl):
+            result = d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert call_count == 2, "expected two attempts (with and without cookies)"
+        assert result.status == DownloadStatus.BOT_DETECTED, (
+            "bot-detection must NOT be coerced into SUCCESS when the retry also fails"
+        )
 
 
 # ── @pytest.mark.network E2E (opt-in) ────────────────────────────────────────
