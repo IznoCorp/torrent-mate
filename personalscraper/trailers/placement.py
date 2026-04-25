@@ -1,11 +1,19 @@
-"""Flat trailer placement + NFO trailer-tag population.
+"""Trailer placement + NFO trailer-tag population.
 
-Naming convention (see DESIGN section 4):
+Naming conventions, derived directly from the Plex documentation:
 
-    {media_dir}/{media_name}-trailer.{ext}
-
-Used for both movies and TV shows -- this is the single convention that
-works across Plex, Kodi, Jellyfin and Emby.
+- Movies (Plex Local Media Assets): flat naming next to the media file —
+  ``{movie_dir}/{movie_name}-trailer.{ext}``. Reference:
+  https://support.plex.tv/articles/local-files-for-trailers-and-extras/
+- TV shows (Plex TV Series agent extras): subfolder convention only —
+  ``{show_dir}/Trailers/{show_name}.{ext}`` for show-level and
+  ``{show_dir}/Saison {NN}/Trailers/{show_name} - Saison {NN}.{ext}`` for
+  season-level. Reference:
+  https://support.plex.tv/articles/local-files-for-tv-show-trailers-and-extras/
+  The Plex doc explicitly restricts the flat ``-trailer`` suffix to inline-
+  episode extras (``S01E01 - Title-trailer.ext``); using it at show or season
+  level produces an unrecognised orphan video, which is what shipped in the
+  initial trailer feature and was caught by the 2026-04-25 pipeline run.
 
 This module is pure path computation + a small NFO XML tweak. It does NOT
 write media files -- download is owned by
@@ -15,6 +23,7 @@ write media files -- download is owned by
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 from xml.etree import ElementTree as ET
 
 from personalscraper.logger import get_logger
@@ -24,17 +33,32 @@ logger = get_logger(__name__)
 # Extensions yt-dlp may produce, ordered by Plex-friendliness.
 _KNOWN_TRAILER_EXTENSIONS: tuple[str, ...] = ("mp4", "mkv", "webm")
 
+# Plex's required subfolder name for TV-show trailer extras. Plex documents an
+# enum of Extra_Directory_Type folders ("Behind The Scenes", "Featurettes",
+# "Trailers", …); we only emit "Trailers" since this is the only kind we
+# produce.
+_TV_TRAILER_SUBFOLDER: str = "Trailers"
 
-def trailer_path_for(media_dir: Path, media_name: str, *, ext: str = "mp4") -> Path:
+MediaTypeLiteral = Literal["movie", "tvshow"]
+
+
+def trailer_path_for(
+    media_dir: Path,
+    media_name: str,
+    *,
+    media_type: MediaTypeLiteral = "movie",
+    ext: str = "mp4",
+) -> Path:
     """Compute the expected trailer path for a movie or TV show.
-
-    Flat convention: ``{media_dir}/{media_name}-trailer.{ext}``. Used for
-    both movies and TV shows. See DESIGN section 4 for the rationale.
 
     Args:
         media_dir: Absolute path to the media directory on disk.
         media_name: Folder name of the media directory
             (e.g. "Fight Club (1999)" or "Breaking Bad (2008)").
+        media_type: ``"movie"`` (flat ``{media_name}-trailer.{ext}`` next to
+            the media file, per Plex Local Media Assets) or ``"tvshow"``
+            (subfolder ``Trailers/{media_name}.{ext}``, the only convention
+            recognised by Plex's TV Series agent for show-level extras).
         ext: File extension for the trailer ("mp4" default; leading dot
             accepted and stripped).
 
@@ -42,18 +66,24 @@ def trailer_path_for(media_dir: Path, media_name: str, *, ext: str = "mp4") -> P
         Absolute Path where the trailer file should be placed.
     """
     ext_clean = ext.lstrip(".")
+    if media_type == "tvshow":
+        return media_dir / _TV_TRAILER_SUBFOLDER / f"{media_name}.{ext_clean}"
     return media_dir / f"{media_name}-trailer.{ext_clean}"
 
 
 def trailer_path_for_season(show_dir: Path, season_number: int, extension: str) -> Path:
     """Return the expected season-trailer placement path.
 
-    Convention: ``{show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}``.
+    Convention (Plex TV-show season extras):
+    ``{show_dir}/Saison {SS:02d}/Trailers/{show_dir.name} - Saison {SS:02d}.{ext}``.
 
-    Opt-in via ``config.trailers.seasons.enabled`` (default off). The path mirrors
-    the existing personalscraper French season layout ("Saison XX/") and keeps the
-    show-name prefix so Plex Local Media Assets recognises the file as a trailer
-    for the parent show. NOT placed in a trailers/ subfolder.
+    Opt-in via ``config.trailers.seasons.enabled`` (default off). The path
+    mirrors the existing personalscraper French season layout
+    (``Saison XX/``) — the project library uses this name and Plex matches it
+    correctly — and the inner ``Trailers/`` subfolder follows the Plex
+    documented convention for per-season extras. The show-name prefix on the
+    file gives the file a human-readable identity when listed inside Plex's
+    extras row alongside Behind The Scenes / Featurettes etc.
 
     Args:
         show_dir: Path to the root show folder (contains Saison XX subdirectories).
@@ -66,25 +96,38 @@ def trailer_path_for_season(show_dir: Path, season_number: int, extension: str) 
     """
     ext_clean = extension.lstrip(".")
     season_dir = show_dir / f"Saison {season_number:02d}"
-    return season_dir / f"{show_dir.name} - Saison {season_number:02d}-trailer.{ext_clean}"
+    return (
+        season_dir
+        / _TV_TRAILER_SUBFOLDER
+        / f"{show_dir.name} - Saison {season_number:02d}.{ext_clean}"
+    )
 
 
-def find_existing_trailer(media_dir: Path, media_name: str) -> Path | None:
+def find_existing_trailer(
+    media_dir: Path,
+    media_name: str,
+    *,
+    media_type: MediaTypeLiteral = "movie",
+) -> Path | None:
     """Locate an existing trailer file across known extensions.
 
     Iterates through ``_KNOWN_TRAILER_EXTENSIONS`` in Plex-preference order
-    and returns the first candidate that exists.
+    and returns the first candidate that exists. The location scanned depends
+    on ``media_type``: flat ``{name}-trailer.{ext}`` for movies, subfolder
+    ``Trailers/{name}.{ext}`` for TV shows.
 
     Args:
         media_dir: Absolute path to the media directory.
         media_name: Folder name of the media directory.
+        media_type: Selects between movie (flat) and tvshow (subfolder)
+            placement.
 
     Returns:
         Absolute Path to the existing trailer file, or ``None`` when none
         of the candidates exist.
     """
     for ext in _KNOWN_TRAILER_EXTENSIONS:
-        candidate = trailer_path_for(media_dir, media_name, ext=ext)
+        candidate = trailer_path_for(media_dir, media_name, media_type=media_type, ext=ext)
         if candidate.is_file():
             return candidate
     return None

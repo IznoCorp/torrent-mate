@@ -1,4 +1,8 @@
-"""Unit tests for trailers/placement.py — flat Plex/Kodi/Jellyfin naming convention.
+"""Unit tests for trailers/placement.py — Plex naming conventions per media type.
+
+Movies: flat ``{movie}/{movie}-trailer.{ext}`` (Plex Local Media Assets).
+TV shows: subfolder ``{show}/Trailers/{show}.{ext}`` and
+``{show}/Saison NN/Trailers/{show} - Saison NN.{ext}`` (Plex TV Series agent).
 
 All tests use tmpdir fixtures. No network, no yt-dlp.
 """
@@ -20,23 +24,38 @@ from personalscraper.trailers.placement import (
 
 
 class TestTrailerPathFor:
-    """Tests for trailer_path_for() — flat naming convention for movies and TV shows."""
+    """Tests for trailer_path_for() — Plex placement per media_type."""
 
     def test_movie_follows_flat_name_dash_trailer_ext(self, tmp_path: Path) -> None:
-        """Movies use {folder}/{name}-trailer.{ext}."""
+        """Movies use {folder}/{name}-trailer.{ext} (Plex Local Media Assets)."""
         movie_dir = tmp_path / "Fight Club (1999)"
         movie_dir.mkdir()
-        path = trailer_path_for(movie_dir, "Fight Club (1999)", ext="mp4")
+        path = trailer_path_for(movie_dir, "Fight Club (1999)", media_type="movie", ext="mp4")
         assert path == movie_dir / "Fight Club (1999)-trailer.mp4"
 
-    def test_tvshow_follows_same_flat_convention(self, tmp_path: Path) -> None:
-        """TV shows use the SAME convention — no trailers/ subfolder."""
+    def test_movie_default_media_type_is_movie(self, tmp_path: Path) -> None:
+        """Default media_type is 'movie' to keep the flat convention as the safe default."""
+        movie_dir = tmp_path / "Fight Club (1999)"
+        movie_dir.mkdir()
+        assert (
+            trailer_path_for(movie_dir, "Fight Club (1999)", ext="mp4")
+            == movie_dir / "Fight Club (1999)-trailer.mp4"
+        )
+
+    def test_tvshow_uses_plex_trailers_subfolder(self, tmp_path: Path) -> None:
+        """TV shows must place show-level trailers under Trailers/ per Plex docs.
+
+        Reference: https://support.plex.tv/articles/local-files-for-tv-show-trailers-and-extras/
+        Plex restricts the flat ``-trailer`` suffix to inline-episode extras; using
+        it at show level produces an unrecognised orphan video. The 2026-04-25
+        pipeline run caught the original buggy flat placement in production.
+        """
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
-        path = trailer_path_for(show_dir, "Breaking Bad (2008)", ext="mp4")
-        assert path == show_dir / "Breaking Bad (2008)-trailer.mp4"
-        # Guard against regressions toward the old Plex Trailers/ subfolder convention.
-        assert "trailers" not in [p.name.lower() for p in path.parents]
+        path = trailer_path_for(show_dir, "Breaking Bad (2008)", media_type="tvshow", ext="mp4")
+        assert path == show_dir / "Trailers" / "Breaking Bad (2008).mp4"
+        # Guard against a regression back to the old flat placement.
+        assert path.name != "Breaking Bad (2008)-trailer.mp4"
 
     def test_default_extension_is_mp4(self, tmp_path: Path) -> None:
         """Default `ext` parameter is 'mp4' since most yt-dlp outputs are mp4."""
@@ -66,18 +85,22 @@ class TestTrailerPathFor:
 class TestTrailerPathForSeason:
     """Tests for trailer_path_for_season() — season-level path convention (opt-in)."""
 
-    def test_trailer_path_for_season_builds_conventional_path(self, tmp_path: Path) -> None:
-        """Season trailer lands at {show}/Saison {SS:02d}/{show} - Saison {SS:02d}-trailer.{ext}.
+    def test_trailer_path_for_season_builds_plex_subfolder_path(self, tmp_path: Path) -> None:
+        """Season trailer lands at {show}/Saison NN/Trailers/{show} - Saison NN.{ext}.
 
-        Mirrors the existing personalscraper French season layout (`Saison XX/`) and
-        keeps the show-name prefix so Plex Local Media Assets recognises it as a
-        trailer for the parent show. See DESIGN §4 "Season trailers" for the
-        rationale (Plex does not natively model season-scoped trailers).
+        This is the Plex TV Series agent's required layout for per-season extras
+        (https://support.plex.tv/articles/local-files-for-tv-show-trailers-and-extras/).
+        The French ``Saison XX/`` folder name is the project convention and Plex
+        matches it correctly; the inner ``Trailers/`` folder is what Plex requires
+        for season-scoped extras to be recognised.
         """
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
         path = trailer_path_for_season(show_dir, season_number=1, extension="mp4")
-        assert path == show_dir / "Saison 01" / "Breaking Bad (2008) - Saison 01-trailer.mp4"
+        assert (
+            path
+            == show_dir / "Saison 01" / "Trailers" / "Breaking Bad (2008) - Saison 01.mp4"
+        )
 
     def test_trailer_path_for_season_respects_custom_extension(self, tmp_path: Path) -> None:
         """Caller decides the extension — yt-dlp may yield mkv/webm in edge cases."""
@@ -85,26 +108,24 @@ class TestTrailerPathForSeason:
         show_dir.mkdir()
         webm_path = trailer_path_for_season(show_dir, season_number=2, extension="webm")
         assert webm_path.suffix == ".webm"
-        assert webm_path.name == "Breaking Bad (2008) - Saison 02-trailer.webm"
+        assert webm_path.name == "Breaking Bad (2008) - Saison 02.webm"
+        assert webm_path.parent.name == "Trailers"
 
     def test_trailer_path_for_season_handles_unicode_show_names(self, tmp_path: Path) -> None:
         """Show names with non-ASCII characters round-trip through the path build."""
         show_dir = tmp_path / "Téléphérique (2019)"
         show_dir.mkdir()
         path = trailer_path_for_season(show_dir, season_number=3, extension="mp4")
-        assert path.parent.name == "Saison 03"
-        assert path.name == "Téléphérique (2019) - Saison 03-trailer.mp4"
+        assert path.parent.name == "Trailers"
+        assert path.parent.parent.name == "Saison 03"
+        assert path.name == "Téléphérique (2019) - Saison 03.mp4"
 
-    def test_trailer_path_for_season_does_not_use_trailers_subfolder(self, tmp_path: Path) -> None:
-        """Guard: season trailers are NOT placed in a `trailers/` subdirectory.
-
-        Same guard as the show-level convention — the only structural folder
-        introduced is the canonical `Saison XX/` season folder.
-        """
+    def test_trailer_path_for_season_uses_trailers_subfolder(self, tmp_path: Path) -> None:
+        """Plex requires a ``Trailers/`` subfolder beneath the season directory."""
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
         path = trailer_path_for_season(show_dir, season_number=1, extension="mp4")
-        assert "trailers" not in [p.name.lower() for p in path.parents]
+        assert "Trailers" in [p.name for p in path.parents]
 
 
 # ── tolerant lookup across known extensions ──────────────────────────────────

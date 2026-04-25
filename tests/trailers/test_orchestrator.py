@@ -335,10 +335,11 @@ class TestLibraryAwareRecheck:
             tmdb_id="1396",
         )
 
-        # Create the library directory with a valid trailer
+        # Create the library directory with a valid trailer at the Plex
+        # TV-show subfolder location (Trailers/<show>.mp4).
         lib_show_dir = tmp_path / "lib" / "Breaking Bad (2008)"
-        lib_show_dir.mkdir(parents=True)
-        lib_trailer = lib_show_dir / "Breaking Bad (2008)-trailer.mp4"
+        (lib_show_dir / "Trailers").mkdir(parents=True)
+        lib_trailer = lib_show_dir / "Trailers" / "Breaking Bad (2008).mp4"
         lib_trailer.write_bytes(b"x" * 200000)
 
         # Build fake LibraryScanResult

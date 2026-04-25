@@ -220,7 +220,7 @@ class Scanner:
                 continue
             media_type: MediaTypeLiteral = "tvshow" if lib_item.media_type == "tvshow" else "movie"
             nfo_path: Path | None = self._nfo_path_for(media_dir, lib_item.title, media_type)
-            expected = trailer_path_for(media_dir, media_name)
+            expected = trailer_path_for(media_dir, media_name, media_type=media_type)
             if trailer_exists(expected, self._min_size):
                 continue
             scan_item = ScanItem(
@@ -290,7 +290,7 @@ class Scanner:
             season_number=None,
         )
         items: list[ScanItem] = []
-        expected = trailer_path_for(media_dir, media_name)
+        expected = trailer_path_for(media_dir, media_name, media_type=media_type)
         if not trailer_exists(expected, self._min_size):
             items.append(show_item)
         if self._seasons_enabled and is_tvshow:

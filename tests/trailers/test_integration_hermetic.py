@@ -238,7 +238,8 @@ class TestHermeticSeasonTrailer:
 
         The show-level ScanItem gets no URL (finder returns None -> no_trailer).
         The season ScanItem receives the URL; the downloader places the fixture at
-        the per-season path: ``{show_dir}/Saison 01/{show_dir.name} - Saison 01-trailer.mp4``.
+        the per-season path: ``{show_dir}/Saison 01/Trailers/{show_dir.name} - Saison 01.mp4``
+        (Plex TV-show season extras subfolder convention).
 
         State key is correctly qualified with ``:season:1``,
         ``TrailerState.season_number == 1``, and the state entry is DOWNLOADED.
@@ -335,10 +336,12 @@ class TestHermeticLibraryAwareIdempotence:
         staging_show_dir = tmp_path / "staging" / "Breaking Bad (2008)"
         staging_show_dir.mkdir(parents=True)
 
-        # Library item -- show + valid trailer already on disk.
+        # Library item -- show + valid trailer already on disk. TV show trailers
+        # live in a Trailers/ subfolder per Plex's TV Series agent, not flat.
         lib_show_dir = tmp_path / "library" / "Breaking Bad (2008)"
         lib_show_dir.mkdir(parents=True)
-        lib_trailer = lib_show_dir / "Breaking Bad (2008)-trailer.mp4"
+        (lib_show_dir / "Trailers").mkdir()
+        lib_trailer = lib_show_dir / "Trailers" / "Breaking Bad (2008).mp4"
         shutil.copy2(_SAMPLE_TRAILER, lib_trailer)
 
         cfg = _make_config(tmp_path)

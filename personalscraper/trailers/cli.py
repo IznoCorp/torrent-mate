@@ -569,7 +569,7 @@ def verify(
         if item.season_number is not None:
             trailer_p = trailer_path_for_season(item.path, item.season_number, "mp4")
         else:
-            trailer_p = trailer_path_for(item.path, media_name)
+            trailer_p = trailer_path_for(item.path, media_name, media_type=item.media_type)
 
         if not trailer_p.exists():
             issues.append((item.title, str(trailer_p), "missing"))

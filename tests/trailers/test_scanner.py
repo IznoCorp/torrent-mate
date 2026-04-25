@@ -268,13 +268,17 @@ class TestScanStagingEdgeCases:
         assert items == []
 
     def test_season_with_existing_trailer_is_skipped(self, tmp_path: "Path") -> None:
-        """scan_staging skips season whose trailer file already exists and is large enough."""
+        """scan_staging skips season whose trailer file already exists and is large enough.
+
+        Plex per-season extras live under ``Saison NN/Trailers/`` so the scanner's
+        existence check has to look there, not at a flat sibling.
+        """
         tvshows_dir = tmp_path / "002-TVSHOWS"
         tvshows_dir.mkdir()
         show_dir = _make_tvshow_dir(tvshows_dir, "Breaking Bad (2008)", with_trailer=False)
         saison_dir = show_dir / "Saison 01"
-        saison_dir.mkdir()
-        trailer_file = show_dir / "Saison 01" / "Breaking Bad (2008) - Saison 01-trailer.mp4"
+        (saison_dir / "Trailers").mkdir(parents=True)
+        trailer_file = saison_dir / "Trailers" / "Breaking Bad (2008) - Saison 01.mp4"
         trailer_file.write_bytes(b"x" * 200000)
 
         scanner = Scanner(min_file_size_bytes=102400, seasons_enabled=True)

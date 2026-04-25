@@ -205,7 +205,9 @@ class TrailersOrchestrator:
                     if item.season_number is not None:
                         lib_trailer = trailer_path_for_season(lib_path, item.season_number, _DEFAULT_EXT)
                     else:
-                        lib_trailer = trailer_path_for(lib_path, lib_path.name, ext=_DEFAULT_EXT)
+                        lib_trailer = trailer_path_for(
+                            lib_path, lib_path.name, media_type=item.media_type, ext=_DEFAULT_EXT
+                        )
                     if trailer_exists(lib_trailer, min_size):
                         log.info(
                             "trailers_already_present_on_disk",
@@ -230,11 +232,14 @@ class TrailersOrchestrator:
             media_name = item.path.name
             # Season-level ScanItems use item.path = show_dir (verified in scanner.py).
             # Use the seasonal placement path so the SOT check and downloader target
-            # match the correct per-season file; show-level items use the flat convention.
+            # match the correct per-season file; show-level items use the per-type
+            # convention (movies flat, TV shows in Trailers/ subfolder).
             if item.season_number is not None:
                 expected_path = trailer_path_for_season(item.path, item.season_number, _DEFAULT_EXT)
             else:
-                expected_path = trailer_path_for(item.path, media_name, ext=_DEFAULT_EXT)
+                expected_path = trailer_path_for(
+                    item.path, media_name, media_type=item.media_type, ext=_DEFAULT_EXT
+                )
             if trailer_exists(expected_path, min_size):
                 log.debug("trailers_already_present", key=key, title=item.title)
                 counts["already_present"] += 1
