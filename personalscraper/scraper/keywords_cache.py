@@ -19,6 +19,7 @@ from pathlib import Path
 
 from personalscraper.conf.classifier import MediaType
 from personalscraper.logger import get_logger
+from personalscraper.scraper.json_ttl_cache import UTC, check_ttl
 
 log = get_logger("keywords_cache")
 
@@ -100,7 +101,17 @@ class KeywordsCache:
             log.warning("keywords_cache_parse_error", cache_key=key)
             return None
 
-        if datetime.now() - cached_at > _TTL:
+        # Delegate to the shared TTL helper.  Legacy cache files store naive
+        # local timestamps; convert the elapsed duration to a UTC-aware point
+        # so check_ttl's arithmetic is timezone-safe on all machines.
+        now_utc = datetime.now(UTC)
+        if cached_at.tzinfo is None:
+            # Preserve the naive-local elapsed duration: compute the UTC point
+            # that is exactly that many seconds before now_utc.
+            elapsed_naive = datetime.now() - cached_at
+            cached_at = now_utc - elapsed_naive
+
+        if not check_ttl(cached_at, int(_TTL.total_seconds()), now=now_utc):
             return None
 
         raw_kws = entry.get("keywords", [])

@@ -226,3 +226,25 @@ class TestAtomicWrite:
         cache.set(80, "movie", ["thriller"])
         assert cache._path.exists()
         assert cache.get(80, "movie") == ["thriller"]
+
+
+# ---------------------------------------------------------------------------
+# Naive cached_at backward-compatibility
+# ---------------------------------------------------------------------------
+
+
+class TestNaiveCachedAt:
+    """check_ttl() promotes naive cached_at to UTC — still-fresh entries hit."""
+
+    def test_naive_cached_at_still_valid(self, cache: KeywordsCache) -> None:
+        """Naive cached_at (no tzinfo) from older cache versions hits within TTL.
+
+        Writes a raw cache entry with a naive ISO timestamp (no tz offset) dated
+        1 day ago — far inside the 30-day TTL — and asserts get() returns the
+        keywords rather than treating it as a miss.
+        """
+        one_day_ago = datetime.now() - timedelta(days=1)  # naive, no tzinfo
+        data = {"movie_91": {"keywords": ["retro"], "cached_at": one_day_ago.isoformat()}}
+        cache._path.write_text(json.dumps(data), encoding="utf-8")
+        result = cache.get(91, "movie")
+        assert result == ["retro"]
