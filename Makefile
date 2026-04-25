@@ -1,4 +1,4 @@
-.PHONY: help clean test lint lint-logging format install-dev version
+.PHONY: help clean test lint lint-logging format install-dev version update-ytdlp
 
 help:
 	@echo "PersonalScraper — Available commands:"
@@ -43,3 +43,9 @@ install-dev:
 version:
 	@echo "Current version:"
 	@python -c "from personalscraper import __version__; print(__version__)"
+
+update-ytdlp:
+	@echo "Updating yt-dlp..."
+	python -m pip install -U yt-dlp
+	@echo "Running yt-dlp integration test (requires TRAILER_INTEGRATION_TESTS=1)..."
+	TRAILER_INTEGRATION_TESTS=1 python -m pytest tests/scraper/test_ytdlp_downloader.py -v -m network
