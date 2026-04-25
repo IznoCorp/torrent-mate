@@ -105,7 +105,7 @@ class TrailersOrchestrator:
 
         self._library_index: dict[tuple[str, str], Any] | None = None
 
-    def run(self) -> dict[str, int]:
+    def run(self, items: "list[Any] | None" = None) -> dict[str, int]:
         """Execute the full trailer acquisition loop.
 
         1. state_store.auto_gc() once.
@@ -122,6 +122,14 @@ class TrailersOrchestrator:
            g. downloader.download() -> handle DownloadStatus.
            h. Update state.
         4. Return counts dict.
+
+        Args:
+            items: Pre-filtered list of ScanItems to process. When None
+                (legacy callers, e.g. the pipeline step), the orchestrator
+                scans staging itself. The CLI passes a list that has been
+                filtered by --disk/--category/--since/--limit/--level/--season
+                upstream — without this hook the real download path would
+                ignore every CLI filter (2026-04-25 incident).
 
         Returns:
             Counts dict with keys: downloaded, already_present,
@@ -157,8 +165,13 @@ class TrailersOrchestrator:
 
         self._library_index = None
 
-        staging_dir = self._staging_dir if self._staging_dir is not None else Path(".")
-        items = self._scanner.scan_staging(staging_dir)
+        if items is None:
+            staging_dir = self._staging_dir if self._staging_dir is not None else Path(".")
+            # Pass config so the scanner restricts to FileType.MOVIE/TVSHOW
+            # staging entries — without this it walks every staging subdir and
+            # classifies audio/ebook/scripts items as "movie" (2026-04-25
+            # incident).
+            items = self._scanner.scan_staging(staging_dir, self._config)
 
         for item in items:
             ids: dict[str, str | int | None] = {"tmdb": item.tmdb_id, "tvdb": None}

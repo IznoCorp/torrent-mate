@@ -259,6 +259,35 @@ class TestYtdlpDownloader:
 
         assert captured_opts[0]["format"] == "best[ext=mp4]/best"
 
+    def test_opts_outtmpl_strips_extension_and_pins_mp4(
+        self, downloader: YtdlpDownloader, tmp_path: Path
+    ) -> None:
+        """Outtmpl drops the caller's extension and pins merge to mp4.
+
+        Regression: prior to the fix, passing "...-trailer.mp4" as ``output_path``
+        made yt-dlp produce "...-trailer.mp4.webm" because yt-dlp interprets the
+        outtmpl extension as a literal part of the filename and appends the real
+        format ext on top. The fix strips the suffix and lets yt-dlp inject the
+        merged container ext via %(ext)s, with merge_output_format=mp4 forcing
+        ffmpeg to remux to .mp4.
+        """
+        output_file = tmp_path / "show-trailer.mp4"
+        captured_opts: list[dict] = []  # type: ignore[type-arg]
+
+        def capture_opts(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            captured_opts.append(opts)
+            return _make_mock_ydl()
+
+        with patch("yt_dlp.YoutubeDL", side_effect=capture_opts):
+            downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        opts = captured_opts[0]
+        # The outtmpl must NOT contain the caller's literal ".mp4" before %(ext)s,
+        # otherwise yt-dlp would emit ".mp4.<actual_ext>".
+        assert opts["outtmpl"] == f"{tmp_path / 'show-trailer'}.%(ext)s"
+        assert opts["merge_output_format"] == "mp4"
+        assert opts["final_ext"] == "mp4"
+
     def test_opts_dict_contains_retries(self, downloader: YtdlpDownloader, tmp_path: Path) -> None:
         """download() passes retries option to YoutubeDL."""
         output_file = tmp_path / "trailer.mp4"

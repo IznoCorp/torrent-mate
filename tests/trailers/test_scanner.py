@@ -283,6 +283,108 @@ class TestScanStagingEdgeCases:
         assert season_items == [], f"Expected no season items but got {season_items}"
 
 
+class TestScanStagingFileTypeWhitelist:
+    """When config is provided, scan_staging restricts to MOVIE/TVSHOW staging entries.
+
+    Regression: 2026-04-25 — without the whitelist, audio/ebook/scripts dirs
+    were classified as movies and 47 audio books triggered YouTube downloads.
+    """
+
+    @staticmethod
+    def _stub_config(staging_root: "Path", entries: list[tuple[int, str, str]]) -> object:
+        """Build a duck-typed config with a configurable staging_dirs list.
+
+        Args:
+            staging_root: Path to inject as ``config.paths.staging_dir``.
+            entries: List of ``(id, name, file_type)`` tuples driving
+                ``config.staging_dirs``.
+
+        Returns:
+            A SimpleNamespace-like object the scanner accepts.
+        """
+        from types import SimpleNamespace
+
+        staging_dirs = [SimpleNamespace(id=i, name=n, file_type=ft, role=None) for i, n, ft in entries]
+        return SimpleNamespace(
+            paths=SimpleNamespace(staging_dir=staging_root),
+            staging_dirs=staging_dirs,
+        )
+
+    def test_skips_non_movie_non_tvshow_dirs_when_config_passed(self, tmp_path: "Path") -> None:
+        """scan_staging(config=…) ignores audio/ebook/scripts dirs entirely."""
+        # Layout matches a real personalscraper staging tree.
+        movies = tmp_path / "001-MOVIES"
+        movies.mkdir()
+        tvshows = tmp_path / "002-TVSHOWS"
+        tvshows.mkdir()
+        audio = tmp_path / "004-AUDIO"
+        audio.mkdir()
+        scripts = tmp_path / "099-SCRIPTS"
+        scripts.mkdir()
+
+        # Place a "movie-looking" item in each non-MOVIE/TVSHOW dir to prove it
+        # is skipped by the whitelist, not by accidental absence of an NFO.
+        for parent in (audio, scripts):
+            book = parent / "Bernard Werber - Les Thanatonautes"
+            book.mkdir()
+            (book / "Bernard Werber - Les Thanatonautes.nfo").write_text(
+                '<movie><title>Les Thanatonautes</title><uniqueid type="tmdb">1</uniqueid></movie>',
+                encoding="utf-8",
+            )
+
+        # Real movie + tvshow that should appear in the result.
+        movie_dir = movies / "Fight Club (1999)"
+        movie_dir.mkdir()
+        (movie_dir / "Fight Club (1999).nfo").write_text(
+            '<movie><title>Fight Club</title><uniqueid type="tmdb">550</uniqueid></movie>',
+            encoding="utf-8",
+        )
+        show_dir = tvshows / "Breaking Bad (2008)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            '<tvshow><title>Breaking Bad</title><uniqueid type="tmdb">1396</uniqueid></tvshow>',
+            encoding="utf-8",
+        )
+
+        config = self._stub_config(
+            tmp_path,
+            entries=[
+                (1, "movies", "movie"),
+                (2, "tvshows", "tvshow"),
+                (4, "audio", "audio"),
+                (99, "scripts", "other"),
+            ],
+        )
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_staging(tmp_path, config)
+
+        paths = sorted(str(i.path) for i in items)
+        assert paths == sorted([str(movie_dir), str(show_dir)])
+        # No audio/scripts item leaked into the result.
+        assert not any("004-AUDIO" in p or "099-SCRIPTS" in p for p in paths)
+        # Items in 001-MOVIES are forced to media_type="movie", not inferred from NFO presence.
+        movie_items = [i for i in items if i.path == movie_dir]
+        assert movie_items and movie_items[0].media_type == "movie"
+
+    def test_legacy_branch_walks_every_subdir_when_config_is_none(self, tmp_path: "Path") -> None:
+        """Backwards compat: without config, scan_staging keeps the old permissive walk.
+
+        This branch is what the existing tests rely on. The fix introduces the
+        whitelist as opt-in via ``config``; legacy callers must keep working.
+        """
+        weird = tmp_path / "999-WEIRD"
+        weird.mkdir()
+        item = weird / "Some Item"
+        item.mkdir()
+        (item / "Some Item.nfo").write_text(
+            '<movie><title>Some Item</title><uniqueid type="tmdb">7</uniqueid></movie>',
+            encoding="utf-8",
+        )
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_staging(tmp_path)  # no config → legacy walk
+        assert any(i.path == item for i in items)
+
+
 class TestScanLibrary:
     """Tests for Scanner.scan_library() -- uses mocked library.scanner.scan_library()."""
 

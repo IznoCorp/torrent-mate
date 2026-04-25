@@ -305,9 +305,20 @@ class YtdlpDownloader:
         Returns:
             A dict suitable for passing to ``yt_dlp.YoutubeDL(opts)``.
         """
+        # yt-dlp interprets the outtmpl extension as part of the FILENAME, not as
+        # the desired container — it always appends the actual format extension
+        # ("webm", "mkv"…). Passing "<name>-trailer.mp4" thus yields
+        # "<name>-trailer.mp4.webm" when the format negotiates to webm. Strip the
+        # caller's extension and let yt-dlp inject the merged container ext via
+        # %(ext)s, then pin merge_output_format=mp4 so ffmpeg always remuxes to a
+        # Plex/Kodi-friendly .mp4. final_ext is yt-dlp's authoritative hint for
+        # the post-merge extension.
+        outtmpl = f"{output_path.with_suffix('')}.%(ext)s"
         opts: dict[str, Any] = {
             "format": self._ytdlp_format,
-            "outtmpl": str(output_path),
+            "outtmpl": outtmpl,
+            "merge_output_format": "mp4",
+            "final_ext": "mp4",
             "socket_timeout": self._socket_timeout_sec,
             "retries": self._retries,
             "max_filesize": self._max_filesize_bytes,

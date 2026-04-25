@@ -132,6 +132,65 @@ class TestTrailersDownloadCommand:
             result = runner.invoke(app, ["trailers", "download", "--disk", "Disk1"])
         assert result.exit_code == 0
 
+    def test_download_real_path_forwards_filtered_items_to_orchestrator(self, tmp_path):
+        """Real download path must hand the filtered list to orchestrator.run().
+
+        Regression: 2026-04-25 — previously the dry-run branch applied filters
+        and returned, while the real branch instantiated the orchestrator and
+        called ``run()`` with no arguments, which re-scanned staging from
+        scratch and ignored every CLI filter (--disk/--category/--limit/…). The
+        contract is now that the CLI scans + filters once and passes the
+        resulting list via ``run(items=…)`` so dry-run and real paths process
+        the SAME items.
+        """
+        from personalscraper.trailers.scanner import ScanItem
+
+        item_in_movies = ScanItem(
+            path=tmp_path / "001-MOVIES" / "Fight Club (1999)",
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            tmdb_id="550",
+            imdb_id="tt0137523",
+        )
+        item_in_tvshows = ScanItem(
+            path=tmp_path / "002-TVSHOWS" / "Breaking Bad (2008)",
+            media_type="tvshow",
+            title="Breaking Bad",
+            year=2008,
+            tmdb_id="1396",
+            imdb_id="tt0903747",
+        )
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_ORCH) as MockOrch,
+            patch(_PATCH_SCANNER) as MockScanner,
+        ):
+            MockScanner.return_value.scan_staging.return_value = [item_in_movies, item_in_tvshows]
+            mock_orch = MockOrch.return_value
+            mock_orch.run.return_value = {
+                "downloaded": 0,
+                "already_present": 0,
+                "no_trailer": 0,
+                "bot_detected": 0,
+                "error": 0,
+                "skipped_by_state": 0,
+            }
+            mock_orch.failed_items = []
+            # --category 002-TVSHOWS narrows to Breaking Bad; the orchestrator
+            # must receive ONLY that item, not the full scan result.
+            result = runner.invoke(
+                app, ["trailers", "download", "--category", "002-TVSHOWS"]
+            )
+
+        assert result.exit_code == 0, result.output
+        mock_orch.run.assert_called_once()
+        call_kwargs = mock_orch.run.call_args.kwargs
+        forwarded = call_kwargs.get("items")
+        assert forwarded is not None, "run() must receive an explicit items list"
+        assert [i.title for i in forwarded] == ["Breaking Bad"]
+
 
 class TestTrailersVerifyCommand:
     """Tests for trailers verify CLI subcommand."""

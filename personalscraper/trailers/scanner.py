@@ -89,12 +89,27 @@ class Scanner:
         self._seasons_enabled = seasons_enabled
         self._last_scan_time: datetime | None = None
 
-    def scan_staging(self, staging_dir: Path) -> list[ScanItem]:
+    def scan_staging(self, staging_dir: Path, config: Any | None = None) -> list[ScanItem]:
         """Walk a staging directory tree and return items missing trailers.
 
+        Only the staging subdirs configured for FileType.MOVIE and
+        FileType.TVSHOW are scanned. Other category dirs (audio, ebooks,
+        scripts…) are skipped — the trailer feature is meaningless for them
+        and scanning would produce false positives classified as movies (the
+        2026-04-25 incident: 47 audio books triggered YouTube downloads).
+
+        When ``config`` is None, the legacy permissive walk is used: every
+        subdir is scanned and items without ``tvshow.nfo`` default to movies.
+        This branch is retained for tests and for callers that have not yet
+        wired the config through; production callers must pass ``config``.
+
         Args:
-            staging_dir: Root staging directory. May contain multiple
-                category subdirs (e.g. 001-MOVIES/, 002-TVSHOWS/).
+            staging_dir: Root staging directory.
+            config: Loaded pipeline Config. When provided, restricts the
+                scan to the configured movie/tvshow staging subdirs and
+                forwards the resolved media_type to ``_scan_media_dir`` so
+                classification is deterministic instead of file-presence
+                inferred.
 
         Returns:
             List of ScanItem objects for media directories lacking a trailer.
@@ -103,19 +118,64 @@ class Scanner:
         if not staging_dir.is_dir():
             log.warning("scanner_staging_dir_missing", path=str(staging_dir))
             return items
-        for category_dir in sorted(staging_dir.iterdir()):
-            if not category_dir.is_dir() or category_dir.name.startswith("."):
+
+        scan_specs = self._resolve_scan_specs(staging_dir, config)
+        for category_dir, forced_type in scan_specs:
+            if not category_dir.is_dir():
+                log.debug("scanner_category_dir_missing", path=str(category_dir))
                 continue
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
                     continue
-                items.extend(self._scan_media_dir(media_dir))
+                items.extend(self._scan_media_dir(media_dir, forced_type=forced_type))
         log.debug(
             "scanner_staging_scan_complete",
             staging_dir=str(staging_dir),
             items_found=len(items),
+            whitelisted=config is not None,
         )
         return items
+
+    @staticmethod
+    def _resolve_scan_specs(
+        staging_dir: Path, config: Any | None
+    ) -> list[tuple[Path, MediaTypeLiteral | None]]:
+        """Return the (category_dir, forced_media_type) pairs to scan.
+
+        With ``config``: lookup FileType.MOVIE and FileType.TVSHOW staging
+        entries and return their absolute paths with the matching media_type
+        forced. Without ``config``: legacy permissive walk over every direct
+        subdirectory, with media_type left to per-item heuristic.
+
+        Args:
+            staging_dir: Root staging directory.
+            config: Loaded Config or None.
+
+        Returns:
+            List of (path, forced_media_type) tuples. ``forced_media_type``
+            is None in the legacy branch.
+        """
+        if config is None:
+            return [
+                (sub, None)
+                for sub in sorted(staging_dir.iterdir())
+                if sub.is_dir() and not sub.name.startswith(".")
+            ]
+
+        # Lazy import to avoid a hard dependency on conf/sorter from tests
+        # that mock Scanner with stub configs.
+        from personalscraper.conf.staging import find_by_file_type, folder_name
+        from personalscraper.sorter.file_type import FileType
+
+        specs: list[tuple[Path, MediaTypeLiteral | None]] = []
+        for ft, media_type in ((FileType.MOVIE, "movie"), (FileType.TVSHOW, "tvshow")):
+            try:
+                entry = find_by_file_type(config, ft)
+            except KeyError:
+                log.warning("scanner_staging_dir_unmapped", file_type=ft.value)
+                continue
+            specs.append((staging_dir / folder_name(entry), media_type))  # type: ignore[arg-type]
+        return specs
 
     def scan_library(
         self,
@@ -193,18 +253,25 @@ class Scanner:
         age_seconds = (datetime.now(tz=timezone.utc) - self._last_scan_time).total_seconds()
         return age_seconds < max_age_hours * 3600
 
-    def _scan_media_dir(self, media_dir: Path) -> list[ScanItem]:
+    def _scan_media_dir(
+        self, media_dir: Path, forced_type: MediaTypeLiteral | None = None
+    ) -> list[ScanItem]:
         """Scan a single media directory and return missing-trailer ScanItems.
 
         Args:
             media_dir: Absolute path to the media directory.
+            forced_type: When provided, classifies the item as this media_type
+                without inspecting filesystem markers. Set by the FileType-aware
+                staging walk so e.g. items in the configured movies dir are
+                always tagged "movie" even if they happen to contain a stale
+                ``tvshow.nfo``. ``None`` falls back to the legacy heuristic.
 
         Returns:
             List of ScanItem instances for the show-level item plus any
             season-level entries when seasons_enabled is True.
         """
         media_name = media_dir.name
-        is_tvshow = (media_dir / "tvshow.nfo").is_file()
+        is_tvshow = forced_type == "tvshow" if forced_type is not None else (media_dir / "tvshow.nfo").is_file()
         media_type: MediaTypeLiteral = "tvshow" if is_tvshow else "movie"
         title, year = parse_title_year(media_name)
         nfo_path = self._nfo_path_for(media_dir, title, media_type)

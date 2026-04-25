@@ -220,6 +220,93 @@ def _allowed_extensions(config: Any) -> set[str]:
         return {"mp4", "mkv", "webm"}
 
 
+def _resolve_category_token(config: Any, category: str) -> str:
+    """Resolve a --category token to the staging folder name to match against.
+
+    The CLI accepts any of: the staging entry ``name`` (e.g. ``tvshows``),
+    its ``file_type`` (``tvshow``), or the on-disk folder name
+    (``002-TVSHOWS``). All resolve to the canonical folder name. When nothing
+    matches we return the raw token so the legacy substring behaviour still
+    works for ad-hoc paths.
+
+    Args:
+        config: Loaded pipeline Config (may have ``staging_dirs``).
+        category: Raw ``--category`` value from the CLI.
+
+    Returns:
+        A path-substring guaranteed to live inside the canonical folder when
+        the token resolves; otherwise the raw token.
+    """
+    from personalscraper.conf.staging import folder_name
+
+    try:
+        entries = list(config.staging_dirs)
+    except (AttributeError, TypeError):
+        return category
+    token = category.strip()
+    token_lower = token.lower()
+    for entry in entries:
+        candidates = {
+            getattr(entry, "name", "").lower(),
+            (getattr(entry, "file_type", "") or "").lower(),
+            folder_name(entry).lower(),
+        }
+        if token_lower in candidates:
+            return folder_name(entry)
+    return category
+
+
+def _apply_filters(
+    items: list[ScanItem],
+    config: Any,
+    *,
+    disk: str | None,
+    category: str | None,
+    since_dt: datetime | None,
+    level: str,
+    season: int | None,
+    limit: int | None,
+) -> list[ScanItem]:
+    """Apply the full filter chain to a ScanItem list.
+
+    Centralises the filtering so the dry-run path AND the real download path
+    apply EXACTLY the same predicates. Without this helper, the real download
+    path historically silently ignored every CLI filter (2026-04-25 incident).
+
+    Args:
+        items: ScanItems produced by ``Scanner.scan_staging``.
+        config: Loaded pipeline Config (used by --disk and --category).
+        disk: Optional disk ID; when set, drop items not under the disk path.
+        category: Optional category token; resolved via
+            ``_resolve_category_token``, then applied as a path substring.
+        since_dt: Optional UTC cutoff for item age (NFO/dir mtime).
+        level: Resolved level (``show``/``season``/``both``).
+        season: Optional explicit season filter.
+        limit: Optional max item count.
+
+    Returns:
+        The filtered list, in the same order as the input.
+    """
+    items = _filter_since(items, since_dt)
+    items = _apply_level_filter(items, level, season)
+    if disk is not None:
+        disk_paths: list[Path] = []
+        try:
+            for d in config.disks:
+                if d.id == disk:
+                    disk_paths.append(Path(str(d.path)))
+        except (AttributeError, TypeError):
+            pass
+        if disk_paths:
+            items = [item for item in items if any(str(item.path).startswith(str(dp)) for dp in disk_paths)]
+    if category is not None:
+        token = _resolve_category_token(config, category)
+        items = [item for item in items if token in str(item.path)]
+    if limit is not None:
+        items = items[:limit]
+    return items
+
+
 # ---------------------------------------------------------------------------
 # scan
 # ---------------------------------------------------------------------------
@@ -272,29 +359,17 @@ def scan(
     )
 
     staging_dir: Path = Path(str(config.paths.staging_dir))
-    items = scanner.scan_staging(staging_dir)
-
-    items = _filter_since(items, since_dt)
-    items = _apply_level_filter(items, resolved_level, resolved_season)
-
-    # Apply --disk filter by checking whether item.path starts with a disk mount
-    if disk is not None:
-        disk_paths: list[Path] = []
-        try:
-            for d in config.disks:
-                if d.id == disk:
-                    disk_paths.append(Path(str(d.path)))
-        except (AttributeError, TypeError):
-            pass
-        if disk_paths:
-            items = [item for item in items if any(str(item.path).startswith(str(dp)) for dp in disk_paths)]
-
-    # Apply --category filter by checking path contains the category substring
-    if category is not None:
-        items = [item for item in items if category in str(item.path)]
-
-    if limit is not None:
-        items = items[:limit]
+    items = scanner.scan_staging(staging_dir, config)
+    items = _apply_filters(
+        items,
+        config,
+        disk=disk,
+        category=category,
+        since_dt=since_dt,
+        level=resolved_level,
+        season=resolved_season,
+        limit=limit,
+    )
 
     log.info("trailers_scan_complete", count=len(items), disk=disk, category=category)
 
@@ -363,40 +438,41 @@ def download(
     resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
     since_dt = _parse_since(since)
 
+    # Build the filtered candidate list ONCE, then either show it (dry-run)
+    # or hand it to the orchestrator (real). Sharing the same _apply_filters
+    # path is the load-bearing invariant: it makes the dry-run faithfully
+    # represent the real run, and prevents the real run from silently
+    # ignoring CLI filters (2026-04-25 incident).
+    scanner = Scanner(
+        min_file_size_bytes=_min_file_size(config),
+        seasons_enabled=seasons_enabled,
+    )
+    staging_dir = Path(str(config.paths.staging_dir))
+    items = scanner.scan_staging(staging_dir, config)
+    items = _apply_filters(
+        items,
+        config,
+        disk=disk,
+        category=category,
+        since_dt=since_dt,
+        level=resolved_level,
+        season=resolved_season,
+        limit=limit,
+    )
+
     if dry_run:
-        # Dry-run: reuse scan logic to show candidates without downloading
-        scanner = Scanner(
-            min_file_size_bytes=_min_file_size(config),
-            seasons_enabled=seasons_enabled,
+        console.print(
+            f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items."
         )
-        staging_dir = Path(str(config.paths.staging_dir))
-        items = scanner.scan_staging(staging_dir)
-        items = _filter_since(items, since_dt)
-        items = _apply_level_filter(items, resolved_level, resolved_season)
-
-        if disk is not None:
-            disk_paths: list[Path] = []
-            try:
-                for d in config.disks:
-                    if d.id == disk:
-                        disk_paths.append(Path(str(d.path)))
-            except (AttributeError, TypeError):
-                pass
-            if disk_paths:
-                items = [item for item in items if any(str(item.path).startswith(str(dp)) for dp in disk_paths)]
-
-        if category is not None:
-            items = [item for item in items if category in str(item.path)]
-
-        if limit is not None:
-            items = items[:limit]
-
-        console.print(f"[yellow]DRY-RUN:[/yellow] Would attempt to download trailers for {len(items)} items.")
+        for item in items:
+            season_col = (
+                f" (season {item.season_number})" if item.season_number is not None else ""
+            )
+            console.print(f"  - {item.title}{season_col}  [dim]{item.path}[/dim]")
         return
 
-    staging_dir = Path(str(config.paths.staging_dir))
     orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir)
-    counts = orchestrator.run()
+    counts = orchestrator.run(items=items)
 
     error_count = counts.get("error", 0)
 
