@@ -479,3 +479,155 @@ class TestConfigMethods:
         )
         assert "my_custom" in cfg.all_category_ids
         assert CID.MOVIES in cfg.all_category_ids
+
+
+# ---------------------------------------------------------------------------
+# TrailersConfig and nested models
+# ---------------------------------------------------------------------------
+
+
+class TestTrailersConfig:
+    """Tests for TrailersConfig and nested Pydantic models."""
+
+    def test_trailers_config_defaults_to_disabled(self):
+        """TrailersConfig defaults to enabled=False when not present in config.json5."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.enabled is False
+
+    def test_trailers_config_languages_default(self):
+        """TrailersConfig.languages defaults to ['fr-FR', 'en-US']."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.languages == ["fr-FR", "en-US"]
+
+    def test_trailers_config_retry_after_days_default(self):
+        """TrailersConfig.retry_after_days defaults to [1, 7, 30]."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.retry_after_days == [1, 7, 30]
+
+    def test_trailers_config_state_file_default(self):
+        """TrailersConfig.state_file defaults to '.data/trailers_state.json'."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.state_file == ".data/trailers_state.json"
+
+    def test_trailers_placement_defaults(self):
+        """TrailersPlacementConfig uses the flat convention for movies AND TV."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.placement.movie_pattern == "{folder}/{name}-trailer.{ext}"
+        assert cfg.placement.tvshow_pattern == "{folder}/{name}-trailer.{ext}"
+
+    def test_trailers_filters_defaults(self):
+        """TrailersFiltersConfig defaults match DESIGN section 9 spec (v0.7.0 minimal set)."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.filters.min_file_size_bytes == 102400
+        assert cfg.filters.max_filesize_mb == 500
+        assert set(cfg.filters.allowed_extensions) == {"mp4", "mkv", "webm"}
+
+    def test_trailers_ytdlp_defaults(self):
+        """TrailersYtdlpConfig defaults match DESIGN section 9 spec (1080p cap + fallback search)."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert "height<=1080" in cfg.ytdlp.format
+        assert cfg.ytdlp.socket_timeout_sec == 30
+        assert cfg.ytdlp.retries == 3
+        assert cfg.ytdlp.default_search == "ytsearch1"
+
+    def test_trailers_two_circuit_breakers(self):
+        """Two distinct breakers prevent YouTube failures from tripping TMDB."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.circuit_breakers.tmdb_videos.errors_threshold == 5
+        assert cfg.circuit_breakers.tmdb_videos.cooldown_sec == 1800
+        assert cfg.circuit_breakers.youtube.errors_threshold == 5
+        assert cfg.circuit_breakers.youtube.cooldown_sec == 3600
+
+    def test_trailers_youtube_api_defaults(self):
+        """YouTube Data API v3 quota accounting defaults."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.youtube_api.daily_quota_units == 10_000
+        assert cfg.youtube_api.search_list_cost_units == 100
+        assert cfg.youtube_api.cache_ttl_days == 7
+
+    def test_trailers_bot_detected_bounded_retry(self):
+        """Bounded bot_detected retry prevents infinite YouTube spam on age-restricted content."""
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.bot_detected_max_consecutive_attempts == 5
+
+    def test_trailers_config_has_seasons_default_disabled(self):
+        """Season-level trailer download is opt-in (default off).
+
+        Most shows lack TMDB season-level trailers; enabling by default would spam
+        YouTube searches that return nothing.
+        """
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.seasons.enabled is False
+        assert cfg.seasons.language_fallback is None
+        assert cfg.seasons.search_query_format == "{title} {year} saison {season} bande annonce"
+
+    def test_trailers_config_library_check_defaults(self):
+        """Library-aware idempotence has per-media-type toggles.
+
+        Defaults:
+        - movies: False — films rarely get re-ingested; library scan cost unjustified.
+        - tv_shows: True — new episodes of existing shows arrive frequently.
+        """
+        from personalscraper.conf.models import TrailersConfig
+
+        cfg = TrailersConfig()
+        assert cfg.library_check.movies is False
+        assert cfg.library_check.tv_shows is True
+
+    def test_config_trailers_field_defaults_to_disabled(self, tmp_path):
+        """Config.trailers defaults to TrailersConfig() with enabled=False."""
+        cfg = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+            ),
+            disks=[DiskConfig(id="disk_a", path=tmp_path / "disk_a", categories=list(CID.BUILTIN_CATEGORY_IDS))],
+            staging_dirs=CANONICAL_STAGING_DIRS,
+        )
+        assert cfg.trailers.enabled is False
+
+    def test_config_without_trailers_section_is_valid(self, tmp_path):
+        """Config without a trailers block parses cleanly (enabled=False by default)."""
+        from personalscraper.conf.loader import load_config
+
+        cfg_file = tmp_path / "config.json5"
+        complete = str(tmp_path / "complete")
+        staging = str(tmp_path / "staging")
+        data = str(tmp_path / ".data")
+        disk_a = str(tmp_path / "disk_a")
+        content = (
+            "{\n"
+            f'  paths: {{ torrent_complete_dir: "{complete}", staging_dir: "{staging}", data_dir: "{data}" }},\n'
+            f'  disks: [{{ id: "disk_a", path: "{disk_a}", categories: ["movies", "tv_shows"] }}],\n'
+            "  staging_dirs: [\n"
+            '    { id: 1, name: "movies", file_type: "movie" },\n'
+            '    { id: 2, name: "tvshows", file_type: "tvshow" },\n'
+            '    { id: 97, name: "temp", file_type: null, role: "ingest" },\n'
+            "  ],\n"
+            "}"
+        )
+        cfg_file.write_text(content, encoding="utf-8")
+        config = load_config(cfg_file)
+        assert config.trailers.enabled is False
