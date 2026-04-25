@@ -1,4 +1,4 @@
-"""Unit tests for trailers/placement.py -- flat Plex/Kodi/Jellyfin naming convention.
+"""Unit tests for trailers/placement.py — flat Plex/Kodi/Jellyfin naming convention.
 
 All tests use tmpdir fixtures. No network, no yt-dlp.
 """
@@ -16,11 +16,11 @@ from personalscraper.trailers.placement import (
     write_trailer_url_to_nfo,
 )
 
-# -- path computation (flat convention, shared for movies and TV) -------------
+# ── path computation (flat convention, shared for movies and TV) ─────────────
 
 
 class TestTrailerPathFor:
-    """Tests for trailer_path_for() -- flat convention for movies and TV shows."""
+    """Tests for trailer_path_for() — flat naming convention for movies and TV shows."""
 
     def test_movie_follows_flat_name_dash_trailer_ext(self, tmp_path: Path) -> None:
         """Movies use {folder}/{name}-trailer.{ext}."""
@@ -30,7 +30,7 @@ class TestTrailerPathFor:
         assert path == movie_dir / "Fight Club (1999)-trailer.mp4"
 
     def test_tvshow_follows_same_flat_convention(self, tmp_path: Path) -> None:
-        """TV shows use the SAME convention -- no trailers/ subfolder."""
+        """TV shows use the SAME convention — no trailers/ subfolder."""
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
         path = trailer_path_for(show_dir, "Breaking Bad (2008)", ext="mp4")
@@ -39,20 +39,20 @@ class TestTrailerPathFor:
         assert "trailers" not in [p.name.lower() for p in path.parents]
 
     def test_default_extension_is_mp4(self, tmp_path: Path) -> None:
-        """Default ext parameter is mp4 since most yt-dlp outputs are mp4."""
+        """Default `ext` parameter is 'mp4' since most yt-dlp outputs are mp4."""
         d = tmp_path / "X"
         d.mkdir()
         assert trailer_path_for(d, "X").suffix == ".mp4"
 
     def test_extension_can_be_webm_or_mkv(self, tmp_path: Path) -> None:
-        """Extension is dynamic -- yt-dlp may return webm/mkv in edge cases."""
+        """Extension is dynamic — yt-dlp may return webm/mkv in edge cases."""
         d = tmp_path / "Interstellar (2014)"
         d.mkdir()
         assert trailer_path_for(d, "Interstellar (2014)", ext="webm").suffix == ".webm"
         assert trailer_path_for(d, "Interstellar (2014)", ext="mkv").suffix == ".mkv"
 
     def test_leading_dot_in_ext_is_tolerated(self, tmp_path: Path) -> None:
-        """Caller may pass mp4 or .mp4 -- either works."""
+        """Caller may pass 'mp4' or '.mp4' — either works."""
         d = tmp_path / "X"
         d.mkdir()
         a = trailer_path_for(d, "X", ext="mp4")
@@ -60,18 +60,19 @@ class TestTrailerPathFor:
         assert a == b
 
 
-# -- season-level path computation -----------------------------------------
+# ── season-level path computation (opt-in via config.trailers.seasons.enabled) ──
 
 
 class TestTrailerPathForSeason:
-    """Tests for trailer_path_for_season() -- season-level flat convention."""
+    """Tests for trailer_path_for_season() — season-level path convention (opt-in)."""
 
     def test_trailer_path_for_season_builds_conventional_path(self, tmp_path: Path) -> None:
         """Season trailer lands at {show}/Saison {SS:02d}/{show} - Saison {SS:02d}-trailer.{ext}.
 
-        Mirrors the existing personalscraper French season layout (Saison XX/) and
+        Mirrors the existing personalscraper French season layout (`Saison XX/`) and
         keeps the show-name prefix so Plex Local Media Assets recognises it as a
-        trailer for the parent show.
+        trailer for the parent show. See DESIGN §4 "Season trailers" for the
+        rationale (Plex does not natively model season-scoped trailers).
         """
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
@@ -79,7 +80,7 @@ class TestTrailerPathForSeason:
         assert path == show_dir / "Saison 01" / "Breaking Bad (2008) - Saison 01-trailer.mp4"
 
     def test_trailer_path_for_season_respects_custom_extension(self, tmp_path: Path) -> None:
-        """Caller decides the extension -- yt-dlp may yield mkv/webm in edge cases."""
+        """Caller decides the extension — yt-dlp may yield mkv/webm in edge cases."""
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
         webm_path = trailer_path_for_season(show_dir, season_number=2, extension="webm")
@@ -95,18 +96,22 @@ class TestTrailerPathForSeason:
         assert path.name == "Téléphérique (2019) - Saison 03-trailer.mp4"
 
     def test_trailer_path_for_season_does_not_use_trailers_subfolder(self, tmp_path: Path) -> None:
-        """Guard: season trailers are NOT placed in a trailers/ subdirectory."""
+        """Guard: season trailers are NOT placed in a `trailers/` subdirectory.
+
+        Same guard as the show-level convention — the only structural folder
+        introduced is the canonical `Saison XX/` season folder.
+        """
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
         path = trailer_path_for_season(show_dir, season_number=1, extension="mp4")
         assert "trailers" not in [p.name.lower() for p in path.parents]
 
 
-# -- tolerant lookup across known extensions --------------------------------
+# ── tolerant lookup across known extensions ──────────────────────────────────
 
 
 class TestFindExistingTrailer:
-    """Tests for find_existing_trailer() -- tolerant lookup across extensions."""
+    """Tests for find_existing_trailer() — tolerant lookup across known extensions."""
 
     def test_finds_mp4(self, tmp_path: Path) -> None:
         """find_existing_trailer prefers mp4 when multiple candidates exist."""
@@ -137,11 +142,11 @@ class TestFindExistingTrailer:
         assert find_existing_trailer(d, "X") is None
 
 
-# -- trailer_exists -----------------------------------------------------------
+# ── trailer_exists ────────────────────────────────────────────────────────────
 
 
 class TestTrailerExists:
-    """Tests for trailer_exists() -- size-gated existence check."""
+    """Tests for trailer_exists() — size-gated existence check."""
 
     def test_returns_false_when_file_absent(self, tmp_path: Path) -> None:
         """trailer_exists returns False when the file does not exist."""
@@ -173,11 +178,11 @@ class TestTrailerExists:
         assert trailer_exists(d, min_size_bytes=0) is False
 
 
-# -- NFO trailer tag population ----------------------------------------------
+# ── NFO trailer tag population ───────────────────────────────────────────────
 
 
 class TestWriteTrailerUrlToNfo:
-    """Tests for write_trailer_url_to_nfo() -- NFO trailer-tag population."""
+    """Tests for write_trailer_url_to_nfo() — NFO <trailer> tag population."""
 
     def _make_nfo(self, tmp_path: Path, trailer_text: str = "") -> Path:
         """Build a minimal movie NFO that matches what nfo_generator.py emits."""
@@ -218,7 +223,7 @@ class TestWriteTrailerUrlToNfo:
         assert elem.text == "https://www.youtube.com/watch?v=Z"
 
     def test_missing_nfo_is_noop(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """A missing NFO logs a warning and returns -- never raises."""
+        """A missing NFO logs a warning and returns — never raises."""
         missing = tmp_path / "does_not_exist.nfo"
         write_trailer_url_to_nfo(missing, "https://example")  # must not raise
         assert any("NFO not found" in rec.message for rec in caplog.records)
