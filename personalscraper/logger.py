@@ -2,11 +2,49 @@
 
 import logging
 import logging.config
+import re
+from collections.abc import MutableMapping
 from pathlib import Path
-from typing import cast
+from typing import Any, Union, cast
 
 import structlog
 from structlog.types import Processor
+
+_SECRET_KEY_RE = re.compile(r"^(api[_-]?key|authorization|cookie|key)$", re.IGNORECASE)
+_URL_KEY_PARAM_RE = re.compile(r"([?&])key=[^&]*")
+
+
+def redact_secrets(
+    _logger: Any,
+    _method_name: str,
+    event_dict: MutableMapping[str, Any],
+) -> Union[MutableMapping[str, Any], str, bytes]:
+    """Recursively redact secret-looking values from the event dict.
+
+    Also strips the ``key=<value>`` query parameter from any string field
+    that looks like a URL (contains ``?key=`` or ``&key=``).
+
+    Args:
+        _logger: Unused — required by the structlog processor interface.
+        _method_name: Unused — required by the structlog processor interface.
+        event_dict: The structlog event dict to sanitize.
+
+    Returns:
+        A new dict with secret values replaced by ``"***REDACTED***"``.
+    """
+
+    def _walk(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return {k: ("***REDACTED***" if _SECRET_KEY_RE.match(k) else _walk(v)) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_walk(x) for x in obj]
+        if isinstance(obj, str) and "key=" in obj and ("?" in obj or "&" in obj):
+            return _URL_KEY_PARAM_RE.sub(r"\1key=***REDACTED***", obj)
+        return obj
+
+    result: dict[str, Any] = _walk(event_dict)
+    return result
+
 
 LOGS_DIR = Path(__file__).resolve().parent.parent / "logs"
 
@@ -99,6 +137,7 @@ def configure_logging(verbose: bool = False, quiet: bool = False) -> None:
     structlog.configure(
         processors=shared_processors
         + [
+            redact_secrets,
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
