@@ -51,11 +51,10 @@ def run_trailers(
         )
         return StepReport(name="trailers", status="skipped")
 
-    # Deferred import: avoids a circular dependency between this step entry-point
-    # and the orchestrator (which imports from this module's siblings).
-    from personalscraper.trailers.orchestrator import (  # noqa: PLC0415
-        TrailersOrchestrator,
-    )
+    # Deferred imports: avoids circular dependencies between this step entry-point
+    # and the orchestrator / state modules (which import from this module's siblings).
+    from personalscraper.trailers.orchestrator import TrailersOrchestrator  # noqa: PLC0415
+    from personalscraper.trailers.state import TrailerStateLocked  # noqa: PLC0415
 
     try:
         orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir)
@@ -90,6 +89,17 @@ def run_trailers(
             errors=error_count,
         )
         return report
+
+    except TrailerStateLocked as exc:
+        # Another process is holding the state-file lock — surfaced as a clean
+        # error rather than a deadlock.  The pipeline logs and continues to
+        # dispatch (non-blocking by default).
+        logger.error(
+            "trailers_state_locked",
+            lock_path=str(exc.lock_path),
+            holder_pid=exc.holder_pid,
+        )
+        return StepReport(name="trailers", error_count=1, status="error")
 
     except Exception as exc:  # noqa: BLE001 — last-resort guard so the pipeline can dispatch
         logger.exception(

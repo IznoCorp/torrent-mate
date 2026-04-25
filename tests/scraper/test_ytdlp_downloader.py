@@ -259,9 +259,7 @@ class TestYtdlpDownloader:
 
         assert captured_opts[0]["format"] == "best[ext=mp4]/best"
 
-    def test_opts_outtmpl_strips_extension_and_pins_mp4(
-        self, downloader: YtdlpDownloader, tmp_path: Path
-    ) -> None:
+    def test_opts_outtmpl_strips_extension_and_pins_mp4(self, downloader: YtdlpDownloader, tmp_path: Path) -> None:
         """Outtmpl drops the caller's extension and pins merge to mp4.
 
         Regression: prior to the fix, passing "...-trailer.mp4" as ``output_path``
@@ -340,6 +338,7 @@ class TestYtdlpDownloader:
         )
         call_count = 0
         captured_opts: list[dict] = []  # type: ignore[type-arg]
+        output_file = tmp_path / "trailer.mp4"
 
         def fake_ydl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
             nonlocal call_count
@@ -349,9 +348,12 @@ class TestYtdlpDownloader:
             if call_count == 1:
                 # First call: simulate bot detection.
                 mock.download.side_effect = Exception("Sign in to confirm your age")
+            else:
+                # Second call (retry without cookies): write the output file so that
+                # _verify_output() reports success.
+                mock.download.side_effect = lambda urls: output_file.write_bytes(b"x" * 1024) or 0
             return mock
 
-        output_file = tmp_path / "trailer.mp4"
         with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl):
             result = d.download("https://www.youtube.com/watch?v=test", output_file)
 
@@ -389,6 +391,132 @@ class TestYtdlpDownloader:
         assert call_count == 2, "expected two attempts (with and without cookies)"
         assert result.status == DownloadStatus.BOT_DETECTED, (
             "bot-detection must NOT be coerced into SUCCESS when the retry also fails"
+        )
+
+
+# ── Sub-phase 10.1 new tests ─────────────────────────────────────────────────
+
+
+class TestOutputVerification:
+    """C3 — download() verifies the output file after a successful yt-dlp call."""
+
+    def test_download_returns_ytdlp_error_when_output_extension_mismatch(
+        self, downloader: YtdlpDownloader, tmp_path: Path
+    ) -> None:
+        """Returns YTDLP_ERROR when yt-dlp writes a .webm instead of the expected .mp4.
+
+        This simulates an ffmpeg-merge failure: yt-dlp writes the raw video stream
+        at the .webm path while result.output_path claims .mp4.
+        """
+        output_file = tmp_path / "movie-trailer.mp4"
+        # yt-dlp writes a .webm sibling instead of the expected .mp4.
+        sibling_webm = tmp_path / "movie-trailer.webm"
+
+        def fake_download(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            # Write .webm — not .mp4 — simulating a failed ffmpeg remux.
+            sibling_webm.write_bytes(b"x" * 1024)
+            return _make_mock_ydl()
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_download):
+            result = downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        assert result.error_message is not None
+        assert ".webm" in result.error_message
+        assert "mismatch" in result.error_message
+
+    def test_download_returns_ytdlp_error_when_output_missing(
+        self, downloader: YtdlpDownloader, tmp_path: Path
+    ) -> None:
+        """Returns YTDLP_ERROR when yt-dlp exits cleanly but writes no file at all."""
+        output_file = tmp_path / "movie-trailer.mp4"
+
+        def fake_download(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            # Write nothing — simulates yt-dlp silently producing no output.
+            return _make_mock_ydl()
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_download):
+            result = downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        assert result.error_message == "downloaded file missing"
+
+
+class TestPartialFileCleanup:
+    """C4 — download() removes partial files on every non-success path."""
+
+    def test_download_cleans_up_partial_files_on_exception(self, downloader: YtdlpDownloader, tmp_path: Path) -> None:
+        """Partial files (.part, .frag1) are removed when yt-dlp raises an exception.
+
+        The expected .mp4 output is NOT created; only the partial intermediates are
+        present before the exception fires.
+        """
+        output_file = tmp_path / "movie-trailer.mp4"
+        # Pre-create partial files that yt-dlp would leave behind.
+        part_file = tmp_path / "movie-trailer.part"
+        frag_file = tmp_path / "movie-trailer.frag1"
+        part_file.write_bytes(b"partial data")
+        frag_file.write_bytes(b"fragment data")
+
+        def fake_download(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            mock = _make_mock_ydl()
+            mock.download.side_effect = Exception("Connection reset by peer")
+            return mock
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_download):
+            result = downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        # Both partial files must be gone after the cleanup sweep.
+        assert not part_file.exists(), ".part file was not cleaned up"
+        assert not frag_file.exists(), ".frag1 file was not cleaned up"
+        # The expected .mp4 was never created — no file should exist.
+        assert not output_file.exists()
+
+
+class TestRetryTransportErrorClassification:
+    """I3 — retry-without-cookies path re-classifies exceptions correctly."""
+
+    def test_retry_without_cookies_classifies_transport_error_as_ytdlp_error(self, tmp_path: Path) -> None:
+        """A transport error on the cookie-less retry returns YTDLP_ERROR, not BOT_DETECTED.
+
+        Before the fix every exception in the retry was classified as BOT_DETECTED,
+        which made the state store exempt those entries from next_retry_at and
+        retry them on every single run (infinite re-attempts on transport errors).
+        """
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cfg = CookieConfig(cookie_file=cookie_file, cookie_from_browser=None)
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=1,
+            cookie_config=cfg,
+        )
+        call_count = 0
+
+        def fake_ydl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            nonlocal call_count
+            call_count += 1
+            mock = _make_mock_ydl()
+            if call_count == 1:
+                # First attempt: bot-detection triggers the retry path.
+                mock.download.side_effect = Exception("Sign in to confirm your age")
+            else:
+                # Second attempt: a real transport error (not bot-detection).
+                mock.download.side_effect = Exception("Connection reset by peer")
+            return mock
+
+        output_file = tmp_path / "trailer.mp4"
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_ydl):
+            result = d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert call_count == 2, "expected exactly two attempts"
+        # Transport error on retry must be classified as YTDLP_ERROR so that the
+        # state store schedules a normal retry-after cooldown.
+        assert result.status == DownloadStatus.YTDLP_ERROR, (
+            f"expected YTDLP_ERROR for transport error on retry, got {result.status}"
         )
 
 

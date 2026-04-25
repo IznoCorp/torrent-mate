@@ -371,11 +371,84 @@ class YtdlpDownloader:
                 signal.alarm(0)
                 signal.signal(signal.SIGALRM, old_handler)
 
+    def _verify_output(self, output_path: Path) -> DownloadResult | None:
+        """Verify the expected output file exists and meets the minimum size.
+
+        Globs the parent directory for siblings with the same stem but a
+        different extension (e.g. ``.webm`` when ffmpeg merge failed). Returns
+        a ``YTDLP_ERROR`` result if the file is absent or too small, or ``None``
+        when the file looks good (callers proceed to declare ``SUCCESS``).
+
+        Args:
+            output_path: The expected output path (e.g. ``name-trailer.mp4``).
+
+        Returns:
+            ``None`` if the file exists and is large enough.
+            A ``DownloadResult(YTDLP_ERROR)`` otherwise.
+        """
+        if not output_path.exists():
+            # Check for a sibling with a different extension — ffmpeg-merge failure
+            # leaves the raw stream (e.g. ``.webm``) while reporting success.
+            stem = output_path.with_suffix("").name
+            siblings = [p for p in output_path.parent.glob(f"{stem}.*") if p.suffix != output_path.suffix]
+            if siblings:
+                got_ext = siblings[0].suffix
+                msg = (
+                    f"downloaded file extension mismatch (got {got_ext}, "
+                    f"expected {output_path.suffix}); ffmpeg merge failed"
+                )
+            else:
+                msg = "downloaded file missing"
+            logger.warning("ytdlp_output_verification_failed", output_path=str(output_path), reason=msg)
+            return DownloadResult(status=DownloadStatus.YTDLP_ERROR, error_message=msg)
+
+        # File exists — check minimum size.
+        actual_size = output_path.stat().st_size
+        if actual_size <= 0:
+            msg = f"downloaded file is empty (size={actual_size})"
+            logger.warning("ytdlp_output_verification_failed", output_path=str(output_path), reason=msg)
+            return DownloadResult(status=DownloadStatus.YTDLP_ERROR, error_message=msg)
+
+        return None
+
+    def _cleanup_partial_files(self, output_path: Path, url: str) -> None:
+        """Remove yt-dlp partial/fragment files left by a failed download.
+
+        Enumerates ``output_path.parent`` for files sharing the same stem as
+        ``output_path`` but with a different suffix (e.g. ``.part``, ``.frag1``,
+        ``.temp.xxx``). Unlinks each one and emits a single summary log event.
+
+        Args:
+            output_path: The intended final output path (its suffix is kept).
+            url: Original download URL, forwarded to the log event for tracing.
+        """
+        stem = output_path.with_suffix("").name
+        removed = 0
+        for candidate in output_path.parent.glob(f"{stem}.*"):
+            if candidate.suffix == output_path.suffix:
+                # Keep the actual completed file (if any) — callers verify it
+                # separately.
+                continue
+            try:
+                candidate.unlink()
+                removed += 1
+            except OSError as exc:
+                logger.warning(
+                    "ytdlp_partial_cleanup_error",
+                    path=str(candidate),
+                    error=str(exc),
+                )
+        logger.info("ytdlp_partial_cleanup", url=url, removed=removed)
+
     def download(self, url: str, output_path: Path) -> DownloadResult:
         """Download a video from url to output_path using yt-dlp.
 
         Tries with cookies first; if bot-detection error occurs, retries
         once without cookies. Never raises — returns DownloadResult.
+
+        After each successful yt-dlp call, verifies that the expected output
+        file exists and is non-empty (C3). On any failure path, removes partial
+        files (``.part``, ``.frag*``, ``.temp.*``) via a ``finally`` sweep (C4).
 
         Args:
             url: YouTube (or other yt-dlp-supported) video URL.
@@ -388,10 +461,10 @@ class YtdlpDownloader:
         opts = self._build_opts(output_path, include_cookies=True)
         try:
             self._attempt_download(url, output_path, opts)
-            logger.info("ytdlp_download_success", url=url, output_path=str(output_path))
-            return DownloadResult(status=DownloadStatus.SUCCESS, output_path=output_path)
         except _WallClockTimeout:
             logger.warning("ytdlp_download_timeout", url=url, wall_clock_sec=self._max_wall_clock_sec)
+            # C4: clean up partial files left by a timed-out download.
+            self._cleanup_partial_files(output_path, url)
             return DownloadResult(
                 status=DownloadStatus.YTDLP_ERROR,
                 error_message="wall-clock timeout",
@@ -406,6 +479,8 @@ class YtdlpDownloader:
                     error=error_msg,
                     error_type=type(exc).__name__,
                 )
+                # C4: clean up partial files left by the failed download.
+                self._cleanup_partial_files(output_path, url)
                 return DownloadResult(
                     status=DownloadStatus.YTDLP_ERROR,
                     error_message=error_msg,
@@ -420,22 +495,58 @@ class YtdlpDownloader:
             opts_no_cookies = self._build_opts(output_path, include_cookies=False)
             try:
                 self._attempt_download(url, output_path, opts_no_cookies)
-                logger.info("ytdlp_download_success_no_cookies", url=url, output_path=str(output_path))
-                return DownloadResult(status=DownloadStatus.SUCCESS, output_path=output_path)
             except _WallClockTimeout:
                 logger.warning(
                     "ytdlp_download_timeout_no_cookies",
                     url=url,
                     wall_clock_sec=self._max_wall_clock_sec,
                 )
+                # C4: clean up partial files left by a timed-out retry.
+                self._cleanup_partial_files(output_path, url)
                 return DownloadResult(
                     status=DownloadStatus.YTDLP_ERROR,
                     error_message="wall-clock timeout (retry without cookies)",
                 )
             except Exception as retry_exc:  # noqa: BLE001
                 retry_msg = str(retry_exc)
-                logger.warning("ytdlp_bot_detected_retry_failed", url=url, error=retry_msg)
+                # I3: re-classify the retry exception — only genuine bot-detection
+                # signals are BOT_DETECTED; transport errors get YTDLP_ERROR so
+                # the state store applies normal retry-after semantics.
+                if _is_bot_detection_error(retry_msg):
+                    logger.warning("ytdlp_bot_detected_retry_failed", url=url, error=retry_msg)
+                    # C4: clean up partial files.
+                    self._cleanup_partial_files(output_path, url)
+                    return DownloadResult(
+                        status=DownloadStatus.BOT_DETECTED,
+                        error_message=retry_msg,
+                    )
+                logger.warning(
+                    "ytdlp_retry_transport_error",
+                    url=url,
+                    error=retry_msg,
+                    error_type=type(retry_exc).__name__,
+                )
+                # C4: clean up partial files.
+                self._cleanup_partial_files(output_path, url)
                 return DownloadResult(
-                    status=DownloadStatus.BOT_DETECTED,
+                    status=DownloadStatus.YTDLP_ERROR,
                     error_message=retry_msg,
                 )
+            # Retry succeeded — fall through to C3 verification below.
+            logger.info("ytdlp_download_success_no_cookies", url=url, output_path=str(output_path))
+            # C3: verify the retry output file before declaring success.
+            verify_result = self._verify_output(output_path)
+            if verify_result is not None:
+                self._cleanup_partial_files(output_path, url)
+                return verify_result
+            return DownloadResult(status=DownloadStatus.SUCCESS, output_path=output_path)
+
+        # First attempt succeeded — C3: verify the output file before declaring success.
+        verify_result = self._verify_output(output_path)
+        if verify_result is not None:
+            # C4: clean up any partial/sibling files (e.g. the .webm from a failed merge).
+            self._cleanup_partial_files(output_path, url)
+            return verify_result
+
+        logger.info("ytdlp_download_success", url=url, output_path=str(output_path))
+        return DownloadResult(status=DownloadStatus.SUCCESS, output_path=output_path)

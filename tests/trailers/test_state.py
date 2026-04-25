@@ -6,6 +6,7 @@ import pytest
 
 from personalscraper.trailers.state import (
     TrailerState,
+    TrailerStateLocked,
     TrailerStateStore,
     TrailerStatus,
     compute_next_retry_at,
@@ -494,3 +495,89 @@ class TestAutoGC:
         result = store.get("movie:tmdb:3")
         assert result is not None
         assert result.status == TrailerStatus.DOWNLOADED
+
+
+# ── Sub-phase 10.1 new tests ──────────────────────────────────────────────────
+
+
+def _hold_lock_and_signal(lock_path: Path, ready_event_path: Path, duration_sec: float) -> None:
+    """Hold an exclusive flock on ``lock_path`` for ``duration_sec`` seconds.
+
+    Writes a sentinel file at ``ready_event_path`` once the lock is acquired
+    so the parent process knows when to start its own acquisition attempt.
+
+    Args:
+        lock_path: Path to the ``.lock`` file to lock.
+        ready_event_path: Path to a sentinel file created when lock is held.
+        duration_sec: How long to hold the lock before releasing.
+    """
+    import fcntl
+    import time
+
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        # Signal parent that the lock is now held.
+        ready_event_path.write_text("ready")
+        time.sleep(duration_sec)
+        fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+class TestLockContention:
+    """C7 — TrailerStateStore raises TrailerStateLocked when lock is unavailable."""
+
+    def test_lock_contention_raises_trailer_state_locked(self, tmp_path: Path) -> None:
+        """set() raises TrailerStateLocked when another process holds the lock.
+
+        A child process acquires an exclusive flock on the ``.lock`` sibling and
+        holds it for longer than the retry budget (3 × 0.5 s = 1.5 s).  The
+        parent must raise ``TrailerStateLocked`` — not block indefinitely — and
+        the child's PID must be resolvable via lsof.
+        """
+        import multiprocessing
+        import time
+
+        state_file = tmp_path / "trailers_state.json"
+        lock_path = state_file.with_suffix(".lock")
+        ready_sentinel = tmp_path / "lock_held.sentinel"
+
+        # Hold the lock for 3 seconds — well beyond the 1.5 s retry budget.
+        holder = multiprocessing.Process(
+            target=_hold_lock_and_signal,
+            args=(lock_path, ready_sentinel, 3.0),
+        )
+        holder.start()
+
+        # Wait until the child has actually acquired the lock.
+        deadline = time.monotonic() + 5.0
+        while not ready_sentinel.exists():
+            if time.monotonic() > deadline:
+                holder.terminate()
+                pytest.fail("Child process did not acquire the lock within 5 s")
+            time.sleep(0.05)
+
+        store = TrailerStateStore(state_file=state_file)
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.YTDLP_ERROR,
+            media_path="/fake/path",
+        )
+
+        try:
+            with pytest.raises(TrailerStateLocked) as exc_info:
+                store.set("movie:tmdb:99", state)
+
+            locked_exc = exc_info.value
+            assert locked_exc.lock_path == lock_path
+            # holder_pid is best-effort via lsof — degrade gracefully when absent.
+            # When present it must be a positive integer; exact PID matching is not
+            # asserted because lsof may return the parent/waiting process first on
+            # macOS (all openers of the file are listed, not just the lock holder).
+            if locked_exc.holder_pid is not None:
+                assert isinstance(locked_exc.holder_pid, int)
+                assert locked_exc.holder_pid > 0
+        finally:
+            holder.join(timeout=5)
+            if holder.is_alive():
+                holder.terminate()

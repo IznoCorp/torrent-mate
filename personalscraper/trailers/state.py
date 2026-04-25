@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import time
 import unicodedata
@@ -56,6 +57,67 @@ except ImportError:  # pragma: no cover — Windows only
 UTC = timezone.utc
 
 _STATE_VERSION = 1
+
+# Bounded lock-acquisition parameters (C7).
+_LOCK_MAX_ATTEMPTS = 3
+_LOCK_RETRY_SLEEP_SEC = 0.5
+
+
+# ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+
+class TrailerStateLocked(Exception):
+    """Raised when the state-file lock cannot be acquired within the retry budget.
+
+    Two concurrent ``personalscraper trailers`` processes contend on the same
+    ``.lock`` file.  After ``_LOCK_MAX_ATTEMPTS`` non-blocking attempts (each
+    separated by ``_LOCK_RETRY_SLEEP_SEC`` seconds), the caller gives up and
+    raises this exception rather than blocking indefinitely.
+
+    Attributes:
+        lock_path: Path to the advisory lock file.
+        holder_pid: PID of the process currently holding the lock, or ``None``
+            if ``lsof`` is unavailable or returns no output.
+    """
+
+    def __init__(self, lock_path: Path, holder_pid: int | None = None) -> None:
+        """Initialise with the lock path and optional holder PID.
+
+        Args:
+            lock_path: Path to the advisory lock file.
+            holder_pid: PID of the lock holder, or ``None`` if unresolvable.
+        """
+        self.lock_path = lock_path
+        self.holder_pid = holder_pid
+        pid_hint = f" (held by PID {holder_pid})" if holder_pid is not None else ""
+        super().__init__(f"Trailer state lock unavailable: {lock_path}{pid_hint}")
+
+
+def _resolve_lock_holder_pid(lock_path: Path) -> int | None:
+    """Best-effort: return the PID of the process holding ``lock_path``.
+
+    Calls ``lsof -t`` and parses the first non-empty line. Returns ``None``
+    if ``lsof`` is missing, returns no output, or its exit code is non-zero.
+
+    Args:
+        lock_path: Path to the advisory lock file.
+
+    Returns:
+        Integer PID, or ``None`` if unresolvable.
+    """
+    try:
+        result = subprocess.run(
+            ["lsof", "-t", str(lock_path)],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        first_line = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
+        return int(first_line) if first_line.isdigit() else None
+    except Exception:  # noqa: BLE001 — degrade gracefully (lsof absent, timeout, parse error)
+        return None
 
 
 def _validate_season_number(value: int | None, owner: str) -> None:
@@ -367,6 +429,40 @@ class TrailerStateStore:
             return None
         return self._deserialize(raw)
 
+    def _acquire_lock(self, lock_fh: Any) -> None:
+        """Acquire an exclusive non-blocking flock with a bounded retry budget.
+
+        Attempts ``_LOCK_MAX_ATTEMPTS`` times with ``_LOCK_RETRY_SLEEP_SEC``
+        between each attempt.  Uses ``LOCK_EX | LOCK_NB`` so each attempt
+        returns immediately instead of blocking forever (C7 fix: prevents
+        deadlock when two concurrent processes contend on the same lock file).
+
+        Args:
+            lock_fh: Open file handle to the ``.lock`` sibling file.
+
+        Raises:
+            TrailerStateLocked: If the lock cannot be acquired within the
+                configured retry budget.
+        """
+        for attempt in range(_LOCK_MAX_ATTEMPTS):
+            try:
+                _fcntl.flock(lock_fh, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+                return  # Lock acquired.
+            except OSError:
+                # LOCK_NB raises BlockingIOError (OSError subclass) when the
+                # lock is held by another process.
+                if attempt < _LOCK_MAX_ATTEMPTS - 1:
+                    time.sleep(_LOCK_RETRY_SLEEP_SEC)
+        # Budget exhausted — resolve holder PID for diagnostics.
+        holder_pid = _resolve_lock_holder_pid(self._lock_file)
+        log.warning(
+            "trailers_state_lock_contention",
+            lock_path=str(self._lock_file),
+            attempts=_LOCK_MAX_ATTEMPTS,
+            holder_pid=holder_pid,
+        )
+        raise TrailerStateLocked(self._lock_file, holder_pid)
+
     def set(self, key: str, state: TrailerState) -> None:
         """Write or overwrite the ``TrailerState`` for ``key`` atomically.
 
@@ -376,11 +472,15 @@ class TrailerStateStore:
         Args:
             key: Composite state key.
             state: ``TrailerState`` to persist.
+
+        Raises:
+            TrailerStateLocked: If the advisory lock cannot be acquired within
+                the retry budget (Unix only).
         """
         if _FCNTL_AVAILABLE and _fcntl is not None:
             self._lock_file.parent.mkdir(parents=True, exist_ok=True)
             with self._lock_file.open("a") as lock_fh:
-                _fcntl.flock(lock_fh, _fcntl.LOCK_EX)
+                self._acquire_lock(lock_fh)
                 try:
                     entries = self._load()
                     entries[key] = self._serialize(state)
@@ -472,11 +572,15 @@ class TrailerStateStore:
 
         Should be called at the start of every ``trailers`` command/step so
         stale entries from deleted or moved media are caught promptly.
+
+        Raises:
+            TrailerStateLocked: If the advisory lock cannot be acquired within
+                the retry budget (Unix only).
         """
         if _FCNTL_AVAILABLE and _fcntl is not None:
             self._lock_file.parent.mkdir(parents=True, exist_ok=True)
             with self._lock_file.open("a") as lock_fh:
-                _fcntl.flock(lock_fh, _fcntl.LOCK_EX)
+                self._acquire_lock(lock_fh)
                 try:
                     self._run_gc()
                 finally:
@@ -492,11 +596,15 @@ class TrailerStateStore:
 
         Returns:
             Number of entries removed.
+
+        Raises:
+            TrailerStateLocked: If the advisory lock cannot be acquired within
+                the retry budget (Unix only).
         """
         if _FCNTL_AVAILABLE and _fcntl is not None:
             self._lock_file.parent.mkdir(parents=True, exist_ok=True)
             with self._lock_file.open("a") as lock_fh:
-                _fcntl.flock(lock_fh, _fcntl.LOCK_EX)
+                self._acquire_lock(lock_fh)
                 try:
                     return self._do_purge_orphans()
                 finally:
@@ -709,6 +817,7 @@ __all__ = [
     "TrailerStatus",
     "TrailerState",
     "TrailerStateStore",
+    "TrailerStateLocked",
     "make_state_key",
     "compute_next_retry_at",
 ]
