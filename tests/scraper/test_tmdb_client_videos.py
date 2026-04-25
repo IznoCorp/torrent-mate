@@ -153,25 +153,41 @@ class TestFetchTvSeasonVideos:
 class TestVideoNormalisation:
     """Verify Video.__post_init__ canonical-case normalisation and size validation."""
 
-    def test_site_lowercase_normalised_to_canonical(self):
-        """A lower-case "youtube" is normalised to canonical "YouTube"."""
-        v = Video(id="x", site="youtube", key="k", type="Trailer", official=True, size=1080, iso_639_1="en")
-        assert v.site == "YouTube"
+    @pytest.mark.parametrize(
+        ("input_site", "expected"),
+        [
+            ("youtube", "YouTube"),
+            ("YouTube", "YouTube"),
+            ("vimeo", "Vimeo"),
+            ("Vimeo", "Vimeo"),
+            ("dailymotion", "DailyMotion"),
+            ("DailyMotion", "DailyMotion"),
+        ],
+    )
+    def test_site_normalised_to_canonical(self, input_site, expected):
+        """All known TMDB sites land on their canonical casing."""
+        v = Video(id="x", site=input_site, key="k", type="Trailer", official=True, size=1080, iso_639_1="en")
+        assert v.site == expected
 
-    def test_type_multi_word_preserves_title_case(self):
-        """Multi-word "behind the scenes" must become "Behind the Scenes" (NOT .capitalize())."""
-        # `.capitalize()` would corrupt this to "Behind the scenes" and break
-        # downstream filters that match against the TMDB-canonical "Behind the Scenes".
-        v = Video(
-            id="x",
-            site="YouTube",
-            key="k",
-            type="behind the scenes",
-            official=False,
-            size=720,
-            iso_639_1="en",
-        )
-        assert v.type == "Behind the Scenes"
+    @pytest.mark.parametrize(
+        ("input_type", "expected"),
+        [
+            ("trailer", "Trailer"),
+            ("teaser", "Teaser"),
+            ("clip", "Clip"),
+            ("featurette", "Featurette"),
+            ("behind the scenes", "Behind the Scenes"),  # multi-word — `.capitalize()` would corrupt this
+            ("bloopers", "Bloopers"),
+            ("opening credits", "Opening Credits"),  # second multi-word case
+            ("recap", "Recap"),
+        ],
+    )
+    def test_type_canonical_mapping(self, input_type, expected):
+        """All documented TMDB video types land on their canonical title-case."""
+        # str.capitalize() would corrupt "behind the scenes" → "Behind the scenes"
+        # and "opening credits" → "Opening credits", breaking downstream filters.
+        v = Video(id="x", site="YouTube", key="k", type=input_type, official=False, size=720, iso_639_1="en")
+        assert v.type == expected
 
     def test_unknown_type_passed_through(self):
         """An unrecognised type is preserved verbatim (not silently rewritten)."""

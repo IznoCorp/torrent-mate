@@ -419,8 +419,9 @@ class TrailerStateStore:
             return True
         if state.next_retry_at is None:
             return False
-        # __post_init__ coerces datetime → str, so at this point next_retry_at is
-        # always a string (the type system can't narrow that, but the invariant holds).
+        # Type is `str | datetime` for ergonomic construction; __post_init__
+        # always coerces to `str`, so the isinstance branch is dead in practice
+        # but kept for type-checker satisfaction and as belt-and-suspenders.
         retry_iso = state.next_retry_at if isinstance(state.next_retry_at, str) else state.next_retry_at.isoformat()
         try:
             retry_at = datetime.fromisoformat(retry_iso)

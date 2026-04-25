@@ -44,7 +44,7 @@
 **Medium fixes**:
 
 - `Video.size` doc/code mismatch — tightened validator to `> 0` (docstring already said `> 0`, code allowed `0`)
-- scanner.py library_scan_max_age_hours silent fallback removed (commit message had claimed this previously but it survived)
+- scanner.py removed silent AttributeError fallback on library_scan_max_age_hours; relies on Pydantic-strict guarantee instead
 - `_backup_corrupt` filename now preserves `.json` suffix (`with_name` instead of `with_suffix`)
 - `CookieConfig.from_env()` narrowed to `(ImportError, ValidationError)` + DEBUG log instead of swallow-all
 - orchestrator disk_usage `FileNotFoundError` adds `log.debug` breadcrumb
@@ -60,6 +60,20 @@
 
 **Tests added**: Video site/type normalisation + `> 0` size validation (5 tests), retry_after_days negative element rejected, allowed_extensions empty-string + trailing-space rejected.
 
+### Cycle 2
+
+- Findings received: ~10 across 5 reviewers (verification pass on cycle 1 fixes)
+- Retained: 2 minor (parametrise + comment rewording)
+- Ignored: out-of-scope pre-existing observations (DEBUG vs WARNING level for Settings fallback, malformed retry timestamp silent skip pre-existing, unknown-type DEBUG enhancement)
+- Verdict from all 5 reviewers: cycle 1 fixes are sound, no regressions, no new bugs introduced
+- Status: clean — proceeding to merge
+
+**Polish applied**:
+
+- Test parametrise expanded `_TMDB_TYPE_CANONICAL` coverage to all 8 documented types + all 3 sites (was 1 site + 1 multi-word type) — catches a broader regression net
+- Reworded `state.py:should_skip` "type system can't narrow" comment to be more explicit about the invariant
+- Reworded IMPLEMENTATION.md cycle 1 record to drop process-meta phrasing
+
 ## Next action
 
-Cycle 1 fixes applied. Merge mode is `manual` — squash merge PR #15 when ready, then run /implement:archive.
+2 review cycles complete. 1910 tests passing. Merge mode is `manual` — squash merge PR #15 when ready, then run /implement:archive.
