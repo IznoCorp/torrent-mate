@@ -447,3 +447,66 @@ class TestCachePoisoningClosure:
             result2 = finder.find(550, "movie", title="Fight Club", year=1999)
 
         assert result2 == _YT_URL, "After breaker recovery, trailer should be found"
+
+
+class TestDownloadErrorRegression:
+    """Regression tests for sub-phase 11.2 — yt_dlp.utils.DownloadError must not escape find()."""
+
+    def test_find_handles_yt_dlp_download_error_from_fallback(self, tmp_path: Path) -> None:
+        """find() returns None and skips __no_result__ cache when _fallback_search raises DownloadError.
+
+        Scenario:
+          1. TMDB returns empty for all languages (forces YouTube fallback).
+          2. _fallback_search raises yt_dlp.utils.DownloadError (re-raised by
+             _youtube_fallback_strict, regression from sub-phase 11.2).
+          3. find() must catch it, return None, and NOT write __no_result__ to
+             the cache so the item is retried on the next run.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+
+        import yt_dlp
+
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.scraper.youtube_search import YoutubeSearch
+
+        cache_path = tmp_path / "tc.json"
+        trailers_cache = TrailersCache(cache_path)
+        client = MagicMock()
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60)
+
+        real_searcher = YoutubeSearch(
+            "{title} {year} trailer",
+            api_key="",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=yt_breaker,
+        )
+
+        finder = TrailerFinder(
+            tmdb_client=client,
+            youtube_search=real_searcher,
+            cache=trailers_cache,
+            languages=["en-US"],
+        )
+
+        # TMDB returns empty — forces YouTube fallback path.
+        client._fetch_videos_strict.return_value = []
+
+        # _fallback_search raises DownloadError (the regression scenario).
+        with patch.object(
+            real_searcher,
+            "_fallback_search",
+            side_effect=yt_dlp.utils.DownloadError("simulated yt-dlp download error"),
+        ):
+            result = finder.find(550, "movie", title="Fight Club", year=1999)
+
+        # find() must return None — not propagate the exception to the caller.
+        assert result is None, "DownloadError must be caught; find() must return None"
+
+        # The __no_result__ sentinel must NOT have been written — the error is
+        # transient, so the next run should retry rather than read a stale sentinel.
+        assert trailers_cache.contains_search("Fight Club", 1999) is False, (
+            "DownloadError must not poison the cache with a __no_result__ sentinel"
+        )

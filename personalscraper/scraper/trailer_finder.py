@@ -29,6 +29,7 @@ import json
 from typing import TYPE_CHECKING
 
 import requests
+import yt_dlp.utils
 
 from personalscraper.logger import get_logger
 from personalscraper.scraper.circuit_breaker import CircuitOpenError
@@ -249,9 +250,19 @@ class TrailerFinder:
         # Build the search query; use season-specific format when applicable.
         try:
             yt_url = self._youtube_fallback_strict(title, year, season_number)
-        except (CircuitOpenError, requests.RequestException, KeyError, AttributeError, TypeError) as exc:
-            # Transport error / breaker-open / yt-dlp parser bug — do NOT cache
-            # the __no_result__ sentinel so we retry on the next run.
+        except (
+            CircuitOpenError,
+            requests.RequestException,
+            KeyError,
+            AttributeError,
+            TypeError,
+            yt_dlp.utils.DownloadError,  # re-raised by _fallback_search (sub-phase 11.2)
+        ) as exc:
+            # Transport error / breaker-open / yt-dlp parser bug / yt-dlp download
+            # error — do NOT cache the __no_result__ sentinel so we retry on the
+            # next run.  DownloadError is re-raised by _fallback_search (sub-phase
+            # 11.2) and propagates through _youtube_fallback_strict; without this
+            # catch it would escape find() entirely and crash the orchestrator.
             logger.warning(
                 "trailer_youtube_fallback_error_skip_cache",
                 title=title,
