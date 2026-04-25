@@ -13,9 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import structlog
-
 from personalscraper.library import scanner as library_scanner
+from personalscraper.logger import get_logger
 from personalscraper.scraper.ytdlp_downloader import DownloadStatus, YtdlpDownloader
 from personalscraper.trailers.placement import (
     trailer_exists,
@@ -35,7 +34,7 @@ from personalscraper.trailers.state import (
 if TYPE_CHECKING:
     from personalscraper.scraper.trailer_finder import TrailerFinder
 
-log = structlog.get_logger(__name__)
+log = get_logger(__name__)
 
 _DEFAULT_MAX_DURATION_SEC: int = 1800
 _DEFAULT_EXT: str = "mp4"

@@ -21,9 +21,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-import structlog
+from personalscraper.logger import get_logger
 
-logger = structlog.get_logger(__name__)
+logger = get_logger(__name__)
 
 # APFS/HFS+ volume roots (macOS) — cookie files must live here for security.
 # This list is user-extendable via a future `config.trailers.ytdlp.cookies.native_prefixes`

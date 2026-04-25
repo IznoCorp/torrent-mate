@@ -18,14 +18,15 @@ misses. Writes are atomic: temp file + ``os.replace``.
 from __future__ import annotations
 
 import json
-import logging
 import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeVar
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+logger = get_logger(__name__)
 
 T = TypeVar("T")
 

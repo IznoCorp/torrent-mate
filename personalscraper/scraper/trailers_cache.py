@@ -12,14 +12,14 @@ Key scheme:
 from __future__ import annotations
 
 import hashlib
-import logging
 from pathlib import Path
 from typing import Any
 
+from personalscraper.logger import get_logger
 from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 from personalscraper.scraper.tmdb_client import Video
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _TMDB_TTL_SECONDS = 7 * 24 * 3600  # 7 days
 # 7 days matches DESIGN §9 (`youtube_api.cache_ttl_days: 7`) — keep in sync.

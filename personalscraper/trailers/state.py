@@ -28,9 +28,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-import structlog
+from personalscraper.logger import get_logger
 
-log = structlog.get_logger(__name__)
+log = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
 # fcntl import — optional, not available on Windows

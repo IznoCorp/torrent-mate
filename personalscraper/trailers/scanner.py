@@ -11,17 +11,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import structlog
-
 from personalscraper.library.scanner import extract_nfo_ids, parse_title_year
 from personalscraper.library.scanner import scan_library as _lib_scan
+from personalscraper.logger import get_logger
 from personalscraper.trailers.placement import (
     trailer_exists,
     trailer_path_for,
     trailer_path_for_season,
 )
 
-log = structlog.get_logger(__name__)
+log = get_logger(__name__)
 
 _SEASON_DIR_RE = re.compile(r"^Saison (\d{2})$")
 _DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS: int = 24

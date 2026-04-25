@@ -13,11 +13,12 @@ write media files -- download is owned by YtdlpDownloader (Phase 3b).
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-logger = logging.getLogger(__name__)
+from personalscraper.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Extensions yt-dlp may produce, ordered by Plex-friendliness.
 _KNOWN_TRAILER_EXTENSIONS: tuple[str, ...] = ("mp4", "mkv", "webm")
