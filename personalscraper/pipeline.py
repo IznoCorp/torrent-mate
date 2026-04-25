@@ -1,8 +1,8 @@
 """Sequential exhaustive pipeline orchestrator.
 
-Executes 6 phases producing 8 StepReports:
+Executes 7 phases producing 9 StepReports:
 INGEST → SORT → (gate: ingest dir empty) → PROCESS (clean, scrape, cleanup)
-→ ENFORCE → VERIFY → DISPATCH.
+→ ENFORCE → VERIFY → TRAILERS → DISPATCH.
 
 Each phase must complete fully before the next one starts. The dispatch
 phase only runs if verified items exist. Phase 3 (PROCESS) runs 3
@@ -39,7 +39,7 @@ class _CriticalStepError(Exception):
 class Pipeline:
     """Sequential exhaustive pipeline orchestrator.
 
-    Executes 6 phases producing 8 StepReports. Each phase must
+    Executes 7 phases producing 9 StepReports. Each phase must
     complete fully before the next one starts. The dispatch phase
     only runs if verified items exist.
 
@@ -50,6 +50,9 @@ class Pipeline:
         interactive: Prompt user for ambiguous matches.
         verbose: Show per-item details in console output.
         console: Rich console for output.
+        skip_trailers: Skip the trailers download step entirely.
+        continue_on_trailer_error: Continue to dispatch even when the
+            trailers step returns status=error.
     """
 
     def __init__(
@@ -61,6 +64,8 @@ class Pipeline:
         verbose: bool = False,
         console: Console | None = None,
         step_overrides: Mapping[str, Callable[..., Any]] | None = None,
+        skip_trailers: bool = False,
+        continue_on_trailer_error: bool = False,
     ) -> None:
         """Initialize the pipeline.
 
@@ -73,10 +78,14 @@ class Pipeline:
             console: Rich console. Created if not provided.
             step_overrides: Optional mapping of step name to replacement
                 callable. Keys: "ingest", "sort", "clean", "scrape",
-                "cleanup", "enforce", "verify", "dispatch". Used by tests
+                "cleanup", "enforce", "verify", "trailers", "dispatch". Used by tests
                 to inject fakes without monkey-patching module globals.
                 Default ``None`` means no overrides — production behaviour
                 is unchanged.
+            skip_trailers: If True, skip the trailers download step.
+            continue_on_trailer_error: If True, log and continue to dispatch
+                even when trailers step returns status=error. DESIGN section 2:
+                trailers is always non-blocking.
         """
         self.config = config
         self.settings = settings
@@ -87,6 +96,8 @@ class Pipeline:
         self._log = get_logger("pipeline")
         # Freeze into a plain dict so callers cannot mutate after init.
         self._step_overrides: dict[str, Callable[..., Any]] = dict(step_overrides or {})
+        self.skip_trailers = skip_trailers
+        self.continue_on_trailer_error = continue_on_trailer_error
 
     def _recover_from_previous_run(
         self,
@@ -168,11 +179,12 @@ class Pipeline:
         Phase 3: PROCESS — re-clean + dedup + scrape + cleanup
         Phase 4: ENFORCE — validate and correct conventions
         Phase 5: VERIFY — coherence check
+        Phase 5bis: TRAILERS — download trailers (non-blocking)
         Phase 6: DISPATCH — only if verified items exist
 
         Returns:
-            PipelineReport with 8 StepReports (ingest, sort, clean,
-            scrape, cleanup, enforce, verify, dispatch).
+            PipelineReport with 9 StepReports (ingest, sort, clean,
+            scrape, cleanup, enforce, verify, trailers, dispatch).
         """
         from datetime import datetime
 
@@ -253,6 +265,38 @@ class Pipeline:
             lambda: self._run_verify(),
             report,
         )
+
+        # Phase 5bis: TRAILERS (non-blocking -- partial/skipped does not abort dispatch)
+        # Runs after verify so items that failed verify are never downloaded.
+        # Runs before dispatch so trailers land next to media in staging and are
+        # moved together in one atomic dispatch operation.
+        from personalscraper.trailers.step import run_trailers
+
+        trailers_fn: Callable[..., Any] = self._step_overrides.get("trailers", run_trailers)
+        self._run_step(
+            "trailers",
+            lambda: trailers_fn(
+                self.config,
+                staging_dir=self.config.paths.staging_dir,
+                verified=verified or [],
+                skip_trailers=self.skip_trailers,
+            ),
+            report,
+        )
+
+        # _run_step appends the StepReport to report.steps (keyed by step name).
+        # Read it back to inspect status without relying on the return value of _run_step,
+        # which returns the extra tuple element (None for steps returning only StepReport).
+        trailers_step = report.steps.get("trailers")
+        if trailers_step is not None and trailers_step.status == "error" and not self.continue_on_trailer_error:
+            # Log the error but proceed to dispatch -- trailers are non-blocking per DESIGN section 2.
+            # continue_on_trailer_error=True is the future override if callers ever want to
+            # abort dispatch on a trailer crash; for now both paths log and continue.
+            self._log.error(
+                "trailers_step_error",
+                status=trailers_step.status,
+                hint="use --continue-on-trailer-error to suppress this warning",
+            )
 
         # Phase 6: DISPATCH (only if verified items exist)
         if verified:
@@ -380,17 +424,18 @@ class Pipeline:
             name: Step name.
 
         Returns:
-            Formatted step number string (e.g. "[cyan]1/8[/cyan]").
+            Formatted step number string (e.g. "[cyan]1/9[/cyan]").
         """
         icons = {
-            "ingest": "[cyan]1/8[/cyan]",
-            "sort": "[cyan]2/8[/cyan]",
-            "clean": "[cyan]3/8[/cyan]",
-            "scrape": "[cyan]4/8[/cyan]",
-            "cleanup": "[cyan]5/8[/cyan]",
-            "enforce": "[cyan]6/8[/cyan]",
-            "verify": "[cyan]7/8[/cyan]",
-            "dispatch": "[cyan]8/8[/cyan]",
+            "ingest": "[cyan]1/9[/cyan]",
+            "sort": "[cyan]2/9[/cyan]",
+            "clean": "[cyan]3/9[/cyan]",
+            "scrape": "[cyan]4/9[/cyan]",
+            "cleanup": "[cyan]5/9[/cyan]",
+            "enforce": "[cyan]6/9[/cyan]",
+            "verify": "[cyan]7/9[/cyan]",
+            "trailers": "[cyan]8/9[/cyan]",
+            "dispatch": "[cyan]9/9[/cyan]",
         }
         return icons.get(name, "")
 

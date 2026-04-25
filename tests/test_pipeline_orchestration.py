@@ -128,7 +128,7 @@ class TestPipelineOrchestration:
     """Unit tests for Pipeline orchestration using step_overrides injection."""
 
     def test_step_order(self, orch_config, orch_settings, quiet_console):
-        """Steps execute in canonical order: ingest, sort, clean, scrape, cleanup, enforce, verify, dispatch.
+        """Steps execute in canonical order: ingest→sort→clean→scrape→cleanup→enforce→verify→trailers→dispatch.
 
         Uses step_overrides to record call order without patching module globals.
         """
@@ -170,12 +170,13 @@ class TestPipelineOrchestration:
                 "cleanup": recorder("cleanup"),
                 "enforce": recorder("enforce"),
                 "verify": verify_recorder,
+                "trailers": recorder("trailers"),
                 "dispatch": dispatch_recorder,
             },
         )
         pipeline.run()
 
-        assert order == ["ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "dispatch"]
+        assert order == ["ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "trailers", "dispatch"]
 
     def test_ingest_crash_aborts_pipeline(self, orch_config, orch_settings, quiet_console):
         """A fatal ingest crash causes the pipeline to return early.
@@ -240,7 +241,7 @@ class TestPipelineOrchestration:
         assert executed == []
 
     def test_reporter_aggregation(self, orch_config, orch_settings, quiet_console):
-        """All 8 StepReports from overrides roll up into the PipelineReport."""
+        """All 9 StepReports from overrides roll up into the PipelineReport."""
         pipeline = Pipeline(
             orch_config,
             orch_settings,
@@ -253,6 +254,7 @@ class TestPipelineOrchestration:
                 "cleanup": lambda *_a, **_kw: StepReport(name="cleanup", success_count=1),
                 "enforce": lambda *_a, **_kw: StepReport(name="enforce", success_count=1),
                 "verify": _verify_with_items,
+                "trailers": lambda *_a, **_kw: StepReport(name="trailers", status="skipped"),
                 "dispatch": lambda *_a, **_kw: StepReport(name="dispatch", success_count=3),
             },
         )
@@ -266,6 +268,7 @@ class TestPipelineOrchestration:
             "cleanup",
             "enforce",
             "verify",
+            "trailers",
             "dispatch",
         ]
         assert report.steps["ingest"].success_count == 3

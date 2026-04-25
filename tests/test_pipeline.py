@@ -109,6 +109,7 @@ class TestPipelineRun:
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
             patch("personalscraper.enforce.run.run_enforce", return_value=StepReport(name="enforce")),
             patch("personalscraper.verify.run.run_verify") as mock_verify,
+            patch("personalscraper.trailers.step.run_trailers", return_value=StepReport(name="trailers", status="skipped")),
             patch("personalscraper.dispatch.run.run_dispatch") as mock_dispatch,
         ):
             mock_verify.return_value = (
@@ -120,7 +121,7 @@ class TestPipelineRun:
             pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
             report = pipeline.run()
 
-        assert len(report.steps) == 8
+        assert len(report.steps) == 9
         assert list(report.steps.keys()) == [
             "ingest",
             "sort",
@@ -129,6 +130,7 @@ class TestPipelineRun:
             "cleanup",
             "enforce",
             "verify",
+            "trailers",
             "dispatch",
         ]
 
