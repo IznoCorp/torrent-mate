@@ -618,8 +618,9 @@ class TestTrailersOrchestratorEdgeCases:
 
     def test_run_bot_detected_increments_counter(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
         """counts[bot_detected] is incremented when downloader returns BOT_DETECTED."""
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
         from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -639,8 +640,9 @@ class TestTrailersOrchestratorEdgeCases:
 
     def test_run_http_error_increments_counter(self, orchestrator: "TrailersOrchestrator", tmp_path: "Path") -> None:
         """counts[http_error] is incremented when downloader returns HTTP_ERROR."""
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
         from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -671,8 +673,9 @@ class TestTrailersOrchestratorEdgeCases:
 
     def test_run_ytdlp_error_increments_counter(self, orchestrator: "TrailersOrchestrator") -> None:
         """counts[ytdlp_error] is incremented when downloader returns an unhandled status."""
-        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
         from unittest.mock import patch
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),

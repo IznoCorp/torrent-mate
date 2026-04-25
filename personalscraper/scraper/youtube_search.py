@@ -195,7 +195,7 @@ class YoutubeSearch:
         """
         # Import lazily so test environments without yt-dlp still import the module.
         try:
-            import yt_dlp  # type: ignore[import-untyped]
+            import yt_dlp
         except ImportError:
             log.error(
                 "youtube_fallback_missing_yt_dlp",

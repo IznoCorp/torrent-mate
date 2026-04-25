@@ -489,6 +489,7 @@ class TestCliHelperFunctions:
     def test_item_added_at_oserror_fallback(self, tmp_path):
         """_item_added_at returns epoch when stat raises OSError."""
         from datetime import timezone
+
         from personalscraper.trailers.cli import _item_added_at
         from personalscraper.trailers.scanner import ScanItem
 
@@ -507,6 +508,7 @@ class TestCliHelperFunctions:
     def test_filter_since_with_date(self, tmp_path):
         """_filter_since with a date filters out old items."""
         from datetime import datetime, timezone
+
         from personalscraper.trailers.cli import _filter_since
         from personalscraper.trailers.scanner import ScanItem
 
@@ -529,6 +531,7 @@ class TestCliHelperFunctions:
     def test_seasons_enabled_from_config_attribute_error(self, tmp_path):
         """_seasons_enabled_from_config returns False when config lacks trailers."""
         from unittest.mock import MagicMock
+
         from personalscraper.trailers.cli import _seasons_enabled_from_config
 
         config = MagicMock(spec=["disks"])
@@ -537,6 +540,7 @@ class TestCliHelperFunctions:
     def test_min_file_size_attribute_error(self, tmp_path):
         """_min_file_size returns 102400 when config lacks trailers.filters."""
         from unittest.mock import MagicMock
+
         from personalscraper.trailers.cli import _min_file_size
 
         config = MagicMock(spec=["disks"])
@@ -545,6 +549,7 @@ class TestCliHelperFunctions:
     def test_allowed_extensions_attribute_error(self, tmp_path):
         """_allowed_extensions returns default set when config lacks trailers.filters."""
         from unittest.mock import MagicMock
+
         from personalscraper.trailers.cli import _allowed_extensions
 
         config = MagicMock(spec=["disks"])

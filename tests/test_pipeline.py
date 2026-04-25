@@ -109,7 +109,10 @@ class TestPipelineRun:
             patch("personalscraper.scraper.run.run_scrape", return_value=StepReport(name="scrape")),
             patch("personalscraper.enforce.run.run_enforce", return_value=StepReport(name="enforce")),
             patch("personalscraper.verify.run.run_verify") as mock_verify,
-            patch("personalscraper.trailers.step.run_trailers", return_value=StepReport(name="trailers", status="skipped")),
+            patch(
+                "personalscraper.trailers.step.run_trailers",
+                return_value=StepReport(name="trailers", status="skipped"),
+            ),
             patch("personalscraper.dispatch.run.run_dispatch") as mock_dispatch,
         ):
             mock_verify.return_value = (
