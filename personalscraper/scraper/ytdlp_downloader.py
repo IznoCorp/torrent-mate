@@ -287,6 +287,7 @@ class YtdlpDownloader:
         import yt_dlp  # lazy import — yt-dlp is a runtime-only dependency
 
         has_sigalrm = hasattr(signal, "SIGALRM")
+        old_handler: Any = signal.SIG_DFL
 
         if has_sigalrm:
             # Install the timeout handler and arm the alarm.
