@@ -35,6 +35,19 @@ ffprobe returns ISO 639-2/B codes (`fre`), Kodi NFO expects 639-2/T (`fra`). Alw
 
 If NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO and **re-downloads artwork without re-scraping**.
 
+
+## TMDB /videos Endpoint
+
+- Endpoint: GET /movie/{id}/videos or /tv/{id}/videos?language={lang}
+- Response shape: {id, results: [{id, iso_639_1, iso_3166_1, key, name, official, published_at, site, size, type}]}
+- Filtering rules applied by trailer_finder.py:
+  - site must be "YouTube" (Vimeo and others are ignored)
+  - Prefer official=True over official=False
+  - Prefer type in {Trailer, Teaser} over other types (Clip, Featurette, etc.)
+  - First language match wins (trailers.languages order)
+- The key field is the YouTube video ID (e.g. "dQw4w9WgXcQ")
+- Full URL: https://www.youtube.com/watch?v={key}
+
 ## MediaElch
 
 External metadata scraper — used as manual fallback. Claude does not interact with it directly.
