@@ -676,3 +676,30 @@ class TestTrailersConfig:
 
         with pytest.raises(pydantic.ValidationError):
             TrailersConfig(languages=[])
+
+    def test_retry_after_days_negative_element_rejected(self):
+        """A negative day collapses the back-off ladder into immediate retry."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersConfig(retry_after_days=[-1, 7, 30])
+
+    def test_allowed_extensions_empty_string_rejected(self):
+        """An empty extension would silently disable the verify gate."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersFiltersConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersFiltersConfig(allowed_extensions=["", "mp4"])
+
+    def test_allowed_extensions_trailing_space_rejected(self):
+        """A typo with trailing whitespace must fail validation, not propagate."""
+        import pydantic
+
+        from personalscraper.conf.models import TrailersFiltersConfig
+
+        with pytest.raises(pydantic.ValidationError):
+            TrailersFiltersConfig(allowed_extensions=["mp4 ", "mkv"])

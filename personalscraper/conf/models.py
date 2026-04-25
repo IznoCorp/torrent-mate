@@ -570,9 +570,12 @@ class TrailersFiltersConfig(_StrictModel):
 
     min_file_size_bytes: int = Field(default=102400, ge=0)
     max_filesize_mb: int = Field(default=500, gt=0)
-    allowed_extensions: Annotated[list[str], Field(min_length=1)] = Field(
-        default_factory=lambda: ["mp4", "mkv", "webm"]
-    )
+    # Per-element pattern rejects empty strings, leading dots, and whitespace —
+    # otherwise typos like "" or "mp4 " would silently disable the verify gate.
+    allowed_extensions: Annotated[
+        list[Annotated[str, Field(pattern=r"^[a-z0-9]+$")]],
+        Field(min_length=1),
+    ] = Field(default_factory=lambda: ["mp4", "mkv", "webm"])
 
 
 class TrailersYoutubeApiConfig(_StrictModel):
@@ -722,7 +725,12 @@ class TrailersConfig(_StrictModel):
     placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
     filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
     state_file: str = Field(default=".data/trailers_state.json", min_length=1)
-    retry_after_days: Annotated[list[int], Field(min_length=1)] = Field(default_factory=lambda: [1, 7, 30])
+    # Per-element ge=0 prevents a negative day from collapsing the back-off
+    # ladder into immediate-retry (which would defeat the throttling intent).
+    retry_after_days: Annotated[
+        list[Annotated[int, Field(ge=0)]],
+        Field(min_length=1),
+    ] = Field(default_factory=lambda: [1, 7, 30])
     bot_detected_max_consecutive_attempts: int = Field(default=5, ge=1)
     library_scan_max_age_hours: int = Field(default=24, ge=1)
     circuit_breakers: TrailersCircuitBreakersConfig = Field(default_factory=TrailersCircuitBreakersConfig)

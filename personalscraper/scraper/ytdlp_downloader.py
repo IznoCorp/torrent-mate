@@ -21,6 +21,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from personalscraper.logger import get_logger
 
 logger = get_logger(__name__)
@@ -148,15 +150,24 @@ class CookieConfig:
         # Settings is the canonical source — it auto-loads .env via pydantic-settings.
         # Falling back to os.getenv preserves the contract for callers who prefer to set
         # the env var directly (CI, tests with monkeypatch.setenv).
-        try:
-            from personalscraper.config import get_settings  # noqa: PLC0415
+        from personalscraper.config import get_settings  # noqa: PLC0415
 
+        try:
             settings = get_settings()
-            file_path_str: str | None = settings.youtube_cookies_file or os.getenv("YOUTUBE_COOKIES_FILE")
-            browser: str | None = settings.youtube_cookies_from_browser or os.getenv("YOUTUBE_COOKIES_FROM_BROWSER")
-        except Exception:  # noqa: BLE001 — Settings unavailable (e.g. during test fixture setup)
+        except (ImportError, ValidationError) as exc:
+            # Settings construction can fail when .env parsing breaks or a required
+            # field is malformed. Log loud enough to surface the misconfig but fall
+            # back to bare env so cookies aren't silently disabled.
+            logger.debug(
+                "cookie_config_settings_unavailable",
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
             file_path_str = os.getenv("YOUTUBE_COOKIES_FILE")
             browser = os.getenv("YOUTUBE_COOKIES_FROM_BROWSER")
+        else:
+            file_path_str = settings.youtube_cookies_file or os.getenv("YOUTUBE_COOKIES_FILE")
+            browser = settings.youtube_cookies_from_browser or os.getenv("YOUTUBE_COOKIES_FROM_BROWSER")
 
         if file_path_str:
             cookie_file = Path(file_path_str)

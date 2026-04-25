@@ -58,6 +58,25 @@ UTC = timezone.utc
 _STATE_VERSION = 1
 
 
+def _validate_season_number(value: int | None, owner: str) -> None:
+    """Raise ValueError when a season_number is non-None and negative.
+
+    Shared by ``TrailerState.__post_init__`` and ``ScanItem.__post_init__``
+    so both types accept the same domain (None for movies/show-level, ``0``
+    for TMDB specials, ``>=1`` for regular seasons).
+
+    Args:
+        value: The season number to validate.
+        owner: Class name used in the error message ("TrailerState" or
+            "ScanItem").
+
+    Raises:
+        ValueError: If ``value`` is not None and is negative.
+    """
+    if value is not None and value < 0:
+        raise ValueError(f"{owner}.season_number must be >= 0 (got {value})")
+
+
 # ---------------------------------------------------------------------------
 # Enum
 # ---------------------------------------------------------------------------
@@ -125,11 +144,11 @@ class TrailerState:
             positive 1-indexed integer for season-level entries (DESIGN §4).
     """
 
-    last_attempt: str
+    last_attempt: str | datetime
     attempts: int
     status: TrailerStatus
     media_path: str
-    next_retry_at: str | None = None
+    next_retry_at: str | datetime | None = None
     trailer_path: str | None = None
     source: str | None = None
     youtube_url: str | None = None
@@ -138,15 +157,16 @@ class TrailerState:
     season_number: int | None = None
 
     def __post_init__(self) -> None:
-        """Validate that all timestamp fields are tz-aware ISO 8601 strings.
+        """Validate timestamps and coerce datetime inputs to ISO 8601.
 
         Naive datetimes are silently corrupted across DST transitions, so we
-        reject them at construction. Strings are checked by parsing, datetimes
-        are coerced to ISO 8601 via ``isoformat``.
+        reject them at construction. tz-aware datetimes are coerced to ISO
+        strings (frozen dataclass — coercion via ``object.__setattr__``).
 
         Raises:
             ValueError: If a timestamp string is naive, malformed, or a
                 datetime is naive.
+            TypeError: If a timestamp is neither str nor datetime.
         """
         for attr in ("last_attempt", "next_retry_at"):
             raw = getattr(self, attr)
@@ -166,8 +186,7 @@ class TrailerState:
                 raise ValueError(f"TrailerState.{attr} is not valid ISO 8601: {raw!r}") from exc
             if parsed.tzinfo is None:
                 raise ValueError(f"TrailerState.{attr} ISO string must include timezone offset (got naive: {raw!r})")
-        if self.season_number is not None and self.season_number < 0:
-            raise ValueError(f"TrailerState.season_number must be >= 0 (got {self.season_number})")
+        _validate_season_number(self.season_number, "TrailerState")
 
 
 # ---------------------------------------------------------------------------
@@ -400,10 +419,13 @@ class TrailerStateStore:
             return True
         if state.next_retry_at is None:
             return False
+        # __post_init__ coerces datetime → str, so at this point next_retry_at is
+        # always a string (the type system can't narrow that, but the invariant holds).
+        retry_iso = state.next_retry_at if isinstance(state.next_retry_at, str) else state.next_retry_at.isoformat()
         try:
-            retry_at = datetime.fromisoformat(state.next_retry_at)
+            retry_at = datetime.fromisoformat(retry_iso)
         except ValueError:
-            log.warning("trailer_state.invalid_next_retry_at", key=key, value=state.next_retry_at)
+            log.warning("trailer_state.invalid_next_retry_at", key=key, value=retry_iso)
             return False
         if retry_at.tzinfo is None:
             retry_at = retry_at.replace(tzinfo=UTC)
@@ -420,11 +442,22 @@ class TrailerStateStore:
         """
         raw = self._load()
         result: dict[str, TrailerState] = {}
+        dropped = 0
         for k, v in raw.items():
             try:
                 result[k] = self._deserialize(v)
             except (KeyError, ValueError, TypeError) as exc:
                 log.warning("trailer_state.malformed_entry", key=k, error=str(exc))
+                dropped += 1
+        # Surface an aggregate so CLI scan/purge users can spot when their state
+        # has degraded entries that won't appear in their iteration result.
+        if dropped:
+            log.warning(
+                "trailer_state_malformed_entries_dropped",
+                dropped=dropped,
+                total=len(raw),
+                surviving=len(result),
+            )
         return result
 
     def auto_gc(self) -> None:
@@ -518,7 +551,9 @@ class TrailerStateStore:
             reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
         """
         try:
-            backup = self._state_file.with_suffix(f".corrupt-{int(time.time())}")
+            # Preserve the original full filename (incl. .json suffix) so the
+            # forensic copy remains recognisable as the parsed-format file.
+            backup = self._state_file.with_name(f"{self._state_file.name}.corrupt-{int(time.time())}")
             shutil.copy(self._state_file, backup)
             log.warning(
                 "trailer_state_corrupt_backup",
@@ -554,12 +589,23 @@ class TrailerStateStore:
             tmp_path = tmp.name
         try:
             os.replace(tmp_path, self._state_file)
-        except OSError:
+        except OSError as replace_exc:
             try:
                 os.unlink(tmp_path)
             except OSError as exc:
                 # tmp file leak is an operational symptom (read-only fs, inode exhaustion).
-                log.warning("trailer_state_tmp_cleanup_failed", tmp_path=tmp_path, error=str(exc))
+                log.warning(
+                    "trailer_state_tmp_cleanup_failed",
+                    tmp_path=tmp_path,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+            log.error(
+                "trailer_state_save_failed",
+                path=str(self._state_file),
+                error=str(replace_exc),
+                error_type=type(replace_exc).__name__,
+            )
             raise
 
     @staticmethod

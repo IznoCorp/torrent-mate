@@ -234,6 +234,22 @@ class YoutubeSearch:
             )
             self._breaker.record_failure(exc)
             return None
+        except Exception as exc:  # noqa: BLE001 — yt-dlp emits ExtractorError + KeyError variants
+            # Sustained non-DownloadError yt-dlp failures (ExtractorError, KeyError
+            # on malformed entries, network-glue exceptions) must trip the breaker
+            # too — otherwise a yt-dlp upgrade with a regressed code path keeps
+            # being retried forever. Synthesise a ConnectionError so the breaker
+            # actually counts the failure (RuntimeError would be ignored).
+            log.warning(
+                "youtube_fallback_unexpected_error",
+                query=query,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            self._breaker.record_failure(
+                requests.exceptions.ConnectionError(f"yt-dlp fallback failed: {type(exc).__name__}")
+            )
+            return None
 
         entries = (info or {}).get("entries") or []
         if not entries:

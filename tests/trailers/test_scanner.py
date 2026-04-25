@@ -428,26 +428,3 @@ class TestScanLibrary:
             mock_lib.assert_called_once()
 
         assert items == []
-
-    def test_scan_library_missing_trailers_config_uses_default(self, tmp_path: "Path") -> None:
-        """AttributeError on config.trailers falls back to default max_age_hours=24."""
-        from unittest.mock import MagicMock, patch
-
-        from personalscraper.library.models import LibraryScanResult
-
-        config = MagicMock(spec=["disks"])
-        config.disks = []
-
-        empty_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z",
-            disk_filter=None,
-            category_filter=None,
-            item_count=0,
-            items=[],
-        )
-
-        with patch("personalscraper.trailers.scanner._lib_scan", return_value=empty_result):
-            scanner = Scanner(min_file_size_bytes=102400)
-            items = scanner.scan_library(config)
-
-        assert items == []

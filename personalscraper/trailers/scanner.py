@@ -19,11 +19,11 @@ from personalscraper.trailers.placement import (
     trailer_path_for,
     trailer_path_for_season,
 )
+from personalscraper.trailers.state import _validate_season_number
 
 log = get_logger(__name__)
 
 _SEASON_DIR_RE = re.compile(r"^Saison (\d{2})$")
-_DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS: int = 24
 
 MediaTypeLiteral = Literal["movie", "tvshow"]
 
@@ -65,8 +65,7 @@ class ScanItem:
         Raises:
             ValueError: If season_number is negative.
         """
-        if self.season_number is not None and self.season_number < 0:
-            raise ValueError(f"ScanItem.season_number must be >= 0 (got {self.season_number})")
+        _validate_season_number(self.season_number, "ScanItem")
 
 
 class Scanner:
@@ -137,16 +136,10 @@ class Scanner:
         Returns:
             List of ScanItem objects for library entries missing a valid trailer.
         """
-        # Pydantic strict guarantees this attribute exists on a Config object.
-        # The fallback only triggers if the caller passes a non-Config object.
-        try:
-            max_age_hours = int(config.trailers.library_scan_max_age_hours)
-        except AttributeError:
-            log.debug(
-                "scanner_library_scan_max_age_hours_default",
-                default=_DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS,
-            )
-            max_age_hours = _DEFAULT_LIBRARY_SCAN_MAX_AGE_HOURS
+        # Pydantic strict guarantees this attribute on a real Config; the
+        # ``Any`` annotation lets test fixtures pass narrower mocks without
+        # going through the loader. Direct access surfaces test misconfig loudly.
+        max_age_hours = int(config.trailers.library_scan_max_age_hours)
         if not force_refresh and self._is_scan_fresh(max_age_hours):
             log.debug("scanner_library_scan_skipped_fresh", max_age_hours=max_age_hours)
             return []

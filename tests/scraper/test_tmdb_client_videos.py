@@ -148,3 +148,51 @@ class TestFetchTvSeasonVideos:
         with patch.object(client, "_get", mock_get):
             client.fetch_tv_season_videos(1, season_number=2, language="fr-FR")
         mock_get.assert_called_once_with("/tv/1/season/2/videos", {"language": "fr-FR"})
+
+
+class TestVideoNormalisation:
+    """Verify Video.__post_init__ canonical-case normalisation and size validation."""
+
+    def test_site_lowercase_normalised_to_canonical(self):
+        """A lower-case "youtube" is normalised to canonical "YouTube"."""
+        v = Video(id="x", site="youtube", key="k", type="Trailer", official=True, size=1080, iso_639_1="en")
+        assert v.site == "YouTube"
+
+    def test_type_multi_word_preserves_title_case(self):
+        """Multi-word "behind the scenes" must become "Behind the Scenes" (NOT .capitalize())."""
+        # `.capitalize()` would corrupt this to "Behind the scenes" and break
+        # downstream filters that match against the TMDB-canonical "Behind the Scenes".
+        v = Video(
+            id="x",
+            site="YouTube",
+            key="k",
+            type="behind the scenes",
+            official=False,
+            size=720,
+            iso_639_1="en",
+        )
+        assert v.type == "Behind the Scenes"
+
+    def test_unknown_type_passed_through(self):
+        """An unrecognised type is preserved verbatim (not silently rewritten)."""
+        v = Video(
+            id="x",
+            site="YouTube",
+            key="k",
+            type="Custom Promo",
+            official=False,
+            size=720,
+            iso_639_1="en",
+        )
+        # No mapping for "custom promo" → original value preserved.
+        assert v.type == "Custom Promo"
+
+    def test_zero_size_rejected(self):
+        """Video.size must be > 0 — zero is rejected (TMDB never returns 0)."""
+        with pytest.raises(ValueError, match="must be > 0"):
+            Video(id="x", site="YouTube", key="k", type="Trailer", official=True, size=0, iso_639_1="en")
+
+    def test_negative_size_rejected(self):
+        """Video.size must be > 0 — a negative integer is rejected."""
+        with pytest.raises(ValueError, match="must be > 0"):
+            Video(id="x", site="YouTube", key="k", type="Trailer", official=True, size=-1, iso_639_1="en")

@@ -470,7 +470,9 @@ class TestAutoGC:
         )
 
         # At least one .corrupt-<ts> sibling must exist next to the state file.
-        backups = list(tmp_path.glob("trailers_state.corrupt-*"))
+        # The backup preserves the original .json suffix in the filename so it
+        # remains recognisable as JSON (e.g. trailers_state.json.corrupt-<ts>).
+        backups = list(tmp_path.glob("trailers_state.json.corrupt-*"))
         assert len(backups) >= 1, "expected a corrupt-state backup file"
         assert "{not valid json" in backups[0].read_text(encoding="utf-8")
 

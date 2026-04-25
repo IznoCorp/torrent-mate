@@ -242,7 +242,12 @@ class TrailersOrchestrator:
             except FileNotFoundError:
                 # Parent directory does not exist yet (typical for unscraped staging).
                 # Downloader will create it; treat as sufficient space and proceed.
-                pass
+                # Debug-log so an unmounted disk masquerading as missing parent is
+                # distinguishable from a legitimate first-run miss.
+                log.debug(
+                    "trailers_disk_usage_parent_missing",
+                    path=str(expected_path.parent),
+                )
             except OSError as exc:
                 # Permission denied, broken NTFS/macFUSE mount, stale handle, etc.
                 # Log loudly; the precheck is advisory only — let the download try.

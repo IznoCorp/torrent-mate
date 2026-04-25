@@ -28,8 +28,38 @@
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+- Findings received: 30 across 5 reviewers (code, tests, errors, types, comments)
+- Retained: 14 actionable (0 critical, 2 major, 9 medium, 3 minor)
+- Ignored: 16 (CI flake speculation, cosmetic, out of scope, validated as sound)
+- Fix phase: applied inline (cohesive small fixes, hot session)
+- Status: clean — all retained fixed and tests added; proceeding to merge
+
+**Major fixes**:
+
+- `Video.type` `.capitalize()` corrupted multi-word types ("Behind the scenes" instead of "Behind the Scenes") → introduced canonical-vocabulary mapping
+- `retry_after_days` per-element `ge=0` missing → negative day collapsed back-off ladder
+
+**Medium fixes**:
+
+- `Video.size` doc/code mismatch — tightened validator to `> 0` (docstring already said `> 0`, code allowed `0`)
+- scanner.py library_scan_max_age_hours silent fallback removed (commit message had claimed this previously but it survived)
+- `_backup_corrupt` filename now preserves `.json` suffix (`with_name` instead of `with_suffix`)
+- `CookieConfig.from_env()` narrowed to `(ImportError, ValidationError)` + DEBUG log instead of swallow-all
+- orchestrator disk_usage `FileNotFoundError` adds `log.debug` breadcrumb
+- state.py `_save` outer OSError logs at error level with `error_type` before re-raising
+- `all_entries()` aggregates malformed-dropped count and emits a summary warning
+- `_fallback_search` second except catches non-DownloadError yt-dlp failures and trips the breaker
+- `TrailerState` field annotations now `str | datetime | None` (was `str` while runtime accepted both)
+
+**Minor fixes**:
+
+- `_validate_season_number` extracted into shared helper used by both TrailerState and ScanItem
+- `allowed_extensions` per-element pattern `^[a-z0-9]+$` rejects `""` and `"mp4 "`
+
+**Tests added**: Video site/type normalisation + `> 0` size validation (5 tests), retry_after_days negative element rejected, allowed_extensions empty-string + trailing-space rejected.
 
 ## Next action
 
-All 11 phases complete. 1878 tests passing. Run /implement:feature-pr to push and open PR.
+Cycle 1 fixes applied. Merge mode is `manual` — squash merge PR #15 when ready, then run /implement:archive.
