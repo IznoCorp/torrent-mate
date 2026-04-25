@@ -21,7 +21,7 @@
 | 3c  | Placement (`placement.py`)                                               | phase-03c-placement.md           | [x]    |
 | 4   | State tracking (`state.py`)                                              | phase-04-state-tracking.md       | [x]    |
 | 5   | Pipeline step (`trailers/step.py`)                                       | phase-05-pipeline-step.md        | [x]    |
-| 6   | Scanner + orchestrator                                                   | phase-06-scanner-orchestrator.md | [ ]    |
+| 6   | Scanner + orchestrator                                                   | phase-06-scanner-orchestrator.md | [x]    |
 | 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [ ]    |
 | 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [ ]    |
 | 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 5 complete (StepReport extension + pipeline.py wire-up between verify and dispatch; 9 step tests + pipeline tests green). Continue to Phase 6 — scanner + orchestrator.
+Phase 6 complete (Scanner with staging+library modes, season-aware; TrailersOrchestrator with library-aware idempotence + step budget; 22 tests). Continue to Phase 7 — config defaults.
