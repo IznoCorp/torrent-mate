@@ -12,6 +12,7 @@ See docs/tenacity-reference.md for retry strategy details.
 """
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import requests
@@ -61,6 +62,29 @@ class TMDBError(Exception):
         self.tmdb_code = tmdb_code
         self.message = message
         super().__init__(f"TMDB {http_status} (code {tmdb_code}): {message}")
+
+
+@dataclass(frozen=True)
+class Video:
+    """A video entry from the TMDB /videos endpoint.
+
+    Attributes:
+        id: TMDB internal video UUID.
+        site: Hosting platform, typically "YouTube".
+        key: Platform video identifier (YouTube video ID).
+        type: Video category: "Trailer", "Teaser", "Clip", "Featurette", etc.
+        official: Whether the video is from an official channel.
+        size: Vertical resolution in pixels (e.g. 1080, 720, 480).
+        iso_639_1: Language code (e.g. "en", "fr").
+    """
+
+    id: str
+    site: str
+    key: str
+    type: str
+    official: bool
+    size: int
+    iso_639_1: str
 
 
 _is_retryable = make_retryable_predicate(TMDBError)
