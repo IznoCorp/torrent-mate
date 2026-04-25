@@ -108,8 +108,34 @@
   but `trailers.md`, `naming.md`, `CLAUDE.md`, `step.py`, `pipeline.py` still
   describe the old flat naming
 
+### Cycle 4
+
+- Findings received: ~50 across 4 reviewers (code, tests, errors, comments) on
+  post-cycle-3 push (`918e070`)
+- Retained: 22 actionable (7 critical, 8 major, 7 medium)
+- Ignored: design-coherent suggestions, defensive hardening for hypothetical
+  futures, polish (see Phase 11 "Out of scope")
+- Fix phase created: `docs/features/trailer/plan/phase-11-pr-fixes-cycle-4.md`
+  (7 sub-phases organised by code area)
+- Status: fix phase dispatched → awaiting `/implement:phase`
+
+**Critical themes**:
+
+- **`TrailerStateLocked` only caught in `step.py`** — every other call site
+  in the orchestrator and CLI leaks raw tracebacks under contention; per-item
+  contention aborts the whole orchestrator
+- **Cache poisoning prevention is half-done** — `TypeError` from yt-dlp parser
+  drift and transport errors still slip through `_fallback_search`'s fail-soft
+  contract → cached as `__no_result__` for 7d
+- **Cycle-3 test work was partial** — `MagicMock(spec=…)` advertised but never
+  applied; `verify --deep` error-path tests planned but only happy path
+  delivered; misleading comment at `test_orchestrator.py:17`
+- **New regression in `logger.py`** — broadened redaction regex over-matches
+  `cookie_count`, `token_count`, `secret_count` (integer counters silently
+  redacted)
+
 ## Next action
 
-All phases complete. Run `/implement:feature-pr` to execute the local quality gate,
-push the branch, and update PR #15 with the cycle-3 commits. Then `/implement:pr-review`
-will decide whether a Cycle 4 is warranted.
+Execute Phase 11 via `/implement:phase`. After all sub-phases complete and the
+milestone commit lands, push and let the auto PR-review cycle decide whether
+a Cycle 5 is needed.
