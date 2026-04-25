@@ -212,3 +212,40 @@ class TestVideoNormalisation:
         """Video.size must be > 0 — a negative integer is rejected."""
         with pytest.raises(ValueError, match="must be > 0"):
             Video(id="x", site="YouTube", key="k", type="Trailer", official=True, size=-1, iso_639_1="en")
+
+
+# ── _fetch_videos_strict non-dict guard ───────────────────────────────────────
+
+
+class TestFetchVideosStrictNonDict:
+    """Sub-phase 11.2 — non-dict JSON response raises TMDBError."""
+
+    def test_fetch_videos_strict_raises_on_non_dict_response(self, client: TMDBClient) -> None:
+        """_fetch_videos_strict raises TMDBError when _get returns a non-dict value.
+
+        A proxy or parser-drift condition may cause _get to return a JSON list
+        or scalar instead of a dict.  Without a type check, the subsequent
+        ``data.get("results")`` raises AttributeError which leaks past find()'s
+        except clause and poisons the cache with __no_result__.
+
+        This test patches _get to return a list and asserts TMDBError is raised
+        with a message describing the unexpected type.
+
+        Args:
+            client: TMDBClient fixture with dummy API key.
+        """
+        with pytest.raises(TMDBError, match="malformed response"):
+            with patch.object(client, "_get", return_value=["not", "a", "dict"]):
+                client._fetch_videos_strict("/movie/550/videos", 550, "movie", "en-US")
+
+    def test_fetch_videos_strict_raises_on_scalar_response(self, client: TMDBClient) -> None:
+        """_fetch_videos_strict raises TMDBError when _get returns a bare scalar.
+
+        Verifies the isinstance guard works for any non-dict type, not just lists.
+
+        Args:
+            client: TMDBClient fixture with dummy API key.
+        """
+        with pytest.raises(TMDBError, match="malformed response.*str"):
+            with patch.object(client, "_get", return_value="unexpected string"):
+                client._fetch_videos_strict("/movie/550/videos", 550, "movie", "en-US")

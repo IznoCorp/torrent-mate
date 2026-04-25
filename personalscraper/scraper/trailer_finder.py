@@ -249,7 +249,7 @@ class TrailerFinder:
         # Build the search query; use season-specific format when applicable.
         try:
             yt_url = self._youtube_fallback_strict(title, year, season_number)
-        except (CircuitOpenError, requests.RequestException, KeyError, AttributeError) as exc:
+        except (CircuitOpenError, requests.RequestException, KeyError, AttributeError, TypeError) as exc:
             # Transport error / breaker-open / yt-dlp parser bug — do NOT cache
             # the __no_result__ sentinel so we retry on the next run.
             logger.warning(
@@ -350,10 +350,13 @@ class TrailerFinder:
             no results.
 
         Raises:
-            CircuitOpenError: When the YouTube circuit breaker is OPEN.
-            requests.RequestException: On network transport errors.
-            KeyError: On yt-dlp parser schema drift (missing expected fields).
-            AttributeError: On yt-dlp parser schema drift (unexpected None).
+            CircuitOpenError: When the YouTube circuit breaker is OPEN before
+                the call, or when it transitions closed → open during this call.
+            KeyError: On yt-dlp parser schema drift (missing expected dict field).
+            AttributeError: On yt-dlp parser schema drift (unexpected None value).
+            TypeError: On yt-dlp parser schema drift (unexpected type in result).
+            requests.RequestException: On network / transport errors.
+            OSError: On OS-level I/O errors during the yt-dlp download probe.
         """
         if season_number is not None:
             year_str = str(year) if year else ""
@@ -386,20 +389,17 @@ class TrailerFinder:
     ) -> str | None:
         """Call ``searcher.search()`` and re-raise transient errors.
 
-        ``YoutubeSearch.search()`` is fail-soft (never raises).  This thin
-        wrapper detects the breaker-open condition before the call and
-        re-raises ``CircuitOpenError`` so ``find()`` can skip caching.
+        ``YoutubeSearch.search()`` is fail-soft (never raises) for most paths,
+        but after sub-phase 11.2 ``_fallback_search`` re-raises parser/transport
+        errors.  This wrapper adds two layers of circuit-open detection:
 
-        Transport errors that caused the breaker to open on a previous call are
-        surfaced on the *next* call when ``can_proceed()`` returns False.  There
-        is no way to distinguish "breaker just opened during this call" from a
-        genuine empty result inside ``search()`` without modifying YoutubeSearch
-        itself.  The conservative policy is:
-
-        - If the breaker is OPEN before the call → raise ``CircuitOpenError``
-          (cache-poisoning prevention).
-        - Otherwise, call ``search()`` normally; a ``None`` return is treated
-          as "no results" and cached accordingly.
+        1. Pre-call guard: if the breaker is already OPEN, raise immediately so
+           ``find()`` can skip caching ``__no_result__``.
+        2. Post-call check: if the breaker *transitioned* closed → open during
+           this call (a fresh transport failure that tripped the threshold),
+           raise ``CircuitOpenError`` post-hoc so the cache write is skipped.
+           Without this, a ``None`` return from ``search()`` on the very call
+           that opens the breaker would be indistinguishable from "no results".
 
         Args:
             searcher: ``YoutubeSearch`` instance to call.
@@ -411,11 +411,38 @@ class TrailerFinder:
 
         Raises:
             CircuitOpenError: When the YouTube circuit breaker is OPEN before
-                the search call.
+                the search call, or when it opened during this call.
+            KeyError: On yt-dlp parser schema drift (re-raised from
+                ``_fallback_search``).
+            AttributeError: On yt-dlp parser schema drift (re-raised from
+                ``_fallback_search``).
+            TypeError: On yt-dlp parser schema drift (re-raised from
+                ``_fallback_search``).
+            requests.RequestException: On network transport errors (re-raised
+                from ``_fallback_search``).
+            OSError: On OS-level I/O errors (re-raised from ``_fallback_search``).
         """
         # guard() raises CircuitOpenError(provider, remaining_seconds) when OPEN.
         searcher._breaker.guard()
-        return searcher.search(title, year)
+
+        # Snapshot breaker state before the call to detect a fresh trip.
+        was_open_before = not searcher._breaker.can_proceed()
+
+        result = searcher.search(title, year)
+
+        # If the breaker transitioned closed → open during this call, a fresh
+        # transport failure tripped the threshold.  Raise so find() skips caching
+        # __no_result__ — the None return is not a genuine "no results" signal.
+        is_open_after = not searcher._breaker.can_proceed()
+        if not was_open_before and is_open_after:
+            logger.warning(
+                "trailer_youtube_breaker_opened_during_call",
+                title=title,
+                year=year,
+            )
+            raise CircuitOpenError("breaker opened during call", 0.0)
+
+        return result
 
     @staticmethod
     def _cache_media_type(media_type: str, season_number: int | None) -> str:

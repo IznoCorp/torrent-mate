@@ -332,11 +332,17 @@ class TestFallbackExceptionSplit:
     def test_fallback_keyerror_does_not_push_breaker(
         self, searcher_no_key: YoutubeSearch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """KeyError in _fallback_search is logged at ERROR but does NOT push the breaker.
+        """KeyError in _fallback_search is logged at ERROR, does NOT push the breaker, and re-raises.
 
         Parser drift (yt-dlp returns an unexpected dict shape) must not open the
         circuit — that would block all subsequent fallback attempts for the entire
         cooldown period, which is far too disruptive for a parser bug.
+
+        Post sub-phase 11.2: _fallback_search re-raises so the strict layer can
+        decide caching policy.  ``search()`` still returns ``None`` (it is the
+        fail-soft public entry point) because the re-raised exception propagates
+        up through ``search()`` which does not catch it, but this unit test calls
+        ``_fallback_search`` directly so we assert the raise contract.
 
         Args:
             searcher_no_key: YoutubeSearch with empty api_key.
@@ -375,10 +381,11 @@ class TestFallbackExceptionSplit:
 
         initial_failure_count = searcher_no_key._breaker._failure_count
 
+        # _fallback_search now re-raises KeyError — verify the raise contract.
         with caplog.at_level(logging.DEBUG), patch("builtins.__import__", side_effect=mock_import):
-            url = searcher_no_key.search("Fight Club", 1999)
+            with pytest.raises(KeyError, match="missing_field"):
+                searcher_no_key._fallback_search("Fight Club 1999 trailer")
 
-        assert url is None
         # Breaker counter must be unchanged — a KeyError is not a network error.
         assert searcher_no_key._breaker._failure_count == initial_failure_count
 

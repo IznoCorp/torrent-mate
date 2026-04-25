@@ -315,3 +315,135 @@ class TestCachePoisoningPrevention:
 
         result2 = finder.find(550, "movie", title="Fight Club", year=1999)
         assert result2 == _YT_URL, "After breaker recovery, YouTube URL should be found"
+
+
+class TestCachePoisoningClosure:
+    """Sub-phase 11.2 — parser-drift and breaker-just-opened must not poison cache."""
+
+    def test_youtube_fallback_typeerror_does_not_cache_no_result(self, tmp_path: Path) -> None:
+        """A TypeError from _fallback_search must not write __no_result__ to the cache.
+
+        Scenario:
+          1. TMDB returns empty for all languages.
+          2. _fallback_search raises TypeError (yt-dlp parser drift).
+          3. find() catches it and returns None WITHOUT caching __no_result__.
+          4. On the next call (yt-dlp fixed), YouTube returns a real URL.
+          5. Assert: trailer is found (not blocked by a poisoned sentinel).
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+
+        from personalscraper.scraper.youtube_search import YoutubeSearch
+
+        cache_path = tmp_path / "tc.json"
+        trailers_cache = TrailersCache(cache_path)
+        client = MagicMock()
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=5, cooldown_seconds=60)
+
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+
+        real_searcher = YoutubeSearch(
+            "{title} {year} trailer",
+            api_key="",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=yt_breaker,
+        )
+
+        finder = TrailerFinder(
+            tmdb_client=client,
+            youtube_search=real_searcher,
+            cache=trailers_cache,
+            languages=["en-US"],
+        )
+
+        # TMDB: no videos (genuine empty for the language).
+        client._fetch_videos_strict.return_value = []
+
+        # Step 1: _fallback_search raises TypeError (yt-dlp parser drift).
+        with patch.object(real_searcher, "_fallback_search", side_effect=TypeError("unexpected type")):
+            result1 = finder.find(550, "movie", title="Fight Club", year=1999)
+
+        assert result1 is None
+
+        # Step 2: __no_result__ must NOT have been cached.
+        assert trailers_cache.contains_search("Fight Club", 1999) is False, (
+            "TypeError from _fallback_search must not cache __no_result__ sentinel"
+        )
+
+        # Step 3: After the yt-dlp bug is fixed, a real URL is returned.
+        with patch.object(real_searcher, "_fallback_search", return_value=_YT_URL):
+            result2 = finder.find(550, "movie", title="Fight Club", year=1999)
+
+        assert result2 == _YT_URL, "After parser fix, trailer should be found (not blocked by poisoned cache)"
+
+    def test_breaker_just_opened_during_call_does_not_cache(self, tmp_path: Path) -> None:
+        """When the breaker transitions closed→open during a call, __no_result__ is NOT cached.
+
+        Scenario:
+          1. TMDB returns empty.
+          2. The breaker is CLOSED before the YouTube call, but transitions OPEN
+             during it (a fresh transport failure trips the threshold).
+          3. _call_youtube_search detects the transition and raises CircuitOpenError.
+          4. find() catches it and returns None WITHOUT caching __no_result__.
+          5. After breaker recovery, YouTube returns a real URL.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+
+        import requests as _requests
+
+        from personalscraper.scraper.circuit_breaker import CircuitState
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.scraper.youtube_search import YoutubeSearch
+
+        cache_path = tmp_path / "tc.json"
+        trailers_cache = TrailersCache(cache_path)
+        client = MagicMock()
+
+        # Use a low threshold so one failure trips the breaker.
+        yt_breaker = CircuitBreaker(name="yt-test", failure_threshold=1, cooldown_seconds=9999)
+        real_searcher = YoutubeSearch(
+            "{title} {year} trailer",
+            api_key="",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=yt_breaker,
+        )
+
+        finder = TrailerFinder(
+            tmdb_client=client,
+            youtube_search=real_searcher,
+            cache=trailers_cache,
+            languages=["en-US"],
+        )
+
+        # TMDB: no videos.
+        client._fetch_videos_strict.return_value = []
+
+        # _fallback_search trips the breaker via record_failure and returns None.
+        # We simulate this by patching search() to record a failure and return None.
+        def _search_tripping_breaker(title: str, year: int | None) -> None:
+            yt_breaker.record_failure(_requests.exceptions.ConnectionError("transport failure"))
+            return None
+
+        with patch.object(real_searcher, "search", side_effect=_search_tripping_breaker):
+            result1 = finder.find(550, "movie", title="Fight Club", year=1999)
+
+        assert result1 is None
+
+        # __no_result__ sentinel must NOT have been cached.
+        assert trailers_cache.contains_search("Fight Club", 1999) is False, (
+            "Breaker opened during call must not cache __no_result__ sentinel"
+        )
+
+        # After recovery: reset breaker and return a real URL.
+        yt_breaker._state = CircuitState.CLOSED
+        yt_breaker._failure_count = 0
+
+        with patch.object(real_searcher, "_fallback_search", return_value=_YT_URL):
+            result2 = finder.find(550, "movie", title="Fight Club", year=1999)
+
+        assert result2 == _YT_URL, "After breaker recovery, trailer should be found"

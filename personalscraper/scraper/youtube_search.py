@@ -258,7 +258,17 @@ class YoutubeSearch:
             query: Plain-text search query.
 
         Returns:
-            YouTube watch URL for the first result, or ``None`` on failure.
+            YouTube watch URL for the first result, or ``None`` when the search
+            genuinely returned no results (empty entries list or missing video ID).
+            A ``None`` return means "we asked YouTube and found nothing" — it is
+            safe for the caller to cache this outcome as ``__no_result__``.
+
+        Raises:
+            KeyError: On yt-dlp parser schema drift (missing expected dict field).
+            AttributeError: On yt-dlp parser schema drift (unexpected None value).
+            TypeError: On yt-dlp parser schema drift (unexpected type in result).
+            requests.RequestException: On network / transport errors.
+            OSError: On OS-level I/O errors during the yt-dlp download probe.
         """
         # Import lazily so test environments without yt-dlp still import the module.
         try:
@@ -281,6 +291,9 @@ class YoutubeSearch:
             with yt_dlp.YoutubeDL(cast("Any", opts)) as ydl:
                 info: dict[str, Any] | None = cast("dict[str, Any]", ydl.extract_info(query, download=False))
         except yt_dlp.utils.DownloadError as exc:
+            # Genuine transport / network failure reported by yt-dlp.  Push the
+            # breaker so a sustained outage opens the circuit, then re-raise so
+            # _youtube_fallback_strict can skip caching __no_result__.
             log.warning(
                 "youtube_fallback_download_error",
                 query=query,
@@ -288,12 +301,13 @@ class YoutubeSearch:
                 exc_info=True,
             )
             self._breaker.record_failure(exc)
-            return None
+            raise
         except (KeyError, AttributeError, TypeError) as exc:
             # Parser drift / malformed yt-dlp response: do NOT push the breaker.
             # These are bugs in our code or in yt-dlp's output, not network failures.
             # Pushing the breaker on a KeyError would needlessly block all subsequent
             # fallback attempts for the cooldown period.
+            # Re-raise so _youtube_fallback_strict can decide caching policy uniformly.
             log.error(
                 "youtube_fallback_unexpected_error",
                 query=query,
@@ -301,10 +315,11 @@ class YoutubeSearch:
                 error_type=type(exc).__name__,
                 exc_info=True,
             )
-            return None
-        except Exception as exc:  # noqa: BLE001 — yt-dlp may raise OSError or DownloadError subclasses
+            raise
+        except (requests.RequestException, OSError) as exc:
             # Genuine transport / OS errors: push the breaker so a sustained outage
-            # opens the circuit rather than retrying forever.
+            # opens the circuit rather than retrying forever.  Re-raise so the
+            # strict layer skips caching __no_result__.
             log.warning(
                 "youtube_fallback_unexpected_error",
                 query=query,
@@ -315,7 +330,7 @@ class YoutubeSearch:
             self._breaker.record_failure(
                 requests.exceptions.ConnectionError(f"yt-dlp fallback failed: {type(exc).__name__}")
             )
-            return None
+            raise
 
         entries = (info or {}).get("entries") or []
         if not entries:

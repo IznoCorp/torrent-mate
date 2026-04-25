@@ -683,6 +683,16 @@ class TMDBClient:
                 return []
             raise
 
+        # Guard against parser drift or a proxy returning a non-object JSON value
+        # (e.g. a list or a bare string).  Without this check, `data.get("results")`
+        # would raise AttributeError which leaks past find()'s except clause.
+        if not isinstance(data, dict):
+            raise TMDBError(
+                200,
+                0,
+                f"malformed response: expected object, got {type(data).__name__}",
+            )
+
         raw_list = data.get("results") or []
         videos: list[Video] = []
         for item in raw_list:
