@@ -369,6 +369,7 @@ class JsonTTLCache:
                 path=str(self._path),
                 error=str(exc),
                 hint="starting with empty cache",
+                exc_info=True,
             )
             return {}
 

@@ -418,6 +418,10 @@ class TrailerStateStore:
         """
         self._state_file = state_file
         self._lock_file = state_file.with_suffix(".lock")
+        # Set to True by _load() when a corrupt file is detected and backed up.
+        # Cleared after the first post-corruption set() emits the recovery log
+        # so the WARNING fires exactly once per corruption event.
+        self._recovering_from_corrupt: bool = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -480,6 +484,10 @@ class TrailerStateStore:
         The full read-modify-write cycle is protected by ``fcntl.flock`` so
         that concurrent writes do not lose each other's entries.
 
+        On the first call after a corrupt-file recovery, emits a WARNING log
+        ``trailer_state.recovering_from_corrupt`` so operators know the store
+        has been reset and the new entry-count is the current size.
+
         Args:
             key: Composite state key.
             state: ``TrailerState`` to persist.
@@ -496,6 +504,7 @@ class TrailerStateStore:
                     entries = self._load()
                     entries[key] = self._serialize(state)
                     self._save(entries)
+                    self._maybe_log_recovery(len(entries))
                 finally:
                     _fcntl.flock(lock_fh, _fcntl.LOCK_UN)
         else:
@@ -503,6 +512,7 @@ class TrailerStateStore:
             entries = self._load()
             entries[key] = self._serialize(state)
             self._save(entries)
+            self._maybe_log_recovery(len(entries))
 
     def should_skip(self, key: str) -> bool:
         """Return ``True`` if the entry for ``key`` should be skipped.
@@ -559,7 +569,7 @@ class TrailerStateStore:
             try:
                 result[k] = self._deserialize(v)
             except (KeyError, ValueError, TypeError) as exc:
-                log.warning("trailer_state.malformed_entry", key=k, error=str(exc))
+                log.warning("trailer_state.malformed_entry", key=k, error=str(exc), exc_info=True)
                 dropped += 1
         # Surface an aggregate so CLI scan/purge users can spot when their state
         # has degraded entries that won't appear in their iteration result.
@@ -642,52 +652,120 @@ class TrailerStateStore:
             with self._state_file.open("r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if not isinstance(raw, dict):
-                self._backup_corrupt(reason="root_not_object")
+                self._backup_corrupt_with_data_loss(reason="root_not_object", entries_lost=0)
                 return {}
             entries = raw.get("entries", {})
             if not isinstance(entries, dict):
-                self._backup_corrupt(reason="entries_not_object")
+                self._backup_corrupt_with_data_loss(reason="entries_not_object", entries_lost=0)
                 return {}
             return {k: v for k, v in entries.items() if isinstance(v, dict)}
         except (json.JSONDecodeError, ValueError) as exc:
             # Parse error — preserve the bad file before the next set() overwrites it.
-            self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
-            log.warning("trailer_state_load_failed", path=str(self._state_file), error=str(exc))
+            # Count entries_lost best-effort via a raw string scan; fall back to 0.
+            entries_lost = self._count_entries_lost()
+            self._backup_corrupt_with_data_loss(
+                reason=f"parse_error:{type(exc).__name__}",
+                entries_lost=entries_lost,
+            )
+            log.error(
+                "trailer_state_load_failed",
+                path=str(self._state_file),
+                error=str(exc),
+                exc_info=True,
+            )
             return {}
         except OSError as exc:
             # Read failure (permissions, broken mount). Do NOT backup — the file is
             # likely intact but inaccessible; return empty so the run continues.
-            log.warning("trailer_state_read_failed", path=str(self._state_file), error=str(exc))
+            log.warning(
+                "trailer_state_read_failed",
+                path=str(self._state_file),
+                error=str(exc),
+                exc_info=True,
+            )
             return {}
 
-    def _backup_corrupt(self, reason: str) -> None:
-        """Copy the state file aside before it gets overwritten by a fresh save.
+    def _count_entries_lost(self) -> int:
+        """Best-effort count of ``entries`` keys in the (possibly corrupt) state file.
 
-        Without this, a parse failure followed by ``set()`` silently destroys
-        every prior entry. The backup keeps a forensic copy at
+        Used by ``_backup_corrupt_with_data_loss`` to report how many entries
+        will be lost. Falls back to ``0`` if the file cannot be read or parsed
+        even partially.
+
+        Returns:
+            Number of top-level keys in the ``entries`` dict, or ``0`` on error.
+        """
+        try:
+            raw_text = self._state_file.read_text(encoding="utf-8", errors="replace")
+            # Quick heuristic: count ``"entries"`` key occurrences in a rough
+            # parse attempt. The authoritative count requires valid JSON; if that
+            # fails too we just use 0.
+            partial = json.loads(raw_text)
+            entries = partial.get("entries", {})
+            return len(entries) if isinstance(entries, dict) else 0
+        except Exception:  # noqa: BLE001 — degrade gracefully
+            return 0
+
+    def _backup_corrupt_with_data_loss(self, reason: str, entries_lost: int) -> None:
+        """Copy the state file aside and emit a loud ERROR for the data loss.
+
+        Without this backup, a parse failure followed by ``set()`` silently
+        destroys every prior entry. The backup keeps a forensic copy at
         ``<state_file>.corrupt-<unix_ts>``.
+
+        After calling this method the instance transitions to
+        ``_recovering_from_corrupt = True`` so that the next ``set()`` emits
+        an additional WARNING confirming the store is rebuilding.
 
         Args:
             reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
+            entries_lost: Number of entries that could not be recovered (best-effort).
         """
+        # Guard: if we are already in recovery mode, the backup + ERROR log were
+        # already emitted for this corruption event — skip the duplicate.
+        # (set() calls _load() which would re-detect the still-corrupt file.)
+        if self._recovering_from_corrupt:
+            return
+        backup_path: str = ""
         try:
             # Preserve the original full filename (incl. .json suffix) so the
             # forensic copy remains recognisable as the parsed-format file.
             backup = self._state_file.with_name(f"{self._state_file.name}.corrupt-{int(time.time())}")
             shutil.copy(self._state_file, backup)
-            log.warning(
-                "trailer_state_corrupt_backup",
+            backup_path = str(backup)
+            log.error(
+                "trailer_state.data_loss_started",
                 original=str(self._state_file),
-                backup=str(backup),
+                backup_path=backup_path,
                 reason=reason,
+                entries_lost=entries_lost,
             )
+            self._recovering_from_corrupt = True
         except OSError as exc:
             log.error(
                 "trailer_state_corrupt_backup_failed",
                 path=str(self._state_file),
                 error=str(exc),
                 reason=reason,
+                exc_info=True,
             )
+
+    def _maybe_log_recovery(self, new_entry_count: int) -> None:
+        """Emit a WARNING log once after recovering from a corrupt state file.
+
+        Called by ``set()`` after the new entry has been persisted. Fires
+        exactly once per corruption event and then resets the flag.
+
+        Args:
+            new_entry_count: Total number of entries now in the store.
+        """
+        if self._recovering_from_corrupt:
+            log.warning(
+                "trailer_state.recovering_from_corrupt",
+                new_entry_count=new_entry_count,
+                hint="state store rebuilt from scratch after corruption; prior entries lost",
+            )
+            self._recovering_from_corrupt = False
 
     def _save(self, entries: dict[str, Any]) -> None:
         """Write ``entries`` to the state file atomically via temp + os.replace.
@@ -719,12 +797,14 @@ class TrailerStateStore:
                     tmp_path=tmp_path,
                     error=str(exc),
                     error_type=type(exc).__name__,
+                    exc_info=True,
                 )
             log.error(
                 "trailer_state_save_failed",
                 path=str(self._state_file),
                 error=str(replace_exc),
                 error_type=type(replace_exc).__name__,
+                exc_info=True,
             )
             raise
 

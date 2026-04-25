@@ -85,7 +85,7 @@ class TestYoutubeSearch:
 
     def test_returns_first_video_url(self, searcher: YoutubeSearch) -> None:
         """search() returns a YouTube URL for the first result."""
-        with patch("requests.get", return_value=_fixture_response("search_fight_club.json")):
+        with patch("requests.Session.get", return_value=_fixture_response("search_fight_club.json")):
             url = searcher.search("Fight Club", 1999)
         assert url == "https://www.youtube.com/watch?v=6JnN1DmbqoU"
 
@@ -95,7 +95,7 @@ class TestYoutubeSearch:
         empty.ok = True
         empty.status_code = 200
         empty.json.return_value = {"items": []}
-        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=empty):
+        with _patch_yt_dlp_no_result(), patch("requests.Session.get", return_value=empty):
             url = searcher.search("Unknown Movie", 2099)
         assert url is None
 
@@ -104,7 +104,7 @@ class TestYoutubeSearch:
         error_resp = MagicMock()
         error_resp.ok = False
         error_resp.status_code = 500
-        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=error_resp):
+        with _patch_yt_dlp_no_result(), patch("requests.Session.get", return_value=error_resp):
             url = searcher.search("Fight Club", 1999)
         assert url is None
 
@@ -113,7 +113,7 @@ class TestYoutubeSearch:
         error_resp = MagicMock()
         error_resp.ok = False
         error_resp.status_code = 403
-        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=error_resp):
+        with _patch_yt_dlp_no_result(), patch("requests.Session.get", return_value=error_resp):
             url = searcher.search("Fight Club", 1999)
         assert url is None
         # The 403 path must mark the quota exhausted so subsequent calls bypass HTTP entirely.
@@ -126,7 +126,7 @@ class TestYoutubeSearch:
         bad.ok = True
         bad.status_code = 200
         bad.json.side_effect = ValueError("not json")
-        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=bad):
+        with _patch_yt_dlp_no_result(), patch("requests.Session.get", return_value=bad):
             url = searcher.search("Fight Club", 1999)
         assert url is None
         # Schema drift / HTML-from-proxy must register against the breaker so a
@@ -139,14 +139,14 @@ class TestYoutubeSearch:
         weird.ok = True
         weird.status_code = 200
         weird.json.return_value = {"items": [{"id": "scalar_not_dict"}]}  # malformed
-        with _patch_yt_dlp_no_result(), patch("requests.get", return_value=weird):
+        with _patch_yt_dlp_no_result(), patch("requests.Session.get", return_value=weird):
             url = searcher.search("Fight Club", 1999)
         assert url is None
         assert searcher._breaker._failure_count >= 1
 
     def test_query_format_substitution(self, searcher: YoutubeSearch) -> None:
         """search() sends a query with title and year substituted."""
-        with patch("requests.get", return_value=_fixture_response("search_fight_club.json")) as mock_get:
+        with patch("requests.Session.get", return_value=_fixture_response("search_fight_club.json")) as mock_get:
             searcher.search("Fight Club", 1999)
         call_url: str = mock_get.call_args[0][0]
         assert "Fight+Club" in call_url or "Fight Club" in call_url
@@ -159,7 +159,7 @@ class TestYoutubeSearch:
         with (
             _patch_yt_dlp_no_result(),
             patch(
-                "requests.get",
+                "requests.Session.get",
                 side_effect=_requests.exceptions.ConnectionError("no network"),
             ),
         ):
@@ -177,7 +177,7 @@ class TestYoutubeSearch:
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
             breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
         )
-        with patch("requests.get", return_value=_fixture_response("search_fight_club.json")) as mock_get:
+        with patch("requests.Session.get", return_value=_fixture_response("search_fight_club.json")) as mock_get:
             s.search("Fight Club", 1999)
         call_url: str = mock_get.call_args[0][0]
         assert "trailer" in call_url
@@ -301,3 +301,160 @@ class TestYoutubeSearch:
             url = s.search("Unknown Title", 2099)
 
         assert url is None
+
+
+# ── Sub-phase 10.4 new tests ──────────────────────────────────────────────────
+
+
+class TestFallbackExceptionSplit:
+    """I4 — _fallback_search splits parser-drift from network errors."""
+
+    @pytest.fixture()
+    def searcher_no_key(self, tmp_path: Path) -> YoutubeSearch:
+        """YoutubeSearch with empty api_key so the fallback path is always taken.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+
+        Returns:
+            A YoutubeSearch with no API key configured.
+        """
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+
+        return YoutubeSearch(
+            query_format="{title} {year} trailer",
+            api_key="",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+        )
+
+    def test_fallback_keyerror_does_not_push_breaker(
+        self, searcher_no_key: YoutubeSearch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """KeyError in _fallback_search is logged at ERROR but does NOT push the breaker.
+
+        Parser drift (yt-dlp returns an unexpected dict shape) must not open the
+        circuit — that would block all subsequent fallback attempts for the entire
+        cooldown period, which is far too disruptive for a parser bug.
+
+        Args:
+            searcher_no_key: YoutubeSearch with empty api_key.
+            caplog: Pytest log-capture fixture.
+        """
+        import builtins
+        import logging
+
+        real_import = builtins.__import__
+
+        # DownloadError must be a distinct class that KeyError does NOT inherit
+        # from — otherwise the ``except yt_dlp.utils.DownloadError`` clause
+        # catches the KeyError before our new ``except (KeyError, ...)`` branch.
+        class _FakeDownloadError(Exception):
+            pass
+
+        def _make_ydl_raising_keyerror() -> object:
+            ydl = MagicMock()
+            ydl.__enter__ = MagicMock(return_value=ydl)
+            ydl.__exit__ = MagicMock(return_value=False)
+            ydl.extract_info.side_effect = KeyError("missing_field")
+
+            fake = MagicMock()
+            fake.YoutubeDL.return_value = ydl
+            # Provide a distinct exception type so ``except DownloadError`` is NOT
+            # triggered by a KeyError — the two must be unrelated in the MRO.
+            fake.utils.DownloadError = _FakeDownloadError
+            return fake
+
+        fake_yt_dlp = _make_ydl_raising_keyerror()
+
+        def mock_import(name: str, *args: object, **kwargs: object) -> object:
+            if name == "yt_dlp":
+                return fake_yt_dlp
+            return real_import(name, *args, **kwargs)
+
+        initial_failure_count = searcher_no_key._breaker._failure_count
+
+        with caplog.at_level(logging.DEBUG), patch("builtins.__import__", side_effect=mock_import):
+            url = searcher_no_key.search("Fight Club", 1999)
+
+        assert url is None
+        # Breaker counter must be unchanged — a KeyError is not a network error.
+        assert searcher_no_key._breaker._failure_count == initial_failure_count
+
+        # The log must be at ERROR level (parser drift, not WARNING).
+        # structlog records arrive with event name in rec.message or rec.msg dict.
+        def _has_event(rec: object) -> bool:
+            msg = getattr(rec, "msg", None)
+            message = getattr(rec, "message", "")
+            return (isinstance(msg, dict) and msg.get("event") == "youtube_fallback_unexpected_error") or (
+                "youtube_fallback_unexpected_error" in str(message)
+            )
+
+        error_records = [r for r in caplog.records if _has_event(r)]
+        assert error_records, "expected youtube_fallback_unexpected_error log"
+        assert error_records[0].levelno == logging.ERROR
+
+
+class TestPrimarySearchRetry:
+    """I6 — _primary_search retries transient transport errors."""
+
+    @pytest.fixture()
+    def searcher(self, tmp_path: Path) -> YoutubeSearch:
+        """YoutubeSearch instance backed by a tmp quota cache."""
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+
+        return YoutubeSearch(
+            query_format="{title} {year} bande annonce",
+            api_key="test-key",
+            quota_cache=JsonTTLCache(tmp_path / "quota.json"),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+        )
+
+    def test_session_is_configured_with_retry_adapter(self, searcher: YoutubeSearch) -> None:
+        """YoutubeSearch builds its session with an HTTPAdapter carrying a Retry policy.
+
+        This verifies I6: the session's https adapter must be an HTTPAdapter
+        whose ``max_retries`` is a ``Retry`` instance (not the default ``False``).
+
+        Args:
+            searcher: YoutubeSearch fixture.
+        """
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry as Urllib3Retry
+
+        adapter = searcher._session.get_adapter("https://www.googleapis.com/")
+        assert isinstance(adapter, HTTPAdapter), "expected HTTPAdapter on https://"
+        assert isinstance(adapter.max_retries, Urllib3Retry), (
+            "expected Retry instance as max_retries, got: %r" % adapter.max_retries
+        )
+        # total must equal _PRIMARY_MAX_ATTEMPTS - 1 (= 2 retries).
+        assert adapter.max_retries.total == 2, (  # type: ignore[union-attr]
+            f"expected 2 retries, got {adapter.max_retries.total}"
+        )
+
+    def test_primary_search_pushes_breaker_after_terminal_transport_failure(self, searcher: YoutubeSearch) -> None:
+        """After a fatal ConnectionError _primary_search pushes the circuit breaker.
+
+        The retry adapter exhausts its attempts and raises ``ConnectionError``
+        to ``_primary_search``, which must record the failure on the breaker.
+        We mock ``Session.send`` (the transport layer) so the retry adapter's
+        retry logic runs first; by returning ``ConnectionError`` every time the
+        adapter eventually gives up and bubbles the exception.
+
+        Args:
+            searcher: YoutubeSearch fixture.
+        """
+        import requests as _requests
+
+        # Disable the yt-dlp fallback so a primary failure surfaces as None.
+        with (
+            patch.object(searcher._session, "send", side_effect=_requests.exceptions.ConnectionError("DNS hiccup")),
+            _patch_yt_dlp_no_result(),
+        ):
+            url = searcher.search("Fight Club", 1999)
+
+        assert url is None
+        # Circuit breaker must have recorded the failure.
+        assert searcher._breaker._failure_count >= 1

@@ -21,6 +21,7 @@
 | 7   | Config schema via Pydantic defaults                                      | [phase-07-config-defaults.md](phase-07-config-defaults.md)           | [ ]    |
 | 8   | CLI (`personalscraper trailers …`)                                       | [phase-08-cli.md](phase-08-cli.md)                                   | [ ]    |
 | 9   | E2E + docs + gate                                                        | [phase-09-e2e-docs-gate.md](phase-09-e2e-docs-gate.md)               | [ ]    |
+| 10  | PR fixes cycle 3 (40 findings)                                           | [phase-10-pr-review-cycle-3.md](phase-10-pr-review-cycle-3.md)       | [ ]    |
 
 ## Phase Summaries
 
@@ -37,6 +38,7 @@
 | 7   | `TrailersConfig` Pydantic model with sensible defaults (`enabled: false`). Update `.env.example` (`YOUTUBE_API_KEY`).     |
 | 8   | `personalscraper trailers scan/download/verify/purge` with full filter set. Consumes `TrailersConfig` from Phase 7.       |
 | 9   | E2E fixture (hermetic + opt-in network), coverage audit, `trailers.md` + updates to architecture/commands/testing/naming. |
+| 10  | PR-review cycle 3: 10 critical + 20 important + 10 suggestions. Downloader/cache/orchestrator hardening + docs refresh.   |
 
 ## Phase 3 — Trailer acquisition (three sub-phases)
 
@@ -56,6 +58,7 @@ Phase 6  ──── depends on Phase 4 + Phase 5
 Phase 7  ──── depends on Phase 6 (config schema must land before CLI consumes it)
 Phase 8  ──── depends on Phase 7 (CLI consumes TrailersConfig from Phase 7)
 Phase 9  ──── depends on all prior phases
+Phase 10 ──── depends on all prior phases (post-merge-cycle hardening pass)
 ```
 
 ## Commit Convention

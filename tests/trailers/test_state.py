@@ -581,3 +581,93 @@ class TestLockContention:
             holder.join(timeout=5)
             if holder.is_alive():
                 holder.terminate()
+
+
+# ── Sub-phase 10.4 new tests ──────────────────────────────────────────────────
+
+
+class TestDataLossLogging:
+    """I8 (state) — corrupt state file emits ERROR log + recovery WARNING on first set()."""
+
+    def test_corrupt_state_emits_data_loss_error_log(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Instantiating a store over a garbage state file emits data_loss_started at ERROR.
+
+        The log event must include ``backup_path`` and ``entries_lost`` fields.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log-capture fixture.
+        """
+        import logging
+
+        state_file = tmp_path / ".data" / "trailers_state.json"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        # Write a corrupt-but-parsable-enough file so entries_lost can be measured.
+        state_file.write_text("{corrupted garbage", encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+
+        with caplog.at_level(logging.ERROR):
+            # Trigger _load() by calling get() — the corrupt file must fire the log.
+            store.get("movie:tmdb:99")
+
+        def _is_data_loss_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailer_state.data_loss_started") or (
+                "data_loss_started" in message
+            )
+
+        error_events = [r for r in caplog.records if _is_data_loss_event(r)]
+        assert error_events, "expected trailer_state.data_loss_started ERROR log"
+        assert error_events[0].levelno == logging.ERROR
+
+    def test_recovering_from_corrupt_log_fires_on_first_set_after_corruption(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """First set() after corruption emits recovering_from_corrupt WARNING exactly once.
+
+        The flag ``_recovering_from_corrupt`` is set by ``_load()`` when a corrupt
+        file is detected, then cleared after the first post-corruption ``set()``
+        emits the warning.  Subsequent ``set()`` calls must NOT repeat it.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log-capture fixture.
+        """
+        import logging
+
+        state_file = tmp_path / ".data" / "trailers_state.json"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text("{corrupted garbage", encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+
+        good_state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/fake/path",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            # get() triggers _load() which detects corruption → sets the flag.
+            store.get("movie:tmdb:99")
+            # First set() must emit the recovery WARNING.
+            store.set("movie:tmdb:1", good_state)
+            # Second set() must NOT emit it again.
+            store.set("movie:tmdb:2", good_state)
+
+        def _is_recovery_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailer_state.recovering_from_corrupt") or (
+                "trailer_state.recovering_from_corrupt" in message
+            )
+
+        recovery_events = [r for r in caplog.records if _is_recovery_event(r)]
+        assert len(recovery_events) == 1, (
+            f"expected exactly one recovering_from_corrupt WARNING, got {len(recovery_events)}. "
+            f"Records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )
+        assert recovery_events[0].levelno == logging.WARNING

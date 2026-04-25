@@ -100,7 +100,7 @@ class TrailersCache:
         try:
             return [Video(**v) for v in raw]
         except (TypeError, KeyError) as exc:
-            logger.warning("trailers_cache_deserialize_failed", key=key, error=str(exc))
+            logger.warning("trailers_cache_deserialize_failed", key=key, error=str(exc), exc_info=True)
             return None
 
     def set_tmdb_videos(self, tmdb_id: int, media_type: str, language: str, videos: list[Video]) -> None:

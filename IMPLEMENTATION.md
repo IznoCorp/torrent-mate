@@ -25,6 +25,7 @@
 | 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [x]    |
 | 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [x]    |
 | 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [x]    |
+| 10  | PR fixes cycle 3 (40 findings)                                           | phase-10-pr-review-cycle-3.md    | [ ]    |
 
 ## Review cycles
 
@@ -74,6 +75,34 @@
 - Reworded `state.py:should_skip` "type system can't narrow" comment to be more explicit about the invariant
 - Reworded IMPLEMENTATION.md cycle 1 record to drop process-meta phrasing
 
+### Cycle 3
+
+- Findings received: 40 across 4 reviewers (code, tests, errors, comments) on 2026-04-25
+- Retained: 40 actionable (10 critical, 20 important, 10 suggestions)
+- Ignored: a small number flagged in "Out of scope" of the Phase 10 plan
+  (e.g. `_lookup_library_item` data-structure refactor, `noqa: BLE001` audit,
+  `purge --legacy-paths` helper)
+- Fix phase: Phase 10 (`docs/features/trailer/plan/phase-10-pr-review-cycle-3.md`),
+  organised into 7 sub-phases by code area
+- Status: planned — Phase 10 not yet executed
+
+**Critical themes** (cluster of root-cause pathologies surviving cycles 1-2):
+
+- **Silent persistence of broken state**: TMDB/YouTube outages cached as `[]`
+  / `__no_result__` for 7 days; finder import failures persisted as
+  `NO_TRAILER_AVAILABLE`; yt-dlp returning SUCCESS without verifying output
+  existed; `<MagicMock name='mock.trailers.lock` literal file leaked at repo
+  root from a pipeline fixture
+- **Flag wired but no-op**: `--continue-on-trailer-error` does nothing in
+  `pipeline.py:291-299`
+- **Lock contention with no surface signal**: `fcntl.flock(LOCK_EX)` without
+  `LOCK_NB` deadlocks two concurrent runs silently
+- **Docs lag behind code**: TV-show placement convention changed in `28d9f75`
+  but `trailers.md`, `naming.md`, `CLAUDE.md`, `step.py`, `pipeline.py` still
+  describe the old flat naming
+
 ## Next action
 
-2 review cycles complete. 1910 tests passing. Merge mode is `manual` — squash merge PR #15 when ready, then run /implement:archive.
+Execute Phase 10 via `/implement:phase`. After all sub-phases complete and the
+milestone commit lands, push and let the auto PR-review cycle decide whether
+a Cycle 4 is needed.

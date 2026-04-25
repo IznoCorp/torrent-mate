@@ -175,9 +175,14 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
     """Populate the ``<trailer>`` tag in a Kodi/Plex-style NFO with a YouTube URL.
 
     ``scraper/nfo_generator.py`` currently emits an empty ``<trailer></trailer>``
-    tag (lines 160 for movies, 269 for TV shows). Filling it with the discovered
-    YouTube URL gives Plex a remote-trailer fallback and gives Kodi/downstream
-    tools a cross-referenceable source URL.
+    tag (in ``_build_movie_nfo`` and ``_build_tv_nfo``). Filling it with the
+    discovered YouTube URL gives Plex a remote-trailer fallback and gives
+    Kodi/downstream tools a cross-referenceable source URL.
+
+    Writes are atomic: the updated XML is written to a ``{nfo_path}.tmp-{pid}``
+    sibling first, then ``os.replace`` swaps it onto the real path. This
+    mirrors the ``state.py``/``json_ttl_cache`` pattern so a SIGINT mid-write
+    can never truncate the original NFO.
 
     Failure modes are soft: a missing NFO or a parse error logs a WARNING
     and returns -- this function never raises.
@@ -186,6 +191,8 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
         nfo_path: Absolute path to the NFO file to update.
         youtube_url: Full YouTube URL to write into the ``<trailer>`` tag.
     """
+    import os
+
     if not nfo_path.is_file():
         logger.warning("trailer_nfo_missing", nfo_path=str(nfo_path))
         return
@@ -202,8 +209,10 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
         trailer_elem = ET.SubElement(root, "trailer")
     trailer_elem.text = youtube_url
 
+    tmp_path = nfo_path.with_name(f"{nfo_path.name}.tmp-{os.getpid()}")
     try:
-        tree.write(nfo_path, encoding="utf-8", xml_declaration=True)
+        tree.write(str(tmp_path), encoding="utf-8", xml_declaration=True)
+        os.replace(str(tmp_path), str(nfo_path))
     except OSError as exc:
         # The trailer file downloaded successfully; failing to record the URL
         # in NFO leaves Plex without the remote-trailer fallback.
@@ -213,3 +222,8 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
             error=str(exc),
             exc_info=True,
         )
+        # Clean up temp file so no orphan is left on disk.
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass

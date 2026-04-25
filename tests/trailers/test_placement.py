@@ -245,6 +245,32 @@ class TestWriteTrailerUrlToNfo:
         write_trailer_url_to_nfo(missing, "https://example")  # must not raise
         assert any("trailer_nfo_missing" in rec.message for rec in caplog.records)
 
+    def test_write_trailer_url_to_nfo_is_atomic_under_simulated_crash(self, tmp_path: Path) -> None:
+        """write_trailer_url_to_nfo leaves the original NFO unchanged when tree.write() raises.
+
+        The atomic write pattern (write to .tmp-PID then os.replace) means that a
+        crash mid-write must not truncate or corrupt the original file.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+        from xml.etree import ElementTree as _ET
+
+        nfo = self._make_nfo(tmp_path)
+        original_content = nfo.read_bytes()
+
+        # Monkeypatch ElementTree.write to raise mid-write.
+        with patch.object(_ET.ElementTree, "write", side_effect=OSError("disk full")):
+            write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=CRASH")
+
+        # Original file must be byte-for-byte unchanged.
+        assert nfo.read_bytes() == original_content
+
+        # No temp file must be left behind.
+        pid_tmps = list(tmp_path.glob("*.nfo.tmp-*"))
+        assert pid_tmps == [], f"Leftover temp files: {pid_tmps}"
+
 
 # ── Legacy TV-show flat-path probe (I6) ──────────────────────────────────────
 
@@ -309,6 +335,22 @@ class TestFindExistingTrailerLegacyFallback:
         result = find_existing_trailer(show_dir, "Breaking Bad (2008)", media_type="tvshow")
 
         assert result is None
+
+    def test_legacy_trailer_warning_logged(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """find_existing_trailer() logs a WARNING when it finds a legacy flat path.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log-capture fixture.
+        """
+        show_dir = tmp_path / "The Sopranos (1999)"
+        show_dir.mkdir()
+        legacy = show_dir / "The Sopranos (1999)-trailer.mp4"
+        legacy.write_bytes(b"x" * 1000)
+
+        find_existing_trailer(show_dir, "The Sopranos (1999)", media_type="tvshow")
+
+        assert any("placement.legacy_tvshow_trailer_found" in rec.message for rec in caplog.records)
 
     def test_legacy_probe_not_applied_for_movies(self, tmp_path: Path) -> None:
         """Legacy flat probe is not applied for movies (movies always use flat naming).

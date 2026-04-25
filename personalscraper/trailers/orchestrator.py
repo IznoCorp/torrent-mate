@@ -156,6 +156,7 @@ class TrailersOrchestrator:
             "ytdlp_error": 0,
             "skipped_by_state": 0,
             "skipped_by_filter": 0,
+            "circuit_open": 0,
             "error": 0,
         }
 
@@ -308,16 +309,32 @@ class TrailersOrchestrator:
                     season_number=item.season_number,
                 )
             except Exception as exc:  # noqa: BLE001
-                log.error(
-                    "trailers_finder_error",
-                    key=key,
-                    title=item.title,
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                    exc_info=True,
-                )
-                counts["error"] += 1
-                self._failed_items.append((key, "error", str(exc)))
+                # I2: circuit-breaker open is a distinct failure mode from a
+                # generic finder error.  Track it separately so operators can
+                # distinguish "TMDB/YouTube circuit tripped" from real errors.
+                from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+                is_circuit_open = isinstance(exc, CircuitOpenError)
+                if is_circuit_open:
+                    log.warning(
+                        "trailers_finder_circuit_open",
+                        key=key,
+                        title=item.title,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                    )
+                    counts["circuit_open"] += 1
+                else:
+                    log.error(
+                        "trailers_finder_error",
+                        key=key,
+                        title=item.title,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                        exc_info=True,
+                    )
+                    counts["error"] += 1
+                self._failed_items.append((key, "circuit_open" if is_circuit_open else "error", str(exc)))
                 # Persist HTTP_ERROR (not SKIPPED_BY_FILTER) so the state taxonomy
                 # correctly reflects a transient network/API failure rather than an
                 # intentional filter exclusion.  next_retry_at gives the item a

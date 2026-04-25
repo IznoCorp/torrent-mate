@@ -478,6 +478,7 @@ class YtdlpDownloader:
                     url=url,
                     error=error_msg,
                     error_type=type(exc).__name__,
+                    exc_info=True,
                 )
                 # C4: clean up partial files left by the failed download.
                 self._cleanup_partial_files(output_path, url)
@@ -513,7 +514,7 @@ class YtdlpDownloader:
                 # signals are BOT_DETECTED; transport errors get YTDLP_ERROR so
                 # the state store applies normal retry-after semantics.
                 if _is_bot_detection_error(retry_msg):
-                    logger.warning("ytdlp_bot_detected_retry_failed", url=url, error=retry_msg)
+                    logger.warning("ytdlp_bot_detected_retry_failed", url=url, error=retry_msg, exc_info=True)
                     # C4: clean up partial files.
                     self._cleanup_partial_files(output_path, url)
                     return DownloadResult(

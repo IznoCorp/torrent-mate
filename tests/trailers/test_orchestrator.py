@@ -839,3 +839,32 @@ class TestTrailersOrchestratorNfoPropagation:
             orchestrator.run()
 
         mock_write.assert_not_called()
+
+
+# ── Sub-phase 10.4 new tests ──────────────────────────────────────────────────
+
+
+class TestCircuitOpenCounter:
+    """I2 — counts['circuit_open'] increments when TMDB/YouTube circuit is open."""
+
+    def test_circuit_open_counter_increments_when_tmdb_breaker_open(self, orchestrator: TrailersOrchestrator) -> None:
+        """counts['circuit_open'] is incremented when TrailerFinder raises CircuitOpenError.
+
+        When the TMDB or YouTube circuit breaker is open, the finder raises
+        CircuitOpenError.  The orchestrator must tally these separately from
+        generic errors so operators can distinguish outage events from bugs.
+
+        Args:
+            orchestrator: Orchestrator fixture.
+        """
+        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+
+        with (
+            patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
+            patch.object(orchestrator._finder, "find", side_effect=CircuitOpenError("youtube", 60.0)),
+        ):
+            counts = orchestrator.run()
+
+        assert counts["circuit_open"] == 1
+        # Generic error counter must NOT be incremented for a circuit-open event.
+        assert counts["error"] == 0
