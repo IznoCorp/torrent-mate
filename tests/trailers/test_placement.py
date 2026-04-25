@@ -271,6 +271,64 @@ class TestWriteTrailerUrlToNfo:
         pid_tmps = list(tmp_path.glob("*.nfo.tmp-*"))
         assert pid_tmps == [], f"Leftover temp files: {pid_tmps}"
 
+    def test_write_trailer_url_to_nfo_cleans_up_tmp_on_unicode_error(self, tmp_path: Path) -> None:
+        """write_trailer_url_to_nfo removes the .tmp-PID file when tree.write() raises UnicodeEncodeError.
+
+        Non-OSError exceptions (UnicodeEncodeError, TypeError, ParseError) must
+        be covered by the ``finally`` cleanup block, not just the OSError branch.
+        The function must also return False to signal the failure to the caller.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+        from xml.etree import ElementTree as _ET
+
+        nfo = self._make_nfo(tmp_path)
+
+        # Simulate a UnicodeEncodeError mid-write (e.g. exotic filename on
+        # a filesystem that cannot represent the encoded bytes).
+        unicode_exc = UnicodeEncodeError("utf-8", "x", 0, 1, "surrogates not allowed")
+        with patch.object(_ET.ElementTree, "write", side_effect=unicode_exc):
+            result = write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=UNI")
+
+        # Function must signal failure.
+        assert result is False
+
+        # No .tmp-* orphan must remain.
+        pid_tmps = list(tmp_path.glob("*.nfo.tmp-*"))
+        assert pid_tmps == [], f"Leftover temp files after UnicodeEncodeError: {pid_tmps}"
+
+    def test_write_trailer_url_to_nfo_returns_false_on_failure(self, tmp_path: Path) -> None:
+        """write_trailer_url_to_nfo returns False on any write failure.
+
+        The return value must be False whenever the NFO was NOT updated
+        (missing file, parse error, or write error), so that the caller can
+        log a structured warning without checking the log itself.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+        from xml.etree import ElementTree as _ET
+
+        nfo = self._make_nfo(tmp_path)
+
+        with patch.object(_ET.ElementTree, "write", side_effect=RuntimeError("unexpected")):
+            result = write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=FAIL")
+
+        assert result is False
+
+    def test_write_trailer_url_to_nfo_returns_true_on_success(self, tmp_path: Path) -> None:
+        """write_trailer_url_to_nfo returns True when the NFO is updated successfully.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        nfo = self._make_nfo(tmp_path)
+        result = write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=OK")
+        assert result is True
+
 
 # ── Legacy TV-show flat-path probe (I6) ──────────────────────────────────────
 

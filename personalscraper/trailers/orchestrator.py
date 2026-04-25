@@ -465,7 +465,14 @@ class TrailersOrchestrator:
                 # Plex / Kodi can display the remote trailer as a fallback.
                 # Silently skip when there is no NFO or state write was blocked.
                 if state_written and item.nfo_path is not None:
-                    write_trailer_url_to_nfo(item.nfo_path, url)
+                    nfo_ok = write_trailer_url_to_nfo(item.nfo_path, url)
+                    if not nfo_ok:
+                        log.warning(
+                            "placement.nfo_update_failed",
+                            key=key,
+                            title=item.title,
+                            nfo_path=str(item.nfo_path),
+                        )
 
             elif result.status == DownloadStatus.BOT_DETECTED:
                 log.warning("trailers_bot_detected", key=key, title=item.title, url=url)

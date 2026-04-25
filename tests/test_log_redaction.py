@@ -85,3 +85,35 @@ def test_existing_exact_match_still_redacted() -> None:
     assert result["api_key"] == "***REDACTED***"
     assert result["token"] == "***REDACTED***"
     assert result["password"] == "***REDACTED***"
+
+
+# ── Sub-phase 11.4 — counter fields must NOT be redacted (I10) ───────────────
+
+
+def test_does_not_redact_cookie_count_field() -> None:
+    """redact_secrets() must NOT redact cookie_count — it is an integer counter, not a secret.
+
+    The compound regex previously matched ``cookie`` as a bare alternation, causing
+    ``cookie_count`` (and similar compound counter fields) to be incorrectly
+    redacted as ``***REDACTED***``.
+    """
+    result = redact_secrets(None, "info", {"event": "test", "cookie_count": 42})
+    assert result["cookie_count"] == 42, f"cookie_count should not be redacted, got {result['cookie_count']!r}"
+
+
+def test_does_not_redact_token_count_field() -> None:
+    """redact_secrets() must NOT redact token_count — it is an integer counter, not a secret."""
+    result = redact_secrets(None, "info", {"event": "test", "token_count": 7})
+    assert result["token_count"] == 7, f"token_count should not be redacted, got {result['token_count']!r}"
+
+
+def test_does_not_redact_secret_count_field() -> None:
+    """redact_secrets() must NOT redact secret_count — it is an integer counter, not a secret."""
+    result = redact_secrets(None, "info", {"event": "test", "secret_count": 3})
+    assert result["secret_count"] == 3, f"secret_count should not be redacted, got {result['secret_count']!r}"
+
+
+def test_does_not_redact_password_count_field() -> None:
+    """redact_secrets() must NOT redact password_count — it is an integer counter, not a secret."""
+    result = redact_secrets(None, "info", {"event": "test", "password_count": 0})
+    assert result["password_count"] == 0, f"password_count should not be redacted, got {result['password_count']!r}"

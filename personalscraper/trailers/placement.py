@@ -171,7 +171,7 @@ def trailer_exists(path: Path, min_size_bytes: int) -> bool:
         return False
 
 
-def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
+def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> bool:
     """Populate the ``<trailer>`` tag in a Kodi/Plex-style NFO with a YouTube URL.
 
     ``scraper/nfo_generator.py`` currently emits an empty ``<trailer></trailer>``
@@ -184,24 +184,33 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
     mirrors the ``state.py``/``json_ttl_cache`` pattern so a SIGINT mid-write
     can never truncate the original NFO.
 
+    The ``finally`` block guarantees that the ``.tmp-{pid}`` sibling is removed
+    on every error path — including ``xml.etree.ElementTree.ParseError``,
+    ``UnicodeEncodeError``, ``TypeError``, and ``OSError`` — so no orphan temp
+    file is ever left on disk.
+
     Failure modes are soft: a missing NFO or a parse error logs a WARNING
-    and returns -- this function never raises.
+    and returns ``False`` — this function never raises.
 
     Args:
         nfo_path: Absolute path to the NFO file to update.
         youtube_url: Full YouTube URL to write into the ``<trailer>`` tag.
+
+    Returns:
+        ``True`` if the NFO was updated successfully, ``False`` on any failure
+        (missing file, parse error, write error).
     """
     import os
 
     if not nfo_path.is_file():
         logger.warning("trailer_nfo_missing", nfo_path=str(nfo_path))
-        return
+        return False
 
     try:
         tree = ET.parse(nfo_path)
     except ET.ParseError as exc:
         logger.warning("trailer_nfo_parse_failed", nfo_path=str(nfo_path), error=str(exc))
-        return
+        return False
 
     root = tree.getroot()
     trailer_elem = root.find("trailer")
@@ -213,7 +222,8 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
     try:
         tree.write(str(tmp_path), encoding="utf-8", xml_declaration=True)
         os.replace(str(tmp_path), str(nfo_path))
-    except OSError as exc:
+        return True
+    except Exception as exc:
         # The trailer file downloaded successfully; failing to record the URL
         # in NFO leaves Plex without the remote-trailer fallback.
         logger.error(
@@ -222,8 +232,15 @@ def write_trailer_url_to_nfo(nfo_path: Path, youtube_url: str) -> None:
             error=str(exc),
             exc_info=True,
         )
-        # Clean up temp file so no orphan is left on disk.
+        return False
+    finally:
+        # Unconditional cleanup: remove the temp sibling on every error path
+        # (OSError, UnicodeEncodeError, ParseError, etc.) so no orphan is left.
         try:
             tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        except OSError as cleanup_exc:
+            logger.debug(
+                "placement.tmp_cleanup_failed",
+                path=str(tmp_path),
+                error=str(cleanup_exc),
+            )

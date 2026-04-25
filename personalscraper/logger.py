@@ -16,9 +16,13 @@ _SECRET_KEY_EXACT_RE = re.compile(r"^(api[_-]?key|authorization|cookie|secret|to
 # ``tmdb_api_key``, ``tvdb_api_key``, ``cookies_file``, ``cookie_file``.
 # Uses ``(^|[_-])`` as a segment boundary because ``_`` is a word character
 # and ``\b`` does not fire between letters and underscores.
-_SECRET_KEY_COMPOUND_RE = re.compile(
-    r"(?i)(^|[_\-])(api[_\-]?key|authorization|cookie|secret|token|password|cookies?[_\-]file)($|[_\-])"
-)
+#
+# Intentionally does NOT include bare ``cookie|secret|token|password`` — those
+# are short exact-match names handled by ``_SECRET_KEY_EXACT_RE`` above.  The
+# bare alternations caused over-matching on compound counters such as
+# ``cookie_count``, ``token_count``, ``secret_count`` and ``password_count``,
+# which are legitimate integer fields that must NOT be redacted.
+_SECRET_KEY_COMPOUND_RE = re.compile(r"(?i)(^|[_\-])(api[_\-]?key|authorization|cookies?[_\-]file)($|[_\-])")
 _URL_KEY_PARAM_RE = re.compile(r"([?&])key=[^&]*")
 
 
