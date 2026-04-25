@@ -20,6 +20,7 @@ Key design decisions:
 
 from __future__ import annotations
 
+import errno as _errno_mod
 import hashlib
 import json
 import os
@@ -457,16 +458,34 @@ class TrailerStateStore:
 
         Raises:
             TrailerStateLocked: If the lock cannot be acquired within the
-                configured retry budget.
+                configured retry budget (only ``EAGAIN``/``EWOULDBLOCK`` are
+                treated as contention and retried).
+            OSError: Re-raised immediately for any errno other than
+                ``EAGAIN``/``EWOULDBLOCK`` (e.g. ``EBADF``, ``EINVAL``,
+                NFS ``EOPNOTSUPP``). These indicate a real fd or filesystem
+                error rather than normal lock contention.
         """
         assert _fcntl is not None  # caller (set()) gates on _FCNTL_AVAILABLE
         for attempt in range(_LOCK_MAX_ATTEMPTS):
             try:
                 _fcntl.flock(lock_fh, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
                 return  # Lock acquired.
-            except OSError:
-                # LOCK_NB raises BlockingIOError (OSError subclass) when the
-                # lock is held by another process.
+            except OSError as exc:
+                # LOCK_NB raises BlockingIOError (a subclass of OSError, errno
+                # EAGAIN or EWOULDBLOCK) when the lock is held by another process.
+                # Any other errno (EBADF, EINVAL, NFS EOPNOTSUPP, …) is a real
+                # filesystem or fd error — not a contention event — so we must
+                # not silently retry but re-raise immediately so the caller can
+                # surface the true cause.
+                if exc.errno not in (_errno_mod.EAGAIN, _errno_mod.EWOULDBLOCK):
+                    log.error(
+                        "trailer_state_lock_unexpected_oserror",
+                        errno=exc.errno,
+                        error=str(exc),
+                        lock_path=str(self._lock_file),
+                        exc_info=True,
+                    )
+                    raise
                 if attempt < _LOCK_MAX_ATTEMPTS - 1:
                     time.sleep(_LOCK_RETRY_SLEEP_SEC)
         # Budget exhausted — resolve holder PID for diagnostics.

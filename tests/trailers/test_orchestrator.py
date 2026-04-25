@@ -987,3 +987,89 @@ class TestYtdlpRetryRoundTrip:
         # The cool-down has elapsed — download must have been attempted again.
         mock_dl3.assert_called_once()
         assert counts3["ytdlp_error"] == 1, "Run 3 (past cool-down) must re-attempt download"
+
+
+class TestPerItemLockContention:
+    """Tests for per-item TrailerStateLocked handling in TrailersOrchestrator.run()."""
+
+    def test_per_item_lock_contention_continues_loop(self, tmp_path: Path) -> None:
+        """A TrailerStateLocked on one item's state.set() must not abort the loop.
+
+        The orchestrator should log ``trailers_state_locked_for_item``, increment
+        ``counts["error"]`` by 1 for the locked item, then continue to process the
+        remaining items in the loop.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        import structlog.testing
+
+        from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
+        from personalscraper.trailers.state import TrailerStateLocked
+
+        # Build two scan items: the first will trigger lock contention, the
+        # second should be processed successfully.
+        item_locked = ScanItem(
+            path=tmp_path / "Locked Movie (2000)",
+            media_type="movie",
+            title="Locked Movie",
+            year=2000,
+            tmdb_id="111",
+        )
+        item_ok = ScanItem(
+            path=tmp_path / "Normal Movie (2001)",
+            media_type="movie",
+            title="Normal Movie",
+            year=2001,
+            tmdb_id="222",
+        )
+
+        cfg = _make_config(tmp_path)
+        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+
+        call_count = 0
+
+        def _set_side_effect(key: str, state: object) -> None:
+            """Raise TrailerStateLocked only on the first item's set() call."""
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise TrailerStateLocked(tmp_path / "trailers_state.lock")
+
+        success_result = DownloadResult(
+            status=DownloadStatus.SUCCESS,
+            output_path=tmp_path / "Normal Movie (2001)-trailer.mp4",
+        )
+
+        def _find_side_effect(
+            tmdb_id: int,
+            media_type: str,
+            *,
+            title: str,
+            year: int,
+            season_number: int | None = None,
+        ) -> str | None:
+            """Return None for item_locked (triggers NO_TRAILER set), URL for item_ok."""
+            return None if title == "Locked Movie" else "https://youtube.com/watch?v=Y"
+
+        with structlog.testing.capture_logs() as captured:
+            with (
+                patch.object(orch._scanner, "scan_staging", return_value=[item_locked, item_ok]),
+                patch.object(orch._finder, "find", side_effect=_find_side_effect),
+                patch.object(orch._downloader, "download", return_value=success_result),
+                patch.object(orch._state_store, "set", side_effect=_set_side_effect),
+                patch.object(orch._state_store, "auto_gc"),
+            ):
+                counts = orch.run()
+
+        # The locked item: no_trailer incremented, set() raised → error incremented.
+        # The second item: download succeeded → downloaded incremented, set() written OK.
+        assert counts["error"] == 1, f"Expected error=1 for the locked item, got: {counts}"
+        assert counts["downloaded"] == 1, f"Expected downloaded=1 for the normal item, got: {counts}"
+        assert counts["no_trailer"] == 1, f"Expected no_trailer=1 for the locked item, got: {counts}"
+
+        # The warning event must have been emitted for the locked item.
+        lock_events = [e for e in captured if e.get("event") == "trailers_state_locked_for_item"]
+        assert len(lock_events) == 1, (
+            f"expected one trailers_state_locked_for_item event, got {len(lock_events)}. Captured: {captured}"
+        )

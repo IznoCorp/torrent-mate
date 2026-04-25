@@ -1,6 +1,9 @@
+import errno
 import hashlib
+import logging
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -598,8 +601,6 @@ class TestDataLossLogging:
             tmp_path: Pytest tmp_path fixture.
             caplog: Pytest log-capture fixture.
         """
-        import logging
-
         state_file = tmp_path / ".data" / "trailers_state.json"
         state_file.parent.mkdir(parents=True, exist_ok=True)
         # Write a corrupt-but-parsable-enough file so entries_lost can be measured.
@@ -635,8 +636,6 @@ class TestDataLossLogging:
             tmp_path: Pytest tmp_path fixture.
             caplog: Pytest log-capture fixture.
         """
-        import logging
-
         state_file = tmp_path / ".data" / "trailers_state.json"
         state_file.parent.mkdir(parents=True, exist_ok=True)
         state_file.write_text("{corrupted garbage", encoding="utf-8")
@@ -671,3 +670,58 @@ class TestDataLossLogging:
             f"Records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
         )
         assert recovery_events[0].levelno == logging.WARNING
+
+
+class TestAcquireLockUnexpectedOsError:
+    """Tests for _acquire_lock errno discrimination (C2 finding)."""
+
+    def test_acquire_lock_re_raises_unexpected_oserror(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """_acquire_lock re-raises OSError with errno other than EAGAIN/EWOULDBLOCK.
+
+        EBADF signals a genuine fd or filesystem error — not lock contention —
+        and must propagate immediately rather than being silently retried.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log capture fixture.
+        """
+        import personalscraper.trailers.state as state_mod
+
+        state_file = tmp_path / ".data" / "trailers_state.json"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        store = TrailerStateStore(state_file=state_file)
+
+        bad_fd_error = OSError(errno.EBADF, "bad fd")
+
+        with patch.object(state_mod, "_fcntl") as mock_fcntl:
+            # Simulate flock always raising EBADF.
+            mock_fcntl.LOCK_EX = 2
+            mock_fcntl.LOCK_NB = 4
+            mock_fcntl.LOCK_UN = 8
+            mock_fcntl.flock.side_effect = bad_fd_error
+
+            with caplog.at_level(logging.ERROR):
+                with pytest.raises(OSError) as exc_info:
+                    with state_file.parent.joinpath("trailers_state.lock").open("a") as lock_fh:
+                        store._acquire_lock(lock_fh)
+
+        # The original exception must be re-raised unchanged.
+        assert exc_info.value is bad_fd_error
+
+        # The event must be logged at ERROR with the unexpected-oserror name.
+        def _is_unexpected_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailer_state_lock_unexpected_oserror") or (
+                "trailer_state_lock_unexpected_oserror" in message
+            )
+
+        error_events = [r for r in caplog.records if _is_unexpected_event(r)]
+        assert len(error_events) == 1, (
+            f"expected one trailer_state_lock_unexpected_oserror ERROR event, got {len(error_events)}. "
+            f"Records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )
+        assert error_events[0].levelno == logging.ERROR
+
+        # flock must have been called exactly once — no retries for non-contention errors.
+        mock_fcntl.flock.assert_called_once()

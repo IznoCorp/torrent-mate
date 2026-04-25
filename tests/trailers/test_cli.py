@@ -708,3 +708,44 @@ class TestTrailersDownloadErrors:
             MockScanner.return_value.scan_staging.return_value = []
             result = runner.invoke(app, ["trailers", "scan", "--since", "not-a-date"])
         assert result.exit_code == 2, result.output
+
+
+class TestTrailersPurgeCommandLockContention:
+    """Tests for TrailerStateLocked handling in the trailers purge subcommand."""
+
+    def test_purge_orphans_handles_lock_contention(self, tmp_path):
+        """Purge --include-state exits 1 with a user-friendly message when locked.
+
+        When ``state_store.purge_orphans()`` raises ``TrailerStateLocked`` (because
+        another trailers process is active), the CLI must print a human-readable
+        error message and exit with code 1 rather than letting the exception
+        propagate as a raw traceback.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from pathlib import Path
+
+        from personalscraper.trailers.state import TrailerStateLocked
+
+        _PATCH_STATE_STORE = "personalscraper.trailers.cli.TrailerStateStore"
+
+        with (
+            patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
+            patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_STATE_STORE) as MockStateStore,
+        ):
+            MockScanner.return_value.scan_library.return_value = MagicMock(items=[])
+            mock_store = MockStateStore.return_value
+            mock_store.all_entries.return_value = {}
+            mock_store.purge_orphans.side_effect = TrailerStateLocked(Path(tmp_path / "trailers_state.lock"))
+            result = runner.invoke(
+                app,
+                ["trailers", "purge", "--include-state"],
+                catch_exceptions=False,
+            )
+
+        assert result.exit_code == 1, f"Expected exit code 1, got {result.exit_code}. Output: {result.output}"
+        assert "Another trailers process is running" in result.output, (
+            f"Expected lock-contention message in output, got: {result.output!r}"
+        )

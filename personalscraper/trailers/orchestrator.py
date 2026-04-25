@@ -30,6 +30,7 @@ from personalscraper.trailers.placement import (
 from personalscraper.trailers.scanner import Scanner
 from personalscraper.trailers.state import (
     TrailerState,
+    TrailerStateLocked,
     TrailerStateStore,
     TrailerStatus,
     compute_next_retry_at,
@@ -42,6 +43,47 @@ if TYPE_CHECKING:
 log = get_logger(__name__)
 
 _DEFAULT_EXT: str = "mp4"
+
+
+def _set_state_for_item(
+    state_store: TrailerStateStore,
+    key: str,
+    state: TrailerState,
+    counts: dict[str, int],
+    title: str,
+) -> bool:
+    """Write a per-item state entry, absorbing ``TrailerStateLocked`` gracefully.
+
+    A lock contention on a single item must not abort the entire orchestrator
+    loop — it should log, increment the error counter, and let the loop
+    continue to the next item.  The orchestrator-wide ``auto_gc()`` call that
+    precedes the loop is deliberately *not* wrapped here (a contended GC is a
+    real failure that propagates to ``step.py``).
+
+    Args:
+        state_store: The persistent state store to write to.
+        key: Composite state key for this media item.
+        state: The ``TrailerState`` to persist.
+        counts: Running counters dict; ``counts["error"]`` is incremented on
+            lock contention.
+        title: Human-readable title used in the log event.
+
+    Returns:
+        ``True`` if the write succeeded, ``False`` if it was skipped due to
+        lock contention (so the caller can skip any post-write work such as
+        NFO updates that depend on a successful state write).
+    """
+    try:
+        state_store.set(key, state)
+        return True
+    except TrailerStateLocked:
+        log.warning(
+            "trailers_state_locked_for_item",
+            key=key,
+            title=title,
+        )
+        counts["error"] += 1
+        return False
 
 
 class TrailersOrchestrator:
@@ -224,7 +266,8 @@ class TrailersOrchestrator:
                             title=item.title,
                             trailer_path=str(lib_trailer),
                         )
-                        self._state_store.set(
+                        _set_state_for_item(
+                            self._state_store,
                             key,
                             TrailerState(
                                 last_attempt=datetime.now(timezone.utc).isoformat(),
@@ -234,6 +277,8 @@ class TrailersOrchestrator:
                                 trailer_path=str(lib_trailer),
                                 season_number=item.season_number,
                             ),
+                            counts,
+                            item.title,
                         )
                         counts["already_present_on_disk"] += 1
                         continue
@@ -339,7 +384,8 @@ class TrailersOrchestrator:
                 # correctly reflects a transient network/API failure rather than an
                 # intentional filter exclusion.  next_retry_at gives the item a
                 # backoff window before the next attempt.
-                self._state_store.set(
+                _set_state_for_item(
+                    self._state_store,
                     key,
                     TrailerState(
                         last_attempt=datetime.now(timezone.utc).isoformat(),
@@ -352,6 +398,8 @@ class TrailersOrchestrator:
                         notes=str(exc),
                         season_number=item.season_number,
                     ),
+                    counts,
+                    item.title,
                 )
                 continue
 
@@ -359,7 +407,8 @@ class TrailersOrchestrator:
                 log.info("trailers_no_trailer_found", key=key, title=item.title)
                 counts["no_trailer"] += 1
                 self._failed_items.append((key, "no_trailer", ""))
-                self._state_store.set(
+                _set_state_for_item(
+                    self._state_store,
                     key,
                     TrailerState(
                         last_attempt=datetime.now(timezone.utc).isoformat(),
@@ -371,6 +420,8 @@ class TrailersOrchestrator:
                         ).isoformat(),
                         season_number=item.season_number,
                     ),
+                    counts,
+                    item.title,
                 )
                 continue
 
@@ -394,7 +445,8 @@ class TrailersOrchestrator:
                     output_path=str(result.output_path),
                 )
                 counts["downloaded"] += 1
-                self._state_store.set(
+                state_written = _set_state_for_item(
+                    self._state_store,
                     key,
                     TrailerState(
                         last_attempt=now_iso,
@@ -406,18 +458,21 @@ class TrailersOrchestrator:
                         source="youtube",
                         season_number=item.season_number,
                     ),
+                    counts,
+                    item.title,
                 )
                 # Propagate the trailer URL into the NFO <trailer> tag so that
                 # Plex / Kodi can display the remote trailer as a fallback.
-                # Silently skip when there is no NFO (movies without scrape, etc.).
-                if item.nfo_path is not None:
+                # Silently skip when there is no NFO or state write was blocked.
+                if state_written and item.nfo_path is not None:
                     write_trailer_url_to_nfo(item.nfo_path, url)
 
             elif result.status == DownloadStatus.BOT_DETECTED:
                 log.warning("trailers_bot_detected", key=key, title=item.title, url=url)
                 counts["bot_detected"] += 1
                 self._failed_items.append((key, "bot_detected", result.error_message or ""))
-                self._state_store.set(
+                _set_state_for_item(
+                    self._state_store,
                     key,
                     TrailerState(
                         last_attempt=now_iso,
@@ -429,13 +484,16 @@ class TrailersOrchestrator:
                         bot_detected_consecutive_attempts=1,
                         season_number=item.season_number,
                     ),
+                    counts,
+                    item.title,
                 )
 
             elif result.status == DownloadStatus.HTTP_ERROR:
                 log.warning("trailers_http_error", key=key, title=item.title, url=url)
                 counts["http_error"] += 1
                 self._failed_items.append((key, "http_error", result.error_message or ""))
-                self._state_store.set(
+                _set_state_for_item(
+                    self._state_store,
                     key,
                     TrailerState(
                         last_attempt=now_iso,
@@ -449,13 +507,16 @@ class TrailersOrchestrator:
                         notes=result.error_message,
                         season_number=item.season_number,
                     ),
+                    counts,
+                    item.title,
                 )
 
             else:
                 log.warning("trailers_ytdlp_error", key=key, title=item.title, url=url)
                 counts["ytdlp_error"] += 1
                 self._failed_items.append((key, "ytdlp_error", result.error_message or ""))
-                self._state_store.set(
+                _set_state_for_item(
+                    self._state_store,
                     key,
                     TrailerState(
                         last_attempt=now_iso,
@@ -469,6 +530,8 @@ class TrailersOrchestrator:
                         notes=result.error_message,
                         season_number=item.season_number,
                     ),
+                    counts,
+                    item.title,
                 )
 
         return counts

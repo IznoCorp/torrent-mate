@@ -35,7 +35,7 @@ from rich.table import Table
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.scanner import ScanItem, Scanner
-from personalscraper.trailers.state import TrailerStateStore
+from personalscraper.trailers.state import TrailerStateLocked, TrailerStateStore
 
 log = get_logger("trailers.cli")
 
@@ -729,6 +729,10 @@ def purge(
     console.print(f"[green]Purged {deleted} orphan trailer(s).[/green]")
 
     if include_state:
-        purged_state = state_store.purge_orphans()
+        try:
+            purged_state = state_store.purge_orphans()
+        except TrailerStateLocked:
+            console.print("[red]Another trailers process is running; try again later.[/red]")
+            raise typer.Exit(1)
         console.print(f"[green]Purged {purged_state} orphan state entries.[/green]")
         log.info("trailers_purge_state_entries", count=purged_state)
