@@ -596,11 +596,7 @@ class TMDBClient:
         Returns:
             List of Video dataclass instances. Empty list on 404 (no videos
             for this season — common for older shows or non-flagship seasons)
-            or any other error (fail-soft, same as show-level).
-
-        Raises:
-            Same as fetch_tv_videos — propagates circuit-breaker open, fails
-            fast on unrecoverable 5xx after retries, fail-soft on 404 (returns []).
+            or any other error (fail-soft via ``_fetch_videos``; never raises).
         """
         return self._fetch_videos(
             f"/tv/{tv_id}/season/{season_number}/videos",
