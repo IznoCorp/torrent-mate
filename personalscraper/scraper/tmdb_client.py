@@ -492,3 +492,97 @@ class TMDBClient:
         # Movies use "keywords" key; TV shows use "results" key.
         raw_list = data.get("keywords") or data.get("results") or []
         return [str(kw["name"]) for kw in raw_list if isinstance(kw, dict) and kw.get("name")]
+
+    def fetch_movie_videos(self, tmdb_id: int, language: str) -> list[Video]:
+        """Fetch video entries (trailers, teasers) for a movie.
+
+        Calls ``GET /movie/{id}/videos``.
+
+        Fail-soft policy identical to ``get_keywords()``: HTTP 404, timeout,
+        and any unexpected exception all return ``[]`` and log a warning.
+
+        Args:
+            tmdb_id: TMDB movie ID.
+            language: BCP-47 language tag (e.g. "fr-FR", "en-US").
+
+        Returns:
+            List of Video dataclass instances. Empty on any error.
+        """
+        return self._fetch_videos(f"/movie/{tmdb_id}/videos", tmdb_id, "movie", language)
+
+    def fetch_tv_videos(self, tmdb_id: int, language: str) -> list[Video]:
+        """Fetch video entries (trailers, teasers) for a TV show.
+
+        Calls ``GET /tv/{id}/videos``.
+
+        Fail-soft policy identical to ``get_keywords()``: HTTP 404, timeout,
+        and any unexpected exception all return ``[]`` and log a warning.
+
+        Args:
+            tmdb_id: TMDB TV show ID.
+            language: BCP-47 language tag (e.g. "fr-FR", "en-US").
+
+        Returns:
+            List of Video dataclass instances. Empty on any error.
+        """
+        return self._fetch_videos(f"/tv/{tmdb_id}/videos", tmdb_id, "tv", language)
+
+    def _fetch_videos(self, endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
+        """Internal: call /videos endpoint and deserialize into Video list.
+
+        Args:
+            endpoint: Full endpoint path (e.g. "/movie/550/videos").
+            tmdb_id: TMDB ID for logging context.
+            media_type: "movie" or "tv" for log messages.
+            language: BCP-47 language tag passed as query parameter.
+
+        Returns:
+            List of Video instances; empty list on any error.
+        """
+        try:
+            data = self._get(endpoint, {"language": language})
+        except TMDBError as exc:
+            if exc.http_status == 404:
+                return []
+            log.warning(
+                "tmdb_videos_failed_http",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                http_status=exc.http_status,
+                message=exc.message,
+                fallback="empty_list",
+                exc_info=True,
+            )
+            return []
+        except Exception as exc:
+            log.warning(
+                "tmdb_videos_failed",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                error=str(exc),
+                fallback="empty_list",
+                exc_info=True,
+            )
+            return []
+
+        raw_list = data.get("results") or []
+        videos: list[Video] = []
+        for item in raw_list:
+            if not isinstance(item, dict):
+                continue
+            try:
+                videos.append(
+                    Video(
+                        id=str(item["id"]),
+                        site=str(item.get("site", "")),
+                        key=str(item.get("key", "")),
+                        type=str(item.get("type", "")),
+                        official=bool(item.get("official", False)),
+                        size=int(item.get("size", 0)),
+                        iso_639_1=str(item.get("iso_639_1", "")),
+                    )
+                )
+            except (KeyError, TypeError, ValueError):
+                log.debug("tmdb_video_entry_malformed", item=repr(item))
+                continue
+        return videos
