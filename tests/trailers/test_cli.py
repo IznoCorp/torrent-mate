@@ -180,9 +180,7 @@ class TestTrailersDownloadCommand:
             mock_orch.failed_items = []
             # --category 002-TVSHOWS narrows to Breaking Bad; the orchestrator
             # must receive ONLY that item, not the full scan result.
-            result = runner.invoke(
-                app, ["trailers", "download", "--category", "002-TVSHOWS"]
-            )
+            result = runner.invoke(app, ["trailers", "download", "--category", "002-TVSHOWS"])
 
         assert result.exit_code == 0, result.output
         mock_orch.run.assert_called_once()
