@@ -49,6 +49,11 @@ install_traceback(show_locals=False)
 
 app = typer.Typer(help="PersonalScraper — Media pipeline automation.", invoke_without_command=True)
 
+# Mount trailers sub-app (personalscraper trailers <subcommand>)
+from personalscraper.trailers.cli import app as trailers_app  # noqa: E402
+
+app.add_typer(trailers_app, name="trailers")
+
 
 class _State(TypedDict):
     """Typed shape of the global CLI state dict.
