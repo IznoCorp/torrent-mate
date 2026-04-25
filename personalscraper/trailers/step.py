@@ -132,6 +132,25 @@ def run_trailers(
         )
         return StepReport(name="trailers", error_count=1, status="error")
 
+    except OSError as exc:
+        # Ops-transient filesystem error (disk full, read-only fs, NFS stale
+        # handle) raised by TrailerStateStore._save().  Distinguished from logic
+        # bugs (covered by the generic catch below) so operators can tell from
+        # the event name that the root cause is infrastructure, not a code defect.
+        logger.error(
+            "trailers_state_write_failed",
+            errno=exc.errno,
+            path=str(exc.filename) if exc.filename else None,
+            error=exc.strerror,
+            exc_info=True,
+        )
+        return StepReport(
+            name="trailers",
+            error_count=1,
+            status="error",
+            details=[f"state write failed: {exc.strerror}"],
+        )
+
     except Exception as exc:  # noqa: BLE001 — last-resort guard so the pipeline can dispatch
         logger.exception(
             "trailers_step_crashed",

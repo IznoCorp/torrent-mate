@@ -725,3 +725,64 @@ class TestAcquireLockUnexpectedOsError:
 
         # flock must have been called exactly once — no retries for non-contention errors.
         mock_fcntl.flock.assert_called_once()
+
+
+# ── Sub-phase 11.6 new tests ─────────────────────────────────────────────────
+
+
+class TestCountEntriesLostHeuristic:
+    """I4 — _count_entries_lost returns a lower-bound even when JSON is corrupt."""
+
+    def test_count_entries_lost_returns_lower_bound_on_corrupt_json(self, tmp_path: Path) -> None:
+        """_count_entries_lost counts ``"status":`` occurrences in truncated content.
+
+        A file with 5 truncated entry fragments (each containing ``"status":``)
+        must return 5, not 0, even though ``json.loads`` fails on the content.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        state_file = tmp_path / "trailers_state.json"
+        # Simulate a state file that was partially written and contains 5 entries,
+        # each with a "status" field, but is truncated before the closing braces.
+        corrupt_content = (
+            '{"version": 1, "entries": {\n'
+            '  "movie:tmdb:1": {"status": "downloaded", "attempts": 1,\n'
+            '  "movie:tmdb:2": {"status": "no_trailer_available", "attempts": 2,\n'
+            '  "movie:tmdb:3": {"status": "bot_detected", "attempts": 1,\n'
+            '  "movie:tmdb:4": {"status": "http_error", "attempts": 3,\n'
+            '  "movie:tmdb:5": {"status": "ytdlp_error"'
+            # deliberately truncated — no closing braces
+        )
+        state_file.write_text(corrupt_content, encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+        count = store._count_entries_lost()
+
+        # The heuristic must return the correct lower-bound count (5 "status": occurrences),
+        # not 0 as the old implementation would when json.loads fails.
+        assert count == 5, f"expected 5 (lower-bound), got {count}"
+
+    def test_count_entries_lost_uses_exact_count_on_valid_json(self, tmp_path: Path) -> None:
+        """_count_entries_lost uses the exact entry count when JSON is parseable.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        import json
+
+        state_file = tmp_path / "trailers_state.json"
+        payload = {
+            "version": 1,
+            "entries": {
+                "movie:tmdb:1": {"status": "downloaded", "attempts": 1},
+                "movie:tmdb:2": {"status": "no_trailer_available", "attempts": 2},
+                "movie:tmdb:3": {"status": "bot_detected", "attempts": 1},
+            },
+        }
+        state_file.write_text(json.dumps(payload), encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+        count = store._count_entries_lost()
+
+        assert count == 3

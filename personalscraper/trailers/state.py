@@ -672,20 +672,21 @@ class TrailerStateStore:
             with self._state_file.open("r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if not isinstance(raw, dict):
-                self._backup_corrupt_with_data_loss(reason="root_not_object", entries_lost=0)
+                self._backup_corrupt_with_data_loss(reason="root_not_object", min_entries_lost=0)
                 return {}
             entries = raw.get("entries", {})
             if not isinstance(entries, dict):
-                self._backup_corrupt_with_data_loss(reason="entries_not_object", entries_lost=0)
+                self._backup_corrupt_with_data_loss(reason="entries_not_object", min_entries_lost=0)
                 return {}
             return {k: v for k, v in entries.items() if isinstance(v, dict)}
         except (json.JSONDecodeError, ValueError) as exc:
             # Parse error — preserve the bad file before the next set() overwrites it.
-            # Count entries_lost best-effort via a raw string scan; fall back to 0.
-            entries_lost = self._count_entries_lost()
+            # Use the heuristic lower-bound count so operators know data was not simply
+            # empty (min_entries_lost=0 from a truncated 1000-entry file would be misleading).
+            min_entries_lost = self._count_entries_lost()
             self._backup_corrupt_with_data_loss(
                 reason=f"parse_error:{type(exc).__name__}",
-                entries_lost=entries_lost,
+                min_entries_lost=min_entries_lost,
             )
             log.error(
                 "trailer_state_load_failed",
@@ -706,27 +707,41 @@ class TrailerStateStore:
             return {}
 
     def _count_entries_lost(self) -> int:
-        """Best-effort count of ``entries`` keys in the (possibly corrupt) state file.
+        """Best-effort lower-bound count of entries in the (possibly corrupt) state file.
 
-        Used by ``_backup_corrupt_with_data_loss`` to report how many entries
-        will be lost. Falls back to ``0`` if the file cannot be read or parsed
-        even partially.
+        First attempts a full JSON parse to get an exact count.  When that fails
+        (i.e. the file is corrupt), falls back to counting occurrences of the
+        ``"status":`` substring in the raw text.  Every well-formed entry in the
+        state file has exactly one ``status`` field, so this gives a reliable
+        lower bound even when the JSON is truncated or partially overwritten.
+
+        The result is best-effort: callers should treat it as a minimum, not an
+        exact figure.  The caller is responsible for labelling the log field
+        ``min_entries_lost`` to make that contract visible to operators.
 
         Returns:
-            Number of top-level keys in the ``entries`` dict, or ``0`` on error.
+            Lower-bound count of entries, or ``0`` if the file cannot be read.
         """
         try:
             raw_text = self._state_file.read_text(encoding="utf-8", errors="replace")
-            # Quick heuristic: count ``"entries"`` key occurrences in a rough
-            # parse attempt. The authoritative count requires valid JSON; if that
-            # fails too we just use 0.
-            partial = json.loads(raw_text)
-            entries = partial.get("entries", {})
-            return len(entries) if isinstance(entries, dict) else 0
-        except Exception:  # noqa: BLE001 — degrade gracefully
+        except OSError:
             return 0
 
-    def _backup_corrupt_with_data_loss(self, reason: str, entries_lost: int) -> None:
+        # Fast path: try a full parse first — exact count, no heuristic needed.
+        try:
+            partial = json.loads(raw_text)
+            entries = partial.get("entries", {})
+            if isinstance(entries, dict):
+                return len(entries)
+        except (json.JSONDecodeError, ValueError, AttributeError):
+            pass  # Fall through to the string-scan heuristic below.
+
+        # Heuristic fallback: count ``"status":`` occurrences.  Each well-formed
+        # entry contains exactly one ``"status"`` field, so this is a lower bound
+        # even for truncated or interleaved writes.
+        return raw_text.count('"status":')
+
+    def _backup_corrupt_with_data_loss(self, reason: str, min_entries_lost: int) -> None:
         """Copy the state file aside and emit a loud ERROR for the data loss.
 
         Without this backup, a parse failure followed by ``set()`` silently
@@ -739,7 +754,8 @@ class TrailerStateStore:
 
         Args:
             reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
-            entries_lost: Number of entries that could not be recovered (best-effort).
+            min_entries_lost: Lower-bound count of entries that could not be
+                recovered (best-effort heuristic — treat as a minimum, not exact).
         """
         # Guard: if we are already in recovery mode, the backup + ERROR log were
         # already emitted for this corruption event — skip the duplicate.
@@ -758,7 +774,7 @@ class TrailerStateStore:
                 original=str(self._state_file),
                 backup_path=backup_path,
                 reason=reason,
-                entries_lost=entries_lost,
+                min_entries_lost=min_entries_lost,
             )
             self._recovering_from_corrupt = True
         except OSError as exc:

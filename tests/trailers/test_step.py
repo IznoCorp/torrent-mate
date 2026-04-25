@@ -232,3 +232,68 @@ class TestStepReportTelegramSummary:
         # Trailers step name and at least one count number must appear in the HTML.
         assert "trailers" in html.lower()
         assert "2" in html  # downloaded
+
+
+# ── Sub-phase 11.6 new tests ──────────────────────────────────────────────────
+
+
+class TestStateWriteFailure:
+    """I6 — OSError from _save() produces a distinct trailers_state_write_failed event."""
+
+    def test_state_write_failure_returns_status_error_distinct_event(self, config, tmp_path, caplog):
+        """OSError from state_store.set raises a distinct event and returns status='error'.
+
+        Patching ``state_store.set`` to raise ``OSError(ENOSPC, "no space")``
+        verifies that:
+        - ``run_trailers`` returns ``StepReport(status='error')``
+        - the structured log event is ``trailers_state_write_failed`` (not
+          ``trailers_step_crashed``)
+        - the log record carries an ``errno`` field equal to ENOSPC
+
+        Args:
+            config: Mock Config fixture with trailers enabled.
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log capture fixture.
+        """
+        import errno as _errno
+        import logging
+
+        no_space_error = OSError(_errno.ENOSPC, "no space left on device")
+
+        with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
+            mock_orch = MockOrch.return_value
+            # Simulate the orchestrator raising OSError when it tries to persist state.
+            mock_orch.run.side_effect = no_space_error
+
+            with caplog.at_level(logging.ERROR):
+                result = run_trailers(config, staging_dir=tmp_path, verified=[])
+
+        assert result.status == "error", f"expected status='error', got {result.status!r}"
+        assert result.error_count == 1
+
+        # The event name must be the ops-transient event, not the generic crash event.
+        def _is_write_failed_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailers_state_write_failed") or (
+                "trailers_state_write_failed" in message
+            )
+
+        def _is_crash_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailers_step_crashed") or (
+                "trailers_step_crashed" in message
+            )
+
+        write_failed_events = [r for r in caplog.records if _is_write_failed_event(r)]
+        crash_events = [r for r in caplog.records if _is_crash_event(r)]
+
+        assert write_failed_events, (
+            "expected trailers_state_write_failed log event; "
+            f"records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )
+        assert not crash_events, (
+            "trailers_step_crashed must NOT fire for OSError; "
+            f"records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )

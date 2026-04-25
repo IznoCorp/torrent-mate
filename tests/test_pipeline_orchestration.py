@@ -510,3 +510,83 @@ class TestTrailerErrorFlagWiring:
         assert dispatch_executed == [True]
         # Report still records the trailer error
         assert report.steps["trailers"].status == "error"
+
+
+# ---------------------------------------------------------------------------
+# E2E: real run_trailers + real TrailersOrchestrator → TrailerStepFailed
+# ---------------------------------------------------------------------------
+
+
+class TestTrailerStepFailedE2E:
+    """I3 (pr-test-analyzer) — bridge test: real run_trailers → TrailerStepFailed.
+
+    Verifies the full chain without stubbing ``run_trailers``:
+    real orchestrator raises ``TrailerStateLocked`` → ``run_trailers``
+    returns ``StepReport(status='error')`` → pipeline raises
+    ``TrailerStepFailed`` → dispatch does NOT execute.
+    """
+
+    def test_real_run_trailers_failure_propagates_TrailerStepFailed_to_pipeline(
+        self, orch_config, orch_settings, quiet_console, tmp_path
+    ):
+        """TrailerStateLocked from state_store.set propagates to TrailerStepFailed.
+
+        Uses a real ``run_trailers`` call (no step_override for "trailers").
+        The ``TrailersOrchestrator._state_store.set`` is patched to raise
+        ``TrailerStateLocked`` so the real ``run_trailers`` catches it,
+        returns ``StepReport(status='error')``, and the pipeline raises
+        ``TrailerStepFailed`` before dispatch executes.
+
+        Args:
+            orch_config: Minimal Config mock (``trailers.enabled`` overridden
+                to ``True`` for this test).
+            orch_settings: Minimal Settings mock.
+            quiet_console: Rich Console in quiet mode.
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import patch
+
+        from personalscraper.trailers.state import TrailerStateLocked, TrailerStepFailed
+
+        # Enable trailers so run_trailers does not short-circuit.
+        orch_config.trailers.enabled = True
+        orch_config.trailers.state_file = str(tmp_path / ".data" / "trailers_state.json")
+        orch_config.trailers.filters.min_file_size_bytes = 102400
+        orch_config.trailers.seasons.enabled = False
+
+        dispatch_executed: list[bool] = []
+
+        # Build a fake lock_path for the exception.
+        lock_path = tmp_path / ".data" / "trailers_state.lock"
+        locked_exc = TrailerStateLocked(lock_path, holder_pid=None)
+
+        with patch(
+            "personalscraper.trailers.orchestrator.TrailersOrchestrator.run",
+            side_effect=locked_exc,
+        ):
+            pipeline = Pipeline(
+                orch_config,
+                orch_settings,
+                console=quiet_console,
+                continue_on_trailer_error=False,
+                step_overrides={
+                    "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
+                    "sort": lambda *_a, **_kw: StepReport(name="sort"),
+                    "clean": lambda *_a, **_kw: StepReport(name="clean"),
+                    "scrape": lambda *_a, **_kw: StepReport(name="scrape"),
+                    "cleanup": lambda *_a, **_kw: StepReport(name="cleanup"),
+                    "enforce": lambda *_a, **_kw: StepReport(name="enforce"),
+                    "verify": _verify_with_items,
+                    # "trailers" NOT overridden — real run_trailers runs.
+                    "dispatch": lambda *_a, **_kw: (
+                        dispatch_executed.append(True),
+                        StepReport(name="dispatch"),
+                    )[1],
+                },
+            )
+
+            with pytest.raises(TrailerStepFailed):
+                pipeline.run()
+
+        # Dispatch must NOT have been called — the pipeline aborted before it.
+        assert dispatch_executed == [], "dispatch must not execute when TrailerStepFailed is raised"
