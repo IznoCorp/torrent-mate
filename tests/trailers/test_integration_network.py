@@ -88,6 +88,4 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     assert result.status == DownloadStatus.SUCCESS, (
         f"Download failed with status={result.status}: {result.error_message}"
     )
-    assert trailer_exists(output_path, min_size_bytes=MIN_SIZE), (
-        f"Trailer file missing or too small: {output_path}"
-    )
+    assert trailer_exists(output_path, min_size_bytes=MIN_SIZE), f"Trailer file missing or too small: {output_path}"

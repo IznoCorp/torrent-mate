@@ -230,9 +230,7 @@ class TestScanStagingEdgeCases:
         cat.mkdir()
         hidden_media = cat / ".hidden_movie"
         hidden_media.mkdir()
-        (hidden_media / "title.nfo").write_text(
-            '<movie><title>Title</title></movie>', encoding="utf-8"
-        )
+        (hidden_media / "title.nfo").write_text("<movie><title>Title</title></movie>", encoding="utf-8")
         scanner = Scanner(min_file_size_bytes=102400)
         items = scanner.scan_staging(tmp_path)
         assert items == []
@@ -275,14 +273,22 @@ class TestScanLibrary:
             folder_size_gb=4.2,
             nfo=NfoStatus(present=True, valid=True, tmdb_id="550", imdb_id="tt0137523"),
             artwork=ArtworkStatus(
-                poster=True, fanart=True, landscape=False, banner=False,
-                clearlogo=False, clearart=False, discart=False,
+                poster=True,
+                fanart=True,
+                landscape=False,
+                banner=False,
+                clearlogo=False,
+                clearart=False,
+                discart=False,
             ),
             actors_dir=False,
         )
         fake_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
-            item_count=1, items=[fake_item],
+            scanned_at="2026-01-01T00:00:00Z",
+            disk_filter=None,
+            category_filter=None,
+            item_count=1,
+            items=[fake_item],
         )
 
         config = MagicMock()
@@ -308,18 +314,31 @@ class TestScanLibrary:
         (movie_dir / "Fight Club (1999)-trailer.mp4").write_bytes(b"x" * 200000)
 
         fake_item = LibraryScanItem(
-            path=str(movie_dir), disk="disk_1", category="movies", media_type="movie",
-            title="Fight Club", year=1999, folder_size_gb=4.2,
+            path=str(movie_dir),
+            disk="disk_1",
+            category="movies",
+            media_type="movie",
+            title="Fight Club",
+            year=1999,
+            folder_size_gb=4.2,
             nfo=NfoStatus(present=True, valid=True, tmdb_id="550", imdb_id=None),
             artwork=ArtworkStatus(
-                poster=True, fanart=True, landscape=False, banner=False,
-                clearlogo=False, clearart=False, discart=False,
+                poster=True,
+                fanart=True,
+                landscape=False,
+                banner=False,
+                clearlogo=False,
+                clearart=False,
+                discart=False,
             ),
             actors_dir=False,
         )
         fake_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
-            item_count=1, items=[fake_item],
+            scanned_at="2026-01-01T00:00:00Z",
+            disk_filter=None,
+            category_filter=None,
+            item_count=1,
+            items=[fake_item],
         )
 
         config = MagicMock()
@@ -362,8 +381,11 @@ class TestScanLibrary:
         config.trailers.library_scan_max_age_hours = 24
 
         empty_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
-            item_count=0, items=[],
+            scanned_at="2026-01-01T00:00:00Z",
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
         )
 
         scanner = Scanner(min_file_size_bytes=102400)
@@ -385,8 +407,11 @@ class TestScanLibrary:
         config.disks = []
 
         empty_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z", disk_filter=None, category_filter=None,
-            item_count=0, items=[],
+            scanned_at="2026-01-01T00:00:00Z",
+            disk_filter=None,
+            category_filter=None,
+            item_count=0,
+            items=[],
         )
 
         with patch("personalscraper.trailers.scanner._lib_scan", return_value=empty_result):
