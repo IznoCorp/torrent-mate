@@ -16,16 +16,17 @@ Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 
 ### Automated Pipeline (`personalscraper run`)
 
-Full pipeline executes 8 steps sequentially with idempotence (safe to re-run):
+Full pipeline executes 9 steps sequentially with idempotence (safe to re-run):
 
 ```
-INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE → CLEANUP → ENFORCE → VERIFY → DISPATCH
+INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE → CLEANUP → ENFORCE → VERIFY → TRAILERS → DISPATCH
 ```
 
 - Steps 1-2 (ingest, sort) are critical — a crash aborts the pipeline
 - Steps 3-5 (clean, scrape, cleanup) run with individual error isolation
 - Step 6 (enforce) sanitizes filenames, validates structure, checks cross-step coherence
-- Step 7 (verify) produces a dispatchable list; step 8 (dispatch) is skipped if verify fails
+- Step 7 (verify) produces a dispatchable list; step 9 (dispatch) is skipped if verify fails
+- Step 8 (trailers) is non-blocking -- trailer errors do not abort the pipeline. Disabled by default.
 
 ## Directory Structure
 
@@ -43,6 +44,11 @@ staging/
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
+   │   ├── json_ttl_cache.py    # JSON-backed TTL cache for YouTube search results
+   │   ├── youtube_search.py    # YouTube Data API v3 quota-aware search
+   │   ├── trailer_finder.py    # Two-tier TMDB/YouTube trailer URL discovery
+   │   ├── ytdlp_downloader.py  # yt-dlp wrapper with retry and cookie support
+   │   └── trailers_cache.py    # Per-media trailer URL TTL cache
 │   ├── process/         # reclean, dedup, cleanup (between sort and scrape)
 │   ├── enforce/         # file sanitizer, structure validator, coherence checker
 │   ├── library/         # scan, clean, validate, analyze, recommend, report
@@ -68,7 +74,8 @@ staging/
 │   ├── dispatch/        # dispatch unit tests
 │   ├── enforce/         # enforce unit tests (file sanitizer, structure, coherence)
 │   ├── library/         # library unit tests (scan, clean, validate, analyze, recommend, report)
-│   └── resilience/      # resilience unit tests (idempotence, crash recovery)
+│   ├── trailers/        # trailers unit tests (orchestrator, scanner, state, placement, CLI)
+   └── resilience/      # resilience unit tests (idempotence, crash recovery)
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
 │   └── expected/        # Golden files (expected results per torrent)
 ├── docs/                # Reference docs, feature plans, archive
@@ -93,6 +100,15 @@ Notes:
 - `sanitize_filename()` — lives in `personalscraper/text_utils.py`; strips `<>:"/\|?*` and normalizes U+00A0→space. Applied in `NamingPatterns.format()` (all artwork/NFO filenames) and in scraper `clean_name` (folder renames). TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography before `:`).
 - `SortResult`, `StepReport`, `PipelineReport` — defined in `personalscraper/models.py`. Each `run_*()` converts internal results to `StepReport` before returning.
 - TV show folders: sorter creates `Show Name/` (no year), scraper renames to `Show Name (Year)/` after API matching (idempotent rename).
+
+## trailers/ Subsystem Notes
+
+- `trailers/` is a first-class consumer of `library.scanner` -- the orchestrator calls
+  `library.scanner.scan_library()` once per run to detect trailers already present on storage disks
+  (library-aware idempotence, DESIGN section 8). This prevents re-downloading trailers for shows
+  that already exist in the permanent library.
+- The new scraper modules (`json_ttl_cache`, `youtube_search`, `trailer_finder`,
+  `ytdlp_downloader`, `trailers_cache`) are independent of the existing TMDB/TVDB scraper.
 
 ## Key Dependencies (chosen after evaluation)
 
