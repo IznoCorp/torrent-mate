@@ -42,13 +42,22 @@ def check_ttl(
 
     Shared helper used by both ``JsonTTLCache`` and
     ``scraper/keywords_cache.py`` so TTL arithmetic has a single source of
-    truth. All datetimes must be timezone-aware (UTC recommended). A naive
-    ``cached_at`` is promoted to UTC for backward compatibility with pre-UTC
-    cache files written by earlier ``keywords_cache`` versions.
+    truth. All datetimes must be timezone-aware (UTC recommended).
+
+    A naive ``cached_at`` is promoted to UTC via ``replace(tzinfo=UTC)``.
+    **WARNING for legacy callers**: this works correctly only when the naive
+    timestamp was *written* in UTC. ``keywords_cache.py`` historically wrote
+    naive *local* timestamps via ``datetime.now().isoformat()``; on non-UTC
+    machines, calling this helper directly with such timestamps would
+    misrepresent them and produce a wrong elapsed duration (especially across
+    DST boundaries). ``keywords_cache`` therefore converts local-naive
+    timestamps to UTC-aware values *before* calling ``check_ttl()`` by
+    preserving the naive-local elapsed duration explicitly. New caches should
+    write UTC-aware timestamps natively (as ``JsonTTLCache.set()`` does).
 
     Args:
-        cached_at: Timestamp stored alongside the cached value. Naive values
-            are treated as UTC.
+        cached_at: Timestamp stored alongside the cached value. Aware values
+            recommended; naive values are treated as UTC (see warning above).
         ttl_seconds: Entry lifetime in seconds (``0`` means always expired).
         now: Override for ``datetime.now(UTC)`` in tests. Must be aware if
             provided.
