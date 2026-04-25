@@ -1011,9 +1011,7 @@ class TestYtdlpRetryRoundTrip:
 class TestPerItemLockContention:
     """Tests for per-item TrailerStateLocked handling in TrailersOrchestrator.run()."""
 
-    def test_per_item_lock_contention_continues_loop(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_per_item_lock_contention_continues_loop(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         """A TrailerStateLocked on one item's state.set() must not abort the loop.
 
         The orchestrator should log ``trailers_state_locked_for_item``, increment
