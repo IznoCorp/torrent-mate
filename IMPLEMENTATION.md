@@ -6,7 +6,7 @@
 **Version bump**: 0.6.0 → 0.7.0
 **Branch**: feat/trailer
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/15
 **Design**: docs/features/trailer/DESIGN.md
 **Master plan**: docs/features/trailer/plan/INDEX.md
 
