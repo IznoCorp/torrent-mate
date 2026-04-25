@@ -47,6 +47,29 @@ Show Name (Year)/
 
 TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography convention before `:`) — sanitization is mandatory for NTFS compatibility.
 
+
+## Trailer File Naming
+
+Trailers use the flat convention (Plex, Kodi, Jellyfin compatible):
+
+  {media_folder}/{media_folder_name}-trailer.{ext}
+
+For movies:
+  Fight Club (1999)/Fight Club (1999)-trailer.mp4
+
+For TV shows (show-level):
+  Breaking Bad (2008)/Breaking Bad (2008)-trailer.mp4
+
+For TV shows (season-level, opt-in via trailers.seasons.enabled):
+  Breaking Bad (2008)/Saison 01/Breaking Bad (2008) - Saison 01-trailer.mp4
+
+Season path pattern: {show_dir}/Saison {SS:02d}/{show_dir.name} - Saison {SS:02d}-trailer.{ext}
+
+Accepted extensions in priority order: .mp4, .mkv, .webm.
+
+NFO <trailer> tag: populated with the YouTube watch URL so Plex/Kodi can
+display the remote trailer as a fallback when the local file is absent.
+
 ## Video Extensions
 
 Handled across the pipeline:
