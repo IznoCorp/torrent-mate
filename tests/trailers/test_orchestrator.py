@@ -4,6 +4,7 @@ All dependencies (TrailerFinder, YtdlpDownloader, TrailerStateStore) are mocked.
 Scanner is patched to return controlled ScanItem lists.
 """
 
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -1010,7 +1011,9 @@ class TestYtdlpRetryRoundTrip:
 class TestPerItemLockContention:
     """Tests for per-item TrailerStateLocked handling in TrailersOrchestrator.run()."""
 
-    def test_per_item_lock_contention_continues_loop(self, tmp_path: Path) -> None:
+    def test_per_item_lock_contention_continues_loop(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """A TrailerStateLocked on one item's state.set() must not abort the loop.
 
         The orchestrator should log ``trailers_state_locked_for_item``, increment
@@ -1019,9 +1022,10 @@ class TestPerItemLockContention:
 
         Args:
             tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log-capture fixture (stdlib bridge — structlog routes
+                events through stdlib when ``wrap_for_formatter`` is active, so
+                ``caplog`` is the reliable capture mechanism on CI).
         """
-        import structlog.testing
-
         from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
         from personalscraper.trailers.state import TrailerStateLocked
 
@@ -1070,7 +1074,7 @@ class TestPerItemLockContention:
             """Return None for item_locked (triggers NO_TRAILER set), URL for item_ok."""
             return None if title == "Locked Movie" else "https://youtube.com/watch?v=Y"
 
-        with structlog.testing.capture_logs() as captured:
+        with caplog.at_level(logging.WARNING):
             with (
                 patch.object(orch._scanner, "scan_staging", return_value=[item_locked, item_ok]),
                 patch.object(orch._finder, "find", side_effect=_find_side_effect),
@@ -1087,7 +1091,18 @@ class TestPerItemLockContention:
         assert counts["no_trailer"] == 1, f"Expected no_trailer=1 for the locked item, got: {counts}"
 
         # The warning event must have been emitted for the locked item.
-        lock_events = [e for e in captured if e.get("event") == "trailers_state_locked_for_item"]
+        # structlog routes events through stdlib (wrap_for_formatter + LoggerFactory),
+        # so caplog.records is the authoritative capture; r.msg is a dict when the
+        # record originates from a structlog call.
+        def _is_lock_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailers_state_locked_for_item") or (
+                "trailers_state_locked_for_item" in message
+            )
+
+        lock_events = [r for r in caplog.records if _is_lock_event(r)]
         assert len(lock_events) == 1, (
-            f"expected one trailers_state_locked_for_item event, got {len(lock_events)}. Captured: {captured}"
+            f"expected one trailers_state_locked_for_item event, got {len(lock_events)}. "
+            f"Records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
         )
