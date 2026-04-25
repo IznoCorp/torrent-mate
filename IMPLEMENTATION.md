@@ -19,7 +19,7 @@
 | 3a  | Trailer discovery (`trailer_finder`, `youtube_search`, `trailers_cache`) | phase-03a-trailer-discovery.md   | [x]    |
 | 3b  | Download wrapper (`ytdlp_downloader`)                                    | phase-03b-ytdlp-downloader.md    | [x]    |
 | 3c  | Placement (`placement.py`)                                               | phase-03c-placement.md           | [x]    |
-| 4   | State tracking (`state.py`)                                              | phase-04-state-tracking.md       | [ ]    |
+| 4   | State tracking (`state.py`)                                              | phase-04-state-tracking.md       | [x]    |
 | 5   | Pipeline step (`trailers/step.py`)                                       | phase-05-pipeline-step.md        | [ ]    |
 | 6   | Scanner + orchestrator                                                   | phase-06-scanner-orchestrator.md | [ ]    |
 | 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [ ]    |
@@ -32,4 +32,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Phase 3c complete (placement helpers + NFO writer; 22 tests). Continue to Phase 4 — state tracking.
+Phase 4 complete (TrailerStateStore with composite keys, retry policy, fcntl locking, auto-GC; 29 tests). Continue to Phase 5 — pipeline step.
