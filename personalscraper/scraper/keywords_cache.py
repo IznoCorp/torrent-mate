@@ -9,11 +9,18 @@ Cache file format:
     ``"movie_{tmdb_id}"`` or ``"tv_{tmdb_id}"`` and each value is::
 
         {"keywords": ["kw1", ...], "cached_at": "2024-01-15T10:30:00.123456"}
+
+Corrupt-file protection (I8):
+``_load`` backs up the corrupt file to ``tmdb_keywords_cache.corrupt-{ts}.json``
+before returning ``{}`` so the data is preserved for forensic analysis.  The
+pattern mirrors ``TrailerStateStore._backup_corrupt`` in ``trailers/state.py``.
 """
 
 import json
 import os
+import shutil
 import tempfile
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -51,6 +58,9 @@ class KeywordsCache:
     ``os.replace`` — the backing file is never left in a partially-written
     state, even if the process is interrupted.
 
+    On parse error, ``_load`` backs up the corrupt file before returning
+    ``{}`` so the next ``set()`` does not silently destroy prior entries.
+
     Attributes:
         _path: Path to the backing ``tmdb_keywords_cache.json`` file.
     """
@@ -58,9 +68,8 @@ class KeywordsCache:
     def __init__(self, data_dir: Path) -> None:
         """Initialize the cache backed by ``data_dir/tmdb_keywords_cache.json``.
 
-        The backing file is created (empty) if it does not yet exist. The
-        parent directory must exist; it is NOT created automatically — callers
-        (scraper, tests) are responsible for creating it.
+        The backing file and its parent directory are created automatically on
+        the first ``set()`` call.
 
         Args:
             data_dir: Directory that holds pipeline state files.
@@ -147,10 +156,43 @@ class KeywordsCache:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _backup_corrupt(self, reason: str) -> None:
+        """Copy the backing file aside before it gets overwritten by a fresh save.
+
+        Without this, a parse failure followed by ``set()`` silently destroys
+        every prior entry. The backup keeps a forensic copy at
+        ``<name>.corrupt-<unix_ts>.json`` (preserving the ``.json`` suffix).
+
+        Mirrors the pattern from ``TrailerStateStore._backup_corrupt`` in
+        ``trailers/state.py``.
+
+        Args:
+            reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
+        """
+        try:
+            ts = int(time.time())
+            backup = self._path.with_name(f"{self._path.stem}.corrupt-{ts}{self._path.suffix}")
+            shutil.copy(self._path, backup)
+            log.warning(
+                "keywords_cache_corrupt_backup",
+                original=str(self._path),
+                backup=str(backup),
+                reason=reason,
+            )
+        except OSError as exc:
+            log.error(
+                "keywords_cache_corrupt_backup_failed",
+                path=str(self._path),
+                error=str(exc),
+                reason=reason,
+            )
+
     def _load(self) -> dict[str, dict[str, object]]:
         """Read the backing file and return its contents as a dict.
 
         Returns an empty dict if the file does not exist or cannot be parsed.
+        On parse error the corrupt file is backed up to
+        ``<name>.corrupt-<unix_ts>.json`` before returning ``{}``.
 
         Returns:
             Parsed JSON dict (may be empty on error or missing file).
@@ -161,9 +203,11 @@ class KeywordsCache:
             with self._path.open("r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if not isinstance(raw, dict):
+                self._backup_corrupt(reason="root_not_object")
                 return {}
             return {k: v for k, v in raw.items() if isinstance(v, dict)}
         except (OSError, json.JSONDecodeError, ValueError) as exc:
+            self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
             log.warning("keywords_cache_read_error", path=str(self._path), error=str(exc))
             return {}
 

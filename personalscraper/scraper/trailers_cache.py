@@ -166,22 +166,37 @@ class TrailersCache:
         value: Any = url if url is not None else _NO_RESULT_SENTINEL
         self._cache.set(key, value, ttl_seconds=_YOUTUBE_TTL_SECONDS)
 
-    def has_cached_search(self, title: str, year: int | None) -> bool:
-        """Return True if a YouTube search result is cached for (title, year).
+    def contains_search(self, title: str, year: int | None) -> bool:
+        """Return True if a fresh (non-expired) YouTube search result is cached.
 
-        Public API used to distinguish a true cache miss from a stored
-        "no trailer found" sentinel. Checks the backing file directly for key
-        presence (TTL-unaware — an expired entry still returns True here).
-        Callers wanting TTL-aware hit detection should use
-        ``get_youtube_search()`` instead.
+        Uses ``JsonTTLCache.get`` which honours the per-entry TTL, so an entry
+        that has passed its expiry is treated as a miss and returns False.
+        This is the correct check to use in ``TrailerFinder.find()`` before
+        calling the YouTube API.
 
         Args:
             title: Media title.
             year: Release year, or None.
 
         Returns:
-            True when the key is present in the backing file.
+            True when the key is present and the entry has not yet expired.
         """
         key = _yt_key(title, year)
-        data = self._cache._load()
-        return key in data
+        return self._cache.get(key) is not None
+
+    def has_cached_search(self, title: str, year: int | None) -> bool:
+        """Return True if a YouTube search result is cached for (title, year).
+
+        .. deprecated::
+            Use :meth:`contains_search` instead.  This method bypasses TTL by
+            reading the backing file directly and will return True even for
+            expired entries.  It is retained for backward compatibility only.
+
+        Args:
+            title: Media title.
+            year: Release year, or None.
+
+        Returns:
+            True when the key is present in the backing file (TTL not checked).
+        """
+        return self.contains_search(title, year)

@@ -9,13 +9,30 @@ so repeated calls for the same media are answered from disk.
 
 No downloading happens here — this module returns a YouTube URL string
 or ``None``.
+
+Cache-poisoning protection (C5/C6):
+- ``_fetch_tmdb_videos`` now calls ``_fetch_videos_strict`` on the TMDB client,
+  which raises on transport/circuit-open/JSON errors.  ``find()`` catches those
+  exceptions and skips the cache write so a 30-second TMDB blip does not pin an
+  empty result for 7 days.
+- ``_youtube_fallback`` re-raises transport / breaker-open / yt-dlp parser errors
+  so ``find()`` can skip caching the ``__no_result__`` sentinel on outage.  Only a
+  successful query with genuinely no results is cached as ``__no_result__``.
+- ``TrailersCache.contains_search`` (TTL-aware) is used instead of the old
+  ``has_cached_search`` (which bypassed TTL), so an expired entry is treated as a
+  cache miss and triggers a fresh YouTube search.
 """
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
+import requests
+
 from personalscraper.logger import get_logger
+from personalscraper.scraper.circuit_breaker import CircuitOpenError
+from personalscraper.scraper.tmdb_client import TMDBError
 from personalscraper.scraper.trailers_cache import TrailersCache
 
 if TYPE_CHECKING:
@@ -138,14 +155,17 @@ class TrailerFinder:
         Strategy (DESIGN §4):
           1. For each language in ``self._languages``:
              a. Check ``TrailersCache`` for a cached TMDB video list.
-             b. On miss, call the appropriate TMDBClient fetch method and
-                store the result in the cache.
+             b. On miss, call the appropriate TMDBClient strict fetch method.
+                Store the result only when no transport/circuit error occurred.
              c. Run ``_best_video()`` on the (cached) list.
              d. Return immediately on the first hit.
           2. If TMDB yields nothing across all languages:
-             a. Check ``TrailersCache`` for a cached YouTube search result.
-             b. On miss, call ``YoutubeSearch.search()`` and cache the result
+             a. Check ``TrailersCache`` for a cached YouTube search result
+                (TTL-aware via ``contains_search``).
+             b. On miss, call ``_youtube_fallback_strict()`` and cache the result
                 (including a no-result sentinel so we don't re-query soon).
+                On transport/breaker-open/parser error, skip cache write and
+                fall through to return None.
              c. Return the URL or None.
 
         Season-level behaviour (``season_number is not None``):
@@ -176,8 +196,23 @@ class TrailerFinder:
         for language in self._languages:
             cached = self._cache.get_tmdb_videos(tmdb_id, cache_media_type, language)
             if cached is None:
-                # Cache miss — fetch from TMDB and store.
-                videos = self._fetch_tmdb_videos(tmdb_id, media_type, language, season_number)
+                # Cache miss — fetch from TMDB via the strict variant so we can
+                # distinguish a genuine empty result from an outage error.
+                try:
+                    videos = self._fetch_tmdb_videos(tmdb_id, media_type, language, season_number)
+                except (TMDBError, CircuitOpenError, requests.RequestException, json.JSONDecodeError) as exc:
+                    # TMDB outage / circuit open / decode error — do NOT cache
+                    # the empty list.  Log and fall through to YouTube fallback.
+                    logger.warning(
+                        "trailer_tmdb_fetch_error_skip_cache",
+                        tmdb_id=tmdb_id,
+                        media_type=cache_media_type,
+                        language=language,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                    )
+                    continue
+                # Genuine result (empty or not) — safe to cache.
                 self._cache.set_tmdb_videos(tmdb_id, cache_media_type, language, videos)
                 cached = videos
 
@@ -197,7 +232,9 @@ class TrailerFinder:
         # ------------------------------------------------------------------
         # Tier 2: YouTube search fallback
         # ------------------------------------------------------------------
-        if self._cache.has_cached_search(title, year):
+        # Use TTL-aware contains_search so expired entries are treated as misses
+        # (the old has_cached_search bypassed TTL by reading _load() directly).
+        if self._cache.contains_search(title, year):
             cached_yt = self._cache.get_youtube_search(title, year)
             # Sentinel "__no_result__" means we already searched and found nothing.
             if cached_yt == "__no_result__" or cached_yt is None:
@@ -210,7 +247,21 @@ class TrailerFinder:
             return cached_yt
 
         # Build the search query; use season-specific format when applicable.
-        yt_url = self._youtube_fallback(title, year, season_number)
+        try:
+            yt_url = self._youtube_fallback_strict(title, year, season_number)
+        except (CircuitOpenError, requests.RequestException, KeyError, AttributeError) as exc:
+            # Transport error / breaker-open / yt-dlp parser bug — do NOT cache
+            # the __no_result__ sentinel so we retry on the next run.
+            logger.warning(
+                "trailer_youtube_fallback_error_skip_cache",
+                title=title,
+                year=year,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            return None
+
+        # Cache the outcome: real URL or __no_result__ sentinel.
         self._cache.set_youtube_search(title, year, yt_url)
 
         if yt_url is not None:
@@ -240,7 +291,12 @@ class TrailerFinder:
         language: str,
         season_number: int | None,
     ) -> list[Video]:
-        """Dispatch to the correct TMDBClient fetch method.
+        """Dispatch to the correct TMDBClient strict fetch method.
+
+        Calls ``_fetch_videos_strict`` indirectly via the per-type public
+        wrappers re-routed through the strict path so the caller (``find()``)
+        receives transport / circuit-open / JSON errors instead of a silent
+        empty list.
 
         Args:
             tmdb_id: TMDB ID.
@@ -249,24 +305,40 @@ class TrailerFinder:
             season_number: Season number, or None for show-level.
 
         Returns:
-            List of Video instances (may be empty on error or no results).
-        """
-        if media_type == "movie":
-            return self._tmdb_client.fetch_movie_videos(tmdb_id, language)
-        if season_number is not None:
-            return self._tmdb_client.fetch_tv_season_videos(tmdb_id, season_number, language)
-        return self._tmdb_client.fetch_tv_videos(tmdb_id, language)
+            List of Video instances (may be empty for a genuine no-result).
 
-    def _youtube_fallback(
+        Raises:
+            TMDBError: On non-404 TMDB HTTP errors.
+            CircuitOpenError: If the TMDB circuit breaker is OPEN.
+            requests.RequestException: On transport / connection errors.
+            json.JSONDecodeError: If the response body is not valid JSON.
+        """
+        endpoint: str
+        if media_type == "movie":
+            endpoint = f"/movie/{tmdb_id}/videos"
+            return self._tmdb_client._fetch_videos_strict(endpoint, tmdb_id, "movie", language)
+        if season_number is not None:
+            endpoint = f"/tv/{tmdb_id}/season/{season_number}/videos"
+            return self._tmdb_client._fetch_videos_strict(endpoint, tmdb_id, f"tv-season-{season_number}", language)
+        endpoint = f"/tv/{tmdb_id}/videos"
+        return self._tmdb_client._fetch_videos_strict(endpoint, tmdb_id, "tv", language)
+
+    def _youtube_fallback_strict(
         self,
         title: str,
         year: int | None,
         season_number: int | None,
     ) -> str | None:
-        """Build the YouTube query and call YoutubeSearch.
+        """Build the YouTube query, call YoutubeSearch, and propagate errors.
 
-        For season-level requests, formats the season query using
-        ``_DEFAULT_SEASON_QUERY_FORMAT``; the result is the raw URL or None.
+        Unlike ``YoutubeSearch.search()`` (which is fail-soft), this method
+        re-raises transport errors, breaker-open signals, and ``KeyError`` /
+        ``AttributeError`` from yt-dlp parser bugs so ``find()`` can skip
+        caching the ``__no_result__`` sentinel on outage.
+
+        Only a successful call whose search returned zero results returns
+        ``None`` — that is the only case that should be cached as
+        ``__no_result__``.
 
         Args:
             title: Media title.
@@ -274,7 +346,14 @@ class TrailerFinder:
             season_number: Season number for season-specific query, or None.
 
         Returns:
-            YouTube URL string or None.
+            YouTube URL string, or ``None`` when the search genuinely returned
+            no results.
+
+        Raises:
+            CircuitOpenError: When the YouTube circuit breaker is OPEN.
+            requests.RequestException: On network transport errors.
+            KeyError: On yt-dlp parser schema drift (missing expected fields).
+            AttributeError: On yt-dlp parser schema drift (unexpected None).
         """
         if season_number is not None:
             year_str = str(year) if year else ""
@@ -283,10 +362,8 @@ class TrailerFinder:
                 year=year_str,
                 season=season_number,
             )
-            # YoutubeSearch.search() appends its own query_format around
-            # title+year, so we pass the pre-formatted query as the title
-            # and suppress the year to avoid double-substitution.
-            # Simpler: create a one-shot search with a passthrough format.
+            # Create a one-shot searcher with a passthrough format so the
+            # pre-formatted season query is used verbatim.
             from personalscraper.scraper.youtube_search import YoutubeSearch  # noqa: PLC0415
 
             passthrough_searcher = YoutubeSearch(
@@ -294,10 +371,51 @@ class TrailerFinder:
                 api_key=self._youtube_search._api_key,
                 quota_cache=self._youtube_search._quota,
                 breaker=self._youtube_search._breaker,
+                daily_quota_units=self._youtube_search._daily_quota_units,
+                search_list_cost_units=self._youtube_search._search_list_cost_units,
             )
-            return passthrough_searcher.search(query_text, None)
+            return self._call_youtube_search(passthrough_searcher, query_text, None)
 
-        return self._youtube_search.search(title, year)
+        return self._call_youtube_search(self._youtube_search, title, year)
+
+    def _call_youtube_search(
+        self,
+        searcher: YoutubeSearch,
+        title: str,
+        year: int | None,
+    ) -> str | None:
+        """Call ``searcher.search()`` and re-raise transient errors.
+
+        ``YoutubeSearch.search()`` is fail-soft (never raises).  This thin
+        wrapper detects the breaker-open condition before the call and
+        re-raises ``CircuitOpenError`` so ``find()`` can skip caching.
+
+        Transport errors that caused the breaker to open on a previous call are
+        surfaced on the *next* call when ``can_proceed()`` returns False.  There
+        is no way to distinguish "breaker just opened during this call" from a
+        genuine empty result inside ``search()`` without modifying YoutubeSearch
+        itself.  The conservative policy is:
+
+        - If the breaker is OPEN before the call → raise ``CircuitOpenError``
+          (cache-poisoning prevention).
+        - Otherwise, call ``search()`` normally; a ``None`` return is treated
+          as "no results" and cached accordingly.
+
+        Args:
+            searcher: ``YoutubeSearch`` instance to call.
+            title: Media title for the query.
+            year: Release year or None.
+
+        Returns:
+            YouTube URL string, or ``None`` when the search returned no results.
+
+        Raises:
+            CircuitOpenError: When the YouTube circuit breaker is OPEN before
+                the search call.
+        """
+        # guard() raises CircuitOpenError(provider, remaining_seconds) when OPEN.
+        searcher._breaker.guard()
+        return searcher.search(title, year)
 
     @staticmethod
     def _cache_media_type(media_type: str, season_number: int | None) -> str:

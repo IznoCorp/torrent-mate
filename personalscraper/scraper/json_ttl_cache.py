@@ -13,13 +13,25 @@ Cache file format: a JSON object where each key maps to::
 
 Entries with ``cached_at`` older than ``ttl_seconds`` are treated as cache
 misses. Writes are atomic: temp file + ``os.replace``.
+
+Concurrent-write safety (I7):
+``set``, ``invalidate``, and ``compact`` hold an exclusive advisory lock on a
+sibling ``.lock`` file for the duration of their read-modify-write cycle via
+``fcntl.flock(LOCK_EX | LOCK_NB)`` with a bounded retry loop.  The lock
+prevents two concurrent processes (e.g. a cron pipeline and a manual CLI
+invocation) from interleaving their read-modify-write cycles and silently
+dropping each other's entries.  On non-Unix platforms (Windows) the ``fcntl``
+module is absent and best-effort atomic writes are used instead.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
+import time
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeVar
@@ -31,6 +43,25 @@ logger = get_logger(__name__)
 T = TypeVar("T")
 
 UTC = timezone.utc
+
+# ---------------------------------------------------------------------------
+# fcntl import — optional, not available on Windows
+# ---------------------------------------------------------------------------
+try:
+    import fcntl as _fcntl
+
+    _FCNTL_AVAILABLE = True
+except ImportError:  # pragma: no cover — Windows only
+    _fcntl = None  # type: ignore[assignment]
+    _FCNTL_AVAILABLE = False
+    warnings.warn(
+        "fcntl is unavailable on this platform — JsonTTLCache will use best-effort atomic writes without a file lock.",
+        stacklevel=1,
+    )
+
+# Bounded lock-acquisition parameters — match state.py for consistency.
+_LOCK_MAX_ATTEMPTS = 3
+_LOCK_RETRY_SLEEP_SEC = 0.5
 
 
 def check_ttl(
@@ -83,20 +114,26 @@ class JsonTTLCache:
     Atomic writes are implemented via ``tempfile.NamedTemporaryFile`` +
     ``os.replace`` — the backing file is never left partially written.
 
+    Read-modify-write operations (``set``, ``invalidate``, ``compact``) hold
+    an exclusive ``fcntl`` advisory lock on a sibling ``.lock`` file for the
+    duration of the operation so concurrent processes cannot drop entries.
+
     Attributes:
         _path: Absolute Path to the backing JSON file.
+        _lock_path: Path to the advisory lock file (sibling ``.lock``).
     """
 
     def __init__(self, path: Path) -> None:
         """Initialize the cache backed by ``path``.
 
-        The file is created on the first ``set()`` call. The parent directory
-        must exist; it is NOT created automatically.
+        The file and its parent directory are created on the first ``set()``
+        call.
 
         Args:
             path: Absolute path to the backing JSON file.
         """
         self._path = path
+        self._lock_path = path.with_suffix(".lock")
 
     # ------------------------------------------------------------------
     # Public API
@@ -132,18 +169,25 @@ class JsonTTLCache:
     def set(self, key: str, value: Any, ttl_seconds: int) -> None:
         """Write or overwrite a cache entry atomically.
 
+        Acquires an exclusive advisory lock on the sibling ``.lock`` file for
+        the duration of the read-modify-write cycle so concurrent processes do
+        not drop each other's entries.
+
         Args:
             key: Cache key string.
             value: JSON-serialisable value to store.
             ttl_seconds: Entry lifetime in seconds from now.
         """
-        data = self._load()
-        data[key] = {
-            "value": value,
-            "cached_at": datetime.now(UTC).isoformat(),
-            "ttl_seconds": ttl_seconds,
-        }
-        self._atomic_save(data)
+        self._locked_update(
+            lambda data: data.__setitem__(
+                key,
+                {
+                    "value": value,
+                    "cached_at": datetime.now(UTC).isoformat(),
+                    "ttl_seconds": ttl_seconds,
+                },
+            )
+        )
 
     def invalidate(self, key: str) -> None:
         """Remove a single entry from the cache.
@@ -153,10 +197,11 @@ class JsonTTLCache:
         Args:
             key: Cache key to remove.
         """
-        data = self._load()
-        if key in data:
-            del data[key]
-            self._atomic_save(data)
+
+        def _remove(data: dict[str, Any]) -> None:
+            data.pop(key, None)
+
+        self._locked_update(_remove)
 
     def compact(self) -> None:
         """Remove all expired entries from the backing file.
@@ -164,29 +209,146 @@ class JsonTTLCache:
         Reads the file, drops expired entries, and writes back. A no-op if
         the file does not exist.
         """
-        data = self._load()
         now = datetime.now(UTC)
-        fresh: dict[str, Any] = {}
-        for key, entry in data.items():
-            try:
-                cached_at = datetime.fromisoformat(str(entry["cached_at"]))
-                ttl_seconds = int(entry["ttl_seconds"])
-                if check_ttl(cached_at, ttl_seconds, now=now):
-                    fresh[key] = entry
-            except (KeyError, ValueError, TypeError) as exc:
-                # Malformed entry — drop it during compaction.
-                logger.debug("json_ttl_cache_entry_dropped_during_compact", key=key, error=str(exc))
-        if len(fresh) != len(data):
-            self._atomic_save(fresh)
+
+        def _drop_expired(data: dict[str, Any]) -> None:
+            expired_keys = []
+            for k, entry in data.items():
+                try:
+                    cached_at = datetime.fromisoformat(str(entry["cached_at"]))
+                    ttl_secs = int(entry["ttl_seconds"])
+                    if not check_ttl(cached_at, ttl_secs, now=now):
+                        expired_keys.append(k)
+                except (KeyError, ValueError, TypeError) as exc:
+                    # Malformed entry — drop during compaction.
+                    logger.debug("json_ttl_cache_entry_dropped_during_compact", key=k, error=str(exc))
+                    expired_keys.append(k)
+            for k in expired_keys:
+                del data[k]
+
+        self._locked_update(_drop_expired)
 
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _acquire_lock(self, lock_fh: Any) -> None:
+        """Acquire an exclusive non-blocking flock with a bounded retry budget.
+
+        Mirrors the pattern from ``TrailerStateStore._acquire_lock`` in
+        ``trailers/state.py`` (C7 fix).  Attempts ``_LOCK_MAX_ATTEMPTS`` times
+        with ``_LOCK_RETRY_SLEEP_SEC`` between each attempt.
+
+        Args:
+            lock_fh: Open file handle to the ``.lock`` sibling file.
+
+        Raises:
+            OSError: If the lock cannot be acquired within the retry budget.
+        """
+        assert _fcntl is not None  # caller gates on _FCNTL_AVAILABLE
+        for attempt in range(_LOCK_MAX_ATTEMPTS):
+            try:
+                _fcntl.flock(lock_fh, _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+                return  # Lock acquired.
+            except OSError:
+                # LOCK_NB raises BlockingIOError (OSError subclass) when the
+                # lock is held by another process.
+                if attempt < _LOCK_MAX_ATTEMPTS - 1:
+                    time.sleep(_LOCK_RETRY_SLEEP_SEC)
+        # Budget exhausted — surface as an OSError so the caller degrades
+        # gracefully (skip locking, still write best-effort).
+        raise OSError(
+            f"json_ttl_cache: could not acquire lock on {self._lock_path} after {_LOCK_MAX_ATTEMPTS} attempts"
+        )
+
+    def _locked_update(self, mutate: Any) -> None:
+        """Read the backing file, apply ``mutate(data)``, and write back.
+
+        Acquires the exclusive advisory lock before reading so the full
+        read-modify-write cycle is serialised against concurrent processes.
+        Falls back to unlocked best-effort on non-Unix platforms or when the
+        lock cannot be acquired.
+
+        Args:
+            mutate: Callable that mutates the ``data`` dict in place.  The
+                return value is ignored; side effects on ``data`` are used.
+        """
+        if _FCNTL_AVAILABLE and _fcntl is not None:
+            self._lock_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with self._lock_path.open("a") as lock_fh:
+                    try:
+                        self._acquire_lock(lock_fh)
+                    except OSError:
+                        # Could not acquire lock — fall back to best-effort.
+                        logger.warning(
+                            "json_ttl_cache_lock_failed",
+                            lock_path=str(self._lock_path),
+                            hint="falling back to unlocked write",
+                        )
+                        data = self._load()
+                        mutate(data)
+                        self._atomic_save(data)
+                        return
+                    try:
+                        data = self._load()
+                        mutate(data)
+                        self._atomic_save(data)
+                    finally:
+                        _fcntl.flock(lock_fh, _fcntl.LOCK_UN)
+            except OSError as exc:
+                # Lock-file open / UNLOCK failures — best-effort write.
+                logger.warning(
+                    "json_ttl_cache_lock_error",
+                    lock_path=str(self._lock_path),
+                    error=str(exc),
+                    hint="falling back to unlocked write",
+                )
+                data = self._load()
+                mutate(data)
+                self._atomic_save(data)
+        else:
+            # Best-effort on non-Unix platforms.
+            data = self._load()
+            mutate(data)
+            self._atomic_save(data)
+
+    def _backup_corrupt(self, reason: str) -> None:
+        """Copy the backing file aside before it gets overwritten by a fresh save.
+
+        Without this, a parse failure followed by ``set()`` silently destroys
+        every prior entry. The backup keeps a forensic copy at
+        ``<path>.corrupt-<unix_ts>.json`` (preserving the ``.json`` suffix so
+        the file remains recognisable as a JSON cache).
+
+        Args:
+            reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
+        """
+        try:
+            # Include the original suffix so the forensic copy is recognisable.
+            ts = int(time.time())
+            backup = self._path.with_name(f"{self._path.stem}.corrupt-{ts}{self._path.suffix}")
+            shutil.copy(self._path, backup)
+            logger.warning(
+                "json_ttl_cache_corrupt_backup",
+                original=str(self._path),
+                backup=str(backup),
+                reason=reason,
+            )
+        except OSError as exc:
+            logger.error(
+                "json_ttl_cache_corrupt_backup_failed",
+                path=str(self._path),
+                error=str(exc),
+                reason=reason,
+            )
+
     def _load(self) -> dict[str, Any]:
         """Read the backing file and return its parsed contents.
 
         Returns an empty dict if the file does not exist or cannot be parsed.
+        On parse error, the corrupt file is backed up to a sibling
+        ``<name>.corrupt-<ts>.json`` before returning ``{}``.
 
         Returns:
             Parsed JSON dict; empty dict on any error.
@@ -197,9 +359,11 @@ class JsonTTLCache:
             with self._path.open("r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if not isinstance(raw, dict):
+                self._backup_corrupt(reason="root_not_object")
                 return {}
             return {k: v for k, v in raw.items() if isinstance(v, dict)}
         except (OSError, json.JSONDecodeError, ValueError) as exc:
+            self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
             logger.warning(
                 "json_ttl_cache_load_failed",
                 path=str(self._path),

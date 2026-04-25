@@ -610,7 +610,13 @@ class TMDBClient:
         )
 
     def _fetch_videos(self, endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
-        """Internal: call /videos endpoint and deserialize into Video list.
+        """Internal fail-soft wrapper: call /videos endpoint, return [] on any error.
+
+        Delegates to ``_fetch_videos_strict`` and catches all errors so public
+        callers (``fetch_movie_videos``, ``fetch_tv_videos``,
+        ``fetch_tv_season_videos``) never raise.  Use ``_fetch_videos_strict``
+        directly when the caller needs to distinguish a genuine empty result from
+        an error (e.g. ``TrailerFinder`` — to skip caching on outage).
 
         Args:
             endpoint: Full endpoint path (e.g. "/movie/550/videos").
@@ -622,7 +628,7 @@ class TMDBClient:
             List of Video instances; empty list on any error.
         """
         try:
-            data = self._get(endpoint, {"language": language})
+            return self._fetch_videos_strict(endpoint, tmdb_id, media_type, language)
         except TMDBError as exc:
             if exc.http_status == 404:
                 return []
@@ -647,6 +653,39 @@ class TMDBClient:
                 exc_info=True,
             )
             return []
+
+    def _fetch_videos_strict(self, endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
+        """Internal: call /videos endpoint and deserialize into Video list.
+
+        Unlike ``_fetch_videos``, this method propagates transport / circuit-open
+        / JSON-decode errors to the caller so it can decide whether to cache the
+        result.  404 responses are still treated as genuine "no videos" and
+        return ``[]`` without raising — an empty TMDB response should be cached
+        normally.
+
+        Args:
+            endpoint: Full endpoint path (e.g. "/movie/550/videos").
+            tmdb_id: TMDB ID for logging context.
+            media_type: "movie" or "tv" for log messages.
+            language: BCP-47 language tag passed as query parameter.
+
+        Returns:
+            List of Video instances (may be empty when TMDB returns no results).
+
+        Raises:
+            TMDBError: On non-404 TMDB HTTP errors.
+            CircuitOpenError: If the TMDB circuit breaker is OPEN.
+            requests.RequestException: On transport / connection errors.
+            json.JSONDecodeError: If the response body is not valid JSON.
+        """
+        try:
+            data = self._get(endpoint, {"language": language})
+        except TMDBError as exc:
+            if exc.http_status == 404:
+                # 404 = TMDB genuinely has no videos for this item — treat as
+                # "real empty" (cache-worthy), not an error.
+                return []
+            raise
 
         raw_list = data.get("results") or []
         videos: list[Video] = []
