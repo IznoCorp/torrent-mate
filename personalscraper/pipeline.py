@@ -83,9 +83,11 @@ class Pipeline:
                 Default ``None`` means no overrides — production behaviour
                 is unchanged.
             skip_trailers: If True, skip the trailers download step.
-            continue_on_trailer_error: If True, log and continue to dispatch
-                even when trailers step returns status=error. DESIGN section 2:
-                trailers is always non-blocking.
+            continue_on_trailer_error: Non-blocking by default; per-item failures
+                are logged and dispatch proceeds. ``continue_on_trailer_error=False``
+                (the default) aborts dispatch when the trailers step returns
+                ``status='error'`` — typically only on lock contention or unexpected
+                crash. Set to ``True`` to log and fall through to dispatch regardless.
         """
         self.config = config
         self.settings = settings
@@ -179,8 +181,8 @@ class Pipeline:
         Phase 3: PROCESS — re-clean + dedup + scrape + cleanup
         Phase 4: ENFORCE — validate and correct conventions
         Phase 5: VERIFY — coherence check
-        Phase 5bis: TRAILERS — download trailers (non-blocking)
-        Phase 6: DISPATCH — only if verified items exist
+        Phase 6: TRAILERS — download trailers (non-blocking by default)
+        Phase 7: DISPATCH — only if verified items exist
 
         Returns:
             PipelineReport with 9 StepReports (ingest, sort, clean,
@@ -266,7 +268,7 @@ class Pipeline:
             report,
         )
 
-        # Phase 5bis: TRAILERS (non-blocking -- partial/skipped does not abort dispatch)
+        # Phase 6: TRAILERS (non-blocking by default -- partial/skipped does not abort dispatch)
         # Runs after verify so items that failed verify are never downloaded.
         # Runs before dispatch so trailers are placed (Plex-conformant) alongside
         # media in staging and moved together in one atomic dispatch operation.
@@ -307,7 +309,7 @@ class Pipeline:
                 hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
             )
 
-        # Phase 6: DISPATCH (only if verified items exist)
+        # Phase 7: DISPATCH (only if verified items exist)
         if verified:
             from personalscraper.dispatch.run import run_dispatch
 

@@ -351,12 +351,20 @@ class TrailerFinder:
 
         Raises:
             CircuitOpenError: When the YouTube circuit breaker is OPEN before
-                the call, or when it transitions closed → open during this call.
-            KeyError: On yt-dlp parser schema drift (missing expected dict field).
-            AttributeError: On yt-dlp parser schema drift (unexpected None value).
-            TypeError: On yt-dlp parser schema drift (unexpected type in result).
-            requests.RequestException: On network / transport errors.
-            OSError: On OS-level I/O errors during the yt-dlp download probe.
+                the call, or when it transitions closed → open during this call
+                (re-raised from ``_call_youtube_search``).
+            KeyError: On yt-dlp parser schema drift — missing expected dict field
+                (re-raised from ``_fallback_search`` via ``_call_youtube_search``).
+            AttributeError: On yt-dlp parser schema drift — unexpected None value
+                (re-raised from ``_fallback_search`` via ``_call_youtube_search``).
+            TypeError: On yt-dlp parser schema drift — unexpected type in result
+                (re-raised from ``_fallback_search`` via ``_call_youtube_search``).
+            requests.RequestException: On network / transport errors (re-raised
+                from ``_fallback_search`` via ``_call_youtube_search``).
+            OSError: On OS-level I/O errors during the yt-dlp download probe
+                (re-raised from ``_fallback_search`` via ``_call_youtube_search``).
+            yt_dlp.utils.DownloadError: On yt-dlp download errors (re-raised
+                from ``_fallback_search`` via ``_call_youtube_search``).
         """
         if season_number is not None:
             year_str = str(year) if year else ""

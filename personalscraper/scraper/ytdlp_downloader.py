@@ -372,18 +372,21 @@ class YtdlpDownloader:
                 signal.signal(signal.SIGALRM, old_handler)
 
     def _verify_output(self, output_path: Path) -> DownloadResult | None:
-        """Verify the expected output file exists and meets the minimum size.
+        """Verify the expected output file exists and is non-empty.
 
-        Globs the parent directory for siblings with the same stem but a
-        different extension (e.g. ``.webm`` when ffmpeg merge failed). Returns
-        a ``YTDLP_ERROR`` result if the file is absent or too small, or ``None``
-        when the file looks good (callers proceed to declare ``SUCCESS``).
+        Also probes the parent directory for a sibling with a different extension
+        (diagnostic only — indicates ffmpeg-merge failure, e.g. ``.webm`` left
+        behind when the merge step did not produce ``.mp4``). Returns a
+        ``YTDLP_ERROR`` result if the file is absent or empty (size <= 0), or
+        ``None`` when the file looks good (callers proceed to declare ``SUCCESS``).
+        The configurable size threshold is enforced separately by
+        ``placement.trailer_exists()``.
 
         Args:
             output_path: The expected output path (e.g. ``name-trailer.mp4``).
 
         Returns:
-            ``None`` if the file exists and is large enough.
+            ``None`` if the file exists and is non-empty.
             A ``DownloadResult(YTDLP_ERROR)`` otherwise.
         """
         if not output_path.exists():

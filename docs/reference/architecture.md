@@ -75,7 +75,7 @@ staging/
 │   ├── enforce/         # enforce unit tests (file sanitizer, structure, coherence)
 │   ├── library/         # library unit tests (scan, clean, validate, analyze, recommend, report)
 │   ├── trailers/        # trailers unit tests (orchestrator, scanner, state, placement, CLI)
-   └── resilience/      # resilience unit tests (idempotence, crash recovery)
+│   └── resilience/      # resilience unit tests (idempotence, crash recovery)
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
 │   └── expected/        # Golden files (expected results per torrent)
 ├── docs/                # Reference docs, feature plans, archive
