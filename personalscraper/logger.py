@@ -10,7 +10,7 @@ from typing import Any, cast
 import structlog
 from structlog.types import Processor
 
-_SECRET_KEY_RE = re.compile(r"^(api[_-]?key|authorization|cookie|key)$", re.IGNORECASE)
+_SECRET_KEY_RE = re.compile(r"^(api[_-]?key|authorization|cookie|secret|token|password)$", re.IGNORECASE)
 _URL_KEY_PARAM_RE = re.compile(r"([?&])key=[^&]*")
 
 
