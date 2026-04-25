@@ -118,12 +118,13 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | rapidfuzz, tenacity, structlog, rich, guessit gotchas                     | `docs/reference/libraries.md`          |
 | Circuit breaker, fast-skip, dispatch/verify internals, idempotence        | `docs/reference/pipeline-internals.md` |
 | Logging conventions, event-name style, structlog vs CLI vs typer channels | `docs/reference/logging.md`            |
+| Trailer discovery, download, state, CLI, flat `{name}-trailer.{ext}` placement | `docs/reference/trailers.md`           |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
 ## Current Feature
 
-**Feature**: _(awaiting /implement:feature)_
-**Branch**: _(to be defined)_
-**Design**: _(to be defined)_
-**Plan**: _(to be defined)_
+**Feature**: trailer
+**Branch**: feat/trailer
+**Design**: docs/features/trailer/DESIGN.md
+**Plan**: docs/features/trailer/plan/
