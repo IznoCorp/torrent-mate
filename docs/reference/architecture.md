@@ -44,17 +44,17 @@ staging/
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
-   │   ├── json_ttl_cache.py    # JSON-backed TTL cache for YouTube search results
-   │   ├── youtube_search.py    # YouTube Data API v3 quota-aware search
-   │   ├── trailer_finder.py    # Two-tier TMDB/YouTube trailer URL discovery
-   │   ├── ytdlp_downloader.py  # yt-dlp wrapper with retry and cookie support
-   │   └── trailers_cache.py    # Per-media trailer URL TTL cache
+│   │   ├── json_ttl_cache.py    # JSON-backed TTL cache for YouTube search results
+│   │   ├── youtube_search.py    # YouTube Data API v3 quota-aware search
+│   │   ├── trailer_finder.py    # Two-tier TMDB/YouTube trailer URL discovery
+│   │   ├── ytdlp_downloader.py  # yt-dlp wrapper with retry and cookie support
+│   │   └── trailers_cache.py    # Per-media trailer URL TTL cache
 │   ├── process/         # reclean, dedup, cleanup (between sort and scrape)
 │   ├── enforce/         # file sanitizer, structure validator, coherence checker
 │   ├── library/         # scan, clean, validate, analyze, recommend, report
 │   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks
 │   ├── dispatch/        # disk scanner, media index, rsync transfer + rollback/fallback
-│   ├── pipeline.py      # sequential 8-step pipeline orchestrator
+│   ├── pipeline.py      # sequential 9-step pipeline orchestrator
 │   ├── cli.py           # Typer CLI entry point
 │   ├── config.py        # pydantic-settings
 │   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
