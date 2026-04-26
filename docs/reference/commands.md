@@ -15,6 +15,8 @@ personalscraper process             # Reclean + dedup + scrape + cleanup
 personalscraper enforce             # Enforce staging conventions
 personalscraper run                 # Full pipeline
 personalscraper run --dry-run       # Preview full pipeline
+personalscraper run --skip-trailers            # Skip the trailers step
+personalscraper run --continue-on-trailer-error  # Continue to dispatch even on trailer errors
 ```
 
 ## Library Maintenance
@@ -41,6 +43,16 @@ personalscraper library-rescrape --interactive       # Confirm low-confidence ma
 personalscraper library-report                       # Library health statistics
 personalscraper library-report --format json         # Export as JSON
 ```
+
+
+## Trailers
+
+personalscraper trailers scan [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level show|season|both] [--season N] [--no-refresh]
+personalscraper trailers download [--dry-run] [--disk D] [--category C] [--limit N] [--level season] [--season N]
+personalscraper trailers verify [--disk D] [--category C] [--deep] [--no-refresh]
+personalscraper trailers purge [--dry-run] [--disk D]
+
+Exit codes: 0 ok, 1 error, 2 bad argument.
 
 ## Bootstrap
 

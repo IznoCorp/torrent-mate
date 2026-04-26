@@ -206,6 +206,7 @@ def _find_video_file(directory: Path) -> Path | None:
         and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
         and not f.name.startswith(".")
         and ".actors" not in f.parts
+        and "Trailers" not in f.parts
     ]
     if not candidates:
         return None
@@ -1126,6 +1127,7 @@ class Scraper:
             and not SEASON_DIR_RE.match(f.parent.name)
             and f.parent != show_dir
             and ".actors" not in f.parts
+            and "Trailers" not in f.parts
         )
 
         if unorganized:
@@ -1686,7 +1688,8 @@ class Scraper:
             result.warnings.append(f"Artwork failed: {e}")
 
         # Process episodes — rglob to find files nested in release-group subdirs,
-        # but skip files already organized in Saison XX/ directories
+        # but skip files already organized in Saison XX/ directories.
+        # Trailers/ holds Plex-conformant trailer mp4s, never episodes.
         total_renamed = 0
         video_files = sorted(
             f
@@ -1694,6 +1697,7 @@ class Scraper:
             if f.is_file()
             and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
             and not SEASON_DIR_RE.match(f.parent.name)
+            and "Trailers" not in f.parts
         )
 
         if video_files:

@@ -132,6 +132,23 @@ class TestFindVideoFileNested:
 
         assert result == video
 
+    def test_skips_trailers_subfolder(self, tmp_path: Path) -> None:
+        """Plex Trailers/ subfolder must be ignored — its .mp4 is a trailer, not the main video."""
+        movie_dir = tmp_path / "Movie (2025)"
+        movie_dir.mkdir()
+        main = movie_dir / "Movie.mkv"
+        main.write_bytes(b"\x00" * 10000)
+        trailers = movie_dir / "Trailers"
+        trailers.mkdir()
+        # Trailer is larger to prove that size alone wouldn't disambiguate
+        (trailers / "Movie (2025).mp4").write_bytes(b"\x00" * 100000)
+
+        from personalscraper.scraper.scraper import _find_video_file
+
+        result = _find_video_file(movie_dir)
+
+        assert result == main, "trailer file in Trailers/ must not be picked as main video"
+
 
 # ---------------------------------------------------------------------------
 # Empty release-group dir cleanup (bug #7, #8)

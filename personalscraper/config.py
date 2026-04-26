@@ -32,6 +32,9 @@ class Settings(BaseSettings):
         qbit_password: qBittorrent login password.
         tmdb_api_key: The Movie Database API key (Bearer token).
         tvdb_api_key: TheTVDB API key (Negotiated Contract).
+        youtube_api_key: YouTube Data API v3 key for trailer discovery (empty = yt-dlp fallback only).
+        youtube_cookies_file: Path to a Netscape-format cookies.txt for yt-dlp (optional).
+        youtube_cookies_from_browser: Browser profile name for live cookie extraction (optional).
         scraper_language: Primary language for API queries (TMDB format: "fr-FR").
         scraper_fallback_language: Fallback language when primary unavailable.
         scraper_prefer_local_title: Use local (FR) title for folder renaming.
@@ -58,6 +61,11 @@ class Settings(BaseSettings):
 
     # TVDB
     tvdb_api_key: str = ""
+
+    # YouTube — trailer discovery (optional; empty values disable the primary tier)
+    youtube_api_key: str = ""
+    youtube_cookies_file: str = ""
+    youtube_cookies_from_browser: str = ""
 
     # Scraper
     scraper_language: str = "fr-FR"
@@ -89,6 +97,7 @@ class Settings(BaseSettings):
             "qbit_password",
             "tmdb_api_key",
             "tvdb_api_key",
+            "youtube_api_key",
             "telegram_bot_token",
             "healthcheck_url",
         }

@@ -528,6 +528,222 @@ class IngestConfig(_StrictModel):
     )
 
 
+class TrailersCircuitBreakerConfig(_StrictModel):
+    """One circuit breaker config (per external service).
+
+    Attributes:
+        errors_threshold: Number of consecutive errors that trip the breaker.
+        cooldown_sec: Seconds the breaker stays open before half-opening.
+    """
+
+    errors_threshold: int = Field(default=5, ge=1)
+    cooldown_sec: int = Field(default=1800, ge=0)
+
+
+class TrailersCircuitBreakersConfig(_StrictModel):
+    """Two independent breakers: one per external service.
+
+    A YouTube outage must never trip the TMDB breaker used by the rest of the
+    scraper (and vice-versa).
+
+    Attributes:
+        tmdb_videos: Circuit breaker for TMDB /videos API calls.
+        youtube: Circuit breaker for YouTube Data API / yt-dlp calls.
+    """
+
+    tmdb_videos: TrailersCircuitBreakerConfig = Field(
+        default_factory=lambda: TrailersCircuitBreakerConfig(errors_threshold=5, cooldown_sec=1800)
+    )
+    youtube: TrailersCircuitBreakerConfig = Field(
+        default_factory=lambda: TrailersCircuitBreakerConfig(errors_threshold=5, cooldown_sec=3600)
+    )
+
+
+class TrailersFiltersConfig(_StrictModel):
+    """v0.7.0 minimal filter set.
+
+    Attributes:
+        min_file_size_bytes: Minimum file size in bytes for a valid trailer.
+        max_filesize_mb: Maximum trailer file size passed to yt-dlp as a download cap.
+        allowed_extensions: File extensions accepted by the verify subcommand.
+    """
+
+    min_file_size_bytes: int = Field(default=102400, ge=0)
+    max_filesize_mb: int = Field(default=500, gt=0)
+    # Per-element pattern rejects empty strings, leading dots, and whitespace —
+    # otherwise typos like "" or "mp4 " would silently disable the verify gate.
+    allowed_extensions: Annotated[
+        list[Annotated[str, Field(pattern=r"^[a-z0-9]+$")]],
+        Field(min_length=1),
+    ] = Field(default_factory=lambda: ["mp4", "mkv", "webm"])
+
+
+class TrailersYoutubeApiConfig(_StrictModel):
+    """YouTube Data API v3 quota accounting defaults.
+
+    Attributes:
+        daily_quota_units: Total daily quota units allocated by Google. Default 10 000.
+        search_list_cost_units: Quota cost per search.list call. Default 100.
+        cache_ttl_days: TTL for cached YouTube search results in days.
+    """
+
+    daily_quota_units: int = Field(default=10_000, gt=0)
+    search_list_cost_units: int = Field(default=100, gt=0)
+    cache_ttl_days: int = Field(default=7, ge=1)
+
+
+class TrailersYtdlpConfig(_StrictModel):
+    """yt-dlp download options.
+
+    Attributes:
+        format: yt-dlp format selector string. Capped at 1080p.
+        socket_timeout_sec: Socket timeout in seconds.
+        retries: Number of download retries on transient error.
+        default_search: yt-dlp search prefix used when YOUTUBE_API_KEY is absent or quota is exhausted.
+    """
+
+    format: str = Field(default="bestvideo[height<=1080]+bestaudio/best[height<=1080]", min_length=1)
+    socket_timeout_sec: int = Field(default=30, gt=0)
+    retries: int = Field(default=3, ge=0)
+    default_search: str = Field(default="ytsearch1", min_length=1)
+
+
+class TrailersPlacementConfig(_StrictModel):
+    """Output path patterns for trailer files.
+
+    Both patterns use the flat convention compatible with Plex, Kodi, and Jellyfin.
+    Each pattern must reference ``{folder}``, ``{name}`` and ``{ext}`` placeholders.
+
+    Attributes:
+        movie_pattern: Pattern template for movie trailers.
+        tvshow_pattern: Pattern template for TV show trailers.
+    """
+
+    movie_pattern: str = "{folder}/{name}-trailer.{ext}"
+    tvshow_pattern: str = "{folder}/{name}-trailer.{ext}"
+
+    @field_validator("movie_pattern", "tvshow_pattern")
+    @classmethod
+    def _validate_placeholders(cls, value: str) -> str:
+        """Fail-fast at config load if a placeholder is missing.
+
+        Args:
+            value: Raw pattern string.
+
+        Returns:
+            The same value when valid.
+
+        Raises:
+            ValueError: If any of ``{folder}``, ``{name}``, ``{ext}`` is absent
+                or the pattern fails a ``str.format`` smoke test.
+        """
+        for placeholder in ("{folder}", "{name}", "{ext}"):
+            if placeholder not in value:
+                raise ValueError(f"placement pattern must contain {placeholder!r}: {value!r}")
+        try:
+            value.format(folder="x", name="y", ext="mp4")
+        except (KeyError, IndexError, ValueError) as exc:
+            raise ValueError(f"placement pattern is not a valid str.format template: {value!r} ({exc})") from exc
+        return value
+
+
+class TrailersSeasonsConfig(_StrictModel):
+    """Opt-in season-level trailer download (DESIGN section 4 extension).
+
+    Default off: most shows lack TMDB season-level trailers.
+
+    Attributes:
+        enabled: Master switch. Default False.
+        language_fallback: Override language order for TMDB season videos. None reuses TrailersConfig.languages.
+        search_query_format: YouTube fallback query template. Placeholders: {title}, {year}, {season}.
+    """
+
+    enabled: bool = False
+    language_fallback: list[str] | None = None
+    search_query_format: str = Field(default="{title} {year} saison {season} bande annonce", min_length=1)
+
+
+class TrailersStepConfig(_StrictModel):
+    """Operational safeguards for the pipeline step (DESIGN section 12).
+
+    Attributes:
+        max_duration_sec: Step-level time budget in seconds. Default 1800 (30 min).
+    """
+
+    max_duration_sec: int = Field(default=1800, gt=0)  # 30-minute step-level budget
+
+
+class TrailersPipelineConfig(_StrictModel):
+    """Defaults for pipeline-level flags. CLI flags take precedence at runtime.
+
+    Attributes:
+        skip: When True, the trailers step is silently skipped by the orchestrator.
+        continue_on_error: When True, a trailer failure does not abort the pipeline.
+    """
+
+    skip: bool = False
+    continue_on_error: bool = False
+
+
+class TrailersLibraryCheckConfig(_StrictModel):
+    """Library-aware SOT recheck toggles (DESIGN section 8 extension).
+
+    Attributes:
+        movies: Enable library scan before trailer discovery for movies.
+        tv_shows: Enable library scan before trailer discovery for TV shows.
+    """
+
+    movies: bool = False
+    tv_shows: bool = True
+
+
+class TrailersConfig(_StrictModel):
+    """Top-level trailers feature configuration (DESIGN section 9).
+
+    Attributes:
+        enabled: Master switch. Default False.
+        languages: Ordered language codes for TMDB video lookups. First match wins.
+        search_query_format: YouTube search query template when TMDB yields nothing.
+        placement: Output path patterns for trailer files.
+        filters: Download filters (file size, extension allow-list).
+        state_file: Path to the per-media-item state JSON.
+        retry_after_days: Days after a failed attempt before retrying.
+        bot_detected_max_consecutive_attempts: Max consecutive bot-detected errors.
+        library_scan_max_age_hours: Max age of the cached library scan result in hours.
+        circuit_breakers: Per-service circuit breaker configuration.
+        youtube_api: YouTube Data API v3 quota and cache settings.
+        ytdlp: yt-dlp download options.
+        step: Pipeline step-level operational safeguards.
+        pipeline: Pipeline-level flag defaults.
+        seasons: Season-level trailer discovery (opt-in, off by default).
+        library_check: Per-media-type library-aware idempotence toggles.
+    """
+
+    enabled: bool = False
+    languages: Annotated[list[str], Field(min_length=1)] = Field(default_factory=lambda: ["fr-FR", "en-US"])
+    search_query_format: str = Field(default="{title} {year} bande annonce", min_length=1)
+    placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
+    filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
+    state_file: str = Field(default=".data/trailers_state.json", min_length=1)
+    # Per-element ge=0 prevents a negative day from collapsing the back-off
+    # ladder into immediate-retry (which would defeat the throttling intent).
+    retry_after_days: Annotated[
+        list[Annotated[int, Field(ge=0)]],
+        Field(min_length=1),
+    ] = Field(default_factory=lambda: [1, 7, 30])
+    bot_detected_max_consecutive_attempts: int = Field(default=5, ge=1)
+    library_scan_max_age_hours: int = Field(default=24, ge=1)
+    circuit_breakers: TrailersCircuitBreakersConfig = Field(default_factory=TrailersCircuitBreakersConfig)
+    youtube_api: TrailersYoutubeApiConfig = Field(default_factory=TrailersYoutubeApiConfig)
+    ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)
+    step: TrailersStepConfig = Field(default_factory=TrailersStepConfig)
+    pipeline: TrailersPipelineConfig = Field(default_factory=TrailersPipelineConfig)
+    # DESIGN section 4 extension: opt-in season-level trailer discovery.
+    seasons: TrailersSeasonsConfig = Field(default_factory=TrailersSeasonsConfig)
+    # DESIGN section 8 extension: library-aware idempotence per-media-type toggles.
+    library_check: TrailersLibraryCheckConfig = Field(default_factory=TrailersLibraryCheckConfig)
+
+
 class Config(_StrictModel):
     """Top-level config.json5 parsed model.
 
@@ -542,6 +758,7 @@ class Config(_StrictModel):
         genre_mapping: Genre ID → category_id mapping by API provider.
         library: Library maintenance preferences.
         ingest: Ingest step tunables (min_ratio threshold, etc.).
+        trailers: Trailer download feature configuration. Disabled by default (enabled=False).
     """
 
     config_version: int = Field(default=1, description="Schéma version pour migration future.")
@@ -576,6 +793,8 @@ class Config(_StrictModel):
         ...,
         description=("Staging subdirectory layout. Required. See MANUAL.md §Staging layout for migration steps."),
     )
+
+    trailers: TrailersConfig = Field(default_factory=TrailersConfig)
 
     @property
     def all_category_ids(self) -> frozenset[str]:

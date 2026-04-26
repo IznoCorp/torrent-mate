@@ -278,6 +278,28 @@ def test_run_releases_lock_on_pipeline_crash(mock_release, mock_pipeline_run):
     mock_release.assert_called_once()
 
 
+@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
+@patch(_PATCH_PIPELINE_RUN)
+def test_run_accepts_skip_trailers(mock_pipeline_run, mock_pipeline_init):
+    """--skip-trailers is accepted and passed to Pipeline as skip_trailers=True."""
+    mock_pipeline_run.return_value = _make_pipeline_report()
+    result = runner.invoke(app, ["run", "--skip-trailers"])
+    assert result.exit_code == 0, result.output
+    _, kwargs = mock_pipeline_init.call_args
+    assert kwargs.get("skip_trailers") is True
+
+
+@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
+@patch(_PATCH_PIPELINE_RUN)
+def test_run_accepts_continue_on_trailer_error(mock_pipeline_run, mock_pipeline_init):
+    """--continue-on-trailer-error is accepted and passed to Pipeline as continue_on_trailer_error=True."""
+    mock_pipeline_run.return_value = _make_pipeline_report()
+    result = runner.invoke(app, ["run", "--continue-on-trailer-error"])
+    assert result.exit_code == 0, result.output
+    _, kwargs = mock_pipeline_init.call_args
+    assert kwargs.get("continue_on_trailer_error") is True
+
+
 # ── Config error decorator tests ──────────────────────
 
 

@@ -12,6 +12,7 @@ See docs/tenacity-reference.md for retry strategy details.
 """
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import requests
@@ -29,6 +30,10 @@ from personalscraper.scraper.http_retry import build_retry_logger, make_retryabl
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
+
+# Module-level alias used by narrow except clauses without paying the import cost
+# inside hot paths. The runtime `from ... import` lives next to the call sites.
+from personalscraper.scraper.circuit_breaker import CircuitOpenError as _CircuitOpenError  # noqa: E402
 
 log = get_logger("tmdb_client")
 
@@ -61,6 +66,80 @@ class TMDBError(Exception):
         self.tmdb_code = tmdb_code
         self.message = message
         super().__init__(f"TMDB {http_status} (code {tmdb_code}): {message}")
+
+
+_TMDB_SITE_CANONICAL: dict[str, str] = {
+    "youtube": "YouTube",
+    "vimeo": "Vimeo",
+    "dailymotion": "DailyMotion",
+}
+
+# TMDB video-type vocabulary as documented by the /videos endpoint. Multi-word
+# entries are title-cased; ``str.capitalize`` would corrupt them ("Behind the
+# Scenes" → "Behind the scenes") and break downstream filters.
+_TMDB_TYPE_CANONICAL: dict[str, str] = {
+    "trailer": "Trailer",
+    "teaser": "Teaser",
+    "clip": "Clip",
+    "featurette": "Featurette",
+    "behind the scenes": "Behind the Scenes",
+    "bloopers": "Bloopers",
+    "opening credits": "Opening Credits",
+    "recap": "Recap",
+}
+
+
+@dataclass(frozen=True)
+class Video:
+    """A video entry from the TMDB /videos endpoint.
+
+    Frozen and validated at construction: ``site`` and ``type`` are normalised
+    to their canonical form so downstream filters comparing against
+    ``"YouTube"`` / ``"Trailer"`` work regardless of TMDB's casing changes.
+    Size must be > 0 — TMDB always returns a positive vertical resolution, and
+    a zero would silently mask schema drift.
+
+    Note: ``site`` and ``type`` may be normalised to canonical case at
+    construction; the value read back may differ from the value passed in.
+
+    Attributes:
+        id: TMDB internal video UUID.
+        site: Hosting platform, typically "YouTube" (canonical case enforced).
+        key: Platform video identifier (YouTube video ID).
+        type: Video category: "Trailer", "Teaser", "Clip", "Featurette",
+            "Behind the Scenes", etc. (canonical case enforced — title-case
+            for multi-word entries).
+        official: Whether the video is from an official channel.
+        size: Vertical resolution in pixels (e.g. 1080, 720, 480). Must be > 0.
+        iso_639_1: Language code (e.g. "en", "fr").
+    """
+
+    id: str
+    site: str
+    key: str
+    type: str
+    official: bool
+    size: int
+    iso_639_1: str
+
+    def __post_init__(self) -> None:
+        """Normalise ``site`` and ``type`` to canonical case and validate ``size``.
+
+        Unknown sites and types are passed through unchanged so unrecognised
+        TMDB values still parse — only the canonical vocabulary is rewritten.
+
+        Raises:
+            ValueError: If ``size`` is non-positive.
+        """
+        site_canonical = _TMDB_SITE_CANONICAL.get(self.site.lower(), self.site)
+        type_lower = self.type.strip().lower() if self.type else self.type
+        type_canonical = _TMDB_TYPE_CANONICAL.get(type_lower, self.type)
+        if site_canonical != self.site:
+            object.__setattr__(self, "site", site_canonical)
+        if type_canonical != self.type:
+            object.__setattr__(self, "type", type_canonical)
+        if self.size <= 0:
+            raise ValueError(f"Video.size must be > 0 (got {self.size})")
 
 
 _is_retryable = make_retryable_predicate(TMDBError)
@@ -468,3 +547,170 @@ class TMDBClient:
         # Movies use "keywords" key; TV shows use "results" key.
         raw_list = data.get("keywords") or data.get("results") or []
         return [str(kw["name"]) for kw in raw_list if isinstance(kw, dict) and kw.get("name")]
+
+    def fetch_movie_videos(self, tmdb_id: int, language: str) -> list[Video]:
+        """Fetch video entries (trailers, teasers) for a movie.
+
+        Calls ``GET /movie/{id}/videos``.
+
+        Fail-soft policy identical to ``get_keywords()``: HTTP 404, timeout,
+        and any unexpected exception all return ``[]`` and log a warning.
+
+        Args:
+            tmdb_id: TMDB movie ID.
+            language: BCP-47 language tag (e.g. "fr-FR", "en-US").
+
+        Returns:
+            List of Video dataclass instances. Empty on any error.
+        """
+        return self._fetch_videos(f"/movie/{tmdb_id}/videos", tmdb_id, "movie", language)
+
+    def fetch_tv_videos(self, tmdb_id: int, language: str) -> list[Video]:
+        """Fetch video entries (trailers, teasers) for a TV show.
+
+        Calls ``GET /tv/{id}/videos``.
+
+        Fail-soft policy identical to ``get_keywords()``: HTTP 404, timeout,
+        and any unexpected exception all return ``[]`` and log a warning.
+
+        Args:
+            tmdb_id: TMDB TV show ID.
+            language: BCP-47 language tag (e.g. "fr-FR", "en-US").
+
+        Returns:
+            List of Video dataclass instances. Empty on any error.
+        """
+        return self._fetch_videos(f"/tv/{tmdb_id}/videos", tmdb_id, "tv", language)
+
+    def fetch_tv_season_videos(self, tv_id: int, season_number: int, language: str) -> list[Video]:
+        """Fetch videos for a specific TV show season from TMDB.
+
+        Calls ``GET /tv/{tv_id}/season/{season_number}/videos``. TMDB indexes
+        seasons starting at 1 (specials are season 0).
+
+        Args:
+            tv_id: TMDB TV show id.
+            season_number: TMDB season number (1-indexed; specials = 0).
+            language: BCP-47 language code (e.g. "fr-FR", "en-US").
+
+        Returns:
+            List of Video dataclass instances. Empty list on 404 (no videos
+            for this season — common for older shows or non-flagship seasons)
+            or any other error (fail-soft via ``_fetch_videos``; never raises).
+        """
+        return self._fetch_videos(
+            f"/tv/{tv_id}/season/{season_number}/videos",
+            tv_id,
+            f"tv-season-{season_number}",
+            language,
+        )
+
+    def _fetch_videos(self, endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
+        """Internal fail-soft wrapper: call /videos endpoint, return [] on any error.
+
+        Delegates to ``_fetch_videos_strict`` and catches all errors so public
+        callers (``fetch_movie_videos``, ``fetch_tv_videos``,
+        ``fetch_tv_season_videos``) never raise.  Use ``_fetch_videos_strict``
+        directly when the caller needs to distinguish a genuine empty result from
+        an error (e.g. ``TrailerFinder`` — to skip caching on outage).
+
+        Args:
+            endpoint: Full endpoint path (e.g. "/movie/550/videos").
+            tmdb_id: TMDB ID for logging context.
+            media_type: "movie" or "tv" for log messages.
+            language: BCP-47 language tag passed as query parameter.
+
+        Returns:
+            List of Video instances; empty list on any error.
+        """
+        try:
+            return self._fetch_videos_strict(endpoint, tmdb_id, media_type, language)
+        except TMDBError as exc:
+            if exc.http_status == 404:
+                return []
+            log.warning(
+                "tmdb_videos_failed_http",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                http_status=exc.http_status,
+                message=exc.message,
+                fallback="empty_list",
+                exc_info=True,
+            )
+            return []
+        except (_CircuitOpenError, requests.RequestException, json.JSONDecodeError) as exc:
+            log.warning(
+                "tmdb_videos_failed",
+                media_type=media_type,
+                tmdb_id=tmdb_id,
+                error=str(exc),
+                error_type=type(exc).__name__,
+                fallback="empty_list",
+                exc_info=True,
+            )
+            return []
+
+    def _fetch_videos_strict(self, endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
+        """Internal: call /videos endpoint and deserialize into Video list.
+
+        Unlike ``_fetch_videos``, this method propagates transport / circuit-open
+        / JSON-decode errors to the caller so it can decide whether to cache the
+        result.  404 responses are still treated as genuine "no videos" and
+        return ``[]`` without raising — an empty TMDB response should be cached
+        normally.
+
+        Args:
+            endpoint: Full endpoint path (e.g. "/movie/550/videos").
+            tmdb_id: TMDB ID for logging context.
+            media_type: "movie" or "tv" for log messages.
+            language: BCP-47 language tag passed as query parameter.
+
+        Returns:
+            List of Video instances (may be empty when TMDB returns no results).
+
+        Raises:
+            TMDBError: On non-404 TMDB HTTP errors.
+            CircuitOpenError: If the TMDB circuit breaker is OPEN.
+            requests.RequestException: On transport / connection errors.
+            json.JSONDecodeError: If the response body is not valid JSON.
+        """
+        try:
+            data = self._get(endpoint, {"language": language})
+        except TMDBError as exc:
+            if exc.http_status == 404:
+                # 404 = TMDB genuinely has no videos for this item — treat as
+                # "real empty" (cache-worthy), not an error.
+                return []
+            raise
+
+        # Guard against parser drift or a proxy returning a non-object JSON value
+        # (e.g. a list or a bare string).  Without this check, `data.get("results")`
+        # would raise AttributeError which leaks past find()'s except clause.
+        if not isinstance(data, dict):
+            raise TMDBError(
+                200,
+                0,
+                f"malformed response: expected object, got {type(data).__name__}",
+            )
+
+        raw_list = data.get("results") or []
+        videos: list[Video] = []
+        for item in raw_list:
+            if not isinstance(item, dict):
+                continue
+            try:
+                videos.append(
+                    Video(
+                        id=str(item["id"]),
+                        site=str(item.get("site", "")),
+                        key=str(item.get("key", "")),
+                        type=str(item.get("type", "")),
+                        official=bool(item.get("official", False)),
+                        size=int(item.get("size", 0)),
+                        iso_639_1=str(item.get("iso_639_1", "")),
+                    )
+                )
+            except (KeyError, TypeError, ValueError):
+                log.debug("tmdb_video_entry_malformed", item=repr(item))
+                continue
+        return videos

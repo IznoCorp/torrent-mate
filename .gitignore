@@ -129,6 +129,10 @@ config.json5
 config.json5.v15.bak
 # TMDB keywords cache
 tmdb_keywords_cache.json
+# Trailer feature runtime caches (live under .data/ in prod; this is a safety
+# net for tests/smoke-runs that resolve cache_dir to the repo root).
+/trailers_cache.json
+/youtube_quota.json
 
 # launchd plist is generated from .plist.template via scripts/install-launchd.sh
 # and installed to ~/Library/LaunchAgents/ — never commit the rendered copy

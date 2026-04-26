@@ -37,6 +37,7 @@ dependencies = [
     "rich>=14.0.0",
     "structlog>=25.0.0",
     "json5>=0.9.14",
+    "yt-dlp>=2026.1.1,<2027",
 ]
 
 [project.optional-dependencies]
@@ -67,8 +68,9 @@ markers = [
     "roundtrip: Roundtrip tests — torrentify disk media, re-match via API, compare",
     "e2e_torrent: Pipeline E2E with real torrent downloads (manual only, costs ratio)",
     "e2e_idempotence: E2E idempotence tests on real staging data (manual only)",
+    "network: Network tests — opt-in via TRAILER_INTEGRATION_TESTS=1 env var",
 ]
-addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence'"
+addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not network'"
 
 [tool.ruff]
 target-version = "py310"
@@ -88,7 +90,7 @@ files = ["personalscraper"]
 exclude = ["tests/"]
 
 [[tool.mypy.overrides]]
-module = ["guessit.*", "qbittorrent_api.*", "rapidfuzz.*"]
+module = ["guessit.*", "qbittorrent_api.*", "rapidfuzz.*", "yt_dlp.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]

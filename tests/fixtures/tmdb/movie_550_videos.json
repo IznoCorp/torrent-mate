@@ -1,0 +1,29 @@
+{
+  "id": 550,
+  "results": [
+    {
+      "id": "533ec654c3a36854480003eb",
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "key": "6JnN1DmbqoU",
+      "name": "Fight Club - Official Trailer",
+      "official": true,
+      "published_at": "1999-09-15T00:00:00.000Z",
+      "site": "YouTube",
+      "size": 1080,
+      "type": "Trailer"
+    },
+    {
+      "id": "533ec654c3a36854480003ec",
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "key": "SUXWAEX2jlg",
+      "name": "Fight Club - Teaser Trailer",
+      "official": true,
+      "published_at": "1999-07-01T00:00:00.000Z",
+      "site": "YouTube",
+      "size": 720,
+      "type": "Teaser"
+    }
+  ]
+}

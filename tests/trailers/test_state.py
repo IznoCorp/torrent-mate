@@ -1,0 +1,788 @@
+import errno
+import hashlib
+import logging
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from personalscraper.trailers.state import (
+    TrailerState,
+    TrailerStateLocked,
+    TrailerStateStore,
+    TrailerStatus,
+    compute_next_retry_at,
+    make_state_key,
+)
+
+
+def _write_entry(key: str, state_file: Path) -> None:
+    """Write a state entry to the store for concurrent test use."""
+    s = TrailerStateStore(state_file=state_file)
+    s.set(
+        key,
+        TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path=f"/fake/{key}",
+        ),
+    )
+
+
+def _write_specific_entry(key: str, attempts: int, state_file: Path) -> None:
+    """Write a parametrised entry. Used to detect lost writes when two writers race."""
+    import time as _time
+
+    # Synchronise the two processes so they actually overlap inside the lock.
+    s = TrailerStateStore(state_file=state_file)
+    _time.sleep(0.05)
+    s.set(
+        key,
+        TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=attempts,
+            status=TrailerStatus.DOWNLOADED,
+            media_path=f"/fake/{key}",
+            notes=f"writer_{attempts}",
+        ),
+    )
+
+
+class TestMakeStateKey:
+    """Tests for make_state_key() composite key builder."""
+
+    def test_movie_tmdb_key(self) -> None:
+        """TMDB movie key has correct format."""
+        assert make_state_key("movie", {"tmdb": 550}) == "movie:tmdb:550"
+
+    def test_tv_tmdb_key(self) -> None:
+        """TMDB TV key has correct format."""
+        assert make_state_key("tv", {"tmdb": 1399}) == "tv:tmdb:1399"
+
+    def test_movie_tvdb_key(self) -> None:
+        """TVDB movie key has correct format."""
+        assert make_state_key("movie", {"tvdb": 12345}) == "movie:tvdb:12345"
+
+    def test_make_state_key_tv_season(self) -> None:
+        """Season-level TV key has :season:N suffix."""
+        key = make_state_key("tv", {"tmdb": 1399}, season_number=3)
+        assert key == "tv:tmdb:1399:season:3"
+
+    def test_make_state_key_tv_without_season(self) -> None:
+        """Show-level TV key has no :season: suffix."""
+        key = make_state_key("tv", {"tmdb": 1399})
+        assert ":season:" not in key
+        assert key == "tv:tmdb:1399"
+
+    def test_make_state_key_tv_season_uses_tvdb_fallback(self) -> None:
+        """Season key falls back to TVDB when TMDB is None."""
+        key = make_state_key("tv", {"tmdb": None, "tvdb": 81189}, season_number=2)
+        assert key == "tv:tvdb:81189:season:2"
+
+    def test_manual_key_hashes_title_year_type(self) -> None:
+        """Manual key hashes normalized title+year+type."""
+        import unicodedata
+
+        normalized_title = " ".join(unicodedata.normalize("NFC", "Fight Club").casefold().split())
+        payload = f"{normalized_title}|1999|movie"
+        digest = hashlib.sha256(payload.encode(), usedforsecurity=False).hexdigest()
+        key = make_state_key("movie", {}, title="Fight Club", year=1999)
+        assert key == f"manual:{digest}"
+
+    def test_manual_key_is_path_independent(self) -> None:
+        """Manual key is stable across scrape runs."""
+        k1 = make_state_key("movie", {}, title="Fight Club", year=1999)
+        k2 = make_state_key("movie", {}, title="Fight Club", year=1999)
+        assert k1 == k2
+
+    def test_manual_key_normalizes_title(self) -> None:
+        """Title is NFC-normalized and casefolded before hashing."""
+        a = make_state_key("tv", {}, title="The Wire", year=2002)
+        b = make_state_key("tv", {}, title="the  wire", year=2002)
+        assert a == b
+
+    def test_key_format_is_consistent(self) -> None:
+        """Identical inputs always produce the same key."""
+        k1 = make_state_key("movie", {"tmdb": 550})
+        k2 = make_state_key("movie", {"tmdb": 550})
+        assert k1 == k2
+
+
+class TestTrailerStatus:
+    """Tests for the TrailerStatus enum values."""
+
+    def test_all_statuses_defined(self) -> None:
+        """All expected status values are present."""
+        statuses = {s.value for s in TrailerStatus}
+        expected = {
+            "downloaded",
+            "no_trailer_available",
+            "bot_detected",
+            "http_error",
+            "ytdlp_error",
+            "skipped_by_filter",
+            "orphan",
+            "already_present_on_disk",
+        }
+        assert statuses == expected
+
+    def test_status_enum_includes_already_present_on_disk(self) -> None:
+        """ALREADY_PRESENT_ON_DISK has the correct string value."""
+        assert TrailerStatus.ALREADY_PRESENT_ON_DISK.value == "already_present_on_disk"
+
+
+class TestTrailerState:
+    """Tests for the TrailerState dataclass."""
+
+    def test_create_basic_state(self) -> None:
+        """TrailerState initializes with the given values."""
+        now = datetime.now(timezone.utc)
+        state = TrailerState(
+            last_attempt=now.isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/Volumes/DISK_A/movies/Fight Club (1999)",
+        )
+        assert state.attempts == 1
+        assert state.status == TrailerStatus.DOWNLOADED
+
+    def test_frozen_blocks_mutation(self) -> None:
+        """TrailerState is frozen — direct attribute assignment must fail."""
+        from dataclasses import FrozenInstanceError
+
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/x",
+        )
+        with pytest.raises(FrozenInstanceError):
+            state.attempts = 2  # type: ignore[misc]
+
+    def test_naive_iso_string_rejected(self) -> None:
+        """A naive ISO timestamp (no tz offset) is rejected at construction."""
+        with pytest.raises(ValueError, match="must include timezone offset"):
+            TrailerState(
+                last_attempt="2026-04-25T12:00:00",  # no tz
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+            )
+
+    def test_naive_datetime_rejected(self) -> None:
+        """A naive datetime is rejected at construction."""
+        with pytest.raises(ValueError, match="must be tz-aware"):
+            TrailerState(
+                last_attempt=datetime(2026, 4, 25, 12, 0, 0),  # no tzinfo
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+            )
+
+    def test_aware_datetime_coerced_to_iso(self) -> None:
+        """A tz-aware datetime is coerced to its ISO 8601 string at construction."""
+        now = datetime.now(timezone.utc)
+        state = TrailerState(
+            last_attempt=now,  # type: ignore[arg-type]
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/x",
+        )
+        assert state.last_attempt == now.isoformat()
+
+    def test_negative_season_rejected(self) -> None:
+        """A negative season_number is rejected at construction."""
+        with pytest.raises(ValueError, match="season_number"):
+            TrailerState(
+                last_attempt=datetime.now(timezone.utc).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+                season_number=-1,
+            )
+
+
+@pytest.fixture()
+def store(tmp_path: Path) -> TrailerStateStore:
+    """Create a TrailerStateStore backed by a temp file."""
+    return TrailerStateStore(state_file=tmp_path / "trailers_state.json")
+
+
+class TestTrailerStateStore:
+    """Tests for TrailerStateStore persistence and retrieval."""
+
+    def test_missing_file_returns_no_entries(self, store: TrailerStateStore) -> None:
+        """get() returns None when the state file does not exist."""
+        assert store.get("movie:tmdb:550") is None
+
+    def test_set_then_get_round_trip(self, store: TrailerStateStore) -> None:
+        """set() then get() returns the stored state."""
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/fake/path",
+            trailer_path="/fake/path/movie-trailer.mp4",
+            youtube_url="https://www.youtube.com/watch?v=test",
+        )
+        store.set("movie:tmdb:550", state)
+        result = store.get("movie:tmdb:550")
+        assert result is not None
+        assert result.status == TrailerStatus.DOWNLOADED
+        assert result.attempts == 1
+
+    def test_state_file_has_version_field(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """Written JSON file contains a version=1 field."""
+        import json as _j
+
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/fake",
+        )
+        store.set("movie:tmdb:1", state)
+        raw = _j.loads((tmp_path / "trailers_state.json").read_text())
+        assert raw["version"] == 1
+
+    def test_get_nonexistent_key_returns_none(self, store: TrailerStateStore) -> None:
+        """get() returns None for unknown keys."""
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/fake",
+        )
+        store.set("movie:tmdb:1", state)
+        assert store.get("movie:tmdb:999") is None
+
+
+class TestShouldSkip:
+    """Tests for TrailerStateStore.should_skip() logic."""
+
+    def test_skip_when_no_trailer_available_and_not_expired(self, store: TrailerStateStore) -> None:
+        """should_skip returns True when no_trailer_available and next_retry is future."""
+        future = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=2,
+            status=TrailerStatus.NO_TRAILER_AVAILABLE,
+            media_path="/fake",
+            next_retry_at=future,
+        )
+        store.set("movie:tmdb:550", state)
+        assert store.should_skip("movie:tmdb:550") is True
+
+    def test_no_skip_when_retry_expired(self, store: TrailerStateStore) -> None:
+        """should_skip returns False when next_retry_at is in the past."""
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=2,
+            status=TrailerStatus.NO_TRAILER_AVAILABLE,
+            media_path="/fake",
+            next_retry_at=past,
+        )
+        store.set("movie:tmdb:550", state)
+        assert store.should_skip("movie:tmdb:550") is False
+
+    def test_bot_detected_never_skipped(self, store: TrailerStateStore) -> None:
+        """should_skip returns False for bot_detected regardless of next_retry_at."""
+        future = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.BOT_DETECTED,
+            media_path="/fake",
+            next_retry_at=future,
+        )
+        store.set("movie:tmdb:550", state)
+        assert store.should_skip("movie:tmdb:550") is False
+
+    def test_missing_key_not_skipped(self, store: TrailerStateStore) -> None:
+        """should_skip returns False for unknown keys (first run)."""
+        assert store.should_skip("movie:tmdb:99999") is False
+
+    def test_retry_after_progression(self) -> None:
+        """Retry intervals progress through [1, 7, 30] then repeat the last."""
+        policy = [1, 7, 30]
+        last_attempt = datetime.now(timezone.utc)
+        r1 = compute_next_retry_at(attempts=1, policy=policy, last_attempt=last_attempt)
+        r2 = compute_next_retry_at(attempts=2, policy=policy, last_attempt=last_attempt)
+        r3 = compute_next_retry_at(attempts=3, policy=policy, last_attempt=last_attempt)
+        r4 = compute_next_retry_at(attempts=4, policy=policy, last_attempt=last_attempt)
+        assert (r1 - last_attempt).days == 1
+        assert (r2 - last_attempt).days == 7
+        assert (r3 - last_attempt).days == 30
+        assert (r4 - last_attempt).days == 30
+
+
+class TestAutoGC:
+    """Tests for auto_gc(), purge_orphans(), and retry-after semantics."""
+
+    def test_gc_marks_orphan_when_media_path_missing(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """auto_gc flips status to orphan when media_path no longer exists."""
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path=str(tmp_path / "Media That Was Deleted"),
+            trailer_path=str(tmp_path / "Media That Was Deleted" / "trailer.mp4"),
+        )
+        store.set("movie:tmdb:1", state)
+        store.auto_gc()
+        result = store.get("movie:tmdb:1")
+        assert result is not None
+        assert result.status == TrailerStatus.ORPHAN
+
+    def test_gc_removes_entry_when_trailer_deleted(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """auto_gc removes entries whose trailer_path is gone (re-download)."""
+        media = tmp_path / "Movie (2020)"
+        media.mkdir()
+        trailer = media / "Movie (2020)-trailer.mp4"
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path=str(media),
+            trailer_path=str(trailer),
+        )
+        store.set("movie:tmdb:2", state)
+        store.auto_gc()
+        assert store.get("movie:tmdb:2") is None
+
+    def test_purge_orphans_removes_orphan_entries_only(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """purge_orphans removes only orphan entries and returns count."""
+        now = datetime.now(timezone.utc).isoformat()
+        downloaded = TrailerState(last_attempt=now, attempts=1, status=TrailerStatus.DOWNLOADED, media_path="/a")
+        orphan = TrailerState(last_attempt=now, attempts=1, status=TrailerStatus.ORPHAN, media_path="/b")
+        bot = TrailerState(last_attempt=now, attempts=1, status=TrailerStatus.BOT_DETECTED, media_path="/c")
+        store.set("movie:tmdb:1", downloaded)
+        store.set("movie:tmdb:2", orphan)
+        store.set("movie:tmdb:3", bot)
+        removed = store.purge_orphans()
+        assert removed == 1
+        assert store.get("movie:tmdb:1") is not None
+        assert store.get("movie:tmdb:2") is None
+        assert store.get("movie:tmdb:3") is not None
+
+    def test_next_retry_measured_from_last_attempt_not_first_failure(self) -> None:
+        """compute_next_retry_at uses last_attempt as the clock reference."""
+        first_failure = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        last_attempt = datetime(2026, 4, 1, tzinfo=timezone.utc)
+        result = compute_next_retry_at(attempts=3, policy=[1, 7, 30], last_attempt=last_attempt)
+        assert result == datetime(2026, 5, 1, tzinfo=timezone.utc)
+        _ = first_failure
+
+    def test_bot_detected_counter_resets_on_non_bot_outcome(self, store: TrailerStateStore) -> None:
+        """bot_detected_consecutive_attempts resets to 0 on non-bot outcome."""
+        now = datetime.now(timezone.utc).isoformat()
+        state_bot = TrailerState(
+            last_attempt=now,
+            attempts=3,
+            status=TrailerStatus.BOT_DETECTED,
+            media_path="/x",
+            bot_detected_consecutive_attempts=3,
+        )
+        store.set("movie:tmdb:7", state_bot)
+        loaded = store.get("movie:tmdb:7")
+        assert loaded is not None
+        assert loaded.bot_detected_consecutive_attempts == 3
+        state_ok = TrailerState(
+            last_attempt=now,
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/x",
+            trailer_path="/x/trailer.mp4",
+            bot_detected_consecutive_attempts=0,
+        )
+        store.set("movie:tmdb:7", state_ok)
+        reloaded = store.get("movie:tmdb:7")
+        assert reloaded is not None
+        assert reloaded.bot_detected_consecutive_attempts == 0
+        assert reloaded.status == TrailerStatus.DOWNLOADED
+
+    def test_concurrent_writes_do_not_corrupt_state(self, tmp_path: Path) -> None:
+        """Two concurrent writers under fcntl.flock produce a valid JSON file."""
+        import multiprocessing
+
+        state_file = tmp_path / "trailers_state.json"
+
+        p1 = multiprocessing.Process(target=_write_entry, args=("movie:tmdb:1", state_file))
+        p2 = multiprocessing.Process(target=_write_entry, args=("movie:tmdb:2", state_file))
+        p1.start()
+        p2.start()
+        p1.join(timeout=5)
+        p2.join(timeout=5)
+
+        reader = TrailerStateStore(state_file=state_file)
+        assert reader.get("movie:tmdb:1") is not None
+        assert reader.get("movie:tmdb:2") is not None
+
+    def test_concurrent_writes_to_different_keys_both_survive(self, tmp_path: Path) -> None:
+        """Two writers targeting different keys must both succeed (no last-writer-wins).
+
+        Without ``fcntl.flock`` the read-modify-write cycles interleave: writer A
+        reads {}, writer B reads {}, writer A writes {a: ...}, writer B overwrites
+        with {b: ...}. The lock must serialise the cycles so both keys survive.
+        """
+        import multiprocessing
+
+        state_file = tmp_path / "trailers_state.json"
+
+        p1 = multiprocessing.Process(target=_write_specific_entry, args=("movie:tmdb:101", 1, state_file))
+        p2 = multiprocessing.Process(target=_write_specific_entry, args=("movie:tmdb:202", 2, state_file))
+        p1.start()
+        p2.start()
+        p1.join(timeout=10)
+        p2.join(timeout=10)
+
+        reader = TrailerStateStore(state_file=state_file)
+        s1 = reader.get("movie:tmdb:101")
+        s2 = reader.get("movie:tmdb:202")
+        # Both writes must persist — the lock prevents lost updates.
+        assert s1 is not None and s1.notes == "writer_1"
+        assert s2 is not None and s2.notes == "writer_2"
+
+    def test_corrupt_state_file_is_backed_up(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """A parse-error state file is copied to .corrupt-<ts> before being overwritten."""
+        # Pre-populate with a real entry so we can prove the new write doesn't propagate
+        # the corrupt content (the file would otherwise be silently overwritten).
+        store.set(
+            "movie:tmdb:bad",
+            TrailerState(
+                last_attempt=datetime.now(timezone.utc).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/x",
+            ),
+        )
+        # Corrupt the file in-place.
+        store._state_file.write_text("{not valid json", encoding="utf-8")
+
+        # Trigger a load (via .set) which now must produce a sibling backup.
+        store.set(
+            "movie:tmdb:fresh",
+            TrailerState(
+                last_attempt=datetime.now(timezone.utc).isoformat(),
+                attempts=1,
+                status=TrailerStatus.DOWNLOADED,
+                media_path="/y",
+            ),
+        )
+
+        # At least one .corrupt-<ts> sibling must exist next to the state file.
+        # The backup preserves the original .json suffix in the filename so it
+        # remains recognisable as JSON (e.g. trailers_state.json.corrupt-<ts>).
+        backups = list(tmp_path.glob("trailers_state.json.corrupt-*"))
+        assert len(backups) >= 1, "expected a corrupt-state backup file"
+        assert "{not valid json" in backups[0].read_text(encoding="utf-8")
+
+    def test_gc_leaves_valid_entries_intact(self, store: TrailerStateStore, tmp_path: Path) -> None:
+        """auto_gc does not modify entries with existing media and trailer."""
+        media = tmp_path / "Good Movie (2020)"
+        media.mkdir()
+        trailer = media / "Good Movie (2020)-trailer.mp4"
+        trailer.write_bytes(b"x" * 200000)
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path=str(media),
+            trailer_path=str(trailer),
+        )
+        store.set("movie:tmdb:3", state)
+        store.auto_gc()
+        result = store.get("movie:tmdb:3")
+        assert result is not None
+        assert result.status == TrailerStatus.DOWNLOADED
+
+
+# ── Sub-phase 10.1 new tests ──────────────────────────────────────────────────
+
+
+def _hold_lock_and_signal(lock_path: Path, ready_event_path: Path, duration_sec: float) -> None:
+    """Hold an exclusive flock on ``lock_path`` for ``duration_sec`` seconds.
+
+    Writes a sentinel file at ``ready_event_path`` once the lock is acquired
+    so the parent process knows when to start its own acquisition attempt.
+
+    Args:
+        lock_path: Path to the ``.lock`` file to lock.
+        ready_event_path: Path to a sentinel file created when lock is held.
+        duration_sec: How long to hold the lock before releasing.
+    """
+    import fcntl
+    import time
+
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        # Signal parent that the lock is now held.
+        ready_event_path.write_text("ready")
+        time.sleep(duration_sec)
+        fcntl.flock(fh, fcntl.LOCK_UN)
+
+
+class TestLockContention:
+    """C7 — TrailerStateStore raises TrailerStateLocked when lock is unavailable."""
+
+    def test_lock_contention_raises_trailer_state_locked(self, tmp_path: Path) -> None:
+        """set() raises TrailerStateLocked when another process holds the lock.
+
+        A child process acquires an exclusive flock on the ``.lock`` sibling and
+        holds it for longer than the retry budget (3 × 0.5 s = 1.5 s).  The
+        parent must raise ``TrailerStateLocked`` — not block indefinitely — and
+        the child's PID must be resolvable via lsof.
+        """
+        import multiprocessing
+        import time
+
+        state_file = tmp_path / "trailers_state.json"
+        lock_path = state_file.with_suffix(".lock")
+        ready_sentinel = tmp_path / "lock_held.sentinel"
+
+        # Hold the lock for 3 seconds — well beyond the 1.5 s retry budget.
+        holder = multiprocessing.Process(
+            target=_hold_lock_and_signal,
+            args=(lock_path, ready_sentinel, 3.0),
+        )
+        holder.start()
+
+        # Wait until the child has actually acquired the lock.
+        deadline = time.monotonic() + 5.0
+        while not ready_sentinel.exists():
+            if time.monotonic() > deadline:
+                holder.terminate()
+                pytest.fail("Child process did not acquire the lock within 5 s")
+            time.sleep(0.05)
+
+        store = TrailerStateStore(state_file=state_file)
+        state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.YTDLP_ERROR,
+            media_path="/fake/path",
+        )
+
+        try:
+            with pytest.raises(TrailerStateLocked) as exc_info:
+                store.set("movie:tmdb:99", state)
+
+            locked_exc = exc_info.value
+            assert locked_exc.lock_path == lock_path
+            # holder_pid is best-effort via lsof — degrade gracefully when absent.
+            # When present it must be a positive integer; exact PID matching is not
+            # asserted because lsof may return the parent/waiting process first on
+            # macOS (all openers of the file are listed, not just the lock holder).
+            if locked_exc.holder_pid is not None:
+                assert isinstance(locked_exc.holder_pid, int)
+                assert locked_exc.holder_pid > 0
+        finally:
+            holder.join(timeout=5)
+            if holder.is_alive():
+                holder.terminate()
+
+
+# ── Sub-phase 10.4 new tests ──────────────────────────────────────────────────
+
+
+class TestDataLossLogging:
+    """I8 (state) — corrupt state file emits ERROR log + recovery WARNING on first set()."""
+
+    def test_corrupt_state_emits_data_loss_error_log(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """Instantiating a store over a garbage state file emits data_loss_started at ERROR.
+
+        The log event must include ``backup_path`` and ``entries_lost`` fields.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log-capture fixture.
+        """
+        state_file = tmp_path / ".data" / "trailers_state.json"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        # Write a corrupt-but-parsable-enough file so entries_lost can be measured.
+        state_file.write_text("{corrupted garbage", encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+
+        with caplog.at_level(logging.ERROR):
+            # Trigger _load() by calling get() — the corrupt file must fire the log.
+            store.get("movie:tmdb:99")
+
+        def _is_data_loss_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailer_state.data_loss_started") or (
+                "data_loss_started" in message
+            )
+
+        error_events = [r for r in caplog.records if _is_data_loss_event(r)]
+        assert error_events, "expected trailer_state.data_loss_started ERROR log"
+        assert error_events[0].levelno == logging.ERROR
+
+    def test_recovering_from_corrupt_log_fires_on_first_set_after_corruption(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """First set() after corruption emits recovering_from_corrupt WARNING exactly once.
+
+        The flag ``_recovering_from_corrupt`` is set by ``_load()`` when a corrupt
+        file is detected, then cleared after the first post-corruption ``set()``
+        emits the warning.  Subsequent ``set()`` calls must NOT repeat it.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log-capture fixture.
+        """
+        state_file = tmp_path / ".data" / "trailers_state.json"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        state_file.write_text("{corrupted garbage", encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+
+        good_state = TrailerState(
+            last_attempt=datetime.now(timezone.utc).isoformat(),
+            attempts=1,
+            status=TrailerStatus.DOWNLOADED,
+            media_path="/fake/path",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            # get() triggers _load() which detects corruption → sets the flag.
+            store.get("movie:tmdb:99")
+            # First set() must emit the recovery WARNING.
+            store.set("movie:tmdb:1", good_state)
+            # Second set() must NOT emit it again.
+            store.set("movie:tmdb:2", good_state)
+
+        def _is_recovery_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailer_state.recovering_from_corrupt") or (
+                "trailer_state.recovering_from_corrupt" in message
+            )
+
+        recovery_events = [r for r in caplog.records if _is_recovery_event(r)]
+        assert len(recovery_events) == 1, (
+            f"expected exactly one recovering_from_corrupt WARNING, got {len(recovery_events)}. "
+            f"Records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )
+        assert recovery_events[0].levelno == logging.WARNING
+
+
+class TestAcquireLockUnexpectedOsError:
+    """Tests for _acquire_lock errno discrimination (C2 finding)."""
+
+    def test_acquire_lock_re_raises_unexpected_oserror(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """_acquire_lock re-raises OSError with errno other than EAGAIN/EWOULDBLOCK.
+
+        EBADF signals a genuine fd or filesystem error — not lock contention —
+        and must propagate immediately rather than being silently retried.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+            caplog: Pytest log capture fixture.
+        """
+        import personalscraper.trailers.state as state_mod
+
+        state_file = tmp_path / ".data" / "trailers_state.json"
+        state_file.parent.mkdir(parents=True, exist_ok=True)
+        store = TrailerStateStore(state_file=state_file)
+
+        bad_fd_error = OSError(errno.EBADF, "bad fd")
+
+        with patch.object(state_mod, "_fcntl") as mock_fcntl:
+            # Simulate flock always raising EBADF.
+            mock_fcntl.LOCK_EX = 2
+            mock_fcntl.LOCK_NB = 4
+            mock_fcntl.LOCK_UN = 8
+            mock_fcntl.flock.side_effect = bad_fd_error
+
+            with caplog.at_level(logging.ERROR):
+                with pytest.raises(OSError) as exc_info:
+                    with state_file.parent.joinpath("trailers_state.lock").open("a") as lock_fh:
+                        store._acquire_lock(lock_fh)
+
+        # The original exception must be re-raised unchanged.
+        assert exc_info.value is bad_fd_error
+
+        # The event must be logged at ERROR with the unexpected-oserror name.
+        def _is_unexpected_event(r: object) -> bool:
+            msg = getattr(r, "msg", None)
+            message = str(getattr(r, "message", ""))
+            return (isinstance(msg, dict) and msg.get("event") == "trailer_state_lock_unexpected_oserror") or (
+                "trailer_state_lock_unexpected_oserror" in message
+            )
+
+        error_events = [r for r in caplog.records if _is_unexpected_event(r)]
+        assert len(error_events) == 1, (
+            f"expected one trailer_state_lock_unexpected_oserror ERROR event, got {len(error_events)}. "
+            f"Records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
+        )
+        assert error_events[0].levelno == logging.ERROR
+
+        # flock must have been called exactly once — no retries for non-contention errors.
+        mock_fcntl.flock.assert_called_once()
+
+
+# ── Sub-phase 11.6 new tests ─────────────────────────────────────────────────
+
+
+class TestCountEntriesLostHeuristic:
+    """I4 — _count_entries_lost returns a lower-bound even when JSON is corrupt."""
+
+    def test_count_entries_lost_returns_lower_bound_on_corrupt_json(self, tmp_path: Path) -> None:
+        """_count_entries_lost counts ``"status":`` occurrences in truncated content.
+
+        A file with 5 truncated entry fragments (each containing ``"status":``)
+        must return 5, not 0, even though ``json.loads`` fails on the content.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        state_file = tmp_path / "trailers_state.json"
+        # Simulate a state file that was partially written and contains 5 entries,
+        # each with a "status" field, but is truncated before the closing braces.
+        corrupt_content = (
+            '{"version": 1, "entries": {\n'
+            '  "movie:tmdb:1": {"status": "downloaded", "attempts": 1,\n'
+            '  "movie:tmdb:2": {"status": "no_trailer_available", "attempts": 2,\n'
+            '  "movie:tmdb:3": {"status": "bot_detected", "attempts": 1,\n'
+            '  "movie:tmdb:4": {"status": "http_error", "attempts": 3,\n'
+            '  "movie:tmdb:5": {"status": "ytdlp_error"'
+            # deliberately truncated — no closing braces
+        )
+        state_file.write_text(corrupt_content, encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+        count = store._count_entries_lost()
+
+        # The heuristic must return the correct lower-bound count (5 "status": occurrences),
+        # not 0 as the old implementation would when json.loads fails.
+        assert count == 5, f"expected 5 (lower-bound), got {count}"
+
+    def test_count_entries_lost_uses_exact_count_on_valid_json(self, tmp_path: Path) -> None:
+        """_count_entries_lost uses the exact entry count when JSON is parseable.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        import json
+
+        state_file = tmp_path / "trailers_state.json"
+        payload = {
+            "version": 1,
+            "entries": {
+                "movie:tmdb:1": {"status": "downloaded", "attempts": 1},
+                "movie:tmdb:2": {"status": "no_trailer_available", "attempts": 2},
+                "movie:tmdb:3": {"status": "bot_detected", "attempts": 1},
+            },
+        }
+        state_file.write_text(json.dumps(payload), encoding="utf-8")
+
+        store = TrailerStateStore(state_file=state_file)
+        count = store._count_entries_lost()
+
+        assert count == 3

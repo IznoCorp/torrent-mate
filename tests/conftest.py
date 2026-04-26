@@ -167,6 +167,42 @@ def _stub_pipeline_steps(request, monkeypatch):
     yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _no_magicmock_files_leaked(tmp_path_factory: pytest.TempPathFactory):
+    """Assert that no ``<MagicMock …>`` files are leaked to the working directory.
+
+    Session-scoped sentinel that snapshots the current working directory before
+    any test runs and fails at session teardown if any file whose name starts
+    with ``<MagicMock`` still exists.  These files are produced when a
+    ``MagicMock()`` config is passed to code that calls
+    ``state_file.with_suffix(".lock")`` — the mock's ``__str__`` repr is used
+    as the file-system path (finding 10.5/C1).
+
+    The fixture is session-scoped and autouse so it always runs, regardless of
+    which subset of tests is collected.
+
+    Args:
+        tmp_path_factory: Required by session-scoped fixtures; unused directly
+            but ensures this fixture runs in the same session as the other
+            session-scoped autouse fixtures.
+    """
+    # Common cache/tooling dirs that are never leak targets — skip them to keep
+    # the rglob fast and avoid false positives on read-only vendor dirs.
+    _SKIP_DIRS = frozenset({"__pycache__", ".git", ".venv", ".tox", "node_modules", ".mypy_cache"})
+
+    cwd = Path.cwd()
+    yield
+    # Teardown: walk cwd recursively (including subdirs like .data/, logs/),
+    # but skip tooling directories that can never contain leaked state files.
+    leaked: list[Path] = [p for p in cwd.rglob("<MagicMock*") if not any(part in _SKIP_DIRS for part in p.parts)]
+    if leaked:
+        paths_str = "\n  ".join(str(p) for p in leaked)
+        pytest.fail(
+            f"MagicMock file(s) leaked to working directory — a test passed a "
+            f"bare MagicMock to code that writes to the filesystem:\n  {paths_str}"
+        )
+
+
 @pytest.fixture
 def mock_settings(tmp_path, monkeypatch):
     """Provide a Settings instance with temp paths and no real .env.

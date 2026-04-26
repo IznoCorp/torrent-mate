@@ -33,6 +33,16 @@ Used by the sorter matcher and dispatch media_index.
 - `Console(quiet=True)` suppresses all output natively — no need for `if not quiet:` checks.
 - Rich markup in log messages: keep `markup=False` on `RichHandler` to avoid `[brackets]` being interpreted as tags.
 
+
+## yt-dlp (trailer downloads)
+
+- Version pin: >=2025.1,<2026 (YouTube changes format fingerprints frequently; pin to avoid breakage)
+- ffmpeg dependency: checked at startup via shutil.which("ffmpeg"). If absent, yt-dlp cannot merge
+  separate video and audio streams into a single mp4. Install with: brew install ffmpeg
+- Cookie file mode: yt-dlp rejects cookie files with permissions wider than 600 (security check)
+- Default search prefix: "ytsearch1:" -- used when no YouTube API key is configured
+- Format selector: "bestvideo[height<=1080]+bestaudio/best[height<=1080]" -- capped at 1080p
+
 ## guessit (filename parsing)
 
 Used by the sorter for media filename parsing. Reference: `docs/guessit-evaluation.md`.

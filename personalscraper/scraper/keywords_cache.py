@@ -9,16 +9,24 @@ Cache file format:
     ``"movie_{tmdb_id}"`` or ``"tv_{tmdb_id}"`` and each value is::
 
         {"keywords": ["kw1", ...], "cached_at": "2024-01-15T10:30:00.123456"}
+
+Corrupt-file protection (I8):
+``_load`` backs up the corrupt file to ``tmdb_keywords_cache.corrupt-{ts}.json``
+before returning ``{}`` so the data is preserved for forensic analysis.  The
+pattern mirrors ``TrailerStateStore._backup_corrupt`` in ``trailers/state.py``.
 """
 
 import json
 import os
+import shutil
 import tempfile
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from personalscraper.conf.classifier import MediaType
 from personalscraper.logger import get_logger
+from personalscraper.scraper.json_ttl_cache import UTC, check_ttl
 
 log = get_logger("keywords_cache")
 
@@ -50,6 +58,9 @@ class KeywordsCache:
     ``os.replace`` — the backing file is never left in a partially-written
     state, even if the process is interrupted.
 
+    On parse error, ``_load`` backs up the corrupt file before returning
+    ``{}`` so the next ``set()`` does not silently destroy prior entries.
+
     Attributes:
         _path: Path to the backing ``tmdb_keywords_cache.json`` file.
     """
@@ -57,9 +68,8 @@ class KeywordsCache:
     def __init__(self, data_dir: Path) -> None:
         """Initialize the cache backed by ``data_dir/tmdb_keywords_cache.json``.
 
-        The backing file is created (empty) if it does not yet exist. The
-        parent directory must exist; it is NOT created automatically — callers
-        (scraper, tests) are responsible for creating it.
+        The backing file and its parent directory are created automatically on
+        the first ``set()`` call.
 
         Args:
             data_dir: Directory that holds pipeline state files.
@@ -100,7 +110,18 @@ class KeywordsCache:
             log.warning("keywords_cache_parse_error", cache_key=key)
             return None
 
-        if datetime.now() - cached_at > _TTL:
+        # New entries are written tz-aware UTC by set(); legacy cache files
+        # may still hold naive-local timestamps. For legacy entries, compute
+        # the elapsed duration in naive-local arithmetic and project it onto
+        # UTC. This is best-effort across DST boundaries (the elapsed delta
+        # can be off by 1h during the transition itself); legacy entries age
+        # out within the 30-day TTL after this code ships.
+        now_utc = datetime.now(UTC)
+        if cached_at.tzinfo is None:
+            elapsed_naive = datetime.now() - cached_at
+            cached_at = now_utc - elapsed_naive
+
+        if not check_ttl(cached_at, int(_TTL.total_seconds()), now=now_utc):
             return None
 
         raw_kws = entry.get("keywords", [])
@@ -122,9 +143,12 @@ class KeywordsCache:
         """
         data = self._load()
         key = _cache_key(tmdb_id, media_type)
+        # Always write tz-aware UTC: the legacy naive-local format on the read
+        # side is preserved (see get()), but new entries no longer poison the
+        # cache around DST transitions on local-tz machines.
         data[key] = {
             "keywords": list(keywords),
-            "cached_at": datetime.now().isoformat(),
+            "cached_at": datetime.now(UTC).isoformat(),
         }
         self._atomic_save(data)
 
@@ -132,10 +156,48 @@ class KeywordsCache:
     # Private helpers
     # ------------------------------------------------------------------
 
+    def _backup_corrupt(self, reason: str) -> None:
+        """Copy the backing file aside before it gets overwritten by a fresh save.
+
+        Without this, a parse failure followed by ``set()`` silently destroys
+        every prior entry. The backup keeps a forensic copy at
+        ``<name>.corrupt-<unix_ts>.json`` (preserving the ``.json`` suffix).
+
+        Mirrors the pattern from ``TrailerStateStore._backup_corrupt`` in
+        ``trailers/state.py``.
+
+        Args:
+            reason: Short tag used in the log (e.g. ``parse_error:JSONDecodeError``).
+        """
+        try:
+            ts = int(time.time())
+            backup = self._path.with_name(f"{self._path.stem}.corrupt-{ts}{self._path.suffix}")
+            shutil.copy(self._path, backup)
+            log.warning(
+                "keywords_cache_corrupt_backup",
+                original=str(self._path),
+                backup=str(backup),
+                reason=reason,
+            )
+        except OSError as exc:
+            log.error(
+                "keywords_cache_corrupt_backup_failed",
+                path=str(self._path),
+                error=str(exc),
+                reason=reason,
+            )
+
     def _load(self) -> dict[str, dict[str, object]]:
         """Read the backing file and return its contents as a dict.
 
         Returns an empty dict if the file does not exist or cannot be parsed.
+        On parse error the corrupt file is backed up to
+        ``<name>.corrupt-<unix_ts>.json`` before returning ``{}``.
+
+        ``OSError`` (broken mount, EBUSY, stale NFS handle) does NOT trigger a
+        backup because the file is likely intact but temporarily inaccessible;
+        creating ``.corrupt-*`` files on every transient I/O hiccup would flood
+        the directory.  Mirrors the pattern used by ``state.py:_load``.
 
         Returns:
             Parsed JSON dict (may be empty on error or missing file).
@@ -146,10 +208,24 @@ class KeywordsCache:
             with self._path.open("r", encoding="utf-8") as fh:
                 raw = json.load(fh)
             if not isinstance(raw, dict):
+                self._backup_corrupt(reason="root_not_object")
                 return {}
             return {k: v for k, v in raw.items() if isinstance(v, dict)}
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            log.warning("keywords_cache_read_error", path=str(self._path), error=str(exc))
+        except (json.JSONDecodeError, ValueError) as exc:
+            # Corrupt JSON — back up the file before the next write overwrites it.
+            self._backup_corrupt(reason=f"parse_error:{type(exc).__name__}")
+            log.error("keywords_cache_load_failed", path=str(self._path), error=str(exc), exc_info=True)
+            return {}
+        except OSError as exc:
+            # Transient I/O error (broken mount, EBUSY, stale NFS handle).
+            # Do NOT backup — the file is likely healthy but temporarily unreachable.
+            log.warning(
+                "keywords_cache_read_failed",
+                path=str(self._path),
+                errno=exc.errno,
+                error=str(exc),
+                exc_info=True,
+            )
             return {}
 
     def _atomic_save(self, data: dict[str, dict[str, object]]) -> None:

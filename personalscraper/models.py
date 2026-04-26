@@ -54,6 +54,12 @@ class StepReport:
         error_count: Number of failed items.
         warnings: Warning messages collected during execution.
         details: Per-item detail strings for reporting.
+        status: Optional step-level status tag (e.g. "success", "partial", "skipped", "error").
+            None means the field was not set (backward-compatible default).
+        counts: Optional granular counter dict (e.g. {"downloaded": 3, "bot_detected": 1}).
+            Populated by steps that track sub-categories beyond the three standard counters.
+        failed_items: Optional list of (item_id, reason, detail) triples for per-item failure
+            reporting. Used by non-blocking steps such as the trailers step.
     """
 
     name: str
@@ -62,6 +68,9 @@ class StepReport:
     error_count: int = 0
     warnings: list[str] = field(default_factory=list)
     details: list[str] = field(default_factory=list)
+    status: str | None = None
+    counts: dict[str, int] = field(default_factory=dict)
+    failed_items: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -127,6 +136,7 @@ class PipelineReport:
             "cleanup": "\U0001f5d1",  # 🗑
             "enforce": "\U0001f527",  # 🔧
             "verify": "\u2705",  # ✅
+            "trailers": "\U0001f3ac",  # 🎬
             "dispatch": "\U0001f4be",  # 💾
         }
 

@@ -5,9 +5,11 @@ concurrent write safety (two sets in quick succession), and atomic write
 (no temp files left on disk).
 """
 
+import errno
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -226,3 +228,55 @@ class TestAtomicWrite:
         cache.set(80, "movie", ["thriller"])
         assert cache._path.exists()
         assert cache.get(80, "movie") == ["thriller"]
+
+
+# ---------------------------------------------------------------------------
+# Naive cached_at backward-compatibility
+# ---------------------------------------------------------------------------
+
+
+class TestNaiveCachedAt:
+    """check_ttl() promotes naive cached_at to UTC — still-fresh entries hit."""
+
+    def test_naive_cached_at_still_valid(self, cache: KeywordsCache) -> None:
+        """Naive cached_at (no tzinfo) from older cache versions hits within TTL.
+
+        Writes a raw cache entry with a naive ISO timestamp (no tz offset) dated
+        1 day ago — far inside the 30-day TTL — and asserts get() returns the
+        keywords rather than treating it as a miss.
+        """
+        one_day_ago = datetime.now() - timedelta(days=1)  # naive, no tzinfo
+        data = {"movie_91": {"keywords": ["retro"], "cached_at": one_day_ago.isoformat()}}
+        cache._path.write_text(json.dumps(data), encoding="utf-8")
+        result = cache.get(91, "movie")
+        assert result == ["retro"]
+
+
+# ---------------------------------------------------------------------------
+# OSError hygiene — no .corrupt-* backup on transient I/O errors
+# ---------------------------------------------------------------------------
+
+
+class TestOSErrorHygiene:
+    """OSError during _load must NOT create a .corrupt-* backup file."""
+
+    def test_oserror_during_load_does_not_create_backup(self, tmp_path: Path) -> None:
+        """EBUSY / transient NFS error during _load does not create a .corrupt-* file.
+
+        A flaky mount or device-busy condition should NOT be treated as a
+        corrupt file — the original is likely healthy.  Only JSONDecodeError /
+        ValueError should trigger a backup.
+        """
+        data_dir = tmp_path / ".data"
+        data_dir.mkdir()
+        cache = KeywordsCache(data_dir)
+
+        # Write a valid entry first so the file exists.
+        cache.set(101, "movie", ["action"])
+
+        with patch.object(Path, "open", side_effect=OSError(errno.EBUSY, "device or resource busy")):
+            result = cache.get(101, "movie")
+
+        assert result is None
+        corrupt_files = list(data_dir.glob("*.corrupt-*"))
+        assert corrupt_files == [], f"Unexpected .corrupt-* files created: {corrupt_files}"
