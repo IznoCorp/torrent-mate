@@ -225,8 +225,9 @@ class TestCachePoisoningPrevention:
 
         Scenario:
           1. TMDB circuit is open → _fetch_videos_strict raises CircuitOpenError.
-          2. Assert: no entry written to the cache (the key is absent).
-          3. Next call with TMDB returning a real movie → trailer is found
+          2. find() re-raises CircuitOpenError (propagates to orchestrator counter).
+          3. Assert: no entry written to the cache (the key is absent).
+          4. Next call with TMDB returning a real movie → trailer is found
              (not blocked by a cached empty list from step 1).
         """
         cache_path = tmp_path / "tc.json"
@@ -245,12 +246,14 @@ class TestCachePoisoningPrevention:
 
         # Step 1: TMDB raises CircuitOpenError on every call.
         client._fetch_videos_strict.side_effect = CircuitOpenError("TMDB", 9999.0)
-        searcher.search.return_value = None  # YouTube also returns nothing
 
-        result1 = finder.find(550, "movie", title="Fight Club", year=1999)
-        assert result1 is None
+        # After the fix find() re-raises CircuitOpenError so the orchestrator can
+        # tally counts["circuit_open"]; it must NOT return None and swallow it.
+        with pytest.raises(CircuitOpenError):
+            finder.find(550, "movie", title="Fight Club", year=1999)
 
         # Step 2: The cache must NOT have stored an empty entry for the TMDB key.
+        # (The exception unwinds the stack before the cache write site.)
         assert trailers_cache.get_tmdb_videos(550, "movie", "en-US") is None, (
             "CircuitOpenError must not cache an empty video list"
         )
@@ -263,14 +266,15 @@ class TestCachePoisoningPrevention:
         assert result2 == _YT_URL, "After TMDB recovery, the trailer should be found (not blocked by cached [])"
 
     def test_youtube_fallback_transport_error_does_not_cache_no_result(self, tmp_path: Path) -> None:
-        """A transport error during YouTube fallback must not write __no_result__ sentinel.
+        """A YouTube CircuitOpenError must not write __no_result__ sentinel.
 
         Scenario:
           1. TMDB returns empty (no videos for this movie).
           2. YouTube breaker is open → _call_youtube_search raises CircuitOpenError.
-          3. Assert: no __no_result__ sentinel written to the cache.
-          4. Next call — breaker resets and YouTube returns a real URL.
-          5. Assert: trailer is found.
+          3. find() re-raises CircuitOpenError (propagates to orchestrator counter).
+          4. Assert: no __no_result__ sentinel written to the cache.
+          5. Next call — breaker resets and YouTube returns a real URL.
+          6. Assert: trailer is found.
         """
         cache_path = tmp_path / "tc.json"
         trailers_cache = TrailersCache(cache_path)
@@ -300,10 +304,13 @@ class TestCachePoisoningPrevention:
         # TMDB: no videos (genuine empty, but no trailer found).
         client._fetch_videos_strict.return_value = []
 
-        result1 = finder.find(550, "movie", title="Fight Club", year=1999)
-        assert result1 is None
+        # After the fix find() re-raises CircuitOpenError so the orchestrator can
+        # tally counts["circuit_open"]; it must NOT return None and swallow it.
+        with pytest.raises(CircuitOpenError):
+            finder.find(550, "movie", title="Fight Club", year=1999)
 
         # The __no_result__ sentinel must NOT have been cached.
+        # (The exception unwinds the stack before the cache write site.)
         assert trailers_cache.contains_search("Fight Club", 1999) is False, (
             "Breaker-open must not cache __no_result__ sentinel"
         )
@@ -386,8 +393,9 @@ class TestCachePoisoningClosure:
           2. The breaker is CLOSED before the YouTube call, but transitions OPEN
              during it (a fresh transport failure trips the threshold).
           3. _call_youtube_search detects the transition and raises CircuitOpenError.
-          4. find() catches it and returns None WITHOUT caching __no_result__.
-          5. After breaker recovery, YouTube returns a real URL.
+          4. find() re-raises CircuitOpenError (propagates to orchestrator counter).
+          5. Cache write is skipped inherently because the exception unwinds first.
+          6. After breaker recovery, YouTube returns a real URL.
 
         Args:
             tmp_path: Pytest tmp_path fixture.
@@ -429,12 +437,14 @@ class TestCachePoisoningClosure:
             yt_breaker.record_failure(_requests.exceptions.ConnectionError("transport failure"))
             return None
 
+        # After the fix find() re-raises CircuitOpenError so the orchestrator can
+        # tally counts["circuit_open"]; it must NOT return None and swallow it.
         with patch.object(real_searcher, "search", side_effect=_search_tripping_breaker):
-            result1 = finder.find(550, "movie", title="Fight Club", year=1999)
-
-        assert result1 is None
+            with pytest.raises(CircuitOpenError):
+                finder.find(550, "movie", title="Fight Club", year=1999)
 
         # __no_result__ sentinel must NOT have been cached.
+        # (The exception unwinds the stack before the cache write site.)
         assert trailers_cache.contains_search("Fight Club", 1999) is False, (
             "Breaker opened during call must not cache __no_result__ sentinel"
         )

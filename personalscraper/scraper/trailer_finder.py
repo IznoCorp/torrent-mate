@@ -201,9 +201,16 @@ class TrailerFinder:
                 # distinguish a genuine empty result from an outage error.
                 try:
                     videos = self._fetch_tmdb_videos(tmdb_id, media_type, language, season_number)
-                except (TMDBError, CircuitOpenError, requests.RequestException, json.JSONDecodeError) as exc:
-                    # TMDB outage / circuit open / decode error — do NOT cache
-                    # the empty list.  Log and fall through to YouTube fallback.
+                except CircuitOpenError:
+                    # Circuit breaker is OPEN — re-raise so the orchestrator can
+                    # tally circuit_open and skip the cache write.  Swallowing it
+                    # here would leave counts["circuit_open"] permanently at zero
+                    # (dead observability counter).
+                    raise
+                except (TMDBError, requests.RequestException, json.JSONDecodeError) as exc:
+                    # TMDB transport / HTTP / decode error — do NOT cache the
+                    # empty list.  Log and continue to the next language or fall
+                    # through to the YouTube fallback.
                     logger.warning(
                         "trailer_tmdb_fetch_error_skip_cache",
                         tmdb_id=tmdb_id,
@@ -250,19 +257,23 @@ class TrailerFinder:
         # Build the search query; use season-specific format when applicable.
         try:
             yt_url = self._youtube_fallback_strict(title, year, season_number)
+        except CircuitOpenError:
+            # Circuit breaker is OPEN — re-raise so the orchestrator can tally
+            # circuit_open.  The cache write below is skipped inherently because
+            # the exception unwinds the stack before we reach it.
+            raise
         except (
-            CircuitOpenError,
             requests.RequestException,
             KeyError,
             AttributeError,
             TypeError,
             yt_dlp.utils.DownloadError,  # re-raised by _fallback_search (sub-phase 11.2)
         ) as exc:
-            # Transport error / breaker-open / yt-dlp parser bug / yt-dlp download
-            # error — do NOT cache the __no_result__ sentinel so we retry on the
-            # next run.  DownloadError is re-raised by _fallback_search (sub-phase
-            # 11.2) and propagates through _youtube_fallback_strict; without this
-            # catch it would escape find() entirely and crash the orchestrator.
+            # Transport error / yt-dlp parser bug / download error — do NOT cache
+            # the __no_result__ sentinel so we retry on the next run.
+            # DownloadError is re-raised by _fallback_search (sub-phase 11.2) and
+            # propagates through _youtube_fallback_strict; without this catch it
+            # would escape find() entirely and crash the orchestrator.
             logger.warning(
                 "trailer_youtube_fallback_error_skip_cache",
                 title=title,

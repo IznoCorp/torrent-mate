@@ -878,6 +878,68 @@ class TestCircuitOpenCounter:
         # Generic error counter must NOT be incremented for a circuit-open event.
         assert counts["error"] == 0
 
+    def test_circuit_open_propagates_from_tmdb_through_find_to_counter(self, tmp_path: Path) -> None:
+        """Integration: TMDB breaker-open propagates through find() to orchestrator counter.
+
+        This test exercises the full path fixed by cycle-5 PR review:
+          1. Patch the underlying TMDBClient._fetch_videos_strict to raise
+             CircuitOpenError (simulates the TMDB circuit breaker being OPEN).
+          2. Construct a real TrailerFinder (not a mock) and wire it into a
+             TrailersOrchestrator.
+          3. Run the orchestrator with one scan item.
+          4. Assert counts["circuit_open"] == 1 and counts["error"] == 0.
+
+        Before the fix, find() swallowed CircuitOpenError in its TMDB-tier except
+        block and fell through to YouTube, leaving circuit_open permanently at 0.
+        After the fix, find() re-raises CircuitOpenError so the orchestrator's
+        except-branch increments the counter correctly.
+
+        Args:
+            tmp_path: Pytest tmp_path fixture.
+        """
+        from unittest.mock import MagicMock
+
+        from personalscraper.scraper.circuit_breaker import CircuitBreaker, CircuitOpenError
+        from personalscraper.scraper.json_ttl_cache import JsonTTLCache
+        from personalscraper.scraper.trailer_finder import TrailerFinder
+        from personalscraper.scraper.trailers_cache import TrailersCache
+        from personalscraper.scraper.youtube_search import YoutubeSearch
+
+        cfg = _make_config(tmp_path)
+        orch = TrailersOrchestrator(config=cfg, staging_dir=tmp_path)
+
+        # Build a real TrailerFinder with a mocked TMDB client that raises
+        # CircuitOpenError on every _fetch_videos_strict call.
+        tmdb_client = MagicMock()
+        tmdb_client._fetch_videos_strict.side_effect = CircuitOpenError("tmdb-videos", 9999.0)
+
+        yt_breaker = CircuitBreaker(name="yt-integration", failure_threshold=5)
+        yt_searcher = YoutubeSearch(
+            "{title} {year} trailer",
+            api_key="",
+            quota_cache=JsonTTLCache(tmp_path / "quota_int.json"),
+            breaker=yt_breaker,
+        )
+        cache = TrailersCache(tmp_path / "tc_int.json")
+        real_finder = TrailerFinder(
+            tmdb_client=tmdb_client,
+            youtube_search=yt_searcher,
+            cache=cache,
+            languages=["en-US"],
+        )
+
+        # Replace the orchestrator's mocked finder with the real one.
+        orch._finder = real_finder
+
+        with patch.object(orch._scanner, "scan_staging", return_value=[_SCAN_ITEM]):
+            counts = orch.run()
+
+        # The CircuitOpenError must have propagated from find() to the orchestrator.
+        assert counts["circuit_open"] == 1, (
+            "CircuitOpenError from TMDB must reach the orchestrator's circuit_open counter"
+        )
+        assert counts["error"] == 0, "circuit_open events must not also increment the generic error counter"
+
 
 # ── Sub-phase 10.5 new tests ──────────────────────────────────────────────────
 
