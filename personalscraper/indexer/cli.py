@@ -106,6 +106,18 @@ def library_status_command(config_path: Path | None = None) -> int:
 
     run_id, finished_at, status = row
     print(f"latest scan: {run_id}, finished_at={finished_at}, status={status}")
+
+    # --- Check repair queue health and warn if stale or deep (DESIGN §17.1) ---
+    from personalscraper.indexer import repair  # noqa: PLC0415
+
+    oldest_pending_age_seconds, pending_depth = repair.get_queue_health(conn)
+    if oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400 or pending_depth > 1000:
+        print(
+            f"WARNING: repair queue: depth={pending_depth},"
+            f" oldest pending {(oldest_pending_age_seconds or 0) // 86400} days"
+        )
+        return 1
+
     return 0
 
 

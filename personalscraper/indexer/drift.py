@@ -33,10 +33,11 @@ import time
 from pathlib import Path
 from typing import Literal
 
+from personalscraper.indexer import repair as _repair_mod
 from personalscraper.indexer.fingerprint import is_racy, xxh3_partial
 from personalscraper.indexer.merkle import DiskMountStatus
-from personalscraper.indexer.repos import file_repo, log_repo, outbox_repo
-from personalscraper.indexer.schema import DeletedItemRow, DiskRow, MediaFileRow, RepairQueueRow
+from personalscraper.indexer.repos import file_repo, log_repo
+from personalscraper.indexer.schema import DeletedItemRow, DiskRow, MediaFileRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.drift")
@@ -110,9 +111,8 @@ def clamp_mtime_ns(mtime_ns: int, now_ns: int, max_age_ns: int = _DEFAULT_MAX_AG
 def enqueue_repair(conn: sqlite3.Connection, file_id: int, reason: str) -> None:
     """Insert a repair queue entry for the given file.
 
-    Uses :func:`~personalscraper.indexer.repos.outbox_repo.insert_repair_queue`
-    to persist the request.  The new row has ``scope='file'``, ``status='pending'``,
-    and ``attempts=0``.
+    Delegates to :func:`~personalscraper.indexer.repair.enqueue_repair` with
+    ``scope='file'``, keeping backward compatibility for all existing callers.
 
     Args:
         conn: Open SQLite connection.
@@ -120,18 +120,7 @@ def enqueue_repair(conn: sqlite3.Connection, file_id: int, reason: str) -> None:
         reason: Human-readable reason string, e.g. ``'content_drift'`` or
             ``'oshash_collision'``.
     """
-    row = RepairQueueRow(
-        id=0,  # ignored on insert
-        scope="file",
-        scope_id=file_id,
-        reason=reason,
-        payload_json=None,
-        enqueued_at=int(time.time()),
-        status="pending",
-        attempted_at=None,
-        attempts=0,
-    )
-    outbox_repo.insert_repair_queue(conn, row)
+    _repair_mod.enqueue_repair(conn, scope="file", scope_id=file_id, reason=reason, payload=None)
     log.debug("indexer.drift.repair_enqueued", file_id=file_id, reason=reason)
 
 
