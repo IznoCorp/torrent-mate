@@ -1,0 +1,1065 @@
+{
+  "scanned_at": "2026-04-27T16:47:42.790693+00:00",
+  "disk_filter": null,
+  "category_filter": null,
+  "item_count": 25,
+  "items": [
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Fight Club (1999)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Fight Club",
+      "year": 1999,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "550",
+        "imdb_id": "tt0137523"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.791229+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Goodfellas (1990)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Goodfellas",
+      "year": 1990,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "769",
+        "imdb_id": "tt0099685"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.791462+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Inception (2010)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Inception",
+      "year": 2010,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "27205",
+        "imdb_id": "tt1375666"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.791650+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Interstellar (2014)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Interstellar",
+      "year": 2014,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "157336",
+        "imdb_id": "tt0816692"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.791841+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Parasite (2019)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Parasite",
+      "year": 2019,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "496243",
+        "imdb_id": "tt7286456"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.792022+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Pulp Fiction (1994)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Pulp Fiction",
+      "year": 1994,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "680",
+        "imdb_id": "tt0110912"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.792204+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/Schindler's List (1993)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "Schindler's List",
+      "year": 1993,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "424",
+        "imdb_id": "tt0108052"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.792381+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/The Dark Knight (2008)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "The Dark Knight",
+      "year": 2008,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "155",
+        "imdb_id": "tt0468569"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.792566+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/The Godfather (1972)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "The Godfather",
+      "year": 1972,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "238",
+        "imdb_id": "tt0068646"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.792739+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/films/The Matrix (1999)",
+      "disk": "disk_fixture",
+      "category": "movies",
+      "media_type": "movie",
+      "title": "The Matrix",
+      "year": 1999,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "603",
+        "imdb_id": "tt0133093"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.792909+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Better Call Saul",
+      "year": 2015,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "60059",
+        "imdb_id": "tt3032476"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)/Saison 01",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)/Saison 02",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)/Saison 03",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)/Saison 04",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 5,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)/Saison 05",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 6,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Better Call Saul (2015)/Saison 06",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.793764+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Breaking Bad (2008)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Breaking Bad",
+      "year": 2008,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "1396",
+        "imdb_id": "tt0903747"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Breaking Bad (2008)/Saison 01",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Breaking Bad (2008)/Saison 02",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Breaking Bad (2008)/Saison 03",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Breaking Bad (2008)/Saison 04",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 5,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Breaking Bad (2008)/Saison 05",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.794505+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Chernobyl (2019)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Chernobyl",
+      "year": 2019,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "87108",
+        "imdb_id": "tt9174558"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Chernobyl (2019)/Saison 01",
+          "episode_count": 5,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.794834+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Game of Thrones",
+      "year": 2011,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "1399",
+        "imdb_id": "tt0944947"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 01",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 02",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 03",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 04",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 5,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 05",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 6,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 06",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 7,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 07",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 8,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Game of Thrones (2011)/Saison 08",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.795808+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Ozark (2017)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Ozark",
+      "year": 2017,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "69737",
+        "imdb_id": "tt5720236"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Ozark (2017)/Saison 01",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Ozark (2017)/Saison 02",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Ozark (2017)/Saison 03",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Ozark (2017)/Saison 04",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.796369+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Peaky Blinders",
+      "year": 2013,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "60574",
+        "imdb_id": "tt2442560"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)/Saison 01",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)/Saison 02",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)/Saison 03",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)/Saison 04",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 5,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)/Saison 05",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 6,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Peaky Blinders (2013)/Saison 06",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.797130+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Stranger Things (2016)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Stranger Things",
+      "year": 2016,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "66732",
+        "imdb_id": "tt4574334"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Stranger Things (2016)/Saison 01",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Stranger Things (2016)/Saison 02",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Stranger Things (2016)/Saison 03",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Stranger Things (2016)/Saison 04",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.797709+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Succession (2018)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "Succession",
+      "year": 2018,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "73586",
+        "imdb_id": "tt7660850"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Succession (2018)/Saison 01",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Succession (2018)/Saison 02",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Succession (2018)/Saison 03",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/Succession (2018)/Saison 04",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.798321+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/The Wire (2002)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "The Wire",
+      "year": 2002,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "1438",
+        "imdb_id": "tt0306414"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/The Wire (2002)/Saison 01",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/The Wire (2002)/Saison 02",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/The Wire (2002)/Saison 03",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 4,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/The Wire (2002)/Saison 04",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 5,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/The Wire (2002)/Saison 05",
+          "episode_count": 2,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.798976+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/True Detective (2014)",
+      "disk": "disk_fixture",
+      "category": "tv_shows",
+      "media_type": "tvshow",
+      "title": "True Detective",
+      "year": 2014,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": true,
+        "valid": true,
+        "tmdb_id": "46648",
+        "imdb_id": "tt2356777"
+      },
+      "artwork": {
+        "poster": true,
+        "fanart": true,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": [
+        {
+          "number": 1,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/True Detective (2014)/Saison 01",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 2,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/True Detective (2014)/Saison 02",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        },
+        {
+          "number": 3,
+          "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/series/True Detective (2014)/Saison 03",
+          "episode_count": 3,
+          "has_poster": true,
+          "episodes_with_nfo": 0
+        }
+      ],
+      "scanned_at": "2026-04-27T16:47:42.799472+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/livres audios/1984 - George Orwell",
+      "disk": "disk_fixture",
+      "category": "audiobooks",
+      "media_type": "movie",
+      "title": "1984 - George Orwell",
+      "year": null,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": false,
+        "valid": false,
+        "tmdb_id": null,
+        "imdb_id": null
+      },
+      "artwork": {
+        "poster": false,
+        "fanart": false,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.799597+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/livres audios/Dune - Frank Herbert",
+      "disk": "disk_fixture",
+      "category": "audiobooks",
+      "media_type": "movie",
+      "title": "Dune - Frank Herbert",
+      "year": null,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": false,
+        "valid": false,
+        "tmdb_id": null,
+        "imdb_id": null
+      },
+      "artwork": {
+        "poster": false,
+        "fanart": false,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.799693+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/livres audios/Foundation - Isaac Asimov",
+      "disk": "disk_fixture",
+      "category": "audiobooks",
+      "media_type": "movie",
+      "title": "Foundation - Isaac Asimov",
+      "year": null,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": false,
+        "valid": false,
+        "tmdb_id": null,
+        "imdb_id": null
+      },
+      "artwork": {
+        "poster": false,
+        "fanart": false,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.799790+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/livres audios/Neuromancer - William Gibson",
+      "disk": "disk_fixture",
+      "category": "audiobooks",
+      "media_type": "movie",
+      "title": "Neuromancer - William Gibson",
+      "year": null,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": false,
+        "valid": false,
+        "tmdb_id": null,
+        "imdb_id": null
+      },
+      "artwork": {
+        "poster": false,
+        "fanart": false,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.799885+00:00"
+    },
+    {
+      "path": "/Users/izno/dev/PersonnalScaper/tests/fixtures/parity/v0.7-fs/disk_fixture/livres audios/The Lord of the Rings - J.R.R. Tolkien",
+      "disk": "disk_fixture",
+      "category": "audiobooks",
+      "media_type": "movie",
+      "title": "The Lord of the Rings - J.R.R. Tolkien",
+      "year": null,
+      "folder_size_gb": 0.0,
+      "nfo": {
+        "present": false,
+        "valid": false,
+        "tmdb_id": null,
+        "imdb_id": null
+      },
+      "artwork": {
+        "poster": false,
+        "fanart": false,
+        "landscape": false,
+        "banner": false,
+        "clearlogo": false,
+        "clearart": false,
+        "discart": false,
+        "characterart": false
+      },
+      "actors_dir": false,
+      "issues": [],
+      "seasons": null,
+      "scanned_at": "2026-04-27T16:47:42.799986+00:00"
+    }
+  ]
+}
