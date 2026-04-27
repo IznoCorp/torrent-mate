@@ -256,15 +256,22 @@ class MediaReleaseRow:
 class MediaFileRow:
     """Row type for the ``media_file`` table.
 
+    ``release_id`` and ``oshash`` are NULLABLE to support the Stage A/Stage B
+    split (§11): Stage A inserts file rows before any release exists or any
+    content hash is computed. Both columns are populated by Stage B (``enrich``
+    mode) once NFOs are parsed and OSHash is computed for non-symlink files.
+
     Args:
         id: Primary key.
-        release_id: FK → ``media_release.id``.
+        release_id: FK → ``media_release.id``; ``None`` during Stage A before release
+            linkage is performed by the scraper phase.
         path_id: FK → ``path.id``.
         filename: Bare filename (no directory component).
         size_bytes: File size in bytes.
         mtime_ns: File mtime in nanoseconds (``st_mtime_ns``).
         ctime_ns: File ctime in nanoseconds; ``None`` if not captured.
-        oshash: OpenSubtitles hash (16-char hex).
+        oshash: OpenSubtitles hash (16-char hex); ``None`` during Stage A before
+            fingerprinting and for symlinks (which are never fingerprinted).
         xxh3_partial: Partial xxh3_64 hash; ``None`` until computed on racy/conflict.
         xxh3_full: Full xxh3_64 hash; ``None`` except on manual repair.
         scan_generation: Scan generation counter when this row was last updated.
@@ -275,13 +282,13 @@ class MediaFileRow:
     """
 
     id: int
-    release_id: int
+    release_id: int | None
     path_id: int
     filename: str
     size_bytes: int
     mtime_ns: int
     ctime_ns: int | None
-    oshash: str
+    oshash: str | None
     xxh3_partial: str | None
     xxh3_full: str | None
     scan_generation: int

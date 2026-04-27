@@ -80,10 +80,10 @@ _RACY_WINDOW_NS: int = 2_000_000_000  # 2 seconds
 
 
 def _open_mem_db() -> sqlite3.Connection:
-    """Open an in-memory SQLite DB with all migrations applied."""
+    """Open an in-memory SQLite DB with all migrations applied and FK enforcement enabled."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
 
@@ -124,7 +124,8 @@ def _seed_file(
 ) -> int:
     """Insert a minimal ``media_file`` row and return its PK.
 
-    ``release_id=0`` is used as a deferred sentinel (FK checks are off).
+    ``release_id=NULL`` is the correct Stage A value (migration 002 made the
+    column nullable; no FK workaround needed).
     ``ctime_ns=None`` stores NULL which reconcile_file treats as 0 in tier-1.
     """
     cursor = conn.execute(
@@ -133,7 +134,7 @@ def _seed_file(
             release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
             oshash, xxh3_partial, xxh3_full, scan_generation,
             last_verified_at, enriched_at, miss_strikes, deleted_at
-        ) VALUES (0, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 0, NULL, ?, ?)
+        ) VALUES (NULL, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 0, NULL, ?, ?)
         """,
         (path_id, filename, size, mtime_ns, ctime_ns, oshash_val, generation, miss_strikes, deleted_at),
     )
@@ -208,14 +209,18 @@ def test_idempotence_same_fs_same_db_state(layout: object) -> None:
 
         scan_start = time.time_ns()
         # Deduplicate by basename so UNIQUE(path_id, filename) is not violated.
+        # Use case-insensitive comparison because macOS FS is case-insensitive:
+        # 'k.mkv' and 'K.mkv' map to the same inode, causing spurious ctime drift.
         seen_filenames: set[str] = set()
+        seen_lower: set[str] = set()
         seeded: list[tuple[str, Path]] = []  # (filename, real_path)
 
         for spec in layout.files:
             fname = Path(spec.rel_path).name
-            if fname in seen_filenames:
+            if fname.lower() in seen_lower:
                 continue
             seen_filenames.add(fname)
+            seen_lower.add(fname.lower())
 
             real_path = Path(mount_dir) / fname
             real_path.write_bytes(spec.content)

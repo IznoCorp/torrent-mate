@@ -38,10 +38,10 @@ _MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "personalscrap
 
 
 def _open_mem_db() -> sqlite3.Connection:
-    """Open an in-memory SQLite DB with all migrations applied."""
+    """Open an in-memory SQLite DB with all migrations applied and FK enforcement enabled."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
 

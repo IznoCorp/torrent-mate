@@ -33,9 +33,9 @@ _CRAFTED_OSHASH = "aabbccddeeff0011"
 
 
 def _open_db() -> sqlite3.Connection:
-    """Open a fully-migrated in-memory SQLite DB."""
+    """Open a fully-migrated in-memory SQLite DB with FK enforcement enabled."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
 
@@ -67,7 +67,7 @@ def _seed_file(conn: sqlite3.Connection, path_id: int, filename: str, oshash_val
             release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
             oshash, xxh3_partial, xxh3_full, scan_generation,
             last_verified_at, enriched_at, miss_strikes, deleted_at
-        ) VALUES (0, ?, ?, ?, 1000000000, NULL, ?, NULL, NULL, 1, 0, NULL, 0, NULL)
+        ) VALUES (NULL, ?, ?, ?, 1000000000, NULL, ?, NULL, NULL, 1, 0, NULL, 0, NULL)
         """,
         (path_id, filename, size, oshash_val),
     )

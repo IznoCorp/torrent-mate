@@ -495,23 +495,28 @@ CREATE INDEX idx_release_episode ON media_release(episode_id);
 -- check via xxh3_full only on the rare collision path.
 -- scan_generation: bumped at start of each scan; rows with old generation are
 -- candidates for soft-delete or drift investigation.
+--
+-- `release_id` and `oshash` are NULLABLE to support the Stage A/Stage B
+-- split (§11): Stage A inserts file rows before any release exists or any
+-- content hash is computed. Both columns are populated by Stage B (`enrich`
+-- mode) once NFOs are parsed and OSHash is computed for non-symlink files.
 -- ---------------------------------------------------------------------------
 CREATE TABLE media_file (
   id              INTEGER PRIMARY KEY,
-  release_id      INTEGER NOT NULL REFERENCES media_release(id) ON DELETE CASCADE,
+  release_id      INTEGER REFERENCES media_release(id) ON DELETE SET NULL,
   path_id         INTEGER NOT NULL REFERENCES path(id) ON DELETE RESTRICT,
   filename        TEXT NOT NULL,
   size_bytes      INTEGER NOT NULL CHECK(size_bytes >= 0),
   mtime_ns        INTEGER NOT NULL CHECK(mtime_ns >= 0),
   ctime_ns        INTEGER,
-  oshash          TEXT NOT NULL,            -- 16-char hex; always computed
-  xxh3_partial    TEXT,                     -- 16-char hex; only when racy/conflict
-  xxh3_full       TEXT,                     -- 16-char hex; rare manual repair only
+  oshash          TEXT,                      -- 16-char hex; NULL during Stage A before fingerprinting and for symlinks
+  xxh3_partial    TEXT,                      -- 16-char hex; only when racy/conflict
+  xxh3_full       TEXT,                      -- 16-char hex; rare manual repair only
   scan_generation INTEGER NOT NULL,
-  last_verified_at INTEGER NOT NULL,        -- epoch seconds
-  enriched_at     INTEGER,                  -- epoch seconds; NULL = never enriched. Set by `enrich` mode after pymediainfo + NFO + artwork. enrich criterion is `enriched_at IS NULL OR enriched_at < (SELECT MAX(mtime_ns)/1000000000 FROM media_file f2 WHERE f2.id=media_file.id)`.
+  last_verified_at INTEGER NOT NULL,         -- epoch seconds
+  enriched_at     INTEGER,                   -- epoch seconds; NULL = never enriched. Set by `enrich` mode after pymediainfo + NFO + artwork. enrich criterion is `enriched_at IS NULL OR enriched_at < (SELECT MAX(mtime_ns)/1000000000 FROM media_file f2 WHERE f2.id=media_file.id)`.
   miss_strikes    INTEGER NOT NULL DEFAULT 0,
-  deleted_at      INTEGER,                  -- soft-delete tombstone
+  deleted_at      INTEGER,                   -- soft-delete tombstone
   UNIQUE(path_id, filename)
 );
 CREATE INDEX idx_file_release ON media_file(release_id);

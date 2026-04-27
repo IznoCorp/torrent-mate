@@ -8,15 +8,15 @@ Covers the skeleton walk introduced in sub-phase 2.4:
 - ``scan`` — end-to-end walk via pyfakefs with mocked ``guard_disk_mounted``:
   - Files and directories are visited and recorded.
   - Hidden / system names are excluded.
-  - Symlinks are recorded with ``oshash=""`` (deferred sentinel).
+  - Symlinks are recorded with ``oshash=None`` (NULL in DB; deferred Stage A state).
   - ``path.dir_mtime_ns`` is written through for each visited directory.
   - ``scan_run`` status is ``'ok'`` on success.
   - Disks that raise ``DiskUnmountedError`` are skipped; scan still finishes ``'ok'``.
   - ``indexer.scan.disk_skipped`` warning is emitted for skipped disks.
 
 Sub-phase 2.5 additions:
-- Full-mode fingerprinting: ``oshash`` populated for video files; ``""`` for non-video.
-- Symlinks always receive ``oshash=""`` regardless of extension.
+- Full-mode fingerprinting: ``oshash`` populated for video files; ``None`` (NULL) for non-video.
+- Symlinks always receive ``oshash=None`` (NULL) regardless of extension.
 - ``media_file.size_bytes`` and ``media_file.mtime_ns`` populated from stat.
 - ``filter_disks`` helper: label matching, unknown label raises ``IndexerConfigError``.
 
@@ -29,12 +29,10 @@ Sub-phase 2.6 additions:
 - Quick mode: ``_verify_dir_mtime_reliable`` returning ``False`` disables subtree skip.
 
 Note on ``release_id`` / FK constraints:
-    ``media_file.release_id`` is a NOT NULL FK to ``media_release``.  The skeleton
-    scanner uses ``release_id=0`` as a deferred sentinel (release linkage is wired
-    in the scraper phase, not the walk phase).  All test connections therefore run
-    with ``PRAGMA foreign_keys=OFF`` so that FK integrity tests do not fire on the
-    sentinel value.  FK enforcement is deliberately re-enabled in other test
-    modules that exercise the repo layer directly.
+    ``media_file.release_id`` is now nullable (migration 002).  Stage A inserts
+    file rows with ``release_id=NULL``; release linkage is populated by the scraper
+    phase (Stage B).  FK enforcement is enabled in all test connections (the default
+    set by ``db.open_db``).  No FK workaround is needed.
 
 Note on pyfakefs + sqlite3:
     pyfakefs intercepts all filesystem I/O including ``sqlite3.connect`` and file
@@ -84,21 +82,21 @@ _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 
 
 def _make_conn_real() -> sqlite3.Connection:
-    """Return an in-memory SQLite connection with the full schema but FK checks OFF.
+    """Return an in-memory SQLite connection with the full schema.
 
     Must be called while the real filesystem is active (i.e. outside pyfakefs or
     after ``fs.pause()``).  ``apply_migrations`` reads SQL files from disk, so it
     requires the real filesystem to be in effect.
 
-    FK checks are disabled because the scanner skeleton uses ``release_id=0`` as a
-    deferred sentinel — see module docstring.
+    FK checks remain enabled (the default per ``db.open_db``).  Stage A inserts
+    ``release_id=NULL``, which is valid now that the column is nullable
+    (migration 002) — no ``PRAGMA foreign_keys=OFF`` workaround needed.
 
     Returns:
         Open :class:`sqlite3.Connection` with the full migration chain applied.
     """
     conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
-    # FK OFF: scanner skeleton uses release_id=0 sentinel (not a real FK target).
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, MIGRATIONS_DIR)
     return conn
 
@@ -278,10 +276,10 @@ class TestScanExcludesHiddenSystemNames:
 
 
 class TestScanRecordsSymlinks:
-    """scan() records symlinks with oshash='' (deferred sentinel, never fingerprinted)."""
+    """scan() records symlinks with oshash=None (NULL in DB; never fingerprinted)."""
 
     def test_scan_records_symlinks_with_empty_oshash(self, fs: "FakeFilesystem") -> None:
-        """Symlink is recorded in media_file with oshash='' (NOT NULL sentinel)."""
+        """Symlink is recorded in media_file with oshash=None (NULL; never fingerprinted)."""
         fs.pause()
         conn = _make_conn_real()
         fs.resume()
@@ -303,8 +301,8 @@ class TestScanRecordsSymlinks:
         filenames = {r["filename"]: r["oshash"] for r in rows}
         # Symlink must be recorded.
         assert "link.mkv" in filenames, f"link.mkv not found in {list(filenames)}"
-        # oshash must be the deferred empty-string sentinel (column is NOT NULL).
-        assert filenames["link.mkv"] == ""
+        # oshash must be NULL (Stage A: symlinks are never fingerprinted).
+        assert filenames["link.mkv"] is None
 
 
 class TestScanUpdatesDirMtimeNs:
@@ -423,10 +421,10 @@ class TestScanSkippedDiskLogsWarning:
 
 
 class TestFullModeFingerprints:
-    """scan() in full mode computes oshash for video files; '' for non-video."""
+    """scan() in full mode computes oshash for video files; None (NULL) for non-video."""
 
     def test_full_mode_fingerprints_files(self, fs: "FakeFilesystem") -> None:
-        """Video .mkv files get a non-empty oshash; a .txt file gets ''."""
+        """Video .mkv files get a non-empty oshash; a .txt file gets None (NULL)."""
         fs.pause()
         conn = _make_conn_real()
         fs.resume()
@@ -438,7 +436,7 @@ class TestFullModeFingerprints:
         # a small but non-empty payload so pyfakefs can serve the read.
         Path(f"{mount}/film1.mkv").write_bytes(b"A" * 200)
         Path(f"{mount}/film2.mkv").write_bytes(b"B" * 200)
-        # Non-video file — should get oshash="" (not applicable, not a video).
+        # Non-video file — oshash is NULL (not applicable; Stage A only computes for video).
         Path(f"{mount}/readme.txt").write_text("notes")
 
         disk = _insert_disk(conn, mount)
@@ -454,14 +452,16 @@ class TestFullModeFingerprints:
         by_name = {r["filename"]: r["oshash"] for r in rows}
 
         # Video files must have a non-empty hex oshash.
+        assert by_name["film1.mkv"] is not None, "film1.mkv oshash must not be None"
         assert by_name["film1.mkv"] != "", "film1.mkv oshash must be non-empty"
         assert len(by_name["film1.mkv"]) == 16, "oshash must be 16 hex chars"
+        assert by_name["film2.mkv"] is not None, "film2.mkv oshash must not be None"
         assert by_name["film2.mkv"] != "", "film2.mkv oshash must be non-empty"
-        # Non-video file must keep the empty sentinel.
-        assert by_name["readme.txt"] == "", "readme.txt oshash must be empty string"
+        # Non-video file must have NULL oshash (Stage A; OSHash not applicable).
+        assert by_name["readme.txt"] is None, "readme.txt oshash must be None (NULL)"
 
     def test_full_mode_skips_oshash_for_symlinks(self, fs: "FakeFilesystem") -> None:
-        """Symlink pointing to a .mkv always gets oshash='' (never fingerprinted)."""
+        """Symlink pointing to a .mkv always gets oshash=None (NULL; never fingerprinted)."""
         fs.pause()
         conn = _make_conn_real()
         fs.resume()
@@ -483,7 +483,7 @@ class TestFullModeFingerprints:
         by_name = {r["filename"]: r["oshash"] for r in rows}
 
         assert "link.mkv" in by_name, f"link.mkv not found in {list(by_name)}"
-        assert by_name["link.mkv"] == "", "symlink oshash must be '' regardless of extension"
+        assert by_name["link.mkv"] is None, "symlink oshash must be None (NULL) regardless of extension"
 
     def test_full_mode_writes_size_and_mtime(self, fs: "FakeFilesystem") -> None:
         """Full-mode scan populates size_bytes and mtime_ns for every file."""

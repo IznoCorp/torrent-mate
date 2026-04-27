@@ -24,9 +24,9 @@ Note on the writer lock:
     so lock files are created and cleaned up automatically.
 
 Note on FK constraints:
-    ``media_file.release_id`` has a NOT NULL FK to ``media_release``.  The scanner
-    uses ``release_id=0`` as a deferred sentinel.  Tests that touch the real DB
-    therefore disable FK enforcement via ``PRAGMA foreign_keys=OFF``.
+    ``media_file.release_id`` is nullable since migration 002.  Stage A inserts
+    rows with ``release_id=NULL``, so no FK workaround is needed.  FK enforcement
+    remains enabled in all test connections.
 """
 
 from __future__ import annotations
@@ -94,7 +94,7 @@ def _make_config(tmp_path: Path) -> Any:
 
 
 def _make_conn(db_path: Path) -> sqlite3.Connection:
-    """Open a real file-based SQLite DB at *db_path* with FK checks OFF.
+    """Open a real file-based SQLite DB at *db_path* with FK enforcement enabled.
 
     Args:
         db_path: Path to the SQLite file to create/open.
@@ -104,7 +104,7 @@ def _make_conn(db_path: Path) -> sqlite3.Connection:
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
 

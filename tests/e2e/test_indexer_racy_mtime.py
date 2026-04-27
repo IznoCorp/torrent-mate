@@ -36,9 +36,9 @@ _RACY_WINDOW_NS: int = 2_000_000_000  # 2 seconds
 
 
 def _open_db() -> sqlite3.Connection:
-    """Open a fully-migrated in-memory SQLite DB."""
+    """Open a fully-migrated in-memory SQLite DB with FK enforcement enabled."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
 
@@ -78,7 +78,7 @@ def _seed_file(
             release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
             oshash, xxh3_partial, xxh3_full, scan_generation,
             last_verified_at, enriched_at, miss_strikes, deleted_at
-        ) VALUES (0, ?, ?, ?, ?, NULL, '', ?, NULL, ?, 0, NULL, 0, NULL)
+        ) VALUES (NULL, ?, ?, ?, ?, NULL, NULL, ?, NULL, ?, 0, NULL, 0, NULL)
         """,
         (path_id, filename, size, mtime_ns, xxh3_val, generation),
     )

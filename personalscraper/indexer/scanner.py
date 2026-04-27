@@ -14,7 +14,7 @@ Sub-phase 2.5 additions:
     - Full-mode fingerprinting: ``fingerprint_tier1`` (size/mtime/ctime) for every
       non-symlink file; ``oshash`` for files whose suffix is in
       ``fingerprint.OSHASH_EXTENSIONS``.
-    - Symlinks continue to receive ``oshash=""`` (deferred sentinel, never fingerprinted).
+    - Symlinks continue to receive ``oshash=None`` (NULL in DB; never fingerprinted).
     - ``drop_indexes_during_full_scan`` optimization: secondary indexes on
       ``media_file`` / ``media_stream`` are dropped before bulk inserts and
       recreated via a ``try/finally`` block after the disk is fully walked.
@@ -34,12 +34,12 @@ Sub-phase 2.6 additions:
     - :func:`_scan_disk_quick` — per-disk quick-mode driver: Merkle short-circuit first,
       then dir-mtime walk on Merkle miss, then Merkle root update.
 
-Notes on ``oshash`` sentinel:
-    The ``media_file`` table declares ``oshash TEXT NOT NULL``.  In full mode,
-    video files receive a real 16-char hex OSHash.  Non-video regular files receive
-    ``""`` (empty string) because OSHash is only defined for video content.  Symlinks
-    also receive ``""`` regardless of extension.  Callers must treat ``oshash == ""``
-    as "not yet computed" for non-video files.
+Notes on ``oshash`` nullability:
+    The ``media_file`` table declares ``oshash TEXT`` (nullable since migration 002).
+    In full mode, video files receive a real 16-char hex OSHash.  Non-video regular
+    files and symlinks receive ``None`` (stored as SQL NULL) because OSHash is only
+    defined for video content and symlinks are never fingerprinted.  Callers must
+    treat ``oshash IS NULL`` as "not yet computed or not applicable".
 
 Notes on the ``path`` table:
     There is no ``path_repo`` among the seven repos created in sub-phase 1.4; the
@@ -342,7 +342,7 @@ def _upsert_file_row(
     mtime_ns: int,
     ctime_ns: int | None,
     generation: int,
-    oshash_value: str = "",
+    oshash_value: str | None = None,
     insert_buffer: list[Any] | None = None,
 ) -> None:
     """Insert or update a ``media_file`` row for a discovered file.
@@ -356,9 +356,10 @@ def _upsert_file_row(
     When the file already exists, the row is updated in-place (no buffering
     for updates; they are rare during a cold full scan).
 
-    The ``oshash`` is set to ``oshash_value`` (defaults to ``""`` for non-video
-    or symlink files).  ``release_id`` uses ``0`` as a deferred sentinel (FK
-    constraint disabled in tests).  ``enriched_at`` is left ``NULL``.
+    The ``oshash`` is set to ``oshash_value`` (``None`` for non-video or symlink
+    files — stored as SQL NULL, see migration 002).  ``release_id`` is ``None``
+    (NULL) during Stage A; release linkage is populated by the scraper phase
+    (Stage B).  ``enriched_at`` is left ``NULL``.
 
     Args:
         conn: Open SQLite connection.
@@ -368,7 +369,8 @@ def _upsert_file_row(
         mtime_ns: File modification time in nanoseconds from ``entry.stat()``.
         ctime_ns: File change time in nanoseconds; ``None`` if unavailable.
         generation: Scan generation counter for this scan run.
-        oshash_value: Pre-computed OSHash hex string; ``""`` if not applicable.
+        oshash_value: Pre-computed OSHash hex string; ``None`` if not applicable
+            (non-video files, symlinks, or files whose hash computation failed).
         insert_buffer: Optional accumulation list for batched inserts.  When
             provided, new rows are appended rather than inserted individually.
     """
@@ -376,13 +378,13 @@ def _upsert_file_row(
     existing = file_repo.find_by_path_and_filename(conn, path_id, filename)
     if existing is None:
         row_tuple = (
-            0,  # release_id sentinel — release linkage happens in scrape phase
+            None,  # release_id — NULL during Stage A; release linkage in scrape phase
             path_id,
             filename,
             size_bytes,
             mtime_ns,
             ctime_ns,
-            oshash_value,
+            oshash_value,  # NULL for non-video/symlink files (Stage A); hex string for video
             None,  # xxh3_partial
             None,  # xxh3_full
             generation,
@@ -455,13 +457,14 @@ def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
     buffer.clear()
 
 
-def _compute_oshash(entry_path: str, filename: str, is_symlink: bool) -> str:
+def _compute_oshash(entry_path: str, filename: str, is_symlink: bool) -> str | None:
     """Compute OSHash for a file entry if applicable.
 
     OSHash is only computed for regular (non-symlink) files whose suffix
     (without leading dot, lowercased) is in
     :data:`~personalscraper.indexer.fingerprint.OSHASH_EXTENSIONS`.
-    All other files receive ``""`` (deferred / not-applicable sentinel).
+    All other files (non-video extensions, symlinks) receive ``None`` (stored
+    as SQL NULL per migration 002).
 
     Args:
         entry_path: Absolute path of the file entry.
@@ -469,18 +472,19 @@ def _compute_oshash(entry_path: str, filename: str, is_symlink: bool) -> str:
         is_symlink: Whether the entry is a symlink (symlinks never get OSHash).
 
     Returns:
-        16-character lowercase hex OSHash string, or ``""`` if not applicable.
+        16-character lowercase hex OSHash string, or ``None`` if not applicable
+        (non-video file, symlink, or OSError during hash computation).
     """
     if is_symlink:
-        return ""
+        return None
     suffix = Path(filename).suffix.lstrip(".").lower()
     if suffix not in fingerprint.OSHASH_EXTENSIONS:
-        return ""
+        return None
     try:
         return fingerprint.oshash(Path(entry_path))
     except OSError as exc:
         log.warning("indexer.scan.oshash_failed", path=entry_path, error=str(exc))
-        return ""
+        return None
 
 
 def _walk_dir_full(
@@ -498,7 +502,7 @@ def _walk_dir_full(
     - ``fingerprint_tier1`` called on every non-symlink file to extract
       (size, mtime_ns, ctime_ns).
     - ``oshash`` computed for regular files with a video extension.
-    - Symlinks recorded with ``oshash=""`` (never fingerprinted).
+    - Symlinks recorded with ``oshash=None`` (NULL in DB; never fingerprinted).
     - New rows buffered for batched ``executemany`` inserts.
 
     Uses ``entry.stat(follow_symlinks=False)`` so symlinks are never
@@ -580,7 +584,7 @@ def _walk_dir(
 
     Used by scan modes other than ``full`` (e.g. quick, incremental) where
     fingerprinting is not yet implemented.  Records every file with
-    ``oshash=""`` (deferred sentinel).
+    ``oshash=None`` (NULL in DB — Stage A deferred state per migration 002).
 
     Uses :func:`os.scandir` to iterate entries.  Each entry is stat'd via
     ``entry.stat(follow_symlinks=False)`` so symlinks are never transparently
@@ -632,7 +636,7 @@ def _walk_dir(
 
         else:
             # Both regular files and symlinks land here.
-            # Symlinks are recorded but never fingerprinted (oshash stays "").
+            # Symlinks are recorded but never fingerprinted (oshash stays NULL).
             files_visited[0] += 1
             parent_rel = _relpath(disk.mount_path, dir_abs)
             path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
@@ -795,7 +799,7 @@ def _walk_dir_quick(
             _upsert_path_row(conn, disk.id, rel, current_mtime_ns)
 
         else:
-            # File (or symlink) — tier-1 fingerprint only (no oshash in quick mode).
+            # File (or symlink) — tier-1 fingerprint only (oshash stays NULL in quick mode).
             files_visited[0] += 1
             parent_rel = _relpath(disk.mount_path, dir_abs)
             path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
@@ -906,7 +910,8 @@ def scan(
       (size, mtime_ns, ctime_ns) from the already-computed ``stat`` result
       (zero extra I/O).  For files whose lowercase extension is in
       :data:`~personalscraper.indexer.fingerprint.OSHASH_EXTENSIONS`, ``oshash``
-      is also computed (128 KiB read).  Symlinks always receive ``oshash=""``.
+      is also computed (128 KiB read).  Symlinks and non-video files receive
+      ``oshash=None`` (stored as SQL NULL per migration 002).
     * ``drop_indexes=True``: Secondary indexes on ``media_file`` / ``media_stream``
       are dropped before bulk inserts and recreated in a ``try/finally`` block.
       New rows are buffered in memory (up to :data:`_INSERT_BATCH_SIZE`) and

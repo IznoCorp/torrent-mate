@@ -20,9 +20,9 @@ Note on pyfakefs + sqlite3:
     before constructing the fake directory tree.
 
 Note on FK constraints:
-    ``media_file.release_id`` uses ``0`` as a deferred sentinel.  All test
-    connections run with ``PRAGMA foreign_keys=OFF`` so FK checks do not fire
-    on the sentinel value.
+    ``media_file.release_id`` is nullable since migration 002.  Stage A inserts
+    rows with ``release_id=NULL`` and ``oshash=NULL`` for non-video files.
+    FK enforcement remains enabled (no workaround needed).
 """
 
 from __future__ import annotations
@@ -52,16 +52,20 @@ _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 
 
 def _make_conn_real() -> sqlite3.Connection:
-    """Return an in-memory SQLite connection with the full schema; FK checks OFF.
+    """Return an in-memory SQLite connection with the full schema.
 
     Must be called while the real filesystem is active (i.e. after ``fs.pause()``
     and before ``fs.resume()``).  ``apply_migrations`` reads SQL files from disk.
 
+    FK enforcement is enabled (the default per ``db.open_db``).  Stage A inserts
+    ``release_id=NULL`` and ``oshash=NULL`` for non-video files, which is valid
+    since migration 002 made both columns nullable.
+
     Returns:
-        Open :class:`sqlite3.Connection` with migrations applied and FK OFF.
+        Open :class:`sqlite3.Connection` with migrations applied and FK ON.
     """
     conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
-    conn.execute("PRAGMA foreign_keys=OFF")
+    conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, MIGRATIONS_DIR)
     return conn
 
@@ -231,9 +235,12 @@ class TestColdScan:
 
         for vname in _VIDEO_FILENAMES:
             assert vname in by_name, f"Video file {vname!r} missing from media_file"
+            assert by_name[vname] is not None, f"Video file {vname!r} oshash must not be None"
             assert by_name[vname] != "", f"Video file {vname!r} must have non-empty oshash"
             assert len(by_name[vname]) == 16, f"oshash for {vname!r} must be 16 hex chars, got {by_name[vname]!r}"
 
         for nname in _NON_VIDEO_FILENAMES:
             assert nname in by_name, f"Non-video file {nname!r} missing from media_file"
-            assert by_name[nname] == "", f"Non-video file {nname!r} must have oshash='', got {by_name[nname]!r}"
+            assert by_name[nname] is None, (
+                f"Non-video file {nname!r} must have oshash=None (NULL), got {by_name[nname]!r}"
+            )
