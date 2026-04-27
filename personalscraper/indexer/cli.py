@@ -134,6 +134,7 @@ def library_index_command(
     dry_run: bool = False,
     wait_for_lock_seconds: int = 0,
     config_path: Path | None = None,
+    confirm_bulk_change: bool = False,
 ) -> int:
     """Run an indexer scan (full or quick) and print a JSON summary to stdout.
 
@@ -158,9 +159,12 @@ def library_index_command(
             giving up.  ``0`` = fail immediately if locked.
         config_path: Optional explicit path to config.json5 or config
             directory.  When ``None`` the standard resolution order is used.
+        confirm_bulk_change: When ``True``, bypass the Merkle delta freeze guard
+            in quick mode.  Pass ``--confirm-bulk-change`` to enable.
 
     Returns:
-        ``0`` on success, ``1`` on infrastructure error, ``2`` on unknown disk.
+        ``0`` on success, ``1`` on infrastructure error, ``2`` on unknown disk,
+        ``3`` when a bulk-change freeze is triggered on a disk.
     """
     import json  # noqa: PLC0415
     import sqlite3  # noqa: PLC0415
@@ -182,6 +186,7 @@ def library_index_command(
         indexer_lock,
         open_db,
     )
+    from personalscraper.indexer.merkle import DiskBulkChangeDetected  # noqa: PLC0415
     from personalscraper.indexer.outbox import drain_if_present  # noqa: PLC0415
     from personalscraper.indexer.scanner import (  # noqa: PLC0415
         IndexerConfigError,
@@ -277,7 +282,22 @@ def library_index_command(
                     generation=next_gen,
                     conn=conn,
                     disk_filter=disk,
+                    confirm_bulk_change=confirm_bulk_change,
+                    merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                 )
+            except DiskBulkChangeDetected as bulk_exc:
+                print(
+                    f"disk {bulk_exc.disk_uuid!r} looks like a bulk restore "
+                    f"({bulk_exc.delta:.0%} files changed). "
+                    f"Re-run with --confirm-bulk-change to proceed.",
+                    file=sys.stderr,
+                )
+                if dry_run:
+                    try:
+                        conn.execute("ROLLBACK TO SAVEPOINT _dry_run")
+                    except Exception:  # noqa: BLE001
+                        pass
+                return 3
             except (IndexerCorruptError, IndexerDiskFullError) as exc:
                 print(str(exc), file=sys.stderr)
                 if dry_run:

@@ -889,6 +889,15 @@ class IndexerDriftConfig(_StrictModel):
         min_length=1,
         description="Hidden sentinel file name written to each disk root for UUID identity check.",
     )
+    merkle_delta_freeze_threshold: float = Field(
+        default=0.50,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Halt scan if Merkle delta exceeds this fraction (suggests bulk restore). "
+            "Set to 1.0 to disable the freeze entirely."
+        ),
+    )
 
 
 class IndexerSpotlightConfig(_StrictModel):

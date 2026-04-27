@@ -653,6 +653,11 @@ def library_index(
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
     wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    confirm_bulk_change: bool = typer.Option(
+        False,
+        "--confirm-bulk-change",
+        help="Bypass bulk-restore freeze guard (use after --mode quick reports a high Merkle delta).",
+    ),
 ) -> None:
     """Run a full or quick media indexer scan.
 
@@ -661,12 +666,14 @@ def library_index(
 
     Use --mode quick for a fast Merkle + dir-mtime short-circuit scan.
     Use --dry-run to simulate without committing any DB changes.
+    Use --confirm-bulk-change to override the bulk-restore freeze guard.
 
     Examples:
         personalscraper library-index
         personalscraper library-index --mode quick
         personalscraper library-index --disk MyDisk --mode full
         personalscraper library-index --dry-run --mode full
+        personalscraper library-index --mode quick --confirm-bulk-change
     """
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
@@ -678,6 +685,7 @@ def library_index(
         dry_run=dry_run,
         wait_for_lock_seconds=wait_for_lock,
         config_path=effective_config,
+        confirm_bulk_change=confirm_bulk_change,
     )
     if rc != 0:
         raise typer.Exit(rc)

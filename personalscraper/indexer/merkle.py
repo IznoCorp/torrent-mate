@@ -3,6 +3,7 @@
 Provides:
 - :class:`FileFingerprint` — lightweight record used to build a Merkle root.
 - :func:`compute_merkle_root` — deterministic xxh3_64 hash over a set of files.
+- :func:`compute_merkle_delta` — ratio of fresh files whose tier-1 fingerprint differs from stored.
 - :class:`DiskMountStatus` — enum classifying a disk's mount state.
 - :func:`bootstrap_disk_identity` — write a ``.personalscraper-disk-id`` sentinel to a disk.
 - :func:`verify_disk_mounted` — classify a disk's mount state without side effects.
@@ -12,6 +13,7 @@ Custom exceptions:
 - :class:`BootstrapError` — diskutil unavailable or returned no VolumeUUID.
 - :class:`DiskUnmountedError` — disk is not mounted.
 - :class:`DiskMismatchError` — sentinel UUID does not match the registered disk UUID.
+- :class:`DiskBulkChangeDetected` — Merkle delta exceeds the configured freeze threshold.
 """
 
 from __future__ import annotations
@@ -76,6 +78,30 @@ class DiskMismatchError(RuntimeError):
         self.found = found
         detail = f" (expected={expected!r}, found={found!r})" if expected or found else ""
         super().__init__(f"Disk UUID mismatch for disk {uuid!r}{detail}")
+
+
+class DiskBulkChangeDetected(RuntimeError):
+    """Raised when the Merkle delta exceeds the configured freeze threshold.
+
+    This typically indicates a bulk restore or disk swap rather than organic
+    file-level drift, and scanning is halted to avoid recording stale state.
+
+    Attributes:
+        delta: Fraction of fresh files whose tier-1 fingerprint differs from
+            stored, in the range ``[0.0, 1.0]``.
+        disk_uuid: UUID of the disk that triggered the freeze.
+    """
+
+    def __init__(self, delta: float, disk_uuid: str) -> None:
+        """Initialize with delta ratio and disk UUID.
+
+        Args:
+            delta: Fraction of changed files (0.0–1.0).
+            disk_uuid: UUID of the affected disk.
+        """
+        self.delta = delta
+        self.disk_uuid = disk_uuid
+        super().__init__(f"Disk {disk_uuid!r} bulk change detected: {delta:.0%} files changed")
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +169,49 @@ def compute_merkle_root(files: Iterable[FileFingerprint]) -> str:
     sorted_files = sorted(files, key=lambda f: f.path_id)
     joined = b"".join(f"{f.path_id}|{f.size}|{f.mtime_ns}|{f.oshash}\n".encode("utf-8") for f in sorted_files)
     return xxhash.xxh3_64(joined).hexdigest()
+
+
+def compute_merkle_delta(
+    stored_files: Iterable[FileFingerprint],
+    fresh_files: Iterable[FileFingerprint],
+) -> float:
+    """Compute the fraction of fresh files whose tier-1 fingerprint differs from stored.
+
+    A file is considered "different" if its ``path_id`` does not appear in the
+    stored set at all (new path — may indicate a bulk restore with re-indexed
+    paths), or if any of its tier-1 fields (``size``, ``mtime_ns``, ``oshash``)
+    differ from the stored entry for the same ``path_id``.
+
+    Args:
+        stored_files: Iterable of :class:`FileFingerprint` objects from the
+            indexer database (previous scan state).  May be empty.
+        fresh_files: Iterable of :class:`FileFingerprint` objects freshly
+            sampled from the filesystem.  May be empty.
+
+    Returns:
+        A float in ``[0.0, 1.0]`` representing the fraction of fresh files
+        that differ from stored.  Returns ``0.0`` when *fresh_files* is empty.
+    """
+    # Build a lookup of stored fingerprints by path_id for O(1) comparison.
+    stored_map: dict[int, FileFingerprint] = {fp.path_id: fp for fp in stored_files}
+
+    differs_count = 0
+    total_fresh_count = 0
+
+    for fresh in fresh_files:
+        total_fresh_count += 1
+        stored = stored_map.get(fresh.path_id)
+        if stored is None:
+            # Path not found in stored set — counts as different.
+            differs_count += 1
+        elif fresh.size != stored.size or fresh.mtime_ns != stored.mtime_ns or fresh.oshash != stored.oshash:
+            # Any tier-1 field differs — counts as different.
+            differs_count += 1
+
+    if total_fresh_count == 0:
+        return 0.0
+
+    return differs_count / total_fresh_count
 
 
 # ---------------------------------------------------------------------------

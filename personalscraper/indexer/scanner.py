@@ -69,9 +69,11 @@ from personalscraper.indexer import fingerprint
 from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_breaker
 from personalscraper.indexer.drift import clamp_mtime_ns
 from personalscraper.indexer.merkle import (
+    DiskBulkChangeDetected,
     DiskMismatchError,
     DiskUnmountedError,
     FileFingerprint,
+    compute_merkle_delta,
     compute_merkle_root,
     guard_disk_mounted,
 )
@@ -1184,6 +1186,66 @@ def _walk_dir_quick(
                     return
 
 
+def _sample_fresh_fingerprints(
+    conn: sqlite3.Connection,
+    disk_id: int,
+    mount: str,
+) -> list[FileFingerprint]:
+    """Sample fresh tier-1 fingerprints for all known paths on *disk_id*.
+
+    Performs a ``stat()`` call for every ``media_file`` row that belongs to
+    *disk_id* in the database and is not soft-deleted.  This is used
+    exclusively by the bulk-change guard in :func:`_scan_disk_quick` to compare
+    the current filesystem state against the stored fingerprints without walking
+    the entire directory tree.
+
+    Files that are no longer readable (``OSError``) are silently skipped so
+    that a few missing files do not inflate the delta artificially.  Deletions
+    are handled by regular drift reconciliation; the delta guard is only
+    concerned with mass-change events (restores, disk swaps).
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the disk whose files to sample.
+        mount: Absolute mount point path for the disk.
+
+    Returns:
+        List of :class:`~personalscraper.indexer.merkle.FileFingerprint` objects
+        reflecting the current filesystem state for each readable file.
+    """
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT mf.path_id, p.rel_path, mf.filename, mf.oshash
+        FROM media_file mf
+        JOIN path p ON mf.path_id = p.id
+        WHERE p.disk_id = ?
+          AND mf.deleted_at IS NULL
+        """,
+        (disk_id,),
+    ).fetchall()
+
+    result: list[FileFingerprint] = []
+    for row in rows:
+        abs_path = os.path.join(mount, row["rel_path"], row["filename"])
+        try:
+            st = os.stat(abs_path, follow_symlinks=False)
+        except OSError:
+            # File unreadable or deleted — skip; delta stays conservative.
+            continue
+        result.append(
+            FileFingerprint(
+                path_id=row["path_id"],
+                size=st.st_size,
+                mtime_ns=st.st_mtime_ns,
+                # Keep stored oshash — recomputing it defeats the purpose of a
+                # lightweight sample.  Only size/mtime_ns are compared here.
+                oshash=row["oshash"],
+            )
+        )
+    return result
+
+
 def _scan_disk_quick(
     conn: sqlite3.Connection,
     disk: DiskRow,
@@ -1200,6 +1262,8 @@ def _scan_disk_quick(
     budget_seconds: float | None = None,
     scan_run_id: int = 0,
     checkpoint_every: int = 100,
+    confirm_bulk_change: bool = False,
+    merkle_delta_freeze_threshold: float = 0.50,
 ) -> None:
     """Run the quick-mode walk for a single disk.
 
@@ -1213,6 +1277,14 @@ def _scan_disk_quick(
     2. **Dir-mtime walk** (on Merkle miss): walk the disk using
        :func:`_walk_dir_quick`, which skips unchanged subtrees by comparing
        the stored ``path.dir_mtime_ns`` to the current filesystem value.
+
+    On Merkle miss (stored root differs from DB-computed root), a bulk-change
+    check is performed by sampling fresh tier-1 fingerprints from ``os.scandir``
+    and computing the Merkle delta against stored.  If the delta exceeds
+    *merkle_delta_freeze_threshold* and *confirm_bulk_change* is ``False``,
+    the disk is skipped (no walk performed) and
+    :class:`~personalscraper.indexer.merkle.DiskBulkChangeDetected` is raised
+    to signal the caller.
 
     After a successful dir-mtime walk, the disk's Merkle root is recomputed
     from the updated ``media_file`` state and stored on ``disk.merkle_root``
@@ -1239,6 +1311,18 @@ def _scan_disk_quick(
         budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
         scan_run_id: PK of the active ``scan_run`` row.
         checkpoint_every: How many files to process between checkpoint writes.
+        confirm_bulk_change: When ``True``, bypass the Merkle delta freeze check
+            and proceed with the walk even if the delta is high.  Corresponds to
+            the ``--confirm-bulk-change`` CLI flag.
+        merkle_delta_freeze_threshold: Halt if the Merkle delta exceeds this
+            fraction (0.0–1.0).  Sourced from
+            ``IndexerDriftConfig.merkle_delta_freeze_threshold``.
+
+    Raises:
+        DiskBulkChangeDetected: When the Merkle delta exceeds
+            *merkle_delta_freeze_threshold* and *confirm_bulk_change* is
+            ``False``.  The caller should skip this disk and surface an
+            actionable message to the user.
     """
     # --- Merkle short-circuit ---
     fingerprints = _build_disk_fingerprints(conn, disk.id)
@@ -1257,6 +1341,24 @@ def _scan_disk_quick(
         stored_root=disk.merkle_root,
         computed_root=current_root,
     )
+
+    # --- Bulk-change guard (quick-mode only, on Merkle miss) ---
+    # Sample fresh tier-1 fingerprints by doing a shallow scandir for all
+    # media_file paths already known to the DB and comparing size/mtime_ns.
+    # A high delta (many files changed at once) suggests a bulk restore or
+    # disk swap rather than organic drift — freeze unless confirmed by caller.
+    if not confirm_bulk_change and disk.merkle_root is not None:
+        fresh_fps = _sample_fresh_fingerprints(conn, disk.id, mount)
+        delta = compute_merkle_delta(fingerprints, fresh_fps)
+        if delta > merkle_delta_freeze_threshold:
+            log.warning(
+                "indexer.merkle.delta_freeze",
+                disk_uuid=disk.uuid,
+                label=disk.label,
+                delta=delta,
+                threshold=merkle_delta_freeze_threshold,
+            )
+            raise DiskBulkChangeDetected(delta=delta, disk_uuid=disk.uuid)
 
     # --- Dir-mtime walk ---
     _walk_dir_quick(
@@ -1314,6 +1416,8 @@ def scan(
     db_path: Path | None = None,
     checkpoint_every_n_files: int = 100,
     disk_breaker: DiskCircuitBreaker | None = None,
+    confirm_bulk_change: bool = False,
+    merkle_delta_freeze_threshold: float = 0.50,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -1393,6 +1497,13 @@ def scan(
             When ``None``, the module-level singleton returned by
             :func:`get_global_disk_breaker` is used.  Tests that need isolation
             should pass a freshly created :class:`DiskCircuitBreaker` instance.
+        confirm_bulk_change: When ``True``, bypass the Merkle delta freeze guard
+            in quick mode and proceed with the walk even when the delta exceeds
+            *merkle_delta_freeze_threshold*.  Corresponds to ``--confirm-bulk-change``.
+        merkle_delta_freeze_threshold: Halt quick-mode scan for a disk if the
+            fraction of changed files exceeds this value (0.0–1.0).  Sourced
+            from ``IndexerDriftConfig.merkle_delta_freeze_threshold``; callers
+            should pass the config value explicitly.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -1534,6 +1645,8 @@ def scan(
                         budget_seconds,
                         scan_run_id,
                         checkpoint_every_n_files,
+                        confirm_bulk_change=confirm_bulk_change,
+                        merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
                     )
                 else:
                     # Skeleton walk for modes not yet fully implemented (incremental, enrich).
@@ -1561,6 +1674,12 @@ def scan(
                         except OSError:
                             log.warning("indexer.scan.root_stat_failed", mount_path=mount)
 
+            except DiskBulkChangeDetected:
+                # Merkle delta exceeded the freeze threshold — skip this disk
+                # without modifying any DB rows.  The exception was already
+                # logged by _scan_disk_quick; re-raise so the CLI layer can
+                # surface an actionable message and return exit code 3.
+                raise
             except OSError as io_exc:
                 # I/O error on a disk walk (EIO, ENOENT, etc.).  Roll back any
                 # partial writes for this disk, mark it unmounted, increment the
@@ -1647,6 +1766,13 @@ def scan(
             disks_skipped=disks_skipped[0],
         )
 
+    except DiskBulkChangeDetected:
+        # Bulk-change freeze: the scan_run row has already been set to 'running';
+        # mark it failed to avoid leaving a dangling running row, then re-raise
+        # so the CLI can surface an actionable message and return exit code 3.
+        finished_at = int(time.time())
+        log_repo.update_scan_run_status(conn, scan_run_id, "failed", finished_at=finished_at)
+        raise
     except Exception as exc:
         # Unexpected failure — record it and re-raise.
         finished_at = int(time.time())
