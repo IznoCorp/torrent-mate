@@ -1,0 +1,19 @@
+{
+  // Storage disks (variable count).
+  // id: free-form identifier used in CLI --disk and logs.
+  // path: absolute mounted path.
+  // categories: IDs accepted on this disk (builtin + custom_categories).
+  disks: [
+    {
+      id: "drive_a",
+      path: "/path/to/drive_a",
+      categories: ["movies", "tv_shows", "anime", "audiobooks"],
+    },
+    // Example second disk:
+    // {
+    //   id: "drive_b",
+    //   path: "/path/to/drive_b",
+    //   categories: ["movies_animation", "tv_shows_animation", "movies_documentary", "tv_shows_documentary"],
+    // },
+  ],
+}

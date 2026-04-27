@@ -1,0 +1,19 @@
+{
+  // Master config file (v2 split layout).
+  // Copy this directory to .personalscraper/config/ and fill in your values,
+  // or run `personalscraper init-config` to be guided through the setup.
+  //
+  // The overlays list names the per-concern files merged in order.
+  // Each file must own distinct top-level keys (no key may appear in two overlays).
+  // Add a local.json5 (gitignored) for machine-specific overrides.
+  config_version: 1,
+  overlays: [
+    "paths.json5",
+    "disks.json5",
+    "categories.json5",
+    "patterns.json5",
+    "encoding.json5",
+    "scraper.json5",
+    "trailers.json5",
+  ],
+}

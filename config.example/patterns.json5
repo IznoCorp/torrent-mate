@@ -1,0 +1,15 @@
+{
+  // Staging subdirectory layout — folder patterns inside staging_dir.
+  // id: numeric prefix [0-999], name: kebab-case label, file_type: FileType value (null = no fixed type).
+  // Exactly one entry must declare role: "ingest" (the entry point for new downloads).
+  staging_dirs: [
+    {id: 1,  name: "movies",   file_type: "movie"},
+    {id: 2,  name: "tvshows",  file_type: "tvshow"},
+    {id: 3,  name: "ebooks",   file_type: "ebook"},
+    {id: 4,  name: "audio",    file_type: "audio"},
+    {id: 5,  name: "apps",     file_type: "app"},
+    {id: 6,  name: "android",  file_type: "app"},
+    {id: 97, name: "temp",     file_type: null,    role: "ingest"},
+    {id: 98, name: "autres",   file_type: "other"},
+  ],
+}

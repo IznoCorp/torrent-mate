@@ -1,4 +1,8 @@
 {
+  // LEGACY SINGLE-FILE TEMPLATE (v1 monolith — kept for reference).
+  // New installs: use the split layout in config.example/ instead.
+  // Run `personalscraper init-config` to create .personalscraper/config/ from config.example/.
+  //
   // Version du schéma config (ne pas modifier sauf mise à jour V15.x → V15.y)
   config_version: 1,
 

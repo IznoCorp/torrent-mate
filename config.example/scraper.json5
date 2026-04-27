@@ -1,0 +1,29 @@
+{
+  // Scraper, ingest, and fuzzy-match tunables.
+  // All values below are the Pydantic model defaults — omit a key to keep the default.
+
+  // Scraper naming fallbacks.
+  scraper: {
+    // Prefix for a synthetic episode title when the provider lacks the episode
+    // (concatenated with the number: "Episode 8"). Also used when a phantom-season remap fails.
+    episode_default_name: "Episode",
+  },
+
+  // Ingest step tunables.
+  ingest: {
+    // Minimum seeding ratio for ingest eligibility. 0.0 (default) disables the guard.
+    min_ratio: 0.0,
+  },
+
+  // Fuzzy match thresholds (anti-false-positive guards). Values below are defaults.
+  fuzzy_match: {
+    // Reject if len(shorter) / len(longer) < this ratio. Range: (0.0, 1.0]
+    min_length_ratio: 0.67,
+    // Inclusive length boundary (normalized chars) separating short from long titles.
+    short_title_length: 10,
+    // WRatio score required for titles <= short_title_length.
+    short_title_threshold: 95.0,
+    // WRatio score required for titles > short_title_length.
+    long_title_threshold: 90.0,
+  },
+}

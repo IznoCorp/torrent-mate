@@ -1,0 +1,84 @@
+{
+  // Category definitions, classification rules, and genre mappings.
+
+  // Custom category IDs beyond the 11 builtins (optional).
+  // Each custom ID must also appear in 'categories' and be referenced by disks/rules.
+  // Example: custom_categories: ["concerts", "short_films"]
+  custom_categories: [],
+
+  // Folder name personalisation per category.
+  // Default if unspecified: ID with underscores replaced by spaces.
+  // Multiple IDs may share the same folder_name (merge into the same physical folder).
+  categories: {
+    movies: { folder_name: "movies" },
+    movies_animation: {
+      folder_name: "movies animation",
+      // aliases: alternative labels accepted by CLI --category
+      aliases: ["Movies Animation"],
+    },
+    movies_documentary: { folder_name: "movies documentary" },
+    tv_shows: { folder_name: "tv shows" },
+    tv_shows_animation: { folder_name: "tv shows animation" },
+    tv_shows_documentary: { folder_name: "tv shows documentary" },
+    anime: { folder_name: "anime" },
+    audiobooks: { folder_name: "audiobooks" },
+    standup: { folder_name: "standup" },
+    theater: { folder_name: "theater" },
+    tv_programs: { folder_name: "tv programs" },
+  },
+
+  // Pattern-based classification rules (evaluated in order, first match wins,
+  // BEFORE genre_mapping). Supports: path_contains, path_regex, title_regex,
+  // tmdb_genre_contains, tmdb_keyword. Exactly one match_* field per rule.
+  category_rules: [
+    // Examples (uncomment to activate):
+    // { path_contains: "/standup/", category: "standup" },
+    // { path_contains: "/theatre/", category: "theater" },
+    // { tmdb_keyword: ["stand-up-comedy", "stand-up"], category: "standup" },
+    // { title_regex: "(?i)\\bspectacle\\b", category: "standup" },
+  ],
+
+  // Anime detection rule (TMDB has no dedicated Anime genre unlike TVDB).
+  // Disable by setting enabled: false.
+  anime_rule: {
+    enabled: true,
+    // TMDB Animation genre_id
+    requires_genre_id: 16,
+    // ISO origin_country codes that trigger the rule
+    requires_origin_country: ["JP"],
+    // Result category_id
+    maps_to: "anime",
+    // Media types to apply the rule to: "movies", "tv", "both"
+    applies_to: "tv",
+  },
+
+  // genre_id → category_id mapping per API provider.
+  // Genre IDs are stable (TMDB/TVDB never changes them).
+  genre_mapping: {
+    // TMDB Movies API — https://developer.themoviedb.org/reference/genre-movie-list
+    tmdb_movies: {
+      "16": "movies_animation",  // Animation
+      "99": "movies_documentary", // Documentary
+    },
+    // TMDB TV API — https://developer.themoviedb.org/reference/genre-tv-list
+    tmdb_tv: {
+      "16": "tv_shows_animation",  // Animation (overridden by anime_rule if JP)
+      "99": "tv_shows_documentary", // Documentary
+      "10764": "tv_programs",       // Reality
+      "10767": "tv_programs",       // Talk
+      "10763": "tv_programs",       // News
+    },
+    // TVDB API — https://thetvdb.com/api-information
+    tvdb: {
+      "27": "anime",              // Anime
+      "17": "tv_shows_animation", // Animation
+      "3": "tv_shows_documentary", // Documentary
+      "8": "tv_programs",          // Reality
+      "10": "tv_programs",         // Talk
+      "11": "tv_programs",         // News
+    },
+    // Fallback when no genre matches
+    default_movies_category: "movies",
+    default_tv_category: "tv_shows",
+  },
+}
