@@ -20,6 +20,14 @@ Sub-phase 2.5 additions:
 - ``media_file.size_bytes`` and ``media_file.mtime_ns`` populated from stat.
 - ``filter_disks`` helper: label matching, unknown label raises ``IndexerConfigError``.
 
+Sub-phase 2.6 additions:
+- Quick mode: Merkle short-circuit skips disk when DB-computed root matches stored root.
+- Quick mode: Merkle miss falls through to dir-mtime walk.
+- Quick mode: Dir-mtime subtree skip when stored ``path.dir_mtime_ns`` equals live value.
+- Quick mode: Dir-mtime changed → subtree is walked.
+- Quick mode: Merkle root recomputed and persisted after a successful walk.
+- Quick mode: ``_verify_dir_mtime_reliable`` returning ``False`` disables subtree skip.
+
 Note on ``release_id`` / FK constraints:
     ``media_file.release_id`` is a NOT NULL FK to ``media_release``.  The skeleton
     scanner uses ``release_id=0`` as a deferred sentinel (release linkage is wired
@@ -48,18 +56,20 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.merkle import DiskUnmountedError
+from personalscraper.indexer.merkle import DiskUnmountedError, compute_merkle_root
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner import (
     EXCLUDED_NAMES,
     IndexerConfigError,
     ScanMode,
     ScanRunResult,
+    _build_disk_fingerprints,
     _should_exclude,
+    _verify_dir_mtime_reliable,
     filter_disks,
     scan,
 )
-from personalscraper.indexer.schema import DiskRow
+from personalscraper.indexer.schema import DiskRow, PathRow
 
 if TYPE_CHECKING:
     from pyfakefs.fake_filesystem import FakeFilesystem
@@ -93,12 +103,13 @@ def _make_conn_real() -> sqlite3.Connection:
     return conn
 
 
-def _insert_disk(conn: sqlite3.Connection, mount_path: str) -> DiskRow:
+def _insert_disk(conn: sqlite3.Connection, mount_path: str, merkle_root: str | None = None) -> DiskRow:
     """Insert a minimal disk row and return the resulting :class:`DiskRow` with its PK.
 
     Args:
         conn: Open SQLite connection.
         mount_path: Absolute path of the fake mount point.
+        merkle_root: Optional pre-seeded Merkle root for the disk row.
 
     Returns:
         :class:`DiskRow` with the PK assigned by SQLite.
@@ -110,7 +121,7 @@ def _insert_disk(conn: sqlite3.Connection, mount_path: str) -> DiskRow:
         label=mount_path.split("/")[-1],
         mount_path=mount_path,
         last_seen_at=now,
-        merkle_root=None,
+        merkle_root=merkle_root,
         is_mounted=1,
         unreachable_strikes=0,
     )
@@ -540,3 +551,415 @@ class TestFilterDisks:
         result = filter_disks(disks, None)
         assert len(result) == 3
         assert [d.label for d in result] == ["A", "B", "C"]
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 2.6 tests — quick-mode Merkle short-circuit and dir-mtime skip
+# ---------------------------------------------------------------------------
+
+
+class TestQuickMode:
+    """Tests for quick-mode scan: Merkle short-circuit and dir-mtime subtree skipping."""
+
+    # ------------------------------------------------------------------
+    # Test 1: Merkle match → disk entirely skipped (zero FS reads)
+    # ------------------------------------------------------------------
+
+    def test_quick_mode_merkle_match_skips_disk(self, fs: "FakeFilesystem") -> None:
+        """When DB-computed Merkle root equals disk.merkle_root, disk walk is skipped.
+
+        Seed the DB with one file, compute the real Merkle root from those rows,
+        store it on disk.merkle_root, then run a quick scan.  Because the root
+        matches, _scan_disk_quick must return immediately without any scandir call,
+        and ``result.disks_skipped`` must be 1.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/MerkleMatchDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/film.mkv").write_text("data")
+
+        # Insert disk (no merkle_root yet) and run a full scan to populate media_file.
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Compute the Merkle root from the now-populated DB rows.
+        fingerprints = _build_disk_fingerprints(conn, disk.id)
+        expected_root = compute_merkle_root(fingerprints)
+
+        # Store the root on the disk row so the next quick scan can short-circuit.
+        disk_repo.update_merkle_root(conn, disk.id, expected_root)
+
+        # Re-fetch the disk row so the DiskRow object carries the updated merkle_root.
+        # The scanner uses disk.merkle_root from the passed DiskRow — it does not
+        # re-read the DB row during the scan, so the object must be up-to-date.
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+
+        # Quick scan — scandir for the mount path must NOT be called.
+        scandir_calls: list[str] = []
+        real_scandir = __import__("os").scandir
+
+        def _tracking_scandir(path: str) -> object:
+            scandir_calls.append(path)
+            return real_scandir(path)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_tracking_scandir):
+                result = scan([updated_disk], ScanMode.quick, generation=2, conn=conn)
+
+        assert result.status == "ok"
+        assert result.disks_skipped == 1, f"Expected 1 disk skipped, got {result.disks_skipped}"
+        # No scandir call should have touched the mount path subtree.
+        mount_calls = [c for c in scandir_calls if c.startswith(mount)]
+        assert mount_calls == [], f"scandir was called for mount path: {mount_calls}"
+
+    # ------------------------------------------------------------------
+    # Test 2: Merkle miss → full dir walk is performed
+    # ------------------------------------------------------------------
+
+    def test_quick_mode_merkle_miss_walks_disk(self, fs: "FakeFilesystem") -> None:
+        """When the stored merkle_root differs from the DB-computed root, the disk is walked.
+
+        Store a deliberately wrong merkle_root on the disk row so the Merkle
+        check always fails.  Quick scan must then fall through to _walk_dir_quick
+        and visit the file, and ``result.disks_skipped`` must be 0.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/MerkleMissDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/film.mkv").write_text("data")
+
+        # Insert disk with a deliberately wrong merkle_root.
+        disk = _insert_disk(conn, mount, merkle_root="deadbeefdeadbeef" * 4)
+
+        scandir_calls: list[str] = []
+        real_scandir = __import__("os").scandir
+
+        def _tracking_scandir(path: str) -> object:
+            scandir_calls.append(path)
+            return real_scandir(path)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_tracking_scandir):
+                result = scan([disk], ScanMode.quick, generation=1, conn=conn)
+
+        assert result.status == "ok"
+        assert result.disks_skipped == 0, f"Expected 0 disks skipped, got {result.disks_skipped}"
+        # scandir must have been called for the mount path.
+        mount_calls = [c for c in scandir_calls if c.startswith(mount)]
+        assert mount_calls, "scandir was never called for the mount path despite Merkle miss"
+
+    # ------------------------------------------------------------------
+    # Test 3: Dir-mtime unchanged → subtree skipped
+    # ------------------------------------------------------------------
+
+    def test_quick_mode_dir_mtime_unchanged_skips_subtree(self, fs: "FakeFilesystem") -> None:
+        """Unchanged dir_mtime_ns causes _walk_dir_quick to skip the subtree.
+
+        Run a full scan first to populate path rows with current dir_mtime_ns
+        values.  Then run a quick scan with dir-mtime reliable and a wrong
+        merkle_root (to force the Merkle miss path).  Because the subdir mtime
+        matches, files inside it must NOT be re-inserted (media_file count stays
+        the same from the first scan's perspective — we check via scan_generation).
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/DirMtimeSkipDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/subdir").mkdir()
+        Path(f"{mount}/subdir/film.mkv").write_text("data")
+
+        # First: full scan to populate path rows with current dir_mtime_ns.
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Store a wrong merkle_root to force Merkle miss in quick scan.
+        disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
+
+        # Quick scan with dir-mtime reliable — the subdir mtime has not changed.
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=True,
+            ):
+                result = scan([disk], ScanMode.quick, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        # Files inside the unchanged subdir must NOT have been re-visited in gen=2.
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename, scan_generation FROM media_file WHERE filename = 'film.mkv'").fetchall()
+        assert rows, "film.mkv must exist in media_file"
+        # scan_generation should still be 1 (not updated to 2) because subtree was skipped.
+        assert rows[0]["scan_generation"] == 1, (
+            f"scan_generation was updated to {rows[0]['scan_generation']}; subtree skip should have preserved gen=1"
+        )
+
+    # ------------------------------------------------------------------
+    # Test 4: Dir-mtime changed → subtree IS walked
+    # ------------------------------------------------------------------
+
+    def test_quick_mode_dir_mtime_changed_walks_subtree(self, fs: "FakeFilesystem") -> None:
+        """Stale dir_mtime_ns causes _walk_dir_quick to recurse into the subtree.
+
+        Seed the path row with a dir_mtime_ns value that does NOT match the
+        current FS value (0 is a safe stale sentinel).  Quick scan must walk the
+        subtree and update the file's scan_generation to 2.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/DirMtimeChangeDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/subdir").mkdir()
+        Path(f"{mount}/subdir/film.mkv").write_text("data")
+
+        # First: full scan to create the media_file row (gen=1).
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Manually stale the path row's dir_mtime_ns to 0 so it never matches.
+        now_s = int(time.time())
+        conn.execute(
+            "UPDATE path SET dir_mtime_ns = 0, last_walked_at = ? WHERE disk_id = ? AND rel_path = 'subdir'",
+            (now_s, disk.id),
+        )
+
+        # Store a wrong merkle_root to force Merkle miss path.
+        disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
+
+        # Quick scan — dir mtime mismatch → subtree must be walked → gen updated to 2.
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=True,
+            ):
+                result = scan([disk], ScanMode.quick, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename, scan_generation FROM media_file WHERE filename = 'film.mkv'").fetchall()
+        assert rows, "film.mkv must exist in media_file"
+        assert rows[0]["scan_generation"] == 2, (
+            f"Expected scan_generation=2 after subtree walk, got {rows[0]['scan_generation']}"
+        )
+
+    # ------------------------------------------------------------------
+    # Test 5: Merkle root recomputed and persisted after quick walk
+    # ------------------------------------------------------------------
+
+    def test_quick_mode_recomputes_merkle_after_scan(self, fs: "FakeFilesystem") -> None:
+        """After a Merkle-miss quick scan, disk.merkle_root is updated in the DB.
+
+        The scan must recompute the Merkle root from the updated media_file rows
+        and persist it via disk_repo.update_merkle_root so the next quick scan
+        can short-circuit.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/MerkleUpdateDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/film.mkv").write_text("data")
+
+        # Insert disk with a wrong merkle_root to force Merkle miss.
+        disk = _insert_disk(conn, mount, merkle_root="staleroot")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan([disk], ScanMode.quick, generation=1, conn=conn)
+
+        assert result.status == "ok"
+        assert result.disks_skipped == 0
+
+        # Re-read disk row from DB and verify merkle_root is now set to a real value.
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+        assert updated_disk.merkle_root is not None, "merkle_root must be set after quick scan"
+        assert updated_disk.merkle_root != "staleroot", "merkle_root must have been updated from stale value"
+
+        # The stored root must match a fresh DB-side computation.
+        fingerprints = _build_disk_fingerprints(conn, disk.id)
+        expected_root = compute_merkle_root(fingerprints)
+        assert updated_disk.merkle_root == expected_root, (
+            f"Stored root {updated_disk.merkle_root!r} != freshly computed {expected_root!r}"
+        )
+
+    # ------------------------------------------------------------------
+    # Test 6: _verify_dir_mtime_reliable=False disables subtree skip
+    # ------------------------------------------------------------------
+
+    def test_dir_mtime_verification_disables_optimization_when_unreliable(self, fs: "FakeFilesystem") -> None:
+        """When dir-mtime is unreliable, subtrees are walked even if mtime matches.
+
+        Mock _verify_dir_mtime_reliable to return False.  Run a quick scan after
+        a full scan (so path rows are populated with matching dir_mtime_ns).
+        Because the optimisation is disabled, the subtree must be re-walked and
+        scan_generation updated to 2.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/UnreliableMtimeDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/subdir").mkdir()
+        Path(f"{mount}/subdir/film.mkv").write_text("data")
+
+        # First: full scan → path rows populated, gen=1.
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Seed a wrong merkle_root so the Merkle miss path is taken.
+        disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
+
+        # Quick scan with dir-mtime UNRELIABLE → skip optimisation disabled.
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=False,
+            ):
+                result = scan([disk], ScanMode.quick, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        # Even though dir_mtime_ns matched, the subtree must have been walked.
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename, scan_generation FROM media_file WHERE filename = 'film.mkv'").fetchall()
+        assert rows, "film.mkv must exist in media_file"
+        assert rows[0]["scan_generation"] == 2, (
+            f"Expected scan_generation=2 (subtree walked despite matching mtime), got {rows[0]['scan_generation']}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Unit tests — _verify_dir_mtime_reliable (no pyfakefs — uses real FS)
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyDirMtimeReliable:
+    """Unit tests for the _verify_dir_mtime_reliable helper."""
+
+    def test_returns_bool(self) -> None:
+        """_verify_dir_mtime_reliable returns a bool (True on a normal local FS)."""
+        result = _verify_dir_mtime_reliable()
+        assert isinstance(result, bool)
+
+    def test_returns_true_on_local_fs(self) -> None:
+        """On a normal macOS/Linux local filesystem, dir mtime is reliably updated."""
+        # This test may spuriously fail on certain network mounts / CI environments
+        # with noatime; mark it as expected True for local dev only.
+        result = _verify_dir_mtime_reliable()
+        # We assert True because the CI runner is a standard Linux/macOS local disk.
+        assert result is True, "_verify_dir_mtime_reliable returned False on what appears to be a local FS"
+
+    def test_returns_false_when_mtime_unchanged(self) -> None:
+        """When os.stat always returns the same mtime, _verify_dir_mtime_reliable returns False.
+
+        Patch os.stat so the mtime_before == mtime_after, simulating a noatime mount.
+        """
+        import os as _os
+
+        original_stat = _os.stat
+
+        call_count = 0
+
+        def _frozen_stat(path: str, **kwargs: object) -> object:
+            nonlocal call_count
+            st = original_stat(path, **kwargs)  # type: ignore[arg-type]
+            call_count += 1
+            # Return a stat result with a fixed mtime_ns so before == after.
+            # We monkey-patch only the st_mtime_ns attribute by wrapping the result.
+            return type(
+                "FrozenStat",
+                (),
+                {attr: getattr(st, attr) for attr in dir(st) if not attr.startswith("__")} | {"st_mtime_ns": 12345678},
+            )()
+
+        with patch("personalscraper.indexer.scanner.os.stat", side_effect=_frozen_stat):
+            result = _verify_dir_mtime_reliable()
+
+        assert result is False, "Expected False when mtime unchanged after child write"
+
+    def test_returns_false_on_exception(self) -> None:
+        """An OSError during the check causes _verify_dir_mtime_reliable to return False."""
+        with patch("personalscraper.indexer.scanner.tempfile.TemporaryDirectory", side_effect=OSError("no tmp")):
+            result = _verify_dir_mtime_reliable()
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Unit tests — _build_disk_fingerprints (no pyfakefs)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildDiskFingerprints:
+    """Unit tests for _build_disk_fingerprints helper."""
+
+    def test_returns_empty_list_for_unknown_disk(self) -> None:
+        """_build_disk_fingerprints returns [] when no media_file rows exist for disk_id."""
+        conn = _make_conn_real()
+        fps = _build_disk_fingerprints(conn, disk_id=9999)
+        assert fps == []
+
+    def test_returns_fingerprints_for_seeded_files(self, fs: "FakeFilesystem") -> None:
+        """Returns one FileFingerprint per non-deleted media_file row for the disk."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/FpDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/a.mkv").write_text("aaa")
+        Path(f"{mount}/b.mkv").write_text("bbb")
+
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        fps = _build_disk_fingerprints(conn, disk.id)
+        assert len(fps) == 2, f"Expected 2 fingerprints, got {len(fps)}"
+
+    def test_excludes_deleted_files(self, fs: "FakeFilesystem") -> None:
+        """Rows with deleted_at IS NOT NULL are excluded from fingerprint results."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/DeletedFpDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/alive.mkv").write_text("alive")
+        Path(f"{mount}/dead.mkv").write_text("dead")
+
+        disk = _insert_disk(conn, mount)
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Mark dead.mkv as deleted.
+        now_s = int(time.time())
+        conn.execute(
+            "UPDATE media_file SET deleted_at = ? WHERE filename = 'dead.mkv'",
+            (now_s,),
+        )
+
+        fps = _build_disk_fingerprints(conn, disk.id)
+        assert len(fps) == 1, f"Expected 1 fingerprint (alive only), got {len(fps)}"
+
+
+# Suppress unused-import warning: PathRow is used as a type in helper signatures
+# that may be referenced from future tests; keep it imported for forward compatibility.
+_PathRow = PathRow

@@ -21,6 +21,19 @@ Sub-phase 2.5 additions:
     - ``--disk D`` scoping via :func:`filter_disks` and the ``disk_filter`` parameter
       on :func:`scan`.
 
+Sub-phase 2.6 additions:
+    - Quick-mode path: per-disk Merkle short-circuit and dir-mtime subtree skip.
+    - :func:`_verify_dir_mtime_reliable` — one-time session check that writes a temp
+      file and detects whether the OS updates parent-directory mtime.  When the check
+      fails, the dir-mtime optimisation is disabled for the entire scan session.
+    - :func:`_build_disk_fingerprints` — query existing ``media_file`` rows for a disk
+      and construct :class:`~personalscraper.indexer.merkle.FileFingerprint` objects
+      for Merkle computation.
+    - :func:`_walk_dir_quick` — recursive dir walk that skips unchanged subtrees by
+      comparing stored ``path.dir_mtime_ns`` to the current FS value.
+    - :func:`_scan_disk_quick` — per-disk quick-mode driver: Merkle short-circuit first,
+      then dir-mtime walk on Merkle miss, then Merkle root update.
+
 Notes on ``oshash`` sentinel:
     The ``media_file`` table declares ``oshash TEXT NOT NULL``.  In full mode,
     video files receive a real 16-char hex OSHash.  Non-video regular files receive
@@ -43,6 +56,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import tempfile
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -50,7 +64,13 @@ from pathlib import Path
 from typing import Any
 
 from personalscraper.indexer import fingerprint
-from personalscraper.indexer.merkle import DiskMismatchError, DiskUnmountedError, guard_disk_mounted
+from personalscraper.indexer.merkle import (
+    DiskMismatchError,
+    DiskUnmountedError,
+    FileFingerprint,
+    compute_merkle_root,
+    guard_disk_mounted,
+)
 from personalscraper.indexer.repos import disk_repo, file_repo, log_repo
 from personalscraper.indexer.schema import DiskRow, MediaFileRow, PathRow, ScanRunRow
 from personalscraper.logger import get_logger
@@ -116,6 +136,8 @@ class ScanRunResult:
         files_visited: Number of file entries visited across all disks.
         dirs_visited: Number of directory entries visited (including disk roots).
         status: Final status string — ``'ok'`` or ``'failed'``.
+        disks_skipped: Number of disks short-circuited by the Merkle match in
+            quick mode (Merkle root matched → zero FS reads for that disk).
         error: Human-readable error message; ``None`` on success.
     """
 
@@ -123,6 +145,7 @@ class ScanRunResult:
     files_visited: int
     dirs_visited: int
     status: str
+    disks_skipped: int = 0
     error: str | None = None
 
 
@@ -626,6 +649,243 @@ def _walk_dir(
 
 
 # ---------------------------------------------------------------------------
+# Quick-mode helpers (sub-phase 2.6)
+# ---------------------------------------------------------------------------
+
+
+def _verify_dir_mtime_reliable() -> bool:
+    """Check whether the OS updates a directory's mtime when a child file is written.
+
+    Creates a temporary directory, records the parent-dir mtime before and after
+    writing a temp file inside it, and returns ``True`` only if the mtime changed.
+
+    This one-time check guards the dir-mtime subtree-skip optimisation: on some
+    filesystems (e.g. ``noatime`` / ``nodiratime`` mounts, certain network shares)
+    the directory mtime is not updated on child creation, which would cause the
+    scanner to silently skip changed subtrees.  When the check fails, we fall back
+    to per-file fingerprinting throughout the quick-mode walk.
+
+    Returns:
+        ``True`` if the OS reliably updates directory mtime on child write;
+        ``False`` if the optimisation should be disabled for this scan session.
+    """
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Capture parent-dir mtime before the write.
+            mtime_before = os.stat(tmp_dir).st_mtime_ns
+
+            # Write a child file — this should bump the parent's mtime.
+            test_file = os.path.join(tmp_dir, "_mtime_probe")
+            with open(test_file, "w") as fh:
+                fh.write("probe")
+
+            # Capture parent-dir mtime after the write.
+            mtime_after = os.stat(tmp_dir).st_mtime_ns
+
+        if mtime_before == mtime_after:
+            log.warning("indexer.scan.dir_mtime_unreliable", reason="mtime unchanged after child write")
+            return False
+        return True
+    except Exception as exc:  # noqa: BLE001 — deliberately broad; any failure disables opt
+        log.warning("indexer.scan.dir_mtime_unreliable", reason=str(exc))
+        return False
+
+
+def _build_disk_fingerprints(conn: sqlite3.Connection, disk_id: int) -> list[FileFingerprint]:
+    """Query all non-deleted ``media_file`` rows for *disk_id* and build fingerprint objects.
+
+    Used by the quick-mode Merkle short-circuit: we recompute the Merkle root
+    entirely from the database (zero filesystem reads) and compare it to the
+    stored ``disk.merkle_root``.  If they match, the disk is skipped entirely.
+
+    The join walks ``media_file → path`` to filter by ``path.disk_id``.
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the disk whose files to query.
+
+    Returns:
+        List of :class:`~personalscraper.indexer.merkle.FileFingerprint` objects,
+        one per non-deleted ``media_file`` row belonging to the disk.
+    """
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT mf.path_id, mf.size_bytes, mf.mtime_ns, mf.oshash
+        FROM media_file mf
+        JOIN path p ON mf.path_id = p.id
+        WHERE p.disk_id = ?
+          AND mf.deleted_at IS NULL
+        """,
+        (disk_id,),
+    ).fetchall()
+    return [
+        FileFingerprint(path_id=r["path_id"], size=r["size_bytes"], mtime_ns=r["mtime_ns"], oshash=r["oshash"])
+        for r in rows
+    ]
+
+
+def _walk_dir_quick(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    dir_abs: str,
+    files_visited: list[int],
+    dirs_visited: list[int],
+    generation: int,
+    dir_mtime_reliable: bool,
+) -> None:
+    """Recursively walk *dir_abs* in quick mode with dir-mtime subtree skipping.
+
+    For each subdirectory visited, the stored ``path.dir_mtime_ns`` is compared
+    to the current filesystem value.  When they match *and* ``dir_mtime_reliable``
+    is ``True``, the entire subtree is skipped (zero file reads in that subtree).
+    On a mismatch, the subtree is walked and files are fingerprinted at tier-1
+    only (no oshash recompute in quick mode).
+
+    After visiting a subtree (or deciding to skip it), the ``path`` row's
+    ``dir_mtime_ns`` is updated to the current value so the next quick scan can
+    benefit from the optimisation.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` owning this subtree.
+        dir_abs: Absolute path of the current directory to scan.
+        files_visited: Single-element mutable counter for files.
+        dirs_visited: Single-element mutable counter for directories.
+        generation: Scan generation stamped on every ``media_file`` row.
+        dir_mtime_reliable: When ``False``, the dir-mtime skip is disabled and
+            every subdirectory is fully walked (fallback to per-file fingerprinting).
+    """
+    assert disk.mount_path is not None  # guard: mount_path checked before entering walk
+
+    try:
+        with os.scandir(dir_abs) as it:
+            entries = list(it)
+    except PermissionError:
+        log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
+        return
+
+    for entry in entries:
+        if _should_exclude(entry.name):
+            continue
+
+        try:
+            st = entry.stat(follow_symlinks=False)
+        except OSError:
+            log.warning("indexer.scan.stat_failed", path=entry.path)
+            continue
+
+        if entry.is_dir(follow_symlinks=False):
+            dirs_visited[0] += 1
+            rel = _relpath(disk.mount_path, entry.path)
+            current_mtime_ns: int = st.st_mtime_ns
+
+            if dir_mtime_reliable:
+                # Check whether the stored dir_mtime_ns matches the live FS value.
+                existing_path = disk_repo.get_path_by_disk_and_relpath(conn, disk.id, rel)
+                if existing_path is not None and existing_path.dir_mtime_ns == current_mtime_ns:
+                    # Subtree unchanged — skip recursion entirely (zero file reads).
+                    log.debug("indexer.scan.dir_unchanged", path=entry.path, dir_mtime_ns=current_mtime_ns)
+                    continue
+
+            # Subtree changed (or dir-mtime unreliable) — recurse and re-fingerprint.
+            _walk_dir_quick(conn, disk, entry.path, files_visited, dirs_visited, generation, dir_mtime_reliable)
+
+            # Update dir_mtime_ns to the current value so next scan can short-circuit.
+            _upsert_path_row(conn, disk.id, rel, current_mtime_ns)
+
+        else:
+            # File (or symlink) — tier-1 fingerprint only (no oshash in quick mode).
+            files_visited[0] += 1
+            parent_rel = _relpath(disk.mount_path, dir_abs)
+            path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
+            ctime_ns_val: int | None = st.st_ctime_ns if hasattr(st, "st_ctime_ns") else None
+            _upsert_file_row(
+                conn,
+                path_id=path_id,
+                filename=entry.name,
+                size_bytes=st.st_size,
+                mtime_ns=st.st_mtime_ns,
+                ctime_ns=ctime_ns_val,
+                generation=generation,
+            )
+
+
+def _scan_disk_quick(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    mount: str,
+    files_visited: list[int],
+    dirs_visited: list[int],
+    generation: int,
+    disks_skipped: list[int],
+    dir_mtime_reliable: bool,
+) -> None:
+    """Run the quick-mode walk for a single disk.
+
+    Implements two levels of short-circuiting:
+
+    1. **Merkle short-circuit** (cheapest): recompute the Merkle root from the
+       existing ``media_file`` rows in the database.  If it equals
+       ``disk.merkle_root``, the disk has not changed since the last scan —
+       skip all filesystem access for this disk.
+
+    2. **Dir-mtime walk** (on Merkle miss): walk the disk using
+       :func:`_walk_dir_quick`, which skips unchanged subtrees by comparing
+       the stored ``path.dir_mtime_ns`` to the current filesystem value.
+
+    After a successful dir-mtime walk, the disk's Merkle root is recomputed
+    from the updated ``media_file`` state and stored on ``disk.merkle_root``
+    so the *next* quick scan can use the short-circuit.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` being scanned.
+        mount: Absolute mount point path.
+        files_visited: Single-element mutable counter for files.
+        dirs_visited: Single-element mutable counter for directories.
+        generation: Scan generation counter.
+        disks_skipped: Single-element mutable counter for Merkle-hit skips.
+        dir_mtime_reliable: Whether the dir-mtime skip optimisation is enabled
+            for this scan session (from :func:`_verify_dir_mtime_reliable`).
+    """
+    # --- Merkle short-circuit ---
+    fingerprints = _build_disk_fingerprints(conn, disk.id)
+    current_root = compute_merkle_root(fingerprints)
+
+    if disk.merkle_root is not None and current_root == disk.merkle_root:
+        # DB-computed root matches stored root → disk unchanged, skip walk.
+        log.info("indexer.scan.merkle_match", disk_uuid=disk.uuid, label=disk.label, merkle_root=current_root)
+        disks_skipped[0] += 1
+        return
+
+    log.info(
+        "indexer.scan.merkle_miss",
+        disk_uuid=disk.uuid,
+        label=disk.label,
+        stored_root=disk.merkle_root,
+        computed_root=current_root,
+    )
+
+    # --- Dir-mtime walk ---
+    _walk_dir_quick(conn, disk, mount, files_visited, dirs_visited, generation, dir_mtime_reliable)
+
+    # Write-through the path row for the disk root itself.
+    try:
+        root_st = os.stat(mount, follow_symlinks=False)
+        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+    except OSError:
+        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+
+    # Recompute and persist the updated Merkle root so the next quick scan
+    # can short-circuit if the FS state is unchanged.
+    updated_fingerprints = _build_disk_fingerprints(conn, disk.id)
+    new_root = compute_merkle_root(updated_fingerprints)
+    disk_repo.update_merkle_root(conn, disk.id, new_root)
+    log.debug("indexer.scan.merkle_root_updated", disk_id=disk.id, merkle_root=new_root)
+
+
+# ---------------------------------------------------------------------------
 # Public scan function
 # ---------------------------------------------------------------------------
 
@@ -653,6 +913,13 @@ def scan(
       flushed via ``executemany`` for faster throughput.
     * ``disk_filter``: When not ``None``, the ``scan_run.disk_filter`` column is
       set to this value to record which single disk was scoped.
+
+    Sub-phase 2.6 extends the function with quick-mode:
+
+    * ``mode == ScanMode.quick``: Before walking any disk, :func:`_verify_dir_mtime_reliable`
+      runs a one-time check to confirm the OS updates directory mtime on child writes.
+      For each disk, :func:`_scan_disk_quick` attempts a Merkle short-circuit first
+      (zero FS reads on match), then falls back to a dir-mtime subtree walk.
 
     Walk strategy (per disk):
         1. Call :func:`~personalscraper.indexer.merkle.guard_disk_mounted`.  On
@@ -682,7 +949,8 @@ def scan(
             representing the disks to scan.  Unmounted / mismatched disks are
             skipped without aborting the scan.
         mode: The :class:`ScanMode` to use.  ``full`` enables fingerprinting;
-            other modes fall back to the skeleton walk (oshash="" sentinel).
+            ``quick`` uses Merkle + dir-mtime short-circuits; other modes fall
+            back to the skeleton walk.
         generation: Monotonically increasing generation counter stamped on every
             ``media_file`` row visited during this scan.
         conn: Open :class:`sqlite3.Connection` with ``isolation_level=None``
@@ -722,6 +990,12 @@ def scan(
 
     files_visited = [0]  # mutable counter (list avoids nonlocal in nested helper)
     dirs_visited = [0]
+    disks_skipped = [0]  # quick-mode Merkle-hit counter
+
+    # One-time dir-mtime reliability check for quick mode (before any disk walk).
+    dir_mtime_reliable: bool = True
+    if mode == ScanMode.quick:
+        dir_mtime_reliable = _verify_dir_mtime_reliable()
 
     try:
         for disk in disks:
@@ -752,17 +1026,35 @@ def scan(
             if mode == ScanMode.full:
                 # Full-mode walk with optional index drop + batched inserts.
                 _scan_disk_full(conn, disk, mount, files_visited, dirs_visited, generation, drop_indexes)
+                # Write-through the path row for the disk root.
+                try:
+                    root_st = os.stat(mount, follow_symlinks=False)
+                    _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+                    dirs_visited[0] += 1
+                except OSError:
+                    log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+            elif mode == ScanMode.quick:
+                # Quick-mode: Merkle short-circuit then dir-mtime walk.
+                _scan_disk_quick(
+                    conn,
+                    disk,
+                    mount,
+                    files_visited,
+                    dirs_visited,
+                    generation,
+                    disks_skipped,
+                    dir_mtime_reliable,
+                )
             else:
-                # Skeleton walk for modes not yet fully implemented.
+                # Skeleton walk for modes not yet fully implemented (incremental, enrich).
                 _walk_dir(conn, disk, mount, files_visited, dirs_visited, generation)
-
-            # Write-through the path row for the disk root itself.
-            try:
-                root_st = os.stat(mount, follow_symlinks=False)
-                _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                dirs_visited[0] += 1
-            except OSError:
-                log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                # Write-through the path row for the disk root.
+                try:
+                    root_st = os.stat(mount, follow_symlinks=False)
+                    _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+                    dirs_visited[0] += 1
+                except OSError:
+                    log.warning("indexer.scan.root_stat_failed", mount_path=mount)
 
             log.info(
                 "indexer.scan.disk_done",
@@ -780,6 +1072,7 @@ def scan(
             files_visited=files_visited[0],
             dirs_visited=dirs_visited[0],
             status="ok",
+            disks_skipped=disks_skipped[0],
         )
 
     except Exception as exc:
@@ -796,6 +1089,7 @@ def scan(
             files_visited=files_visited[0],
             dirs_visited=dirs_visited[0],
             status="failed",
+            disks_skipped=disks_skipped[0],
             error=str(exc),
         )
 

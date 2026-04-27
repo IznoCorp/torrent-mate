@@ -251,6 +251,11 @@ def insert_path(conn: sqlite3.Connection, row: PathRow) -> int:
 def upsert_path(conn: sqlite3.Connection, row: PathRow) -> int:
     """Upsert a path row, updating ``dir_mtime_ns`` and ``last_walked_at`` on conflict.
 
+    Uses ``RETURNING id`` instead of ``cursor.lastrowid`` because SQLite's
+    ``last_insert_rowid()`` is unreliable for ``ON CONFLICT DO UPDATE`` upserts —
+    it may return the rowid of the last *successfully inserted* row in the table
+    rather than the rowid of the row that was updated.
+
     Args:
         conn: Open SQLite connection.
         row: :class:`PathRow` to upsert.
@@ -265,10 +270,12 @@ def upsert_path(conn: sqlite3.Connection, row: PathRow) -> int:
         ON CONFLICT(disk_id, rel_path) DO UPDATE SET
           dir_mtime_ns = excluded.dir_mtime_ns,
           last_walked_at = excluded.last_walked_at
+        RETURNING id
         """,
         (row.disk_id, row.rel_path, row.dir_mtime_ns, row.last_walked_at),
     )
-    rowid: int = cursor.lastrowid  # type: ignore[assignment]
+    returned = cursor.fetchone()
+    rowid: int = returned[0]
     log.info("indexer.disk.upsert_path", disk_id=row.disk_id, rel_path=row.rel_path, rowid=rowid)
     return rowid
 
@@ -285,6 +292,31 @@ def get_path_by_id(conn: sqlite3.Connection, id: int) -> PathRow | None:
     """
     _set_row_factory(conn)
     row = conn.execute("SELECT * FROM path WHERE id = ?", (id,)).fetchone()
+    if row is None:
+        return None
+    return _row_to_path(row)
+
+
+def get_path_by_disk_and_relpath(conn: sqlite3.Connection, disk_id: int, rel_path: str) -> PathRow | None:
+    """Fetch a path row by its ``(disk_id, rel_path)`` unique key.
+
+    Used by the quick-mode scanner to look up an existing ``path`` row and
+    compare its stored ``dir_mtime_ns`` against the current filesystem value
+    without performing a full subtree walk.
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the owning disk row.
+        rel_path: Relative directory path as stored in the ``path`` table.
+
+    Returns:
+        :class:`PathRow` if found, ``None`` if no row matches ``(disk_id, rel_path)``.
+    """
+    _set_row_factory(conn)
+    row = conn.execute(
+        "SELECT * FROM path WHERE disk_id = ? AND rel_path = ?",
+        (disk_id, rel_path),
+    ).fetchone()
     if row is None:
         return None
     return _row_to_path(row)
