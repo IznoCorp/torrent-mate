@@ -103,7 +103,7 @@ Complete the four scan modes by adding `incremental` (OSHash recompute + rename 
 
 **Tests added:** None (mount detection tested via mocked `subprocess.run` in `test_scanner.py` extension).
 
-**Commit:** `docs(media-indexer): 4.4 mount-flag detection and storage.md 24TB ops guide`
+**Commit:** `feat(media-indexer): 4.4 mount-flag detection and storage.md 24TB ops guide`
 
 ---
 
@@ -164,7 +164,7 @@ Complete the four scan modes by adding `incremental` (OSHash recompute + rename 
 
 **Tests added:** extend `tests/indexer/test_scanner.py`
 
-**Commit:** `perf(media-indexer): 4.7 bulk-insert with index drop-recreate on full scan`
+**Commit:** `test(media-indexer): 4.7 bulk-insert coverage and assertions for full scan`
 
 ---
 
@@ -194,42 +194,78 @@ Complete the four scan modes by adding `incremental` (OSHash recompute + rename 
 **Files touched:**
 
 - `personalscraper/indexer/scanner.py` _(modify — add `signal.signal(SIGTERM, ...)` handler)_
-- `tests/e2e/test_indexer_unplug_during_scan.py` _(new)_
+- `tests/e2e/test_indexer_sigterm.py` _(new — SIGTERM-specific test, distinct from unplug)_
 
 **Deliverable:**
 
 - `signal.signal(SIGTERM, _handle_sigterm)` registered at scan start. Handler sets a `threading.Event` flag `_shutdown_requested`.
 - Scanner checks the flag at each file boundary (not mid-file). On flag set: finish current file, commit current disk's transaction, update `scan_run.last_path`, set `scan_run.status='ok'` with `budget_exhausted=true`, exit 0.
 - Compatible with ThreadPoolExecutor: main thread checks flag; workers finish their current file and drain naturally.
-- E2E test: `test_indexer_unplug_during_scan.py` — monkey-patches `os.path.ismount` to flip false at file 50/100 of Disk2 mid-scan; asserts per-disk transaction for Disk2 rolled back, Disk1 progress committed, sentinel intact, `indexer.disk.io_error` logged, `disk.unreachable_strikes += 1`.
+- E2E test: `test_indexer_sigterm.py` — start a scan, send SIGTERM mid-walk via subprocess; assert `scan_run.status='ok'`, `scan_run.last_path` populated, exit code 0; next invocation resumes from `last_path` and produces identical final DB state to an uninterrupted run.
 
-**Tests added:** `tests/e2e/test_indexer_unplug_during_scan.py`
+**Tests added:** `tests/e2e/test_indexer_sigterm.py`
 
 **Commit:** `feat(media-indexer): 4.9 SIGTERM clean-shutdown handler for scanner`
 
 ---
 
-### 4.10 — Performance regression test fixture + baseline
+### 4.9b — Disk-unplug-during-scan handling (macFUSE EIO mid-scan)
 
 **Files touched:**
 
+- `personalscraper/indexer/scanner.py` _(modify — strengthen per-disk EIO handling on top of 3.5 circuit breaker)_
+- `tests/e2e/test_indexer_unplug_during_scan.py` _(new — DESIGN §15.5 enumerated)_
+
+**Deliverable:**
+
+- Builds on the per-disk circuit breaker (Phase 3.5) and the ThreadPool isolation (4.3): when a worker thread encounters `OSError(EIO)` mid-walk on its assigned disk, the per-disk transaction rolls back cleanly without disturbing the other workers' transactions.
+- Sentinel file remains intact (no write attempt during the unplug window).
+- E2E `test_indexer_unplug_during_scan.py`: monkey-patch `os.path.ismount` to flip false at file 50/100 of Disk2 mid-scan; assert per-disk transaction for Disk2 rolled back, Disk1 progress committed, sentinel intact, `indexer.disk.io_error` logged, `disk.unreachable_strikes += 1`. This test is distinct from the SIGTERM test (4.9) — different failure trigger, different recovery path.
+
+**Tests added:** `tests/e2e/test_indexer_unplug_during_scan.py`
+
+**Commit:** `feat(media-indexer): 4.9b strengthen disk-unplug-mid-scan handling and E2E test`
+
+---
+
+### 4.10a — Perf fixture builder + baseline data
+
+**Files touched:**
+
+- `tests/e2e/perf/__init__.py` _(new — empty)_
 - `tests/e2e/perf/build_fixture.py` _(new)_
 - `tests/e2e/perf/FIXTURE_VERSION` _(new — integer `1`)_
-- `tests/e2e/perf/baseline.json` _(new — initial baseline)_
+- `tests/e2e/perf/baseline.json` _(new — initial baseline data only, no test assertions)_
+
+**Deliverable:**
+
+- `build_fixture.py`: deterministic 1 000-item / ~1 TB virtual FS using pinned random seed. File-size distribution: 5 % > 50 GB (sparse via `truncate(2)`), 70 % 1–5 GB (sparse), 25 % < 100 MB (real pseudo-random content). Output to `tests/e2e/perf/.fixture/` (gitignored). Fixture version from `FIXTURE_VERSION`.
+- `baseline.json` schema: `[{fixture_version, mode, target_seconds, last_measured_seconds, last_measured_at}]` per DESIGN §15.6.1. **Six rows** corresponding to the six rows in DESIGN §11.11 — including the two distinct `quick` rows (`quick_merkle_hit` and `quick_merkle_miss`). Without this split, a regression from <5 s → 60 s could pass the "quick" target check if only the slower row is recorded.
+- Initial `baseline.json` populated with targets from DESIGN §11.11 as `target_seconds`; `last_measured_seconds` set to `target_seconds * 0.8` as placeholder until first real CI run.
+
+**Tests added:** None (data-only sub-phase).
+
+**Commit:** `test(media-indexer): 4.10a perf fixture builder and baseline data`
+
+---
+
+### 4.10b — Perf regression test + Makefile rebaseline target
+
+**Files touched:**
+
 - `tests/e2e/perf/test_indexer_perf.py` _(new)_
 - `Makefile` _(modify — add `perf-rebaseline` target)_
 
 **Deliverable:**
 
-- `build_fixture.py`: deterministic 1 000-item / ~1 TB virtual FS using pinned random seed. File-size distribution: 5% > 50 GB (sparse via `truncate(2)`), 70% 1–5 GB (sparse), 25% < 100 MB (real pseudo-random content). Output to `tests/e2e/perf/.fixture/` (gitignored). Fixture version from `FIXTURE_VERSION`.
-- `baseline.json` schema: `[{fixture_version, mode, target_seconds, last_measured_seconds, last_measured_at}]` per DESIGN §15.6.1.
-- `test_indexer_perf.py`: `@pytest.mark.slow` (off by default). Tests all four modes against targets from DESIGN §11.11. Regression rule: fail if `current > last_measured_seconds * 1.5`. Also tests: splittable cold scan (`--full --disk D1` then `--full --disk D2` = same as `--full`); two-stage path (cold `quick` then `enrich` = single `full`).
+- `test_indexer_perf.py`: `@pytest.mark.slow` (off by default). Tests all six rows from DESIGN §11.11 (`quick_merkle_hit`, `quick_merkle_miss`, `quick_changed_100`, `incremental_new_100`, `enrich_missing_1000`, `full_one_disk`). Regression rule: fail if `current > last_measured_seconds * 1.5`.
+- Additional invariant tests: splittable cold scan (`--full --disk D1` then `--full --disk D2` = same as `--full`); two-stage path (cold `quick` then `enrich` = single `full`).
 - `make perf-rebaseline`: runs tests, writes new `baseline.json`, CI job commits with `[bot] perf baseline` message.
-- Initial `baseline.json` populated with targets from DESIGN §11.11 as `target_seconds`; `last_measured_seconds` set to `target_seconds * 0.8` as placeholder until first real CI run.
+- Per-PR CI compares against the file; only scheduled CI on `main` regenerates.
 
 **Tests added:** `tests/e2e/perf/test_indexer_perf.py`
 
-**Commit:** `test(media-indexer): 4.10 perf regression fixture and baseline assertions`
+**Commit:** `test(media-indexer): 4.10b perf regression test and Makefile rebaseline target`
 
 ---
 
@@ -243,10 +279,10 @@ Complete the four scan modes by adding `incremental` (OSHash recompute + rename 
 - [ ] Read-rate token bucket at 1 MB/s slows a 2 MB read to ≥ 2 s (mocked clock).
 - [ ] Mount-flag missing warning logged (`indexer.disk.mount_flags_missing`) when `noatime` absent from mock `mount` output.
 - [ ] Spotlight skipped on macFUSE mount (`indexer.spotlight.skipped_macfuse` logged); dir-mtime walk runs.
-- [ ] SIGTERM mid-scan: `scan_run.status='ok'`, `last_path` non-null, resume produces identical DB state.
-- [ ] `test_indexer_unplug_during_scan.py`: Disk1 progress committed; Disk2 transaction rolled back; `disk.unreachable_strikes` incremented.
-- [ ] `pytest -m slow tests/e2e/perf/test_indexer_perf.py` runs all four modes and measures within 1.5× baseline.
-- [ ] `pytest tests/e2e/test_indexer_disk_swap.py` passes (disk swap triggers `suspected_restore`, halts disk).
+- [ ] `tests/e2e/test_indexer_sigterm.py` passes: SIGTERM mid-scan → `scan_run.status='ok'`, `last_path` non-null, resume produces identical DB state.
+- [ ] `tests/e2e/test_indexer_unplug_during_scan.py` passes: Disk1 progress committed; Disk2 transaction rolled back; `disk.unreachable_strikes` incremented.
+- [ ] `pytest -m slow tests/e2e/perf/test_indexer_perf.py` runs all six budget rows from DESIGN §11.11 and measures within 1.5× baseline.
+- [ ] `baseline.json` contains six rows including both `quick_merkle_hit` and `quick_merkle_miss`.
 
 ---
 

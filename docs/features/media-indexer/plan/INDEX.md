@@ -11,17 +11,17 @@
 
 ## Phases
 
-| #   | Phase                                    | File                                                                         | Status |
-| --- | ---------------------------------------- | ---------------------------------------------------------------------------- | ------ |
-| 0   | Config Overhaul                          | [phase-00-config-overhaul.md](phase-00-config-overhaul.md)                   | [ ]    |
-| 1   | Indexer Core: DB layer                   | [phase-01-db-layer.md](phase-01-db-layer.md)                                 | [ ]    |
-| 2   | Indexer Core: Scanner (full + quick)     | [phase-02-scanner-full-quick.md](phase-02-scanner-full-quick.md)             | [ ]    |
-| 3   | Indexer Core: Drift + Reconciliation     | [phase-03-drift-reconciliation.md](phase-03-drift-reconciliation.md)         | [ ]    |
-| 4   | Performance + Incremental + Enrich modes | [phase-04-perf-incremental-enrich.md](phase-04-perf-incremental-enrich.md)   | [ ]    |
-| 5   | Outbox + Write-through                   | [phase-05-outbox-writethrough.md](phase-05-outbox-writethrough.md)           | [ ]    |
-| 6   | Consumer migration: dispatch             | [phase-06-migrate-dispatch.md](phase-06-migrate-dispatch.md)                 | [ ]    |
-| 7   | Consumer migration: library + trailers   | [phase-07-migrate-library-trailers.md](phase-07-migrate-library-trailers.md) | [ ]    |
-| 8   | CLI + cron + query language              | [phase-08-cli-cron-query.md](phase-08-cli-cron-query.md)                     | [ ]    |
+| #   | Phase                                    | Sub-phases | File                                                                         | Status |
+| --- | ---------------------------------------- | ---------- | ---------------------------------------------------------------------------- | ------ |
+| 0   | Config Overhaul                          | 0.0–0.6    | [phase-00-config-overhaul.md](phase-00-config-overhaul.md)                   | [ ]    |
+| 1   | Indexer Core: DB layer                   | 1.1–1.5    | [phase-01-db-layer.md](phase-01-db-layer.md)                                 | [ ]    |
+| 2   | Indexer Core: Scanner (full + quick)     | 2.1–2.7    | [phase-02-scanner-full-quick.md](phase-02-scanner-full-quick.md)             | [ ]    |
+| 3   | Indexer Core: Drift + Reconciliation     | 3.1–3.6    | [phase-03-drift-reconciliation.md](phase-03-drift-reconciliation.md)         | [ ]    |
+| 4   | Performance + Incremental + Enrich modes | 4.1–4.10b  | [phase-04-perf-incremental-enrich.md](phase-04-perf-incremental-enrich.md)   | [ ]    |
+| 5   | Outbox + Write-through                   | 5.1–5.6    | [phase-05-outbox-writethrough.md](phase-05-outbox-writethrough.md)           | [ ]    |
+| 6   | Consumer migration: dispatch             | 6.1–6.4    | [phase-06-migrate-dispatch.md](phase-06-migrate-dispatch.md)                 | [ ]    |
+| 7   | Consumer migration: library + trailers   | 7.1–7.6    | [phase-07-migrate-library-trailers.md](phase-07-migrate-library-trailers.md) | [ ]    |
+| 8   | CLI + cron + query language              | 8.1–8.4    | [phase-08-cli-cron-query.md](phase-08-cli-cron-query.md)                     | [ ]    |
 
 ---
 

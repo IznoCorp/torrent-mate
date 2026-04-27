@@ -723,7 +723,7 @@ indexer.{component}.{action}[_{qualifier}]
 | `scan`       | `indexer.scan.started`, `indexer.scan.checkpoint`, `indexer.scan.budget_exhausted`, `indexer.scan.resumed`                                             |
 | `spotlight`  | `indexer.spotlight.available`, `indexer.spotlight.unavailable`, `indexer.spotlight.skipped_macfuse`, `indexer.spotlight.divergence`                    |
 | `migration`  | `indexer.migration.applied`, `indexer.migration.failed`, `indexer.migration.restored_backup`                                                           |
-| `config`     | `indexer.config.category_orphan`, `indexer.config.unknown_keys`                                                                                        |
+| `config`     | `indexer.config.category_orphan`, `indexer.config.unknown_keys`, `indexer.config.no_index`                                                             |
 
 Underscored qualifiers separate snake_case multi-word actions; component and action are dot-separated. Reviewers must reject any new event name that does not match this pattern.
 
@@ -1321,8 +1321,9 @@ A `tests/e2e/test_indexer_perf.py` (markered `@pytest.mark.slow`, off by default
 
 ## 16. Phasing
 
-### Phase 0 — Config Overhaul (sub-phases 0.1–0.5)
+### Phase 0 — Config Overhaul (sub-phases 0.0–0.5)
 
+- 0.0 Add runtime + dev dependencies to `pyproject.toml` (pymediainfo, xxhash, filelock; sqlite-utils, pyfakefs, hypothesis); document `brew install media-info`.
 - 0.1 `conf/loader.py` + `conf/overlay.py` skeleton with multi-file merge.
 - 0.2 Split `config.json5` into the target files (no schema change yet).
 - 0.3 `conf/migration.py` + `personalscraper config migrate-to-v2` CLI.

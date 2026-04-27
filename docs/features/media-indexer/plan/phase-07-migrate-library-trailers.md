@@ -134,17 +134,14 @@ Migrate all remaining consumers of the legacy JSON scan files to query the index
 - `personalscraper/conf/models.py` _(modify — remove `library_scan_max_age_hours` field)_
 - `.personalscraper/config/trailers.json5` _(modify — remove `library_scan_max_age_hours` key)_
 - `personalscraper/conf/migration.py` _(modify — add removal note for the knob in migration-warnings.txt)_
-- `tests/fixtures/parity/` _(new directory)_
-- `tests/integration/test_consumer_parity.py` _(new)_
+- `tests/integration/test_consumer_parity.py` _(new — consumes Phase 0.6 fixtures)_
 
 **Deliverable:**
 
 - `library_scan.json` and `library_analysis.json` not written anywhere; if tracked in repo, `git rm` them.
 - `library_scan_max_age_hours` removed from `Config`/`TrailersConfig` pydantic model and from `trailers.json5`.
 - Consumer parity test per DESIGN §15.4.1:
-  - `tests/fixtures/parity/v0.7-fs/` — minimal FS tree (~30 items: movies, TV shows with seasons, audiobooks). Created as a pyfakefs fixture (not a real tarball — avoids binary in repo).
-  - `tests/fixtures/parity/v0.7-library_scan.json` — snapshot produced by running v0.7 `library scan` against the fixture. Generated once, checked in.
-  - `tests/fixtures/parity/v0.7-media_index.json` — same for `MediaIndex.rebuild()`.
+  - `tests/fixtures/parity/v0.7-fs/`, `tests/fixtures/parity/v0.7-library_scan.json`, `tests/fixtures/parity/v0.7-media_index.json` — these snapshots were captured in **Phase 0.6** (before any consumer migration started, i.e. before Phase 6 stripped `media_index.json`). This sub-phase consumes them, does not produce them.
   - Assertion shape from DESIGN §15.4.1: 1:1 set match on `(disk_label, rel_path)`; per-item: `nfo_status` matches, `artwork_present` matches, season numbers match for TV shows.
   - Test must pass before Phase 7 can be considered closed.
 

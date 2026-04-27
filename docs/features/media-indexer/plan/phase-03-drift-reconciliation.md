@@ -40,11 +40,15 @@ Layer drift detection on top of the scanner: racy-mtime escalation, scan-generat
   1. Idempotence: scanning same FS twice → same DB state.
   2. Generation monotonicity: `scan_generation` strictly increasing across runs.
   3. Soft-delete correctness: `miss_strikes < N` → never `deleted_at`; `miss_strikes >= N` → always `deleted_at`.
-  4. Outbox drain idempotence (placeholder — uses Phase 5 outbox; stub-safe here).
-  5. Hash determinism: `oshash(f) == oshash(f)` unchanged; `oshash(f) != oshash(g)` for any content edit.
+  4. Hash determinism: `oshash(f) == oshash(f)` unchanged; `oshash(f) != oshash(g)` for any content edit.
+  5. Mtime-clamp invariance: future or pre-1970 mtimes never propagate as `racy=true`; clamped value used for storage and comparison.
+  - Note: outbox-drain idempotence property test moved to Phase 5.2 (depends on Phase 5 outbox module).
+- E2E tests for drift edge cases (DESIGN §15.5):
+  - `tests/e2e/test_indexer_oshash_collision.py` _(new)_: fabricate two files with identical crafted OSHash and different content; rescan; assert `repair_queue(reason='oshash_collision')` row exists, no auto-rename applied.
+  - `tests/e2e/test_indexer_racy_mtime.py` _(new)_: write file with mtime exactly `scan_started_at`; assert tier-1 fingerprint flagged racy → tier-2 (xxh3_partial) computed; mtime in the future → clamped + `indexer.fs.invalid_mtime` logged.
 - Example-based tests: rename survives via OSHash, oshash_collision enqueues repair not rename.
 
-**Tests added:** `tests/indexer/test_drift.py`, `tests/indexer/strategies.py`
+**Tests added:** `tests/indexer/test_drift.py`, `tests/indexer/strategies.py`, `tests/e2e/test_indexer_oshash_collision.py`, `tests/e2e/test_indexer_racy_mtime.py`
 
 **Commit:** `feat(media-indexer): 3.1 indexer/drift.py racy-mtime and generation accounting`
 
@@ -106,8 +110,9 @@ Layer drift detection on top of the scanner: racy-mtime escalation, scan-generat
 - If `started_at < 2 h ago` AND PID alive → `IndexerLockError("scan already running, PID N")`.
 - Budget enforcement: at every checkpoint compare `now - started_at` vs `budget_seconds`; on overrun → finish current file, commit, set `scan_run.status='ok'` with `stats_json.budget_exhausted=true`, exit 0.
 - E2E test: start scan with `budget_seconds=5`; mock clock to exceed budget mid-walk; assert `scan_run.status='ok'` with `budget_exhausted=true` and `last_path` populated; second invocation resumes from `last_path` and produces same final DB state as uninterrupted run.
+- E2E `tests/e2e/test_indexer_cross_dst.py` _(new — DESIGN §15.5)_: scan crossing a DST or leap-second boundary by mocking `time.time()` to jump ±3600 s mid-scan; assert no spurious racy flags, no double-count of files, `scan_run.last_path` resume is correct.
 
-**Tests added:** `tests/e2e/test_indexer_budget_resume.py`
+**Tests added:** `tests/e2e/test_indexer_budget_resume.py`, `tests/e2e/test_indexer_cross_dst.py`
 
 **Commit:** `feat(media-indexer): 3.4 resumable scan via scan_run.last_path and budget checkpoint`
 
@@ -136,6 +141,30 @@ Layer drift detection on top of the scanner: racy-mtime escalation, scan-generat
 
 ---
 
+### 3.6 — Disk-swap freeze (Merkle-delta threshold) + `--confirm-bulk-change`
+
+**Files touched:**
+
+- `personalscraper/indexer/merkle.py` _(modify — add Merkle-delta computation)_
+- `personalscraper/indexer/scanner.py` _(modify — wire halt-on-bulk-change branch)_
+- `personalscraper/indexer/cli.py` _(modify — add `--confirm-bulk-change` flag to `library index`)_
+- `tests/e2e/test_indexer_disk_swap.py` _(new — DESIGN §15.5 enumerated)_
+
+**Deliverable:**
+
+- DESIGN §17.1 disk-swap edge case: same UUID, different content (e.g. user restored from backup). Sentinel passes (UUID matches), but the freshly-computed Merkle root differs from `disk.merkle_root` by more than `merkle_delta_freeze_threshold` (default `0.50` = 50 % of files differ on tier-1).
+- `merkle.compute_merkle_delta(stored_root: str, fresh_files: Iterable[FileFingerprint]) -> float` — returns ratio in `[0.0, 1.0]` of files whose tier-1 fingerprint differs from the stored value. The function does NOT require recomputing the full Merkle root; it walks the file list once.
+- Scanner integration: at start of per-disk pass, after Merkle short-circuit miss, compute delta. If `delta > threshold`: halt that disk, log `indexer.merkle.delta_freeze` with the delta value, mark `scan_run.status='aborted'` for the disk, abort the disk's transaction.
+- `library index --confirm-bulk-change --disk D` flag: bypasses the freeze for that one invocation. Without the flag, the user gets an actionable error message: `"disk Disk1 looks like a bulk restore (52% files changed). Re-run with --confirm-bulk-change to proceed."`.
+- `IndexerConfig` field added: `indexer.drift.merkle_delta_freeze_threshold: float = 0.50` (defaults to 50 %).
+- E2E `test_indexer_disk_swap.py`: scan a fixture, then mutate ≥ 50 % of files (different content, different sizes, same paths), rescan WITHOUT `--confirm-bulk-change` → scan halts that disk + logs `indexer.merkle.delta_freeze`; rescan WITH `--confirm-bulk-change` → proceeds + drift is reconciled normally.
+
+**Tests added:** `tests/e2e/test_indexer_disk_swap.py`
+
+**Commit:** `feat(media-indexer): 3.6 disk-swap Merkle-delta freeze and --confirm-bulk-change`
+
+---
+
 ## Acceptance criteria
 
 - [ ] `pytest tests/indexer/test_drift.py` passes with ≥ 5 `@given`-decorated property tests.
@@ -151,6 +180,10 @@ Layer drift detection on top of the scanner: racy-mtime escalation, scan-generat
 - [ ] `OSError(EIO)` on a disk: that disk's transaction rolled back, other disks' progress committed.
 - [ ] `mtime` in the future stored as clamped value; `indexer.fs.invalid_mtime` logged.
 - [ ] `library status` exits non-zero when repair queue oldest pending > 7 days.
+- [ ] `tests/e2e/test_indexer_oshash_collision.py` passes.
+- [ ] `tests/e2e/test_indexer_racy_mtime.py` passes.
+- [ ] `tests/e2e/test_indexer_cross_dst.py` passes.
+- [ ] `tests/e2e/test_indexer_disk_swap.py` passes: bulk-change halts disk without `--confirm-bulk-change`, proceeds with it.
 
 ---
 
@@ -164,7 +197,7 @@ Implements: §8.1 (reconciliation loop), §8.2 (hinted handoff — unmounted fre
 
 - `incremental` and `enrich` modes — Phase 4.
 - ThreadPoolExecutor — Phase 4.
-- Disk swap / `suspected_restore` / `--confirm-bulk-change` — covered by Phase 4 E2E tests.
 - Outbox write-through — Phase 5.
+- Outbox-drain idempotence property test (formerly listed as property #4) — moved to Phase 5.2 since it depends on the outbox module.
 - Consumer migration — Phases 6–7.
 - `library repair` CLI command (beyond `drain` call) — Phase 8.

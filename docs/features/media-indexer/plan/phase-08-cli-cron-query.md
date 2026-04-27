@@ -31,9 +31,11 @@ Complete the CLI surface (`library index|status|verify|search|repair|show` + `co
 
 All commands from DESIGN §12:
 
-- `library index [--mode {quick|incremental|enrich|full}] [--disk DISK] [--budget SECONDS] [--dry-run] [--wait-for-lock SECONDS]` — already partially implemented; complete `--dry-run` semantics (suppress all `INSERT`/`UPDATE` on `media_*` tables; write synthetic `scan_run(status='dry-run')`; `scan_event` rows still written); complete `--mode full --disk D` scoping.
+- `library index [--mode {quick|incremental|enrich|full}] [--disk DISK] [--budget SECONDS] [--dry-run] [--wait-for-lock SECONDS] [--rebuild] [--confirm-bulk-change]` — already partially implemented; complete `--dry-run` semantics (suppress all `INSERT`/`UPDATE` on `media_*` tables; write synthetic `scan_run(status='dry-run')`; `scan_event` rows still written); complete `--mode full --disk D` scoping.
+  - `--rebuild` (DESIGN §17.1, corrupt DB recovery): bypasses the corrupt-DB refusal from Phase 1.1; quarantines the existing DB if any, creates a fresh one, runs full Stage-A rescan from scratch.
+  - `--confirm-bulk-change` (DESIGN §17.1, disk-swap edge case): bypasses the Merkle-delta freeze from Phase 3.6 for that single invocation.
 
-- `library status` — complete output: disk inventory, last scan time per disk, generation, mounted/unmounted, pending outbox depth, repair queue depth, deleted_item counts, Spotlight availability per disk, enrich-pending count, WARN exit if repair queue oldest > 7 days or depth > 1 000.
+- `library status` — complete output: disk inventory, last scan time per disk, generation, mounted/unmounted, pending outbox depth, repair queue depth, deleted_item counts, Spotlight availability per disk, enrich-pending count, **category-orphan count** (DESIGN §17.2 — items with `category_id` not in current config). WARN exit if repair queue oldest > 7 days OR depth > 1 000 OR any category orphans exist.
 
 - `library verify [--disk DISK]` — verify scan: re-stat every file, escalate to tier-2 on mismatch, no soft-delete (only marks for repair). Wraps `scan(mode='verify')`.
 
@@ -45,24 +47,29 @@ All commands from DESIGN §12:
 
 - `config migrate-to-v2 [--dry-run]` — already implemented in Phase 0; confirm it is wired into the top-level CLI entry point.
 
+- **`config migrate-category --from OLD --to NEW`** _(new, DESIGN §17.2)_: rewrites every `media_item` row's `category_id` from `OLD` to `NEW`. The user runs this after renaming a category in `categories.json5` to clear orphan-tagged rows. Issues `UPDATE media_item SET category_id = ? WHERE category_id = ?` inside a transaction. Refuses if `NEW` is not a declared category id (looked up in current `Config.categories`). Idempotent: running twice with the same args is a no-op the second time.
+
 **Full 14-case golden test suite** (DESIGN §15.5.2):
 
-| Test case                                                     | Assert                                                               |
-| ------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `library index --mode quick` no changes                       | exit 0; JSON summary `{"mode":"quick","items_unchanged":N}`          |
-| `library index --mode quick` 5 changed files                  | exit 0; `items_updated:5`                                            |
-| `library index --mode full --disk Disk1`                      | exit 0; only Disk1 columns updated; `scan_run.disk_filter='Disk1'`   |
-| `library index --mode full --disk UnknownDisk`                | exit 2; stderr `"no disk with label 'UnknownDisk'"`                  |
-| `library index` while another instance holds lock             | exit 1; stderr `"indexer locked by PID <n>"`                         |
-| `library index --wait-for-lock 5` lock released within budget | exit 0                                                               |
-| `library index --dry-run --mode full`                         | exit 0; summary `dry_run:true`; no `media_*` row touched             |
-| `library status`                                              | exit 0; tabular output of disks, last scan, generation, queue depths |
-| `library search "year:2024 disk:Disk1 -nfo:valid"`            | exit 0; valid result rows                                            |
-| `library search "field_does_not_exist:foo"`                   | exit 2; `"unknown field"`                                            |
-| `library show <unknown_id>`                                   | exit 2; `"no item with id"`                                          |
-| `library repair --budget 10`                                  | exit 0; drains up to 10 s; stops cleanly                             |
-| `library verify --disk Disk2`                                 | exit 0; no soft-deletes; repair queue grows on tier-2 mismatches     |
-| `config migrate-to-v2 --dry-run` with malformed v1            | exit 2; stderr lists offending keys; no files written                |
+| Test case                                                     | Assert                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `library index --mode quick` no changes                       | exit 0; JSON summary `{"mode":"quick","items_unchanged":N}`            |
+| `library index --mode quick` 5 changed files                  | exit 0; `items_updated:5`                                              |
+| `library index --mode full --disk Disk1`                      | exit 0; only Disk1 columns updated; `scan_run.disk_filter='Disk1'`     |
+| `library index --mode full --disk UnknownDisk`                | exit 2; stderr `"no disk with label 'UnknownDisk'"`                    |
+| `library index` while another instance holds lock             | exit 1; stderr `"indexer locked by PID <n>"`                           |
+| `library index --wait-for-lock 5` lock released within budget | exit 0                                                                 |
+| `library index --dry-run --mode full`                         | exit 0; summary `dry_run:true`; no `media_*` row touched               |
+| `library status`                                              | exit 0; tabular output of disks, last scan, generation, queue depths   |
+| `library search "year:2024 disk:Disk1 -nfo:valid"`            | exit 0; valid result rows                                              |
+| `library search "field_does_not_exist:foo"`                   | exit 2; `"unknown field"`                                              |
+| `library show <unknown_id>`                                   | exit 2; `"no item with id"`                                            |
+| `library repair --budget 10`                                  | exit 0; drains up to 10 s; stops cleanly                               |
+| `library verify --disk Disk2`                                 | exit 0; no soft-deletes; repair queue grows on tier-2 mismatches       |
+| `config migrate-to-v2 --dry-run` with malformed v1            | exit 2; stderr lists offending keys; no files written                  |
+| `library index --rebuild` after DB corruption                 | exit 0; quarantines old DB, runs full Stage-A scan, populates fresh DB |
+| `library index --mode full --disk D --confirm-bulk-change`    | exit 0; bypasses Merkle-delta freeze; reconciles drift normally        |
+| `config migrate-category --from old --to new`                 | exit 0; UPDATE issued; second run is no-op; unknown `--to` exits 2     |
 
 **Tests added:** extend `tests/indexer/test_cli.py` to 14 cases
 
@@ -113,6 +120,8 @@ All commands from DESIGN §12:
 - `docs/reference/launchd/personalscraper-index-quick.plist` _(new)_
 - `docs/reference/launchd/personalscraper-index-rotate.plist` _(new)_
 - `docs/reference/launchd/personalscraper-index-enrich.plist` _(new)_
+- `docs/reference/launchd/index-rotate.sh` _(new — shell wrapper for the rotate plist; computes today's disk via `date +%u`)_
+- `tests/indexer/test_plists.py` _(new — Linux-safe `plistlib` validation)_
 
 **Deliverable:**
 
@@ -128,9 +137,9 @@ All three plists use `Label` `com.personalscraper.index-{quick|rotate|enrich}`. 
 
 Installation instructions in `docs/reference/indexer.md` (8.4).
 
-**Tests added:** CI smoke test: `launchctl bootstrap gui/$(id -u) <plist>` followed by `launchctl bootout` succeeds in CI container (macOS GitHub Actions runner). If CI is Linux-only, skip with `@pytest.mark.darwin_only`.
+**Tests added:** Static-validation test (Linux-safe, runs on every CI): each plist is parsed via `plistlib.loads(path.read_bytes())` and asserted for required keys (`Label`, `ProgramArguments`, `StandardOutPath`, `StandardErrorPath`, `StartCalendarInterval`). Optional macOS-only smoke test: `launchctl bootstrap gui/$(id -u) <plist>` + `launchctl bootout` succeeds — gated by `@pytest.mark.darwin_only` (registered in `tests/conftest.py`); skipped on Linux runners. The Phase exit gate accepts either macOS smoke or Linux static-validation as proof of "plists install cleanly", since the project does not currently provide a macOS CI runner.
 
-**Commit:** `docs(media-indexer): 8.3 launchd plist templates for nightly index cron`
+**Commit:** `chore(media-indexer): 8.3 launchd plist templates and rotate shell wrapper for nightly index cron`
 
 ---
 
@@ -139,6 +148,7 @@ Installation instructions in `docs/reference/indexer.md` (8.4).
 **Files touched:**
 
 - `docs/reference/indexer.md` _(new)_
+- `docs/reference/indexer-json-shapes.md` _(new — DESIGN §6.5 commitment)_
 - `docs/reference/architecture.md` _(modify — add indexer subsystem to module map)_
 - `docs/reference/storage.md` _(modify — confirm mount flags section from Phase 4 is complete; add cold-rebuild playbook)_
 - `README.md` _(modify — update feature list, add `brew install media-info` system dep)_
@@ -156,7 +166,9 @@ Installation instructions in `docs/reference/indexer.md` (8.4).
 - Cron setup: how to install the three plists.
 - Failure recovery: corrupted DB quarantine + `--rebuild`; stale lock recovery; partial migration recovery.
 
-`docs/reference/architecture.md` update: add `personalscraper/indexer/` to the module map with one-line descriptions per file, add `tests/indexer/` and `tests/integration/` to the test layout.
+`docs/reference/indexer-json-shapes.md` covers the canonical shape (and pydantic model name) for every JSON column listed in DESIGN §6.5: `media_item.artwork_json`, `index_outbox.payload_json` (per `op` value), `pending_op.payload_json`, `repair_queue.payload_json`, `scan_run.stats_json`, `scan_event.payload_json`, `deleted_item.payload_json`. One section per column with a JSON example + the pydantic class definition reference.
+
+`docs/reference/architecture.md` update: add `personalscraper/indexer/` to the module map with one-line descriptions per file, add `tests/indexer/`, `tests/integration/`, `tests/conf/`, `tests/e2e/perf/` to the test layout.
 
 **Tests added:** None (doc-only).
 
@@ -166,17 +178,22 @@ Installation instructions in `docs/reference/indexer.md` (8.4).
 
 ## Acceptance criteria
 
-- [ ] `pytest tests/indexer/test_cli.py` passes all 14 golden cases.
+- [ ] `pytest tests/indexer/test_cli.py` passes all 17 golden cases (14 from §15.5.2 + 3 new for `--rebuild`/`--confirm-bulk-change`/`migrate-category`).
 - [ ] `pytest tests/indexer/test_query.py` passes — all `FIELD_REGISTRY` paths covered.
 - [ ] `personalscraper library search "year:2024 disk:Disk1 -nfo:valid"` returns correct rows on seeded DB.
 - [ ] `personalscraper library search "field_does_not_exist:foo"` exits 2 with `"unknown field"` in stderr.
-- [ ] `personalscraper library status` exits 0 with tabular disk + queue output; exits non-zero when repair queue > 7 days old.
+- [ ] `personalscraper library status` exits 0 with tabular disk + queue output; exits non-zero when repair queue > 7 days old or category orphans exist.
 - [ ] `personalscraper library verify --disk Disk2` exits 0; repair queue grows on tier-2 mismatch; no soft-deletes.
 - [ ] `personalscraper library show <id>` prints all stored data; exits 2 for unknown id.
 - [ ] `personalscraper library repair --budget 10` stops within budget + 5 s.
-- [ ] `launchctl bootstrap` + `launchctl bootout` succeeds for all three plists on macOS CI (or skipped on Linux).
+- [ ] `personalscraper library index --rebuild` quarantines a corrupt DB and runs full Stage-A scan to populate a fresh DB.
+- [ ] `personalscraper library index --confirm-bulk-change --disk D` bypasses Merkle-delta freeze.
+- [ ] `personalscraper config migrate-category --from old --to new` updates `media_item.category_id`; second run is a no-op; unknown `--to` exits 2.
+- [ ] All three plists pass static `plistlib.loads` validation on Linux CI.
+- [ ] On macOS runner (when available): `launchctl bootstrap` + `launchctl bootout` succeed for all three plists.
 - [ ] `docs/reference/indexer.md` exists and covers all six sections listed above.
-- [ ] `CLAUDE.md` reference index table has a row for `docs/reference/indexer.md`.
+- [ ] `docs/reference/indexer-json-shapes.md` exists and documents every JSON column from DESIGN §6.5.
+- [ ] `CLAUDE.md` reference index table has rows for `docs/reference/indexer.md` and `docs/reference/indexer-json-shapes.md`.
 - [ ] `README.md` lists `brew install media-info` as a system dependency.
 - [ ] `pytest` (full suite) passes — zero regressions introduced in this phase.
 
@@ -196,4 +213,3 @@ Implements: §12 (CLI surface — all six commands + config migrate-to-v2), §13
 - Web UI consuming the indexer — out of scope (DESIGN §3).
 - Multi-process safe writer — V1.x (DESIGN §17.3).
 - Litestream offsite replication — out of scope (DESIGN §3).
-- `docs/reference/indexer-json-shapes.md` — mentioned in DESIGN §6.5; create as a follow-up PR if the team needs the canonical JSON shape reference before 0.9.x.

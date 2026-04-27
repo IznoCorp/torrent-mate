@@ -20,7 +20,7 @@ Stand up the SQLite database layer: connection + PRAGMAs, the full `001_init.sql
 
 ## Sub-phases
 
-### 1.1 — DB connection + PRAGMAs + writer lock
+### 1.1 — DB connection + PRAGMAs + writer lock + disk-full guard
 
 **Files touched:**
 
@@ -28,18 +28,22 @@ Stand up the SQLite database layer: connection + PRAGMAs, the full `001_init.sql
 - `personalscraper/indexer/db.py` _(new)_
 - `tests/indexer/__init__.py` _(new — empty)_
 - `tests/indexer/test_db.py` _(new)_
+- `tests/e2e/test_indexer_db_corrupt_recovery.py` _(new — DESIGN §15.5 enumerated)_
 
 **Deliverable:**
 
 - `db.py` exposes `open_db(path: Path) -> sqlite3.Connection` with exact PRAGMAs from DESIGN §6.1 (`WAL`, `synchronous=NORMAL`, `temp_store=MEMORY`, `cache_size=-65536`, `mmap_size=268435456`, `wal_autocheckpoint=1000`, `busy_timeout=5000`, `foreign_keys=ON`).
 - `indexer_lock(db_path: Path, timeout: float = 0) -> ContextManager` backed by `filelock.FileLock` on `<db_path>.lock`. Lockfile content: JSON `{pid, started_at, hostname}`. On timeout: reads lockfile, checks `os.kill(pid, 0)` liveness; if dead → log `indexer.lock.stale_recovered` and break; if alive → raise `IndexerLockError` with PID in message.
-- `open_db()` raises `IndexerCorruptError` on `sqlite3.DatabaseError: database disk image is malformed`; quarantines file to `<path>.corrupt-<unix_ts>`.
+- `open_db()` raises `IndexerCorruptError` on `sqlite3.DatabaseError: database disk image is malformed`; quarantines file to `<path>.corrupt-<unix_ts>`. Refuses to start unless `--rebuild` flag is passed (Phase 8.1 wires the flag into `library index`).
 - `open_db()` rejects `db_path` on a macFUSE-NTFS volume (checks `mount` output for the path's mount point).
-- Tests: PRAGMA assertions on fresh `:memory:` DB, lock acquired/released, stale lock recovery (mock `os.kill`), malformed DB quarantine.
+- **Disk-full guard (DESIGN §17.1)**: `open_db()` (and any caller about to start a write transaction with significant expected growth — `scan(mode='full')`) calls `check_free_space(path: Path, expected_growth_bytes: int) -> None`. The helper uses `os.statvfs(path.parent)` and refuses if `free < 2 × expected_growth_bytes`, raising `IndexerDiskFullError`. For `--mode full` the expected growth is estimated as `expected_rows × 4 KB` (rough WAL + row size).
+- **Mid-scan disk-full handling**: scanner wraps `executemany` and `commit()` in `try/except sqlite3.OperationalError`. On match of `"disk I/O error"` or `"database or disk is full"`: explicit `PRAGMA wal_checkpoint(TRUNCATE)`, commit current disk transaction, log `indexer.db.disk_full`, exit non-zero. The handler is a one-line helper in `db.py` so that scanner sub-phases (Phase 2+) can reuse it.
+- E2E `test_indexer_db_corrupt_recovery.py`: corrupt `library.db` mid-byte; restart indexer → quarantine + refusal without `--rebuild`; passing `--rebuild` triggers full Stage-A rescan that succeeds.
+- Tests: PRAGMA assertions on fresh `:memory:` DB, lock acquired/released, stale lock recovery (mock `os.kill`), malformed DB quarantine, disk-full pre-check refuses when free space below threshold, `wal_checkpoint(TRUNCATE)` invoked on simulated mid-scan disk-full.
 
-**Tests added:** `tests/indexer/test_db.py`
+**Tests added:** `tests/indexer/test_db.py`, `tests/e2e/test_indexer_db_corrupt_recovery.py`
 
-**Commit:** `feat(media-indexer): 1.1 indexer/db.py connection PRAGMAs and writer lock`
+**Commit:** `feat(media-indexer): 1.1 indexer/db.py PRAGMAs writer lock and disk-full guard`
 
 ---
 

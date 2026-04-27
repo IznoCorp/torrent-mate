@@ -46,7 +46,7 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 
 ---
 
-### 5.2 — Outbox drainer
+### 5.2 — Outbox drainer + `publish_event` helper
 
 **Files touched:**
 
@@ -66,11 +66,13 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
   - `artwork_write`: flip boolean in `media_item.artwork_json` (use JSON1 `json_set`).
   - `trailer_download`: UPSERT `item_attribute(item_id, key='trailer_found', value=trailer_path)`.
 - `drain_if_present(conn, config) -> None` — public convenience wrapper (replaces the Phase 2 stub).
-- Tests: FIFO order; deduplication (3 rows for same file → only latest applied); retry on locked DB (mock `OperationalError`); deferred to `pending_op` when disk unreachable; replay on remount; all four `op` idempotence proofs.
+- **`publish_event(disk_id: int, op: str, payload: dict) -> None`** — public helper for callers in 5.3. Opens `library.db` (short connection, no lock acquisition), inserts a row in `index_outbox(source, op, payload_json, created_at, status='pending')`, closes. On exception: logs `indexer.db.outbox_lost` with payload, returns silently (best-effort contract — never raises to caller; the FS op already succeeded).
+- **Outbox-drain idempotence property test** (relocated from Phase 3.1 property #4): `@given(outbox_rows=lists(valid_outbox_row()))` — applying then re-applying drainer to the same set of rows yields identical DB state.
+- Tests: FIFO order; deduplication (3 rows for same file → only latest applied); retry on locked DB (mock `OperationalError`); deferred to `pending_op` when disk unreachable; replay on remount; all four `op` idempotence proofs; `publish_event` swallows exceptions and logs `indexer.db.outbox_lost`.
 
 **Tests added:** extend `tests/indexer/test_outbox.py`
 
-**Commit:** `feat(media-indexer): 5.2 indexer/outbox.py drainer with retry and deferred semantics`
+**Commit:** `feat(media-indexer): 5.2 indexer/outbox.py drainer with retry deferred and publish_event`
 
 ---
 
@@ -85,12 +87,12 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 
 **Deliverable:**
 
-- Each mutation point, **immediately after the FS operation succeeds**, opens a short SQLite transaction on `library.db` and inserts one `index_outbox` row. If the insert fails (DB locked, disk full): the FS op is NOT rolled back; log `indexer.db.outbox_lost` with payload; continue. This is the "best-effort" contract from DESIGN §9.1.
-- `dispatcher.py` hook: after successful `rsync` move, publish `op='move'` payload `{disk_id, src_rel_path, dst_rel_path, filename, size_bytes, mtime_ns}`.
-- `nfo_generator.py` hook: after successful NFO write, publish `op='nfo_write'` payload `{disk_id, rel_path, item_kind, tmdb_id, imdb_id}`.
-- `artwork.py` hook: after successful artwork download, publish `op='artwork_write'` payload `{disk_id, rel_path, kind}`.
-- `trailers/orchestrator.py` hook: after successful trailer download, publish `op='trailer_download'` payload `{disk_id, rel_path, trailer_path}`.
-- All four callers import `from personalscraper.indexer.outbox import publish_event` — a thin helper that opens `library.db`, inserts the row, closes. Does NOT acquire `indexer_lock` (outbox publishers must write while a scan holds the lock — per DESIGN §6.4).
+- Each mutation point, **immediately after the FS operation succeeds**, calls `publish_event(disk_id, op, payload)` from 5.2. If the insert fails (DB locked, disk full): the FS op is NOT rolled back; log `indexer.db.outbox_lost` with payload; continue. This is the "best-effort" contract from DESIGN §9.1.
+- **`dispatcher.py` hooks**: at the end of `Dispatcher.dispatch_movie(movie_dir, category_id)` and `Dispatcher.dispatch_tvshow(show_dir, category_id)` — both methods, immediately before `return DispatchResult(...)`, on success path only. Publish `op='move'` payload `{disk_id, src_rel_path, dst_rel_path, filename, size_bytes, mtime_ns}`.
+- **`scraper/nfo_generator.py` hook**: at the end of `NFOGenerator.write_nfo(xml_content, path)`, after `path.write_text(...)` succeeds. Publish `op='nfo_write'` payload `{disk_id, rel_path, item_kind, tmdb_id, imdb_id}`.
+- **`scraper/artwork.py` hook**: at the end of `ArtworkDownloader.download_image(url, dest)`, after the file is written successfully. Publish `op='artwork_write'` payload `{disk_id, rel_path, kind}`. (Single-file granularity — `download_movie_artwork`/`download_tvshow_artwork` call `download_image` per-file already.)
+- **`trailers/orchestrator.py` hook**: inside `TrailersOrchestrator.run(items)`, at the per-item success path (after the trailer file lands at its target location). Publish `op='trailer_download'` payload `{disk_id, rel_path, trailer_path}`.
+- All four callers import `from personalscraper.indexer.outbox import publish_event` — the thin helper from 5.2. Does NOT acquire `indexer_lock` (outbox publishers must write while a scan holds the lock — per DESIGN §6.4).
 
 **Tests added:** None at this sub-phase (integration tests in 5.4).
 
@@ -102,7 +104,7 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 
 **Files touched:**
 
-- `tests/integration/__init__.py` _(new — empty, if not exists)_
+- `tests/integration/__init__.py` _(new — empty)_
 - `tests/integration/test_outbox_writethrough_dispatch.py` _(new)_
 - `tests/integration/test_outbox_writethrough_nfo.py` _(new)_
 - `tests/integration/test_outbox_writethrough_artwork.py` _(new)_
@@ -111,10 +113,10 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 **Deliverable:**
 
 - Each test uses a real `tmp_path` filesystem fixture (no heavy mocking — per test-realism contract from PR #14).
-- `test_outbox_writethrough_dispatch.py`: call `dispatch.move(file)` on a fixture item; assert one `index_outbox` row with `op='move'` and matching payload; run drainer; assert `media_file` row reflects new path; outbox row `status='done'`.
-- `test_outbox_writethrough_nfo.py`: call `nfo_generator.write_nfo(...)`; assert `op='nfo_write'` row; drain; assert `media_item.nfo_status` and IDs updated.
-- `test_outbox_writethrough_artwork.py`: call `artwork.download(...)`; assert `op='artwork_write'` row; drain; assert `media_item.artwork_json` flag flipped.
-- `test_outbox_writethrough_trailer.py`: call `trailers/orchestrator.download_trailer(...)`; assert `op='trailer_download'` row; drain; assert `item_attribute(key='trailer_found')` upserted.
+- `test_outbox_writethrough_dispatch.py`: call `Dispatcher.dispatch_movie(movie_dir, category_id)` on a fixture item; assert one `index_outbox` row with `op='move'` and matching payload; run drainer; assert `media_file` row reflects new path; outbox row `status='done'`.
+- `test_outbox_writethrough_nfo.py`: call `NFOGenerator.write_nfo(xml_content, path)`; assert `op='nfo_write'` row; drain; assert `media_item.nfo_status` and IDs updated.
+- `test_outbox_writethrough_artwork.py`: call `ArtworkDownloader.download_image(url, dest)`; assert `op='artwork_write'` row; drain; assert `media_item.artwork_json` flag flipped.
+- `test_outbox_writethrough_trailer.py`: invoke `TrailersOrchestrator.run([item])` on a fixture; assert one `op='trailer_download'` row after successful trailer placement; drain; assert `item_attribute(key='trailer_found')` upserted.
 - **These tests MUST NOT go in `tests/dispatch/test_dispatcher.py`** — that file was trimmed in PR #14 and must not regrow.
 
 **Tests added:** `tests/integration/test_outbox_writethrough_dispatch.py`, `tests/integration/test_outbox_writethrough_nfo.py`, `tests/integration/test_outbox_writethrough_artwork.py`, `tests/integration/test_outbox_writethrough_trailer.py`
@@ -140,6 +142,29 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 **Tests added:** extend `tests/indexer/test_cli.py`, `tests/e2e/test_pipeline_indexer.py`
 
 **Commit:** `feat(media-indexer): 5.5 drain outbox in library index CLI`
+
+---
+
+### 5.6 — Quick-mode paranoia branch (DESIGN §17.1)
+
+**Files touched:**
+
+- `personalscraper/indexer/scanner.py` _(modify — add paranoia-branch logic to `quick` mode)_
+- `tests/indexer/test_scanner.py` _(extend — paranoia-branch test)_
+- `tests/integration/test_outbox_paranoia_branch.py` _(new)_
+
+**Deliverable:**
+
+- DESIGN §17.1 paranoia branch: a pipeline mutation (dispatch/nfo/artwork/trailer) crashes between the FS write and the outbox publish — silent miss; reconciled by next scan via dir-mtime walk. To shorten the gap, `quick` mode must always re-walk paths visited by recent outbox rows.
+- Implementation: at start of every `quick` scan, after Merkle short-circuit, query `SELECT DISTINCT path FROM scan_event WHERE event LIKE 'outbox.%' AND ts > now - 86400` (last 24 hours of outbox-derived events). For each returned path, force a re-stat and tier-1 fingerprint check regardless of dir-mtime. This is a deliberate paranoia branch: it costs ~stat per recent outbox event (typically < 100), bounded.
+- Configurable: `IndexerConfig.scan.paranoia_window_seconds` (default 86 400 s = 24 h). Set to `0` to disable.
+- Tests:
+  - `test_scanner.py` extension: simulate an FS mutation that did NOT publish to outbox; subsequent `quick` scan with empty paranoia list does not detect (expected); add a fake `scan_event(event='outbox.move', payload_json='...')` for that path; next `quick` scan re-stats and detects the change.
+  - `test_outbox_paranoia_branch.py`: integration — pipeline mutates a file, kill the process _between_ FS write and outbox publish (mocked); next `quick` scan correctly indexes the mutation thanks to the paranoia branch fed by surrounding outbox rows for nearby paths.
+
+**Tests added:** extend `tests/indexer/test_scanner.py`, `tests/integration/test_outbox_paranoia_branch.py`
+
+**Commit:** `feat(media-indexer): 5.6 quick-mode paranoia branch re-walks recent outbox paths`
 
 ---
 
