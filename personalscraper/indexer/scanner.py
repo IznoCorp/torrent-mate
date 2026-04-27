@@ -54,11 +54,12 @@ Notes on ``os.open`` convention:
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -101,6 +102,15 @@ class IndexerConfigError(ValueError):
         super().__init__(message)
 
 
+class IndexerScanActiveError(RuntimeError):
+    """Raised when a scan is already running according to the lock file.
+
+    Callers should catch this to avoid launching a second concurrent scan
+    against the same database, which would corrupt generation counters and
+    checkpoint state.
+    """
+
+
 # ---------------------------------------------------------------------------
 # ScanMode
 # ---------------------------------------------------------------------------
@@ -138,6 +148,8 @@ class ScanRunResult:
         status: Final status string — ``'ok'`` or ``'failed'``.
         disks_skipped: Number of disks short-circuited by the Merkle match in
             quick mode (Merkle root matched → zero FS reads for that disk).
+        budget_exhausted: ``True`` when the scan was stopped early because
+            ``budget_seconds`` was reached before all files were visited.
         error: Human-readable error message; ``None`` on success.
     """
 
@@ -146,7 +158,129 @@ class ScanRunResult:
     dirs_visited: int
     status: str
     disks_skipped: int = 0
+    budget_exhausted: bool = field(default=False)
     error: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Checkpoint / crash-resume helpers (sub-phase 3.4)
+# ---------------------------------------------------------------------------
+
+
+def _checkpoint_scan_run(conn: sqlite3.Connection, scan_run_id: int, last_path_str: str) -> None:
+    """Persist the current walk position so a crashed scan can resume.
+
+    Writes ``last_path`` on the ``scan_run`` row and immediately commits so
+    the update survives a hard kill.  Called every ``checkpoint_every_n_files``
+    files during the walk.
+
+    Args:
+        conn: Open SQLite connection.
+        scan_run_id: PK of the active ``scan_run`` row.
+        last_path_str: Opaque path string of the form ``"<disk_label>/<rel>/<filename>"``
+            that identifies the last successfully processed file.
+    """
+    conn.execute(
+        "UPDATE scan_run SET last_path = ? WHERE id = ?",
+        (last_path_str, scan_run_id),
+    )
+    conn.commit()
+
+
+def _check_crash_resume(conn: sqlite3.Connection, db_path: Path) -> str | None:
+    """Detect a previous crashed scan and return its resume position.
+
+    Queries ``scan_run`` for any row with ``status='running'``.  If found,
+    checks whether the locking process is still alive by reading the PID from
+    the companion lock file (``<db_path>.lock.json``).
+
+    Args:
+        conn: Open SQLite connection.
+        db_path: Filesystem path of the SQLite database file.  Used to derive
+            the lock-file path as ``<db_path.parent>/<db_path.name>.lock.json``.
+
+    Returns:
+        The ``last_path`` value from the stale scan_run row (may be ``None``
+        if the previous scan crashed before any checkpoint was written), or
+        ``None`` if no stale run is found.
+
+    Raises:
+        IndexerScanActiveError: When the process that holds the lock is still
+            alive, indicating a genuinely concurrent scan.
+    """
+    row = conn.execute(
+        "SELECT id, started_at, last_path FROM scan_run WHERE status='running' ORDER BY started_at DESC LIMIT 1"
+    ).fetchone()
+    if row is None:
+        return None
+
+    last_path: str | None = row[2]
+
+    # Derive lock-file path alongside the database.
+    lock_path = db_path.parent / (db_path.name + ".lock.json")
+    if not lock_path.exists():
+        # Lock file missing — process probably died without cleanup; resume best-effort.
+        log.info("indexer.scan.resumed", reason="lock_file_missing", last_path=last_path)
+        return last_path
+
+    try:
+        with lock_path.open() as fh:
+            lock_data = json.load(fh)
+        pid: int = int(lock_data["pid"])
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        # Invalid or unreadable lock file — treat as dead process, resume best-effort.
+        log.info("indexer.scan.resumed", reason="lock_file_invalid", last_path=last_path)
+        return last_path
+
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, OSError):
+        # Signal 0 raised — process is dead; safe to resume.
+        log.info("indexer.scan.resumed", reason="process_dead", pid=pid, last_path=last_path)
+        return last_path
+
+    # Process is alive — genuine concurrent scan; refuse to proceed.
+    raise IndexerScanActiveError(f"scan already running, PID {pid}")
+
+
+def _maybe_checkpoint(
+    conn: sqlite3.Connection,
+    scan_run_id: int,
+    current_path: str,
+    files_since_checkpoint: int,
+    checkpoint_every: int,
+    started_at_monotonic: float,
+    budget_seconds: float | None,
+) -> tuple[int, bool]:
+    """Conditionally write a checkpoint and test whether the budget is exhausted.
+
+    Called after every file processed during the walk.  When
+    ``files_since_checkpoint`` reaches ``checkpoint_every`` the walk position is
+    persisted via :func:`_checkpoint_scan_run`.  If ``budget_seconds`` is set and
+    elapsed time exceeds it, the budget-exhausted flag is returned so the caller
+    can stop the walk early.
+
+    Args:
+        conn: Open SQLite connection.
+        scan_run_id: PK of the active ``scan_run`` row.
+        current_path: Opaque path string identifying the file just processed.
+        files_since_checkpoint: Number of files processed since the last checkpoint.
+        checkpoint_every: How many files to process between checkpoints.
+        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start.
+        budget_seconds: Maximum wall-clock seconds allowed for the scan; ``None``
+            means unlimited.
+
+    Returns:
+        A ``(new_counter, budget_exhausted)`` tuple.  ``new_counter`` resets to
+        ``0`` when a checkpoint was written, otherwise increments by one.
+        ``budget_exhausted`` is ``True`` only when the budget is set and exceeded.
+    """
+    if files_since_checkpoint >= checkpoint_every:
+        _checkpoint_scan_run(conn, scan_run_id, current_path)
+        if budget_seconds is not None and time.monotonic() - started_at_monotonic >= budget_seconds:
+            return 0, True
+        return 0, False
+    return files_since_checkpoint, False
 
 
 # ---------------------------------------------------------------------------
@@ -495,6 +629,13 @@ def _walk_dir_full(
     dirs_visited: list[int],
     generation: int,
     insert_buffer: list[Any],
+    resume_from: list[str | None] | None = None,
+    files_since_checkpoint: list[int] | None = None,
+    budget_exhausted: list[bool] | None = None,
+    started_at_monotonic: float = 0.0,
+    budget_seconds: float | None = None,
+    scan_run_id: int = 0,
+    checkpoint_every: int = 100,
 ) -> None:
     """Recursively walk *dir_abs* in full mode, fingerprinting every file.
 
@@ -516,8 +657,24 @@ def _walk_dir_full(
         dirs_visited: Single-element mutable counter for directories.
         generation: Scan generation stamped on every ``media_file`` row.
         insert_buffer: Accumulation list for batched inserts (flushed by caller).
+        resume_from: Single-element list holding the opaque path string of the last
+            checkpoint (or ``None``).  Files at or before this path are skipped;
+            set to ``None`` once the resume position is passed.
+        files_since_checkpoint: Single-element mutable counter for files processed
+            since the last :func:`_checkpoint_scan_run` write.
+        budget_exhausted: Single-element flag; set to ``True`` when the time budget
+            is exceeded.  Callers should stop the walk when this becomes ``True``.
+        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start,
+            used to measure elapsed time against ``budget_seconds``.
+        budget_seconds: Maximum wall-clock seconds for the scan; ``None`` = unlimited.
+        scan_run_id: PK of the active ``scan_run`` row (needed by checkpoint helper).
+        checkpoint_every: How many files to process between checkpoint writes.
     """
     assert disk.mount_path is not None  # guard: mount_path checked before entering walk
+
+    # Bail out early if the budget was already exhausted by a sibling subtree.
+    if budget_exhausted is not None and budget_exhausted[0]:
+        return
 
     try:
         with os.scandir(dir_abs) as it:
@@ -539,7 +696,26 @@ def _walk_dir_full(
 
         if entry.is_dir(follow_symlinks=False):
             dirs_visited[0] += 1
-            _walk_dir_full(conn, disk, entry.path, files_visited, dirs_visited, generation, insert_buffer)
+            _walk_dir_full(
+                conn,
+                disk,
+                entry.path,
+                files_visited,
+                dirs_visited,
+                generation,
+                insert_buffer,
+                resume_from,
+                files_since_checkpoint,
+                budget_exhausted,
+                started_at_monotonic,
+                budget_seconds,
+                scan_run_id,
+                checkpoint_every,
+            )
+
+            # Stop iterating this directory if budget was exhausted in the subtree.
+            if budget_exhausted is not None and budget_exhausted[0]:
+                return
 
             # Write-through path row after all children have been visited.
             rel = _relpath(disk.mount_path, entry.path)
@@ -547,6 +723,16 @@ def _walk_dir_full(
 
         else:
             # Both regular files and symlinks land here.
+
+            # --- crash-resume skip ---
+            if resume_from is not None and resume_from[0] is not None:
+                parent_rel_r = _relpath(disk.mount_path, dir_abs)
+                current_path_str_r = f"{disk.label}/{parent_rel_r}/{entry.name}"
+                if current_path_str_r <= resume_from[0]:
+                    continue  # still before the resume position
+                # Past the resume boundary — clear it so remaining files are processed.
+                resume_from[0] = None
+
             files_visited[0] += 1
             is_symlink = entry.is_symlink()
 
@@ -571,6 +757,25 @@ def _walk_dir_full(
                 insert_buffer=insert_buffer,
             )
 
+            # --- checkpoint / budget check ---
+            if files_since_checkpoint is not None and budget_exhausted is not None:
+                files_since_checkpoint[0] += 1
+                parent_rel_c = _relpath(disk.mount_path, dir_abs)
+                current_path_str_c = f"{disk.label}/{parent_rel_c}/{entry.name}"
+                new_counter, exhausted = _maybe_checkpoint(
+                    conn,
+                    scan_run_id,
+                    current_path_str_c,
+                    files_since_checkpoint[0],
+                    checkpoint_every,
+                    started_at_monotonic,
+                    budget_seconds,
+                )
+                files_since_checkpoint[0] = new_counter
+                if exhausted:
+                    budget_exhausted[0] = True
+                    return
+
 
 def _walk_dir(
     conn: sqlite3.Connection,
@@ -579,6 +784,13 @@ def _walk_dir(
     files_visited: list[int],
     dirs_visited: list[int],
     generation: int,
+    resume_from: list[str | None] | None = None,
+    files_since_checkpoint: list[int] | None = None,
+    budget_exhausted: list[bool] | None = None,
+    started_at_monotonic: float = 0.0,
+    budget_seconds: float | None = None,
+    scan_run_id: int = 0,
+    checkpoint_every: int = 100,
 ) -> None:
     """Recursively walk *dir_abs*, recording path and media_file rows (skeleton mode).
 
@@ -603,8 +815,24 @@ def _walk_dir(
         files_visited: Single-element list used as a mutable counter for files.
         dirs_visited: Single-element list used as a mutable counter for directories.
         generation: Scan generation for this run (stamped on every media_file row).
+        resume_from: Single-element list holding the opaque path string of the last
+            checkpoint (or ``None``).  Files at or before this path are skipped;
+            set to ``None`` once the resume position is passed.
+        files_since_checkpoint: Single-element mutable counter for files processed
+            since the last :func:`_checkpoint_scan_run` write.
+        budget_exhausted: Single-element flag; set to ``True`` when the time budget
+            is exceeded.  Callers should stop the walk when this becomes ``True``.
+        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start,
+            used to measure elapsed time against ``budget_seconds``.
+        budget_seconds: Maximum wall-clock seconds for the scan; ``None`` = unlimited.
+        scan_run_id: PK of the active ``scan_run`` row (needed by checkpoint helper).
+        checkpoint_every: How many files to process between checkpoint writes.
     """
     assert disk.mount_path is not None  # guard: mount_path checked before entering walk
+
+    # Bail out early if the budget was already exhausted by a sibling subtree.
+    if budget_exhausted is not None and budget_exhausted[0]:
+        return
 
     try:
         with os.scandir(dir_abs) as it:
@@ -628,7 +856,25 @@ def _walk_dir(
             # Recurse first, then write-through the path row so dir_mtime_ns
             # reflects the state *after* all children have been visited.
             dirs_visited[0] += 1
-            _walk_dir(conn, disk, entry.path, files_visited, dirs_visited, generation)
+            _walk_dir(
+                conn,
+                disk,
+                entry.path,
+                files_visited,
+                dirs_visited,
+                generation,
+                resume_from,
+                files_since_checkpoint,
+                budget_exhausted,
+                started_at_monotonic,
+                budget_seconds,
+                scan_run_id,
+                checkpoint_every,
+            )
+
+            # Stop iterating this directory if budget was exhausted in the subtree.
+            if budget_exhausted is not None and budget_exhausted[0]:
+                return
 
             # Write-through path row for this directory.
             rel = _relpath(disk.mount_path, entry.path)
@@ -637,6 +883,16 @@ def _walk_dir(
         else:
             # Both regular files and symlinks land here.
             # Symlinks are recorded but never fingerprinted (oshash stays NULL).
+
+            # --- crash-resume skip ---
+            if resume_from is not None and resume_from[0] is not None:
+                parent_rel_r = _relpath(disk.mount_path, dir_abs)
+                current_path_str_r = f"{disk.label}/{parent_rel_r}/{entry.name}"
+                if current_path_str_r <= resume_from[0]:
+                    continue  # still before the resume position
+                # Past the resume boundary — clear it so remaining files are processed.
+                resume_from[0] = None
+
             files_visited[0] += 1
             parent_rel = _relpath(disk.mount_path, dir_abs)
             path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
@@ -650,6 +906,25 @@ def _walk_dir(
                 ctime_ns=ctime_ns,
                 generation=generation,
             )
+
+            # --- checkpoint / budget check ---
+            if files_since_checkpoint is not None and budget_exhausted is not None:
+                files_since_checkpoint[0] += 1
+                parent_rel_c = _relpath(disk.mount_path, dir_abs)
+                current_path_str_c = f"{disk.label}/{parent_rel_c}/{entry.name}"
+                new_counter, exhausted = _maybe_checkpoint(
+                    conn,
+                    scan_run_id,
+                    current_path_str_c,
+                    files_since_checkpoint[0],
+                    checkpoint_every,
+                    started_at_monotonic,
+                    budget_seconds,
+                )
+                files_since_checkpoint[0] = new_counter
+                if exhausted:
+                    budget_exhausted[0] = True
+                    return
 
 
 # ---------------------------------------------------------------------------
@@ -737,6 +1012,13 @@ def _walk_dir_quick(
     dirs_visited: list[int],
     generation: int,
     dir_mtime_reliable: bool,
+    resume_from: list[str | None] | None = None,
+    files_since_checkpoint: list[int] | None = None,
+    budget_exhausted: list[bool] | None = None,
+    started_at_monotonic: float = 0.0,
+    budget_seconds: float | None = None,
+    scan_run_id: int = 0,
+    checkpoint_every: int = 100,
 ) -> None:
     """Recursively walk *dir_abs* in quick mode with dir-mtime subtree skipping.
 
@@ -759,8 +1041,24 @@ def _walk_dir_quick(
         generation: Scan generation stamped on every ``media_file`` row.
         dir_mtime_reliable: When ``False``, the dir-mtime skip is disabled and
             every subdirectory is fully walked (fallback to per-file fingerprinting).
+        resume_from: Single-element list holding the opaque path string of the last
+            checkpoint (or ``None``).  Files at or before this path are skipped;
+            set to ``None`` once the resume position is passed.
+        files_since_checkpoint: Single-element mutable counter for files processed
+            since the last :func:`_checkpoint_scan_run` write.
+        budget_exhausted: Single-element flag; set to ``True`` when the time budget
+            is exceeded.  Callers should stop the walk when this becomes ``True``.
+        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start,
+            used to measure elapsed time against ``budget_seconds``.
+        budget_seconds: Maximum wall-clock seconds for the scan; ``None`` = unlimited.
+        scan_run_id: PK of the active ``scan_run`` row (needed by checkpoint helper).
+        checkpoint_every: How many files to process between checkpoint writes.
     """
     assert disk.mount_path is not None  # guard: mount_path checked before entering walk
+
+    # Bail out early if the budget was already exhausted by a sibling subtree.
+    if budget_exhausted is not None and budget_exhausted[0]:
+        return
 
     try:
         with os.scandir(dir_abs) as it:
@@ -793,13 +1091,42 @@ def _walk_dir_quick(
                     continue
 
             # Subtree changed (or dir-mtime unreliable) — recurse and re-fingerprint.
-            _walk_dir_quick(conn, disk, entry.path, files_visited, dirs_visited, generation, dir_mtime_reliable)
+            _walk_dir_quick(
+                conn,
+                disk,
+                entry.path,
+                files_visited,
+                dirs_visited,
+                generation,
+                dir_mtime_reliable,
+                resume_from,
+                files_since_checkpoint,
+                budget_exhausted,
+                started_at_monotonic,
+                budget_seconds,
+                scan_run_id,
+                checkpoint_every,
+            )
+
+            # Stop iterating this directory if budget was exhausted in the subtree.
+            if budget_exhausted is not None and budget_exhausted[0]:
+                return
 
             # Update dir_mtime_ns to the current value so next scan can short-circuit.
             _upsert_path_row(conn, disk.id, rel, current_mtime_ns)
 
         else:
             # File (or symlink) — tier-1 fingerprint only (oshash stays NULL in quick mode).
+
+            # --- crash-resume skip ---
+            if resume_from is not None and resume_from[0] is not None:
+                parent_rel_r = _relpath(disk.mount_path, dir_abs)
+                current_path_str_r = f"{disk.label}/{parent_rel_r}/{entry.name}"
+                if current_path_str_r <= resume_from[0]:
+                    continue  # still before the resume position
+                # Past the resume boundary — clear it so remaining files are processed.
+                resume_from[0] = None
+
             files_visited[0] += 1
             parent_rel = _relpath(disk.mount_path, dir_abs)
             path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
@@ -814,6 +1141,25 @@ def _walk_dir_quick(
                 generation=generation,
             )
 
+            # --- checkpoint / budget check ---
+            if files_since_checkpoint is not None and budget_exhausted is not None:
+                files_since_checkpoint[0] += 1
+                parent_rel_c = _relpath(disk.mount_path, dir_abs)
+                current_path_str_c = f"{disk.label}/{parent_rel_c}/{entry.name}"
+                new_counter, exhausted = _maybe_checkpoint(
+                    conn,
+                    scan_run_id,
+                    current_path_str_c,
+                    files_since_checkpoint[0],
+                    checkpoint_every,
+                    started_at_monotonic,
+                    budget_seconds,
+                )
+                files_since_checkpoint[0] = new_counter
+                if exhausted:
+                    budget_exhausted[0] = True
+                    return
+
 
 def _scan_disk_quick(
     conn: sqlite3.Connection,
@@ -824,6 +1170,13 @@ def _scan_disk_quick(
     generation: int,
     disks_skipped: list[int],
     dir_mtime_reliable: bool,
+    resume_from: list[str | None] | None = None,
+    files_since_checkpoint: list[int] | None = None,
+    budget_exhausted: list[bool] | None = None,
+    started_at_monotonic: float = 0.0,
+    budget_seconds: float | None = None,
+    scan_run_id: int = 0,
+    checkpoint_every: int = 100,
 ) -> None:
     """Run the quick-mode walk for a single disk.
 
@@ -852,6 +1205,17 @@ def _scan_disk_quick(
         disks_skipped: Single-element mutable counter for Merkle-hit skips.
         dir_mtime_reliable: Whether the dir-mtime skip optimisation is enabled
             for this scan session (from :func:`_verify_dir_mtime_reliable`).
+        resume_from: Single-element list holding the opaque path string of the last
+            checkpoint (or ``None``).  Forwarded to :func:`_walk_dir_quick`.
+        files_since_checkpoint: Single-element mutable counter forwarded to
+            :func:`_walk_dir_quick`.
+        budget_exhausted: Single-element flag; set to ``True`` when the time budget
+            is exceeded inside :func:`_walk_dir_quick`.
+        started_at_monotonic: :func:`time.monotonic` timestamp forwarded to the
+            walk helper.
+        budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
+        scan_run_id: PK of the active ``scan_run`` row.
+        checkpoint_every: How many files to process between checkpoint writes.
     """
     # --- Merkle short-circuit ---
     fingerprints = _build_disk_fingerprints(conn, disk.id)
@@ -872,7 +1236,28 @@ def _scan_disk_quick(
     )
 
     # --- Dir-mtime walk ---
-    _walk_dir_quick(conn, disk, mount, files_visited, dirs_visited, generation, dir_mtime_reliable)
+    _walk_dir_quick(
+        conn,
+        disk,
+        mount,
+        files_visited,
+        dirs_visited,
+        generation,
+        dir_mtime_reliable,
+        resume_from,
+        files_since_checkpoint,
+        budget_exhausted,
+        started_at_monotonic,
+        budget_seconds,
+        scan_run_id,
+        checkpoint_every,
+    )
+
+    # Skip post-walk bookkeeping if the budget was exhausted during the walk —
+    # the partial state is preserved for crash-resume; Merkle root must not be
+    # updated to an incomplete snapshot.
+    if budget_exhausted is not None and budget_exhausted[0]:
+        return
 
     # Write-through the path row for the disk root itself.
     try:
@@ -901,6 +1286,10 @@ def scan(
     conn: sqlite3.Connection,
     disk_filter: str | None = None,
     drop_indexes: bool = False,
+    *,
+    budget_seconds: float | None = None,
+    db_path: Path | None = None,
+    checkpoint_every_n_files: int = 100,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -966,10 +1355,21 @@ def scan(
             recreate secondary indexes around bulk inserts (DESIGN §11.7).
             Only activated when ``IndexerConfig.scan.drop_indexes_during_full_scan``
             is true; callers should pass this value from the config.
+        budget_seconds: Maximum wall-clock seconds allowed for the scan.
+            When the elapsed time exceeds this limit after a checkpoint, the
+            scan stops early and :attr:`ScanRunResult.budget_exhausted` is
+            set to ``True``.  ``None`` means unlimited.
+        db_path: Filesystem path to the SQLite database file.  When provided,
+            :func:`_check_crash_resume` is called at scan start to detect and
+            resume a previously crashed scan from its last checkpoint.
+            Also used to derive the companion lock-file path.
+        checkpoint_every_n_files: How many files to process between successive
+            :func:`_checkpoint_scan_run` writes.  Defaults to ``100``.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
-        and final status.
+        and final status.  When the budget is exhausted,
+        :attr:`ScanRunResult.budget_exhausted` is ``True``.
 
     Raises:
         Exception: Any unexpected exception from the walk loop is re-raised after
@@ -996,6 +1396,16 @@ def scan(
     files_visited = [0]  # mutable counter (list avoids nonlocal in nested helper)
     dirs_visited = [0]
     disks_skipped = [0]  # quick-mode Merkle-hit counter
+
+    # Checkpoint / crash-resume state (sub-phase 3.4).
+    # Single-element lists used so nested walk helpers can mutate them without
+    # nonlocal declarations or extra return values — consistent with files_visited[].
+    _resume_from: list[str | None] = [None]
+    if db_path is not None:
+        _resume_from[0] = _check_crash_resume(conn, db_path)
+    _files_since_checkpoint: list[int] = [0]
+    _budget_exhausted: list[bool] = [False]
+    _started_at_monotonic: float = time.monotonic()
 
     # One-time dir-mtime reliability check for quick mode (before any disk walk).
     dir_mtime_reliable: bool = True
@@ -1030,14 +1440,30 @@ def scan(
 
             if mode == ScanMode.full:
                 # Full-mode walk with optional index drop + batched inserts.
-                _scan_disk_full(conn, disk, mount, files_visited, dirs_visited, generation, drop_indexes)
-                # Write-through the path row for the disk root.
-                try:
-                    root_st = os.stat(mount, follow_symlinks=False)
-                    _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                    dirs_visited[0] += 1
-                except OSError:
-                    log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                _scan_disk_full(
+                    conn,
+                    disk,
+                    mount,
+                    files_visited,
+                    dirs_visited,
+                    generation,
+                    drop_indexes,
+                    _resume_from,
+                    _files_since_checkpoint,
+                    _budget_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
+                )
+                if not _budget_exhausted[0]:
+                    # Write-through the path row for the disk root.
+                    try:
+                        root_st = os.stat(mount, follow_symlinks=False)
+                        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+                        dirs_visited[0] += 1
+                    except OSError:
+                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
             elif mode == ScanMode.quick:
                 # Quick-mode: Merkle short-circuit then dir-mtime walk.
                 _scan_disk_quick(
@@ -1049,17 +1475,39 @@ def scan(
                     generation,
                     disks_skipped,
                     dir_mtime_reliable,
+                    _resume_from,
+                    _files_since_checkpoint,
+                    _budget_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
                 )
             else:
                 # Skeleton walk for modes not yet fully implemented (incremental, enrich).
-                _walk_dir(conn, disk, mount, files_visited, dirs_visited, generation)
-                # Write-through the path row for the disk root.
-                try:
-                    root_st = os.stat(mount, follow_symlinks=False)
-                    _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                    dirs_visited[0] += 1
-                except OSError:
-                    log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                _walk_dir(
+                    conn,
+                    disk,
+                    mount,
+                    files_visited,
+                    dirs_visited,
+                    generation,
+                    _resume_from,
+                    _files_since_checkpoint,
+                    _budget_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
+                )
+                if not _budget_exhausted[0]:
+                    # Write-through the path row for the disk root.
+                    try:
+                        root_st = os.stat(mount, follow_symlinks=False)
+                        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+                        dirs_visited[0] += 1
+                    except OSError:
+                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
 
             log.info(
                 "indexer.scan.disk_done",
@@ -1067,6 +1515,37 @@ def scan(
                 label=disk.label,
                 files_visited=files_visited[0],
                 dirs_visited=dirs_visited[0],
+            )
+
+            # Stop iterating disks if the budget was exhausted mid-walk.
+            if _budget_exhausted[0]:
+                break
+
+        # Budget exhausted — commit current state and return early.
+        if _budget_exhausted[0]:
+            finished_at = int(time.time())
+            stats: dict[str, int] = {
+                "files_visited": files_visited[0],
+                "dirs_visited": dirs_visited[0],
+            }
+            conn.execute(
+                "UPDATE scan_run SET stats_json = ?, status = 'ok', finished_at = ? WHERE id = ?",
+                (json.dumps(stats), finished_at, scan_run_id),
+            )
+            conn.commit()
+            log.info(
+                "indexer.scan.budget_exhausted",
+                scan_run_id=scan_run_id,
+                files_visited=files_visited[0],
+                budget_seconds=budget_seconds,
+            )
+            return ScanRunResult(
+                scan_run_id=scan_run_id,
+                files_visited=files_visited[0],
+                dirs_visited=dirs_visited[0],
+                status="ok",
+                disks_skipped=disks_skipped[0],
+                budget_exhausted=True,
             )
 
         # All disks processed — mark scan_run ok.
@@ -1107,6 +1586,13 @@ def _scan_disk_full(
     dirs_visited: list[int],
     generation: int,
     drop_indexes: bool,
+    resume_from: list[str | None] | None = None,
+    files_since_checkpoint: list[int] | None = None,
+    budget_exhausted: list[bool] | None = None,
+    started_at_monotonic: float = 0.0,
+    budget_seconds: float | None = None,
+    scan_run_id: int = 0,
+    checkpoint_every: int = 100,
 ) -> None:
     """Run the full-mode walk for a single disk with optional index management.
 
@@ -1127,6 +1613,15 @@ def _scan_disk_full(
         dirs_visited: Single-element mutable counter for directories.
         generation: Scan generation counter.
         drop_indexes: Whether to drop and recreate secondary indexes.
+        resume_from: Single-element list holding the opaque path string of the last
+            checkpoint (or ``None``).  Forwarded to :func:`_walk_dir_full_buffered`.
+        files_since_checkpoint: Single-element mutable counter forwarded to the walk.
+        budget_exhausted: Single-element flag; set to ``True`` when the time budget
+            is exceeded inside the walk.
+        started_at_monotonic: :func:`time.monotonic` timestamp forwarded to the walk.
+        budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
+        scan_run_id: PK of the active ``scan_run`` row.
+        checkpoint_every: How many files to process between checkpoint writes.
     """
     ddl_pairs: list[tuple[str, str]] = []
     if drop_indexes:
@@ -1134,7 +1629,22 @@ def _scan_disk_full(
 
     insert_buffer: list[Any] = []
     try:
-        _walk_dir_full_buffered(conn, disk, mount, files_visited, dirs_visited, generation, insert_buffer)
+        _walk_dir_full_buffered(
+            conn,
+            disk,
+            mount,
+            files_visited,
+            dirs_visited,
+            generation,
+            insert_buffer,
+            resume_from,
+            files_since_checkpoint,
+            budget_exhausted,
+            started_at_monotonic,
+            budget_seconds,
+            scan_run_id,
+            checkpoint_every,
+        )
         # Flush any remaining rows that did not fill a full batch.
         _flush_insert_buffer(conn, insert_buffer)
     finally:
@@ -1150,6 +1660,13 @@ def _walk_dir_full_buffered(
     dirs_visited: list[int],
     generation: int,
     insert_buffer: list[Any],
+    resume_from: list[str | None] | None = None,
+    files_since_checkpoint: list[int] | None = None,
+    budget_exhausted: list[bool] | None = None,
+    started_at_monotonic: float = 0.0,
+    budget_seconds: float | None = None,
+    scan_run_id: int = 0,
+    checkpoint_every: int = 100,
 ) -> None:
     """Recursive full-mode walk that auto-flushes the insert buffer every N rows.
 
@@ -1172,9 +1689,35 @@ def _walk_dir_full_buffered(
         dirs_visited: Single-element mutable counter.
         generation: Scan generation counter.
         insert_buffer: Shared accumulation list for new-row tuples.
+        resume_from: Single-element list holding the opaque path string of the last
+            checkpoint (or ``None``).  Forwarded to :func:`_walk_dir_full`.
+        files_since_checkpoint: Single-element mutable counter forwarded to the walk.
+        budget_exhausted: Single-element flag; forwarded to :func:`_walk_dir_full`.
+        started_at_monotonic: :func:`time.monotonic` timestamp forwarded to the walk.
+        budget_seconds: Maximum wall-clock seconds; ``None`` = unlimited.
+        scan_run_id: PK of the active ``scan_run`` row.
+        checkpoint_every: How many files to process between checkpoint writes.
     """
-    _walk_dir_full(conn, disk, dir_abs, files_visited, dirs_visited, generation, insert_buffer)
+    _walk_dir_full(
+        conn,
+        disk,
+        dir_abs,
+        files_visited,
+        dirs_visited,
+        generation,
+        insert_buffer,
+        resume_from,
+        files_since_checkpoint,
+        budget_exhausted,
+        started_at_monotonic,
+        budget_seconds,
+        scan_run_id,
+        checkpoint_every,
+    )
 
     # Flush whenever the buffer exceeds the batch size threshold.
-    if len(insert_buffer) >= _INSERT_BATCH_SIZE:
-        _flush_insert_buffer(conn, insert_buffer)
+    # Skip flush if budget was exhausted — partial buffer state will be discarded
+    # and the rows will be re-processed after a crash-resume.
+    if budget_exhausted is None or not budget_exhausted[0]:
+        if len(insert_buffer) >= _INSERT_BATCH_SIZE:
+            _flush_insert_buffer(conn, insert_buffer)
