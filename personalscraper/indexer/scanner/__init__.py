@@ -35,7 +35,12 @@ from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
 from personalscraper.indexer.scanner._db_writes import _upsert_path_row
 from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
-from personalscraper.indexer.scanner._modes import _scan_disk_full, _scan_disk_incremental, _scan_disk_quick
+from personalscraper.indexer.scanner._modes import (
+    _scan_disk_enrich,
+    _scan_disk_full,
+    _scan_disk_incremental,
+    _scan_disk_quick,
+)
 from personalscraper.indexer.scanner._types import (
     IndexerConfigError,
     IndexerScanActiveError,
@@ -97,6 +102,7 @@ def scan(
     disk_breaker: DiskCircuitBreaker | None = None,
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
+    quick_enrich: bool = False,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -183,6 +189,10 @@ def scan(
             fraction of changed files exceeds this value (0.0–1.0).  Sourced
             from ``IndexerDriftConfig.merkle_delta_freeze_threshold``; callers
             should pass the config value explicitly.
+        quick_enrich: When ``True`` and ``mode == ScanMode.enrich``, passes
+            ``parse_speed=0.5`` to :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
+            for a faster but less complete mediainfo parse.  Default ``False``
+            (full parse, ``parse_speed=1.0``).
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -349,8 +359,20 @@ def scan(
                         confirm_bulk_change=confirm_bulk_change,
                         merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
                     )
+                elif mode == ScanMode.enrich:
+                    # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
+                    # budget-bounded, per-file commits.
+                    _scan_disk_enrich(
+                        conn,
+                        disk,
+                        budget_seconds,
+                        _started_at_monotonic,
+                        _budget_exhausted,
+                        scan_run_id,
+                        quick_enrich=quick_enrich,
+                    )
                 else:
-                    # Skeleton walk for modes not yet fully implemented (enrich).
+                    # Skeleton walk for any future modes not yet implemented.
                     _walk_dir(
                         conn,
                         disk,
@@ -500,6 +522,7 @@ __all__ = [
     "ScanMode",
     "ScanRunResult",
     "_build_disk_fingerprints",
+    "_scan_disk_enrich",
     "_scan_disk_incremental",
     "_should_exclude",
     "_verify_dir_mtime_reliable",

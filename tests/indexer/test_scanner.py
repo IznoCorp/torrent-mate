@@ -49,7 +49,7 @@ import sqlite3
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -1228,4 +1228,250 @@ class TestIncrementalMode:
         # The two original rows must still exist (not renamed away).
         assert "file_a.mkv" in filenames or "file_b.mkv" in filenames, (
             "At least one of the original collision candidates must remain"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 4.2 tests — enrich mode: pymediainfo + NFO + artwork, budget-bounded
+# ---------------------------------------------------------------------------
+
+
+class TestEnrichMode:
+    """Tests for ScanMode.enrich: media stream extraction, NFO presence, artwork inventory.
+
+    Pattern:
+    - Seed the DB with a full scan (files have ``enriched_at=NULL``).
+    - Mock :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper` to avoid
+      requiring a real libmediainfo installation in CI.
+    - Run ``scan()`` in ``ScanMode.enrich``.
+    - Assert expected DB state.
+    """
+
+    # ------------------------------------------------------------------
+    # Test 1: enriched_at=NULL file gets media_stream rows
+    # ------------------------------------------------------------------
+
+    def test_enrich_populates_media_stream(self, fs: "FakeFilesystem") -> None:
+        """A file with enriched_at=NULL gets media_stream rows after enrich mode.
+
+        Seed the DB with a full scan, then mock pymediainfo to return 2 streams
+        (1 video + 1 audio).  Run enrich mode → assert:
+        - 2 ``media_stream`` rows created for the file.
+        - ``enriched_at`` is now set (non-NULL) on the ``media_file`` row.
+        """
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/EnrichStreamDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/movie.mkv").write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Verify enriched_at is NULL after full scan (no enrichment yet).
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT id, enriched_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
+        assert row is not None
+        assert row["enriched_at"] is None, "enriched_at must be NULL before enrich pass"
+        file_id: int = row["id"]
+
+        # Build fake tracks: 1 video + 1 audio.
+        def _make_track(track_type: str, **kwargs: object) -> SimpleNamespace:
+            defaults: dict[str, object] = {
+                "track_type": track_type,
+                "stream_identifier": None,
+                "codec_id": None,
+                "format": None,
+                "language": None,
+                "channel_s": None,
+                "width": None,
+                "height": None,
+                "duration": None,
+                "bit_rate": None,
+            }
+            defaults.update(kwargs)
+            return SimpleNamespace(**defaults)
+
+        fake_mi = MagicMock()
+        fake_mi.tracks = [
+            _make_track("Video", format="h264", width=1920, height=1080),
+            _make_track("Audio", format="AAC", channel_s=2),
+        ]
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", return_value=fake_mi):
+                result = scan([disk], ScanMode.enrich, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        # Assert 2 media_stream rows for this file.
+        conn.row_factory = sqlite3.Row
+        stream_rows = conn.execute("SELECT kind FROM media_stream WHERE file_id = ?", (file_id,)).fetchall()
+        kinds = {r["kind"] for r in stream_rows}
+        assert len(stream_rows) == 2, f"Expected 2 streams, got {len(stream_rows)}"
+        assert "video" in kinds, "Expected a video stream"
+        assert "audio" in kinds, "Expected an audio stream"
+
+        # Assert enriched_at is now set.
+        enriched_row = conn.execute("SELECT enriched_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+        assert enriched_row is not None
+        assert enriched_row["enriched_at"] is not None, "enriched_at must be set after enrich pass"
+        assert enriched_row["enriched_at"] > 0
+
+    # ------------------------------------------------------------------
+    # Test 2: already-enriched file is skipped (no pymediainfo call)
+    # ------------------------------------------------------------------
+
+    def test_enrich_skips_already_enriched(self, fs: "FakeFilesystem") -> None:
+        """A file with enriched_at=now is skipped — pymediainfo is NOT called.
+
+        Seed the DB with a full scan and manually set ``enriched_at`` to the
+        current time (= file is up-to-date).  Run enrich mode and assert that
+        ``MediaInfo.parse`` was never called.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/EnrichSkipDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        # File must have content so size gate passes; mtime_ns will be very recent.
+        Path(f"{mount}/movie.mkv").write_bytes(b"W" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Mark the file as already enriched at the current epoch second AND
+        # set enriched_at > (mtime_ns / 1_000_000_000) so the WHERE clause skips it.
+        # We set enriched_at to a future value to guarantee the skip condition.
+        far_future = int(time.time()) + 10_000
+        conn.execute("UPDATE media_file SET enriched_at = ? WHERE filename = 'movie.mkv'", (far_future,))
+        conn.commit()
+
+        parse_call_count: list[int] = [0]
+
+        def _counting_parse(*args: object, **kwargs: object) -> object:
+            parse_call_count[0] += 1
+            return MagicMock(tracks=[])
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", side_effect=_counting_parse):
+                result = scan([disk], ScanMode.enrich, generation=2, conn=conn)
+
+        assert result.status == "ok"
+        assert parse_call_count[0] == 0, (
+            f"Expected 0 pymediainfo calls for already-enriched file, got {parse_call_count[0]}"
+        )
+
+    # ------------------------------------------------------------------
+    # Test 3: budget exhaustion leaves remaining files with enriched_at=NULL
+    # ------------------------------------------------------------------
+
+    def test_enrich_budget_exhaustion_leaves_remaining_null(self, fs: "FakeFilesystem") -> None:
+        """With a tight budget, some files are enriched while others remain NULL.
+
+        Seed 5 files.  Mock ``time.monotonic`` to advance by 2 s on each call
+        past the first, making every file iteration appear to exceed a budget of
+        1 s.  Run enrich with budget_seconds=1 → assert at least one file still
+        has ``enriched_at=NULL``.
+        """
+        from unittest.mock import MagicMock
+
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/EnrichBudgetDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        for i in range(5):
+            Path(f"{mount}/film{i}.mkv").write_bytes(b"X" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Verify all 5 files are unenriched.
+        conn.row_factory = sqlite3.Row
+        unenriched = conn.execute("SELECT id FROM media_file WHERE enriched_at IS NULL").fetchall()
+        assert len(unenriched) == 5, f"Expected 5 unenriched files before enrich, got {len(unenriched)}"
+
+        # Simulate slow parsing: monotonic advances 5 s per call so the budget
+        # (1 s) is exceeded immediately after attempting the first file.
+        call_count: list[int] = [0]
+        base_time = time.monotonic()
+
+        def _fast_monotonic() -> float:
+            call_count[0] += 1
+            # First call returns baseline; subsequent calls advance by 5 s so the
+            # budget check triggers on the second file's boundary.
+            return base_time + call_count[0] * 5.0
+
+        fake_mi = MagicMock()
+        fake_mi.tracks = []
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", return_value=fake_mi):
+                with patch("personalscraper.indexer.scanner._modes.time.monotonic", side_effect=_fast_monotonic):
+                    result = scan([disk], ScanMode.enrich, generation=2, conn=conn, budget_seconds=1.0)
+
+        assert result.status == "ok"
+
+        # At least some files must still have enriched_at=NULL.
+        conn.row_factory = sqlite3.Row
+        still_null = conn.execute("SELECT id FROM media_file WHERE enriched_at IS NULL").fetchall()
+        assert len(still_null) > 0, "Expected at least 1 file with enriched_at=NULL after budget exhaustion"
+
+    # ------------------------------------------------------------------
+    # Test 4: quick_enrich=True passes parse_speed=0.5 to MediaInfoWrapper
+    # ------------------------------------------------------------------
+
+    def test_enrich_quick_flag_uses_half_parse_speed(self, fs: "FakeFilesystem") -> None:
+        """quick_enrich=True causes MediaInfoWrapper to be instantiated with parse_speed=0.5.
+
+        We patch the MediaInfoWrapper constructor to capture the parse_speed kwarg.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/EnrichQuickDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/film.mkv").write_bytes(b"Q" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        captured_kwargs: list[dict[str, object]] = []
+
+        # Create a fake MediaInfoWrapper class that records constructor kwargs and
+        # returns a stub instance whose extract_streams returns [].
+        class _FakeWrapper:
+            def __init__(self, *, min_size_mb: int = 50, parse_speed: float = 0.5) -> None:
+                captured_kwargs.append({"min_size_mb": min_size_mb, "parse_speed": parse_speed})
+
+            def extract_streams(self, path: object) -> list[object]:
+                return []
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._modes.MediaInfoWrapper",
+                _FakeWrapper,
+            ):
+                scan([disk], ScanMode.enrich, generation=2, conn=conn, quick_enrich=True)
+
+        assert len(captured_kwargs) >= 1, "MediaInfoWrapper must have been instantiated"
+        assert captured_kwargs[0]["parse_speed"] == 0.5, (
+            f"Expected parse_speed=0.5 for quick_enrich, got {captured_kwargs[0]['parse_speed']}"
         )

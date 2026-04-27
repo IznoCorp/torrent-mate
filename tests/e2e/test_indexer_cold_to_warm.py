@@ -1,4 +1,4 @@
-"""End-to-end test: cold full-mode scan (Phase 2.5 partial).
+"""End-to-end test: cold full-mode scan and enrich mode (Phase 2.5 / 4.2).
 
 Covers the "cold scan" half of the cold-to-warm indexer lifecycle:
 - Build a pyfakefs fixture with ~10 items across 2 mock disks.
@@ -8,10 +8,11 @@ Covers the "cold scan" half of the cold-to-warm indexer lifecycle:
 - Assert ``scan_run.status == 'ok'``.
 - Assert ``oshash`` is non-empty hex for video files; ``""`` for non-video.
 
-The "warm" half (incremental run with no changes) is deferred to Phase 3.
-TODO: Add warm-scan half in Phase 3 — run scan() a second time on the same
-      fixture, assert no new rows, assert scan_run.status='ok', assert
-      files_visited == 0 for unchanged files (once incremental mode is wired).
+The "enrich" half (sub-phase 4.2):
+- After the cold full scan (all ``enriched_at IS NULL``), run ``ScanMode.enrich``.
+- Mock pymediainfo to return 1 video + 1 audio stream for video files.
+- Assert ``media_stream`` rows are created for video files.
+- Assert ``enriched_at`` is set (non-NULL) for all files.
 
 Note on pyfakefs + sqlite3:
     pyfakefs intercepts all filesystem I/O.  To work around this, each test
@@ -30,8 +31,9 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo, log_repo
@@ -244,3 +246,138 @@ class TestColdScan:
             assert by_name[nname] is None, (
                 f"Non-video file {nname!r} must have oshash=None (NULL), got {by_name[nname]!r}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Enrich scan test (sub-phase 4.2)
+# ---------------------------------------------------------------------------
+
+
+def _make_fake_mi_result(n_video: int = 1, n_audio: int = 1) -> MagicMock:
+    """Build a fake MediaInfo parse result with *n_video* + *n_audio* tracks.
+
+    Args:
+        n_video: Number of video tracks to include.
+        n_audio: Number of audio tracks to include.
+
+    Returns:
+        A :class:`~unittest.mock.MagicMock` whose ``.tracks`` attribute contains
+        the requested video and audio tracks plus one ``General`` track (which the
+        wrapper must filter out).
+    """
+
+    def _track(track_type: str, stream_id: int = 0) -> SimpleNamespace:
+        return SimpleNamespace(
+            track_type=track_type,
+            stream_identifier=stream_id,
+            codec_id=None,
+            format="h264" if track_type == "Video" else "AAC",
+            language=None,
+            channel_s=2 if track_type == "Audio" else None,
+            width=1920 if track_type == "Video" else None,
+            height=1080 if track_type == "Video" else None,
+            duration=90000,
+            bit_rate=4000000,
+        )
+
+    tracks = [SimpleNamespace(track_type="General")]  # always filtered by wrapper
+    tracks += [_track("Video", i) for i in range(n_video)]
+    tracks += [_track("Audio", i) for i in range(n_audio)]
+
+    mi = MagicMock()
+    mi.tracks = tracks
+    return mi
+
+
+class TestEnrichScan:
+    """Enrich mode (ScanMode.enrich) on the cold fixture — sub-phase 4.2 E2E."""
+
+    def test_enrich_after_cold_scan(self, fs: "FakeFilesystem") -> None:
+        """After a cold full scan, enrich mode populates media_stream and enriched_at.
+
+        Steps:
+        1. Run a cold ``ScanMode.full`` scan → assert ``enriched_at IS NULL`` for all rows.
+        2. Run ``ScanMode.enrich`` with mocked pymediainfo (1 video + 1 audio per file).
+        3. Assert ``media_stream`` rows exist for video files (size gate passes because
+           ``min_size_mb=0`` inside _scan_disk_enrich).
+        4. Assert ``enriched_at`` is non-NULL for all files after enrichment.
+        """
+        # Build DB while real FS is accessible.
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount_a = "/mnt/DiskA"
+        mount_b = "/mnt/DiskB"
+
+        _build_fixture(fs, mount_a, mount_b)
+
+        disk_a = _insert_disk(conn, "DiskA", mount_a)
+        disk_b = _insert_disk(conn, "DiskB", mount_b)
+
+        # --- Step 1: cold full scan ---
+        with patch(_GUARD_PATCH, return_value=None):
+            full_result = scan(
+                [disk_a, disk_b],
+                mode=ScanMode.full,
+                generation=1,
+                conn=conn,
+                drop_indexes=False,
+            )
+
+        assert full_result.status == "ok"
+        assert full_result.files_visited == _TOTAL_FILES
+
+        # All files must have enriched_at=NULL after the full scan.
+        conn.row_factory = sqlite3.Row
+        all_rows = conn.execute("SELECT filename, enriched_at FROM media_file").fetchall()
+        for row in all_rows:
+            assert row["enriched_at"] is None, f"enriched_at must be NULL after full scan for {row['filename']!r}"
+
+        # --- Step 2: enrich scan with mocked pymediainfo ---
+        fake_mi = _make_fake_mi_result(n_video=1, n_audio=1)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", return_value=fake_mi):
+                enrich_result = scan(
+                    [disk_a, disk_b],
+                    mode=ScanMode.enrich,
+                    generation=2,
+                    conn=conn,
+                )
+
+        assert enrich_result.status == "ok"
+
+        # --- Step 3: assert media_stream rows created for video files ---
+        conn.row_factory = sqlite3.Row
+        # Fetch all media_stream rows joined to filename for legibility.
+        stream_rows = conn.execute(
+            """
+            SELECT mf.filename, ms.kind
+              FROM media_stream ms
+              JOIN media_file mf ON mf.id = ms.file_id
+            """
+        ).fetchall()
+        stream_by_name: dict[str, list[str]] = {}
+        for sr in stream_rows:
+            stream_by_name.setdefault(sr["filename"], []).append(sr["kind"])
+
+        for vname in _VIDEO_FILENAMES:
+            assert vname in stream_by_name, (
+                f"No media_stream rows found for video file {vname!r}; files with streams: {list(stream_by_name)}"
+            )
+            kinds = stream_by_name[vname]
+            assert "video" in kinds, f"Expected video stream for {vname!r}, got {kinds}"
+            assert "audio" in kinds, f"Expected audio stream for {vname!r}, got {kinds}"
+
+        # Non-video files may also have streams if pymediainfo returns any;
+        # the key requirement is that video files always have streams.
+
+        # --- Step 4: assert enriched_at populated for all files ---
+        conn.row_factory = sqlite3.Row
+        final_rows = conn.execute("SELECT filename, enriched_at FROM media_file").fetchall()
+        assert len(final_rows) == _TOTAL_FILES
+
+        for row in final_rows:
+            assert row["enriched_at"] is not None, f"enriched_at must be set after enrich pass for {row['filename']!r}"
+            assert row["enriched_at"] > 0, f"enriched_at must be a positive epoch seconds value for {row['filename']!r}"

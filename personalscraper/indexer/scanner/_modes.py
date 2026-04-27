@@ -5,15 +5,21 @@ Provides:
 - :func:`_scan_disk_quick` — quick-mode walk with Merkle short-circuit + dir-mtime walk.
 - :func:`_scan_disk_incremental` — incremental walk: quick semantics + OSHash recompute on
   tier-1 mismatch with rename-detection and content-drift repair enqueue.
+- :func:`_scan_disk_enrich` — enrich mode: pymediainfo + NFO presence check + artwork
+  inventory on rows where ``enriched_at IS NULL``, budget-bounded, per-file commits.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
+import time
+from pathlib import Path
 from typing import Any
 
 from personalscraper.indexer import drift as _drift
+from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     compute_merkle_delta,
@@ -35,7 +41,7 @@ from personalscraper.indexer.scanner._walker import (
     _walk_dir_full_buffered,
     _walk_dir_quick,
 )
-from personalscraper.indexer.schema import DiskRow
+from personalscraper.indexer.schema import ArtworkInventory, DiskRow, MediaStreamRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
@@ -773,3 +779,346 @@ def _walk_dir_incremental(
                 if exhausted:
                     budget_exhausted[0] = True
                     return
+
+
+# ---------------------------------------------------------------------------
+# Artwork filename constants
+# ---------------------------------------------------------------------------
+
+# Canonical artwork filenames checked during enrich (case-insensitive on macOS
+# but we match lowercase to avoid double-hitting).
+_ARTWORK_FILENAMES: dict[str, str] = {
+    "poster.jpg": "poster",
+    "poster.png": "poster",
+    "fanart.jpg": "fanart",
+    "fanart.png": "fanart",
+    "banner.jpg": "banner",
+    "banner.png": "banner",
+    "landscape.jpg": "landscape",
+    "landscape.png": "landscape",
+    "clearlogo.png": "clearlogo",
+    "clearlogo.jpg": "clearlogo",
+    "clearart.png": "clearart",
+    "clearart.jpg": "clearart",
+    "discart.png": "discart",
+    "discart.jpg": "discart",
+    "characterart.png": "characterart",
+    "characterart.jpg": "characterart",
+}
+
+
+def _inventory_artwork(parent_dir: str) -> ArtworkInventory:
+    """Scan *parent_dir* for known artwork filenames and return an :class:`ArtworkInventory`.
+
+    Only the presence of a file is checked — no content validation is performed.
+    Each artwork type resolves to ``True`` as soon as *any* matching filename is
+    found in the directory.
+
+    Args:
+        parent_dir: Absolute path of the directory to scan.
+
+    Returns:
+        :class:`ArtworkInventory` instance reflecting what artwork files exist.
+    """
+    found: dict[str, bool] = {}
+    try:
+        with os.scandir(parent_dir) as it:
+            for entry in it:
+                key = _ARTWORK_FILENAMES.get(entry.name.lower())
+                if key is not None:
+                    found[key] = True
+    except OSError:
+        # Directory not readable — return empty inventory rather than crashing.
+        pass
+
+    return ArtworkInventory(
+        poster=found.get("poster", False),
+        fanart=found.get("fanart", False),
+        landscape=found.get("landscape", False),
+        banner=found.get("banner", False),
+        clearlogo=found.get("clearlogo", False),
+        clearart=found.get("clearart", False),
+        discart=found.get("discart", False),
+        characterart=found.get("characterart", False),
+    )
+
+
+def _check_nfo_status(parent_dir: str) -> str:
+    """Check whether a ``.nfo`` file exists in *parent_dir* and return a status string.
+
+    Full NFO parsing (XML validation) is deferred to the scraper integration phases.
+    This function performs only a file-existence check:
+
+    - ``'valid'`` — a ``.nfo`` file is present (we cannot validate content yet).
+    - ``'missing'`` — no ``.nfo`` file found.
+
+    Args:
+        parent_dir: Absolute path of the directory to inspect.
+
+    Returns:
+        ``'valid'`` if any ``.nfo`` file exists in *parent_dir*, ``'missing'`` otherwise.
+    """
+    try:
+        with os.scandir(parent_dir) as it:
+            for entry in it:
+                if entry.name.lower().endswith(".nfo"):
+                    return "valid"
+    except OSError:
+        pass
+    return "missing"
+
+
+def _enrich_one_file(
+    conn: sqlite3.Connection,
+    file_id: int,
+    file_path: Path,
+    item_id: int | None,
+    wrapper: MediaInfoWrapper | None,
+) -> None:
+    """Enrich a single ``media_file`` row with streams, NFO status, and artwork.
+
+    Performs three enrichment steps in order:
+
+    1. **Stream extraction** — if *wrapper* is not ``None`` and the file is large
+       enough, call :meth:`~personalscraper.indexer.mediainfo.MediaInfoWrapper.extract_streams`
+       and INSERT the resulting :class:`~personalscraper.indexer.schema.MediaStreamRow` objects
+       into ``media_stream``, replacing any existing rows for this ``file_id``.
+    2. **NFO presence check** — inspect the parent directory for ``.nfo`` files and
+       update ``media_item.nfo_status`` when *item_id* is not ``None``.
+    3. **Artwork inventory** — scan the parent directory for known artwork filenames
+       and update ``media_item.artwork_json`` when *item_id* is not ``None``.
+
+    Finally, set ``media_file.enriched_at`` to the current epoch seconds.
+
+    Args:
+        conn: Open SQLite connection.  Caller is responsible for committing.
+        file_id: PK of the ``media_file`` row to enrich.
+        file_path: Absolute :class:`~pathlib.Path` to the media file.
+        item_id: PK of the owning ``media_item``, or ``None`` if release linkage
+            has not been performed yet.
+        wrapper: Configured :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
+            instance, or ``None`` when pymediainfo is unavailable.
+    """
+    now_s = int(time.time())
+    parent_dir = str(file_path.parent)
+
+    # --- Step 1: stream extraction ---
+    if wrapper is not None:
+        try:
+            stream_rows: list[MediaStreamRow] = wrapper.extract_streams(file_path)
+        except Exception:  # noqa: BLE001
+            # Corrupt / unreadable file — skip stream extraction but still update
+            # enriched_at so we do not re-attempt on every future enrich run.
+            stream_rows = []
+
+        if stream_rows:
+            # Delete stale stream rows before re-inserting to keep the table clean.
+            conn.execute("DELETE FROM media_stream WHERE file_id = ?", (file_id,))
+            # Use a global 0-based index (enumerate) rather than the per-kind index
+            # from MediaStreamRow.idx, which may collide across track types when the
+            # UNIQUE(file_id, idx) constraint is file-scoped.
+            conn.executemany(
+                """
+                INSERT INTO media_stream (file_id, idx, kind, codec, lang,
+                    channels, width, height, duration_ms, bitrate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        file_id,
+                        global_idx,
+                        row.kind,
+                        row.codec,
+                        row.lang,
+                        row.channels,
+                        row.width,
+                        row.height,
+                        row.duration_ms,
+                        row.bitrate,
+                    )
+                    for global_idx, row in enumerate(stream_rows)
+                ],
+            )
+
+    # --- Steps 2 + 3: NFO status and artwork (only when release linkage exists) ---
+    if item_id is not None:
+        nfo_status = _check_nfo_status(parent_dir)
+        artwork = _inventory_artwork(parent_dir)
+        artwork_json = artwork.model_dump_json()
+
+        conn.execute(
+            "UPDATE media_item SET nfo_status = ?, artwork_json = ? WHERE id = ?",
+            (nfo_status, artwork_json, item_id),
+        )
+
+    # --- Set enriched_at ---
+    conn.execute(
+        "UPDATE media_file SET enriched_at = ? WHERE id = ?",
+        (now_s, file_id),
+    )
+
+
+def _scan_disk_enrich(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    budget_seconds: float | None,
+    started_at_monotonic: float,
+    budget_exhausted: list[bool],
+    scan_run_id: int,
+    quick_enrich: bool = False,
+) -> None:
+    """Run the enrich-mode pass for a single disk.
+
+    Iterates ``media_file`` rows on this disk where ``enriched_at IS NULL`` or
+    ``enriched_at < (mtime_ns / 1_000_000_000)`` (file has been modified since
+    last enrichment), in priority order: files whose owning ``media_item`` was
+    most recently modified first (``media_item.date_modified DESC``), with
+    files that have no release linkage last.
+
+    Per-file enrichment:
+
+    1. Recompute file path from ``path.rel_path`` and ``media_file.filename``.
+    2. Extract media streams via :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
+       (skipped silently if ``libmediainfo`` is not installed).
+    3. Check NFO presence in the file's parent directory.
+    4. Inventory artwork in the file's parent directory.
+    5. Update ``media_file.enriched_at`` to the current epoch seconds.
+    6. **Commit after each file** so partial progress survives interruption.
+
+    If the *budget_seconds* wall-clock limit is reached between files, the loop
+    exits early and ``budget_exhausted[0]`` is set to ``True``.  Any files not
+    yet enriched retain ``enriched_at=NULL`` and will be picked up by the next
+    enrich run.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` to enrich.
+        budget_seconds: Maximum wall-clock seconds for the entire enrich pass.
+            ``None`` = unlimited.
+        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start.
+        budget_exhausted: Single-element flag; set to ``True`` when the budget
+            is exceeded.  Mutated in-place so the caller can check it after return.
+        scan_run_id: PK of the active ``scan_run`` row (used for stats update on
+            budget exhaustion).
+        quick_enrich: When ``True``, uses ``parse_speed=0.5`` for pymediainfo
+            (faster but may skip optional tags).  Default ``False`` → ``parse_speed=1.0``.
+    """
+    if disk.mount_path is None:
+        log.warning("indexer.enrich.disk_no_mount", disk_id=disk.id, label=disk.label)
+        return
+
+    parse_speed: float = 0.5 if quick_enrich else 1.0
+
+    # Attempt to create the pymediainfo wrapper; degrade gracefully if unavailable.
+    wrapper: MediaInfoWrapper | None
+    try:
+        wrapper = MediaInfoWrapper(min_size_mb=0, parse_speed=parse_speed)
+    except MediaInfoUnavailableError:
+        log.warning(
+            "indexer.enrich.mediainfo_unavailable",
+            disk_id=disk.id,
+            label=disk.label,
+        )
+        wrapper = None
+
+    # Query files that need enrichment, ordered by owning item's date_modified DESC.
+    # Files with no release linkage (release_id IS NULL) sort last.
+    conn.row_factory = sqlite3.Row
+    pending = conn.execute(
+        """
+        SELECT mf.id            AS file_id,
+               mf.filename      AS filename,
+               mf.mtime_ns      AS mtime_ns,
+               mf.release_id    AS release_id,
+               p.rel_path       AS rel_path,
+               mr.item_id       AS item_id
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+          LEFT JOIN media_release mr ON mr.id = mf.release_id
+         WHERE p.disk_id = ?
+           AND mf.deleted_at IS NULL
+           AND (
+                 mf.enriched_at IS NULL
+              OR mf.enriched_at < (mf.mtime_ns / 1000000000)
+           )
+         ORDER BY
+               CASE WHEN mf.release_id IS NULL THEN 1 ELSE 0 END ASC,
+               (
+                 SELECT mi.date_modified
+                   FROM media_item mi
+                  WHERE mi.id = mr.item_id
+               ) DESC NULLS LAST
+        """,
+        (disk.id,),
+    ).fetchall()
+    conn.row_factory = None
+
+    files_enriched = 0
+
+    for row in pending:
+        # Budget check at each file boundary.
+        if budget_seconds is not None:
+            elapsed = time.monotonic() - started_at_monotonic
+            if elapsed >= budget_seconds:
+                log.info(
+                    "indexer.enrich.budget_exhausted",
+                    disk_id=disk.id,
+                    label=disk.label,
+                    files_enriched=files_enriched,
+                    elapsed=elapsed,
+                )
+                conn.execute(
+                    "UPDATE scan_run SET stats_json = ? WHERE id = ?",
+                    (json.dumps({"budget_exhausted": True, "files_enriched": files_enriched}), scan_run_id),
+                )
+                conn.commit()
+                budget_exhausted[0] = True
+                return
+
+        # Reconstruct absolute file path from disk mount + rel_path + filename.
+        rel_path: str = row["rel_path"]
+        filename: str = row["filename"]
+        if rel_path == ".":
+            file_path = Path(disk.mount_path) / filename
+        else:
+            file_path = Path(disk.mount_path) / rel_path / filename
+
+        file_id: int = row["file_id"]
+        item_id: int | None = row["item_id"]
+
+        if not file_path.exists():
+            # File no longer on disk — skip without updating enriched_at so the
+            # scanner's miss-strikes logic handles it on the next full/incremental pass.
+            log.debug(
+                "indexer.enrich.file_missing",
+                file_id=file_id,
+                path=str(file_path),
+            )
+            continue
+
+        try:
+            _enrich_one_file(conn, file_id, file_path, item_id, wrapper)
+        except Exception:  # noqa: BLE001
+            log.warning(
+                "indexer.enrich.file_error",
+                file_id=file_id,
+                path=str(file_path),
+            )
+            continue
+
+        # Per-file commit: partial progress is saved on any interruption.
+        conn.commit()
+        files_enriched += 1
+
+        log.debug(
+            "indexer.enrich.file_done",
+            file_id=file_id,
+            path=str(file_path),
+        )
+
+    log.info(
+        "indexer.enrich.disk_done",
+        disk_id=disk.id,
+        label=disk.label,
+        files_enriched=files_enriched,
+    )
