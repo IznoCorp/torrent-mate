@@ -54,6 +54,10 @@ from personalscraper.trailers.cli import app as trailers_app  # noqa: E402
 
 app.add_typer(trailers_app, name="trailers")
 
+# Mount config sub-app (personalscraper config <subcommand>)
+config_app = typer.Typer(help="Configuration management commands.")
+app.add_typer(config_app, name="config")
+
 
 class _State(TypedDict):
     """Typed shape of the global CLI state dict.
@@ -169,8 +173,10 @@ def main(
     state["quiet"] = quiet
     configure_logging(verbose=verbose, quiet=quiet)
 
-    # init-config bypasses eager load: config.json5 may not exist yet.
-    if ctx.invoked_subcommand == "init-config":
+    # init-config and config sub-app bypass eager load: config.json5 may not
+    # exist yet (init-config) or the user is performing the migration itself
+    # (config migrate-to-v2).
+    if ctx.invoked_subcommand in {"init-config", "config"}:
         ctx.obj = AppCtx(config=None, config_override=config)
         return
 
@@ -1042,6 +1048,90 @@ def library_report(
         console.print(f"[green]Report written to {output_path}[/green]")
     else:
         console.print(format_report_text(report))
+
+
+# ---------------------------------------------------------------------------
+# Config sub-app commands
+# ---------------------------------------------------------------------------
+
+
+@config_app.command("migrate-to-v2")
+def config_migrate_to_v2(
+    ctx: typer.Context,
+    legacy: Path = typer.Argument(
+        ...,
+        help="Path to the legacy monolithic config.json5 to migrate.",
+    ),
+    target_dir: Path = typer.Argument(
+        ...,
+        help="Destination directory for the split v2 config files.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be written without touching disk."),
+) -> None:
+    """Migrate a v1 monolithic config.json5 to the v2 split layout.
+
+    Reads the legacy single-file config.json5, splits its top-level keys
+    across per-concern JSON5 files, and writes them atomically to TARGET_DIR.
+
+    The legacy file is renamed to <legacy>.v1.bak on success.  Unknown v1 keys
+    are placed in TARGET_DIR/local.json5 and listed in migration-warnings.txt.
+
+    Use --dry-run to preview the plan without writing anything.
+
+    Examples:
+        personalscraper config migrate-to-v2 ~/.personalscraper/config.json5 ~/.personalscraper/config/
+        personalscraper config migrate-to-v2 --dry-run ~/.personalscraper/config.json5 ~/.personalscraper/config/
+
+    Args:
+        ctx: Typer context (unused here — config sub-app runs without the
+            main callback's eager config load).
+        legacy: Path to the legacy monolithic config.json5.
+        target_dir: Destination directory for the split v2 files.
+        dry_run: When True, print planned writes and exit 0 without touching disk.
+    """
+    from personalscraper.conf.migration import (  # noqa: PLC0415
+        MigrationAlreadyDoneError,
+        MigrationError,
+        MigrationMalformedError,
+        migrate_v1_to_v2,
+        plan_migration,
+    )
+
+    console = state["console"]
+    legacy_resolved = legacy.expanduser().resolve()
+    target_resolved = target_dir.expanduser().resolve()
+
+    if dry_run:
+        try:
+            plan = plan_migration(legacy_resolved)
+        except MigrationMalformedError as exc:
+            typer.echo(f"Migration error: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
+
+        console.print(f"[yellow]DRY-RUN:[/yellow] Would write the following files to {target_resolved}:")
+        for fname, content in plan.items():
+            if fname == "migration-warnings.txt":
+                console.print(f"  [dim]{fname}[/dim]  (warnings text file)")
+            else:
+                key_list = ", ".join(content.keys()) if isinstance(content, dict) else "<text>"
+                console.print(f"  [cyan]{fname}[/cyan]  keys: {key_list}")
+        console.print(f"[dim]Legacy file would be renamed to {legacy_resolved}.v1.bak[/dim]")
+        return
+
+    try:
+        migrate_v1_to_v2(legacy_resolved, target_resolved)
+    except MigrationAlreadyDoneError as exc:
+        console.print(f"[yellow]Already migrated:[/yellow] {exc}")
+        raise typer.Exit(code=0) from exc
+    except MigrationMalformedError as exc:
+        typer.echo(f"Migration error (malformed input): {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except MigrationError as exc:
+        typer.echo(f"Migration failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[green]Migration complete.[/green] Split config written to {target_resolved}")
+    console.print(f"[dim]Legacy file backed up as {legacy_resolved}.v1.bak[/dim]")
 
 
 @app.command()
