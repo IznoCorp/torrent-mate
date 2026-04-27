@@ -14,10 +14,19 @@ Functions:
   disk that was not visited in the current scan generation.
 - :func:`clamp_mtime_ns` — sanitise raw mtime values from the filesystem
   (future or pre-1970) before storing or comparing them.
+- :func:`apply_soft_deletes` — promote files that exceeded the strike threshold
+  to soft-deleted state by setting ``deleted_at`` and inserting a tombstone.
+- :func:`reset_strikes_on_reappearance` — clear ``miss_strikes`` and
+  ``deleted_at`` when a previously-struck file reappears on disk.
+- :func:`should_apply_drift_for_disk` — guard: returns ``False`` for any mount
+  state that should freeze drift processing.
+- :func:`purge_old_tombstones` — delete ``deleted_item`` rows older than a
+  configurable retention window.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
@@ -25,8 +34,9 @@ from pathlib import Path
 from typing import Literal
 
 from personalscraper.indexer.fingerprint import is_racy, xxh3_partial
-from personalscraper.indexer.repos import file_repo, outbox_repo
-from personalscraper.indexer.schema import MediaFileRow, RepairQueueRow
+from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.repos import file_repo, log_repo, outbox_repo
+from personalscraper.indexer.schema import DeletedItemRow, DiskRow, MediaFileRow, RepairQueueRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.drift")
@@ -154,6 +164,10 @@ def reconcile_file(
        ``"tier1_drift"`` (cosmetic mtime/ctime change).
     d. If ``xxh3_partial`` differs, enqueue a repair and return ``"content_drift"``.
 
+    When a row is found but has ``miss_strikes > 0`` or ``deleted_at IS NOT NULL``
+    (i.e., it previously missed scans but has now reappeared), this function
+    calls :func:`reset_strikes_on_reappearance` before returning the drift outcome.
+
     The caller must commit the enclosing transaction after processing all files
     in the disk's walk.
 
@@ -177,6 +191,10 @@ def reconcile_file(
 
     if stored is None:
         return "new"
+
+    # If this file had been struck or soft-deleted but now reappears, reset.
+    if stored.miss_strikes > 0 or stored.deleted_at is not None:
+        reset_strikes_on_reappearance(conn, stored.id)
 
     # Clamp raw mtime before comparing (DESIGN §17.1 — future/pre-epoch guard).
     now_ns = time.time_ns()
@@ -434,4 +452,178 @@ def mark_missed_files(conn: sqlite3.Connection, disk_id: int, current_generation
     count: int = cursor.rowcount
     if count > 0:
         log.info("indexer.drift.miss_strikes_incremented", disk_id=disk_id, count=count, generation=current_generation)
+    return count
+
+
+# ---------------------------------------------------------------------------
+# apply_soft_deletes
+# ---------------------------------------------------------------------------
+
+
+def apply_soft_deletes(conn: sqlite3.Connection, disk_id: int, n_strikes_for_softdelete: int) -> int:
+    """Promote files that exceeded the miss-strike threshold to soft-deleted state.
+
+    For each ``media_file`` row on *disk_id* where ``miss_strikes >= n_strikes_for_softdelete``
+    and ``deleted_at IS NULL``:
+
+    a. Sets ``deleted_at`` to the current epoch-seconds timestamp.
+    b. Inserts a tombstone row into ``deleted_item`` with ``kind='file'``,
+       ``original_id=file.id``, ``reason='n_strikes'``, and a JSON snapshot of
+       the file's key fields (id, path_id, filename, oshash, size_bytes, mtime_ns).
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the ``disk`` row whose files should be evaluated.
+        n_strikes_for_softdelete: Minimum ``miss_strikes`` value required to
+            trigger a soft-delete.
+
+    Returns:
+        Number of rows soft-deleted.
+    """
+    now_seconds = int(time.time())
+
+    conn.row_factory = sqlite3.Row
+    candidates = conn.execute(
+        """
+        SELECT mf.id, mf.path_id, mf.filename, mf.oshash, mf.size_bytes, mf.mtime_ns
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+         WHERE p.disk_id = ?
+           AND mf.miss_strikes >= ?
+           AND mf.deleted_at IS NULL
+        """,
+        (disk_id, n_strikes_for_softdelete),
+    ).fetchall()
+    conn.row_factory = None
+
+    count = 0
+    for row in candidates:
+        file_id: int = row["id"]
+
+        # Mark the live row as soft-deleted.
+        conn.execute(
+            "UPDATE media_file SET deleted_at = ? WHERE id = ?",
+            (now_seconds, file_id),
+        )
+
+        # Build a JSON snapshot of the key fields for the tombstone.
+        snapshot_payload = json.dumps(
+            {
+                "id": file_id,
+                "path_id": row["path_id"],
+                "filename": row["filename"],
+                "oshash": row["oshash"],
+                "size_bytes": row["size_bytes"],
+                "mtime_ns": row["mtime_ns"],
+            }
+        )
+
+        tombstone = DeletedItemRow(
+            id=0,  # ignored on insert
+            kind="file",
+            original_id=file_id,
+            deleted_at=now_seconds,
+            reason="n_strikes",
+            payload_json=snapshot_payload,
+        )
+        log_repo.insert_deleted_item(conn, tombstone)
+
+        log.info(
+            "indexer.drift.soft_delete",
+            file_id=file_id,
+            filename=row["filename"],
+            disk_id=disk_id,
+        )
+        count += 1
+
+    return count
+
+
+# ---------------------------------------------------------------------------
+# reset_strikes_on_reappearance
+# ---------------------------------------------------------------------------
+
+
+def reset_strikes_on_reappearance(conn: sqlite3.Connection, file_id: int) -> None:
+    """Clear ``miss_strikes`` and ``deleted_at`` for a file that has reappeared on disk.
+
+    Called from :func:`reconcile_file` when a previously-struck or soft-deleted
+    file is seen again during a scan.
+
+    Args:
+        conn: Open SQLite connection.
+        file_id: PK of the ``media_file`` row that has reappeared.
+    """
+    conn.execute(
+        "UPDATE media_file SET miss_strikes = 0, deleted_at = NULL WHERE id = ?",
+        (file_id,),
+    )
+    log.info("indexer.drift.strike_reset", file_id=file_id)
+
+
+# ---------------------------------------------------------------------------
+# should_apply_drift_for_disk
+# ---------------------------------------------------------------------------
+
+
+def should_apply_drift_for_disk(disk: DiskRow, mount_status: DiskMountStatus) -> bool:
+    """Determine whether drift processing should proceed for a given disk.
+
+    Guards against modifying strike/delete state when a disk is unavailable or
+    its identity cannot be confirmed, which would produce incorrect miss strikes.
+
+    Mount-state decision table:
+
+    - ``UNMOUNTED`` → ``False`` (freeze, log ``indexer.disk.skipped_unmounted``).
+    - ``MOUNTED_WRONG_DISK`` → ``False`` (freeze, log ``indexer.disk.uuid_mismatch``).
+    - ``MOUNTED_AND_VERIFIED`` → ``True`` (proceed with drift).
+    - ``NO_SENTINEL`` → ``True`` (no sentinel yet, but disk appears mounted; allow drift).
+
+    Args:
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` for the disk being evaluated.
+        mount_status: :class:`~personalscraper.indexer.merkle.DiskMountStatus` from the
+            most recent mount verification.
+
+    Returns:
+        ``True`` if drift processing should proceed, ``False`` if it should be frozen.
+    """
+    if mount_status is DiskMountStatus.UNMOUNTED:
+        log.warning("indexer.disk.skipped_unmounted", disk_id=disk.id, label=disk.label)
+        return False
+
+    if mount_status is DiskMountStatus.MOUNTED_WRONG_DISK:
+        log.warning("indexer.disk.uuid_mismatch", disk_id=disk.id, label=disk.label)
+        return False
+
+    # MOUNTED_AND_VERIFIED or NO_SENTINEL — proceed.
+    return True
+
+
+# ---------------------------------------------------------------------------
+# purge_old_tombstones
+# ---------------------------------------------------------------------------
+
+
+def purge_old_tombstones(conn: sqlite3.Connection, retention_days: int) -> int:
+    """Delete ``deleted_item`` tombstone rows older than *retention_days*.
+
+    This is a basic stub; the full implementation lives in the library-repair
+    phase.  Rows whose ``deleted_at`` epoch-seconds value is older than
+    ``now - retention_days * 86400`` are permanently removed.
+
+    Args:
+        conn: Open SQLite connection.
+        retention_days: Number of days after which a tombstone may be purged.
+
+    Returns:
+        Number of rows deleted from ``deleted_item``.
+    """
+    cutoff = int(time.time()) - retention_days * 86400
+    cursor = conn.execute(
+        "DELETE FROM deleted_item WHERE deleted_at < ?",
+        (cutoff,),
+    )
+    count: int = cursor.rowcount
+    if count > 0:
+        log.info("indexer.drift.tombstones_purged", count=count, retention_days=retention_days)
     return count

@@ -22,6 +22,19 @@ Example tests:
 - ``test_oshash_collision_enqueues_repair`` — two rows with identical OSHash
   trigger a repair entry, not an auto-rename.
 
+Sub-phase 3.2 example tests:
+
+- ``test_soft_delete_after_n_strikes`` — file soft-deleted after reaching strike threshold.
+- ``test_no_soft_delete_below_n_strikes`` — file below threshold is not soft-deleted.
+- ``test_strike_reset_on_reappearance`` — ``reset_strikes_on_reappearance`` clears strikes.
+- ``test_strike_reset_clears_deleted_at`` — reset also clears ``deleted_at``.
+- ``test_should_apply_drift_unmounted_returns_false`` — UNMOUNTED guard.
+- ``test_should_apply_drift_wrong_disk_returns_false`` — MOUNTED_WRONG_DISK guard.
+- ``test_should_apply_drift_verified_returns_true`` — MOUNTED_AND_VERIFIED allows drift.
+- ``test_purge_old_tombstones`` — old tombstones are deleted, recent ones survive.
+- ``test_3_scan_sequence_soft_deletes_on_third_miss`` — integration sequence.
+- ``test_unmounted_disk_no_strike_after_5_scans`` — unmounted guard returns False for all scans.
+
 Note on pyfakefs + sqlite3:
     pyfakefs intercepts all filesystem I/O including ``sqlite3.connect`` and
     file reads inside ``apply_migrations``.  Each test calls ``fs.pause()``
@@ -43,12 +56,18 @@ from hypothesis import strategies as st
 
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.drift import (
+    apply_soft_deletes,
     clamp_mtime_ns,
     detect_rename,
     mark_missed_files,
+    purge_old_tombstones,
     reconcile_file,
+    reset_strikes_on_reappearance,
+    should_apply_drift_for_disk,
 )
 from personalscraper.indexer.fingerprint import oshash
+from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.schema import DiskRow
 from tests.indexer.strategies import valid_disk_layout
 
 # ---------------------------------------------------------------------------
@@ -101,6 +120,7 @@ def _seed_file(
     ctime_ns: int | None = None,
     generation: int = 1,
     miss_strikes: int = 0,
+    deleted_at: int | None = None,
 ) -> int:
     """Insert a minimal ``media_file`` row and return its PK.
 
@@ -113,9 +133,9 @@ def _seed_file(
             release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
             oshash, xxh3_partial, xxh3_full, scan_generation,
             last_verified_at, enriched_at, miss_strikes, deleted_at
-        ) VALUES (0, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 0, NULL, ?, NULL)
+        ) VALUES (0, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, 0, NULL, ?, ?)
         """,
-        (path_id, filename, size, mtime_ns, ctime_ns, oshash_val, generation, miss_strikes),
+        (path_id, filename, size, mtime_ns, ctime_ns, oshash_val, generation, miss_strikes, deleted_at),
     )
     file_id: int = cursor.lastrowid  # type: ignore[assignment]
     conn.commit()
@@ -141,6 +161,24 @@ def _make_stat(size: int = 100, mtime_ns: int = 1_000_000_000, ctime_ns: int = 1
     finally:
         os.unlink(name)
     return st
+
+
+def _make_disk_row(
+    disk_id: int = 1,
+    label: str = "Disk1",
+    mount_path: str = "/mnt/disk1",
+) -> DiskRow:
+    """Build a minimal :class:`DiskRow` for guard tests."""
+    return DiskRow(
+        id=disk_id,
+        uuid=f"uuid-{label}",
+        label=label,
+        mount_path=mount_path,
+        last_seen_at=None,
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -501,4 +539,240 @@ def test_oshash_collision_enqueues_repair(tmp_path: Path) -> None:
         "SELECT reason FROM repair_queue WHERE reason = 'oshash_collision'",
     ).fetchall()
     assert len(repair_rows) >= 1, "Expected at least one repair_queue row with reason='oshash_collision'"
+    conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 3.2: soft-delete, strike-reset, disk-state guards, tombstone purge
+# ---------------------------------------------------------------------------
+
+
+def test_soft_delete_after_n_strikes() -> None:
+    """File is soft-deleted after reaching the strike threshold.
+
+    Scenario:
+    1. Seed a file with miss_strikes=0.
+    2. Call mark_missed_files 3 times (generations 2, 3, 4).
+    3. Call apply_soft_deletes with n_strikes=3.
+    4. Assert deleted_at is set and deleted_item row exists with reason='n_strikes'.
+    """
+    conn = _open_mem_db()
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id)
+    file_id = _seed_file(conn, path_id=path_id, filename="gone.mkv", generation=1)
+
+    for gen in range(2, 5):  # generations 2, 3, 4 → 3 strikes
+        mark_missed_files(conn, disk_id=disk_id, current_generation=gen)
+
+    count = apply_soft_deletes(conn, disk_id=disk_id, n_strikes_for_softdelete=3)
+    assert count == 1, f"Expected 1 soft-delete, got {count}"
+
+    row = conn.execute("SELECT deleted_at, miss_strikes FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None
+    deleted_at, miss_strikes = row
+    assert deleted_at is not None, "deleted_at must be set after soft-delete"
+    assert miss_strikes == 3
+
+    tombstone = conn.execute(
+        "SELECT kind, original_id, reason FROM deleted_item WHERE original_id = ?", (file_id,)
+    ).fetchone()
+    assert tombstone is not None, "deleted_item tombstone must be inserted"
+    assert tombstone[0] == "file"
+    assert tombstone[1] == file_id
+    assert tombstone[2] == "n_strikes"
+    conn.close()
+
+
+def test_no_soft_delete_below_n_strikes() -> None:
+    """File below the strike threshold is not soft-deleted.
+
+    Scenario:
+    1. Seed a file, run mark_missed_files 2 times.
+    2. Call apply_soft_deletes with n_strikes=3.
+    3. Assert deleted_at IS NULL and no deleted_item row.
+    """
+    conn = _open_mem_db()
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id)
+    file_id = _seed_file(conn, path_id=path_id, filename="almost.mkv", generation=1)
+
+    for gen in range(2, 4):  # generations 2, 3 → 2 strikes
+        mark_missed_files(conn, disk_id=disk_id, current_generation=gen)
+
+    count = apply_soft_deletes(conn, disk_id=disk_id, n_strikes_for_softdelete=3)
+    assert count == 0, f"Expected 0 soft-deletes, got {count}"
+
+    row = conn.execute("SELECT deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None
+    assert row[0] is None, "deleted_at must remain NULL below threshold"
+
+    tombstone = conn.execute("SELECT id FROM deleted_item WHERE original_id = ?", (file_id,)).fetchone()
+    assert tombstone is None, "No deleted_item row should exist below threshold"
+    conn.close()
+
+
+def test_strike_reset_on_reappearance() -> None:
+    """``reset_strikes_on_reappearance`` clears miss_strikes to 0.
+
+    Scenario:
+    1. Seed a file with miss_strikes=2.
+    2. Call reset_strikes_on_reappearance.
+    3. Assert miss_strikes=0.
+    """
+    conn = _open_mem_db()
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id)
+    file_id = _seed_file(conn, path_id=path_id, filename="came_back.mkv", miss_strikes=2)
+
+    reset_strikes_on_reappearance(conn, file_id)
+
+    row = conn.execute("SELECT miss_strikes FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None
+    assert row[0] == 0, f"Expected miss_strikes=0 after reset, got {row[0]}"
+    conn.close()
+
+
+def test_strike_reset_clears_deleted_at() -> None:
+    """``reset_strikes_on_reappearance`` also clears deleted_at.
+
+    Scenario:
+    1. Seed a file with deleted_at set to a past timestamp.
+    2. Call reset_strikes_on_reappearance.
+    3. Assert deleted_at IS NULL.
+    """
+    conn = _open_mem_db()
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id)
+    past_ts = int(time.time()) - 86400  # 1 day ago
+    file_id = _seed_file(conn, path_id=path_id, filename="resurrected.mkv", miss_strikes=3, deleted_at=past_ts)
+
+    reset_strikes_on_reappearance(conn, file_id)
+
+    row = conn.execute("SELECT deleted_at, miss_strikes FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None
+    assert row[0] is None, "deleted_at must be cleared to NULL after reset"
+    assert row[1] == 0, "miss_strikes must be reset to 0"
+    conn.close()
+
+
+def test_should_apply_drift_unmounted_returns_false() -> None:
+    """UNMOUNTED disk → should_apply_drift_for_disk returns False."""
+    disk = _make_disk_row()
+    result = should_apply_drift_for_disk(disk, DiskMountStatus.UNMOUNTED)
+    assert result is False
+
+
+def test_should_apply_drift_wrong_disk_returns_false() -> None:
+    """MOUNTED_WRONG_DISK → should_apply_drift_for_disk returns False."""
+    disk = _make_disk_row()
+    result = should_apply_drift_for_disk(disk, DiskMountStatus.MOUNTED_WRONG_DISK)
+    assert result is False
+
+
+def test_should_apply_drift_verified_returns_true() -> None:
+    """MOUNTED_AND_VERIFIED → should_apply_drift_for_disk returns True."""
+    disk = _make_disk_row()
+    result = should_apply_drift_for_disk(disk, DiskMountStatus.MOUNTED_AND_VERIFIED)
+    assert result is True
+
+
+def test_should_apply_drift_no_sentinel_returns_true() -> None:
+    """NO_SENTINEL → should_apply_drift_for_disk returns True (disk appears mounted)."""
+    disk = _make_disk_row()
+    result = should_apply_drift_for_disk(disk, DiskMountStatus.NO_SENTINEL)
+    assert result is True
+
+
+def test_purge_old_tombstones() -> None:
+    """Old tombstones are deleted; recent ones survive.
+
+    Scenario:
+    1. Insert a deleted_item with deleted_at well in the past (100 days ago).
+    2. Insert a deleted_item with deleted_at 1 day ago (within retention).
+    3. Call purge_old_tombstones(retention_days=30).
+    4. Assert old row is gone; recent row survives.
+    """
+    conn = _open_mem_db()
+
+    now = int(time.time())
+    old_ts = now - 100 * 86400  # 100 days ago → older than 30-day retention
+    recent_ts = now - 1 * 86400  # 1 day ago → within retention
+
+    conn.execute(
+        "INSERT INTO deleted_item (kind, original_id, deleted_at, reason, payload_json) VALUES (?, ?, ?, ?, ?)",
+        ("file", 101, old_ts, "n_strikes", None),
+    )
+    old_row_id: int = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+    conn.execute(
+        "INSERT INTO deleted_item (kind, original_id, deleted_at, reason, payload_json) VALUES (?, ?, ?, ?, ?)",
+        ("file", 102, recent_ts, "n_strikes", None),
+    )
+    recent_row_id: int = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.commit()
+
+    purged = purge_old_tombstones(conn, retention_days=30)
+    assert purged == 1, f"Expected 1 purged tombstone, got {purged}"
+
+    old_check = conn.execute("SELECT id FROM deleted_item WHERE id = ?", (old_row_id,)).fetchone()
+    assert old_check is None, "Old tombstone must be deleted"
+
+    recent_check = conn.execute("SELECT id FROM deleted_item WHERE id = ?", (recent_row_id,)).fetchone()
+    assert recent_check is not None, "Recent tombstone must survive retention window"
+    conn.close()
+
+
+def test_3_scan_sequence_soft_deletes_on_third_miss() -> None:
+    """Integration: file absent for 3 scans → soft-deleted after apply_soft_deletes.
+
+    Sequence:
+    1. Seed a file at scan_generation=1.
+    2. mark_missed_files for generation 2 → miss_strikes=1.
+    3. mark_missed_files for generation 3 → miss_strikes=2.
+    4. mark_missed_files for generation 4 → miss_strikes=3.
+    5. apply_soft_deletes(n_strikes=3) → 1 row soft-deleted.
+    6. Assert deleted_at is set AND deleted_item row exists.
+    """
+    conn = _open_mem_db()
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id)
+    file_id = _seed_file(conn, path_id=path_id, filename="vanished.mkv", generation=1)
+
+    mark_missed_files(conn, disk_id=disk_id, current_generation=2)
+    mark_missed_files(conn, disk_id=disk_id, current_generation=3)
+    mark_missed_files(conn, disk_id=disk_id, current_generation=4)
+
+    deleted_count = apply_soft_deletes(conn, disk_id=disk_id, n_strikes_for_softdelete=3)
+    assert deleted_count == 1
+
+    row = conn.execute("SELECT deleted_at FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None and row[0] is not None, "deleted_at must be set after 3 missed scans"
+
+    tombstone = conn.execute("SELECT reason FROM deleted_item WHERE original_id = ?", (file_id,)).fetchone()
+    assert tombstone is not None and tombstone[0] == "n_strikes"
+    conn.close()
+
+
+def test_unmounted_disk_no_strike_after_5_scans() -> None:
+    """Caller respecting should_apply_drift_for_disk(UNMOUNTED) → no strikes.
+
+    Verifies that the guard function returns False for UNMOUNTED across 5 calls,
+    and that if the caller respects the guard (skips mark_missed_files), the file
+    remains at miss_strikes=0.
+    """
+    conn = _open_mem_db()
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id)
+    file_id = _seed_file(conn, path_id=path_id, filename="ondiskunmounted.mkv", generation=1)
+
+    disk = _make_disk_row(disk_id=disk_id)
+
+    for scan_gen in range(2, 7):  # 5 scan generations
+        allowed = should_apply_drift_for_disk(disk, DiskMountStatus.UNMOUNTED)
+        assert allowed is False, f"Expected False for UNMOUNTED on scan {scan_gen}"
+        # Caller respects the guard and skips mark_missed_files.
+
+    row = conn.execute("SELECT miss_strikes FROM media_file WHERE id = ?", (file_id,)).fetchone()
+    assert row is not None
+    assert row[0] == 0, f"miss_strikes must stay 0 when drift is frozen; got {row[0]}"
     conn.close()
