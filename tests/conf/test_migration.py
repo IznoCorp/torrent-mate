@@ -186,7 +186,9 @@ class TestMigrateV1ToV2:
         config_v2: Config = load_config_dir(target)
 
         # Field-by-field equality for a readable failure message.
-        for field_name in config_v1.model_fields:
+        # Use type(config_v1).model_fields (class access) to avoid the
+        # PydanticDeprecationWarning raised when accessing model_fields on an instance.
+        for field_name in type(config_v1).model_fields:
             v1_val = getattr(config_v1, field_name)
             v2_val = getattr(config_v2, field_name)
             assert v1_val == v2_val, (

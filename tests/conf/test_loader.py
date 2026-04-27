@@ -607,3 +607,46 @@ class TestCategoryOrphanCheck:
 
         assert "indexer.config.category_orphan" in caplog.text
         assert "zombie_category" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# DeprecationWarning for v1 single-file loader
+# ---------------------------------------------------------------------------
+
+
+class TestLoadConfigDeprecationWarning:
+    """Tests that load_config emits a DeprecationWarning and load_config_dir does not."""
+
+    def test_load_config_emits_deprecation_warning(self, tmp_path: Path) -> None:
+        """load_config must emit exactly one DeprecationWarning directing users to migrate."""
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+
+        with pytest.warns(DeprecationWarning, match="migrate-to-v2") as warning_list:
+            load_config(cfg_path)
+
+        # Exactly one DeprecationWarning must be emitted — not silently swallowed.
+        deprecation_warnings = [w for w in warning_list if issubclass(w.category, DeprecationWarning)]
+        assert len(deprecation_warnings) == 1
+        assert "v1 single-file config is deprecated" in str(deprecation_warnings[0].message)
+
+    def test_load_config_dir_does_not_emit_deprecation_warning(self, tmp_path: Path) -> None:
+        """load_config_dir (v2 path) must NOT emit a DeprecationWarning."""
+        cfg_dir = tmp_path / "cfg"
+        cfg_dir.mkdir()
+        (cfg_dir / "config.json5").write_text(
+            _master_json5(tmp_path),
+            encoding="utf-8",
+        )
+
+        # recwarn collects all warnings; we assert none are DeprecationWarning.
+        import warnings as _warnings
+
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            load_config_dir(cfg_dir)
+
+        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
+        assert deprecation_warnings == [], (
+            f"load_config_dir must not emit DeprecationWarning, but got: {deprecation_warnings}"
+        )

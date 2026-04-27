@@ -22,6 +22,7 @@ Startup checks (non-blocking, warning-only):
 
 import os
 import sqlite3
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -193,6 +194,16 @@ def load_config(path: Path | None = None) -> Config:
         raise ConfigNotFoundError(
             f"No config file at {resolved}. Run 'personalscraper init-config' to create one from the example template."
         )
+
+    # v1 single-file config is deprecated in favour of the v2 split-directory layout.
+    # Emit a DeprecationWarning so users see the migration instruction at call site.
+    warnings.warn(
+        "v1 single-file config is deprecated; run "
+        "`personalscraper config migrate-to-v2 --legacy <path> --target-dir <new>` to migrate",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     with resolved.open("r", encoding="utf-8") as f:
         try:
             raw = json5.load(f)
