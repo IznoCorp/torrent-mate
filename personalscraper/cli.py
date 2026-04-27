@@ -618,6 +618,31 @@ def library_scan(
     console.print(f"[green]Scan complete:[/green] {result.item_count} items → {output_path}")
 
 
+@app.command("library-status")
+@handle_cli_errors
+def library_status(
+    ctx: typer.Context,
+    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Show the latest completed indexer scan run summary.
+
+    Queries the indexer database for the most recently completed scan run
+    and prints a one-line summary.  Prints "no scans yet" when the database
+    has no completed scan runs.
+
+    Examples:
+        personalscraper library-status
+        personalscraper library-status --config /path/to/config.json5
+    """
+    from personalscraper.indexer.cli import library_status_command  # noqa: PLC0415
+
+    # Prefer explicit --config passed to this sub-command; fall back to the
+    # global --config stored on the app context.
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_status_command(effective_config)
+    raise typer.Exit(rc)
+
+
 @app.command()
 @handle_cli_errors
 def library_clean(

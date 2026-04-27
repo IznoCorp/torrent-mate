@@ -169,15 +169,34 @@ def update_mount_path(conn: sqlite3.Connection, id: int, mount_path: str | None)
 def update_is_mounted(conn: sqlite3.Connection, id: int, is_mounted: int) -> bool:
     """Update the ``is_mounted`` flag for a disk row.
 
+    When *is_mounted* is set to ``0`` (unmounted), ``mount_path`` is
+    automatically cleared to ``NULL`` in the same statement.  This keeps the
+    CHECK constraint ``(is_mounted = 0 AND mount_path IS NULL) OR
+    (is_mounted = 1 AND mount_path IS NOT NULL)`` satisfied without requiring
+    callers to perform two operations.
+
+    Note: setting *is_mounted* to ``1`` without also updating ``mount_path``
+    via :func:`update_mount_path` will violate the CHECK constraint, because
+    ``mount_path`` must be non-``NULL`` when the disk is mounted.  Prefer
+    :func:`update_mount_path` when a concrete path is available.
+
     Args:
         conn: Open SQLite connection.
         id: PK of the disk row to update.
-        is_mounted: New value: 0 or 1.
+        is_mounted: New value: 0 (unmounted — also clears ``mount_path``) or 1.
 
     Returns:
         ``True`` if a row was updated, ``False`` if no row matched ``id``.
     """
-    cursor = conn.execute("UPDATE disk SET is_mounted = ? WHERE id = ?", (is_mounted, id))
+    if is_mounted == 0:
+        # Auto-clear mount_path when marking unmounted so the CHECK constraint
+        # (is_mounted=0 AND mount_path IS NULL) is satisfied atomically.
+        cursor = conn.execute(
+            "UPDATE disk SET is_mounted = ?, mount_path = NULL WHERE id = ?",
+            (is_mounted, id),
+        )
+    else:
+        cursor = conn.execute("UPDATE disk SET is_mounted = ? WHERE id = ?", (is_mounted, id))
     updated = cursor.rowcount > 0
     if updated:
         log.info("indexer.disk.update_is_mounted", id=id, is_mounted=is_mounted)
