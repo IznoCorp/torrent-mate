@@ -643,6 +643,46 @@ def library_status(
     raise typer.Exit(rc)
 
 
+@app.command("library-index")
+@handle_cli_errors
+def library_index(
+    ctx: typer.Context,
+    mode: str = typer.Option("full", "--mode", help="Scan mode: full or quick"),
+    disk: Optional[str] = typer.Option(None, "--disk", help="Restrict scan to this disk label"),
+    budget: Optional[int] = typer.Option(None, "--budget", help="Budget in seconds (reserved for Phase 4)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
+    wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Run a full or quick media indexer scan.
+
+    Walks all configured storage disks (or a single disk with --disk),
+    records every file in the indexer database, and prints a JSON summary.
+
+    Use --mode quick for a fast Merkle + dir-mtime short-circuit scan.
+    Use --dry-run to simulate without committing any DB changes.
+
+    Examples:
+        personalscraper library-index
+        personalscraper library-index --mode quick
+        personalscraper library-index --disk MyDisk --mode full
+        personalscraper library-index --dry-run --mode full
+    """
+    from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_index_command(
+        mode=mode,
+        disk=disk,
+        budget_seconds=budget,
+        dry_run=dry_run,
+        wait_for_lock_seconds=wait_for_lock,
+        config_path=effective_config,
+    )
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
 @app.command()
 @handle_cli_errors
 def library_clean(
