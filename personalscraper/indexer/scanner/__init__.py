@@ -22,6 +22,7 @@ import os
 import sqlite3
 import tempfile  # noqa: F401 — imported so tests can patch scanner.tempfile.*
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_breaker
@@ -33,6 +34,10 @@ from personalscraper.indexer.merkle import (
 )
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
+from personalscraper.indexer.scanner._concurrency import (
+    DiskWorkerFactory,
+    _run_disks_in_parallel,
+)
 from personalscraper.indexer.scanner._db_writes import _upsert_path_row
 from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
 from personalscraper.indexer.scanner._modes import (
@@ -103,6 +108,7 @@ def scan(
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
     quick_enrich: bool = False,
+    max_workers: int = 4,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -193,6 +199,11 @@ def scan(
             ``parse_speed=0.5`` to :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
             for a faster but less complete mediainfo parse.  Default ``False``
             (full parse, ``parse_speed=1.0``).
+        max_workers: Maximum number of concurrent per-disk worker threads.
+            Capped at ``len(disks)`` and always ``1`` when a single-disk filter
+            is active (DESIGN §11.8).  Ignored (sequential fallback) when
+            ``db_path`` is ``None`` because an in-memory connection cannot be
+            shared across threads.  Default ``4``.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -244,212 +255,303 @@ def scan(
     if mode in (ScanMode.quick, ScanMode.incremental):
         dir_mtime_reliable = _verify_dir_mtime_reliable()
 
-    try:
-        for disk in disks:
-            if disk.mount_path is None:
-                log.warning(
-                    "indexer.scan.disk_skipped",
-                    disk_id=disk.id,
-                    label=disk.label,
-                    reason="no mount_path",
-                )
-                continue
+    def _scan_one_disk(
+        worker_conn: sqlite3.Connection,
+        disk: DiskRow,
+        local_files: list[int],
+        local_dirs: list[int],
+        local_skipped: list[int],
+        local_exhausted: list[bool],
+        local_resume_from: list[str | None],
+        local_files_since_ckpt: list[int],
+    ) -> None:
+        """Perform all scan steps for a single disk using *worker_conn*.
 
-            # Circuit-breaker guard: skip disks whose circuit is currently OPEN
-            # (too many consecutive I/O failures in previous scans).
-            if breaker.is_open(disk.uuid):
-                log.warning(
-                    "indexer.disk.breaker_open",
-                    disk_uuid=disk.uuid,
-                    label=disk.label,
-                    reason="circuit_open_skip",
-                )
-                continue
+        This function encapsulates the guard checks, mode dispatch, and
+        per-disk I/O error handling that were previously inline in the
+        ``for disk in disks`` loop.  It is called either directly (sequential
+        fallback when ``db_path`` is ``None``) or from within a ThreadPool
+        worker (parallel path when ``db_path`` is provided).
 
-            # Guard: verify disk is mounted and identity sentinel matches.
-            try:
-                guard_disk_mounted(disk)
-            except DiskUnmountedError as exc:
-                log.warning(
-                    "indexer.disk.skipped_unmounted",
-                    disk_id=disk.id,
-                    label=disk.label,
-                    reason=str(exc),
-                )
-                continue
-            except DiskMismatchError as exc:
-                log.warning(
-                    "indexer.scan.disk_skipped",
-                    disk_id=disk.id,
-                    label=disk.label,
-                    reason=str(exc),
-                )
-                continue
-
-            mount = disk.mount_path
-            log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
-
-            try:
-                if mode == ScanMode.full:
-                    # Full-mode walk with optional index drop + batched inserts.
-                    _scan_disk_full(
-                        conn,
-                        disk,
-                        mount,
-                        files_visited,
-                        dirs_visited,
-                        generation,
-                        drop_indexes,
-                        _resume_from,
-                        _files_since_checkpoint,
-                        _budget_exhausted,
-                        _started_at_monotonic,
-                        budget_seconds,
-                        scan_run_id,
-                        checkpoint_every_n_files,
-                    )
-                    if not _budget_exhausted[0]:
-                        # Write-through the path row for the disk root.
-                        try:
-                            root_st = os.stat(mount, follow_symlinks=False)
-                            _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                            dirs_visited[0] += 1
-                        except OSError:
-                            log.warning("indexer.scan.root_stat_failed", mount_path=mount)
-                elif mode == ScanMode.quick:
-                    # Quick-mode: Merkle short-circuit then dir-mtime walk.
-                    _scan_disk_quick(
-                        conn,
-                        disk,
-                        mount,
-                        files_visited,
-                        dirs_visited,
-                        generation,
-                        disks_skipped,
-                        dir_mtime_reliable,
-                        _resume_from,
-                        _files_since_checkpoint,
-                        _budget_exhausted,
-                        _started_at_monotonic,
-                        budget_seconds,
-                        scan_run_id,
-                        checkpoint_every_n_files,
-                        confirm_bulk_change=confirm_bulk_change,
-                        merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
-                    )
-                elif mode == ScanMode.incremental:
-                    # Incremental-mode: quick semantics + OSHash recompute on tier-1
-                    # mismatch for rename detection and content-drift classification.
-                    _scan_disk_incremental(
-                        conn,
-                        disk,
-                        mount,
-                        files_visited,
-                        dirs_visited,
-                        generation,
-                        disks_skipped,
-                        dir_mtime_reliable,
-                        _resume_from,
-                        _files_since_checkpoint,
-                        _budget_exhausted,
-                        _started_at_monotonic,
-                        budget_seconds,
-                        scan_run_id,
-                        checkpoint_every_n_files,
-                        confirm_bulk_change=confirm_bulk_change,
-                        merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
-                    )
-                elif mode == ScanMode.enrich:
-                    # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
-                    # budget-bounded, per-file commits.
-                    _scan_disk_enrich(
-                        conn,
-                        disk,
-                        budget_seconds,
-                        _started_at_monotonic,
-                        _budget_exhausted,
-                        scan_run_id,
-                        quick_enrich=quick_enrich,
-                    )
-                else:
-                    # Skeleton walk for any future modes not yet implemented.
-                    _walk_dir(
-                        conn,
-                        disk,
-                        mount,
-                        files_visited,
-                        dirs_visited,
-                        generation,
-                        _resume_from,
-                        _files_since_checkpoint,
-                        _budget_exhausted,
-                        _started_at_monotonic,
-                        budget_seconds,
-                        scan_run_id,
-                        checkpoint_every_n_files,
-                    )
-                    if not _budget_exhausted[0]:
-                        # Write-through the path row for the disk root.
-                        try:
-                            root_st = os.stat(mount, follow_symlinks=False)
-                            _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                            dirs_visited[0] += 1
-                        except OSError:
-                            log.warning("indexer.scan.root_stat_failed", mount_path=mount)
-
-            except DiskBulkChangeDetected:
-                # Merkle delta exceeded the freeze threshold — skip this disk
-                # without modifying any DB rows.  The exception was already
-                # logged by _scan_disk_quick; re-raise so the CLI layer can
-                # surface an actionable message and return exit code 3.
-                raise
-            except OSError as io_exc:
-                # I/O error on a disk walk (EIO, ENOENT, etc.).  Roll back any
-                # partial writes for this disk, mark it unmounted, increment the
-                # unreachable strike counter, and open the circuit if the threshold
-                # is reached.  The scan continues on remaining disks.
-                if io_exc.errno in (errno.EIO, errno.ENOENT, errno.ENOTCONN, errno.ETIMEDOUT):
-                    conn.rollback()
-                    disk_repo.update_is_mounted(conn, disk.id, is_mounted=0)
-                    new_strikes = disk.unreachable_strikes + 1
-                    disk_repo.update_unreachable_strikes(conn, disk.id, new_strikes)
-                    breaker.record_failure(disk.uuid)
-                    log.warning(
-                        "indexer.disk.io_error",
-                        disk_uuid=disk.uuid,
-                        label=disk.label,
-                        errno=io_exc.errno,
-                        error=str(io_exc),
-                        unreachable_strikes=new_strikes,
-                    )
-                    continue
-                # Re-raise unexpected OS errors that are not disk-I/O related.
-                raise
-            except PermissionError as perm_exc:
-                # Per-file EACCES: log a warning and continue (no strike against the disk).
-                log.warning(
-                    "indexer.file.permission_denied",
-                    disk_uuid=disk.uuid,
-                    label=disk.label,
-                    error=str(perm_exc),
-                )
-                continue
-            else:
-                # Walk completed without I/O error — record success to allow
-                # HALF_OPEN → CLOSED transition if the circuit was recovering.
-                breaker.record_success(disk.uuid)
-
-            log.info(
-                "indexer.scan.disk_done",
+        Args:
+            worker_conn: SQLite connection owned by the calling thread.
+            disk: The :class:`~personalscraper.indexer.schema.DiskRow` to scan.
+            local_files: Single-element counter for files visited on this disk.
+            local_dirs: Single-element counter for directories visited.
+            local_skipped: Single-element counter for Merkle-hit skips.
+            local_exhausted: Single-element flag set when budget is exhausted.
+            local_resume_from: Single-element crash-resume path (or ``None``).
+            local_files_since_ckpt: Single-element checkpoint counter.
+        """
+        if disk.mount_path is None:
+            log.warning(
+                "indexer.scan.disk_skipped",
                 disk_id=disk.id,
                 label=disk.label,
-                files_visited=files_visited[0],
-                dirs_visited=dirs_visited[0],
+                reason="no mount_path",
             )
+            return
 
-            # Stop iterating disks if the budget was exhausted mid-walk.
-            if _budget_exhausted[0]:
-                break
+        # Circuit-breaker guard: skip disks whose circuit is currently OPEN
+        # (too many consecutive I/O failures in previous scans).
+        if breaker.is_open(disk.uuid):
+            log.warning(
+                "indexer.disk.breaker_open",
+                disk_uuid=disk.uuid,
+                label=disk.label,
+                reason="circuit_open_skip",
+            )
+            return
+
+        # Guard: verify disk is mounted and identity sentinel matches.
+        try:
+            guard_disk_mounted(disk)
+        except DiskUnmountedError as exc:
+            log.warning(
+                "indexer.disk.skipped_unmounted",
+                disk_id=disk.id,
+                label=disk.label,
+                reason=str(exc),
+            )
+            return
+        except DiskMismatchError as exc:
+            log.warning(
+                "indexer.scan.disk_skipped",
+                disk_id=disk.id,
+                label=disk.label,
+                reason=str(exc),
+            )
+            return
+
+        mount = disk.mount_path
+        log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
+
+        try:
+            if mode == ScanMode.full:
+                # Full-mode walk with optional index drop + batched inserts.
+                _scan_disk_full(
+                    worker_conn,
+                    disk,
+                    mount,
+                    local_files,
+                    local_dirs,
+                    generation,
+                    drop_indexes,
+                    local_resume_from,
+                    local_files_since_ckpt,
+                    local_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
+                )
+                if not local_exhausted[0]:
+                    # Write-through the path row for the disk root.
+                    try:
+                        root_st = os.stat(mount, follow_symlinks=False)
+                        _upsert_path_row(worker_conn, disk.id, ".", root_st.st_mtime_ns)
+                        local_dirs[0] += 1
+                    except OSError:
+                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+            elif mode == ScanMode.quick:
+                # Quick-mode: Merkle short-circuit then dir-mtime walk.
+                _scan_disk_quick(
+                    worker_conn,
+                    disk,
+                    mount,
+                    local_files,
+                    local_dirs,
+                    generation,
+                    local_skipped,
+                    dir_mtime_reliable,
+                    local_resume_from,
+                    local_files_since_ckpt,
+                    local_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
+                    confirm_bulk_change=confirm_bulk_change,
+                    merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+                )
+            elif mode == ScanMode.incremental:
+                # Incremental-mode: quick semantics + OSHash recompute on tier-1
+                # mismatch for rename detection and content-drift classification.
+                _scan_disk_incremental(
+                    worker_conn,
+                    disk,
+                    mount,
+                    local_files,
+                    local_dirs,
+                    generation,
+                    local_skipped,
+                    dir_mtime_reliable,
+                    local_resume_from,
+                    local_files_since_ckpt,
+                    local_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
+                    confirm_bulk_change=confirm_bulk_change,
+                    merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+                )
+            elif mode == ScanMode.enrich:
+                # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
+                # budget-bounded, per-file commits.
+                _scan_disk_enrich(
+                    worker_conn,
+                    disk,
+                    budget_seconds,
+                    _started_at_monotonic,
+                    local_exhausted,
+                    scan_run_id,
+                    quick_enrich=quick_enrich,
+                )
+            else:
+                # Skeleton walk for any future modes not yet implemented.
+                _walk_dir(
+                    worker_conn,
+                    disk,
+                    mount,
+                    local_files,
+                    local_dirs,
+                    generation,
+                    local_resume_from,
+                    local_files_since_ckpt,
+                    local_exhausted,
+                    _started_at_monotonic,
+                    budget_seconds,
+                    scan_run_id,
+                    checkpoint_every_n_files,
+                )
+                if not local_exhausted[0]:
+                    # Write-through the path row for the disk root.
+                    try:
+                        root_st = os.stat(mount, follow_symlinks=False)
+                        _upsert_path_row(worker_conn, disk.id, ".", root_st.st_mtime_ns)
+                        local_dirs[0] += 1
+                    except OSError:
+                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+
+        except DiskBulkChangeDetected:
+            # Merkle delta exceeded the freeze threshold — re-raise so the
+            # caller (sequential loop or parallel wrapper) can surface it.
+            raise
+        except OSError as io_exc:
+            # I/O error on a disk walk (EIO, ENOENT, etc.).  Roll back any
+            # partial writes for this disk, mark it unmounted, increment the
+            # unreachable strike counter, and open the circuit if the threshold
+            # is reached.  The scan continues on remaining disks.
+            if io_exc.errno in (errno.EIO, errno.ENOENT, errno.ENOTCONN, errno.ETIMEDOUT):
+                worker_conn.rollback()
+                disk_repo.update_is_mounted(worker_conn, disk.id, is_mounted=0)
+                new_strikes = disk.unreachable_strikes + 1
+                disk_repo.update_unreachable_strikes(worker_conn, disk.id, new_strikes)
+                breaker.record_failure(disk.uuid)
+                log.warning(
+                    "indexer.disk.io_error",
+                    disk_uuid=disk.uuid,
+                    label=disk.label,
+                    errno=io_exc.errno,
+                    error=str(io_exc),
+                    unreachable_strikes=new_strikes,
+                )
+                return
+            # Re-raise unexpected OS errors that are not disk-I/O related.
+            raise
+        except PermissionError as perm_exc:
+            # Per-file EACCES: log a warning and return (no strike against the disk).
+            log.warning(
+                "indexer.file.permission_denied",
+                disk_uuid=disk.uuid,
+                label=disk.label,
+                error=str(perm_exc),
+            )
+            return
+        else:
+            # Walk completed without I/O error — record success to allow
+            # HALF_OPEN → CLOSED transition if the circuit was recovering.
+            breaker.record_success(disk.uuid)
+
+        log.info(
+            "indexer.scan.disk_done",
+            disk_id=disk.id,
+            label=disk.label,
+            files_visited=local_files[0],
+            dirs_visited=local_dirs[0],
+        )
+
+    # -----------------------------------------------------------------------
+    # Decide worker count.
+    #
+    # DESIGN §11.8: `--full --disk D` (single-disk filter) degrades to 1
+    # worker for disk-friendliness.  When db_path is None (in-memory DB) we
+    # cannot open per-worker connections, so we fall back to sequential.
+    # -----------------------------------------------------------------------
+    _effective_workers: int = min(max(1, max_workers), max(1, len(disks)))
+    if disk_filter is not None:
+        # Single-disk targeted run — degrade to one worker per DESIGN §11.8.
+        _effective_workers = 1
+
+    try:
+        if db_path is not None and _effective_workers > 1:
+            # -------------------------------------------------------------------
+            # Parallel path: one worker per disk, each with its own connection.
+            # -------------------------------------------------------------------
+            def _make_factory(d: DiskRow) -> DiskWorkerFactory:
+                """Build a DiskWorkerFactory closure for disk *d*."""
+
+                def _factory(
+                    lf: list[int],
+                    ld: list[int],
+                    ls: list[int],
+                    le: list[bool],
+                ) -> Callable[[sqlite3.Connection], None]:
+                    """Return the per-disk scan callable bound to *d*."""
+                    # Per-worker resume/checkpoint state — independent per disk
+                    # in parallel mode (crash-resume applies to the whole scan
+                    # run, but checkpoint counters are per-disk).
+                    local_rf: list[str | None] = [_resume_from[0]]
+                    local_fc: list[int] = [0]
+
+                    def _worker(wc: sqlite3.Connection) -> None:
+                        _scan_one_disk(wc, d, lf, ld, ls, le, local_rf, local_fc)
+
+                    return _worker
+
+                return _factory
+
+            factories: list[DiskWorkerFactory] = [_make_factory(d) for d in disks]
+            _run_disks_in_parallel(
+                factories,
+                db_path,
+                max_workers=_effective_workers,
+                shared_files_visited=files_visited,
+                shared_dirs_visited=dirs_visited,
+                shared_disks_skipped=disks_skipped,
+                shared_budget_exhausted=_budget_exhausted,
+            )
+        else:
+            # -------------------------------------------------------------------
+            # Sequential fallback: original loop (used when db_path is None,
+            # when only one disk is present, or single-disk filter is active).
+            # -------------------------------------------------------------------
+            for disk in disks:
+                _scan_one_disk(
+                    conn,
+                    disk,
+                    files_visited,
+                    dirs_visited,
+                    disks_skipped,
+                    _budget_exhausted,
+                    _resume_from,
+                    _files_since_checkpoint,
+                )
+
+                # Stop iterating disks if the budget was exhausted mid-walk.
+                if _budget_exhausted[0]:
+                    break
 
         # Budget exhausted — commit current state and return early.
         if _budget_exhausted[0]:

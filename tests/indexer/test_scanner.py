@@ -45,6 +45,7 @@ Note on pyfakefs + sqlite3:
 from __future__ import annotations
 
 import logging
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -1475,3 +1476,265 @@ class TestEnrichMode:
         assert captured_kwargs[0]["parse_speed"] == 0.5, (
             f"Expected parse_speed=0.5 for quick_enrich, got {captured_kwargs[0]['parse_speed']}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 4.3 tests — ThreadPoolExecutor per-disk parallelism
+# ---------------------------------------------------------------------------
+
+
+def _make_conn_file(db_path: Path) -> sqlite3.Connection:
+    """Return a file-backed SQLite connection with the full schema applied.
+
+    Used by parallel-scan tests that need a real on-disk DB so that per-worker
+    connections can be opened from *db_path*.
+
+    Args:
+        db_path: Filesystem path for the new SQLite database file.
+
+    Returns:
+        Open :class:`sqlite3.Connection` with WAL mode, FK checks on, and the
+        full migration chain applied.
+    """
+    conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    apply_migrations(conn, MIGRATIONS_DIR)
+    return conn
+
+
+def _insert_disk_on_conn(
+    conn: sqlite3.Connection,
+    mount_path: str,
+    label: str | None = None,
+) -> DiskRow:
+    """Insert a minimal disk row using the given connection and return it.
+
+    Args:
+        conn: Open SQLite connection.
+        mount_path: Absolute mount-point path of the disk.
+        label: Optional explicit label; defaults to the last component of
+            *mount_path*.
+
+    Returns:
+        :class:`DiskRow` with the PK assigned by SQLite.
+    """
+    now = int(time.time())
+    _label = label or mount_path.split("/")[-1]
+    row = DiskRow(
+        id=0,
+        uuid=f"test-uuid-parallel-{mount_path}",
+        label=_label,
+        mount_path=mount_path,
+        last_seen_at=now,
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
+    disk_id = disk_repo.insert(conn, row)
+    return DiskRow(
+        id=disk_id,
+        uuid=row.uuid,
+        label=row.label,
+        mount_path=row.mount_path,
+        last_seen_at=row.last_seen_at,
+        merkle_root=row.merkle_root,
+        is_mounted=row.is_mounted,
+        unreachable_strikes=row.unreachable_strikes,
+    )
+
+
+class TestParallelScan:
+    """Tests for sub-phase 4.3: ThreadPoolExecutor per-disk parallelism.
+
+    These tests use a real file-backed SQLite database (via ``tmp_path``) so that
+    per-worker connections can be opened from ``db_path``.  pyfakefs is NOT used
+    here because it would intercept ``sqlite3.connect`` calls made inside the
+    worker threads and break the per-worker connection creation.  Real directories
+    under ``tmp_path`` are created instead.
+    """
+
+    # ------------------------------------------------------------------
+    # Test 1: two disks scanned concurrently — both have media_file rows
+    # ------------------------------------------------------------------
+
+    def test_parallel_scan_two_disks_both_complete(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Two disks scanned in parallel both produce media_file rows.
+
+        Creates two real directories under tmp_path (acting as disk mount points),
+        each containing one .mkv file.  Runs scan() with max_workers=2 and a
+        file-backed DB (db_path provided) so the parallel executor is used.
+        After the scan, asserts that media_file rows exist for both disks.
+        """
+        db_file = tmp_path / "indexer.db"
+        conn = _make_conn_file(db_file)
+
+        # Create two fake disk directories under tmp_path.
+        mount1 = str(tmp_path / "Disk1")
+        mount2 = str(tmp_path / "Disk2")
+        Path(mount1).mkdir()
+        Path(mount2).mkdir()
+        Path(f"{mount1}/film_a.mkv").write_bytes(b"A" * 200)
+        Path(f"{mount2}/film_b.mkv").write_bytes(b"B" * 200)
+
+        disk1 = _insert_disk_on_conn(conn, mount1)
+        disk2 = _insert_disk_on_conn(conn, mount2)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan(
+                [disk1, disk2],
+                ScanMode.full,
+                generation=1,
+                conn=conn,
+                db_path=db_file,
+                max_workers=2,
+            )
+
+        assert result.status == "ok"
+
+        # Both disks must have produced media_file rows.
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename, path_id FROM media_file").fetchall()
+        filenames = {r["filename"] for r in rows}
+        assert "film_a.mkv" in filenames, f"film_a.mkv missing from media_file; found: {filenames}"
+        assert "film_b.mkv" in filenames, f"film_b.mkv missing from media_file; found: {filenames}"
+        assert result.files_visited == 2, f"Expected files_visited=2, got {result.files_visited}"
+
+    # ------------------------------------------------------------------
+    # Test 2: IOError on disk 2 does not lose disk 1's rows
+    # ------------------------------------------------------------------
+
+    def test_parallel_scan_disk_failure_does_not_lose_other(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A per-disk IOError is logged and does not discard the other disk's rows.
+
+        Creates two real disk directories.  Disk1 has one .mkv file that scans
+        normally.  Disk2's mount directory exists but os.scandir is monkey-patched
+        to raise IOError(EIO) for that specific path, simulating a disk unplug
+        mid-walk.
+
+        After the scan:
+        - Disk1's media_file row must exist.
+        - The ``indexer.scan.disk_worker_failed`` or ``indexer.disk.io_error``
+          event must appear in the log (the EIO path logs ``indexer.disk.io_error``).
+        - The overall scan result must have status ``'ok'`` (failures are absorbed).
+        """
+        import errno as _errno
+
+        db_file = tmp_path / "indexer.db"
+        conn = _make_conn_file(db_file)
+
+        mount1 = str(tmp_path / "DiskOK")
+        mount2 = str(tmp_path / "DiskFail")
+        Path(mount1).mkdir()
+        Path(mount2).mkdir()
+        Path(f"{mount1}/good_film.mkv").write_bytes(b"G" * 200)
+        # Disk2 directory exists but has no files — the EIO is injected via patch.
+        Path(f"{mount2}/bad_film.mkv").write_bytes(b"X" * 200)
+
+        disk1 = _insert_disk_on_conn(conn, mount1)
+        disk2 = _insert_disk_on_conn(conn, mount2)
+
+        real_scandir = os.scandir
+
+        def _patched_scandir(path: object) -> object:
+            """Raise EIO when scanning Disk2's mount; pass through for all others."""
+            path_str = str(path)
+            if path_str == mount2:
+                raise OSError(_errno.EIO, "Input/output error", path_str)
+            return real_scandir(path_str)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_patched_scandir):
+                with caplog.at_level(logging.WARNING):
+                    result = scan(
+                        [disk1, disk2],
+                        ScanMode.full,
+                        generation=1,
+                        conn=conn,
+                        db_path=db_file,
+                        max_workers=2,
+                    )
+
+        # Disk1's row must survive.
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename FROM media_file WHERE deleted_at IS NULL").fetchall()
+        filenames = {r["filename"] for r in rows}
+        assert "good_film.mkv" in filenames, f"good_film.mkv must be present after Disk2 failure; found: {filenames}"
+
+        # The EIO error must have been logged.
+        warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("io_error" in t or "disk_worker_failed" in t for t in warning_texts), (
+            f"Expected io_error or disk_worker_failed warning; got: {warning_texts}"
+        )
+
+        # Overall scan must not be marked failed.
+        assert result.status == "ok", f"Expected status='ok' after absorbed disk failure, got {result.status!r}"
+
+    # ------------------------------------------------------------------
+    # Test 3: single-disk filter uses max_workers=1
+    # ------------------------------------------------------------------
+
+    def test_single_disk_filter_uses_one_worker(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """When disk_filter is set (single-disk run), the executor uses max_workers=1.
+
+        Verifies DESIGN §11.8: ``--full --disk D`` degrades to a single worker.
+        We spy on ThreadPoolExecutor to capture the max_workers argument passed
+        at construction time.
+        """
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+
+        db_file = tmp_path / "indexer_single.db"
+        conn = _make_conn_file(db_file)
+
+        mount1 = str(tmp_path / "SingleDisk")
+        Path(mount1).mkdir()
+        Path(f"{mount1}/movie.mkv").write_bytes(b"M" * 200)
+
+        disk1 = _insert_disk_on_conn(conn, mount1)
+
+        captured_max_workers: list[int] = []
+        real_tpe = _TPE
+
+        class _SpyTPE(real_tpe):  # type: ignore[misc]
+            def __init__(self, *args: object, max_workers: int | None = None, **kwargs: object) -> None:
+                captured_max_workers.append(max_workers if max_workers is not None else 1)
+                super().__init__(*args, max_workers=max_workers, **kwargs)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._concurrency.ThreadPoolExecutor",
+                _SpyTPE,
+            ):
+                result = scan(
+                    [disk1],
+                    ScanMode.full,
+                    generation=1,
+                    conn=conn,
+                    db_path=db_file,
+                    disk_filter=disk1.label,
+                    max_workers=4,  # intentionally high — must be clamped to 1
+                )
+
+        assert result.status == "ok"
+
+        # The executor must either not have been created (sequential path taken
+        # because _effective_workers==1 bypasses the executor) OR it was created
+        # with max_workers=1.
+        # When disk_filter is set, _effective_workers is forced to 1, which
+        # triggers the sequential fallback (no executor created).
+        # Either behaviour satisfies the §11.8 requirement.
+        if captured_max_workers:
+            assert captured_max_workers[0] == 1, (
+                f"Expected max_workers=1 for single-disk filter, got {captured_max_workers[0]}"
+            )
+        # If no executor was created, the sequential path was used — also correct.
