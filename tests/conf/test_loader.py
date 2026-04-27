@@ -1,6 +1,7 @@
 """Tests for personalscraper.conf.loader."""
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -10,11 +11,12 @@ from personalscraper.conf.loader import (
     ConfigLoadError,
     ConfigNotFoundError,
     ConfigValidationError,
+    _check_category_orphans,
     load_config,
     load_config_dir,
     resolve_config_path,
 )
-from personalscraper.conf.models import Config
+from personalscraper.conf.models import Config, IndexerConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -323,3 +325,285 @@ class TestLoadConfigDir:
 
         with pytest.raises(ConfigNotFoundError, match="No config.json5 found"):
             load_config_dir(cfg_dir)
+
+
+# ---------------------------------------------------------------------------
+# IndexerConfig round-trip
+# ---------------------------------------------------------------------------
+
+
+class TestIndexerConfigRoundTrip:
+    """Tests for IndexerConfig pydantic model parse/validate/dump cycle."""
+
+    def test_default_round_trip(self) -> None:
+        """IndexerConfig with all defaults must serialise and re-parse cleanly."""
+        cfg = IndexerConfig()
+        dumped = cfg.model_dump()
+        restored = IndexerConfig.model_validate(dumped)
+        assert restored == cfg
+
+    def test_custom_values_round_trip(self) -> None:
+        """IndexerConfig with non-default values must survive a round-trip."""
+        raw: dict[str, object] = {
+            "db_path": "/tmp/test_library.db",
+            "scan": {
+                "nightly_mode": "full",
+                "budget_seconds": 3600,
+                "checkpoint_every_n_files": 500,
+                "max_workers_total": 2,
+                "racy_window_seconds": 5.0,
+                "n_strikes_for_softdelete": 5,
+                "read_rate_mb_per_sec": 80.0,
+                "sequential_read_hint": False,
+                "drop_indexes_during_full_scan": False,
+            },
+            "fingerprint": {
+                "oshash": False,
+                "xxh3_partial_bytes": 2097152,
+                "compute_xxh3_on_racy": False,
+            },
+            "mediainfo": {
+                "library_path": "/opt/homebrew/lib/libmediainfo.dylib",
+                "extract_streams": False,
+                "min_size_mb": 100,
+                "parse_speed": 0.5,
+                "defer_to_enrich": False,
+            },
+            "drift": {
+                "merkle_per_disk": False,
+                "verify_disks_each_scan": False,
+                "sentinel_filename": ".my-sentinel",
+            },
+            "spotlight": {
+                "probe_at_startup": False,
+                "use_when_available": False,
+            },
+            "repair": {
+                "queue_drain_on_scan_finish": False,
+                "max_repair_seconds_per_drain": 600,
+            },
+            "log": {
+                "scan_event_retention_days": 30,
+                "deleted_item_retention_days": 180,
+            },
+        }
+        cfg = IndexerConfig.model_validate(raw)
+        assert cfg.scan.nightly_mode == "full"
+        assert cfg.scan.budget_seconds == 3600
+        assert cfg.fingerprint.xxh3_partial_bytes == 2097152
+        assert cfg.mediainfo.library_path == "/opt/homebrew/lib/libmediainfo.dylib"
+        assert cfg.drift.sentinel_filename == ".my-sentinel"
+        assert cfg.spotlight.probe_at_startup is False
+        assert cfg.repair.max_repair_seconds_per_drain == 600
+        assert cfg.log.deleted_item_retention_days == 180
+
+        # Dump and re-parse must produce an equal model.
+        restored = IndexerConfig.model_validate(cfg.model_dump())
+        assert restored == cfg
+
+    def test_extra_fields_forbidden(self) -> None:
+        """IndexerConfig must reject unknown top-level fields (extra='forbid')."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+            IndexerConfig.model_validate({"unknown_key": True})
+
+    def test_nightly_mode_enum_validation(self) -> None:
+        """Invalid nightly_mode literal must raise ValidationError."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            IndexerConfig.model_validate({"scan": {"nightly_mode": "turbo"}})
+
+    def test_config_has_indexer_field(self, tmp_path: Path) -> None:
+        """Config model must expose an ``indexer`` field of type IndexerConfig."""
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+        config = load_config(cfg_path)
+        assert isinstance(config.indexer, IndexerConfig)
+        # Default db_path must be the relative sentinel value.
+        assert config.indexer.db_path == Path(".personalscraper/library.db")
+
+
+# ---------------------------------------------------------------------------
+# db_path external-mount validator
+# ---------------------------------------------------------------------------
+
+
+class TestIndexerDbPathValidator:
+    """Tests for the db_path macFUSE / external mount rejection validator."""
+
+    def test_internal_path_accepted(self) -> None:
+        """A db_path on the home directory or project root must be accepted."""
+        cfg = IndexerConfig.model_validate({"db_path": "/Users/izno/.personalscraper/library.db"})
+        assert cfg.db_path == Path("/Users/izno/.personalscraper/library.db")
+
+    def test_tmp_path_accepted(self) -> None:
+        """A path under /tmp must be accepted (internal macOS volume)."""
+        cfg = IndexerConfig.model_validate({"db_path": "/tmp/library.db"})
+        assert cfg.db_path == Path("/tmp/library.db")
+
+    def test_volumes_path_rejected(self) -> None:
+        """A db_path starting with /Volumes/ must raise ValidationError."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="/Volumes/"):
+            IndexerConfig.model_validate({"db_path": "/Volumes/ExternalDisk/library.db"})
+
+    def test_volumes_subfolder_rejected(self) -> None:
+        """Any path under /Volumes/ sub-directories must be rejected."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="external or macFUSE mount"):
+            IndexerConfig.model_validate({"db_path": "/Volumes/USB1/data/lib.db"})
+
+    def test_relative_path_accepted(self) -> None:
+        """A relative path (cannot start with /Volumes/) must be accepted as-is."""
+        cfg = IndexerConfig.model_validate({"db_path": ".personalscraper/library.db"})
+        assert cfg.db_path == Path(".personalscraper/library.db")
+
+    def test_validator_in_isolation(self) -> None:
+        """Calling the field_validator class method directly must work for /Volumes/ paths."""
+        from pydantic import ValidationError
+
+        # The validator is enforced via IndexerConfig; test it via model construction.
+        with pytest.raises(ValidationError):
+            IndexerConfig(db_path=Path("/Volumes/NAS/library.db"))
+
+
+# ---------------------------------------------------------------------------
+# Category-orphan startup check
+# ---------------------------------------------------------------------------
+
+
+def _make_library_db(db_path: Path, category_ids: list[str]) -> None:
+    """Create a minimal library.db with a media_item table pre-populated.
+
+    Args:
+        db_path: Path where the SQLite file is created.
+        category_ids: List of category_id values to insert as distinct rows.
+    """
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        """
+        CREATE TABLE media_item (
+            id          INTEGER PRIMARY KEY,
+            category_id TEXT NOT NULL
+        )
+        """
+    )
+    for i, cid in enumerate(category_ids):
+        conn.execute("INSERT INTO media_item (id, category_id) VALUES (?, ?)", (i, cid))
+    conn.commit()
+    conn.close()
+
+
+class TestCategoryOrphanCheck:
+    """Tests for the _check_category_orphans startup check."""
+
+    def test_no_db_file_is_noop(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """When library.db does not exist the check must be silent."""
+        import logging
+
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+        config = load_config(cfg_path)
+
+        # Override db_path to a nonexistent location.
+        object.__setattr__(
+            config.indexer,
+            "db_path",
+            tmp_path / "nonexistent" / "library.db",
+        )
+
+        with caplog.at_level(logging.WARNING):
+            _check_category_orphans(config)
+
+        assert "category_orphan" not in caplog.text
+
+    def test_known_categories_are_silent(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """When all DB category_ids are declared in config, no warning is emitted."""
+        import logging
+
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+        config = load_config(cfg_path)
+
+        db_path = tmp_path / "library.db"
+        # "movies" and "tv_shows" are builtin IDs — always in all_category_ids.
+        _make_library_db(db_path, ["movies", "tv_shows"])
+        object.__setattr__(config.indexer, "db_path", db_path)
+
+        with caplog.at_level(logging.WARNING):
+            _check_category_orphans(config)
+
+        assert "category_orphan" not in caplog.text
+
+    def test_orphan_ids_logged_as_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """When the DB contains a category_id not in config, a warning must be logged."""
+        import logging
+
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+        config = load_config(cfg_path)
+
+        db_path = tmp_path / "library.db"
+        # "movies_old" does not exist in any declared category.
+        _make_library_db(db_path, ["movies", "movies_old"])
+        object.__setattr__(config.indexer, "db_path", db_path)
+
+        with caplog.at_level(logging.WARNING):
+            _check_category_orphans(config)
+
+        assert "indexer.config.category_orphan" in caplog.text
+        assert "movies_old" in caplog.text
+
+    def test_loader_calls_orphan_check_on_load(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """load_config must trigger the orphan check if library.db is present."""
+        import logging
+
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+
+        # Build a config to find the default db_path; patch it to tmp_path.
+        # We do this by writing a config that sets the db_path to our DB.
+        db_path = tmp_path / "library.db"
+        _make_library_db(db_path, ["movies", "zombie_category"])
+
+        # Write a config where indexer.db_path points at our test DB.
+        content = f"""{{
+            config_version: 1,
+            paths: {{
+                torrent_complete_dir: "{tmp_path / "complete"}",
+                staging_dir: "{tmp_path / "staging"}",
+                data_dir: "{tmp_path / ".data"}",
+            }},
+            disks: [
+                {{
+                    id: "disk_a",
+                    path: "{tmp_path / "disk_a"}",
+                    categories: ["movies", "tv_shows"],
+                }},
+            ],
+            staging_dirs: [
+                {{ id: 1, name: "movies", file_type: "movie" }},
+                {{ id: 2, name: "tvshows", file_type: "tvshow" }},
+                {{ id: 3, name: "ebooks", file_type: "ebook" }},
+                {{ id: 4, name: "audio", file_type: "audio" }},
+                {{ id: 5, name: "apps", file_type: "app" }},
+                {{ id: 6, name: "android", file_type: "app" }},
+                {{ id: 97, name: "temp", file_type: null, role: "ingest" }},
+                {{ id: 98, name: "autres", file_type: "other" }},
+            ],
+            indexer: {{
+                db_path: "{db_path}",
+            }},
+        }}"""
+        cfg_path.write_text(content, encoding="utf-8")
+
+        with caplog.at_level(logging.WARNING):
+            load_config(cfg_path)
+
+        assert "indexer.config.category_orphan" in caplog.text
+        assert "zombie_category" in caplog.text

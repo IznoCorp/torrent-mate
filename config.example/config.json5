@@ -15,5 +15,6 @@
     "encoding.json5",
     "scraper.json5",
     "trailers.json5",
+    "indexer.json5",
   ],
 }

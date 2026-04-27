@@ -10,9 +10,18 @@ Resolution order for the v2 (multi-file) loader:
 
 Warnings are non-blocking: they are logged but do not prevent the config from
 loading.
+
+Startup checks (non-blocking, warning-only):
+  - Category-orphan check (DESIGN §17.2): if ``library.db`` exists, the loader
+    queries ``SELECT DISTINCT category_id FROM media_item`` and compares the
+    result against the union of declared category IDs in the loaded config.
+    Any orphan IDs are logged via the ``indexer.config.category_orphan`` event.
+    The loader does NOT refuse to start — the user must run
+    ``personalscraper config migrate-category`` to resolve the mismatch.
 """
 
 import os
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -156,6 +165,9 @@ def load_config_dir(config_dir: Path) -> Config:
     for warning in collect_warnings(config):
         log.warning(warning)
 
+    # Non-blocking category-orphan startup check (DESIGN §17.2).
+    _check_category_orphans(config)
+
     return config
 
 
@@ -195,6 +207,9 @@ def load_config(path: Path | None = None) -> Config:
     # The warning text is used as the event so stdlib caplog records carry it.
     for warning in collect_warnings(config):
         log.warning(warning)
+
+    # Non-blocking category-orphan startup check (DESIGN §17.2).
+    _check_category_orphans(config)
 
     return config
 
@@ -250,3 +265,61 @@ def collect_warnings(config: Config) -> list[str]:
             warnings.append(f"disk '{disk.id}' path '{disk.path}' not mounted/present")
 
     return warnings
+
+
+def _check_category_orphans(config: Config) -> None:
+    """Run the category-orphan startup check described in DESIGN §17.2.
+
+    If ``library.db`` exists at the configured ``indexer.db_path``, this
+    function queries ``SELECT DISTINCT category_id FROM media_item`` and
+    compares the result against the union of declared category IDs in the
+    loaded config.  Any IDs present in the database but absent from the config
+    are *orphans* — most likely caused by a category rename in ``categories.json5``
+    without a corresponding ``personalscraper config migrate-category`` run.
+
+    The check is **warning-only**: the loader does not refuse to start.  The
+    user must run ``personalscraper config migrate-category --from OLD --to NEW``
+    to repair orphan references.
+
+    Args:
+        config: Validated Config instance containing ``indexer.db_path`` and
+            ``all_category_ids``.
+    """
+    db_path = config.indexer.db_path.expanduser()
+    if not db_path.is_absolute():
+        # Relative paths are resolved against CWD at call time — same as the
+        # rest of the project's path handling.
+        db_path = Path.cwd() / db_path
+
+    if not db_path.is_file():
+        # No database yet — nothing to check.
+        return
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        try:
+            cursor = conn.execute("SELECT DISTINCT category_id FROM media_item")
+            db_category_ids: set[str] = {row[0] for row in cursor.fetchall()}
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:
+        # Non-blocking: a corrupt or locked DB at startup must not crash the
+        # CLI.  Log at warning level and continue.
+        log.warning(
+            "indexer.config.category_orphan_check_failed",
+            db_path=str(db_path),
+            error=str(exc),
+        )
+        return
+
+    known_ids = config.all_category_ids
+    orphan_ids = db_category_ids - known_ids
+    if orphan_ids:
+        log.warning(
+            "indexer.config.category_orphan",
+            orphan_category_ids=sorted(orphan_ids),
+            hint=(
+                "Run `personalscraper config migrate-category --from OLD --to NEW` "
+                "to remap orphan category references in the database."
+            ),
+        )

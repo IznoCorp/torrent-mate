@@ -6,7 +6,7 @@ placement in the config file.
 
 import re
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -54,6 +54,9 @@ class DiskConfig(_StrictModel):
         id: Free-form disk identifier (must match ``^[a-z][a-z0-9_]*$``).
         path: Absolute mounted path.
         categories: Category IDs accepted on this disk.
+        spotlight_enabled: Whether Spotlight indexing is enabled on this disk.
+            Defaults to False. User must opt in after running ``mdutil -i on``
+            on the volume; macFUSE-NTFS volumes are never Spotlight-indexable.
     """
 
     id: str = Field(
@@ -64,6 +67,13 @@ class DiskConfig(_StrictModel):
     )
     path: Path = Field(..., description="Chemin monté absolu.")
     categories: Annotated[list[str], Field(min_length=1)] = Field(..., description="IDs acceptés sur ce disque.")
+    spotlight_enabled: bool = Field(
+        default=False,
+        description=(
+            "Whether Spotlight indexing is enabled on this disk. "
+            "Opt in after `mdutil -i on`. macFUSE-NTFS volumes are never Spotlight-indexable."
+        ),
+    )
 
 
 class CategoryRule(_StrictModel):
@@ -744,6 +754,291 @@ class TrailersConfig(_StrictModel):
     library_check: TrailersLibraryCheckConfig = Field(default_factory=TrailersLibraryCheckConfig)
 
 
+class IndexerScanConfig(_StrictModel):
+    """Scan-engine tunables for the media indexer.
+
+    Attributes:
+        nightly_mode: Default scan mode for scheduled nightlies.
+            One of ``"quick"`` | ``"incremental"`` | ``"enrich"`` | ``"full"``.
+        budget_seconds: Hard time cap per scan run in seconds. Crash-resume
+            picks up where the scan left off.
+        checkpoint_every_n_files: Write a checkpoint row every N files so a
+            crashed scan resumes from a known-good point.
+        max_workers_total: Maximum parallel scan workers, capped at the number
+            of currently mounted disks.
+        racy_window_seconds: git-style mtime-collision window. Files whose
+            mtime changed within this many seconds of the scan start are
+            re-fingerprinted on the next run (avoids false-positive deltas
+            caused by in-progress writes).
+        n_strikes_for_softdelete: Number of consecutive missed scans before a
+            file is soft-deleted (``deleted_at`` set). Prevents a single
+            unmounted disk from wiping its entries.
+        read_rate_mb_per_sec: IO throttle in MB/s. ``None`` = unlimited.
+            Set to e.g. 80 on spinning rust to avoid starving other processes.
+        sequential_read_hint: Emit ``F_RDADVISE`` on macOS to hint sequential
+            reads to the OS buffer cache. No-op on other platforms.
+        drop_indexes_during_full_scan: Drop non-PK indexes during a full
+            cold scan and rebuild them on finish — faster bulk inserts.
+    """
+
+    nightly_mode: Literal["quick", "incremental", "enrich", "full"] = Field(
+        default="quick",
+        description="Default scan mode for scheduled nightlies.",
+    )
+    budget_seconds: int = Field(default=1800, gt=0, description="Hard time cap per scan run in seconds.")
+    checkpoint_every_n_files: int = Field(default=100, gt=0, description="Write checkpoint every N files.")
+    max_workers_total: int = Field(default=4, gt=0, description="Max parallel scan workers.")
+    racy_window_seconds: float = Field(
+        default=2.0,
+        ge=0.0,
+        description="git-style mtime-collision window in seconds.",
+    )
+    n_strikes_for_softdelete: int = Field(default=3, gt=0, description="Missed scans before soft-delete.")
+    read_rate_mb_per_sec: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="IO throttle in MB/s. None = unlimited.",
+    )
+    sequential_read_hint: bool = Field(
+        default=True,
+        description="Emit F_RDADVISE on macOS; no-op elsewhere.",
+    )
+    drop_indexes_during_full_scan: bool = Field(
+        default=True,
+        description="Drop and rebuild non-PK indexes around a full cold scan for faster bulk inserts.",
+    )
+
+
+class IndexerFingerprintConfig(_StrictModel):
+    """Fingerprint strategy tunables for the media indexer.
+
+    Attributes:
+        oshash: Store OpenSubtitles OSHash on every file. Survives renames.
+        xxh3_partial_bytes: Number of bytes read from head + tail for the
+            xxh3_64 partial fingerprint (default 1 048 576 = 1 MB).
+        compute_xxh3_on_racy: Compute xxh3 on racy-window files to confirm
+            whether a detected change is a real content change.
+    """
+
+    oshash: bool = Field(default=True, description="Store OSHash on every file.")
+    xxh3_partial_bytes: int = Field(
+        default=1_048_576,
+        gt=0,
+        description="Bytes from head + tail for the xxh3_64 partial fingerprint.",
+    )
+    compute_xxh3_on_racy: bool = Field(
+        default=True,
+        description="Compute xxh3 on racy-window files to confirm real changes.",
+    )
+
+
+class IndexerMediainfoConfig(_StrictModel):
+    """libmediainfo extraction tunables for the media indexer.
+
+    Attributes:
+        library_path: Absolute path to libmediainfo.dylib/so. ``None`` = auto-detect
+            via Homebrew prefix.
+        extract_streams: Extract per-stream codec/audio/subtitle metadata.
+        min_size_mb: Skip mediainfo on files smaller than this threshold (MB).
+            Avoids slow FFI calls on tiny sidecar files.
+        parse_speed: libmediainfo parse speed flag. 0.5 = fast, 1.0 = full.
+        defer_to_enrich: Skip mediainfo entirely during cold/quick/incremental
+            scans; only run during the ``enrich`` pass.
+    """
+
+    library_path: str | None = Field(
+        default=None,
+        description="Absolute path to libmediainfo. None = auto-detect via brew.",
+    )
+    extract_streams: bool = Field(default=True, description="Extract per-stream codec/audio/subtitle metadata.")
+    min_size_mb: int = Field(default=50, ge=0, description="Skip mediainfo on files smaller than this MB threshold.")
+    parse_speed: float = Field(
+        default=1.0,
+        gt=0.0,
+        le=1.0,
+        description="libmediainfo parse speed (0.5=fast, 1.0=full).",
+    )
+    defer_to_enrich: bool = Field(
+        default=True,
+        description="Skip mediainfo during cold/quick/incremental scans; run only on enrich pass.",
+    )
+
+
+class IndexerDriftConfig(_StrictModel):
+    """Drift detection tunables for the media indexer.
+
+    Attributes:
+        merkle_per_disk: Maintain a per-disk Merkle root (xxh3_64 over sorted
+            file rows) to fast-skip entirely unchanged disks.
+        verify_disks_each_scan: Run mountpoint and sentinel checks on every
+            scan to catch unmounted or swapped volumes.
+        sentinel_filename: Name of the hidden sentinel file written to each
+            disk's root to confirm UUID identity at mount time.
+    """
+
+    merkle_per_disk: bool = Field(
+        default=True,
+        description="Maintain a per-disk Merkle root to fast-skip unchanged disks.",
+    )
+    verify_disks_each_scan: bool = Field(
+        default=True,
+        description="Run mountpoint + sentinel checks on every scan.",
+    )
+    sentinel_filename: str = Field(
+        default=".personalscraper-disk-id",
+        min_length=1,
+        description="Hidden sentinel file name written to each disk root for UUID identity check.",
+    )
+
+
+class IndexerSpotlightConfig(_StrictModel):
+    """Spotlight (CoreSpotlight / mdutil) integration tunables.
+
+    Note: macFUSE-NTFS volumes are not Spotlight-indexable. These settings
+    apply only to APFS volumes where Spotlight is available.
+
+    Attributes:
+        probe_at_startup: Run ``mdutil -s`` on each disk at scanner startup to
+            record whether Spotlight is available.
+        use_when_available: Delegate change detection to Spotlight
+            (``mdfind -onlyin … kMDItemFSContentChangeDate > …``) when the
+            probe confirms it is available. Falls back to full walk otherwise.
+    """
+
+    probe_at_startup: bool = Field(
+        default=True,
+        description="Run mdutil -s on each disk at scanner startup.",
+    )
+    use_when_available: bool = Field(
+        default=True,
+        description="Delegate change detection to Spotlight when available.",
+    )
+
+
+class IndexerRepairConfig(_StrictModel):
+    """Auto-repair queue tunables for the media indexer.
+
+    Attributes:
+        queue_drain_on_scan_finish: Drain the repair queue at the end of each
+            scan run (before the budget runs out).
+        max_repair_seconds_per_drain: Maximum seconds spent draining the repair
+            queue in a single scan run.
+    """
+
+    queue_drain_on_scan_finish: bool = Field(
+        default=True,
+        description="Drain repair queue at the end of each scan.",
+    )
+    max_repair_seconds_per_drain: int = Field(
+        default=300,
+        gt=0,
+        description="Max seconds spent draining the repair queue per scan run.",
+    )
+
+
+class IndexerLogConfig(_StrictModel):
+    """Retention policy for indexer audit tables.
+
+    Attributes:
+        scan_event_retention_days: How many days to keep rows in the
+            ``scan_event`` table before pruning.
+        deleted_item_retention_days: How many days to keep soft-deleted
+            ``media_item`` rows (``deleted_at IS NOT NULL``) before hard-purge.
+    """
+
+    scan_event_retention_days: int = Field(
+        default=90,
+        gt=0,
+        description="Days to retain scan_event rows.",
+    )
+    deleted_item_retention_days: int = Field(
+        default=365,
+        gt=0,
+        description="Days to retain soft-deleted media_item rows before hard-purge.",
+    )
+
+
+class IndexerConfig(_StrictModel):
+    """Configuration for the media indexer sub-system (DESIGN §5.3).
+
+    All defaults match the reference indexer.json5 from the design doc.
+    The ``db_path`` is validated to reject external / macFUSE mounts because
+    SQLite WAL mode is unreliable on network or FUSE filesystems.
+
+    Attributes:
+        db_path: Path to the SQLite library database. Relative paths are
+            resolved against the project root. Must not reside on a macFUSE
+            or external mount.
+        scan: Scan-engine tunables.
+        fingerprint: Fingerprint strategy tunables.
+        mediainfo: libmediainfo extraction tunables.
+        drift: Drift detection tunables.
+        spotlight: Spotlight integration tunables.
+        repair: Auto-repair queue tunables.
+        log: Audit-table retention policy.
+    """
+
+    db_path: Path = Field(
+        default=Path(".personalscraper/library.db"),
+        description="Path to the SQLite library database. Must not be on an external/macFUSE mount.",
+    )
+    scan: IndexerScanConfig = Field(default_factory=IndexerScanConfig)
+    fingerprint: IndexerFingerprintConfig = Field(default_factory=IndexerFingerprintConfig)
+    mediainfo: IndexerMediainfoConfig = Field(default_factory=IndexerMediainfoConfig)
+    drift: IndexerDriftConfig = Field(default_factory=IndexerDriftConfig)
+    spotlight: IndexerSpotlightConfig = Field(default_factory=IndexerSpotlightConfig)
+    repair: IndexerRepairConfig = Field(default_factory=IndexerRepairConfig)
+    log: IndexerLogConfig = Field(default_factory=IndexerLogConfig)
+
+    @field_validator("db_path", mode="after")
+    @classmethod
+    def _reject_external_mount(cls, v: Path) -> Path:
+        """Reject db_path that resolves to a macFUSE or external mount.
+
+        SQLite WAL mode is unreliable on macFUSE-NTFS and network mounts.
+        The database must live on the internal APFS volume.
+
+        Detection heuristic: the resolved path starts with ``/Volumes/`` (macOS
+        convention for all external and network mounts). Paths under the home
+        directory or project root are always accepted.
+
+        Args:
+            v: Resolved Path value for db_path.
+
+        Returns:
+            The validated Path if it is not on an external mount.
+
+        Raises:
+            ValueError: If the path resolves under ``/Volumes/``.
+        """
+        # Expand user and normalise without requiring the file to exist.
+        resolved = v.expanduser()
+        if not resolved.is_absolute():
+            # Relative paths are anchored at CWD; they cannot be /Volumes/.
+            return v
+        # The /Volumes/ tree on macOS is exclusively used for external, network,
+        # and removable mounts. The internal APFS system volume appears there
+        # too but is accessed as / (the mount is transparent). Any user-supplied
+        # path starting with /Volumes/ therefore targets a non-internal volume.
+        if str(resolved).startswith("/Volumes/"):
+            raise ValueError(
+                f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "
+                "SQLite WAL mode is unreliable on such filesystems. "
+                "Move the database to the internal APFS volume (e.g. ~/.personalscraper/library.db)."
+            )
+        return v
+
+
+# ---------------------------------------------------------------------------
+# Type alias re-exported for consumers that import from conf.models
+# ---------------------------------------------------------------------------
+
+#: Mapping of arbitrary extra attributes for future schema extensions.
+#: Not used internally; declared here so mypy is happy when code passes
+#: ``dict[str, Any]`` payloads to validators.
+_AnyDict = dict[str, Any]
+
+
 class Config(_StrictModel):
     """Top-level config.json5 parsed model.
 
@@ -759,6 +1054,7 @@ class Config(_StrictModel):
         library: Library maintenance preferences.
         ingest: Ingest step tunables (min_ratio threshold, etc.).
         trailers: Trailer download feature configuration. Disabled by default (enabled=False).
+        indexer: Media indexer sub-system configuration.
     """
 
     config_version: int = Field(default=1, description="Schéma version pour migration future.")
@@ -795,6 +1091,8 @@ class Config(_StrictModel):
     )
 
     trailers: TrailersConfig = Field(default_factory=TrailersConfig)
+
+    indexer: IndexerConfig = Field(default_factory=IndexerConfig)
 
     @property
     def all_category_ids(self) -> frozenset[str]:
