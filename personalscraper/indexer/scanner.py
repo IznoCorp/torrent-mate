@@ -1,18 +1,32 @@
 """Core walk skeleton for the media indexer scanner.
 
 Provides:
+- :class:`IndexerConfigError` — raised for invalid configuration (e.g. unknown ``--disk``).
 - :class:`ScanMode` — enum of the four scan modes (quick, incremental, enrich, full).
 - :class:`ScanRunResult` — lightweight result returned by :func:`scan`.
 - :data:`EXCLUDED_NAMES` — frozenset of system / macOS directory names to skip.
 - :func:`_should_exclude` — predicate for per-entry exclusion during directory walk.
-- :func:`scan` — skeleton walk function: per-disk loop with guard, scandir walk,
+- :func:`filter_disks` — filter a disk list by label; raises :class:`IndexerConfigError` if unknown.
+- :func:`scan` — walk function: per-disk loop with guard, scandir walk,
   path row write-through, media_file upsert, scan_run lifecycle management.
 
+Sub-phase 2.5 additions:
+    - Full-mode fingerprinting: ``fingerprint_tier1`` (size/mtime/ctime) for every
+      non-symlink file; ``oshash`` for files whose suffix is in
+      ``fingerprint.OSHASH_EXTENSIONS``.
+    - Symlinks continue to receive ``oshash=""`` (deferred sentinel, never fingerprinted).
+    - ``drop_indexes_during_full_scan`` optimization: secondary indexes on
+      ``media_file`` / ``media_stream`` are dropped before bulk inserts and
+      recreated via a ``try/finally`` block after the disk is fully walked.
+    - ``--disk D`` scoping via :func:`filter_disks` and the ``disk_filter`` parameter
+      on :func:`scan`.
+
 Notes on ``oshash`` sentinel:
-    The ``media_file`` table declares ``oshash TEXT NOT NULL``, so this skeleton
-    uses the empty string ``""`` as a deferred placeholder.  Full fingerprinting
-    (OSHash / xxh3) is wired in sub-phases 2.5+.  Callers must treat ``oshash == ""``
-    as "not yet computed" until those sub-phases land.
+    The ``media_file`` table declares ``oshash TEXT NOT NULL``.  In full mode,
+    video files receive a real 16-char hex OSHash.  Non-video regular files receive
+    ``""`` (empty string) because OSHash is only defined for video content.  Symlinks
+    also receive ``""`` regardless of extension.  Callers must treat ``oshash == ""``
+    as "not yet computed" for non-video files.
 
 Notes on the ``path`` table:
     There is no ``path_repo`` among the seven repos created in sub-phase 1.4; the
@@ -21,9 +35,8 @@ Notes on the ``path`` table:
 
 Notes on ``os.open`` convention:
     All actual file opens (content reads) must use ``os.open(path, os.O_RDONLY)``
-    so the OS can honour ``F_RDADVISE`` sequential hints added in Phase 4.  This
-    skeleton does not open file content; the convention is documented here for
-    implementors of the fingerprint sub-phases (2.5+).
+    so the OS can honour ``F_RDADVISE`` sequential hints added in Phase 4.  The
+    ``fingerprint.oshash`` function already follows this convention.
 """
 
 from __future__ import annotations
@@ -33,13 +46,40 @@ import sqlite3
 import time
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
+from personalscraper.indexer import fingerprint
 from personalscraper.indexer.merkle import DiskMismatchError, DiskUnmountedError, guard_disk_mounted
 from personalscraper.indexer.repos import disk_repo, file_repo, log_repo
 from personalscraper.indexer.schema import DiskRow, MediaFileRow, PathRow, ScanRunRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
+
+# Batch size for executemany inserts during full-mode walk (DESIGN §11.7).
+_INSERT_BATCH_SIZE: int = 5000
+
+
+# ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+
+class IndexerConfigError(ValueError):
+    """Raised when scanner configuration is invalid.
+
+    Typical triggers:
+    - ``--disk D`` references a label that is not present in the configured disk list.
+
+    Args:
+        message: Human-readable description of the configuration problem.
+    """
+
+    def __init__(self, message: str) -> None:
+        """Initialize with a human-readable message."""
+        super().__init__(message)
+
 
 # ---------------------------------------------------------------------------
 # ScanMode
@@ -126,6 +166,103 @@ def _should_exclude(name: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# filter_disks
+# ---------------------------------------------------------------------------
+
+
+def filter_disks(disks: list[DiskRow], disk_label: str | None) -> list[DiskRow]:
+    """Filter a disk list to a single disk by label, or return all disks.
+
+    When ``disk_label`` is ``None``, the full list is returned unchanged.
+    When ``disk_label`` is provided, the list is filtered to disks whose
+    ``label`` matches exactly.  If no match is found an
+    :class:`IndexerConfigError` is raised.
+
+    Args:
+        disks: Full list of :class:`~personalscraper.indexer.schema.DiskRow`
+            objects to filter.
+        disk_label: Disk label to match against.  ``None`` returns all disks.
+
+    Returns:
+        Filtered list of :class:`~personalscraper.indexer.schema.DiskRow`
+        objects.  Contains at most one element when ``disk_label`` is given.
+
+    Raises:
+        IndexerConfigError: When ``disk_label`` is not ``None`` and no disk
+            with that label exists in ``disks``.
+    """
+    if disk_label is None:
+        return list(disks)
+
+    matched = [d for d in disks if d.label == disk_label]
+    if not matched:
+        raise IndexerConfigError(f"no disk with label '{disk_label}'")
+    return matched
+
+
+# ---------------------------------------------------------------------------
+# Index management helpers (drop_indexes_during_full_scan, DESIGN §11.7)
+# ---------------------------------------------------------------------------
+
+
+def _capture_index_ddl(conn: sqlite3.Connection) -> list[tuple[str, str]]:
+    """Capture CREATE INDEX statements for ``media_file`` and ``media_stream``.
+
+    Excludes SQLite auto-indexes (``sqlite_autoindex_*``) that are tied to
+    ``UNIQUE`` constraints and cannot be recreated manually.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        List of ``(index_name, create_sql)`` tuples for non-autoindex entries.
+    """
+    rows = conn.execute(
+        """
+        SELECT name, sql
+        FROM sqlite_master
+        WHERE type = 'index'
+          AND tbl_name IN ('media_file', 'media_stream')
+          AND sql IS NOT NULL
+          AND name NOT LIKE 'sqlite_autoindex_%'
+        """
+    ).fetchall()
+    return [(r[0], r[1]) for r in rows]
+
+
+def _drop_secondary_indexes(conn: sqlite3.Connection) -> list[tuple[str, str]]:
+    """Drop all non-autoindex secondary indexes on ``media_file`` and ``media_stream``.
+
+    Captures the DDL first, drops each index, and returns the captured DDL so
+    the caller can recreate the indexes via :func:`_recreate_indexes`.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        List of ``(index_name, create_sql)`` pairs that were dropped.
+    """
+    ddl_pairs = _capture_index_ddl(conn)
+    for name, _ in ddl_pairs:
+        conn.execute(f"DROP INDEX IF EXISTS {name}")
+        log.debug("indexer.scan.index_dropped", index_name=name)
+    return ddl_pairs
+
+
+def _recreate_indexes(conn: sqlite3.Connection, ddl_pairs: list[tuple[str, str]]) -> None:
+    """Recreate indexes from previously captured CREATE INDEX statements.
+
+    Args:
+        conn: Open SQLite connection.
+        ddl_pairs: List of ``(index_name, create_sql)`` tuples as returned by
+            :func:`_drop_secondary_indexes`.
+    """
+    for name, sql in ddl_pairs:
+        conn.execute(sql)
+        log.debug("indexer.scan.index_recreated", index_name=name)
+
+
+# ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
@@ -182,18 +319,23 @@ def _upsert_file_row(
     mtime_ns: int,
     ctime_ns: int | None,
     generation: int,
+    oshash_value: str = "",
+    insert_buffer: list[Any] | None = None,
 ) -> None:
     """Insert or update a ``media_file`` row for a discovered file.
 
-    Uses :func:`~personalscraper.indexer.repos.file_repo.upsert` when available;
-    falls back to an INSERT-OR-REPLACE via direct SQL because ``file_repo``
-    currently exposes only ``insert`` and ``find_by_path_and_filename``.
+    In full mode the caller passes a pre-computed ``oshash_value`` and may
+    optionally pass an ``insert_buffer`` list.  When a buffer is provided and
+    the file is **new**, the row tuple is appended to the buffer instead of
+    being inserted immediately — the caller flushes the buffer via
+    :func:`_flush_insert_buffer` when it reaches :data:`_INSERT_BATCH_SIZE`.
 
-    The ``oshash`` is set to ``""`` (empty string) as a deferred sentinel —
-    full fingerprinting is wired in sub-phases 2.5+.  ``release_id`` is set to
-    ``0`` (a sentinel FK value) because release linkage is performed during the
-    scrape phase, not the walk phase.  ``last_verified_at`` is set to the current
-    epoch second.  ``enriched_at`` is left ``NULL``.
+    When the file already exists, the row is updated in-place (no buffering
+    for updates; they are rare during a cold full scan).
+
+    The ``oshash`` is set to ``oshash_value`` (defaults to ``""`` for non-video
+    or symlink files).  ``release_id`` uses ``0`` as a deferred sentinel (FK
+    constraint disabled in tests).  ``enriched_at`` is left ``NULL``.
 
     Args:
         conn: Open SQLite connection.
@@ -203,41 +345,204 @@ def _upsert_file_row(
         mtime_ns: File modification time in nanoseconds from ``entry.stat()``.
         ctime_ns: File change time in nanoseconds; ``None`` if unavailable.
         generation: Scan generation counter for this scan run.
+        oshash_value: Pre-computed OSHash hex string; ``""`` if not applicable.
+        insert_buffer: Optional accumulation list for batched inserts.  When
+            provided, new rows are appended rather than inserted individually.
     """
     now_s = int(time.time())
     existing = file_repo.find_by_path_and_filename(conn, path_id, filename)
     if existing is None:
-        file_repo.insert(
-            conn,
-            MediaFileRow(
-                id=0,
-                release_id=0,  # deferred — release linkage happens in scrape phase
-                path_id=path_id,
-                filename=filename,
-                size_bytes=size_bytes,
-                mtime_ns=mtime_ns,
-                ctime_ns=ctime_ns,
-                oshash="",  # sentinel — full fingerprint deferred to 2.5+
-                xxh3_partial=None,
-                xxh3_full=None,
-                scan_generation=generation,
-                last_verified_at=now_s,
-                enriched_at=None,
-                miss_strikes=0,
-                deleted_at=None,
-            ),
+        row_tuple = (
+            0,  # release_id sentinel — release linkage happens in scrape phase
+            path_id,
+            filename,
+            size_bytes,
+            mtime_ns,
+            ctime_ns,
+            oshash_value,
+            None,  # xxh3_partial
+            None,  # xxh3_full
+            generation,
+            now_s,  # last_verified_at
+            None,  # enriched_at — mediainfo extraction is in a later sub-phase
+            0,  # miss_strikes
+            None,  # deleted_at
         )
+        if insert_buffer is not None:
+            insert_buffer.append(row_tuple)
+        else:
+            file_repo.insert(
+                conn,
+                MediaFileRow(
+                    id=0,
+                    release_id=row_tuple[0],
+                    path_id=row_tuple[1],
+                    filename=row_tuple[2],
+                    size_bytes=row_tuple[3],
+                    mtime_ns=row_tuple[4],
+                    ctime_ns=row_tuple[5],
+                    oshash=row_tuple[6],
+                    xxh3_partial=row_tuple[7],
+                    xxh3_full=row_tuple[8],
+                    scan_generation=row_tuple[9],
+                    last_verified_at=row_tuple[10],
+                    enriched_at=row_tuple[11],
+                    miss_strikes=row_tuple[12],
+                    deleted_at=row_tuple[13],
+                ),
+            )
     else:
-        # Update mutable columns on a revisit (size, mtime, generation, verified).
+        # Update mutable columns on a revisit (size, mtime, oshash, generation, verified).
         conn.execute(
             """
             UPDATE media_file
             SET size_bytes = ?, mtime_ns = ?, ctime_ns = ?,
-                scan_generation = ?, last_verified_at = ?
+                oshash = ?, scan_generation = ?, last_verified_at = ?
             WHERE id = ?
             """,
-            (size_bytes, mtime_ns, ctime_ns, generation, now_s, existing.id),
+            (size_bytes, mtime_ns, ctime_ns, oshash_value, generation, now_s, existing.id),
         )
+
+
+def _flush_insert_buffer(conn: sqlite3.Connection, buffer: list[Any]) -> None:
+    """Flush accumulated new-file rows to the database using ``executemany``.
+
+    This is the batched insert path used when ``drop_indexes_during_full_scan``
+    is enabled.  Rows are inserted in one ``executemany`` call, which SQLite
+    processes much faster than individual ``INSERT`` statements.
+
+    Args:
+        conn: Open SQLite connection.
+        buffer: List of row tuples as produced by :func:`_upsert_file_row`.
+            Cleared in-place after the flush.
+    """
+    if not buffer:
+        return
+    conn.executemany(
+        """
+        INSERT INTO media_file (
+            release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns,
+            oshash, xxh3_partial, xxh3_full, scan_generation,
+            last_verified_at, enriched_at, miss_strikes, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        buffer,
+    )
+    log.debug("indexer.scan.batch_flushed", rows=len(buffer))
+    buffer.clear()
+
+
+def _compute_oshash(entry_path: str, filename: str, is_symlink: bool) -> str:
+    """Compute OSHash for a file entry if applicable.
+
+    OSHash is only computed for regular (non-symlink) files whose suffix
+    (without leading dot, lowercased) is in
+    :data:`~personalscraper.indexer.fingerprint.OSHASH_EXTENSIONS`.
+    All other files receive ``""`` (deferred / not-applicable sentinel).
+
+    Args:
+        entry_path: Absolute path of the file entry.
+        filename: Bare filename used to extract the suffix.
+        is_symlink: Whether the entry is a symlink (symlinks never get OSHash).
+
+    Returns:
+        16-character lowercase hex OSHash string, or ``""`` if not applicable.
+    """
+    if is_symlink:
+        return ""
+    suffix = Path(filename).suffix.lstrip(".").lower()
+    if suffix not in fingerprint.OSHASH_EXTENSIONS:
+        return ""
+    try:
+        return fingerprint.oshash(Path(entry_path))
+    except OSError as exc:
+        log.warning("indexer.scan.oshash_failed", path=entry_path, error=str(exc))
+        return ""
+
+
+def _walk_dir_full(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    dir_abs: str,
+    files_visited: list[int],
+    dirs_visited: list[int],
+    generation: int,
+    insert_buffer: list[Any],
+) -> None:
+    """Recursively walk *dir_abs* in full mode, fingerprinting every file.
+
+    Extends the skeleton walk with:
+    - ``fingerprint_tier1`` called on every non-symlink file to extract
+      (size, mtime_ns, ctime_ns).
+    - ``oshash`` computed for regular files with a video extension.
+    - Symlinks recorded with ``oshash=""`` (never fingerprinted).
+    - New rows buffered for batched ``executemany`` inserts.
+
+    Uses ``entry.stat(follow_symlinks=False)`` so symlinks are never
+    transparently followed.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` owning this subtree.
+        dir_abs: Absolute path of the current directory.
+        files_visited: Single-element mutable counter for files.
+        dirs_visited: Single-element mutable counter for directories.
+        generation: Scan generation stamped on every ``media_file`` row.
+        insert_buffer: Accumulation list for batched inserts (flushed by caller).
+    """
+    assert disk.mount_path is not None  # guard: mount_path checked before entering walk
+
+    try:
+        with os.scandir(dir_abs) as it:
+            entries = list(it)
+    except PermissionError:
+        log.warning("indexer.scan.dir_permission_denied", path=dir_abs)
+        return
+
+    for entry in entries:
+        if _should_exclude(entry.name):
+            continue
+
+        # Stat without following symlinks — this is the *only* stat call per entry.
+        try:
+            st = entry.stat(follow_symlinks=False)
+        except OSError:
+            log.warning("indexer.scan.stat_failed", path=entry.path)
+            continue
+
+        if entry.is_dir(follow_symlinks=False):
+            dirs_visited[0] += 1
+            _walk_dir_full(conn, disk, entry.path, files_visited, dirs_visited, generation, insert_buffer)
+
+            # Write-through path row after all children have been visited.
+            rel = _relpath(disk.mount_path, entry.path)
+            _upsert_path_row(conn, disk.id, rel, st.st_mtime_ns)
+
+        else:
+            # Both regular files and symlinks land here.
+            files_visited[0] += 1
+            is_symlink = entry.is_symlink()
+
+            # Tier-1 fingerprint — zero extra I/O (uses the stat already performed).
+            size_bytes, mtime_ns, ctime_ns = fingerprint.fingerprint_tier1(st)
+
+            # OSHash — 128 KiB read for eligible video files; "" for all others.
+            oshash_value = _compute_oshash(entry.path, entry.name, is_symlink)
+
+            parent_rel = _relpath(disk.mount_path, dir_abs)
+            path_id = _upsert_path_row(conn, disk.id, parent_rel, 0)
+
+            _upsert_file_row(
+                conn,
+                path_id=path_id,
+                filename=entry.name,
+                size_bytes=size_bytes,
+                mtime_ns=mtime_ns,
+                ctime_ns=ctime_ns,
+                generation=generation,
+                oshash_value=oshash_value,
+                insert_buffer=insert_buffer,
+            )
 
 
 def _walk_dir(
@@ -248,7 +553,11 @@ def _walk_dir(
     dirs_visited: list[int],
     generation: int,
 ) -> None:
-    """Recursively walk *dir_abs*, recording path and media_file rows.
+    """Recursively walk *dir_abs*, recording path and media_file rows (skeleton mode).
+
+    Used by scan modes other than ``full`` (e.g. quick, incremental) where
+    fingerprinting is not yet implemented.  Records every file with
+    ``oshash=""`` (deferred sentinel).
 
     Uses :func:`os.scandir` to iterate entries.  Each entry is stat'd via
     ``entry.stat(follow_symlinks=False)`` so symlinks are never transparently
@@ -259,11 +568,6 @@ def _walk_dir(
     directory is upserted with its current ``dir_mtime_ns``.  This write-through
     is the mechanism used by ``--mode quick`` (Phase 2.6) to detect changed
     subtrees without re-reading every file.
-
-    For file opens (content reads in sub-phases 2.5+), callers must use
-    ``os.open(path, os.O_RDONLY)`` — never ``open()`` / ``Path.open()`` — so
-    that macOS ``F_RDADVISE`` sequential hints (Phase 4) can be applied at a
-    single call site.
 
     Args:
         conn: Open SQLite connection.
@@ -331,27 +635,41 @@ def scan(
     mode: ScanMode,
     generation: int,
     conn: sqlite3.Connection,
+    disk_filter: str | None = None,
+    drop_indexes: bool = False,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
-    This is the skeleton walk implementation used by sub-phase 2.4.  Full-mode
-    fingerprinting (OSHash / xxh3) and quick-mode dir-mtime short-circuits are
-    wired in sub-phases 2.5 and 2.6 respectively.  The ``mode`` parameter is
-    accepted but only ``full`` behaviour (walk every file) is implemented here.
+    Sub-phase 2.5 extends the skeleton walk with full-mode fingerprinting:
+
+    * ``mode == ScanMode.full``: For each file, ``fingerprint_tier1`` extracts
+      (size, mtime_ns, ctime_ns) from the already-computed ``stat`` result
+      (zero extra I/O).  For files whose lowercase extension is in
+      :data:`~personalscraper.indexer.fingerprint.OSHASH_EXTENSIONS`, ``oshash``
+      is also computed (128 KiB read).  Symlinks always receive ``oshash=""``.
+    * ``drop_indexes=True``: Secondary indexes on ``media_file`` / ``media_stream``
+      are dropped before bulk inserts and recreated in a ``try/finally`` block.
+      New rows are buffered in memory (up to :data:`_INSERT_BATCH_SIZE`) and
+      flushed via ``executemany`` for faster throughput.
+    * ``disk_filter``: When not ``None``, the ``scan_run.disk_filter`` column is
+      set to this value to record which single disk was scoped.
 
     Walk strategy (per disk):
         1. Call :func:`~personalscraper.indexer.merkle.guard_disk_mounted`.  On
            :class:`~personalscraper.indexer.merkle.DiskUnmountedError` or
            :class:`~personalscraper.indexer.merkle.DiskMismatchError` the disk is
            skipped with a warning; the scan continues on remaining disks.
-        2. Walk the disk root via recursive :func:`os.scandir` calls.
+        2. If ``mode == ScanMode.full`` and ``drop_indexes`` is ``True``, drop
+           secondary indexes and use ``executemany`` batches for inserts.  Always
+           recreate the indexes in a ``try/finally`` block.
+        3. Walk the disk root via recursive :func:`os.scandir` calls.
            - Never follow symlinks (``entry.stat(follow_symlinks=False)``).
            - Skip any entry whose name is in :data:`EXCLUDED_NAMES` or starts with ``"._"``.
            - After visiting all children of a directory, upsert the ``path`` row
              with its current ``dir_mtime_ns``.
-           - For each file (or symlink) entry, insert/update a ``media_file`` row
-             with ``oshash=""`` (deferred sentinel) and ``enriched_at=NULL``.
-        3. Track ``files_visited`` and ``dirs_visited`` counters.
+           - For each file (or symlink) entry, insert/update a ``media_file`` row.
+             In full mode, ``oshash`` is populated for eligible video files.
+        4. Track ``files_visited`` and ``dirs_visited`` counters.
 
     Lifecycle:
         A ``scan_run`` row is inserted at start (``status='running'``).  On
@@ -359,21 +677,22 @@ def scan(
         any unexpected exception the row is updated to ``status='failed'`` and the
         exception is re-raised.
 
-    Notes on the ``path`` table:
-        There is no ``path_repo``; ``path`` CRUD lives in
-        :mod:`personalscraper.indexer.repos.disk_repo`.
-
     Args:
         disks: List of :class:`~personalscraper.indexer.schema.DiskRow` objects
             representing the disks to scan.  Unmounted / mismatched disks are
             skipped without aborting the scan.
-        mode: The :class:`ScanMode` to use.  Only ``full`` walk semantics are
-            implemented in this skeleton; other modes fall through to the same
-            walk path until sub-phases 2.5 / 2.6 extend them.
+        mode: The :class:`ScanMode` to use.  ``full`` enables fingerprinting;
+            other modes fall back to the skeleton walk (oshash="" sentinel).
         generation: Monotonically increasing generation counter stamped on every
             ``media_file`` row visited during this scan.
         conn: Open :class:`sqlite3.Connection` with ``isolation_level=None``
             (autocommit) or an active transaction managed by the caller.
+        disk_filter: Disk label when scoped to a single disk (``--disk D``);
+            ``None`` = all disks.  Stored in ``scan_run.disk_filter``.
+        drop_indexes: When ``True`` and ``mode == ScanMode.full``, drop and
+            recreate secondary indexes around bulk inserts (DESIGN §11.7).
+            Only activated when ``IndexerConfig.scan.drop_indexes_during_full_scan``
+            is true; callers should pass this value from the config.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -392,7 +711,7 @@ def scan(
             id=0,
             generation=generation,
             mode=mode.value,
-            disk_filter=None,
+            disk_filter=disk_filter,
             started_at=started_at,
             finished_at=None,
             last_path=None,
@@ -430,8 +749,12 @@ def scan(
             mount = disk.mount_path
             log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
 
-            # Walk disk root.
-            _walk_dir(conn, disk, mount, files_visited, dirs_visited, generation)
+            if mode == ScanMode.full:
+                # Full-mode walk with optional index drop + batched inserts.
+                _scan_disk_full(conn, disk, mount, files_visited, dirs_visited, generation, drop_indexes)
+            else:
+                # Skeleton walk for modes not yet fully implemented.
+                _walk_dir(conn, disk, mount, files_visited, dirs_visited, generation)
 
             # Write-through the path row for the disk root itself.
             try:
@@ -475,3 +798,84 @@ def scan(
             status="failed",
             error=str(exc),
         )
+
+
+def _scan_disk_full(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    mount: str,
+    files_visited: list[int],
+    dirs_visited: list[int],
+    generation: int,
+    drop_indexes: bool,
+) -> None:
+    """Run the full-mode walk for a single disk with optional index management.
+
+    Wraps the :func:`_walk_dir_full` recursive walk.  When ``drop_indexes`` is
+    ``True``, secondary indexes on ``media_file`` / ``media_stream`` are dropped
+    before the walk and always recreated in a ``try/finally`` block, regardless
+    of whether an exception occurs during the walk.
+
+    New rows are accumulated in an ``insert_buffer``.  The buffer is flushed
+    every :data:`_INSERT_BATCH_SIZE` rows (checked inside
+    :func:`_walk_dir_full`) and once more at the end to drain any remainder.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` being scanned.
+        mount: Absolute mount point path.
+        files_visited: Single-element mutable counter for files.
+        dirs_visited: Single-element mutable counter for directories.
+        generation: Scan generation counter.
+        drop_indexes: Whether to drop and recreate secondary indexes.
+    """
+    ddl_pairs: list[tuple[str, str]] = []
+    if drop_indexes:
+        ddl_pairs = _drop_secondary_indexes(conn)
+
+    insert_buffer: list[Any] = []
+    try:
+        _walk_dir_full_buffered(conn, disk, mount, files_visited, dirs_visited, generation, insert_buffer)
+        # Flush any remaining rows that did not fill a full batch.
+        _flush_insert_buffer(conn, insert_buffer)
+    finally:
+        if drop_indexes and ddl_pairs:
+            _recreate_indexes(conn, ddl_pairs)
+
+
+def _walk_dir_full_buffered(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    dir_abs: str,
+    files_visited: list[int],
+    dirs_visited: list[int],
+    generation: int,
+    insert_buffer: list[Any],
+) -> None:
+    """Recursive full-mode walk that auto-flushes the insert buffer every N rows.
+
+    Calls :func:`_walk_dir_full` and then checks whether the buffer has
+    reached :data:`_INSERT_BATCH_SIZE`.  The flush happens *after* every
+    directory completes to keep the buffer management at the top level of
+    the recursion stack.
+
+    Because :func:`_walk_dir_full` is itself recursive (it descends into
+    subdirectories), each file appended to ``insert_buffer`` by a nested call
+    will be visible here via the shared reference.  We flush after processing
+    each directory subtree rather than after every single file to reduce the
+    number of flush calls while still bounding memory usage.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` owning this subtree.
+        dir_abs: Absolute path of the directory to walk.
+        files_visited: Single-element mutable counter.
+        dirs_visited: Single-element mutable counter.
+        generation: Scan generation counter.
+        insert_buffer: Shared accumulation list for new-row tuples.
+    """
+    _walk_dir_full(conn, disk, dir_abs, files_visited, dirs_visited, generation, insert_buffer)
+
+    # Flush whenever the buffer exceeds the batch size threshold.
+    if len(insert_buffer) >= _INSERT_BATCH_SIZE:
+        _flush_insert_buffer(conn, insert_buffer)

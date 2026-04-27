@@ -14,6 +14,12 @@ Covers the skeleton walk introduced in sub-phase 2.4:
   - Disks that raise ``DiskUnmountedError`` are skipped; scan still finishes ``'ok'``.
   - ``indexer.scan.disk_skipped`` warning is emitted for skipped disks.
 
+Sub-phase 2.5 additions:
+- Full-mode fingerprinting: ``oshash`` populated for video files; ``""`` for non-video.
+- Symlinks always receive ``oshash=""`` regardless of extension.
+- ``media_file.size_bytes`` and ``media_file.mtime_ns`` populated from stat.
+- ``filter_disks`` helper: label matching, unknown label raises ``IndexerConfigError``.
+
 Note on ``release_id`` / FK constraints:
     ``media_file.release_id`` is a NOT NULL FK to ``media_release``.  The skeleton
     scanner uses ``release_id=0`` as a deferred sentinel (release linkage is wired
@@ -46,9 +52,11 @@ from personalscraper.indexer.merkle import DiskUnmountedError
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner import (
     EXCLUDED_NAMES,
+    IndexerConfigError,
     ScanMode,
     ScanRunResult,
     _should_exclude,
+    filter_disks,
     scan,
 )
 from personalscraper.indexer.schema import DiskRow
@@ -396,3 +404,139 @@ class TestScanSkippedDiskLogsWarning:
         assert any("disk_skipped" in t for t in warning_texts), (
             f"Expected 'disk_skipped' in warning records, got: {warning_texts}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 2.5 tests — full-mode fingerprinting and filter_disks
+# ---------------------------------------------------------------------------
+
+
+class TestFullModeFingerprints:
+    """scan() in full mode computes oshash for video files; '' for non-video."""
+
+    def test_full_mode_fingerprints_files(self, fs: "FakeFilesystem") -> None:
+        """Video .mkv files get a non-empty oshash; a .txt file gets ''."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/FingerprintDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        # Two video files — each needs enough content for oshash to produce a
+        # distinct non-zero result.  65 536 bytes is the OSHash chunk size; use
+        # a small but non-empty payload so pyfakefs can serve the read.
+        Path(f"{mount}/film1.mkv").write_bytes(b"A" * 200)
+        Path(f"{mount}/film2.mkv").write_bytes(b"B" * 200)
+        # Non-video file — should get oshash="" (not applicable, not a video).
+        Path(f"{mount}/readme.txt").write_text("notes")
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        assert result.status == "ok"
+        assert result.files_visited == 3
+
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename, oshash FROM media_file").fetchall()
+        by_name = {r["filename"]: r["oshash"] for r in rows}
+
+        # Video files must have a non-empty hex oshash.
+        assert by_name["film1.mkv"] != "", "film1.mkv oshash must be non-empty"
+        assert len(by_name["film1.mkv"]) == 16, "oshash must be 16 hex chars"
+        assert by_name["film2.mkv"] != "", "film2.mkv oshash must be non-empty"
+        # Non-video file must keep the empty sentinel.
+        assert by_name["readme.txt"] == "", "readme.txt oshash must be empty string"
+
+    def test_full_mode_skips_oshash_for_symlinks(self, fs: "FakeFilesystem") -> None:
+        """Symlink pointing to a .mkv always gets oshash='' (never fingerprinted)."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/SymlinkDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/original.mkv").write_bytes(b"C" * 200)
+        # Symlink — should be recorded but never oshashed.
+        Path(f"{mount}/link.mkv").symlink_to(f"{mount}/original.mkv")
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        assert result.status == "ok"
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT filename, oshash FROM media_file").fetchall()
+        by_name = {r["filename"]: r["oshash"] for r in rows}
+
+        assert "link.mkv" in by_name, f"link.mkv not found in {list(by_name)}"
+        assert by_name["link.mkv"] == "", "symlink oshash must be '' regardless of extension"
+
+    def test_full_mode_writes_size_and_mtime(self, fs: "FakeFilesystem") -> None:
+        """Full-mode scan populates size_bytes and mtime_ns for every file."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/SizeMtimeDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        content = b"X" * 512
+        Path(f"{mount}/movie.mkv").write_bytes(content)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        assert result.status == "ok"
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT size_bytes, mtime_ns FROM media_file WHERE filename = 'movie.mkv'").fetchone()
+        assert row is not None
+        assert row["size_bytes"] == 512, f"Expected 512, got {row['size_bytes']}"
+        assert row["mtime_ns"] > 0, f"mtime_ns must be positive, got {row['mtime_ns']}"
+
+
+class TestFilterDisks:
+    """Tests for the filter_disks() helper."""
+
+    def _make_disk(self, label: str) -> DiskRow:
+        """Return a minimal DiskRow with the given label (no real DB needed).
+
+        Args:
+            label: Disk label string.
+
+        Returns:
+            :class:`DiskRow` instance with id=0 and the given label.
+        """
+        return DiskRow(
+            id=0,
+            uuid=f"uuid-{label}",
+            label=label,
+            mount_path=f"/mnt/{label}",
+            last_seen_at=None,
+            merkle_root=None,
+            is_mounted=1,
+            unreachable_strikes=0,
+        )
+
+    def test_filter_disks_by_label_matches_one(self) -> None:
+        """filter_disks(['A','B','C'], 'B') returns only the B disk."""
+        disks = [self._make_disk("A"), self._make_disk("B"), self._make_disk("C")]
+        result = filter_disks(disks, "B")
+        assert len(result) == 1
+        assert result[0].label == "B"
+
+    def test_filter_disks_by_label_unknown_raises(self) -> None:
+        """filter_disks(disks, 'Z') raises IndexerConfigError when 'Z' is not present."""
+        disks = [self._make_disk("A"), self._make_disk("B"), self._make_disk("C")]
+        with pytest.raises(IndexerConfigError, match="no disk with label 'Z'"):
+            filter_disks(disks, "Z")
+
+    def test_filter_disks_no_filter_returns_all(self) -> None:
+        """filter_disks(disks, None) returns all disks unchanged."""
+        disks = [self._make_disk("A"), self._make_disk("B"), self._make_disk("C")]
+        result = filter_disks(disks, None)
+        assert len(result) == 3
+        assert [d.label for d in result] == ["A", "B", "C"]
