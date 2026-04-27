@@ -17,6 +17,9 @@ Guide d'installation et de configuration de PersonalScraper.
 ```bash
 # Installer FFmpeg si nécessaire (via Homebrew)
 brew install ffmpeg
+
+# Installer MediaInfo (requis par l'indexeur media — pymediainfo)
+brew install media-info
 ```
 
 ### Services externes

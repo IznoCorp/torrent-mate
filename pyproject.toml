@@ -38,6 +38,9 @@ dependencies = [
     "structlog>=25.0.0",
     "json5>=0.9.14",
     "yt-dlp>=2026.1.1,<2027",
+    "pymediainfo>=6.1.0",
+    "xxhash>=3.4.0",
+    "filelock>=3.13.0",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +52,9 @@ dev = [
     "types-requests>=2.31.0",
     "pip-audit>=2.7.0",
     "pip-licenses>=4.0.0",
+    "sqlite-utils>=3.36",
+    "pyfakefs>=5.4.0",
+    "hypothesis>=6.100.0",
 ]
 
 [project.scripts]
