@@ -35,7 +35,7 @@ from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
 from personalscraper.indexer.scanner._db_writes import _upsert_path_row
 from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
-from personalscraper.indexer.scanner._modes import _scan_disk_full, _scan_disk_quick
+from personalscraper.indexer.scanner._modes import _scan_disk_full, _scan_disk_incremental, _scan_disk_quick
 from personalscraper.indexer.scanner._types import (
     IndexerConfigError,
     IndexerScanActiveError,
@@ -229,9 +229,9 @@ def scan(
     _budget_exhausted: list[bool] = [False]
     _started_at_monotonic: float = time.monotonic()
 
-    # One-time dir-mtime reliability check for quick mode (before any disk walk).
+    # One-time dir-mtime reliability check for quick and incremental modes.
     dir_mtime_reliable: bool = True
-    if mode == ScanMode.quick:
+    if mode in (ScanMode.quick, ScanMode.incremental):
         dir_mtime_reliable = _verify_dir_mtime_reliable()
 
     try:
@@ -327,8 +327,30 @@ def scan(
                         confirm_bulk_change=confirm_bulk_change,
                         merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
                     )
+                elif mode == ScanMode.incremental:
+                    # Incremental-mode: quick semantics + OSHash recompute on tier-1
+                    # mismatch for rename detection and content-drift classification.
+                    _scan_disk_incremental(
+                        conn,
+                        disk,
+                        mount,
+                        files_visited,
+                        dirs_visited,
+                        generation,
+                        disks_skipped,
+                        dir_mtime_reliable,
+                        _resume_from,
+                        _files_since_checkpoint,
+                        _budget_exhausted,
+                        _started_at_monotonic,
+                        budget_seconds,
+                        scan_run_id,
+                        checkpoint_every_n_files,
+                        confirm_bulk_change=confirm_bulk_change,
+                        merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+                    )
                 else:
-                    # Skeleton walk for modes not yet fully implemented (incremental, enrich).
+                    # Skeleton walk for modes not yet fully implemented (enrich).
                     _walk_dir(
                         conn,
                         disk,
@@ -478,6 +500,7 @@ __all__ = [
     "ScanMode",
     "ScanRunResult",
     "_build_disk_fingerprints",
+    "_scan_disk_incremental",
     "_should_exclude",
     "_verify_dir_mtime_reliable",
     "filter_disks",

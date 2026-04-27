@@ -964,3 +964,268 @@ class TestBuildDiskFingerprints:
 # Suppress unused-import warning: PathRow is used as a type in helper signatures
 # that may be referenced from future tests; keep it imported for forward compatibility.
 _PathRow = PathRow
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 4.1 tests — incremental mode: OSHash recompute + rename detection
+# ---------------------------------------------------------------------------
+
+
+class TestIncrementalMode:
+    """Tests for ScanMode.incremental: OSHash recompute and rename/content-drift logic.
+
+    Pattern: seed the DB with a full scan, then manipulate the fake FS and/or the
+    DB state, then run an incremental scan and assert the expected outcome.
+    """
+
+    # ------------------------------------------------------------------
+    # Test 1: New file inserted with oshash populated
+    # ------------------------------------------------------------------
+
+    def test_incremental_new_file_gets_oshash(self, fs: "FakeFilesystem") -> None:
+        """A new video file discovered in incremental mode receives a non-NULL oshash.
+
+        Seed the disk, add a new video file after the initial full scan, then run
+        incremental → assert the new ``media_file`` row has a non-NULL 16-hex oshash.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/IncrNewFileDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/existing.mkv").write_bytes(b"X" * 200)
+
+        disk = _insert_disk(conn, mount)
+
+        # Initial full scan — seeds media_file + path rows.
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Add a new video file to the fake FS after the first scan.
+        Path(f"{mount}/new_film.mkv").write_bytes(b"Y" * 200)
+
+        # Force Merkle miss so the incremental walk is triggered.
+        disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
+        # Reload the disk row so it carries the updated merkle_root.
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=False,  # disable dir-mtime skip so all files are visited
+            ):
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT oshash FROM media_file WHERE filename = 'new_film.mkv'").fetchone()
+        assert row is not None, "new_film.mkv must be present in media_file"
+        assert row["oshash"] is not None, "oshash must be non-NULL for a new video file"
+        assert len(row["oshash"]) == 16, f"oshash must be 16 hex chars, got {row['oshash']!r}"
+
+    # ------------------------------------------------------------------
+    # Test 2: Renamed file — one row, path updated, no duplicate
+    # ------------------------------------------------------------------
+
+    def test_incremental_renamed_file_no_duplicate(self, fs: "FakeFilesystem") -> None:
+        """Renaming a file across an incremental scan updates path_id/filename with no duplicate.
+
+        Seed the disk with a video file, compute its oshash, then physically move
+        the file (old path removed, new path added).  Run incremental → assert:
+        - Exactly ONE row with the file's oshash.
+        - The row's filename matches the new name.
+        - No ``deleted_item`` entry for this file.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/IncrRenameDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        content = b"Z" * 200
+        Path(f"{mount}/old_name.mkv").write_bytes(content)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        orig_row = conn.execute("SELECT id, oshash FROM media_file WHERE filename = 'old_name.mkv'").fetchone()
+        assert orig_row is not None
+        stored_oshash: str = orig_row["oshash"]
+        assert stored_oshash is not None, "oshash must be set after full scan"
+
+        # Simulate rename: remove old path, create new path with same content.
+        Path(f"{mount}/old_name.mkv").unlink()
+        Path(f"{mount}/new_name.mkv").write_bytes(content)
+
+        # Force Merkle miss and disable dir-mtime optimisation so both entries are visited.
+        disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=False,
+            ):
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        conn.row_factory = sqlite3.Row
+        # Exactly one row with this oshash must survive.
+        rows = conn.execute(
+            "SELECT id, filename, deleted_at FROM media_file WHERE oshash = ?",
+            (stored_oshash,),
+        ).fetchall()
+        live_rows = [r for r in rows if r["deleted_at"] is None]
+        assert len(live_rows) == 1, (
+            f"Expected exactly 1 live row with oshash={stored_oshash!r}, got {len(live_rows)}: "
+            f"{[dict(r) for r in live_rows]}"
+        )
+        assert live_rows[0]["filename"] == "new_name.mkv", (
+            f"Expected filename='new_name.mkv', got {live_rows[0]['filename']!r}"
+        )
+
+        # No deleted_item tombstone for this file's original_id.
+        orig_id: int = orig_row["id"]
+        tombstone = conn.execute(
+            "SELECT id FROM deleted_item WHERE original_id = ?",
+            (orig_id,),
+        ).fetchone()
+        assert tombstone is None, f"Unexpected deleted_item tombstone for file_id={orig_id}"
+
+    # ------------------------------------------------------------------
+    # Test 3: Modified content enqueues repair
+    # ------------------------------------------------------------------
+
+    def test_incremental_modified_content_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+        """A file whose content changes in incremental mode triggers a repair_queue entry.
+
+        Seed the disk with a video file; rewrite its content (different bytes →
+        different oshash); run incremental → assert a ``repair_queue`` row with
+        ``reason='content_drift'`` exists for the file.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/IncrContentDrift"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/film.mkv").write_bytes(b"A" * 200)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        orig_row = conn.execute("SELECT id, oshash FROM media_file WHERE filename = 'film.mkv'").fetchone()
+        assert orig_row is not None
+        file_id: int = orig_row["id"]
+
+        # Overwrite with different content (different oshash + different size).
+        Path(f"{mount}/film.mkv").write_bytes(b"B" * 400)
+
+        # Set merkle_root=None to force Merkle miss while bypassing the bulk-change
+        # guard (guard only fires when merkle_root is not None).  Disable dir-mtime
+        # skip so the changed file is always visited.
+        disk_repo.update_merkle_root(conn, disk.id, None)
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=False,
+            ):
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        conn.row_factory = sqlite3.Row
+        repair_row = conn.execute(
+            "SELECT reason FROM repair_queue WHERE scope = 'file' AND scope_id = ?",
+            (file_id,),
+        ).fetchone()
+        assert repair_row is not None, f"Expected a repair_queue row for file_id={file_id} after content drift"
+        assert repair_row["reason"] == "content_drift", f"Expected reason='content_drift', got {repair_row['reason']!r}"
+
+    # ------------------------------------------------------------------
+    # Test 4: OSHash collision enqueues repair, does NOT auto-rename
+    # ------------------------------------------------------------------
+
+    def test_incremental_oshash_collision_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+        """When two files share the same oshash (collision), repair is enqueued — no auto-rename.
+
+        Seed the disk with two video files that have the same oshash (identical
+        content).  Add a third file with the same content at a new path, simulating
+        an ambiguous rename with multiple candidates.  Run incremental → assert that
+        a ``repair_queue`` row with ``reason='oshash_collision'`` is created and no
+        path update occurred on the original rows.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/IncrCollisionDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        # Two files with identical content → identical oshash.
+        content = b"C" * 200
+        Path(f"{mount}/file_a.mkv").write_bytes(content)
+        Path(f"{mount}/file_b.mkv").write_bytes(content)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        rows_before = conn.execute("SELECT id, filename, oshash FROM media_file").fetchall()
+        assert len(rows_before) == 2
+        shared_oshash: str = rows_before[0]["oshash"]
+        assert shared_oshash is not None
+
+        # Add a third file with the same content at a new path — this creates
+        # an ambiguous rename scenario (multiple candidates with the same oshash).
+        Path(f"{mount}/file_new.mkv").write_bytes(content)
+
+        # Set merkle_root=None to force Merkle miss while bypassing the bulk-change
+        # guard.  Disable dir-mtime skip so all files are visited.
+        disk_repo.update_merkle_root(conn, disk.id, None)
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                return_value=False,
+            ):
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+
+        assert result.status == "ok"
+
+        conn.row_factory = sqlite3.Row
+        # At least one repair_queue row with reason='oshash_collision' must exist.
+        repair_rows = conn.execute(
+            "SELECT scope_id, reason FROM repair_queue WHERE reason = 'oshash_collision'"
+        ).fetchall()
+        assert len(repair_rows) >= 1, (
+            f"Expected at least one oshash_collision repair entry; repair_queue: "
+            f"{conn.execute('SELECT * FROM repair_queue').fetchall()}"
+        )
+
+        # The original two rows must not have been renamed/updated to file_new.mkv.
+        filenames = {
+            r["filename"] for r in conn.execute("SELECT filename FROM media_file WHERE deleted_at IS NULL").fetchall()
+        }
+        assert "file_new.mkv" in filenames, "file_new.mkv must be inserted as a new row"
+        # The two original rows must still exist (not renamed away).
+        assert "file_a.mkv" in filenames or "file_b.mkv" in filenames, (
+            "At least one of the original collision candidates must remain"
+        )
