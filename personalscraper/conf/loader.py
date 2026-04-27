@@ -14,6 +14,7 @@ loading.
 
 import os
 from pathlib import Path
+from typing import Any
 
 import json5
 
@@ -66,7 +67,7 @@ def resolve_config_path(cli_override: Path | None = None) -> Path:
     return DEFAULT_CONFIG_PATH.expanduser().resolve()
 
 
-def _load_json5_file(path: Path) -> dict:
+def _load_json5_file(path: Path) -> dict[str, Any]:
     """Read and parse a single JSON5 file, returning a plain dict.
 
     Args:
@@ -83,7 +84,7 @@ def _load_json5_file(path: Path) -> dict:
         raise ConfigLoadError(f"Overlay file not found: {path}")
     with path.open("r", encoding="utf-8") as fh:
         try:
-            return dict(json5.load(fh))  # type: ignore[arg-type]
+            return dict(json5.load(fh))
         except Exception as exc:
             raise ConfigValidationError(f"JSON5 parse error in {path}: {exc}") from exc
 
@@ -126,8 +127,8 @@ def load_config_dir(config_dir: Path) -> Config:
     master = _load_json5_file(master_path)
 
     # Collect overlay dicts in declared order.
-    overlay_names: list[str] = master.pop("overlays", [])  # type: ignore[assignment]
-    overlay_dicts: list[dict] = []
+    overlay_names: list[str] = master.pop("overlays", [])
+    overlay_dicts: list[dict[str, Any]] = []
     for name in overlay_names:
         overlay_path = config_dir / name
         parsed = _load_json5_file(overlay_path)

@@ -6,6 +6,7 @@ is allowed to override any key without raising a conflict error.
 """
 
 from pathlib import Path
+from typing import Any
 
 _LOCAL_FILENAME = "local.json5"
 
@@ -27,7 +28,7 @@ class ConfigLoadError(OSError):
     """
 
 
-def merge_overlays(base: dict, *overlays: dict, allow_conflict: bool = False) -> dict:
+def merge_overlays(base: dict[str, Any], *overlays: dict[str, Any], allow_conflict: bool = False) -> dict[str, Any]:
     """Merge overlay dicts into *base* using shallow-per-key semantics.
 
     Each overlay dict may carry an optional ``"__source__"`` entry (a
@@ -59,7 +60,7 @@ def merge_overlays(base: dict, *overlays: dict, allow_conflict: bool = False) ->
         ConfigConflictError: When two non-local overlays own the same top-level
             key (only when ``allow_conflict=False``).
     """
-    result: dict = dict(base)
+    result: dict[str, Any] = dict(base)
     # Track which non-local overlay first claimed each key.
     # key -> source path (or None if source is unknown / base)
     claimed_by: dict[str, Path | None] = {}
