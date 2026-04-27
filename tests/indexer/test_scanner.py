@@ -387,14 +387,14 @@ class TestScanRunStatus:
 
 
 class TestScanSkippedDiskLogsWarning:
-    """scan() emits indexer.scan.disk_skipped when a disk is skipped."""
+    """scan() emits indexer.disk.skipped_unmounted when a disk is unmounted."""
 
     def test_scan_skipped_disk_logs_warning(
         self,
         fs: "FakeFilesystem",
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """indexer.scan.disk_skipped warning is emitted for a DiskUnmountedError."""
+        """indexer.disk.skipped_unmounted warning is emitted for a DiskUnmountedError."""
         fs.pause()
         conn = _make_conn_real()
         fs.resume()
@@ -404,14 +404,15 @@ class TestScanSkippedDiskLogsWarning:
 
         disk = _insert_disk(conn, mount)
 
-        with caplog.at_level(logging.WARNING, logger="indexer.scan"):
+        # Capture from both logger namespaces (indexer.scan and indexer.disk).
+        with caplog.at_level(logging.WARNING):
             with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("skip-uuid")):
                 scan([disk], ScanMode.full, generation=1, conn=conn)
 
         # structlog forwards to stdlib logging; check the rendered warning text.
         warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
-        assert any("disk_skipped" in t for t in warning_texts), (
-            f"Expected 'disk_skipped' in warning records, got: {warning_texts}"
+        assert any("skipped_unmounted" in t for t in warning_texts), (
+            f"Expected 'skipped_unmounted' in warning records, got: {warning_texts}"
         )
 
 

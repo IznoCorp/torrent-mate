@@ -203,6 +203,30 @@ def update_is_mounted(conn: sqlite3.Connection, id: int, is_mounted: int) -> boo
     return updated
 
 
+def update_unreachable_strikes(conn: sqlite3.Connection, id: int, strikes: int) -> bool:
+    """Update the ``unreachable_strikes`` column for a disk row.
+
+    Called by the scanner when a disk produces an I/O error during a walk,
+    to track how many consecutive scans have failed for this disk.
+
+    Args:
+        conn: Open SQLite connection.
+        id: PK of the disk row to update.
+        strikes: New ``unreachable_strikes`` value.
+
+    Returns:
+        ``True`` if a row was updated, ``False`` if no row matched ``id``.
+    """
+    cursor = conn.execute(
+        "UPDATE disk SET unreachable_strikes = ? WHERE id = ?",
+        (strikes, id),
+    )
+    updated = cursor.rowcount > 0
+    if updated:
+        log.info("indexer.disk.update_unreachable_strikes", id=id, strikes=strikes)
+    return updated
+
+
 def update_merkle_root(conn: sqlite3.Connection, id: int, merkle_root: str | None) -> bool:
     """Update the ``merkle_root`` column for a disk row.
 

@@ -54,6 +54,7 @@ Notes on ``os.open`` convention:
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import sqlite3
@@ -65,6 +66,8 @@ from pathlib import Path
 from typing import Any
 
 from personalscraper.indexer import fingerprint
+from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_breaker
+from personalscraper.indexer.drift import clamp_mtime_ns
 from personalscraper.indexer.merkle import (
     DiskMismatchError,
     DiskUnmountedError,
@@ -80,6 +83,26 @@ log = get_logger("indexer.scan")
 
 # Batch size for executemany inserts during full-mode walk (DESIGN §11.7).
 _INSERT_BATCH_SIZE: int = 5000
+
+
+# ---------------------------------------------------------------------------
+# mtime sanitiser
+# ---------------------------------------------------------------------------
+
+
+def _safe_mtime_ns(mtime_ns: int) -> int:
+    """Return *mtime_ns* clamped to ``[0, now_ns]`` via :func:`clamp_mtime_ns`.
+
+    Thin wrapper so walk helpers can sanitise raw ``st_mtime_ns`` values
+    without needing to capture ``now_ns`` individually.
+
+    Args:
+        mtime_ns: Raw ``st_mtime_ns`` from ``entry.stat()``.
+
+    Returns:
+        Sanitised mtime value in ``[0, time.time_ns()]``.
+    """
+    return clamp_mtime_ns(mtime_ns, time.time_ns())
 
 
 # ---------------------------------------------------------------------------
@@ -902,7 +925,7 @@ def _walk_dir(
                 path_id=path_id,
                 filename=entry.name,
                 size_bytes=st.st_size,
-                mtime_ns=st.st_mtime_ns,
+                mtime_ns=_safe_mtime_ns(st.st_mtime_ns),
                 ctime_ns=ctime_ns,
                 generation=generation,
             )
@@ -1136,7 +1159,7 @@ def _walk_dir_quick(
                 path_id=path_id,
                 filename=entry.name,
                 size_bytes=st.st_size,
-                mtime_ns=st.st_mtime_ns,
+                mtime_ns=_safe_mtime_ns(st.st_mtime_ns),
                 ctime_ns=ctime_ns_val,
                 generation=generation,
             )
@@ -1290,6 +1313,7 @@ def scan(
     budget_seconds: float | None = None,
     db_path: Path | None = None,
     checkpoint_every_n_files: int = 100,
+    disk_breaker: DiskCircuitBreaker | None = None,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -1365,6 +1389,10 @@ def scan(
             Also used to derive the companion lock-file path.
         checkpoint_every_n_files: How many files to process between successive
             :func:`_checkpoint_scan_run` writes.  Defaults to ``100``.
+        disk_breaker: :class:`DiskCircuitBreaker` instance to guard per-disk I/O.
+            When ``None``, the module-level singleton returned by
+            :func:`get_global_disk_breaker` is used.  Tests that need isolation
+            should pass a freshly created :class:`DiskCircuitBreaker` instance.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -1392,6 +1420,10 @@ def scan(
             stats_json=None,
         ),
     )
+
+    # Resolve the circuit breaker: use caller-supplied instance for test isolation,
+    # fall back to the module-level singleton for production use.
+    breaker: DiskCircuitBreaker = disk_breaker if disk_breaker is not None else get_global_disk_breaker()
 
     files_visited = [0]  # mutable counter (list avoids nonlocal in nested helper)
     dirs_visited = [0]
@@ -1423,10 +1455,29 @@ def scan(
                 )
                 continue
 
+            # Circuit-breaker guard: skip disks whose circuit is currently OPEN
+            # (too many consecutive I/O failures in previous scans).
+            if breaker.is_open(disk.uuid):
+                log.warning(
+                    "indexer.disk.breaker_open",
+                    disk_uuid=disk.uuid,
+                    label=disk.label,
+                    reason="circuit_open_skip",
+                )
+                continue
+
             # Guard: verify disk is mounted and identity sentinel matches.
             try:
                 guard_disk_mounted(disk)
-            except (DiskUnmountedError, DiskMismatchError) as exc:
+            except DiskUnmountedError as exc:
+                log.warning(
+                    "indexer.disk.skipped_unmounted",
+                    disk_id=disk.id,
+                    label=disk.label,
+                    reason=str(exc),
+                )
+                continue
+            except DiskMismatchError as exc:
                 log.warning(
                     "indexer.scan.disk_skipped",
                     disk_id=disk.id,
@@ -1438,76 +1489,113 @@ def scan(
             mount = disk.mount_path
             log.info("indexer.scan.disk_start", disk_id=disk.id, label=disk.label, mount_path=mount)
 
-            if mode == ScanMode.full:
-                # Full-mode walk with optional index drop + batched inserts.
-                _scan_disk_full(
-                    conn,
-                    disk,
-                    mount,
-                    files_visited,
-                    dirs_visited,
-                    generation,
-                    drop_indexes,
-                    _resume_from,
-                    _files_since_checkpoint,
-                    _budget_exhausted,
-                    _started_at_monotonic,
-                    budget_seconds,
-                    scan_run_id,
-                    checkpoint_every_n_files,
+            try:
+                if mode == ScanMode.full:
+                    # Full-mode walk with optional index drop + batched inserts.
+                    _scan_disk_full(
+                        conn,
+                        disk,
+                        mount,
+                        files_visited,
+                        dirs_visited,
+                        generation,
+                        drop_indexes,
+                        _resume_from,
+                        _files_since_checkpoint,
+                        _budget_exhausted,
+                        _started_at_monotonic,
+                        budget_seconds,
+                        scan_run_id,
+                        checkpoint_every_n_files,
+                    )
+                    if not _budget_exhausted[0]:
+                        # Write-through the path row for the disk root.
+                        try:
+                            root_st = os.stat(mount, follow_symlinks=False)
+                            _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+                            dirs_visited[0] += 1
+                        except OSError:
+                            log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                elif mode == ScanMode.quick:
+                    # Quick-mode: Merkle short-circuit then dir-mtime walk.
+                    _scan_disk_quick(
+                        conn,
+                        disk,
+                        mount,
+                        files_visited,
+                        dirs_visited,
+                        generation,
+                        disks_skipped,
+                        dir_mtime_reliable,
+                        _resume_from,
+                        _files_since_checkpoint,
+                        _budget_exhausted,
+                        _started_at_monotonic,
+                        budget_seconds,
+                        scan_run_id,
+                        checkpoint_every_n_files,
+                    )
+                else:
+                    # Skeleton walk for modes not yet fully implemented (incremental, enrich).
+                    _walk_dir(
+                        conn,
+                        disk,
+                        mount,
+                        files_visited,
+                        dirs_visited,
+                        generation,
+                        _resume_from,
+                        _files_since_checkpoint,
+                        _budget_exhausted,
+                        _started_at_monotonic,
+                        budget_seconds,
+                        scan_run_id,
+                        checkpoint_every_n_files,
+                    )
+                    if not _budget_exhausted[0]:
+                        # Write-through the path row for the disk root.
+                        try:
+                            root_st = os.stat(mount, follow_symlinks=False)
+                            _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
+                            dirs_visited[0] += 1
+                        except OSError:
+                            log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+
+            except OSError as io_exc:
+                # I/O error on a disk walk (EIO, ENOENT, etc.).  Roll back any
+                # partial writes for this disk, mark it unmounted, increment the
+                # unreachable strike counter, and open the circuit if the threshold
+                # is reached.  The scan continues on remaining disks.
+                if io_exc.errno in (errno.EIO, errno.ENOENT, errno.ENOTCONN, errno.ETIMEDOUT):
+                    conn.rollback()
+                    disk_repo.update_is_mounted(conn, disk.id, is_mounted=0)
+                    new_strikes = disk.unreachable_strikes + 1
+                    disk_repo.update_unreachable_strikes(conn, disk.id, new_strikes)
+                    breaker.record_failure(disk.uuid)
+                    log.warning(
+                        "indexer.disk.io_error",
+                        disk_uuid=disk.uuid,
+                        label=disk.label,
+                        errno=io_exc.errno,
+                        error=str(io_exc),
+                        unreachable_strikes=new_strikes,
+                    )
+                    continue
+                # Re-raise unexpected OS errors that are not disk-I/O related.
+                raise
+            except PermissionError as perm_exc:
+                # Per-file EACCES: log a warning and continue (no strike against the disk).
+                log.warning(
+                    "indexer.file.permission_denied",
+                    disk_uuid=disk.uuid,
+                    label=disk.label,
+                    error=str(perm_exc),
                 )
-                if not _budget_exhausted[0]:
-                    # Write-through the path row for the disk root.
-                    try:
-                        root_st = os.stat(mount, follow_symlinks=False)
-                        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                        dirs_visited[0] += 1
-                    except OSError:
-                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
-            elif mode == ScanMode.quick:
-                # Quick-mode: Merkle short-circuit then dir-mtime walk.
-                _scan_disk_quick(
-                    conn,
-                    disk,
-                    mount,
-                    files_visited,
-                    dirs_visited,
-                    generation,
-                    disks_skipped,
-                    dir_mtime_reliable,
-                    _resume_from,
-                    _files_since_checkpoint,
-                    _budget_exhausted,
-                    _started_at_monotonic,
-                    budget_seconds,
-                    scan_run_id,
-                    checkpoint_every_n_files,
-                )
+                continue
             else:
-                # Skeleton walk for modes not yet fully implemented (incremental, enrich).
-                _walk_dir(
-                    conn,
-                    disk,
-                    mount,
-                    files_visited,
-                    dirs_visited,
-                    generation,
-                    _resume_from,
-                    _files_since_checkpoint,
-                    _budget_exhausted,
-                    _started_at_monotonic,
-                    budget_seconds,
-                    scan_run_id,
-                    checkpoint_every_n_files,
-                )
-                if not _budget_exhausted[0]:
-                    # Write-through the path row for the disk root.
-                    try:
-                        root_st = os.stat(mount, follow_symlinks=False)
-                        _upsert_path_row(conn, disk.id, ".", root_st.st_mtime_ns)
-                        dirs_visited[0] += 1
-                    except OSError:
-                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                # Walk completed without I/O error — record success to allow
+                # HALF_OPEN → CLOSED transition if the circuit was recovering.
+                breaker.record_success(disk.uuid)
 
             log.info(
                 "indexer.scan.disk_done",

@@ -35,6 +35,16 @@ Sub-phase 3.2 example tests:
 - ``test_3_scan_sequence_soft_deletes_on_third_miss`` — integration sequence.
 - ``test_unmounted_disk_no_strike_after_5_scans`` — unmounted guard returns False for all scans.
 
+Sub-phase 3.5 example tests (circuit breaker):
+
+- ``test_breaker_open_skips_disk_in_scan`` — open breaker for a disk_uuid, run
+  scan, assert no ``media_file`` rows are created for that disk's files.
+- ``test_breaker_records_failure_on_eio`` — mock ``os.scandir`` on the disk
+  root to raise ``OSError(errno=errno.EIO)``; run scan; assert
+  ``breaker.is_open(disk.uuid)`` is ``True``.
+- ``test_breaker_recovers_on_success`` — open circuit via ``record_failure``
+  N times, then call ``record_success``; assert ``is_open`` returns ``False``.
+
 Note on pyfakefs + sqlite3:
     pyfakefs intercepts all filesystem I/O including ``sqlite3.connect`` and
     file reads inside ``apply_migrations``.  Each test calls ``fs.pause()``
@@ -45,15 +55,18 @@ Note on pyfakefs + sqlite3:
 
 from __future__ import annotations
 
+import errno
 import os
 import sqlite3
 import tempfile
 import time
 from pathlib import Path
+from unittest.mock import patch
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from personalscraper.indexer.breaker import DiskCircuitBreaker
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.drift import (
     apply_soft_deletes,
@@ -67,6 +80,7 @@ from personalscraper.indexer.drift import (
 )
 from personalscraper.indexer.fingerprint import oshash
 from personalscraper.indexer.merkle import DiskMountStatus
+from personalscraper.indexer.scanner import ScanMode, scan
 from personalscraper.indexer.schema import DiskRow
 from tests.indexer.strategies import valid_disk_layout
 
@@ -781,3 +795,132 @@ def test_unmounted_disk_no_strike_after_5_scans() -> None:
     assert row is not None
     assert row[0] == 0, f"miss_strikes must stay 0 when drift is frozen; got {row[0]}"
     conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 3.5: circuit breaker unit tests
+# ---------------------------------------------------------------------------
+
+_GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
+
+
+def test_breaker_open_skips_disk_in_scan(tmp_path: Path) -> None:
+    """An open circuit breaker prevents a disk walk; no media_file rows created.
+
+    Scenario:
+    1. Create a real temporary directory with two files.
+    2. Seed a disk row pointing at that directory.
+    3. Pre-open the circuit by calling ``record_failure`` N times (N == threshold).
+    4. Run ``scan()`` passing the isolated breaker instance.
+    5. Assert that no ``media_file`` rows were inserted for that disk.
+    """
+    conn = _open_mem_db()
+
+    mount = str(tmp_path / "disk_A")
+    Path(mount).mkdir()
+    (Path(mount) / "movie.mkv").write_bytes(b"V" * 100)
+    (Path(mount) / "show.nfo").write_bytes(b"<nfo/>")
+
+    disk_id = _seed_disk(conn, label="OpenDisk", mount_path=mount)
+    disk = DiskRow(
+        id=disk_id,
+        uuid="uuid-OpenDisk",
+        label="OpenDisk",
+        mount_path=mount,
+        last_seen_at=None,
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
+
+    # Isolate: use a fresh breaker with a low threshold so we can open it easily.
+    breaker = DiskCircuitBreaker(failure_threshold=1, cooldown_seconds=300.0)
+    breaker.record_failure(disk.uuid)  # threshold=1 → circuit OPEN after 1 failure
+    assert breaker.is_open(disk.uuid), "Breaker must be open before the scan"
+
+    with patch(_GUARD_PATCH, return_value=None):
+        result = scan(
+            [disk],
+            mode=ScanMode.full,
+            generation=1,
+            conn=conn,
+            disk_breaker=breaker,
+        )
+
+    assert result.status == "ok", f"Expected ok, got {result.status!r}"
+    # No files should have been indexed because the breaker was open.
+    count = conn.execute("SELECT COUNT(*) FROM media_file").fetchone()[0]
+    assert count == 0, f"Expected 0 media_file rows (disk skipped by open breaker), got {count}"
+    conn.close()
+
+
+def test_breaker_records_failure_on_eio(tmp_path: Path) -> None:
+    """An EIO from os.scandir causes the breaker to record a failure.
+
+    Scenario:
+    1. Create a temporary directory with one file.
+    2. Seed a disk row.
+    3. Mock ``os.scandir`` to raise ``OSError(errno.EIO)`` when called on the
+       disk root.
+    4. Run ``scan()``.
+    5. Assert ``breaker.is_open(disk.uuid)`` is ``True`` (threshold = 1).
+    """
+    conn = _open_mem_db()
+
+    mount = str(tmp_path / "disk_B")
+    Path(mount).mkdir()
+    (Path(mount) / "film.mkv").write_bytes(b"X" * 100)
+
+    disk_id = _seed_disk(conn, label="EIODisk", mount_path=mount)
+    disk = DiskRow(
+        id=disk_id,
+        uuid="uuid-EIODisk",
+        label="EIODisk",
+        mount_path=mount,
+        last_seen_at=None,
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
+
+    # A single-failure threshold so one EIO is enough to open the circuit.
+    breaker = DiskCircuitBreaker(failure_threshold=1, cooldown_seconds=300.0)
+
+    eio_error = OSError(errno.EIO, "Input/output error", mount)
+
+    with (
+        patch(_GUARD_PATCH, return_value=None),
+        patch("personalscraper.indexer.scanner.os.scandir", side_effect=eio_error),
+    ):
+        result = scan(
+            [disk],
+            mode=ScanMode.full,
+            generation=1,
+            conn=conn,
+            disk_breaker=breaker,
+        )
+
+    assert result.status == "ok", f"Expected ok, got {result.status!r}"
+    assert breaker.is_open(disk.uuid), "Breaker must be open after EIO — the circuit should have tripped"
+    conn.close()
+
+
+def test_breaker_recovers_on_success() -> None:
+    """``record_success`` transitions OPEN → CLOSED, allowing future scans.
+
+    Scenario:
+    1. Create a fresh :class:`DiskCircuitBreaker` with threshold=2.
+    2. Call ``record_failure`` twice → circuit OPEN.
+    3. Assert ``is_open`` is ``True``.
+    4. Call ``record_success``.
+    5. Assert ``is_open`` is ``False`` (circuit CLOSED again).
+    """
+    disk_uuid = "uuid-RecoveryDisk"
+    breaker = DiskCircuitBreaker(failure_threshold=2, cooldown_seconds=300.0)
+
+    breaker.record_failure(disk_uuid)
+    breaker.record_failure(disk_uuid)
+    assert breaker.is_open(disk_uuid), "Breaker must be open after 2 failures (threshold=2)"
+
+    breaker.record_success(disk_uuid)
+    assert not breaker.is_open(disk_uuid), "Breaker must be closed after record_success — circuit should have recovered"
