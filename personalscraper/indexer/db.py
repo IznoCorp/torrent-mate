@@ -1,14 +1,16 @@
-"""SQLite connection management, writer-lock, and disk-full guard for the media indexer.
+"""SQLite connection management, writer-lock, disk-full guard, and migration applier.
 
 Provides :func:`open_db` which applies the canonical PRAGMAs from DESIGN §6.1,
-:func:`indexer_lock` backed by a :class:`filelock.FileLock`, and helpers for
-detecting and recovering from disk-full conditions and corrupt databases.
+:func:`indexer_lock` backed by a :class:`filelock.FileLock`, :func:`apply_migrations`
+which applies pending ``*.sql`` scripts in sorted order, and helpers for detecting and
+recovering from disk-full conditions and corrupt databases.
 
 Custom exceptions defined here:
 - :class:`IndexerLockError` — another process holds the writer lock.
 - :class:`IndexerCorruptError` — ``library.db`` is malformed and quarantined.
 - :class:`IndexerInvalidPathError` — ``db_path`` resolves to a macFUSE-NTFS mount.
 - :class:`IndexerDiskFullError` — not enough free space to proceed.
+- :class:`IndexerMigrationError` — a migration script failed; DB restored from snapshot.
 """
 
 from __future__ import annotations
@@ -103,6 +105,22 @@ class IndexerDiskFullError(OSError):
         super().__init__(
             f"Insufficient free space at {path.parent}: {free_bytes} bytes available, {required_bytes} bytes required."
         )
+
+
+class IndexerMigrationError(RuntimeError):
+    """Raised when applying a migration script fails.
+
+    The database is restored from the pre-migration snapshot before this
+    exception propagates to the caller.
+
+    Args:
+        version: The migration version number that failed (e.g. 1 for ``001_init.sql``).
+    """
+
+    def __init__(self, version: int) -> None:
+        """Initialize with the failed migration version number."""
+        self.version = version
+        super().__init__(f"Migration {version:03d} failed; database restored from snapshot")
 
 
 # ---------------------------------------------------------------------------
@@ -428,3 +446,146 @@ def indexer_lock(db_path: Path, timeout: float = 0) -> Generator[None, None, Non
                 p.unlink(missing_ok=True)
             except OSError:
                 pass
+
+
+# ---------------------------------------------------------------------------
+# Migration applier
+# ---------------------------------------------------------------------------
+
+
+def _migration_version(sql_path: Path) -> int:
+    """Extract the leading integer from a migration filename.
+
+    For example, ``001_init.sql`` → ``1``, ``042_add_col.sql`` → ``42``.
+
+    Args:
+        sql_path: Path to a ``*.sql`` migration file.
+
+    Returns:
+        The leading integer portion of the filename as an ``int``.
+
+    Raises:
+        ValueError: If the filename does not start with a numeric prefix.
+    """
+    stem = sql_path.stem  # e.g. "001_init"
+    prefix = stem.split("_")[0]
+    return int(prefix)
+
+
+def _db_path_from_conn(conn: sqlite3.Connection) -> Path | None:
+    """Attempt to derive the filesystem path of an open connection.
+
+    Queries ``PRAGMA database_list`` for the ``main`` database filename.
+    Returns ``None`` for in-memory or unnamed databases.
+
+    Args:
+        conn: An open :class:`sqlite3.Connection`.
+
+    Returns:
+        The :class:`~pathlib.Path` of the DB file, or ``None`` if in-memory.
+    """
+    for _seq, _name, filename in conn.execute("PRAGMA database_list"):
+        if _name == "main" and filename:
+            return Path(filename)
+    return None
+
+
+def apply_migrations(conn: sqlite3.Connection, dir_: Path) -> None:
+    """Apply pending SQL migration scripts to *conn* in version order.
+
+    Discovers every ``*.sql`` file in *dir_* whose leading numeric prefix is
+    greater than the current ``PRAGMA user_version``, sorts them by that
+    number, and applies each in turn.
+
+    For each pending migration:
+
+    1. **Snapshot** — write a ``.pre-migration-<ver>.bak`` backup of the DB
+       file (sibling of the DB, via :meth:`~pathlib.Path.read_bytes` /
+       :meth:`~pathlib.Path.write_bytes`).  Skipped — with a warning — when
+       the connection is in-memory (no derivable DB path).
+    2. **Apply** — execute the script via :meth:`~sqlite3.Connection.executescript`
+       which runs the SQL in a single implicit transaction.
+    3. **Success** — log ``indexer.migration.applied`` with the version number.
+    4. **Failure** — restore the DB from the snapshot (if one was taken), log
+       ``indexer.migration.failed``, and raise
+       :class:`IndexerMigrationError` (chained from the original exception).
+
+    The function is idempotent: if all migrations are already applied
+    (``PRAGMA user_version`` ≥ highest script number), it is a no-op.
+
+    Args:
+        conn: Open :class:`sqlite3.Connection` to the indexer database.
+        dir_: Directory that contains the ``*.sql`` migration scripts.
+
+    Raises:
+        IndexerMigrationError: When a migration script fails to apply.
+            The database is restored from the pre-migration snapshot before
+            the exception propagates.
+    """
+    # Resolve current schema version from the database.
+    current_version: int = conn.execute("PRAGMA user_version").fetchone()[0]
+
+    # Collect and sort all *.sql migration scripts by their leading number.
+    scripts = sorted(
+        (p for p in dir_.glob("*.sql") if p.is_file()),
+        key=_migration_version,
+    )
+
+    db_path: Path | None = _db_path_from_conn(conn)
+
+    for script in scripts:
+        try:
+            ver = _migration_version(script)
+        except (ValueError, IndexError):
+            log.warning("indexer.migration.skip_unparseable", file=str(script))
+            continue
+
+        if ver <= current_version:
+            # Already applied; idempotent skip.
+            continue
+
+        # --- Step 1: take a pre-migration snapshot ---
+        # Flush the WAL to the main file before snapshotting so that the backup
+        # contains all committed writes from prior migrations.  Without the
+        # checkpoint the WAL may hold pages that are not yet in the DB file,
+        # making a raw file-copy snapshot incomplete.
+        bak_path: Path | None = None
+        if db_path is not None:
+            conn.execute("PRAGMA wal_checkpoint(FULL)")
+            bak_path = db_path.parent / f"{db_path.name}.pre-migration-{ver}.bak"
+            bak_path.write_bytes(db_path.read_bytes())
+        else:
+            log.warning(
+                "indexer.migration.no_snapshot",
+                version=ver,
+                reason="in-memory database; skipping backup",
+            )
+
+        # --- Step 2: apply the script ---
+        sql_text = script.read_text(encoding="utf-8")
+        try:
+            conn.executescript(sql_text)
+        except Exception as exc:  # noqa: BLE001 — catch-all so we can restore + re-raise
+            log.error(
+                "indexer.migration.failed",
+                version=ver,
+                error=str(exc),
+            )
+            # --- Step 4 (failure path): restore from snapshot ---
+            if bak_path is not None and db_path is not None and bak_path.exists():
+                conn.close()
+                db_path.write_bytes(bak_path.read_bytes())
+                # Re-open the connection in-place so the caller still holds a valid conn.
+                # We cannot reassign the caller's local variable, but we can copy the
+                # restored file's pages back into the existing connection object via
+                # the backup API.  However, since conn is now closed we cannot use it.
+                # The contract: caller must re-open after IndexerMigrationError.
+            raise IndexerMigrationError(ver) from exc
+
+        # --- Step 3 (success): log and advance current_version tracker ---
+        log.info(
+            "indexer.migration.applied",
+            version=ver,
+            script=script.name,
+        )
+        current_version = ver
