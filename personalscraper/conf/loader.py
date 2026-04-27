@@ -1,7 +1,15 @@
 """JSON5 config loader with path resolution and validation warnings.
 
-Resolution order for config path: CLI override > $PERSONALSCRAPER_CONFIG > ./config.json5.
-Warnings are non-blocking: they are logged but do not prevent config from loading.
+Resolution order for the v1 (single-file) loader:
+  CLI override > $PERSONALSCRAPER_CONFIG > ./config.json5
+
+Resolution order for the v2 (multi-file) loader:
+  1. <config_dir>/config.json5   — master, declares overlay list
+  2. Each file named in the master ``overlays`` key, in order
+  3. Optional <config_dir>/local.json5 — gitignored, last-wins machine overrides
+
+Warnings are non-blocking: they are logged but do not prevent the config from
+loading.
 """
 
 import os
@@ -10,7 +18,22 @@ from pathlib import Path
 import json5
 
 from personalscraper.conf.models import Config
+from personalscraper.conf.overlay import ConfigConflictError, ConfigLoadError, merge_overlays
 from personalscraper.logger import get_logger
+
+__all__ = [
+    "ConfigNotFoundError",
+    "ConfigValidationError",
+    "ConfigConflictError",
+    "ConfigLoadError",
+    "resolve_config_path",
+    "load_config",
+    "load_config_dir",
+    "collect_warnings",
+]
+
+_MASTER_FILENAME = "config.json5"
+_LOCAL_FILENAME = "local.json5"
 
 log = get_logger("personalscraper.conf.loader")
 
@@ -41,6 +64,98 @@ def resolve_config_path(cli_override: Path | None = None) -> Path:
     if env:
         return Path(env).expanduser().resolve()
     return DEFAULT_CONFIG_PATH.expanduser().resolve()
+
+
+def _load_json5_file(path: Path) -> dict:
+    """Read and parse a single JSON5 file, returning a plain dict.
+
+    Args:
+        path: Absolute path to the JSON5 file.
+
+    Returns:
+        Parsed dict.
+
+    Raises:
+        ConfigLoadError: If the file does not exist or cannot be opened.
+        ConfigValidationError: If the file contains invalid JSON5 syntax.
+    """
+    if not path.is_file():
+        raise ConfigLoadError(f"Overlay file not found: {path}")
+    with path.open("r", encoding="utf-8") as fh:
+        try:
+            return dict(json5.load(fh))  # type: ignore[arg-type]
+        except Exception as exc:
+            raise ConfigValidationError(f"JSON5 parse error in {path}: {exc}") from exc
+
+
+def load_config_dir(config_dir: Path) -> Config:
+    """Load and merge a v2 split-config directory into a validated Config.
+
+    Resolution order:
+    1. ``<config_dir>/config.json5`` — master file; may declare an ``overlays``
+       list of filenames to merge in order.
+    2. Each filename listed under ``overlays`` in the master, resolved relative
+       to *config_dir*.
+    3. Optional ``<config_dir>/local.json5`` — merged last, last-wins semantics,
+       never raises ``ConfigConflictError``.
+
+    The ``overlays`` key itself is stripped from the merged dict before pydantic
+    validation so it does not leak into the ``Config`` model.
+
+    Args:
+        config_dir: Path to the directory containing ``config.json5`` and the
+            per-concern overlay files.
+
+    Returns:
+        Validated Config instance.
+
+    Raises:
+        ConfigNotFoundError: If ``config.json5`` does not exist in *config_dir*.
+        ConfigLoadError: If any declared overlay file is missing.
+        ConfigValidationError: If any file has invalid JSON5 syntax or the merged
+            dict fails pydantic validation.
+        ConfigConflictError: If two non-local overlays define the same top-level key.
+    """
+    master_path = config_dir / _MASTER_FILENAME
+    if not master_path.is_file():
+        raise ConfigNotFoundError(
+            f"No config.json5 found in {config_dir}. "
+            "Run 'personalscraper init-config' to create one from the example template."
+        )
+
+    master = _load_json5_file(master_path)
+
+    # Collect overlay dicts in declared order.
+    overlay_names: list[str] = master.pop("overlays", [])  # type: ignore[assignment]
+    overlay_dicts: list[dict] = []
+    for name in overlay_names:
+        overlay_path = config_dir / name
+        parsed = _load_json5_file(overlay_path)
+        # Attach source sentinel so merge_overlays can identify local.json5.
+        parsed["__source__"] = overlay_path
+        overlay_dicts.append(parsed)
+
+    # Optional local.json5 — missing is fine, not an error.
+    local_path = config_dir / _LOCAL_FILENAME
+    if local_path.is_file():
+        local_dict = _load_json5_file(local_path)
+        local_dict["__source__"] = local_path
+        overlay_dicts.append(local_dict)
+
+    # Merge: master is the base; overlays applied in order.
+    merged = merge_overlays(master, *overlay_dicts)
+
+    # Validate through pydantic.
+    try:
+        config = Config.model_validate(merged)
+    except Exception as exc:
+        raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
+
+    # Emit non-blocking warnings — same as v1 loader.
+    for warning in collect_warnings(config):
+        log.warning(warning)
+
+    return config
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -87,10 +202,10 @@ def collect_warnings(config: Config) -> list[str]:
     """Collect non-fatal configuration warnings.
 
     Three warning types (acceptance criterion #12):
-    1. A custom_category ID has no disk accepting it → likely dead config.
+    1. A custom_category ID has no disk accepting it -> likely dead config.
     2. A category ID is referenced by disks/rules/mappings but not in
-       ``config.categories`` → default label will be used.
-    3. A disk path does not exist on the filesystem → disk unmounted.
+       ``config.categories`` -> default label will be used.
+    3. A disk path does not exist on the filesystem -> disk unmounted.
 
     Args:
         config: Validated Config instance to inspect.
