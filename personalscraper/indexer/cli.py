@@ -311,7 +311,7 @@ def library_index_command(
                     except Exception:  # noqa: BLE001 — best-effort rollback
                         pass
 
-            # --- Drain outbox (no-op stub until Phase 5) ---
+            # --- Drain outbox ---
             drained = drain_if_present(conn)
             log.debug("indexer.cli.index.outbox_drained", count=drained)
 

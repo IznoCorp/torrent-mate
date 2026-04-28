@@ -5,6 +5,7 @@ Covers:
 - ``library_index_command`` with unknown --disk exits 2 with a helpful stderr message.
 - ``library_index_command`` dry-run writes no media_file rows to a real in-memory DB.
 - ``library_status_command`` regression check — still exits 0 with "no scans yet" on empty DB.
+- ``library_index_command`` quick mode drains a pre-seeded outbox row (no pending after exit).
 
 Test strategy:
     All four tests call the CLI via :class:`typer.testing.CliRunner` (which captures
@@ -104,6 +105,9 @@ def _make_conn(db_path: Path) -> sqlite3.Connection:
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
+    # Set WAL mode upfront so a subsequent CLI invocation can re-open the DB
+    # without blocking on a journal-mode transition.
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
@@ -254,3 +258,73 @@ class TestLibraryStatusRegression:
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
         assert "no scans yet" in result.output
+
+
+class TestLibraryIndexDrainsOutbox:
+    """library-index --mode quick drains a pre-seeded outbox row."""
+
+    def test_outbox_drained_after_quick_index(self, tmp_path: Path) -> None:
+        """Pre-seeding an outbox row before invoking the CLI leaves zero pending rows.
+
+        The test:
+        1. Pre-builds the DB and pre-seeds one ``index_outbox`` row with
+           ``status='pending'`` via :func:`outbox_repo.insert`.
+        2. Invokes ``library-index --mode quick`` with mocked scan.
+        3. Asserts that no row in ``index_outbox`` has ``status='pending'`` after
+           the CLI exits (the drainer consumed or classified every pending row).
+
+        The row uses op ``'move'`` with source ``'scanner'`` (the CHECK constraint
+        only accepts ``'dispatch'``, ``'scraper'``, ``'trailers'``, ``'scanner'``).
+        Because no disk row exists for ``disk_id=999``, the drainer defers the row
+        to ``pending_op``; the key invariant is that ``status != 'pending'`` after
+        the drain pass.
+        """
+        from personalscraper.indexer.repos import outbox_repo
+
+        cfg = _make_config(tmp_path)
+        db_path: Path = cfg.indexer.db_path
+
+        # Pre-build the DB (applies migrations).
+        conn = _make_conn(db_path)
+
+        # Seed an unmounted disk row so the drainer's defer path satisfies the
+        # FK constraint on pending_op.disk_id; with the disk unmounted, the
+        # outbox row will be deferred (status='deferred') rather than applied.
+        conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, "
+            "merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES ('test-uuid-1', 'TestDisk', NULL, ?, NULL, 0, 0)",
+            (int(time.time()),),
+        )
+        disk_id_row = conn.execute("SELECT id FROM disk WHERE uuid='test-uuid-1'").fetchone()
+        disk_id: int = disk_id_row[0]
+
+        # Pre-seed one pending outbox row (source must satisfy the CHECK constraint).
+        payload = json.dumps(
+            {
+                "disk_id": disk_id,
+                "dst_rel_path": "movies/TestMovie (2024)",
+                "filename": "TestMovie.mkv",
+                "size_bytes": 1024,
+                "mtime_ns": int(time.time() * 1e9),
+            }
+        )
+        outbox_repo.insert(conn, source="scanner", op="move", payload_json=payload)
+        conn.close()
+
+        fake_result = _fake_scan_result(scan_run_id=7, files=0, dirs=0)
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCAN, return_value=fake_result),
+        ):
+            result = runner.invoke(app, ["library-index", "--mode", "quick"])
+
+        assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+
+        # After the CLI exits the outbox must have zero pending rows.
+        verify_conn = sqlite3.connect(str(db_path), isolation_level=None)
+        pending_count = verify_conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0]
+        verify_conn.close()
+        assert pending_count == 0, f"Expected 0 pending outbox rows after drain, found {pending_count}"
