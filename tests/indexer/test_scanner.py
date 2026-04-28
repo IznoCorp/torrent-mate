@@ -2102,3 +2102,143 @@ class TestThrottleModuleHooks:
             assert clk.t == pytest.approx(0.5, abs=1e-6)
         finally:
             set_active_bucket(None)
+
+
+# ===========================================================================
+# Sub-phase 4.7 — Bulk-insert coverage and assertions for full scan
+# ===========================================================================
+
+
+class TestBulkInsertFullMode:
+    """Verify that full-mode bulk-insert behaviour matches DESIGN §11.7.
+
+    - ``DROP INDEX IF EXISTS`` is issued for secondary indexes before the walk
+      when ``drop_indexes=True``.
+    - Inserts are batched via ``executemany`` (i.e. :func:`_flush_insert_buffer`
+      is called at least once during the walk).
+    - ``incremental`` mode never issues any ``DROP INDEX IF EXISTS`` statement.
+
+    We use pyfakefs for a small fixture (a handful of files) and spy on the
+    scanner internals via ``unittest.mock.patch`` rather than driving a 6000-row
+    fixture.  The SQL *behaviour* (which functions are called and with what
+    SQL) is what matters, not the row count.
+    """
+
+    # ------------------------------------------------------------------
+    # test 1 — full scan + drop_indexes=True
+    # ------------------------------------------------------------------
+
+    def test_full_scan_drops_indexes_and_uses_executemany(self, fs: "FakeFilesystem") -> None:
+        """Full scan with drop_indexes=True issues DROP INDEX and uses executemany.
+
+        Strategy:
+        - Wrap the internal ``_drop_secondary_indexes`` function with a spy so
+          we can assert it was called exactly once per disk.
+        - Wrap ``_flush_insert_buffer`` with a spy to assert executemany-style
+          batching is triggered at scan end (remainder flush).
+        - The test uses a small fake filesystem (3 video files) — row count is
+          irrelevant because what we're checking is the control flow, not
+          SQLite throughput.
+
+        Args:
+            fs: pyfakefs ``FakeFilesystem`` fixture injected by pytest.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/BulkFullDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        # Three small video files — enough to exercise the full-mode path.
+        for i in range(3):
+            Path(f"{mount}/film{i}.mkv").write_bytes(b"X" * 200)
+
+        disk = _insert_disk(conn, mount)
+
+        # Spy on the two internal functions that implement bulk-insert behaviour.
+        _drop_patch = "personalscraper.indexer.scanner._modes._drop_secondary_indexes"
+        _flush_patch = "personalscraper.indexer.scanner._modes._flush_insert_buffer"
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                _drop_patch,
+                wraps=__import__(
+                    "personalscraper.indexer.scanner._index_ddl",
+                    fromlist=["_drop_secondary_indexes"],
+                )._drop_secondary_indexes,
+            ) as mock_drop:
+                with patch(
+                    _flush_patch,
+                    wraps=__import__(
+                        "personalscraper.indexer.scanner._db_writes",
+                        fromlist=["_flush_insert_buffer"],
+                    )._flush_insert_buffer,
+                ) as mock_flush:
+                    result = scan(
+                        [disk],
+                        ScanMode.full,
+                        generation=1,
+                        conn=conn,
+                        drop_indexes=True,
+                    )
+
+        assert result.status == "ok"
+        # _drop_secondary_indexes must have been called once (one disk).
+        assert mock_drop.call_count == 1, (
+            f"Expected _drop_secondary_indexes to be called once, got {mock_drop.call_count}"
+        )
+        # _flush_insert_buffer must have been called at least once (remainder flush
+        # at the end of the walk is always executed, even for a small fixture).
+        assert mock_flush.call_count >= 1, (
+            f"Expected _flush_insert_buffer to be called at least once, got {mock_flush.call_count}"
+        )
+
+    # ------------------------------------------------------------------
+    # test 2 — incremental mode must NOT drop indexes
+    # ------------------------------------------------------------------
+
+    def test_incremental_does_not_drop_indexes(self, fs: "FakeFilesystem") -> None:
+        """Incremental scan must never issue DROP INDEX statements (DESIGN §11.7).
+
+        Incremental write volume is small (only changed files are updated) so
+        keeping indexes live is the correct trade-off.  We assert this by spying
+        on ``_drop_secondary_indexes`` and verifying it is never called.
+
+        Args:
+            fs: pyfakefs ``FakeFilesystem`` fixture injected by pytest.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/BulkIncrDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        for i in range(3):
+            Path(f"{mount}/movie{i}.mkv").write_bytes(b"Y" * 200)
+
+        disk = _insert_disk(conn, mount)
+
+        _drop_patch = "personalscraper.indexer.scanner._modes._drop_secondary_indexes"
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                _drop_patch,
+                wraps=__import__(
+                    "personalscraper.indexer.scanner._index_ddl",
+                    fromlist=["_drop_secondary_indexes"],
+                )._drop_secondary_indexes,
+            ) as mock_drop:
+                result = scan(
+                    [disk],
+                    ScanMode.incremental,
+                    generation=1,
+                    conn=conn,
+                    # drop_indexes is False by default; set explicitly for clarity.
+                    drop_indexes=False,
+                )
+
+        assert result.status == "ok"
+        # _drop_secondary_indexes must never be called in incremental mode.
+        assert mock_drop.call_count == 0, (
+            f"_drop_secondary_indexes must not be called in incremental mode, got {mock_drop.call_count} call(s)"
+        )
