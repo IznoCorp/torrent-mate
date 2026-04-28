@@ -28,6 +28,14 @@ Sub-phase 2.6 additions:
 - Quick mode: Merkle root recomputed and persisted after a successful walk.
 - Quick mode: ``_verify_dir_mtime_reliable`` returning ``False`` disables subtree skip.
 
+Sub-phase 4.4 additions:
+- ``_check_mount_flags``: warns via ``indexer.disk.mount_flags_missing`` when any of
+  ``{noatime, noappledouble, noapplexattr, defer_permissions, allow_other}`` is absent
+  from the ``mount`` output for a disk's mount point.
+- No-op on non-Darwin platforms (``platform.system() != "Darwin"``).
+- Non-fatal: subprocess failure is caught and logged at DEBUG; scan still proceeds.
+- Tested via mocked ``subprocess.run`` for the ``mount`` command.
+
 Note on ``release_id`` / FK constraints:
     ``media_file.release_id`` is now nullable (migration 002).  Stage A inserts
     file rows with ``release_id=NULL``; release linkage is populated by the scraper
@@ -58,11 +66,13 @@ from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merkle import DiskUnmountedError, compute_merkle_root
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner import (
+    _RECOMMENDED_MOUNT_FLAGS,
     EXCLUDED_NAMES,
     IndexerConfigError,
     ScanMode,
     ScanRunResult,
     _build_disk_fingerprints,
+    _check_mount_flags,
     _should_exclude,
     _verify_dir_mtime_reliable,
     filter_disks,
@@ -1738,3 +1748,244 @@ class TestParallelScan:
                 f"Expected max_workers=1 for single-disk filter, got {captured_max_workers[0]}"
             )
         # If no executor was created, the sequential path was used — also correct.
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 4.4 — Mount-flag detection
+# ---------------------------------------------------------------------------
+
+_MOUNT_CHECK_PATCH = "personalscraper.indexer.scanner.subprocess.run"
+_PLATFORM_PATCH = "personalscraper.indexer.scanner.platform.system"
+
+
+def _make_disk_row(mount_path: str) -> DiskRow:
+    """Build a minimal :class:`DiskRow` for mount-flag tests.
+
+    Args:
+        mount_path: The fake mount point to use.
+
+    Returns:
+        A :class:`DiskRow` with a unique uuid derived from *mount_path*.
+    """
+    return DiskRow(
+        id=1,
+        uuid=f"uuid-{mount_path}",
+        label=mount_path.split("/")[-1],
+        mount_path=mount_path,
+        last_seen_at=0,
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
+
+
+def _mount_output_for(mount_path: str, flags: list[str]) -> str:
+    """Build a fake ``mount`` command output line for *mount_path*.
+
+    Args:
+        mount_path: The mount point to embed.
+        flags: List of flag strings to include in the parenthesised section.
+
+    Returns:
+        A single line matching the macOS ``mount`` output format.
+    """
+    flags_str = ", ".join(flags)
+    return f"/dev/disk2s1 on {mount_path} ({flags_str})\n"
+
+
+class TestRecommendedMountFlags:
+    """Verify :data:`_RECOMMENDED_MOUNT_FLAGS` contains exactly the expected five flags."""
+
+    def test_contains_exactly_five_flags(self) -> None:
+        """The recommended set must contain exactly the five macOS-specific flags."""
+        assert _RECOMMENDED_MOUNT_FLAGS == {
+            "noatime",
+            "noappledouble",
+            "noapplexattr",
+            "defer_permissions",
+            "allow_other",
+        }
+
+    def test_nodiratime_absent(self) -> None:
+        """Nodiratime is Linux-only and must NOT appear in the macOS set."""
+        assert "nodiratime" not in _RECOMMENDED_MOUNT_FLAGS
+
+
+class TestCheckMountFlagsNoDarwin:
+    """_check_mount_flags is a no-op on non-Darwin platforms."""
+
+    def test_no_subprocess_call_on_linux(self) -> None:
+        """subprocess.run must not be called when platform.system() != 'Darwin'."""
+        disk = _make_disk_row("/mnt/Disk1")
+        with patch(_PLATFORM_PATCH, return_value="Linux"):
+            with patch(_MOUNT_CHECK_PATCH) as mock_run:
+                _check_mount_flags([disk])
+        mock_run.assert_not_called()
+
+    def test_no_subprocess_call_on_windows(self) -> None:
+        """subprocess.run must not be called on Windows."""
+        disk = _make_disk_row("/mnt/Disk1")
+        with patch(_PLATFORM_PATCH, return_value="Windows"):
+            with patch(_MOUNT_CHECK_PATCH) as mock_run:
+                _check_mount_flags([disk])
+        mock_run.assert_not_called()
+
+
+class TestCheckMountFlagsAllPresent:
+    """_check_mount_flags emits no warning when all recommended flags are present."""
+
+    def test_no_warning_when_all_flags_present(self, caplog: pytest.LogCaptureFixture) -> None:
+        """All five recommended flags present → no indexer.disk.mount_flags_missing warning."""
+        mount = "/Volumes/Disk1"
+        disk = _make_disk_row(mount)
+        all_flags = list(_RECOMMENDED_MOUNT_FLAGS) + ["local", "synchronous"]
+        fake_output = _mount_output_for(mount, all_flags)
+
+        mock_result = MagicMock()
+        mock_result.stdout = fake_output
+
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                with caplog.at_level(logging.WARNING, logger="indexer.scan"):
+                    _check_mount_flags([disk])
+
+        warning_events = [r for r in caplog.records if "mount_flags_missing" in r.getMessage()]
+        assert warning_events == [], "Expected no mount_flags_missing warning when all flags are present"
+
+
+class TestCheckMountFlagsMissing:
+    """_check_mount_flags warns when one or more recommended flags are absent."""
+
+    def test_warning_emitted_for_missing_flag(self, caplog: pytest.LogCaptureFixture) -> None:
+        """A single missing flag → indexer.disk.mount_flags_missing warning is emitted."""
+        mount = "/Volumes/Disk1"
+        disk = _make_disk_row(mount)
+        # All flags except noatime.
+        partial_flags = [f for f in _RECOMMENDED_MOUNT_FLAGS if f != "noatime"] + ["local"]
+        fake_output = _mount_output_for(mount, partial_flags)
+
+        mock_result = MagicMock()
+        mock_result.stdout = fake_output
+
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                with caplog.at_level(logging.WARNING):
+                    _check_mount_flags([disk])
+
+        # At least one log record must mention mount_flags_missing.
+        all_messages = " ".join(r.getMessage() for r in caplog.records)
+        assert "mount_flags_missing" in all_messages
+
+    def test_warning_emitted_for_multiple_missing_flags(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Multiple missing flags → a single warning is still emitted for that disk."""
+        mount = "/Volumes/Disk2"
+        disk = _make_disk_row(mount)
+        # Only noatime present; four flags missing.
+        fake_output = _mount_output_for(mount, ["noatime", "local", "synchronous"])
+
+        mock_result = MagicMock()
+        mock_result.stdout = fake_output
+
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                with caplog.at_level(logging.WARNING):
+                    _check_mount_flags([disk])
+
+        all_messages = " ".join(r.getMessage() for r in caplog.records)
+        assert "mount_flags_missing" in all_messages
+
+    def test_per_disk_independent_check(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Each disk is checked independently: one ok, one missing → one warning emitted."""
+        mount_ok = "/Volumes/DiskOK"
+        mount_bad = "/Volumes/DiskBad"
+        disk_ok = _make_disk_row(mount_ok)
+        disk_bad = _make_disk_row(mount_bad)
+        # disk_ok has all flags; disk_bad is missing noappledouble.
+        ok_flags = list(_RECOMMENDED_MOUNT_FLAGS) + ["local"]
+        bad_flags = [f for f in _RECOMMENDED_MOUNT_FLAGS if f != "noappledouble"] + ["local"]
+        fake_output = _mount_output_for(mount_ok, ok_flags) + _mount_output_for(mount_bad, bad_flags)
+
+        mock_result = MagicMock()
+        mock_result.stdout = fake_output
+
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                with caplog.at_level(logging.WARNING):
+                    _check_mount_flags([disk_ok, disk_bad])
+
+        warning_records = [r for r in caplog.records if "mount_flags_missing" in r.getMessage()]
+        # Exactly one warning: for disk_bad only.
+        assert len(warning_records) == 1
+
+
+class TestCheckMountFlagsNonFatal:
+    """_check_mount_flags is non-fatal: subprocess errors must not propagate."""
+
+    def test_subprocess_timeout_does_not_raise(self) -> None:
+        """A subprocess.TimeoutExpired must be caught; scan can proceed."""
+        import subprocess
+
+        disk = _make_disk_row("/Volumes/Disk1")
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, side_effect=subprocess.TimeoutExpired(cmd="mount", timeout=10)):
+                # Must not raise — non-fatal by design.
+                _check_mount_flags([disk])
+
+    def test_subprocess_oserror_does_not_raise(self) -> None:
+        """An OSError from subprocess.run must be caught; scan can proceed."""
+        disk = _make_disk_row("/Volumes/Disk1")
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, side_effect=OSError("mount not found")):
+                _check_mount_flags([disk])
+
+    def test_disk_with_none_mount_path_skipped(self) -> None:
+        """Disks with mount_path=None are silently skipped; no crash."""
+        disk = DiskRow(
+            id=2,
+            uuid="uuid-none-mount",
+            label="NullDisk",
+            mount_path=None,
+            last_seen_at=0,
+            merkle_root=None,
+            is_mounted=0,
+            unreachable_strikes=0,
+        )
+        mock_result = MagicMock()
+        mock_result.stdout = ""  # empty output — no mount points in output
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                _check_mount_flags([disk])  # must not raise
+
+
+class TestCheckMountFlagsMalformedOutput:
+    """_check_mount_flags handles unexpected mount output gracefully."""
+
+    def test_malformed_lines_do_not_crash(self) -> None:
+        """Lines that don't match the expected format are silently skipped."""
+        disk = _make_disk_row("/Volumes/Disk1")
+        malformed = "this is not a mount line at all\nanother bad line\n"
+
+        mock_result = MagicMock()
+        mock_result.stdout = malformed
+
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                # Must not raise; mount point simply not found → debug log only.
+                _check_mount_flags([disk])
+
+    def test_mount_point_not_in_output_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
+        """When the disk's mount point is absent from mount output, no WARNING is emitted."""
+        disk = _make_disk_row("/Volumes/Disk1")
+        # Output mentions a different mount point entirely.
+        other_output = _mount_output_for("/Volumes/OtherDisk", list(_RECOMMENDED_MOUNT_FLAGS))
+
+        mock_result = MagicMock()
+        mock_result.stdout = other_output
+
+        with patch(_PLATFORM_PATCH, return_value="Darwin"):
+            with patch(_MOUNT_CHECK_PATCH, return_value=mock_result):
+                with caplog.at_level(logging.WARNING):
+                    _check_mount_flags([disk])
+
+        warning_records = [r for r in caplog.records if "mount_flags_missing" in r.getMessage()]
+        assert warning_records == []

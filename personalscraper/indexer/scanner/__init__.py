@@ -19,7 +19,9 @@ from __future__ import annotations
 import errno
 import json
 import os
+import platform
 import sqlite3
+import subprocess
 import tempfile  # noqa: F401 — imported so tests can patch scanner.tempfile.*
 import time
 from collections.abc import Callable
@@ -61,6 +63,102 @@ from personalscraper.indexer.schema import DiskRow, ScanRunRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
+
+# Flags that should be present on every macFUSE-mounted NTFS disk for optimal
+# I/O behaviour.  These are macOS-specific — nodiratime is Linux-only and
+# intentionally excluded from this set.
+_RECOMMENDED_MOUNT_FLAGS: frozenset[str] = frozenset(
+    {
+        "noatime",
+        "noappledouble",
+        "noapplexattr",
+        "defer_permissions",
+        "allow_other",
+    }
+)
+
+
+def _check_mount_flags(disks: list[DiskRow]) -> None:
+    """Parse ``mount`` output and warn about missing recommended flags.
+
+    Runs ``mount`` once and inspects the flags reported for each disk's
+    :attr:`~personalscraper.indexer.schema.DiskRow.mount_path`.  For every
+    flag in :data:`_RECOMMENDED_MOUNT_FLAGS` that is absent, a single
+    ``indexer.disk.mount_flags_missing`` warning is emitted at ``WARNING``
+    level via structlog.
+
+    The check is:
+
+    * **macOS-only** — skipped (no-op) on any platform where
+      ``platform.system() != "Darwin"``.
+    * **Non-fatal** — any subprocess failure or unexpected output format
+      is caught and logged at ``DEBUG`` level; the scan continues regardless.
+    * **Per disk** — each disk with a ``mount_path`` is checked independently.
+
+    Args:
+        disks: List of :class:`~personalscraper.indexer.schema.DiskRow` objects
+            whose ``mount_path`` fields should be inspected.  Disks whose
+            ``mount_path`` is ``None`` are silently skipped.
+    """
+    # Only applicable on macOS (macFUSE is Darwin-only in this stack).
+    if platform.system() != "Darwin":
+        return
+
+    try:
+        result = subprocess.run(
+            ["mount"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        mount_output = result.stdout
+    except Exception as exc:
+        # Non-fatal — subprocess failure must not block scanning.
+        log.debug("indexer.disk.mount_check_failed", error=str(exc))
+        return
+
+    # Parse mount output into a mapping of mount-point → flag set.
+    # Each line has the form:
+    #   <device> on <mount_point> (<flag1>, <flag2>, ...)
+    mount_flags: dict[str, frozenset[str]] = {}
+    for line in mount_output.splitlines():
+        # Locate the parenthesised flags block at the end of the line.
+        paren_open = line.rfind("(")
+        paren_close = line.rfind(")")
+        on_idx = line.find(" on ")
+        if paren_open == -1 or paren_close == -1 or on_idx == -1:
+            # Line doesn't match expected format — skip gracefully.
+            continue
+        # Extract the mount point: text between " on " and " (".
+        mount_point = line[on_idx + 4 : paren_open].strip()
+        flags_str = line[paren_open + 1 : paren_close]
+        flags = frozenset(f.strip() for f in flags_str.split(",") if f.strip())
+        mount_flags[mount_point] = flags
+
+    # Warn once per disk for each missing recommended flag.
+    for disk in disks:
+        if disk.mount_path is None:
+            continue
+        # Normalise: strip trailing slash for comparison (mount output varies).
+        mount_point = disk.mount_path.rstrip("/")
+        disk_flags: frozenset[str] | None = mount_flags.get(mount_point)
+        if disk_flags is None:
+            # mount point not found in output — cannot determine flags.
+            log.debug(
+                "indexer.disk.mount_flags_unknown",
+                disk_label=disk.label,
+                mount_path=disk.mount_path,
+            )
+            continue
+        missing = _RECOMMENDED_MOUNT_FLAGS - disk_flags
+        if missing:
+            log.warning(
+                "indexer.disk.mount_flags_missing",
+                disk_label=disk.label,
+                mount_path=disk.mount_path,
+                missing_flags=sorted(missing),
+                present_flags=sorted(disk_flags),
+            )
 
 
 def filter_disks(disks: list[DiskRow], disk_label: str | None) -> list[DiskRow]:
@@ -215,6 +313,10 @@ def scan(
             the ``scan_run`` row is updated to ``status='failed'``.
     """
     started_at = int(time.time())
+
+    # Check that all recommended macFUSE mount flags are present before
+    # touching any disk.  Non-fatal — missing flags only emit a warning.
+    _check_mount_flags(disks)
 
     # Insert scan_run row with status=running.
     scan_run_id = log_repo.insert_scan_run(
@@ -623,7 +725,9 @@ __all__ = [
     "IndexerScanActiveError",
     "ScanMode",
     "ScanRunResult",
+    "_RECOMMENDED_MOUNT_FLAGS",
     "_build_disk_fingerprints",
+    "_check_mount_flags",
     "_scan_disk_enrich",
     "_scan_disk_incremental",
     "_should_exclude",

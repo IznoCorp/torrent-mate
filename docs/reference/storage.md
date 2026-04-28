@@ -26,6 +26,32 @@ All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) ov
 - **Mount flags**: `macfuse, local, synchronous, noatime, nobrowse` — `synchronous` means every write is committed immediately (slower but safer for USB).
 - **`_force_rmtree` limitation** — `os.chmod()` before retry has no effect on NTFS. Deletion failures on `.actors/` or `.DS_Store` are NTFS metadata issues, not permission issues.
 
+## Recommended Mount Flags for NTFS-via-macFUSE
+
+The media indexer scanner checks for the following five flags at scan start and
+emits a `WARNING` (`indexer.disk.mount_flags_missing`) if any are absent.
+Missing flags do not abort the scan but degrade I/O performance or cause macOS
+to inject unwanted metadata files.
+
+| Flag                | Purpose                                                                                                                                                                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `noatime`           | Disables access-time updates on every file read. Critical for large media libraries: without this, each sequential read during a scan triggers a write back to the NTFS journal, roughly doubling effective I/O and exhausting USB bandwidth.            |
+| `noappledouble`     | Prevents macFUSE from creating `._<filename>` AppleDouble resource-fork sidecar files alongside every media file. These ghost files pollute directory listings and trigger false positives in the scanner's change detector.                             |
+| `noapplexattr`      | Suppresses storage of macOS extended attributes (xattrs) inside the NTFS volume. Without this flag, Finder and Spotlight write `com.apple.metadata:*` xattrs to every touched file, causing unnecessary journal writes and inflating file sizes on NTFS. |
+| `defer_permissions` | Allows unprivileged access to the mount without requiring SUID helpers. Needed when the volume is mounted by a regular user (the typical case with macFUSE on an Apple Silicon server). Without it, all file opens may fail with EPERM.                  |
+| `allow_other`       | Permits processes running as other users (e.g. the Plex media server daemon) to traverse and read the mount. Without this flag, Plex cannot access files owned by the mounting user, leading to empty library scans.                                     |
+
+> **Note**: `nodiratime` (directory access-time suppression) is Linux-only and
+> is **not** in this list. macOS has no separate `nodiratime` flag; `noatime`
+> already covers both file and directory access times on Darwin.
+
+Example `/etc/fstab` or `ntfstool` mount invocation:
+
+```
+ntfstool mount --disk /dev/diskXsY --mountpoint /Volumes/DiskN \
+    -o noatime,noappledouble,noapplexattr,defer_permissions,allow_other
+```
+
 ## Disk Space Threshold
 
 Unified formula:
@@ -35,6 +61,54 @@ free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 ```
 
 `choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+
+## 24 TB Operations Guide
+
+Operational guidelines for managing the full four-disk array (~24 TB total capacity).
+
+### Cold Rebuild Rotation
+
+A cold rebuild re-indexes a disk from scratch when its index is corrupt, stale, or
+missing. With 6 TB disks and ~100 MB/s USB-3 sequential throughput, a full scan
+takes roughly 60–90 minutes per disk. To avoid saturating the USB hub and blocking
+the pipeline during normal operation, rotate cold rebuilds one disk at a time:
+
+1. **Identify the target disk**: use `personalscraper index status` to find disks
+   with a stale generation or a high `unreachable_strikes` count.
+2. **Unmount other disks** (optional but recommended): reduces USB contention and
+   ensures the scanner can dedicate full bandwidth to the rebuild disk.
+3. **Run a scoped full scan**: `personalscraper index scan --mode full --disk <label>`.
+   The `--disk` flag limits the scan to one disk and forces `max_workers=1`
+   (DESIGN §11.8), preventing accidental parallel I/O to neighbouring disks.
+4. **Verify the result**: `personalscraper index status --disk <label>` — confirm
+   `generation` advanced and `unreachable_strikes` reset to 0.
+5. **Rotate to the next disk** only after the previous rebuild completes and its
+   `scan_run.status` is `'ok'`.
+
+Recommended rotation cadence: one disk per week in normal operation, or on-demand
+after any unclean unmount (power loss, USB disconnect during a scan).
+
+### Budget Planning
+
+Full-array operations (all 4 disks, full mode) consume significant I/O budget.
+Use `budget_seconds` to cap wall-clock time and resume across multiple sessions:
+
+| Operation                | Estimated duration | Recommended budget |
+| ------------------------ | ------------------ | ------------------ |
+| Full scan, 1 × 6 TB      | 60–90 min          | 5 400 s (90 min)   |
+| Full scan, 4 × 6 TB      | 4–6 h              | 21 600 s (6 h)     |
+| Incremental scan, 1 disk | 2–5 min            | 600 s (10 min)     |
+| Incremental scan, all    | 8–20 min           | 1 800 s (30 min)   |
+| Enrich pass, 1 disk      | 10–30 min          | 1 800 s (30 min)   |
+
+The `budget_seconds` parameter is passed via the CLI flag `--budget-seconds` or
+set in `config.json5` under `indexer.scan.budget_seconds`. When the budget is
+exhausted the scanner writes a checkpoint and exits with `budget_exhausted=True`;
+the next invocation resumes from the last checkpoint automatically.
+
+For nightly scheduled scans (launchd), set the budget to ≤ 3 600 s (1 hour) to
+ensure the job completes before the next wake window. Use `--mode incremental`
+for nightly runs and reserve `--mode full` for weekend maintenance windows.
 
 ## Paths
 
