@@ -30,6 +30,7 @@ from personalscraper.indexer.scanner._db_writes import (
     _upsert_path_row,
 )
 from personalscraper.indexer.scanner._exclusions import _relpath, _should_exclude
+from personalscraper.indexer.scanner._shutdown import is_shutdown_requested
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.logger import get_logger
 
@@ -332,6 +333,13 @@ def _walk_dir(
                     budget_exhausted[0] = True
                     return
 
+                # SIGTERM clean-shutdown bridge (sub-phase 4.9).  Treats a
+                # shutdown request like budget exhaustion: the caller's
+                # checkpoint logic will commit and update scan_run.
+                if is_shutdown_requested():
+                    budget_exhausted[0] = True
+                    return
+
 
 # ---------------------------------------------------------------------------
 # Full-mode walk
@@ -490,6 +498,13 @@ def _walk_dir_full(
                 )
                 files_since_checkpoint[0] = new_counter
                 if exhausted:
+                    budget_exhausted[0] = True
+                    return
+
+                # SIGTERM clean-shutdown bridge (sub-phase 4.9).  Treats a
+                # shutdown request like budget exhaustion: the caller's
+                # checkpoint logic will commit and update scan_run.
+                if is_shutdown_requested():
                     budget_exhausted[0] = True
                     return
 
@@ -723,5 +738,12 @@ def _walk_dir_quick(
                 )
                 files_since_checkpoint[0] = new_counter
                 if exhausted:
+                    budget_exhausted[0] = True
+                    return
+
+                # SIGTERM clean-shutdown bridge (sub-phase 4.9).  Treats a
+                # shutdown request like budget exhaustion: the caller's
+                # checkpoint logic will commit and update scan_run.
+                if is_shutdown_requested():
                     budget_exhausted[0] = True
                     return

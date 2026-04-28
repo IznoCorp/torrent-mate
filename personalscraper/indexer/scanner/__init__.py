@@ -49,6 +49,7 @@ from personalscraper.indexer.scanner._modes import (
     _scan_disk_incremental,
     _scan_disk_quick,
 )
+from personalscraper.indexer.scanner._shutdown import install_sigterm_handler, reset_shutdown
 from personalscraper.indexer.scanner._spotlight import SpotlightChangeDetector, probe_spotlight
 from personalscraper.indexer.scanner._types import (
     IndexerConfigError,
@@ -335,6 +336,16 @@ def scan(
             the ``scan_run`` row is updated to ``status='failed'``.
     """
     started_at = int(time.time())
+
+    # SIGTERM clean-shutdown plumbing (sub-phase 4.9): register the
+    # signal handler.  We do NOT clear the shutdown flag here — callers
+    # may legitimately pre-arm it before a scan (operators raising
+    # SIGTERM right before the scan starts; tests).  The flag is cleared
+    # in the finally block AFTER the scan completes, which still
+    # guarantees the next scan starts from a clean slate.  When invoked
+    # from a non-main thread (some tests), install_sigterm_handler
+    # silently falls back to a no-op restore.
+    _restore_sigterm = install_sigterm_handler()
 
     # Install the read-rate token bucket for the duration of this scan run.
     # All worker threads (sequential or parallel) consult the process-global
@@ -769,6 +780,14 @@ def scan(
         # inherit this run's throttle state.  Tests rely on the absence of
         # a stale bucket between cases.
         set_active_bucket(None)
+        # Restore the previous SIGTERM handler.  Safe to call even when
+        # install_sigterm_handler returned a no-op (non-main thread case).
+        _restore_sigterm()
+        # Clear the shutdown flag so the NEXT scan starts from a clean
+        # slate.  Doing this on exit (rather than entry) lets callers
+        # pre-arm the flag before invoking scan() — useful in tests and
+        # for last-mile shutdown coordination at the boundary.
+        reset_shutdown()
 
 
 __all__ = [
