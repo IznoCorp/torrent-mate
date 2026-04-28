@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
+import types
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -32,7 +33,7 @@ from hypothesis import strategies as st
 
 from personalscraper.indexer.config import IndexerConfig
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import DrainStats, drain, drain_if_present, publish_event
+from personalscraper.indexer.outbox import DrainStats, disk_id_for_path, drain, drain_if_present, publish_event
 from personalscraper.indexer.repos import outbox_repo
 from personalscraper.indexer.schema import DiskRow, MediaItemRow, PathRow
 
@@ -1138,3 +1139,123 @@ def test_drain_idempotence_property(payloads: list[str]) -> None:
 
     assert snapshot_1 == snapshot_2, "Drainer is not idempotent: DB state changed on second drain"
     c.close()
+
+
+# ===========================================================================
+# §5.3a — disk_id_for_path helper
+# ===========================================================================
+
+
+def _make_disk_row(uuid: str, label: str, mount_path: str | None, is_mounted: int) -> DiskRow:
+    """Construct a DiskRow with sensible defaults for non-essential fields.
+
+    Args:
+        uuid: Volume UUID string.
+        label: Display label.
+        mount_path: Current mount point; ``None`` when unmounted.
+        is_mounted: 0 or 1.
+
+    Returns:
+        A fully-populated :class:`DiskRow`.
+    """
+    return DiskRow(
+        id=0,
+        uuid=uuid,
+        label=label,
+        mount_path=mount_path,
+        last_seen_at=int(time.time()),
+        merkle_root=None,
+        is_mounted=is_mounted,
+        unreachable_strikes=0,
+    )
+
+
+class TestDiskIdForPath:
+    """Tests for the disk_id_for_path helper."""
+
+    def test_returns_disk_id_and_rel_path_for_mounted_disk(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Returns (disk_id, rel_path) for a path under a mounted disk."""
+        from personalscraper.indexer.repos import disk_repo  # noqa: PLC0415
+
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path), isolation_level=None)
+        try:
+            apply_migrations(conn, MIGRATIONS_DIR)
+            disk_id = disk_repo.insert(
+                conn,
+                _make_disk_row(uuid="u1", label="L1", mount_path="/Volumes/D1", is_mounted=1),
+            )
+        finally:
+            conn.close()
+
+        # Patch IndexerConfig to return our temp db_path
+        monkeypatch.setattr(
+            "personalscraper.indexer.outbox.IndexerConfig",
+            lambda: types.SimpleNamespace(db_path=db_path),
+        )
+
+        result = disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4"))
+        assert result == (disk_id, "movies/foo.mp4")
+
+    def test_returns_none_for_unmounted_or_no_match(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns None when no mounted disk matches the path prefix."""
+        from personalscraper.indexer.repos import disk_repo  # noqa: PLC0415
+
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path), isolation_level=None)
+        try:
+            apply_migrations(conn, MIGRATIONS_DIR)
+            # mount_path must be NULL when is_mounted=0 (schema CHECK constraint).
+            disk_repo.insert(
+                conn,
+                _make_disk_row(uuid="u1", label="L1", mount_path=None, is_mounted=0),
+            )
+        finally:
+            conn.close()
+
+        monkeypatch.setattr(
+            "personalscraper.indexer.outbox.IndexerConfig",
+            lambda: types.SimpleNamespace(db_path=db_path),
+        )
+
+        # Path under unmounted disk → None
+        assert disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4")) is None
+        # Path with no matching disk → None
+        assert disk_id_for_path(Path("/some/other/path")) is None
+
+    def test_returns_none_on_db_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Returns None when DB cannot be opened (best-effort contract)."""
+        monkeypatch.setattr(
+            "personalscraper.indexer.outbox.IndexerConfig",
+            lambda: types.SimpleNamespace(db_path=Path("/nonexistent/dir/library.db")),
+        )
+        assert disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4")) is None
+
+    def test_longest_prefix_match_wins(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When two disks have nested mount_paths, the longest match wins."""
+        from personalscraper.indexer.repos import disk_repo  # noqa: PLC0415
+
+        db_path = tmp_path / "library.db"
+        conn = sqlite3.connect(str(db_path), isolation_level=None)
+        try:
+            apply_migrations(conn, MIGRATIONS_DIR)
+            disk_repo.insert(
+                conn,
+                _make_disk_row(uuid="u1", label="L1", mount_path="/Volumes", is_mounted=1),
+            )
+            d2 = disk_repo.insert(
+                conn,
+                _make_disk_row(uuid="u2", label="L2", mount_path="/Volumes/D1", is_mounted=1),
+            )
+        finally:
+            conn.close()
+
+        monkeypatch.setattr(
+            "personalscraper.indexer.outbox.IndexerConfig",
+            lambda: types.SimpleNamespace(db_path=db_path),
+        )
+
+        result = disk_id_for_path(Path("/Volumes/D1/foo.mp4"))
+        assert result == (d2, "foo.mp4")

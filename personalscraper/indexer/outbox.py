@@ -728,3 +728,46 @@ def publish_event(
             error=str(exc),
             payload=full_payload,
         )
+
+
+def disk_id_for_path(path: Path) -> tuple[int, str] | None:
+    """Resolve (disk_id, rel_path) for *path* via the disk table (best-effort).
+
+    Opens a short independent connection to ``IndexerConfig().db_path``,
+    queries mounted disks, and returns the longest mount_path prefix match.
+    Never raises — same best-effort contract as :func:`publish_event`.
+
+    Args:
+        path: Absolute filesystem path on a mounted disk.
+
+    Returns:
+        ``(disk_id, rel_path)`` where ``rel_path`` is *path* relative to
+        the matched disk's ``mount_path``. ``None`` when no mounted disk
+        matches or on any error.
+    """
+    try:
+        cfg = IndexerConfig()
+        conn = sqlite3.connect(str(cfg.db_path), isolation_level=None, check_same_thread=False)
+        conn.execute("PRAGMA busy_timeout=5000")
+        try:
+            cursor = conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted=1")
+            rows = cursor.fetchall()
+        finally:
+            conn.close()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("indexer.db.disk_lookup_failed", path=str(path), error=str(exc))
+        return None
+
+    path_str = str(path)
+    best: tuple[int, str] | None = None
+    best_len = -1
+    for disk_id, mount_path in rows:
+        if mount_path is None:
+            continue
+        if path_str == mount_path or path_str.startswith(mount_path.rstrip("/") + "/"):
+            mlen = len(mount_path.rstrip("/"))
+            if mlen > best_len:
+                rel = path_str[mlen:].lstrip("/")
+                best = (disk_id, rel)
+                best_len = mlen
+    return best
