@@ -213,6 +213,7 @@ def scan(
     read_rate_mb_per_sec: float | None = None,
     staging_dir: str | None = None,
     spotlight_enabled: bool = False,
+    paranoia_window_seconds: int = 86400,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -325,6 +326,13 @@ def scan(
             availability, but :class:`SpotlightChangeDetector` will not attach.
             When ``True``, the detector attaches on APFS paths where Spotlight
             reports "Indexing enabled"; macFUSE paths are silently refused.
+        paranoia_window_seconds: Look-back window (seconds) for the quick-mode
+            paranoia branch (DESIGN §17.1).  Recent ``scan_event`` rows with
+            ``event LIKE 'outbox.%'`` are re-checked against on-disk state to
+            catch files that changed without updating the parent dir mtime.
+            ``0`` disables the branch.  Sourced from
+            ``IndexerScanConfig.paranoia_window_seconds``.  Default ``86400``
+            (24 h).
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -533,6 +541,7 @@ def scan(
                     checkpoint_every_n_files,
                     confirm_bulk_change=confirm_bulk_change,
                     merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
+                    paranoia_window_seconds=paranoia_window_seconds,
                 )
             elif mode == ScanMode.incremental:
                 # Incremental-mode: quick semantics + OSHash recompute on tier-1

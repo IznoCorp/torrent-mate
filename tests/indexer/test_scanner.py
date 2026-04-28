@@ -2242,3 +2242,161 @@ class TestBulkInsertFullMode:
         assert mock_drop.call_count == 0, (
             f"_drop_secondary_indexes must not be called in incremental mode, got {mock_drop.call_count} call(s)"
         )
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 5.6 tests — quick-mode paranoia branch (DESIGN §17.1)
+# ---------------------------------------------------------------------------
+
+
+class TestQuickModeParanoiaBranch:
+    """Tests for the paranoia branch in :func:`_scan_disk_quick` (DESIGN §17.1).
+
+    The paranoia branch queries recent ``scan_event`` rows with
+    ``event LIKE 'outbox.%'`` and re-stats the referenced paths to detect
+    silent tier-1 mismatches that dir-mtime would miss.
+    """
+
+    def test_paranoia_recheck_logged_when_file_mutated_silently(
+        self,
+        fs: "FakeFilesystem",
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Paranoia branch detects a file mutated without updating dir-mtime.
+
+        Setup:
+        1. Full scan seeds ``media_file`` and ``path`` rows.
+        2. Fake FS file content is changed WITHOUT touching parent dir mtime
+           (simulated by inserting a stale ``media_file`` row with different
+           size_bytes/mtime_ns — the file on disk stays as-is but the stored
+           values are manually backdated so there's a mismatch).
+        3. A ``scan_event`` row with ``event='outbox.move'`` and
+           ``payload_json='{"rel_path": "<filename>"}'`` is inserted.
+        4. Quick scan is run with a sufficiently large paranoia_window_seconds.
+
+        Expected: ``indexer.scan.paranoia_recheck`` is logged for that path.
+
+        Args:
+            fs: pyfakefs ``FakeFilesystem`` fixture.
+            caplog: pytest log capture fixture.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ParanoiaDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        # Write the initial file content.
+        Path(f"{mount}/movie.mkv").write_bytes(b"initial" * 100)
+
+        disk = _insert_disk(conn, mount)
+
+        # Full scan — seeds media_file row with current size_bytes / mtime_ns.
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Verify the media_file row was created.
+        conn.row_factory = sqlite3.Row
+        mf_row = conn.execute("SELECT id, size_bytes, mtime_ns FROM media_file WHERE filename = 'movie.mkv'").fetchone()
+        assert mf_row is not None, "media_file row must exist after full scan"
+        conn.row_factory = None
+
+        # Simulate a silent mutation: update the stored size_bytes to a stale
+        # value so the paranoia re-stat will see a mismatch.  We deliberately
+        # do NOT change the file on disk (so dir mtime is also unchanged); the
+        # stored row is the one that's backdated.
+        conn.execute(
+            "UPDATE media_file SET size_bytes = 999 WHERE id = ?",
+            (mf_row["id"],),
+        )
+
+        # Insert a scan_run row to satisfy the FK constraint on scan_event.scan_id.
+        scan_run_id = conn.execute(
+            "INSERT INTO scan_run (generation, mode, started_at, status) VALUES (1, 'quick', ?, 'running')",
+            (int(time.time()),),
+        ).lastrowid
+
+        # Insert a fake outbox event referencing the mutated file.
+        conn.execute(
+            "INSERT INTO scan_event (scan_id, ts, event, payload_json) VALUES (?, ?, 'outbox.move', ?)",
+            (scan_run_id, int(time.time()), '{"rel_path": "movie.mkv"}'),
+        )
+
+        # Store a wrong merkle_root to force the Merkle miss path (prerequisite
+        # for the paranoia branch to run).
+        disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
+        updated_disk = disk_repo.get_by_id(conn, disk.id)
+        assert updated_disk is not None
+
+        # Quick scan with paranoia enabled (window=86400 s).
+        # confirm_bulk_change=True bypasses the Merkle delta freeze guard so the
+        # scan does not abort before completing the dir-mtime walk; the paranoia
+        # branch runs BEFORE the bulk-change check so the recheck is still logged
+        # even without confirm_bulk_change, but confirming allows scan() to return
+        # status='ok' and makes the assertion cleaner.
+        with caplog.at_level(logging.INFO):
+            with patch(_GUARD_PATCH, return_value=None):
+                with patch(
+                    "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
+                    return_value=True,
+                ):
+                    result = scan(
+                        [updated_disk],
+                        ScanMode.quick,
+                        generation=2,
+                        conn=conn,
+                        paranoia_window_seconds=86400,
+                        confirm_bulk_change=True,
+                    )
+
+        assert result.status == "ok"
+
+        # Assert that the paranoia branch logged a recheck event for the file.
+        # Match on the full event name to avoid false positives on mount-path substrings.
+        info_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.INFO]
+        assert any("indexer.scan.paranoia_recheck" in t for t in info_texts), (
+            f"Expected 'indexer.scan.paranoia_recheck' in log records, got: {info_texts}"
+        )
+
+    def test_paranoia_branch_disabled_when_window_is_zero(
+        self,
+        fs: "FakeFilesystem",
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """When paranoia_window_seconds=0, the paranoia branch is entirely skipped.
+
+        No DB query is made and no ``indexer.scan.paranoia_branch`` log event
+        is emitted.
+
+        Args:
+            fs: pyfakefs ``FakeFilesystem`` fixture.
+            caplog: pytest log capture fixture.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ParanoiaDisabledDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/movie.mkv").write_bytes(b"X" * 200)
+
+        disk = _insert_disk(conn, mount, merkle_root="wrongroot")
+
+        with caplog.at_level(logging.INFO):
+            with patch(_GUARD_PATCH, return_value=None):
+                result = scan(
+                    [disk],
+                    ScanMode.quick,
+                    generation=1,
+                    conn=conn,
+                    paranoia_window_seconds=0,
+                )
+
+        assert result.status == "ok"
+
+        # paranoia_branch event must NOT appear when window=0.
+        # Match on the full event name to avoid false positives on mount-path substrings.
+        info_texts = [r.getMessage() for r in caplog.records]
+        assert not any("indexer.scan.paranoia_branch" in t for t in info_texts), (
+            f"indexer.scan.paranoia_branch must not be logged when window=0, got: {info_texts}"
+        )

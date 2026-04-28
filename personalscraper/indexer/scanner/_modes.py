@@ -121,6 +121,137 @@ def _scan_disk_full(
             _recreate_indexes(conn, ddl_pairs)
 
 
+def _run_paranoia_branch(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    mount: str,
+    paranoia_window_seconds: int,
+) -> None:
+    """Check recent outbox events and log paths that may need re-fingerprinting.
+
+    Queries ``scan_event`` for rows with ``event LIKE 'outbox.%'`` within the
+    last *paranoia_window_seconds* seconds.  For each matching row, extracts
+    the ``rel_path`` field from ``payload_json``, builds the absolute path,
+    and compares the on-disk stat to the stored ``media_file`` row.
+
+    When a mismatch is detected (size or mtime_ns differs from the stored row),
+    logs ``indexer.scan.paranoia_recheck`` for that path.  The actual
+    re-fingerprinting is deferred to the subsequent dir-mtime walk or a later
+    sub-phase; this branch only surfaces the discrepancy (DESIGN §17.1).
+
+    Paths that do not exist on disk, fall outside *mount*, or whose
+    ``payload_json`` lacks a ``rel_path`` field are silently skipped.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` being scanned.
+        mount: Absolute mount point path for the disk.
+        paranoia_window_seconds: How far back (in seconds) to look for outbox
+            events.  Must be positive (caller already guards against 0).
+    """
+    cutoff_ts = int(time.time()) - paranoia_window_seconds
+    mount_path = Path(mount)
+
+    # Fetch distinct payload blobs from recent outbox events.
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT DISTINCT payload_json FROM scan_event WHERE event LIKE 'outbox.%' AND ts > ?",
+        (cutoff_ts,),
+    ).fetchall()
+    conn.row_factory = None
+
+    paths_inspected = 0
+    for row in rows:
+        payload_json: str | None = row["payload_json"]
+        if not payload_json:
+            continue
+
+        # Parse the JSON payload and extract rel_path.  Rows without rel_path
+        # cannot be resolved to a filesystem path — skip them silently.
+        try:
+            payload: dict[str, object] = json.loads(payload_json)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+        rel_path = payload.get("rel_path")
+        if not rel_path or not isinstance(rel_path, str):
+            continue
+
+        # Build the absolute path and verify it is anchored under mount.
+        abs_path = mount_path / rel_path
+        try:
+            abs_path.resolve().relative_to(mount_path.resolve())
+        except ValueError:
+            # Path escapes the mount root (e.g. via ``..`` components) — skip.
+            continue
+
+        if not abs_path.exists():
+            continue
+
+        paths_inspected += 1
+
+        # Re-stat the file and compare to the stored media_file row (if any).
+        try:
+            st = abs_path.stat()
+        except OSError:
+            continue
+
+        # Look up the stored row by joining path.rel_path + media_file.filename.
+        # Root-level files use rel_path="" (matching _relpath strip logic), NOT ".".
+        filename = abs_path.name
+        if abs_path.parent == mount_path:
+            parent_rel = ""
+        else:
+            parent_rel = str(abs_path.parent.relative_to(mount_path))
+
+        conn.row_factory = sqlite3.Row
+        stored = conn.execute(
+            """
+            SELECT mf.id, mf.size_bytes, mf.mtime_ns
+              FROM media_file mf
+              JOIN path p ON p.id = mf.path_id
+             WHERE p.disk_id = ?
+               AND p.rel_path = ?
+               AND mf.filename = ?
+               AND mf.deleted_at IS NULL
+             LIMIT 1
+            """,
+            (disk.id, parent_rel, filename),
+        ).fetchone()
+        conn.row_factory = None
+
+        if stored is None:
+            # No stored row — the file is new; the normal walker will handle it.
+            continue
+
+        stored_size: int = stored["size_bytes"] or 0
+        stored_mtime_ns: int = stored["mtime_ns"] or 0
+
+        if st.st_size != stored_size or st.st_mtime_ns != stored_mtime_ns:
+            # Tier-1 mismatch detected via paranoia branch: dir-mtime was stale
+            # or unupdated, but the file has actually changed.  Log the event so
+            # operators and metrics pipelines can track detection coverage.
+            log.info(
+                "indexer.scan.paranoia_recheck",
+                disk_uuid=disk.uuid,
+                label=disk.label,
+                rel_path=rel_path,
+                stored_size=stored_size,
+                current_size=st.st_size,
+                stored_mtime_ns=stored_mtime_ns,
+                current_mtime_ns=st.st_mtime_ns,
+            )
+
+    log.info(
+        "indexer.scan.paranoia_branch",
+        disk_uuid=disk.uuid,
+        label=disk.label,
+        paths_inspected=paths_inspected,
+        cutoff_ts=cutoff_ts,
+        window_seconds=paranoia_window_seconds,
+    )
+
+
 def _scan_disk_quick(
     conn: sqlite3.Connection,
     disk: DiskRow,
@@ -139,6 +270,7 @@ def _scan_disk_quick(
     checkpoint_every: int = 100,
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
+    paranoia_window_seconds: int = 86400,
 ) -> None:
     """Run the quick-mode walk for a single disk.
 
@@ -192,6 +324,11 @@ def _scan_disk_quick(
         merkle_delta_freeze_threshold: Halt if the Merkle delta exceeds this
             fraction (0.0–1.0).  Sourced from
             ``IndexerDriftConfig.merkle_delta_freeze_threshold``.
+        paranoia_window_seconds: Look-back window for the paranoia branch
+            (DESIGN §17.1).  ``scan_event`` rows with ``event LIKE 'outbox.%'``
+            created within this many seconds of now are re-checked against
+            on-disk state regardless of dir-mtime status.  ``0`` disables the
+            branch.  Sourced from ``IndexerScanConfig.paranoia_window_seconds``.
 
     Raises:
         DiskBulkChangeDetected: When the Merkle delta exceeds
@@ -216,6 +353,21 @@ def _scan_disk_quick(
         stored_root=disk.merkle_root,
         computed_root=current_root,
     )
+
+    # --- Paranoia branch (DESIGN §17.1) ---
+    # On Merkle miss, query recent outbox events and force a re-stat for any
+    # paths they reference that fall under this disk's mount point.  This
+    # shortens the detection gap for files changed by the outbox pipeline
+    # without touching the parent directory mtime (e.g. in-place content
+    # rewrites or cross-directory moves whose parent dir mtime is unreliable).
+    #
+    # The branch is ADDITIVE: the normal dir-mtime walk still runs below.
+    # Its sole job here is to surface paths that dir-mtime would falsely
+    # treat as unchanged, so they can be flagged for re-fingerprinting.
+    # Full re-fingerprinting integration deferred to a later sub-phase;
+    # for now we log ``indexer.scan.paranoia_recheck`` for each detected path.
+    if paranoia_window_seconds > 0:
+        _run_paranoia_branch(conn, disk, mount, paranoia_window_seconds)
 
     # --- Bulk-change guard (quick-mode only, on Merkle miss) ---
     # Sample fresh tier-1 fingerprints by doing a shallow scandir for all

@@ -284,6 +284,7 @@ def library_index_command(
                     disk_filter=disk,
                     confirm_bulk_change=confirm_bulk_change,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
+                    paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
                 )
             except DiskBulkChangeDetected as bulk_exc:
                 print(

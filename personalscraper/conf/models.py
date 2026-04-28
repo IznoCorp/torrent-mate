@@ -779,6 +779,11 @@ class IndexerScanConfig(_StrictModel):
             reads to the OS buffer cache. No-op on other platforms.
         drop_indexes_during_full_scan: Drop non-PK indexes during a full
             cold scan and rebuild them on finish — faster bulk inserts.
+        paranoia_window_seconds: Look-back window in seconds for the
+            quick-mode paranoia branch (DESIGN §17.1).  ``scan_event`` rows
+            with ``event LIKE 'outbox.%'`` within this window are re-checked
+            against on-disk state regardless of dir-mtime status.  Set to
+            ``0`` to disable the branch entirely.
     """
 
     nightly_mode: Literal["quick", "incremental", "enrich", "full"] = Field(
@@ -806,6 +811,16 @@ class IndexerScanConfig(_StrictModel):
     drop_indexes_during_full_scan: bool = Field(
         default=True,
         description="Drop and rebuild non-PK indexes around a full cold scan for faster bulk inserts.",
+    )
+    paranoia_window_seconds: int = Field(
+        default=86400,
+        ge=0,
+        description=(
+            "Look-back window (seconds) for the quick-mode paranoia branch (DESIGN §17.1). "
+            "scan_event rows with event LIKE 'outbox.%' within this window are re-checked "
+            "against on-disk state regardless of dir-mtime status. "
+            "Set to 0 to disable the paranoia branch entirely."
+        ),
     )
 
 
