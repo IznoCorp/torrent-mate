@@ -6,11 +6,23 @@ All write methods emit structlog events following the
 ``indexer.{component}.{action}`` convention (DESIGN §6.6).
 
 Only raw ``sqlite3`` is used — no ORM.
+
+Public API (plan §5.1):
+- ``insert(conn, source, op, payload_json) -> int`` — insert a pending outbox row.
+- ``fetch_pending(conn, limit=100) -> list[IndexOutboxRow]`` — fetch pending rows FIFO.
+- ``mark_done(conn, row_id) -> None`` — mark a row as done.
+- ``mark_failed(conn, row_id) -> None`` — mark a row as failed.
+- ``mark_deferred(conn, row_id) -> None`` — mark a row as deferred.
+- ``insert_pending_op_row(conn, disk_id, op, payload_json) -> int`` — insert a pending_op row.
+- ``fetch_for_disk(conn, disk_id) -> list[PendingOpRow]`` — fetch pending_op rows for a disk.
+- ``mark_replayed(conn, row_id) -> None`` — mark a pending_op row as replayed.
+- ``purge_expired(conn, ttl_days=30) -> int`` — purge old pending_op rows.
 """
 
 from __future__ import annotations
 
 import sqlite3
+import time
 
 from personalscraper.indexer.schema import IndexOutboxRow, PendingOpRow, RepairQueueRow
 from personalscraper.logger import get_logger
@@ -274,3 +286,206 @@ def get_repair_queue_by_id(conn: sqlite3.Connection, id: int) -> RepairQueueRow 
     if row is None:
         return None
     return _row_to_repair_queue(row)
+
+
+# ---------------------------------------------------------------------------
+# Plan §5.1 — OutboxRepo public API (module-level functions)
+# ---------------------------------------------------------------------------
+
+
+def insert(conn: sqlite3.Connection, source: str, op: str, payload_json: str) -> int:
+    """Insert a new outbox row with ``status='pending'`` and ``created_at=now``.
+
+    This is the primary write path for pipeline mutation points.  The caller
+    supplies the logical source and op type; timestamps and status are set here.
+
+    Args:
+        conn: Open SQLite connection.
+        source: Originating subsystem: ``'dispatch'``, ``'scraper'``,
+            ``'trailers'``, or ``'scanner'``.
+        op: Operation type: ``'move'``, ``'nfo_write'``, ``'artwork_write'``,
+            or ``'trailer_download'``.
+        payload_json: Serialised JSON payload (per-op shape — see DESIGN §9.3).
+
+    Returns:
+        The ``rowid`` (= ``id``) of the newly inserted row.
+    """
+    now = int(time.time())
+    cursor = conn.execute(
+        """
+        INSERT INTO index_outbox (source, op, payload_json, created_at, processed_at, status)
+        VALUES (?, ?, ?, ?, NULL, 'pending')
+        """,
+        (source, op, payload_json, now),
+    )
+    rowid: int = cursor.lastrowid  # type: ignore[assignment]
+    log.info("indexer.outbox.insert", source=source, op=op, rowid=rowid)
+    return rowid
+
+
+def fetch_pending(conn: sqlite3.Connection, limit: int = 100) -> list[IndexOutboxRow]:
+    """Fetch up to *limit* pending outbox rows in FIFO (``id ASC``) order.
+
+    Args:
+        conn: Open SQLite connection.
+        limit: Maximum number of rows to return (default 100).
+
+    Returns:
+        List of :class:`IndexOutboxRow` instances with ``status='pending'``,
+        ordered by ascending ``id``.
+    """
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT * FROM index_outbox WHERE status = 'pending' ORDER BY id ASC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return [_row_to_outbox(r) for r in rows]
+
+
+def mark_done(conn: sqlite3.Connection, row_id: int) -> None:
+    """Mark an outbox row as ``'done'``, recording ``processed_at=now``.
+
+    Args:
+        conn: Open SQLite connection.
+        row_id: PK of the outbox row to update.
+    """
+    now = int(time.time())
+    conn.execute(
+        "UPDATE index_outbox SET status = 'done', processed_at = ? WHERE id = ?",
+        (now, row_id),
+    )
+    log.info("indexer.outbox.mark_done", row_id=row_id, processed_at=now)
+
+
+def mark_failed(conn: sqlite3.Connection, row_id: int) -> None:
+    """Mark an outbox row as ``'failed'``, recording ``processed_at=now``.
+
+    Used by the drainer after retry exhaustion (DESIGN §9.2).
+    Logs ``indexer.outbox.row_failed`` per DESIGN §6.6.
+
+    Args:
+        conn: Open SQLite connection.
+        row_id: PK of the outbox row to update.
+    """
+    now = int(time.time())
+    conn.execute(
+        "UPDATE index_outbox SET status = 'failed', processed_at = ? WHERE id = ?",
+        (now, row_id),
+    )
+    log.warning("indexer.outbox.row_failed", row_id=row_id, processed_at=now)
+
+
+def mark_deferred(conn: sqlite3.Connection, row_id: int) -> None:
+    """Mark an outbox row as ``'deferred'``, recording ``processed_at=now``.
+
+    Used when the target disk is unreachable at drain time; the op is moved to
+    ``pending_op`` for replay on remount (DESIGN §9.2).
+
+    Args:
+        conn: Open SQLite connection.
+        row_id: PK of the outbox row to update.
+    """
+    now = int(time.time())
+    conn.execute(
+        "UPDATE index_outbox SET status = 'deferred', processed_at = ? WHERE id = ?",
+        (now, row_id),
+    )
+    log.info("indexer.outbox.deferred", row_id=row_id, processed_at=now)
+
+
+# ---------------------------------------------------------------------------
+# Plan §5.1 — PendingOpRepo public API (module-level functions)
+# ---------------------------------------------------------------------------
+
+
+def insert_pending_op_row(conn: sqlite3.Connection, disk_id: int, op: str, payload_json: str) -> int:
+    """Insert a hinted-handoff row into ``pending_op`` and return its rowid.
+
+    Called by the drainer when the target disk is unreachable; the row is
+    replayed on the next scan that finds the disk mounted (DESIGN §9.2).
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: FK → ``disk.id`` of the target disk.
+        op: Operation type string (mirrors the originating outbox row's ``op``).
+        payload_json: Serialised JSON payload (same shape as the outbox row).
+
+    Returns:
+        The ``rowid`` (= ``id``) of the newly inserted row.
+    """
+    now = int(time.time())
+    cursor = conn.execute(
+        """
+        INSERT INTO pending_op (disk_id, op, payload_json, created_at, replayed_at)
+        VALUES (?, ?, ?, ?, NULL)
+        """,
+        (disk_id, op, payload_json, now),
+    )
+    rowid: int = cursor.lastrowid  # type: ignore[assignment]
+    log.info("indexer.pending_op.insert", disk_id=disk_id, op=op, rowid=rowid)
+    return rowid
+
+
+def fetch_for_disk(conn: sqlite3.Connection, disk_id: int) -> list[PendingOpRow]:
+    """Fetch all ``pending_op`` rows for a given disk, ordered by ``id ASC``.
+
+    Used by the scanner at remount time to replay deferred operations.
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: FK → ``disk.id`` of the target disk.
+
+    Returns:
+        List of :class:`PendingOpRow` instances for the disk, oldest first.
+    """
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT * FROM pending_op WHERE disk_id = ? ORDER BY id ASC",
+        (disk_id,),
+    ).fetchall()
+    return [_row_to_pending_op(r) for r in rows]
+
+
+def mark_replayed(conn: sqlite3.Connection, row_id: int) -> None:
+    """Mark a ``pending_op`` row as replayed by setting ``replayed_at=now``.
+
+    Args:
+        conn: Open SQLite connection.
+        row_id: PK of the ``pending_op`` row to update.
+    """
+    now = int(time.time())
+    conn.execute(
+        "UPDATE pending_op SET replayed_at = ? WHERE id = ?",
+        (now, row_id),
+    )
+    log.info("indexer.pending_op.replayed", row_id=row_id, replayed_at=now)
+
+
+def purge_expired(conn: sqlite3.Connection, ttl_days: int = 30) -> int:
+    """Delete ``pending_op`` rows older than *ttl_days* days and return the count.
+
+    Rows are considered expired when ``created_at < now - ttl_days * 86400``.
+    Each purged row is logged individually as ``indexer.pending_op.ttl_expired``
+    per DESIGN §6.6.
+
+    Args:
+        conn: Open SQLite connection.
+        ttl_days: Age threshold in days (default 30).
+
+    Returns:
+        Number of rows deleted.
+    """
+    cutoff = int(time.time()) - ttl_days * 86400
+    # Fetch IDs before deletion so we can log each one individually.
+    rows = conn.execute(
+        "SELECT id FROM pending_op WHERE created_at < ?",
+        (cutoff,),
+    ).fetchall()
+    if not rows:
+        return 0
+    ids = [r[0] for r in rows]
+    placeholders = ",".join("?" * len(ids))
+    conn.execute(f"DELETE FROM pending_op WHERE id IN ({placeholders})", ids)  # noqa: S608
+    for row_id in ids:
+        log.info("indexer.pending_op.ttl_expired", row_id=row_id, cutoff=cutoff)
+    return len(ids)
