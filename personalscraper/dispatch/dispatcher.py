@@ -25,6 +25,7 @@ from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
@@ -382,6 +383,24 @@ class Dispatcher:
                 )
             )
 
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        if result.action in ("replaced", "moved") and result.destination is not None:
+            resolved = disk_id_for_path(result.destination)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                publish_event(
+                    disk_id,
+                    op="move",
+                    payload={
+                        "src_rel_path": "",
+                        "dst_rel_path": rel_path,
+                        "filename": result.destination.name,
+                        "size_bytes": None,
+                        "mtime_ns": None,
+                    },
+                    source="dispatch",
+                )
+
         return result
 
     def dispatch_tvshow(self, show_dir: Path, category_id: str) -> DispatchResult:
@@ -464,6 +483,24 @@ class Dispatcher:
                     media_type="tvshow",
                 )
             )
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        if result.action in ("merged", "moved") and result.destination is not None:
+            resolved = disk_id_for_path(result.destination)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                publish_event(
+                    disk_id,
+                    op="move",
+                    payload={
+                        "src_rel_path": "",
+                        "dst_rel_path": rel_path,
+                        "filename": result.destination.name,
+                        "size_bytes": None,
+                        "mtime_ns": None,
+                    },
+                    source="dispatch",
+                )
 
         return result
 
