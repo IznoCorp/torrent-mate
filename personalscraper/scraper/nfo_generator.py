@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
 
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
+
 # Preview image sizes for inline thumbs
 POSTER_PREVIEW_SIZE = "w342"
 BACKDROP_PREVIEW_SIZE = "w780"
@@ -444,6 +446,27 @@ class NFOGenerator:
             path: Destination file path.
         """
         path.write_text(xml_content, encoding="utf-8")
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        resolved = disk_id_for_path(path)
+        if resolved is not None:
+            disk_id, rel_path = resolved
+            item_kind = (
+                "tvshow"
+                if path.parent.name.lower() in {"saison", "season"} or "episodes" in path.name.lower()
+                else "movie"
+            )
+            publish_event(
+                disk_id,
+                op="nfo_write",
+                payload={
+                    "rel_path": rel_path,
+                    "item_kind": item_kind,
+                    "tmdb_id": None,
+                    "imdb_id": None,
+                },
+                source="scraper",
+            )
 
     # --- Private helpers ---
 
