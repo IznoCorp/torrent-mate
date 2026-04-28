@@ -49,6 +49,7 @@ from personalscraper.indexer.scanner._modes import (
     _scan_disk_incremental,
     _scan_disk_quick,
 )
+from personalscraper.indexer.scanner._spotlight import SpotlightChangeDetector, probe_spotlight
 from personalscraper.indexer.scanner._types import (
     IndexerConfigError,
     IndexerScanActiveError,
@@ -209,6 +210,8 @@ def scan(
     quick_enrich: bool = False,
     max_workers: int = 4,
     read_rate_mb_per_sec: float | None = None,
+    staging_dir: str | None = None,
+    spotlight_enabled: bool = False,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -311,6 +314,16 @@ def scan(
             installed for the duration of this scan and consulted by every
             ``os.read`` site in fingerprint/mediainfo.  Sourced from
             ``IndexerScanConfig.read_rate_mb_per_sec``.
+        staging_dir: Optional absolute path to the staging directory.  When
+            provided, :func:`~personalscraper.indexer.scanner._spotlight.probe_spotlight`
+            is run against this path in addition to all disk mount points.
+            ``None`` skips the staging-dir probe.
+        spotlight_enabled: Whether Spotlight-based change detection is enabled
+            for this scan run (maps to ``IndexerSpotlightConfig.use_when_available``).
+            When ``False`` (the default), the Spotlight probe still runs to log
+            availability, but :class:`SpotlightChangeDetector` will not attach.
+            When ``True``, the detector attaches on APFS paths where Spotlight
+            reports "Indexing enabled"; macFUSE paths are silently refused.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -333,6 +346,24 @@ def scan(
     # Check that all recommended macFUSE mount flags are present before
     # touching any disk.  Non-fatal — missing flags only emit a warning.
     _check_mount_flags(disks)
+
+    # Spotlight probe (sub-phase 4.8): run mdutil -s on every disk mount and
+    # on the staging dir (when provided) to log availability and decide whether
+    # APFS paths may use Spotlight-based change detection.  The detector is
+    # instantiated once per scan run and shared across all per-disk steps.
+    # Storage disks (macFUSE/NTFS) always fall back to dir-mtime walk regardless
+    # of Spotlight availability.  Only an APFS staging dir may benefit.
+    _spotlight_detector = SpotlightChangeDetector()
+    _probe_paths: list[tuple[str, bool]] = []
+    for _disk in disks:
+        if _disk.mount_path is not None:
+            _probe_paths.append((_disk.mount_path, spotlight_enabled))
+    if staging_dir is not None:
+        _probe_paths.append((staging_dir, spotlight_enabled))
+    for _probe_path, _sp_enabled in _probe_paths:
+        # probe_spotlight logs indexer.spotlight.available / unavailable;
+        # try_attach additionally guards macFUSE paths and respects the flag.
+        _spotlight_detector.try_attach(_probe_path, _sp_enabled)
 
     # Insert scan_run row with status=running.
     scan_run_id = log_repo.insert_scan_run(
@@ -746,6 +777,7 @@ __all__ = [
     "IndexerScanActiveError",
     "ScanMode",
     "ScanRunResult",
+    "SpotlightChangeDetector",
     "_RECOMMENDED_MOUNT_FLAGS",
     "_build_disk_fingerprints",
     "_check_mount_flags",
@@ -756,6 +788,7 @@ __all__ = [
     "filter_disks",
     "guard_disk_mounted",
     "os",
+    "probe_spotlight",
     "scan",
     "tempfile",
 ]
