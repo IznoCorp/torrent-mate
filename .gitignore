@@ -140,3 +140,6 @@ com.personalscraper.pipeline.plist
 
 # Parity fixture filesystem (built by build_v07_fs.py — gitignored, re-run to regenerate)
 tests/fixtures/parity/v0.7-fs/
+
+# Perf-test fixture filesystem (built by build_fixture.py — gitignored, re-run to regenerate)
+tests/e2e/perf/.fixture/
