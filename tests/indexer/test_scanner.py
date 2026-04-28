@@ -62,6 +62,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.indexer._throttle import (
+    TokenBucket,
+    get_active_bucket,
+    set_active_bucket,
+)
+from personalscraper.indexer._throttle import (
+    acquire as _throttle_acquire,
+)
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merkle import DiskUnmountedError, compute_merkle_root
 from personalscraper.indexer.repos import disk_repo, log_repo
@@ -1989,3 +1997,108 @@ class TestCheckMountFlagsMalformedOutput:
 
         warning_records = [r for r in caplog.records if "mount_flags_missing" in r.getMessage()]
         assert warning_records == []
+
+
+# ===========================================================================
+# Sub-phase 4.6 — Read-rate token bucket
+# ===========================================================================
+
+
+class _FakeClock46:
+    """Deterministic monotonic clock for token-bucket tests.
+
+    ``now()`` returns the current fake time; ``sleep(seconds)`` advances
+    the clock by ``seconds`` without actually blocking.  Both methods
+    match the ``Callable[[], float]`` and ``Callable[[float], None]``
+    signatures the bucket expects.
+    """
+
+    def __init__(self, t: float = 0.0) -> None:
+        self.t: float = t
+
+    def now(self) -> float:
+        return self.t
+
+    def sleep(self, seconds: float) -> None:
+        self.t += seconds
+
+
+class TestTokenBucket:
+    """Direct unit tests for ``TokenBucket`` — DESIGN §11.6 / sub-phase 4.6."""
+
+    def test_passthrough_when_rate_none(self) -> None:
+        """When ``rate_mb_per_sec`` is None, ``acquire`` returns immediately."""
+        bucket = TokenBucket(rate_mb_per_sec=None)
+        start = time.monotonic()
+        bucket.acquire(2_000_000)
+        elapsed = time.monotonic() - start
+        # Real clock: 2 MB through a passthrough must take a tiny fraction of a
+        # second.  50 ms is generous and immune to CI scheduling jitter.
+        assert elapsed < 0.05
+
+    def test_throttles_at_rate(self) -> None:
+        """A 2 MB acquire at 1 MB/s spends ~1.0 s of fake-clock time.
+
+        First MB drains the initial 1-second capacity (no sleep).
+        Second MB requires a 1.0 s sleep (advancing the fake clock).
+        """
+        clk = _FakeClock46(t=0.0)
+        bucket = TokenBucket(rate_mb_per_sec=1.0, clock=clk.now, sleep=clk.sleep)
+
+        # First 1 MB: bucket is full (capacity = 1 MB); acquire is instant.
+        bucket.acquire(1_000_000)
+        assert clk.t == pytest.approx(0.0, abs=1e-6)
+
+        # Second 1 MB: bucket is empty; must wait exactly 1.0 s for refill.
+        bucket.acquire(1_000_000)
+        assert clk.t == pytest.approx(1.0, abs=1e-6)
+
+    def test_zero_bytes_is_noop_even_when_throttled(self) -> None:
+        """``acquire(0)`` returns immediately regardless of bucket state."""
+        clk = _FakeClock46(t=0.0)
+        bucket = TokenBucket(rate_mb_per_sec=1.0, clock=clk.now, sleep=clk.sleep)
+        bucket.acquire(0)
+        assert clk.t == pytest.approx(0.0, abs=1e-6)
+
+    def test_negative_n_bytes_raises(self) -> None:
+        """``acquire(n)`` rejects negative byte counts."""
+        bucket = TokenBucket(rate_mb_per_sec=None)
+        with pytest.raises(ValueError):
+            bucket.acquire(-1)
+
+    def test_non_positive_rate_raises(self) -> None:
+        """A non-positive rate is invalid (use None for unlimited instead)."""
+        with pytest.raises(ValueError):
+            TokenBucket(rate_mb_per_sec=0.0)
+        with pytest.raises(ValueError):
+            TokenBucket(rate_mb_per_sec=-1.0)
+
+
+class TestThrottleModuleHooks:
+    """Tests for the process-global active-bucket plumbing."""
+
+    def teardown_method(self, _method: object) -> None:  # noqa: D401 — pytest hook
+        """Reset the active bucket between tests for isolation."""
+        set_active_bucket(None)
+
+    def test_acquire_is_noop_when_no_bucket_installed(self) -> None:
+        """Without an active bucket, ``acquire`` is a zero-cost no-op."""
+        set_active_bucket(None)
+        assert get_active_bucket() is None
+        start = time.monotonic()
+        _throttle_acquire(10_000_000)  # 10 MB — would block at any sane rate
+        elapsed = time.monotonic() - start
+        assert elapsed < 0.05
+
+    def test_acquire_delegates_to_active_bucket(self) -> None:
+        """When a bucket is installed, ``acquire`` advances its fake clock."""
+        clk = _FakeClock46(t=0.0)
+        bucket = TokenBucket(rate_mb_per_sec=1.0, clock=clk.now, sleep=clk.sleep)
+        set_active_bucket(bucket)
+        try:
+            # Drain initial capacity (1 MB) then trigger a 0.5 s wait.
+            _throttle_acquire(1_000_000)
+            _throttle_acquire(500_000)
+            assert clk.t == pytest.approx(0.5, abs=1e-6)
+        finally:
+            set_active_bucket(None)

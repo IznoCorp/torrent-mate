@@ -23,6 +23,7 @@ from pathlib import Path
 import xxhash
 
 from personalscraper.indexer._macos_io import sequential_hint
+from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -151,6 +152,9 @@ def oshash(path: Path) -> str:
     fd: int = os.open(path, os.O_RDONLY)
     try:
         sequential_hint(fd, offset=0, length=0)
+        # Throttle: acquire tokens before each read chunk.  In passthrough
+        # mode (no active bucket / unlimited rate) these calls are no-ops.
+        _acquire_read_tokens(_OSHASH_CHUNK)
         head_raw: bytes = os.read(fd, _OSHASH_CHUNK)
         # Pad with zero bytes if file is shorter than one chunk.
         if len(head_raw) < _OSHASH_CHUNK:
@@ -159,6 +163,7 @@ def oshash(path: Path) -> str:
         # --- read tail chunk ---
         tail_offset: int = max(0, filesize - _OSHASH_CHUNK)
         os.lseek(fd, tail_offset, os.SEEK_SET)
+        _acquire_read_tokens(_OSHASH_CHUNK)
         tail_raw: bytes = os.read(fd, _OSHASH_CHUNK)
         if len(tail_raw) < _OSHASH_CHUNK:
             tail_raw = tail_raw + b"\x00" * (_OSHASH_CHUNK - len(tail_raw))
@@ -209,14 +214,17 @@ def xxh3_partial(path: Path, partial_bytes: int = 1_048_576) -> str:
         sequential_hint(fd, offset=0, length=0)
         if filesize <= 2 * partial_bytes:
             # File fits entirely — hash the whole thing in one pass.
+            _acquire_read_tokens(filesize)
             data: bytes = os.read(fd, filesize)
             hasher.update(data)
         else:
             # Hash first N bytes.
+            _acquire_read_tokens(partial_bytes)
             head: bytes = os.read(fd, partial_bytes)
             hasher.update(head)
             # Hash last N bytes.
             os.lseek(fd, filesize - partial_bytes, os.SEEK_SET)
+            _acquire_read_tokens(partial_bytes)
             tail: bytes = os.read(fd, partial_bytes)
             hasher.update(tail)
     finally:

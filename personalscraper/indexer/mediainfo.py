@@ -38,6 +38,7 @@ import os
 from pathlib import Path
 
 from personalscraper.indexer._macos_io import sequential_hint
+from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 from personalscraper.indexer.schema import MediaStreamRow
 
 # ---------------------------------------------------------------------------
@@ -141,7 +142,8 @@ class MediaInfoWrapper:
             below the size threshold or contains no mappable tracks.
         """
         # Size gate: avoid parsing small sidecar files.
-        if path.stat().st_size < self._min_size_bytes:
+        file_size = path.stat().st_size
+        if file_size < self._min_size_bytes:
             return []
 
         # Advise the OS to read the file sequentially before pymediainfo opens
@@ -155,6 +157,13 @@ class MediaInfoWrapper:
             sequential_hint(_fd, offset=0, length=0)
         finally:
             os.close(_fd)
+
+        # Throttle: pymediainfo reads container headers and a tail of stream
+        # data — empirically a few MiB even for very large files.  We bound
+        # the throttle cost at the file size since we cannot observe the
+        # exact byte count read by libmediainfo.  In passthrough mode this
+        # is a no-op.
+        _acquire_read_tokens(file_size)
 
         mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
 

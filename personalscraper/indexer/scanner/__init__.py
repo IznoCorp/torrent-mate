@@ -27,6 +27,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from personalscraper.indexer._throttle import TokenBucket, set_active_bucket
 from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_breaker
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
@@ -207,6 +208,7 @@ def scan(
     merkle_delta_freeze_threshold: float = 0.50,
     quick_enrich: bool = False,
     max_workers: int = 4,
+    read_rate_mb_per_sec: float | None = None,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -302,6 +304,13 @@ def scan(
             is active (DESIGN §11.8).  Ignored (sequential fallback) when
             ``db_path`` is ``None`` because an in-memory connection cannot be
             shared across threads.  Default ``4``.
+        read_rate_mb_per_sec: Optional read-rate ceiling in MB/s shared
+            across all worker threads (DESIGN §11.6).  ``None`` (the default)
+            disables throttling — fingerprint and mediainfo reads run at
+            full disk speed.  When set, a process-global token bucket is
+            installed for the duration of this scan and consulted by every
+            ``os.read`` site in fingerprint/mediainfo.  Sourced from
+            ``IndexerScanConfig.read_rate_mb_per_sec``.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -313,6 +322,13 @@ def scan(
             the ``scan_run`` row is updated to ``status='failed'``.
     """
     started_at = int(time.time())
+
+    # Install the read-rate token bucket for the duration of this scan run.
+    # All worker threads (sequential or parallel) consult the process-global
+    # active bucket via personalscraper.indexer._throttle.acquire(), so the
+    # bucket only needs to be installed once at scan start and cleared at
+    # scan end.  ``None`` rate yields a passthrough bucket (no throttling).
+    set_active_bucket(TokenBucket(read_rate_mb_per_sec))
 
     # Check that all recommended macFUSE mount flags are present before
     # touching any disk.  Non-fatal — missing flags only emit a warning.
@@ -717,6 +733,11 @@ def scan(
             disks_skipped=disks_skipped[0],
             error=str(exc),
         )
+    finally:
+        # Always clear the active bucket so a subsequent scan does not
+        # inherit this run's throttle state.  Tests rely on the absence of
+        # a stale bucket between cases.
+        set_active_bucket(None)
 
 
 __all__ = [

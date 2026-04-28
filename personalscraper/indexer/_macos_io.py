@@ -94,29 +94,38 @@ def sequential_hint(fd: int, offset: int = 0, length: int = 0) -> None:
             ``mmap`` requires the exact size, which adds a ``stat`` call
             that would cost more than the hint saves for small files).
 
-    Raises:
-        OSError: On Darwin only, if the ``mmap`` or ``madvise`` syscall
-            fails (e.g. the fd is closed, not a regular file, or the file
-            is empty).  The hint is purely advisory so callers should
-            catch and log ``OSError`` rather than propagating it as a
-            fatal error.
+    Returns:
+        ``None``.  The function is purely advisory and intentionally swallows
+        any ``OSError`` raised by ``fstat``, ``mmap``, or ``madvise`` — the
+        hint must never break the surrounding read.  Conditions that trigger
+        a silent fall-through include: the fd is closed or invalid, the
+        underlying file is not memory-mappable (sockets, pipes, fake fds
+        used by ``pyfakefs``), or the kernel rejects the advice.  Callers
+        therefore do not need to wrap this call in a ``try`` block.
     """
     if not _IS_DARWIN:
         # Non-Darwin: nothing to do.  posix_fadvise is not available on macOS,
         # and there is no portable equivalent that justifies a syscall here.
         return
 
-    # Determine file size without an extra stat call when possible.
-    file_size = os.fstat(fd).st_size
-    if file_size == 0:
-        # mmap(2) rejects zero-length mappings; nothing to hint.
-        return
-
-    # Map the file read-only, advise MADV_SEQUENTIAL, then immediately unmap.
-    # The mapping itself is lightweight (no physical I/O); the advice tells the
-    # VM subsystem to read ahead aggressively on the next real page faults.
-    mm = mmap.mmap(fd, file_size, access=mmap.ACCESS_READ)
     try:
-        mm.madvise(mmap.MADV_SEQUENTIAL)
-    finally:
-        mm.close()
+        # Determine file size; some fake fds (e.g. pyfakefs) raise here.
+        file_size = os.fstat(fd).st_size
+        if file_size == 0:
+            # mmap(2) rejects zero-length mappings; nothing to hint.
+            return
+
+        # Map the file read-only, advise MADV_SEQUENTIAL, then immediately unmap.
+        # The mapping itself is lightweight (no physical I/O); the advice tells the
+        # VM subsystem to read ahead aggressively on the next real page faults.
+        mm = mmap.mmap(fd, file_size, access=mmap.ACCESS_READ)
+        try:
+            mm.madvise(mmap.MADV_SEQUENTIAL)
+        finally:
+            mm.close()
+    except (OSError, ValueError):
+        # The hint is purely advisory — never propagate failures to the
+        # caller's read path.  ``ValueError`` covers the edge case where
+        # ``mmap`` rejects a non-regular file with a value (rather than OS)
+        # error, observed on some pyfakefs versions.
+        return
