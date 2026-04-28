@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.library import scanner as library_scanner
 from personalscraper.logger import get_logger
 from personalscraper.scraper.ytdlp_downloader import (
@@ -445,6 +446,22 @@ class TrailersOrchestrator:
                     output_path=str(result.output_path),
                 )
                 counts["downloaded"] += 1
+
+                # Best-effort outbox publish for the indexer (DESIGN §9.1).
+                if result.output_path is not None:
+                    resolved = disk_id_for_path(result.output_path)
+                    if resolved is not None:
+                        disk_id, rel_path = resolved
+                        publish_event(
+                            disk_id,
+                            op="trailer_download",
+                            payload={
+                                "rel_path": rel_path,
+                                "trailer_path": str(result.output_path),
+                            },
+                            source="trailers",
+                        )
+
                 state_written = _set_state_for_item(
                     self._state_store,
                     key,
