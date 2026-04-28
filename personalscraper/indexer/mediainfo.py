@@ -19,9 +19,10 @@ Key design decisions
 - **General track filtering** — pymediainfo always emits one ``General``
   track that carries container-level metadata, not a discrete A/V/subtitle
   stream.  It is intentionally excluded from the returned list.
-- **``_sequential_hint``** — a no-op stub reserved for Phase 4
-  (``_macos_io.py``), which will advise the OS to read the file sequentially
-  before a full mediainfo parse to avoid seek amplification on spinning disks.
+- **Sequential hint** — before calling ``MediaInfo.parse``, the module opens
+  the file briefly and calls :func:`~personalscraper.indexer._macos_io.sequential_hint`
+  to advise the OS to read the file sequentially, reducing seek amplification
+  on spinning and macFUSE-mounted disks (Phase 4, DESIGN §11.6).
 
 Usage example::
 
@@ -33,8 +34,10 @@ Usage example::
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
+from personalscraper.indexer._macos_io import sequential_hint
 from personalscraper.indexer.schema import MediaStreamRow
 
 # ---------------------------------------------------------------------------
@@ -76,24 +79,6 @@ class MediaInfoUnavailableError(RuntimeError):
     def __init__(self, message: str) -> None:
         """Initialise with a descriptive message."""
         super().__init__(message)
-
-
-# ---------------------------------------------------------------------------
-# Private I/O hint stub (Phase 4 placeholder)
-# ---------------------------------------------------------------------------
-
-
-def _sequential_hint(path: Path) -> None:  # noqa: ARG001
-    """Advise the OS to read *path* sequentially (no-op stub).
-
-    This function will be implemented in Phase 4 (``_macos_io.py``) using
-    ``fcntl.F_RDADVISE`` / ``posix_fadvise`` to pre-fetch bytes before the
-    full mediainfo parse, reducing seek amplification on spinning disks.
-
-    Args:
-        path: The media file that is about to be parsed.
-    """
-    # Phase 4 implementation goes here.
 
 
 # ---------------------------------------------------------------------------
@@ -159,8 +144,17 @@ class MediaInfoWrapper:
         if path.stat().st_size < self._min_size_bytes:
             return []
 
-        # Advise the OS about the upcoming sequential read (Phase 4 stub).
-        _sequential_hint(path)
+        # Advise the OS to read the file sequentially before pymediainfo opens
+        # it internally.  pymediainfo manages its own file descriptor (via
+        # libmediainfo), so we cannot pass it an fd directly.  Instead we open
+        # the file at the Python level solely to issue the F_RDADVISE hint,
+        # then close it immediately.  The hint primes the unified buffer cache;
+        # libmediainfo's subsequent open benefits from the pre-fetched pages.
+        _fd = os.open(path, os.O_RDONLY)
+        try:
+            sequential_hint(_fd, offset=0, length=0)
+        finally:
+            os.close(_fd)
 
         mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
 

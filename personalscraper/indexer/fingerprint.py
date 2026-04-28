@@ -22,6 +22,8 @@ from pathlib import Path
 
 import xxhash
 
+from personalscraper.indexer._macos_io import sequential_hint
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -144,8 +146,11 @@ def oshash(path: Path) -> str:
         return "0000000000000000"
 
     # --- read head chunk ---
+    # Advise the OS to read the file sequentially before we open it;
+    # reduces seek amplification on spinning disks and macFUSE mounts.
     fd: int = os.open(path, os.O_RDONLY)
     try:
+        sequential_hint(fd, offset=0, length=0)
         head_raw: bytes = os.read(fd, _OSHASH_CHUNK)
         # Pad with zero bytes if file is shorter than one chunk.
         if len(head_raw) < _OSHASH_CHUNK:
@@ -197,8 +202,11 @@ def xxh3_partial(path: Path, partial_bytes: int = 1_048_576) -> str:
     filesize: int = path.stat().st_size
     hasher = xxhash.xxh3_64()
 
+    # Advise the OS to read the file sequentially before we open it;
+    # reduces seek amplification on spinning disks and macFUSE mounts.
     fd: int = os.open(path, os.O_RDONLY)
     try:
+        sequential_hint(fd, offset=0, length=0)
         if filesize <= 2 * partial_bytes:
             # File fits entirely — hash the whole thing in one pass.
             data: bytes = os.read(fd, filesize)

@@ -6,15 +6,19 @@ Covers:
 - ``xxh3_partial`` — determinism and small-file handling.
 - ``OSHASH_EXTENSIONS`` — allowlist completeness check.
 - ``is_racy`` — racy-mtime boundary conditions per DESIGN §7.3.
+- ``sequential_hint`` — no-op on non-Darwin; does not raise on Darwin.
 """
 
 from __future__ import annotations
 
 import os
+import platform
 import struct
 import tempfile
 from pathlib import Path
+from unittest import mock
 
+from personalscraper.indexer._macos_io import sequential_hint
 from personalscraper.indexer.fingerprint import (
     OSHASH_EXTENSIONS,
     fingerprint_tier1,
@@ -243,3 +247,68 @@ class TestIsRacy:
         assert is_racy(self._SCAN_START, self._SCAN_START, 0) is True
         # One ns before scan_start with window=0 → outside window → not racy
         assert is_racy(self._SCAN_START - 1, self._SCAN_START, 0) is False
+
+
+# ---------------------------------------------------------------------------
+# sequential_hint
+# ---------------------------------------------------------------------------
+
+
+class TestSequentialHint:
+    """Tests for ``personalscraper.indexer._macos_io.sequential_hint``.
+
+    Two complementary scenarios are covered:
+
+    * **Non-Darwin** — the function must be a genuine no-op: no system calls,
+      no imports, no exceptions.  Verified by patching
+      ``_macos_io._IS_DARWIN`` to ``False`` so the test is deterministic on
+      any CI platform (including macOS).
+
+    * **Darwin (real call)** — when the test runner is on macOS the function
+      must not raise when given a valid fd for a real temporary file.  Skipped
+      on non-Darwin so Linux/Windows CI is unaffected.
+    """
+
+    def test_sequential_hint_noop_on_non_darwin(self, tmp_path: Path) -> None:
+        """``sequential_hint`` must be a no-op and not raise on non-Darwin.
+
+        We patch ``_macos_io._IS_DARWIN`` to ``False`` to simulate a Linux or
+        Windows host regardless of where this test actually runs.  The fd is a
+        valid open file descriptor; a no-op implementation must simply return
+        without touching it.
+        """
+        f = tmp_path / "hint_test.bin"
+        f.write_bytes(b"\x00" * 1024)
+
+        fd = os.open(f, os.O_RDONLY)
+        try:
+            import personalscraper.indexer._macos_io as _macos_io_mod
+
+            # Force non-Darwin code path regardless of the real platform.
+            with mock.patch.object(_macos_io_mod, "_IS_DARWIN", False):
+                # Must not raise — on a non-Darwin host the call is a no-op.
+                sequential_hint(fd, offset=0, length=0)
+        finally:
+            os.close(fd)
+
+    def test_sequential_hint_darwin_does_not_raise(self, tmp_path: Path) -> None:
+        """On Darwin, ``sequential_hint`` must not raise for a valid open fd.
+
+        Skipped on non-Darwin so Linux/Windows CI never attempts the syscall.
+        The test opens a real temporary file and verifies that the ``fcntl``
+        call completes without error.
+        """
+        if platform.system() != "Darwin":
+            import pytest
+
+            pytest.skip("F_RDADVISE is a macOS-only syscall — skipping on non-Darwin")
+
+        f = tmp_path / "hint_darwin.bin"
+        f.write_bytes(b"\xab" * 4096)
+
+        fd = os.open(f, os.O_RDONLY)
+        try:
+            # Real F_RDADVISE call — must complete without OSError on macOS.
+            sequential_hint(fd, offset=0, length=0)
+        finally:
+            os.close(fd)
