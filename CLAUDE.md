@@ -124,7 +124,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: trailer
-**Branch**: feat/trailer
-**Design**: docs/features/trailer/DESIGN.md
-**Plan**: docs/features/trailer/plan/
+**Feature**: media-indexer
+**Branch**: feat/media-indexer
+**Design**: docs/features/media-indexer/DESIGN.md
+**Plan**: docs/features/media-indexer/plan/
