@@ -25,6 +25,7 @@ from tenacity import (
     wait_fixed,
 )
 
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
@@ -160,6 +161,31 @@ class ArtworkDownloader:
 
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(response.content)
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        resolved = disk_id_for_path(dest)
+        if resolved is not None:
+            disk_id, rel_path = resolved
+            stem = dest.stem.lower()
+            kind = (
+                "poster"
+                if "poster" in stem
+                else "landscape"
+                if "landscape" in stem or "fanart" in stem or "backdrop" in stem
+                else "thumb"
+                if "thumb" in stem
+                else "unknown"
+            )
+            publish_event(
+                disk_id,
+                op="artwork_write",
+                payload={
+                    "rel_path": rel_path,
+                    "kind": kind,
+                },
+                source="scraper",
+            )
+
         log.info("artwork_downloaded", filename=dest.name, bytes=len(response.content))
         return True
 
