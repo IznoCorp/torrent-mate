@@ -19,7 +19,7 @@
 | 2   | Indexer Core: Scanner (full + quick)     | [phase-02-scanner-full-quick.md](docs/features/media-indexer/plan/phase-02-scanner-full-quick.md)             | [x]    |
 | 3   | Indexer Core: Drift + Reconciliation     | [phase-03-drift-reconciliation.md](docs/features/media-indexer/plan/phase-03-drift-reconciliation.md)         | [x]    |
 | 4   | Performance + Incremental + Enrich modes | [phase-04-perf-incremental-enrich.md](docs/features/media-indexer/plan/phase-04-perf-incremental-enrich.md)   | [x]    |
-| 5   | Outbox + Write-through                   | [phase-05-outbox-writethrough.md](docs/features/media-indexer/plan/phase-05-outbox-writethrough.md)           | [ ]    |
+| 5   | Outbox + Write-through                   | [phase-05-outbox-writethrough.md](docs/features/media-indexer/plan/phase-05-outbox-writethrough.md)           | [x]    |
 | 6   | Consumer migration: dispatch             | [phase-06-migrate-dispatch.md](docs/features/media-indexer/plan/phase-06-migrate-dispatch.md)                 | [ ]    |
 | 7   | Consumer migration: library + trailers   | [phase-07-migrate-library-trailers.md](docs/features/media-indexer/plan/phase-07-migrate-library-trailers.md) | [ ]    |
 | 8   | CLI + cron + query language              | [phase-08-cli-cron-query.md](docs/features/media-indexer/plan/phase-08-cli-cron-query.md)                     | [ ]    |
@@ -30,4 +30,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 5 (Outbox + Write-through).
+Run `/implement:phase` to start Phase 6 (Consumer migration: dispatch).
