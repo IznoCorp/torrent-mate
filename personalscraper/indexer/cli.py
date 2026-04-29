@@ -16,8 +16,9 @@ Commands:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+
+import typer
 
 from personalscraper.logger import get_logger
 
@@ -82,7 +83,7 @@ def library_status_command(config_path: Path | None = None) -> int:
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     db_path: Path = cfg.indexer.db_path
@@ -100,19 +101,19 @@ def library_status_command(config_path: Path | None = None) -> int:
         IndexerInvalidPathError,
         IndexerMigrationError,
     ) as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
     # --- Disk inventory ---
     disk_rows = conn.execute(
         "SELECT id, label, is_mounted, last_seen_at, merkle_root FROM disk ORDER BY label"
     ).fetchall()
-    print(f"{'DISK':<20} {'MOUNTED':<10} {'LAST_SEEN':<20} {'MERKLE_ROOT'}")
+    typer.echo(f"{'DISK':<20} {'MOUNTED':<10} {'LAST_SEEN':<20} {'MERKLE_ROOT'}")
     for d_id, label, is_mounted, last_seen_at, merkle_root in disk_rows:
         mounted_str = "yes" if is_mounted else "no"
         last_seen_str = str(last_seen_at) if last_seen_at is not None else "never"
         root_str = (merkle_root or "")[:12] if merkle_root else ""
-        print(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
+        typer.echo(f"  {label:<18} {mounted_str:<10} {last_seen_str:<20} {root_str}")
 
     # --- Query latest successful scan ---
     row = conn.execute(
@@ -121,11 +122,11 @@ def library_status_command(config_path: Path | None = None) -> int:
     ).fetchone()
 
     if row is None:
-        print("no scans yet")
+        typer.echo("no scans yet")
     else:
         run_id, finished_at, status, generation, disk_filter = row
         disk_scope = f" (disk={disk_filter})" if disk_filter else ""
-        print(
+        typer.echo(
             f"latest scan: id={run_id}, finished_at={finished_at}, status={status}, generation={generation}{disk_scope}"
         )
 
@@ -133,24 +134,24 @@ def library_status_command(config_path: Path | None = None) -> int:
     from personalscraper.indexer import repair  # noqa: PLC0415
 
     oldest_pending_age_seconds, pending_depth = repair.get_queue_health(conn)
-    print(
+    typer.echo(
         f"repair queue: depth={pending_depth}, "
         f"oldest={'never' if oldest_pending_age_seconds is None else oldest_pending_age_seconds // 3600}h"
     )
 
     # --- Outbox pending depth ---
     outbox_depth = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0]
-    print(f"outbox pending: {outbox_depth}")
+    typer.echo(f"outbox pending: {outbox_depth}")
 
     # --- Deleted items count ---
     deleted_count = conn.execute("SELECT COUNT(*) FROM deleted_item").fetchone()[0]
-    print(f"deleted items: {deleted_count}")
+    typer.echo(f"deleted items: {deleted_count}")
 
     # --- Enrich-pending count ---
     enrich_pending = conn.execute(
         "SELECT COUNT(*) FROM media_file WHERE enriched_at IS NULL AND deleted_at IS NULL"
     ).fetchone()[0]
-    print(f"enrich pending: {enrich_pending}")
+    typer.echo(f"enrich pending: {enrich_pending}")
 
     # --- Category-orphan count (DESIGN §17.2) ---
     known_ids: frozenset[str] = cfg.all_category_ids
@@ -161,23 +162,23 @@ def library_status_command(config_path: Path | None = None) -> int:
             f"SELECT COUNT(*) FROM media_item WHERE category_id NOT IN ({placeholders})",
             list(known_ids),
         ).fetchone()[0]
-    print(f"category orphans: {orphan_count}")
+    typer.echo(f"category orphans: {orphan_count}")
 
     # --- Health warnings ---
     unhealthy = False
     if oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400 or pending_depth > 1000:
-        print(
+        typer.echo(
             f"WARNING: repair queue: depth={pending_depth},"
             f" oldest pending {(oldest_pending_age_seconds or 0) // 86400} days",
-            file=sys.stderr,
+            err=True,
         )
         unhealthy = True
 
     if orphan_count > 0:
-        print(
+        typer.echo(
             f"WARNING: {orphan_count} media_item row(s) with unknown category_id. "
             "Run 'config migrate-category' to fix.",
-            file=sys.stderr,
+            err=True,
         )
         unhealthy = True
 
@@ -273,7 +274,7 @@ def library_index_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     db_path: Path = cfg.indexer.db_path
@@ -284,7 +285,7 @@ def library_index_command(
         scan_mode = ScanMode(mode)
     except ValueError:
         valid_modes = ", ".join(m.value for m in ScanMode)
-        print(f"Invalid mode '{mode}'. Valid: {valid_modes}", file=sys.stderr)
+        typer.echo(f"Invalid mode '{mode}'. Valid: {valid_modes}", err=True)
         return 1
 
     # --- Acquire writer lock ---
@@ -304,7 +305,7 @@ def library_index_command(
                 IndexerInvalidPathError,
                 IndexerMigrationError,
             ) as exc:
-                print(str(exc), file=sys.stderr)
+                typer.echo(str(exc), err=True)
                 return 1
 
             # --- Resolve disk list from the ``disk`` table ---
@@ -331,7 +332,7 @@ def library_index_command(
             try:
                 filtered_disks = filter_disks(disks, disk)
             except IndexerConfigError as exc:
-                print(str(exc), file=sys.stderr)
+                typer.echo(str(exc), err=True)
                 return 2
 
             # --- Allocate next scan generation ---
@@ -354,11 +355,11 @@ def library_index_command(
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
                 )
             except DiskBulkChangeDetected as bulk_exc:
-                print(
+                typer.echo(
                     f"disk {bulk_exc.disk_uuid!r} looks like a bulk restore "
                     f"({bulk_exc.delta:.0%} files changed). "
                     f"Re-run with --confirm-bulk-change to proceed.",
-                    file=sys.stderr,
+                    err=True,
                 )
                 if dry_run:
                     try:
@@ -367,7 +368,7 @@ def library_index_command(
                         pass
                 return 3
             except (IndexerCorruptError, IndexerDiskFullError) as exc:
-                print(str(exc), file=sys.stderr)
+                typer.echo(str(exc), err=True)
                 if dry_run:
                     conn.execute("ROLLBACK TO SAVEPOINT _dry_run")
                 return 1
@@ -395,11 +396,11 @@ def library_index_command(
                 "dry_run": dry_run,
                 "rebuild": rebuild,
             }
-            print(json.dumps(summary))
+            typer.echo(json.dumps(summary))
             return 0
 
     except IndexerLockError as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
 
@@ -460,7 +461,7 @@ def library_verify_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     db_path: Path = cfg.indexer.db_path
@@ -479,7 +480,7 @@ def library_verify_command(
                 IndexerInvalidPathError,
                 IndexerMigrationError,
             ) as exc:
-                print(str(exc), file=sys.stderr)
+                typer.echo(str(exc), err=True)
                 return 1
 
             conn.row_factory = sqlite3.Row
@@ -504,7 +505,7 @@ def library_verify_command(
             try:
                 filtered_disks = filter_disks(disks, disk)
             except IndexerConfigError as exc:
-                print(str(exc), file=sys.stderr)
+                typer.echo(str(exc), err=True)
                 return 2
 
             gen_row = conn.execute("SELECT MAX(scan_generation) FROM media_file").fetchone()
@@ -528,11 +529,11 @@ def library_verify_command(
                 "scan_run_id": result.scan_run_id,
                 "status": result.status,
             }
-            print(json.dumps(summary))
+            typer.echo(json.dumps(summary))
             return 0
 
     except IndexerLockError as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
 
@@ -587,7 +588,7 @@ def library_search_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     db_path: Path = cfg.indexer.db_path
@@ -604,25 +605,25 @@ def library_search_command(
         IndexerInvalidPathError,
         IndexerMigrationError,
     ) as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
     try:
         items = execute(conn, query_str, limit=limit)
     except QueryError as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 2
 
     if not items:
-        print("(no results)")
+        typer.echo("(no results)")
         return 0
 
     # Print header + rows
-    print(f"{'ID':<8} {'TITLE':<40} {'YEAR':<6} {'NFO':<10} {'TRAILER'}")
+    typer.echo(f"{'ID':<8} {'TITLE':<40} {'YEAR':<6} {'NFO':<10} {'TRAILER'}")
     for item in items:
         year_str = str(item.year) if item.year is not None else ""
         nfo_str = item.nfo_status or ""
-        print(f"  {item.id:<6} {(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
+        typer.echo(f"  {item.id:<6} {(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
 
     return 0
 
@@ -676,7 +677,7 @@ def library_repair_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     db_path: Path = cfg.indexer.db_path
@@ -693,7 +694,7 @@ def library_repair_command(
         IndexerInvalidPathError,
         IndexerMigrationError,
     ) as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
     stats = drain(conn, budget_seconds=budget_seconds)
@@ -704,7 +705,7 @@ def library_repair_command(
         "budget_exhausted": stats.budget_exhausted,
         "pending_depth": stats.pending_depth,
     }
-    print(json.dumps(summary))
+    typer.echo(json.dumps(summary))
     return 0
 
 
@@ -760,7 +761,7 @@ def library_show_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     db_path: Path = cfg.indexer.db_path
@@ -777,7 +778,7 @@ def library_show_command(
         IndexerInvalidPathError,
         IndexerMigrationError,
     ) as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
     conn.row_factory = sqlite3.Row
@@ -785,26 +786,26 @@ def library_show_command(
     # --- Fetch media_item ---
     item_row = conn.execute("SELECT * FROM media_item WHERE id = ?", (item_id,)).fetchone()
     if item_row is None:
-        print(f"no item with id {item_id}", file=sys.stderr)
+        typer.echo(f"no item with id {item_id}", err=True)
         return 2
 
     # --- Print media_item fields ---
-    print(f"=== media_item id={item_id} ===")
+    typer.echo(f"=== media_item id={item_id} ===")
     for key in item_row.keys():
-        print(f"  {key}: {item_row[key]}")
+        typer.echo(f"  {key}: {item_row[key]}")
 
     # --- Seasons and episodes (shows) ---
     seasons = conn.execute("SELECT * FROM season WHERE item_id = ? ORDER BY number", (item_id,)).fetchall()
     if seasons:
-        print(f"\n=== seasons ({len(seasons)}) ===")
+        typer.echo(f"\n=== seasons ({len(seasons)}) ===")
         for s in seasons:
-            print(
+            typer.echo(
                 f"  season {s['number']}: episodes={s['episode_count']}, "
                 f"has_poster={s['has_poster']}, nfo_count={s['episodes_with_nfo']}"
             )
             eps = conn.execute("SELECT * FROM episode WHERE season_id = ? ORDER BY number", (s["id"],)).fetchall()
             for ep in eps:
-                print(f"    episode {ep['number']}: {ep['title']}")
+                typer.echo(f"    episode {ep['number']}: {ep['title']}")
 
     # --- media_file rows ---
     files = conn.execute(
@@ -825,9 +826,9 @@ def library_show_command(
         ).fetchall()
 
     if files:
-        print(f"\n=== media_files ({len(files)}) ===")
+        typer.echo(f"\n=== media_files ({len(files)}) ===")
         for f in files:
-            print(
+            typer.echo(
                 f"  file id={f['id']} {f['rel_path']}/{f['filename']} size={f['size_bytes']} mtime_ns={f['mtime_ns']}"
             )
             streams = conn.execute(
@@ -835,7 +836,7 @@ def library_show_command(
                 (f["id"],),
             ).fetchall()
             for st in streams:
-                print(f"    stream idx={st['idx']} kind={st['kind']} codec={st['codec']} lang={st['lang']}")
+                typer.echo(f"    stream idx={st['idx']} kind={st['kind']} codec={st['codec']} lang={st['lang']}")
 
     # --- item_attribute rows ---
     attrs = conn.execute(
@@ -843,9 +844,9 @@ def library_show_command(
         (item_id,),
     ).fetchall()
     if attrs:
-        print(f"\n=== item_attributes ({len(attrs)}) ===")
+        typer.echo(f"\n=== item_attributes ({len(attrs)}) ===")
         for a in attrs:
-            print(f"  {a['key']}: {a['value']}")
+            typer.echo(f"  {a['key']}: {a['value']}")
 
     # --- deleted_item history ---
     deleted = conn.execute(
@@ -853,9 +854,9 @@ def library_show_command(
         (item_id,),
     ).fetchall()
     if deleted:
-        print(f"\n=== deleted_item history ({len(deleted)}) ===")
+        typer.echo(f"\n=== deleted_item history ({len(deleted)}) ===")
         for d in deleted:
-            print(f"  kind={d['kind']} deleted_at={d['deleted_at']} reason={d['reason']}")
+            typer.echo(f"  kind={d['kind']} deleted_at={d['deleted_at']} reason={d['reason']}")
 
     return 0
 
@@ -923,16 +924,16 @@ def config_migrate_category_command(
     try:
         cfg = load_config(resolve_config_path(config_path))
     except (ConfigNotFoundError, ConfigValidationError) as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
+        typer.echo(f"Config error: {exc}", err=True)
         return 1
 
     # --- Validate to_category is a declared id ---
     known_ids: frozenset[str] = cfg.all_category_ids
     if to_category not in known_ids:
         known_sorted = ", ".join(sorted(known_ids))
-        print(
+        typer.echo(
             f"unknown category '{to_category}'; declared ids: {known_sorted}",
-            file=sys.stderr,
+            err=True,
         )
         return 2
 
@@ -950,7 +951,7 @@ def config_migrate_category_command(
         IndexerInvalidPathError,
         IndexerMigrationError,
     ) as exc:
-        print(str(exc), file=sys.stderr)
+        typer.echo(str(exc), err=True)
         return 1
 
     # --- Execute the migration in a transaction ---
@@ -964,12 +965,12 @@ def config_migrate_category_command(
         conn.execute("COMMIT")
     except Exception as exc:  # noqa: BLE001
         conn.execute("ROLLBACK")
-        print(f"migration failed: {exc}", file=sys.stderr)
+        typer.echo(f"migration failed: {exc}", err=True)
         return 1
 
     if updated == 0:
-        print(f"no rows matched category_id='{from_category}' (already migrated or no such rows)")
+        typer.echo(f"no rows matched category_id='{from_category}' (already migrated or no such rows)")
     else:
-        print(f"updated {updated} media_item row(s): '{from_category}' → '{to_category}'")
+        typer.echo(f"updated {updated} media_item row(s): '{from_category}' → '{to_category}'")
 
     return 0
