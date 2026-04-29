@@ -60,6 +60,9 @@ class StepReport:
             Populated by steps that track sub-categories beyond the three standard counters.
         failed_items: Optional list of (item_id, reason, detail) triples for per-item failure
             reporting. Used by non-blocking steps such as the trailers step.
+        renames: Rename map populated by reclean_folders — maps new_name → old_name.
+            Consumed by run_process to revert reclean-renamed folders whose scrape
+            subsequently yields ``skipped_low_confidence``.
     """
 
     name: str
@@ -71,6 +74,7 @@ class StepReport:
     status: str | None = None
     counts: dict[str, int] = field(default_factory=dict)
     failed_items: list[tuple[str, str, str]] = field(default_factory=list)
+    renames: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

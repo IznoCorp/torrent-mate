@@ -209,7 +209,10 @@ def reclean_folders(
 
     Returns:
         StepReport with success (re-cleaned), skip (already clean),
-        error (failed) counts.
+        error (failed) counts.  ``report.renames`` maps ``new_name →
+        old_name`` for every folder that was actually renamed (not merged).
+        This is consumed by ``run_process`` to revert renames whose
+        subsequent scrape yields ``skipped_low_confidence``.
     """
     from personalscraper.scraper.scraper import _merge_dirs
 
@@ -259,6 +262,8 @@ def reclean_folders(
             else:
                 old_name = folder.name
                 folder.rename(target)
+                # Record rename so run_process can revert when scrape fails to match.
+                report.renames[clean_name] = old_name
                 log.info("process_reclean_renamed", old_name=old_name, clean_name=clean_name)
                 report.details.append(f"{old_name} → {clean_name}")
                 if config is not None:

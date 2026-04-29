@@ -7,6 +7,8 @@ clean (reclean+dedup), scrape, cleanup.
 Each sub-step can be called independently for error isolation.
 """
 
+from pathlib import Path
+
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
@@ -15,6 +17,97 @@ from personalscraper.models import StepReport
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("process.run")
+
+
+def _revert_unmatched_recleans(
+    category_dirs: list[Path],
+    unmatched_names: set[str],
+    rename_map: dict[str, str],
+    dry_run: bool = False,
+) -> int:
+    """Revert reclean renames whose scrape produced no confident match.
+
+    When reclean renames a polluted folder (e.g.
+    ``Les.secrets.du.Prince.Andrew.2023.S01.…`` → ``Les secrets du Prince
+    Andrew S01 (2023)``) but the scraper subsequently fails to match the
+    resulting clean name, the folder is left in a half-processed state:
+    canonical outer name, raw torrent subdir still nested inside, no NFO
+    or artwork.  This function reverts such folders to their original
+    torrent name so a manual ``rescrape`` or future pipeline run can
+    re-attempt the match from the original filename.
+
+    Only folders that are both in ``rename_map`` (were renamed by reclean)
+    AND appear in ``unmatched_names`` (scraper returned ``skipped_low_confidence``)
+    are reverted.  Folders that were successfully scraped or skipped for other
+    reasons are left untouched.
+
+    Args:
+        category_dirs: List of category root paths (movies, tvshows staging
+            directories).  Used to resolve the absolute path of each renamed
+            folder.
+        unmatched_names: Set of folder names for which the scraper returned
+            ``skipped_low_confidence``.  Derived from the scrape StepReport
+            details by the caller.
+        rename_map: Mapping of ``new_name → old_name`` populated by
+            ``reclean_folders``.  Keys are the clean names that replaced the
+            original torrent folder names.
+        dry_run: If True, log intended reversions without performing them.
+
+    Returns:
+        Number of folders reverted (or that would be reverted in dry-run).
+    """
+    if not rename_map:
+        return 0
+
+    if not unmatched_names:
+        return 0
+
+    # Build a lookup from category dir path → path object for all category dirs.
+    reverted = 0
+    for category_dir in category_dirs:
+        if not category_dir.exists():
+            continue
+        for new_name, old_name in rename_map.items():
+            if new_name not in unmatched_names:
+                continue
+            current = category_dir / new_name
+            if not current.exists():
+                # Already renamed by scraper (e.g. folder was moved) — skip.
+                continue
+            original = category_dir / old_name
+            if dry_run:
+                log.warning(
+                    "process.clean.skipped_unmatched",
+                    folder=new_name,
+                    reverted_to=old_name,
+                    dry_run=True,
+                )
+                reverted += 1
+                continue
+            try:
+                if original.exists():
+                    # Edge case: original name reappeared (parallel run?) — skip.
+                    log.warning(
+                        "process.clean.revert_target_exists",
+                        folder=new_name,
+                        original=old_name,
+                    )
+                    continue
+                current.rename(original)
+                log.warning(
+                    "process.clean.skipped_unmatched",
+                    folder=new_name,
+                    reverted_to=old_name,
+                )
+                reverted += 1
+            except OSError as exc:
+                log.warning(
+                    "process.clean.revert_failed",
+                    folder=new_name,
+                    original=old_name,
+                    error=str(exc),
+                )
+    return reverted
 
 
 def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
@@ -52,6 +145,8 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> Step
             clean_report.error_count += reclean_report.error_count
             clean_report.details.extend(reclean_report.details)
             clean_report.warnings.extend(reclean_report.warnings)
+            # Accumulate rename maps so run_process can revert unmatched recleans.
+            clean_report.renames.update(reclean_report.renames)
 
         # Always run dedup (lightweight fuzzy comparison)
         dedup_merged, dedup_failed = dedup_folders(category_dir, dry_run=dry_run, fuzzy_config=config.fuzzy_match)
@@ -142,6 +237,23 @@ def run_process(
             name="scrape",
             error_count=1,
             details=[f"Fatal: {type(exc).__name__}: {exc}"],
+        )
+
+    # Revert reclean renames for folders the scraper could not match so that
+    # they keep their original torrent name and remain rescrape-eligible.
+    if clean_report.renames:
+        staging = config.paths.staging_dir
+        movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
+        tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
+        # Extract unmatched names from scrape report details ("« [unmatched] <name> »").
+        unmatched_names: set[str] = {
+            line[len("[unmatched] ") :].strip() for line in scrape_report.details if line.startswith("[unmatched] ")
+        }
+        _revert_unmatched_recleans(
+            category_dirs=[movies_dir, tvshows_dir],
+            unmatched_names=unmatched_names,
+            rename_map=clean_report.renames,
+            dry_run=dry_run,
         )
 
     try:
