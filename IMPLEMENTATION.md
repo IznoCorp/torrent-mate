@@ -24,7 +24,7 @@
 | 7   | Consumer migration: library + trailers   | [phase-07-migrate-library-trailers.md](docs/features/media-indexer/plan/phase-07-migrate-library-trailers.md) | [x]    |
 | 8   | CLI + cron + query language              | [phase-08-cli-cron-query.md](docs/features/media-indexer/plan/phase-08-cli-cron-query.md)                     | [x]    |
 | 9   | PR fixes cycle 1                         | [phase-09-pr-fixes-cycle-1.md](docs/features/media-indexer/plan/phase-09-pr-fixes-cycle-1.md)                 | [x]    |
-| 10  | PR fixes cycle 2 (smoke-test bugs)       | [phase-10-pr-fixes-cycle-2.md](docs/features/media-indexer/plan/phase-10-pr-fixes-cycle-2.md)                 | [ ]    |
+| 10  | PR fixes cycle 2 (smoke-test bugs)       | [phase-10-pr-fixes-cycle-2.md](docs/features/media-indexer/plan/phase-10-pr-fixes-cycle-2.md)                 | [x]    |
 
 ## Review cycles
 
