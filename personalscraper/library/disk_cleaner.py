@@ -6,6 +6,13 @@ Handles NTFS deletion failures gracefully (per-item error, continues).
 ``clean_library`` accepts a ``Config`` object and resolves folder names
 from ``config.category(id).folder_name``. Disk filter uses ``disk.id``;
 category filter uses ``category_id``.
+
+Write-through: every real deletion (not dry-run) publishes a best-effort
+outbox event via :func:`personalscraper.indexer.outbox.publish_event` so
+the indexer can reconcile removed files at the next drain cycle (DESIGN
+§10.2).  The event uses ``op='move'`` with an empty ``dst_rel_path`` to
+signal removal.  On any outbox error the deletion is still reported as
+successful — the indexer will reconcile the drift at the next scan.
 """
 
 from __future__ import annotations
@@ -61,8 +68,54 @@ def _dir_size(path: Path) -> int:
     return total
 
 
+def _publish_deleted(path: Path, label: str) -> None:
+    """Publish a best-effort outbox event signalling that *path* was removed.
+
+    Uses ``op='move'`` with ``src_rel_path=<path-str>`` and an empty
+    ``dst_rel_path`` as a convention understood by the drainer to mean the
+    path was deleted from the filesystem.  Any exception is swallowed — the
+    FS operation already succeeded; the indexer reconciles drift at the next
+    scan.
+
+    Args:
+        path: Absolute path that was deleted.
+        label: Human label for logging (e.g. ``".actors"``, ``"junk file"``).
+    """
+    try:
+        from personalscraper.indexer.outbox import disk_id_for_path, publish_event  # noqa: PLC0415
+
+        resolved = disk_id_for_path(path)
+        if resolved is None:
+            # Path not in any mounted disk's mount_path — skip outbox publish.
+            return
+        disk_pk, rel_path = resolved
+        publish_event(
+            disk_pk,
+            op="move",
+            payload={
+                "src_rel_path": rel_path,
+                "dst_rel_path": "",
+                "filename": path.name,
+                "size_bytes": None,
+                "mtime_ns": None,
+                "_clean_label": label,
+            },
+            source="scanner",
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.debug(
+            "library_clean_outbox_skipped",
+            path=str(path),
+            label=label,
+            error=str(exc),
+        )
+
+
 def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str) -> None:
     """Delete a directory, handling NTFS errors gracefully.
+
+    On a successful real deletion (not dry-run) publishes a best-effort
+    outbox event so the indexer can reconcile removed content at drain time.
 
     Args:
         path: Directory to delete.
@@ -83,6 +136,8 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str) -> N
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path} ({size} bytes)")
         log.info("library_clean_deleted_dir", label=label, path=str(path))
+        # Write-through: notify the indexer that this subtree was removed.
+        _publish_deleted(path, label)
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Failed to delete {label}: {path} — {exc}")
@@ -91,6 +146,9 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str) -> N
 
 def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str) -> None:
     """Delete a single file, handling errors gracefully.
+
+    On a successful real deletion (not dry-run) publishes a best-effort
+    outbox event so the indexer can reconcile removed content at drain time.
 
     Args:
         path: File to delete.
@@ -114,6 +172,8 @@ def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str) -> 
         result.deleted_count += 1
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path}")
+        # Write-through: notify the indexer that this file was removed.
+        _publish_deleted(path, label)
     except OSError as exc:
         result.error_count += 1
         result.errors.append(f"Failed to delete {label}: {path} — {exc}")
@@ -143,6 +203,10 @@ def clean_library(
     Dry-run by default — set apply=True to actually delete.
     Iterates ``config.disks``, resolves folder names from
     ``config.category(id).folder_name``, and cleans media directories.
+
+    On real deletions (``apply=True``) each removed file or directory is
+    reported to the indexer outbox (best-effort write-through per DESIGN
+    §10.2) so the indexer can reconcile removed content at drain time.
 
     Args:
         config: Config with disk and category definitions.

@@ -8,6 +8,7 @@ then applies only the needed fixes. Reuses existing scraper components.
 from __future__ import annotations
 
 import re
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -412,9 +413,99 @@ def _rescrape_episodes(
     rename_episodes(matched, show_dir, patterns, dry_run)
 
 
+def _collect_rescrape_candidates(
+    config: Config,
+    conn: sqlite3.Connection | None,
+    disk_filter: str | None,
+    category_filter: str | None,
+) -> list[tuple[Path, str, str, str]]:
+    """Build a list of (media_dir, media_type, disk_id, category_id) candidates.
+
+    When *conn* is provided, queries the indexer DB for items where
+    ``nfo_status != 'valid'`` or ``date_metadata_refreshed IS NULL``.  Paths
+    are reconstructed from the ``disk.mount_path`` + ``path.rel_path`` columns.
+
+    When *conn* is ``None``, falls back to a direct filesystem walk of
+    ``config.disks``.
+
+    Args:
+        config: Loaded pipeline :class:`~personalscraper.conf.models.Config`.
+        conn: Open SQLite connection, or ``None`` to use filesystem walk.
+        disk_filter: Restrict to a single disk ID, or ``None`` for all.
+        category_filter: Restrict to a single category ID, or ``None`` for all.
+
+    Returns:
+        List of ``(media_dir, media_type, disk_id, category_id)`` tuples.
+    """
+    from personalscraper.indexer.repos import item_repo as _item_repo  # noqa: PLC0415
+
+    candidates: list[tuple[Path, str, str, str]] = []
+
+    if conn is not None:
+        # DB-query path: find items needing rescrape by NFO / refresh status.
+        db_items = _item_repo.find_items_needing_rescrape(conn)
+        for item_row, mount_path, rel_path in db_items:
+            if not mount_path or not rel_path:
+                continue
+            media_dir = Path(mount_path) / rel_path
+            if not media_dir.is_dir():
+                continue
+
+            # Map category_id back to disk_id via config for filter checks.
+            # disk_id (uuid/label) is stored as DiskConfig.id in the scanner.
+            disk_id = ""
+            for disk in config.disks:
+                if disk_filter and disk.id != disk_filter:
+                    continue
+                if item_row.category_id in disk.categories:
+                    disk_id = disk.id
+                    break
+            if not disk_id:
+                continue
+
+            if category_filter and item_row.category_id != category_filter:
+                continue
+
+            media_type = "tvshow" if item_row.kind == "show" else "movie"
+            candidates.append((media_dir, media_type, disk_id, item_row.category_id))
+    else:
+        # Filesystem-walk fallback: iterate config.disks → category dirs → media dirs.
+        for disk in config.disks:
+            if disk_filter and disk.id != disk_filter:
+                continue
+            if not disk.path.exists():
+                log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
+                continue
+
+            for category_id in disk.categories:
+                if category_filter and category_id != category_filter:
+                    continue
+
+                cat_cfg = config.category(category_id)
+                category_dir = disk.path / cat_cfg.folder_name
+                if not category_dir.is_dir():
+                    log.debug(
+                        "library_rescrape_category_not_found",
+                        category_dir=str(category_dir),
+                        disk=disk.id,
+                    )
+                    continue
+
+                is_series = category_id in TV_CATEGORY_IDS
+                media_type = "tvshow" if is_series else "movie"
+
+                for media_dir in sorted(category_dir.iterdir()):
+                    if not media_dir.is_dir() or media_dir.name.startswith("."):
+                        continue
+                    candidates.append((media_dir, media_type, disk.id, category_id))
+
+    return candidates
+
+
 def rescrape_library(
     config: Config,
     settings: Settings,
+    conn: sqlite3.Connection | None = None,
     disk_filter: str | None = None,
     category_filter: str | None = None,
     only: str | None = None,
@@ -425,12 +516,16 @@ def rescrape_library(
     """Rescrape library items that need repair.
 
     Only repairs what is broken per item. Reuses existing scraper components.
-    Iterates ``config.disks``, resolves folder names from
-    ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
+    When *conn* is provided, candidate items are discovered by querying
+    ``media_item WHERE nfo_status != 'valid' OR date_metadata_refreshed IS NULL``
+    (indexer DB path).  When *conn* is ``None``, falls back to a filesystem walk
+    of ``config.disks``.
 
     Args:
         config: Config with disk and category definitions.
         settings: Pipeline settings (API keys, language, paths).
+        conn: Optional open SQLite connection to the indexer DB.  When supplied,
+            items are found via DB query instead of a full filesystem walk.
         disk_filter: Only rescrape this disk (by disk.id). None = all.
         category_filter: Only rescrape this category_id. None = all.
         only: Only apply this action: "nfo", "artwork", "episodes". None = all.
@@ -441,10 +536,10 @@ def rescrape_library(
     Returns:
         LibraryRescrapeResult with per-item actions.
     """
-    from personalscraper.scraper.artwork import ArtworkDownloader
-    from personalscraper.scraper.nfo_generator import NFOGenerator
-    from personalscraper.scraper.tmdb_client import TMDBClient
-    from personalscraper.scraper.tvdb_client import TVDBClient
+    from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
+    from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
+    from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
+    from personalscraper.scraper.tvdb_client import TVDBClient  # noqa: PLC0415
 
     tmdb_client = TMDBClient(settings.tmdb_api_key, language=settings.scraper_language)
     tvdb_client = TVDBClient(settings.tvdb_api_key)
@@ -459,92 +554,66 @@ def rescrape_library(
     items_processed = 0
     start = datetime.now(tz=timezone.utc).isoformat()
 
-    for disk in config.disks:
-        if disk_filter and disk.id != disk_filter:
-            continue
-        if not disk.path.exists():
-            log.warning("library_rescrape_disk_not_mounted", disk=disk.id, path=str(disk.path))
-            continue
+    candidates = _collect_rescrape_candidates(config, conn, disk_filter, category_filter)
 
-        for category_id in disk.categories:
-            if category_filter and category_id != category_filter:
-                continue
-
-            # Resolve physical folder name from config
-            cat_cfg = config.category(category_id)
-            category_dir = disk.path / cat_cfg.folder_name
-            if not category_dir.is_dir():
-                log.debug("library_rescrape_category_not_found", category_dir=str(category_dir), disk=disk.id)
-                continue
-
-            is_series = category_id in TV_CATEGORY_IDS
-            media_type = "tvshow" if is_series else "movie"
-
-            for media_dir in sorted(category_dir.iterdir()):
-                if not media_dir.is_dir() or media_dir.name.startswith("."):
-                    continue
-                if max_items and items_processed >= max_items:
-                    break
-
-                title, year = parse_title_year(media_dir.name)
-
-                try:
-                    action = _rescrape_item(
-                        media_dir=media_dir,
-                        media_type=media_type,
-                        disk=disk.id,
-                        category=category_id,
-                        title=title,
-                        year=year,
-                        tmdb_client=tmdb_client,
-                        tvdb_client=tvdb_client,
-                        nfo_gen=nfo_gen,
-                        artwork_dl=artwork_dl,
-                        patterns=patterns,
-                        only=only,
-                        interactive=interactive,
-                        dry_run=dry_run,
-                    )
-                except Exception as exc:
-                    log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))
-                    items.append(
-                        RescrapeAction(
-                            path=str(media_dir),
-                            title=title,
-                            media_type=media_type,
-                            disk=disk.id,
-                            category=category_id,
-                            actions_taken=[],
-                            actions_skipped=[],
-                            errors=[str(exc)],
-                            tmdb_id=None,
-                            id_source=None,
-                            match_confidence=None,
-                            rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
-                        )
-                    )
-                    error_count += 1
-                    items_processed += 1
-                    continue
-
-                if action is None:
-                    pass  # Already OK — not tracked
-                elif action.errors:
-                    items.append(action)
-                    error_count += 1
-                elif action.actions_skipped:
-                    items.append(action)
-                    skipped_count += 1
-                else:
-                    items.append(action)
-                    fixed_count += 1
-
-                items_processed += 1
-
-            if max_items and items_processed >= max_items:
-                break
+    for media_dir, media_type, disk_id, category_id in candidates:
         if max_items and items_processed >= max_items:
             break
+
+        title, year = parse_title_year(media_dir.name)
+
+        try:
+            action = _rescrape_item(
+                media_dir=media_dir,
+                media_type=media_type,
+                disk=disk_id,
+                category=category_id,
+                title=title,
+                year=year,
+                tmdb_client=tmdb_client,
+                tvdb_client=tvdb_client,
+                nfo_gen=nfo_gen,
+                artwork_dl=artwork_dl,
+                patterns=patterns,
+                only=only,
+                interactive=interactive,
+                dry_run=dry_run,
+            )
+        except Exception as exc:
+            log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))
+            items.append(
+                RescrapeAction(
+                    path=str(media_dir),
+                    title=title,
+                    media_type=media_type,
+                    disk=disk_id,
+                    category=category_id,
+                    actions_taken=[],
+                    actions_skipped=[],
+                    errors=[str(exc)],
+                    tmdb_id=None,
+                    id_source=None,
+                    match_confidence=None,
+                    rescraped_at=datetime.now(tz=timezone.utc).isoformat(),
+                )
+            )
+            error_count += 1
+            items_processed += 1
+            continue
+
+        if action is None:
+            pass  # Already OK — not tracked
+        elif action.errors:
+            items.append(action)
+            error_count += 1
+        elif action.actions_skipped:
+            items.append(action)
+            skipped_count += 1
+        else:
+            items.append(action)
+            fixed_count += 1
+
+        items_processed += 1
 
     return LibraryRescrapeResult(
         rescraped_at=start,

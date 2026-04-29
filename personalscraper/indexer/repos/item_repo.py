@@ -394,6 +394,92 @@ def find_by_normalized_name(
     return (item, dispatch_disk, dispatch_path)
 
 
+def find_on_disk(
+    conn: sqlite3.Connection,
+    disk_id: int,
+) -> list[tuple[MediaItemRow, str, str]]:
+    """List all media items whose files reside on a specific disk.
+
+    Joins ``media_item`` → ``media_release`` → ``media_file`` → ``path`` to
+    find every item that has at least one file on ``disk_id``.  Returns unique
+    ``(MediaItemRow, mount_path, rel_path)`` triples where ``rel_path`` is the
+    deepest ``path`` row matching the item (i.e. the directory containing the
+    item's primary video file).
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the ``disk`` row to query.
+
+    Returns:
+        List of ``(MediaItemRow, mount_path, rel_path)`` triples.
+        ``mount_path`` is the disk's ``mount_path`` column value (may be ``None``
+        if the disk is not currently mounted, in which case an empty string is
+        returned).  ``rel_path`` is the relative directory path from ``path``.
+    """
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT DISTINCT "
+        "m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
+        "m.tmdb_id, m.imdb_id, m.tvdb_id, m.nfo_status, m.artwork_json, "
+        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "d.mount_path AS disk_mount, p.rel_path AS item_rel_path "
+        "FROM media_item m "
+        "INNER JOIN media_release mr ON mr.item_id = m.id "
+        "INNER JOIN media_file mf ON mf.release_id = mr.id "
+        "INNER JOIN path p ON p.id = mf.path_id "
+        "INNER JOIN disk d ON d.id = p.disk_id "
+        "WHERE p.disk_id = ? "
+        "ORDER BY m.id",
+        (disk_id,),
+    ).fetchall()
+    result: list[tuple[MediaItemRow, str, str]] = []
+    for row in rows:
+        item = _row_to_item(row)
+        mount_path: str = row["disk_mount"] or ""
+        rel_path: str = row["item_rel_path"] or ""
+        result.append((item, mount_path, rel_path))
+    return result
+
+
+def find_items_needing_rescrape(conn: sqlite3.Connection) -> list[tuple[MediaItemRow, str, str]]:
+    """Return items with invalid/missing NFO or no metadata refresh, with their filesystem paths.
+
+    Queries ``media_item`` for rows where ``nfo_status != 'valid'`` or
+    ``date_metadata_refreshed IS NULL`` and ``is_locked = 0``.  Joins to ``path``
+    and ``disk`` to reconstruct the filesystem path.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        List of ``(MediaItemRow, mount_path, rel_path)`` triples for items that
+        need rescraping.  Items without any associated file rows are excluded.
+    """
+    _set_row_factory(conn)
+    rows = conn.execute(
+        "SELECT DISTINCT "
+        "m.id, m.kind, m.title, m.title_sort, m.original_title, m.year, m.category_id, "
+        "m.tmdb_id, m.imdb_id, m.tvdb_id, m.nfo_status, m.artwork_json, "
+        "m.date_created, m.date_modified, m.date_metadata_refreshed, m.is_locked, m.preferred_lang, "
+        "d.mount_path AS disk_mount, p.rel_path AS item_rel_path "
+        "FROM media_item m "
+        "INNER JOIN media_release mr ON mr.item_id = m.id "
+        "INNER JOIN media_file mf ON mf.release_id = mr.id "
+        "INNER JOIN path p ON p.id = mf.path_id "
+        "INNER JOIN disk d ON d.id = p.disk_id "
+        "WHERE m.is_locked = 0 "
+        "  AND (m.nfo_status != 'valid' OR m.date_metadata_refreshed IS NULL) "
+        "ORDER BY m.id",
+    ).fetchall()
+    result: list[tuple[MediaItemRow, str, str]] = []
+    for row in rows:
+        item = _row_to_item(row)
+        mount_path: str = row["disk_mount"] or ""
+        rel_path: str = row["item_rel_path"] or ""
+        result.append((item, mount_path, rel_path))
+    return result
+
+
 def remove_by_id(conn: sqlite3.Connection, item_id: int) -> bool:
     """Hard-delete a media item by primary key (cascades to item_attribute).
 

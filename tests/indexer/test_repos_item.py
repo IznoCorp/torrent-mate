@@ -4,6 +4,8 @@ Focuses on behaviors not covered by the round-trip tests in test_schema.py:
 - find_by_tmdb_id lookup
 - upsert_attr (insert + conflict-update)
 - cascade delete: deleting a media_item removes its item_attribute rows
+- find_on_disk query helper (7.4)
+- find_items_needing_rescrape query helper (7.4)
 """
 
 from __future__ import annotations
@@ -142,3 +144,259 @@ def test_delete_nonexistent_item_returns_false(conn: sqlite3.Connection) -> None
     """Delete returns False when the given id does not exist."""
     result = item_repo.delete(conn, 9999)
     assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Helpers for find_on_disk / find_items_needing_rescrape tests
+# ---------------------------------------------------------------------------
+
+
+def _insert_disk(conn: sqlite3.Connection, mount: str, uuid: str = "disk-uuid-1") -> int:
+    """Insert a mounted disk row and return its PK.
+
+    Args:
+        conn: Open SQLite connection.
+        mount: Mount-path string for the disk.
+        uuid: Unique volume UUID string.
+
+    Returns:
+        PK of the inserted disk row.
+    """
+    cursor = conn.execute(
+        "INSERT INTO disk (uuid, label, mount_path, last_seen_at, is_mounted, unreachable_strikes) "
+        "VALUES (?, ?, ?, ?, 1, 0)",
+        (uuid, "TestDisk", mount, int(time.time())),
+    )
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+def _insert_path(conn: sqlite3.Connection, disk_id: int, rel_path: str) -> int:
+    """Insert a path row and return its PK.
+
+    Args:
+        conn: Open SQLite connection.
+        disk_id: PK of the owning disk.
+        rel_path: Relative directory path string.
+
+    Returns:
+        PK of the inserted path row.
+    """
+    cursor = conn.execute(
+        "INSERT INTO path (disk_id, rel_path) VALUES (?, ?)",
+        (disk_id, rel_path),
+    )
+    return cursor.lastrowid  # type: ignore[return-value]
+
+
+def _insert_release_and_file(conn: sqlite3.Connection, item_id: int, path_id: int) -> None:
+    """Insert a minimal media_release + media_file chain for an item.
+
+    Args:
+        conn: Open SQLite connection.
+        item_id: PK of the owning media_item.
+        path_id: PK of the path row for the file.
+    """
+    cursor = conn.execute(
+        "INSERT INTO media_release (item_id, quality) VALUES (?, '1080p')",
+        (item_id,),
+    )
+    release_id: int = cursor.lastrowid  # type: ignore[assignment]
+    conn.execute(
+        "INSERT INTO media_file "
+        "(release_id, path_id, filename, size_bytes, mtime_ns, oshash, scan_generation, last_verified_at) "
+        "VALUES (?, ?, 'video.mkv', 1000000, 1000000000, 'aabbccddeeff0011', 1, ?)",
+        (release_id, path_id, int(time.time())),
+    )
+
+
+def _make_item_with_nfo(
+    nfo_status: str | None = None,
+    date_metadata_refreshed: int | None = None,
+    is_locked: int = 0,
+) -> MediaItemRow:
+    """Return a MediaItemRow with configurable NFO status and refresh date.
+
+    Args:
+        nfo_status: One of ``'valid'``, ``'invalid'``, ``'missing'``, or ``None``.
+        date_metadata_refreshed: Unix epoch seconds, or ``None``.
+        is_locked: 0 (default) or 1.
+
+    Returns:
+        Populated :class:`MediaItemRow` ready for insertion.
+    """
+    now = int(time.time())
+    return MediaItemRow(
+        id=0,
+        kind="movie",
+        title="Test Movie",
+        title_sort="Test Movie",
+        original_title=None,
+        year=2024,
+        category_id="movies",
+        tmdb_id=None,
+        imdb_id=None,
+        tvdb_id=None,
+        nfo_status=nfo_status,
+        artwork_json=None,
+        date_created=now,
+        date_modified=now,
+        date_metadata_refreshed=date_metadata_refreshed,
+        is_locked=is_locked,
+        preferred_lang="fr",
+    )
+
+
+# ---------------------------------------------------------------------------
+# find_on_disk tests
+# ---------------------------------------------------------------------------
+
+
+class TestFindOnDisk:
+    """Tests for item_repo.find_on_disk."""
+
+    def test_returns_items_linked_to_disk(self, conn: sqlite3.Connection) -> None:
+        """Items with files on the target disk are returned."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        path_id = _insert_path(conn, disk_id, "MOVIES/Movie A (2024)")
+        item_id = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid"))
+        _insert_release_and_file(conn, item_id, path_id)
+
+        results = item_repo.find_on_disk(conn, disk_id)
+
+        assert len(results) == 1
+        item_row, mount, rel = results[0]
+        assert item_row.id == item_id
+        assert mount == "/Volumes/Disk1"
+        assert rel == "MOVIES/Movie A (2024)"
+
+    def test_does_not_return_items_on_other_disk(self, conn: sqlite3.Connection) -> None:
+        """Items whose files reside on a different disk are excluded."""
+        disk1_id = _insert_disk(conn, "/Volumes/Disk1", uuid="uuid-1")
+        disk2_id = _insert_disk(conn, "/Volumes/Disk2", uuid="uuid-2")
+        path1_id = _insert_path(conn, disk1_id, "MOVIES/Movie A (2024)")
+        path2_id = _insert_path(conn, disk2_id, "MOVIES/Movie B (2023)")
+        item_a = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid"))
+        item_b = item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid"))
+        _insert_release_and_file(conn, item_a, path1_id)
+        _insert_release_and_file(conn, item_b, path2_id)
+
+        results = item_repo.find_on_disk(conn, disk1_id)
+
+        ids = [r[0].id for r in results]
+        assert item_a in ids
+        assert item_b not in ids
+
+    def test_empty_result_when_disk_has_no_files(self, conn: sqlite3.Connection) -> None:
+        """Returns an empty list when no media_file rows link to the disk."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        # Insert item and path but NO media_file row.
+        item_repo.insert(conn, _make_item_with_nfo(nfo_status="valid"))
+
+        results = item_repo.find_on_disk(conn, disk_id)
+
+        assert results == []
+
+
+# ---------------------------------------------------------------------------
+# find_items_needing_rescrape tests
+# ---------------------------------------------------------------------------
+
+
+class TestFindItemsNeedingRescrape:
+    """Tests for item_repo.find_items_needing_rescrape."""
+
+    def _setup_item_on_disk(
+        self,
+        conn: sqlite3.Connection,
+        disk_id: int,
+        nfo_status: str | None,
+        date_refreshed: int | None = None,
+        is_locked: int = 0,
+    ) -> int:
+        """Insert a media_item with a file on disk_id; return item PK.
+
+        Args:
+            conn: Open SQLite connection.
+            disk_id: PK of the disk row.
+            nfo_status: NFO status string.
+            date_refreshed: Optional metadata refresh timestamp.
+            is_locked: Whether the item is locked.
+
+        Returns:
+            PK of the inserted media_item.
+        """
+        rel = f"MOVIES/Item-{nfo_status}-{date_refreshed}"
+        path_id = _insert_path(conn, disk_id, rel)
+        item_id = item_repo.insert(
+            conn,
+            _make_item_with_nfo(
+                nfo_status=nfo_status,
+                date_metadata_refreshed=date_refreshed,
+                is_locked=is_locked,
+            ),
+        )
+        _insert_release_and_file(conn, item_id, path_id)
+        return item_id
+
+    def test_returns_item_with_invalid_nfo(self, conn: sqlite3.Connection) -> None:
+        """Items with nfo_status='invalid' are returned."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        item_id = self._setup_item_on_disk(conn, disk_id, nfo_status="invalid")
+
+        results = item_repo.find_items_needing_rescrape(conn)
+
+        ids = [r[0].id for r in results]
+        assert item_id in ids
+
+    def test_returns_item_with_missing_nfo(self, conn: sqlite3.Connection) -> None:
+        """Items with nfo_status='missing' are returned."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        item_id = self._setup_item_on_disk(conn, disk_id, nfo_status="missing")
+
+        results = item_repo.find_items_needing_rescrape(conn)
+
+        ids = [r[0].id for r in results]
+        assert item_id in ids
+
+    def test_returns_item_with_null_refresh_date(self, conn: sqlite3.Connection) -> None:
+        """Items with date_metadata_refreshed=NULL are returned even if nfo='valid'."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        # nfo_status='valid' but never refreshed — must still appear
+        item_id = self._setup_item_on_disk(conn, disk_id, nfo_status="valid", date_refreshed=None)
+
+        results = item_repo.find_items_needing_rescrape(conn)
+
+        ids = [r[0].id for r in results]
+        assert item_id in ids
+
+    def test_excludes_valid_and_refreshed_item(self, conn: sqlite3.Connection) -> None:
+        """Items with nfo_status='valid' AND a refresh date are excluded."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        item_id = self._setup_item_on_disk(conn, disk_id, nfo_status="valid", date_refreshed=int(time.time()))
+
+        results = item_repo.find_items_needing_rescrape(conn)
+
+        ids = [r[0].id for r in results]
+        assert item_id not in ids
+
+    def test_excludes_locked_items(self, conn: sqlite3.Connection) -> None:
+        """Locked items (is_locked=1) are excluded regardless of NFO status."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        item_id = self._setup_item_on_disk(conn, disk_id, nfo_status="invalid", is_locked=1)
+
+        results = item_repo.find_items_needing_rescrape(conn)
+
+        ids = [r[0].id for r in results]
+        assert item_id not in ids
+
+    def test_result_includes_mount_path_and_rel_path(self, conn: sqlite3.Connection) -> None:
+        """Each result triple includes the correct mount and rel path."""
+        disk_id = _insert_disk(conn, "/Volumes/Disk1")
+        self._setup_item_on_disk(conn, disk_id, nfo_status="missing")
+
+        results = item_repo.find_items_needing_rescrape(conn)
+
+        assert len(results) == 1
+        _, mount, rel = results[0]
+        assert mount == "/Volumes/Disk1"
+        assert "MOVIES" in rel
