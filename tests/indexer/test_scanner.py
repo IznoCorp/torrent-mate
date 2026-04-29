@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -76,7 +77,7 @@ from personalscraper.indexer._throttle import (
     acquire as _throttle_acquire,
 )
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.merkle import DiskUnmountedError, compute_merkle_root
+from personalscraper.indexer.merkle import DiskMountStatus, DiskUnmountedError, compute_merkle_root
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner import (
     _RECOMMENDED_MOUNT_FLAGS,
@@ -103,6 +104,7 @@ MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "inde
 # ---------------------------------------------------------------------------
 
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
+_VERIFY_PATCH = "personalscraper.indexer.scanner.verify_disk_mounted"
 
 
 def _make_conn_real() -> sqlite3.Connection:
@@ -438,6 +440,98 @@ class TestScanSkippedDiskLogsWarning:
         assert any("skipped_unmounted" in t for t in warning_texts), (
             f"Expected 'skipped_unmounted' in warning records, got: {warning_texts}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 10.5 tests — readable reason code on skipped_unmounted warning
+# ---------------------------------------------------------------------------
+
+
+class TestScanSkippedDiskReasonCode:
+    """indexer.disk.skipped_unmounted warning carries a readable reason code, not a UUID.
+
+    The ``reason`` field must be one of the known string codes (e.g.
+    ``mount_inaccessible``, ``sentinel_missing``, ``sentinel_mismatch``) and
+    must not expose the raw UUID string as the ``reason`` value.
+    """
+
+    _VALID_REASON_CODES = frozenset(
+        {
+            "mount_inaccessible",
+            "sentinel_missing",
+            "sentinel_mismatch",
+            "bootstrap_failed",
+        }
+    )
+    # Match a UUID appearing as the value of the 'reason' key in the structlog
+    # JSON-dict output: "'reason': 'XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'"
+    _UUID_AS_REASON_RE = re.compile(
+        r"'reason':\s*'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
+        r"-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'"
+    )
+
+    def test_unmounted_disk_reason_is_readable_code(
+        self,
+        fs: "FakeFilesystem",
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """When a disk is UNMOUNTED, reason is 'mount_inaccessible', not a UUID."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/ReasonCodeDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk = _insert_disk(conn, mount)
+
+        with caplog.at_level(logging.WARNING):
+            with patch(_VERIFY_PATCH, return_value=DiskMountStatus.UNMOUNTED):
+                with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("F7E3C03C-48B7-4C23-BFEE-3E19B052C014")):
+                    scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        skip_warnings = [t for t in warning_texts if "skipped_unmounted" in t]
+        assert skip_warnings, f"Expected skipped_unmounted warning, got: {warning_texts}"
+
+        combined = " ".join(skip_warnings)
+        # reason must be one of the known human-readable codes (structlog renders
+        # key-value pairs as "'reason': 'mount_inaccessible'" in the dict repr).
+        assert any(f"'reason': '{code}'" in combined for code in self._VALID_REASON_CODES), (
+            f"Expected reason=<readable_code> in: {combined}"
+        )
+        # reason must NOT be a raw UUID string.
+        assert not self._UUID_AS_REASON_RE.search(combined), f"reason field must not contain a UUID, got: {combined}"
+        # The UUID is preserved in a separate field (disk_uuid), not in reason.
+        assert "disk_uuid" in combined, f"Expected disk_uuid field in: {combined}"
+
+    def test_sentinel_missing_reason_code(
+        self,
+        fs: "FakeFilesystem",
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """When sentinel is absent (NO_SENTINEL), reason is 'sentinel_missing'."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/NoSentinelDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        disk = _insert_disk(conn, mount)
+
+        with caplog.at_level(logging.WARNING):
+            with patch(_VERIFY_PATCH, return_value=DiskMountStatus.NO_SENTINEL):
+                # guard_disk_mounted sees NO_SENTINEL → tries bootstrap → raises DiskUnmountedError
+                # to simulate bootstrap failure leading to a skip.
+                with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("some-uuid")):
+                    scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+        skip_warnings = [t for t in warning_texts if "skipped_unmounted" in t]
+        assert skip_warnings, f"Expected skipped_unmounted warning, got: {warning_texts}"
+
+        combined = " ".join(skip_warnings)
+        assert "'reason': 'sentinel_missing'" in combined, f"Expected reason=sentinel_missing in: {combined}"
+        assert not self._UUID_AS_REASON_RE.search(combined), f"reason field must not contain a UUID, got: {combined}"
 
 
 # ---------------------------------------------------------------------------

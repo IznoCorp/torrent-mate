@@ -32,8 +32,10 @@ from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     DiskMismatchError,
+    DiskMountStatus,
     DiskUnmountedError,
     guard_disk_mounted,
+    verify_disk_mounted,
 )
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
@@ -472,22 +474,34 @@ def scan(
             return
 
         # Guard: verify disk is mounted and identity sentinel matches.
+        # Pre-classify the mount state so we can emit a human-readable reason
+        # code in the warning (instead of a raw UUID from str(exc)).
+        _mount_status = verify_disk_mounted(disk)
+        _MOUNT_STATUS_TO_REASON: dict[DiskMountStatus, str] = {
+            DiskMountStatus.UNMOUNTED: "mount_inaccessible",
+            DiskMountStatus.NO_SENTINEL: "sentinel_missing",
+            DiskMountStatus.MOUNTED_WRONG_DISK: "sentinel_mismatch",
+        }
         try:
             guard_disk_mounted(disk)
-        except DiskUnmountedError as exc:
+        except DiskUnmountedError:
             log.warning(
                 "indexer.disk.skipped_unmounted",
                 disk_id=disk.id,
                 label=disk.label,
-                reason=str(exc),
+                reason=_MOUNT_STATUS_TO_REASON.get(_mount_status, "mount_inaccessible"),
+                disk_uuid=disk.uuid,
             )
             return
         except DiskMismatchError as exc:
             log.warning(
-                "indexer.scan.disk_skipped",
+                "indexer.disk.skipped_unmounted",
                 disk_id=disk.id,
                 label=disk.label,
-                reason=str(exc),
+                reason=_MOUNT_STATUS_TO_REASON.get(_mount_status, "sentinel_mismatch"),
+                disk_uuid=disk.uuid,
+                expected_uuid=exc.expected,
+                found_uuid=exc.found,
             )
             return
 
@@ -816,4 +830,5 @@ __all__ = [
     "probe_spotlight",
     "scan",
     "tempfile",
+    "verify_disk_mounted",
 ]
