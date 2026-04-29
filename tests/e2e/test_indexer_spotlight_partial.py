@@ -35,6 +35,7 @@ _MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "personalscrap
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 _MDUTIL_PATCH = "personalscraper.indexer.scanner._spotlight.subprocess.run"
 _FSTYPE_PATCH = "personalscraper.indexer.scanner._spotlight.detect_fs_type"
+_PLATFORM_PATCH = "personalscraper.indexer.scanner._spotlight.platform.system"
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +152,7 @@ class TestSpotlightPartial:
         with (
             caplog.at_level(logging.INFO, logger="indexer.spotlight"),
             patch(_GUARD_PATCH, return_value=None),
+            patch(_PLATFORM_PATCH, return_value="Darwin"),
             patch(_FSTYPE_PATCH, return_value="apfs"),
             patch(_MDUTIL_PATCH, return_value=_mdutil_rebuilding),
         ):
@@ -206,6 +208,7 @@ class TestSpotlightPartial:
         with (
             caplog.at_level(logging.INFO, logger="indexer.spotlight"),
             patch(_GUARD_PATCH, return_value=None),
+            patch(_PLATFORM_PATCH, return_value="Darwin"),
             patch(_FSTYPE_PATCH, return_value="apfs"),
             patch(_MDUTIL_PATCH, side_effect=_timeout_side_effect),
         ):

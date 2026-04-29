@@ -29,6 +29,7 @@ _MIGRATIONS_DIR = Path(__file__).resolve().parent.parent.parent / "personalscrap
 
 _GUARD_PATCH = "personalscraper.indexer.scanner.guard_disk_mounted"
 _MDUTIL_PATCH = "personalscraper.indexer.scanner._spotlight.subprocess.run"
+_PLATFORM_PATCH = "personalscraper.indexer.scanner._spotlight.platform.system"
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +151,7 @@ class TestSpotlightUnavailable:
         with (
             caplog.at_level(logging.INFO, logger="indexer.spotlight"),
             patch(_GUARD_PATCH, return_value=None),
+            patch(_PLATFORM_PATCH, return_value="Darwin"),
             patch(
                 "personalscraper.indexer.scanner._spotlight.detect_fs_type",
                 return_value="apfs",

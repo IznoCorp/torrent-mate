@@ -175,7 +175,7 @@ class TestLibraryIndexQuickMode:
             result = runner.invoke(app, ["library-index", "--mode", "quick"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert summary["mode"] == "quick"
         assert summary["files_walked"] == 10
         assert summary["status"] == "ok"
@@ -206,7 +206,7 @@ class TestLibraryIndexQuickFiveChanges:
             result = runner.invoke(app, ["library-index", "--mode", "quick"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert summary["files_walked"] == 5
 
 
@@ -338,7 +338,7 @@ class TestLibraryIndexWaitForLock:
             result = runner.invoke(app, ["library-index", "--wait-for-lock", "5"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert summary["status"] == "ok"
 
 
@@ -389,7 +389,7 @@ class TestLibraryIndexDryRun:
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
         # The dry_run flag must be reflected in the JSON output.
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert summary.get("dry_run") is True
 
         # Open the DB independently and assert no scan_run rows were committed.
@@ -541,7 +541,7 @@ class TestLibraryRepair:
             result = runner.invoke(app, ["library-repair", "--budget", "10"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert "processed" in summary
         assert "budget_exhausted" in summary
         # Empty queue → zero processed, budget not exhausted.
@@ -588,7 +588,7 @@ class TestLibraryVerify:
             result = runner.invoke(app, ["library-verify", "--disk", "Disk2"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert summary["mode"] == "verify"
         assert summary["status"] == "ok"
 
@@ -658,7 +658,7 @@ class TestLibraryIndexRebuild:
             result = runner.invoke(app, ["library-index", "--rebuild"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
-        summary = json.loads(result.output.strip())
+        summary = json.loads(result.stdout.strip())
         assert summary.get("rebuild") is True
 
 
