@@ -4,7 +4,10 @@ Tests score_match() with parametrized cases (exact, partial, bad matches,
 accented French titles) and match_movie() with mocked TMDB responses.
 """
 
+import logging
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
@@ -615,3 +618,86 @@ class TestConfidenceConflict:
         result = match_tvshow(tvdb, tmdb, "Nonexistent", 2024)
 
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Below-threshold warning (10.1 — silent scrape failure observability)
+# ---------------------------------------------------------------------------
+
+
+class TestBelowThresholdWarning:
+    """Tests for scraper.match.below_threshold warning emission.
+
+    When match_movie or match_tvshow_tvdb returns candidates that all score
+    below LOW_CONFIDENCE, a structured warning must be logged so the
+    silent-skip does not go unnoticed in the pipeline output.
+    """
+
+    def test_match_movie_zero_candidates_returns_none_no_warning(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Zero TMDB results → None returned, no below_threshold warning (nothing to warn about)."""
+        tmdb = MagicMock()
+        tmdb.search_movie.return_value = []
+
+        with caplog.at_level(logging.WARNING, logger="confidence"):
+            result = match_movie(tmdb, "The Butterfly Effect", 2004)
+
+        assert result is None
+        events = [r.msg.get("event") for r in caplog.records if isinstance(r.msg, dict)]
+        assert "scraper.match.below_threshold" not in events
+
+    def test_match_movie_below_threshold_emits_warning(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """TMDB returns candidates but all score < LOW_CONFIDENCE → warning logged."""
+        tmdb = MagicMock()
+        # A result that will score low against "The Butterfly Effect 2004"
+        tmdb.search_movie.return_value = [
+            {"id": 1, "title": "Totally Unrelated Movie", "release_date": "1985-01-01"},
+            {"id": 2, "title": "Another Unrelated Film", "release_date": "1990-06-15"},
+        ]
+
+        with caplog.at_level(logging.WARNING, logger="confidence"):
+            result = match_movie(tmdb, "The Butterfly Effect", 2004)
+
+        # Should return the best candidate (not None), but it has low confidence
+        assert result is not None
+        assert result.confidence < LOW_CONFIDENCE
+
+        # The warning event must be present
+        target_event = "scraper.match.below_threshold"
+        warning_records = [r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == target_event]
+        assert warning_records, "expected scraper.match.below_threshold warning in caplog"
+        payload = warning_records[0].msg
+        assert payload["title"] == "The Butterfly Effect"
+        assert payload["year"] == 2004
+        assert payload["candidates_count"] == 2
+        assert payload["top_score"] == round(result.confidence, 2)
+        assert payload["source"] == "tmdb"
+
+    def test_match_tvshow_tvdb_below_threshold_emits_warning(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """TVDB returns candidates that all score < LOW_CONFIDENCE → warning logged."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = [
+            {"tvdb_id": "1", "name": "Completely Unrelated Show", "year": "1980"},
+        ]
+
+        with caplog.at_level(logging.WARNING, logger="confidence"):
+            result = match_tvshow_tvdb(tvdb, "The Butterfly Effect", 2004)
+
+        assert result is not None
+        assert result.confidence < LOW_CONFIDENCE
+
+        below_event = "scraper.match.below_threshold"
+        warning_records = [r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == below_event]
+        assert warning_records, "expected scraper.match.below_threshold warning in caplog"
+        payload = warning_records[0].msg
+        assert payload["title"] == "The Butterfly Effect"
+        assert payload["candidates_count"] == 1
+        assert payload["source"] == "tvdb"

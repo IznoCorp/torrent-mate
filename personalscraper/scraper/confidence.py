@@ -156,6 +156,18 @@ def match_movie(
             api_year=best_match.api_year,
             confidence=round(best_match.confidence, 2),
         )
+        # Warn early when the best candidate is below the acceptance threshold —
+        # the caller will ultimately skip the item, but logging here captures
+        # the candidates_count that the caller cannot see.
+        if best_match.confidence < LOW_CONFIDENCE:
+            log.warning(
+                "scraper.match.below_threshold",
+                title=title,
+                year=year,
+                candidates_count=len(results),
+                top_score=round(best_match.confidence, 2),
+                source="tmdb",
+            )
 
     return best_match
 
@@ -293,6 +305,18 @@ def match_tvshow_tvdb(
             api_year=best_match.api_year,
             confidence=round(best_match.confidence, 2),
         )
+        # Warn early when the best candidate is below the acceptance threshold —
+        # the caller will ultimately skip the item, but logging here captures
+        # the candidates_count that the caller cannot see.
+        if best_match.confidence < LOW_CONFIDENCE:
+            log.warning(
+                "scraper.match.below_threshold",
+                title=title,
+                year=year,
+                candidates_count=len(results),
+                top_score=round(best_match.confidence, 2),
+                source="tvdb",
+            )
 
     return best_match
 

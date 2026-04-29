@@ -1264,9 +1264,10 @@ class Scraper:
 
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
-            log.info(
+            log.warning(
                 "movie_no_confident_match",
                 title=title,
+                year=year,
                 score=round(match.confidence if match else 0.0, 2),
             )
             return result
@@ -1471,8 +1472,9 @@ class Scraper:
         # Summary
         scraped = sum(1 for r in results if r.action == "scraped")
         skipped = sum(1 for r in results if r.action.startswith("skipped"))
+        unmatched = sum(1 for r in results if r.action == "skipped_low_confidence")
         errors = sum(1 for r in results if r.action == "error")
-        log.info("movies_done", scraped=scraped, skipped=skipped, errors=errors)
+        log.info("movies_done", scraped=scraped, skipped=skipped, unmatched=unmatched, errors=errors)
 
         return results
 
@@ -1554,9 +1556,10 @@ class Scraper:
 
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
-            log.info(
+            log.warning(
                 "show_no_confident_match",
                 title=title,
+                year=year,
                 score=round(match.confidence if match else 0.0, 2),
             )
             return result
@@ -1953,7 +1956,8 @@ class Scraper:
 
         scraped = sum(1 for r in results if r.action == "scraped")
         skipped = sum(1 for r in results if r.action.startswith("skipped"))
+        unmatched = sum(1 for r in results if r.action == "skipped_low_confidence")
         errors = sum(1 for r in results if r.action == "error")
-        log.info("tvshows_done", scraped=scraped, skipped=skipped, errors=errors)
+        log.info("tvshows_done", scraped=scraped, skipped=skipped, unmatched=unmatched, errors=errors)
 
         return results

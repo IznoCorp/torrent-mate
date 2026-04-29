@@ -2351,3 +2351,85 @@ class TestShowArtworkFailedNarrowedExceptions:
         assert any(isinstance(r.msg, dict) and r.msg.get("event") == "show_artwork_failed" for r in caplog.records), (
             "expected 'show_artwork_failed' warning event in caplog"
         )
+
+
+# ---------------------------------------------------------------------------
+# _to_step_report — unmatched counter (10.1)
+# ---------------------------------------------------------------------------
+
+
+class TestToStepReportUnmatched:
+    """Tests for unmatched counter surfacing in _to_step_report.
+
+    Items with action ``skipped_low_confidence`` must be counted in both
+    ``skip_count`` (backward compat) and ``counts["unmatched"]`` (new
+    distinct observable for diagnosis).
+    """
+
+    def _make_result(self, action: str, path: Path) -> ScrapeResult:
+        """Build a minimal ScrapeResult with the given action.
+
+        Args:
+            action: ScrapeResult action string.
+            path: Media path for the result.
+
+        Returns:
+            Minimal ScrapeResult with the given action.
+        """
+        return ScrapeResult(media_path=path, media_type="movie", action=action)
+
+    def test_no_unmatched_produces_no_counts_entry(self, tmp_path: Path) -> None:
+        """When no skipped_low_confidence results exist, counts is empty."""
+        from personalscraper.scraper.run import _to_step_report
+
+        results = [
+            self._make_result("scraped", tmp_path / "Movie A (2020)"),
+            self._make_result("skipped_already_done", tmp_path / "Movie B (2021)"),
+        ]
+        report = _to_step_report(results)
+
+        assert report.success_count == 1
+        assert report.skip_count == 1
+        assert report.error_count == 0
+        assert "unmatched" not in report.counts
+
+    def test_one_unmatched_increments_counter(self, tmp_path: Path) -> None:
+        """Single skipped_low_confidence item → unmatched=1 in counts."""
+        from personalscraper.scraper.run import _to_step_report
+
+        results = [
+            self._make_result("scraped", tmp_path / "The Matrix (1999)"),
+            self._make_result("skipped_low_confidence", tmp_path / "The Butterfly Effect (2004)"),
+        ]
+        report = _to_step_report(results)
+
+        assert report.success_count == 1
+        # skipped_low_confidence is still counted in skip_count for backward compat
+        assert report.skip_count == 1
+        assert report.counts.get("unmatched") == 1
+
+    def test_multiple_unmatched_all_counted(self, tmp_path: Path) -> None:
+        """Multiple skipped_low_confidence items accumulate in unmatched."""
+        from personalscraper.scraper.run import _to_step_report
+
+        results = [
+            self._make_result("skipped_low_confidence", tmp_path / "Film A (2000)"),
+            self._make_result("skipped_low_confidence", tmp_path / "Film B (2001)"),
+            self._make_result("error", tmp_path / "Film C (2002)"),
+        ]
+        results[2].error = "API timeout"
+        report = _to_step_report(results)
+
+        assert report.skip_count == 2
+        assert report.error_count == 1
+        assert report.counts.get("unmatched") == 2
+
+    def test_unmatched_detail_label_is_unmatched(self, tmp_path: Path) -> None:
+        """Detail line for skipped_low_confidence uses [unmatched] prefix."""
+        from personalscraper.scraper.run import _to_step_report
+
+        item_path = tmp_path / "The Butterfly Effect (2004)"
+        results = [self._make_result("skipped_low_confidence", item_path)]
+        report = _to_step_report(results)
+
+        assert any("[unmatched]" in d for d in report.details), f"Expected [unmatched] detail, got: {report.details}"

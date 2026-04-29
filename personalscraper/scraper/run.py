@@ -212,14 +212,21 @@ def run_scrape(
 def _to_step_report(results: list[ScrapeResult]) -> StepReport:
     """Convert a list of ScrapeResult to a StepReport.
 
+    Items with action ``skipped_low_confidence`` are counted separately
+    in ``counts["unmatched"]`` so the caller can distinguish between
+    intentional skips (already done, no category) and silent match
+    failures that may indicate a scraper problem.
+
     Args:
         results: List of scrape results.
 
     Returns:
-        StepReport with aggregated counts and details.
+        StepReport with aggregated counts, details, and an ``unmatched``
+        entry in ``counts`` when at least one item had no confident match.
     """
     success = 0
     skipped = 0
+    unmatched = 0
     errors = 0
     warnings: list[str] = []
     details: list[str] = []
@@ -245,6 +252,12 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
         elif r.action == "repaired":
             success += 1
             details.append(f"[repaired] {name}")
+        elif r.action == "skipped_low_confidence":
+            # Counted as both skipped (for backward compat) and unmatched
+            # (distinct observable counter for diagnosis).
+            skipped += 1
+            unmatched += 1
+            details.append(f"[unmatched] {name}")
         elif r.action.startswith("skipped"):
             skipped += 1
             details.append(f"[skipped] {name} ({r.action})")
@@ -253,6 +266,10 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
             details.append(f"[error] {name}: {r.error}")
             warnings.append(f"{name}: {r.error}")
 
+    counts: dict[str, int] = {}
+    if unmatched:
+        counts["unmatched"] = unmatched
+
     return StepReport(
         name="scrape",
         success_count=success,
@@ -260,4 +277,5 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
         error_count=errors,
         warnings=warnings,
         details=details,
+        counts=counts,
     )
