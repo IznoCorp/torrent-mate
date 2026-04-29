@@ -72,9 +72,27 @@ Si la table est vide, `disks=[]`, `filter_disks([], None) = []`, `scan(disks=[],
 
 ---
 
-### 10.4 — _(placeholder, à remplir avec autres bugs feature trouvés au 2ᵉ pipeline run)_
+### 10.4 — Fix: `bootstrap_disk_identity` ne supporte pas `disk.path` en sous-dossier d'un mount point
 
-Après bootstrap manuel + re-run pipeline avec outbox actif.
+**Finding (CRITICAL — feature bug)** : `personalscraper.indexer.merkle.bootstrap_disk_identity(mount_path)` appelle `diskutil info -plist <mount_path>`. Si `mount_path = /Volumes/Disk1/medias` (sous-dossier configuré dans `Config.disks[].path`), diskutil retourne `ExitCode=1` avec `Could not find disk: /Volumes/Disk1/medias`. La fonction lève `BootstrapError` avec stderr vide → message peu informatif (`diskutil failed: `).
+
+**Step concerné** : `personalscraper.indexer.merkle.bootstrap_disk_identity` + tout call site (sera utilisé par 10.3 fix)
+**Reproductible** : `python -c "from personalscraper.indexer.merkle import bootstrap_disk_identity; from pathlib import Path; bootstrap_disk_identity(Path('/Volumes/Disk1/medias'))"`
+
+**Root cause** : la fonction présume que `mount_path` est le mount point racine (ex: `/Volumes/Disk1`). En pratique, la config v1 du projet utilise des sous-dossiers (`/Volumes/<DiskName>/medias`) car les disques sont partagés avec d'autres usages.
+
+**Fix shape** :
+
+- Avant l'appel diskutil, remonter `mount_path` jusqu'au premier ancêtre qui est un mount point réel. Détection via `os.path.ismount(p)` ou via `subprocess.run(["mount"])` parsing.
+- Alternative : laisser le user configurer `disk.path` librement, mais résoudre le mount root séparément en interne pour bootstrap.
+- Améliorer le message d'erreur quand `result.stderr` est vide : parser le `<key>ErrorMessage</key>` du plist de retour pour exposer la vraie raison.
+- **Acceptance** : `bootstrap_disk_identity(Path('/Volumes/Disk1/medias'))` réussit et écrit la sentinel UUID dans le mount root (`/Volumes/Disk1/.personalscraper-disk-uuid` ou similaire).
+
+---
+
+### 10.5 — _(placeholder, à remplir avec autres bugs feature trouvés au 2ᵉ pipeline run)_
+
+Après bootstrap workaround + re-run pipeline avec outbox actif.
 
 ---
 
