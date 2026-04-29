@@ -6,7 +6,7 @@
 **Version bump**: 0.7.0 → 0.8.0
 **Branch**: feat/media-indexer
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/16
 **Design**: docs/features/media-indexer/DESIGN.md
 **Master plan**: docs/features/media-indexer/plan/INDEX.md
 
