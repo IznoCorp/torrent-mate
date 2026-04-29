@@ -7,7 +7,7 @@ All external edges are mocked:
   - TrailerFinder.find  -> returns a canned YouTube URL string
   - YtdlpDownloader.download  -> copies tests/trailers/fixtures/sample-trailer.mp4
     to the target output path, then returns DownloadResult(SUCCESS)
-  - library_scanner.scan_library  -> returns a controlled MagicMock result
+  - TrailersOrchestrator._build_library_index  -> returns a controlled index dict
 
 These tests run by default (no ``@pytest.mark.network`` guard) and must finish
 in < 5 seconds combined, satisfying the 30-second CI budget.
@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 from xml.etree import ElementTree as ET
 
 from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
-from personalscraper.trailers.orchestrator import TrailersOrchestrator
+from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.placement import trailer_exists, trailer_path_for, trailer_path_for_season
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerStatus
@@ -357,25 +357,14 @@ class TestHermeticLibraryAwareIdempotence:
             tmdb_id="1396",
         )
 
-        # Build a fake library result matching the existing unit tests in test_orchestrator.py.
-        lib_nfo = MagicMock()
-        lib_nfo.tmdb_id = "1396"
-        lib_nfo.imdb_id = None
-        fake_lib_item = MagicMock()
-        fake_lib_item.path = str(lib_show_dir)
-        fake_lib_item.category = "tv_shows"
-        fake_lib_item.nfo = lib_nfo
-        fake_lib_result = MagicMock()
-        fake_lib_result.items = [fake_lib_item]
+        # Build a fake library index: (category, tmdb_id) -> _LibraryEntry(path)
+        fake_index = {("tv_shows", "1396"): _LibraryEntry(path=str(lib_show_dir))}
 
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[staging_item]),
             patch.object(orch._finder, "find") as mock_find,
             patch.object(orch._downloader, "download") as mock_download,
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=fake_lib_result,
-            ),
+            patch.object(orch, "_build_library_index", return_value=fake_index),
         ):
             counts = orch.run()
 
@@ -415,17 +404,11 @@ class TestHermeticLibraryAwareIdempotence:
         )
 
         # Library has no match for this show.
-        empty_lib_result = MagicMock()
-        empty_lib_result.items = []
-
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[staging_item]),
             patch.object(orch._finder, "find", return_value=_FAKE_YT_URL),
             patch.object(orch._downloader, "download", side_effect=_copy_fixture_on_download),
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=empty_lib_result,
-            ),
+            patch.object(orch, "_build_library_index", return_value={}),
         ):
             counts = orch.run()
 

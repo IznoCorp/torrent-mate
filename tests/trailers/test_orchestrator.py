@@ -10,13 +10,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.library.models import LibraryScanItem, LibraryScanResult, NfoStatus
-from personalscraper.trailers.orchestrator import TrailersOrchestrator
+from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerStatus
-
-# Silence F401: imported for use in MagicMock(spec=…) calls below.
-_ = (LibraryScanItem, LibraryScanResult, NfoStatus)
 
 
 def _make_config(tmp_path: Path) -> MagicMock:
@@ -290,30 +286,24 @@ class TestDiskSpaceAndBudget:
 class TestLibraryAwareRecheck:
     """Tests for DESIGN SS8 library-aware idempotence.
 
-    These tests verify that the orchestrator calls library.scanner.scan_library
+    These tests verify that the orchestrator calls _build_library_index
     at most once per run, honours per-media-type toggles, and correctly
     short-circuits items when a valid trailer is found on a storage disk.
     """
 
-    def _make_lib_item(self, tmp_path: Path, tmdb_id: str) -> MagicMock:
-        """Build a fake LibraryScanItem for the library index.
+    def _make_lib_index(self, path: str, category: str, tmdb_id: str) -> dict:
+        """Build a fake library index dict for mocking _build_library_index.
 
         Args:
-            tmp_path: Directory to use as the item path.
-            tmdb_id: TMDB ID string to set on nfo.tmdb_id.
+            path: Filesystem path string for the library entry.
+            category: Category ID string (e.g. ``"tv_shows"``).
+            tmdb_id: TMDB ID string to use as the index key.
 
         Returns:
-            MagicMock(spec=LibraryScanItem) with the fields the orchestrator reads.
-            The ``.nfo`` sub-object uses MagicMock(spec=NfoStatus) so attribute
-            access is also spec-checked one level deep.
+            Dict mapping ``(category, tmdb_id)`` to a :class:`_LibraryEntry`,
+            matching the shape returned by the real ``_build_library_index``.
         """
-        lib_item = MagicMock(spec=LibraryScanItem)
-        lib_item.path = str(tmp_path / "Fight Club (1999)")
-        lib_item.category = "movies"
-        lib_item.nfo = MagicMock(spec=NfoStatus)
-        lib_item.nfo.tmdb_id = tmdb_id
-        lib_item.nfo.imdb_id = None
-        return lib_item
+        return {(category, tmdb_id): _LibraryEntry(path=path)}
 
     def test_library_aware_recheck_skips_when_trailer_on_disk(self, tmp_path: Path) -> None:
         """Orchestrator increments already_present_on_disk when trailer exists at library location.
@@ -350,24 +340,14 @@ class TestLibraryAwareRecheck:
         lib_trailer = lib_show_dir / "Trailers" / "Breaking Bad (2008).mp4"
         lib_trailer.write_bytes(b"x" * 200000)
 
-        # Build fake LibraryScanResult
-        lib_item = MagicMock(spec=LibraryScanItem)
-        lib_item.path = str(lib_show_dir)
-        lib_item.category = "tv_shows"
-        lib_item.nfo = MagicMock(spec=NfoStatus)
-        lib_item.nfo.tmdb_id = "1396"
-        lib_item.nfo.imdb_id = None
-        lib_result = MagicMock(spec=LibraryScanResult)
-        lib_result.items = [lib_item]
+        # Build fake library index: (category, tmdb_id) -> _LibraryEntry(path)
+        fake_index = {("tv_shows", "1396"): _LibraryEntry(path=str(lib_show_dir))}
 
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[item]),
             patch.object(orch._finder, "find") as mock_find,
             patch.object(orch._downloader, "download") as mock_dl,
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=lib_result,
-            ),
+            patch.object(orch, "_build_library_index", return_value=fake_index),
         ):
             counts = orch.run()
 
@@ -404,9 +384,6 @@ class TestLibraryAwareRecheck:
             tmdb_id="1396",
         )
 
-        empty_result = MagicMock(spec=LibraryScanResult)
-        empty_result.items = []
-
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[item]),
             patch.object(orch._finder, "find", return_value="https://youtube.com/watch?v=Y"),
@@ -418,10 +395,7 @@ class TestLibraryAwareRecheck:
                     output_path=Path("/fake/Breaking Bad (2008)-trailer.mp4"),
                 ),
             ),
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=empty_result,
-            ),
+            patch.object(orch, "_build_library_index", return_value={}),
         ):
             counts = orch.run()
 
@@ -509,13 +483,11 @@ class TestLibraryAwareRecheck:
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[tv_item, movie_item]),
             patch.object(orch._finder, "find", return_value=None),
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-            ) as mock_scan,
+            patch.object(orch, "_build_library_index", return_value={}) as mock_build,
         ):
             orch.run()
 
-        mock_scan.assert_not_called()
+        mock_build.assert_not_called()
 
     def test_library_aware_recheck_movies_off_tvshows_on_default(self, tmp_path: Path) -> None:
         """Default config: movies skip library check, TV shows trigger it.
@@ -547,21 +519,15 @@ class TestLibraryAwareRecheck:
             tmdb_id="1396",
         )
 
-        empty_result = MagicMock(spec=LibraryScanResult)
-        empty_result.items = []
-
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[movie_item, tv_item]),
             patch.object(orch._finder, "find", return_value=None),
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=empty_result,
-            ) as mock_scan,
+            patch.object(orch, "_build_library_index", return_value={}) as mock_build,
         ):
             orch.run()
 
         # Called once for the TV item (lazy init). Not called for the movie.
-        mock_scan.assert_called_once()
+        mock_build.assert_called_once()
 
     def test_library_aware_recheck_movies_opted_in(self, tmp_path: Path) -> None:
         """When library_check.movies=True, movie items also trigger the library check.
@@ -582,21 +548,15 @@ class TestLibraryAwareRecheck:
             tmdb_id="550",
         )
 
-        empty_result = MagicMock(spec=LibraryScanResult)
-        empty_result.items = []
-
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[movie_item]),
             patch.object(orch._finder, "find", return_value=None),
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=empty_result,
-            ) as mock_scan,
+            patch.object(orch, "_build_library_index", return_value={}) as mock_build,
         ):
             orch.run()
 
         # Library check triggered even for movie items when opted in
-        mock_scan.assert_called_once()
+        mock_build.assert_called_once()
 
     def test_library_scan_called_only_once_per_run(self, tmp_path: Path) -> None:
         """scan_library is called at most once per run(), not once per TV item.
@@ -626,21 +586,15 @@ class TestLibraryAwareRecheck:
             tmdb_id="2222",
         )
 
-        empty_result = MagicMock(spec=LibraryScanResult)
-        empty_result.items = []
-
         with (
             patch.object(orch._scanner, "scan_staging", return_value=[tv_a, tv_b]),
             patch.object(orch._finder, "find", return_value=None),
-            patch(
-                "personalscraper.trailers.orchestrator.library_scanner.scan_library",
-                return_value=empty_result,
-            ) as mock_scan,
+            patch.object(orch, "_build_library_index", return_value={}) as mock_build,
         ):
             orch.run()
 
-        # Only one library scan regardless of item count
-        assert mock_scan.call_count == 1
+        # Only one library index build regardless of item count
+        assert mock_build.call_count == 1
 
 
 class TestTrailersOrchestratorEdgeCases:
