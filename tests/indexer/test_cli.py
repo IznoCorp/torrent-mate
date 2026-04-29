@@ -890,3 +890,138 @@ class TestLibraryIndexDrainsOutbox:
         pending_count = verify_conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0]
         verify_conn.close()
         assert pending_count == 0, f"Expected 0 pending outbox rows after drain, found {pending_count}"
+
+
+# ---------------------------------------------------------------------------
+# Case 18 (10.3): first-run bootstrap — empty disk table + Config.disks
+# ---------------------------------------------------------------------------
+
+
+class TestLibraryIndexBootstrapFromConfig:
+    """library-index bootstraps the ``disk`` table from Config.disks on first run.
+
+    Acceptance criteria (sub-phase 10.3):
+    - Fresh DB (no rows in ``disk`` table) + Config with 2 DiskConfig entries.
+    - ``library-index --mode full`` populates the ``disk`` table.
+    - JSON summary contains ``disks_bootstrapped > 0``.
+    - No manual pre-seeding of ``disk`` rows is required.
+    """
+
+    def test_bootstrap_populates_disk_table(self, tmp_path: Path) -> None:
+        """Empty DB + Config with 2 disks → bootstrap runs, disk rows inserted.
+
+        Strategy:
+        1. Build a config whose ``disks`` list contains 2 synthetic DiskConfig
+           objects (plain MagicMocks with ``.id`` and ``.path`` set).
+        2. Patch ``_bootstrap_disks_from_config`` to simulate successful
+           bootstrap returning 2 (and manually insert the disk rows so the
+           downstream SELECT returns something useful).
+        3. Assert ``disks_bootstrapped == 2`` in the JSON summary.
+        4. Assert the ``disk`` table contains the 2 inserted rows.
+        """
+        from unittest.mock import MagicMock, patch
+
+        cfg = _make_config(tmp_path)
+        db_path: Path = cfg.indexer.db_path
+
+        # Build two synthetic DiskConfig-like mocks.
+        disk_a = MagicMock()
+        disk_a.id = "disk_a"
+        disk_a.path = tmp_path / "mnt_a"
+
+        disk_b = MagicMock()
+        disk_b.id = "disk_b"
+        disk_b.path = tmp_path / "mnt_b"
+
+        cfg.disks = [disk_a, disk_b]
+
+        fake_result = _fake_scan_result(scan_run_id=1, files=0, dirs=0)
+
+        # Patch _bootstrap_disks_from_config to avoid calling diskutil (side-effect:
+        # insert the two disk rows into the DB so the subsequent SELECT works).
+        def fake_bootstrap(conn: object, cfg_disks: list[object]) -> int:
+            """Insert synthetic disk rows and return the count."""
+            import sqlite3 as _sq3
+            import time as _time
+
+            assert isinstance(conn, _sq3.Connection)
+            now = int(_time.time())
+            conn.execute(
+                "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes)"
+                " VALUES (?, ?, ?, ?, NULL, 1, 0)",
+                ("uuid-disk-a", "disk_a", str(tmp_path / "mnt_a"), now),
+            )
+            conn.execute(
+                "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes)"
+                " VALUES (?, ?, ?, ?, NULL, 1, 0)",
+                ("uuid-disk-b", "disk_b", str(tmp_path / "mnt_b"), now),
+            )
+            return 2
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCAN, return_value=fake_result),
+            patch(
+                "personalscraper.indexer.cli._bootstrap_disks_from_config",
+                side_effect=fake_bootstrap,
+            ),
+        ):
+            result = runner.invoke(app, ["library-index", "--mode", "full"])
+
+        assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+        summary = json.loads(result.stdout.strip())
+        assert summary["disks_bootstrapped"] == 2, (
+            f"Expected disks_bootstrapped=2, got {summary.get('disks_bootstrapped')}. Full summary: {summary}"
+        )
+
+        # Verify the disk table now contains 2 rows.
+        verify_conn = sqlite3.connect(str(db_path), isolation_level=None)
+        disk_count = verify_conn.execute("SELECT COUNT(*) FROM disk").fetchone()[0]
+        verify_conn.close()
+        assert disk_count == 2, f"Expected 2 disk rows after bootstrap, found {disk_count}"
+
+    def test_bootstrap_skipped_when_disk_table_not_empty(self, tmp_path: Path) -> None:
+        """Bootstrap is NOT triggered when the ``disk`` table already has rows.
+
+        Pre-seed one disk row and confirm ``_bootstrap_disks_from_config`` is
+        never called, and ``disks_bootstrapped == 0`` in the summary.
+        """
+        cfg = _make_config(tmp_path)
+        db_path: Path = cfg.indexer.db_path
+
+        disk_a = MagicMock()
+        disk_a.id = "disk_a"
+        disk_a.path = tmp_path / "mnt_a"
+        cfg.disks = [disk_a]
+
+        # Pre-seed the disk table so it is non-empty.
+        conn = _make_conn(db_path)
+        conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes)"
+            " VALUES ('existing-uuid', 'existing_disk', '/Volumes/Existing', ?, NULL, 1, 0)",
+            (int(time.time()),),
+        )
+        conn.close()
+
+        fake_result = _fake_scan_result(scan_run_id=5, files=3, dirs=1)
+
+        bootstrap_mock = MagicMock(return_value=0)
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCAN, return_value=fake_result),
+            patch(
+                "personalscraper.indexer.cli._bootstrap_disks_from_config",
+                bootstrap_mock,
+            ),
+        ):
+            result = runner.invoke(app, ["library-index", "--mode", "full"])
+
+        assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+        summary = json.loads(result.stdout.strip())
+        assert summary["disks_bootstrapped"] == 0, (
+            f"Expected disks_bootstrapped=0 (no bootstrap), got {summary.get('disks_bootstrapped')}"
+        )
+        bootstrap_mock.assert_not_called()

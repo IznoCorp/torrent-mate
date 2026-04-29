@@ -12,17 +12,123 @@ Commands:
 - :func:`library_repair_command` — drain the repair queue within a time budget.
 - :func:`library_show_command` — pretty-print all stored data for one media item.
 - :func:`config_migrate_category_command` — rewrite ``category_id`` for renamed categories.
+
+Helpers (module-private):
+- :func:`_resolve_volume_root` — walk ancestors until a real mount point is found.
+- :func:`_bootstrap_disks_from_config` — populate the ``disk`` table from ``Config.disks``.
 """
 
 from __future__ import annotations
 
+import os
+import sqlite3
+import time
+from collections.abc import Sequence
 from pathlib import Path
 
 import typer
 
+from personalscraper.conf.models import DiskConfig
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
+
+
+# ---------------------------------------------------------------------------
+# Module-private helpers
+# ---------------------------------------------------------------------------
+
+
+def _resolve_volume_root(p: Path) -> Path:
+    """Walk up the ancestor chain until a real OS mount point is found.
+
+    ``os.path.ismount`` returns ``True`` for actual volume mount roots (e.g.
+    ``/Volumes/Disk1``) but ``False`` for subdirectories inside a volume (e.g.
+    ``/Volumes/Disk1/medias``).  When ``Config.disks[].path`` points to a
+    subdirectory of a volume (the common case when a disk is shared), this
+    helper resolves the underlying mount root so that ``diskutil`` and sentinel
+    operations target the correct path.
+
+    Args:
+        p: Absolute path to start the search from (typically ``DiskConfig.path``).
+
+    Returns:
+        The nearest ancestor (inclusive) that satisfies ``os.path.ismount``.
+        Falls back to ``p`` itself when the filesystem root is reached without
+        finding a mount point (degenerate case — should not occur in practice).
+    """
+    candidate = p.resolve()
+    while True:
+        if os.path.ismount(str(candidate)):
+            return candidate
+        parent = candidate.parent
+        if parent == candidate:
+            # Reached filesystem root without finding a mount point — return p as-is.
+            return p.resolve()
+        candidate = parent
+
+
+def _bootstrap_disks_from_config(
+    conn: sqlite3.Connection,
+    cfg_disks: Sequence[DiskConfig],
+) -> int:
+    """Populate the ``disk`` table from ``Config.disks`` entries on first run.
+
+    Called when the ``disk`` table is empty and ``Config.disks`` is non-empty.
+    For each :class:`~personalscraper.conf.models.DiskConfig`, this function:
+
+    1. Resolves the volume mount root via :func:`_resolve_volume_root`.
+    2. Calls ``diskutil`` via
+       :func:`~personalscraper.indexer.merkle.bootstrap_disk_identity` to
+       obtain the volume UUID and write the sentinel file.
+    3. INSERTs the disk row with ``is_mounted=1`` and ``last_seen_at=now``.
+
+    If ``bootstrap_disk_identity`` raises :class:`~personalscraper.indexer.merkle.BootstrapError`
+    (e.g. disk offline or not a macOS system), the disk is skipped with a
+    warning so that offline disks do not block the bootstrap entirely.
+
+    Args:
+        conn: Open :class:`sqlite3.Connection` with migrations applied.
+        cfg_disks: Sequence of :class:`~personalscraper.conf.models.DiskConfig`
+            objects from the loaded config.
+
+    Returns:
+        Number of disk rows successfully inserted.
+    """
+    from personalscraper.indexer.merkle import BootstrapError, bootstrap_disk_identity  # noqa: PLC0415
+
+    registered = 0
+    now = int(time.time())
+
+    for disk_cfg in cfg_disks:
+        mount_root = _resolve_volume_root(disk_cfg.path)
+        try:
+            uuid = bootstrap_disk_identity(mount_root)
+        except BootstrapError as exc:
+            log.warning(
+                "indexer.bootstrap.disk_skipped",
+                disk_id=disk_cfg.id,
+                mount_root=str(mount_root),
+                reason=str(exc),
+            )
+            continue
+
+        conn.execute(
+            "INSERT OR IGNORE INTO disk "
+            "(uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, NULL, 1, 0)",
+            (uuid, disk_cfg.id, str(disk_cfg.path), now),
+        )
+        log.info(
+            "indexer.bootstrap.disk_registered",
+            disk_id=disk_cfg.id,
+            uuid=uuid,
+            mount_path=str(disk_cfg.path),
+        )
+        registered += 1
+
+    return registered
+
 
 # ---------------------------------------------------------------------------
 # library-status
@@ -247,7 +353,6 @@ def library_index_command(
         ``3`` when a bulk-change freeze is triggered on a disk.
     """
     import json  # noqa: PLC0415
-    import sqlite3  # noqa: PLC0415
 
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
@@ -337,6 +442,25 @@ def library_index_command(
                     typer.echo(str(exc), err=True)
                     return 1
 
+                # --- Bootstrap disk table on first run if empty ---
+                # When the DB is freshly created the ``disk`` table is empty.
+                # Without bootstrapping, ``scan`` would silently do nothing.
+                # We populate the table from ``Config.disks`` so that the
+                # very first ``library-index --mode full`` works out of the box.
+                disk_count_row = conn.execute("SELECT COUNT(*) FROM disk").fetchone()
+                disk_table_empty: bool = disk_count_row[0] == 0
+                disks_bootstrapped: int = 0
+                if disk_table_empty and cfg.disks:
+                    log.info(
+                        "indexer.bootstrap.starting",
+                        disk_count=len(cfg.disks),
+                    )
+                    disks_bootstrapped = _bootstrap_disks_from_config(conn, cfg.disks)
+                    log.info(
+                        "indexer.bootstrap.done",
+                        disks_registered=disks_bootstrapped,
+                    )
+
                 # --- Resolve disk list from the ``disk`` table ---
                 conn.row_factory = sqlite3.Row
                 raw_rows = conn.execute(
@@ -419,6 +543,7 @@ def library_index_command(
                     "files_walked": result.files_visited,
                     "dirs_walked": result.dirs_visited,
                     "disks_skipped": result.disks_skipped,
+                    "disks_bootstrapped": disks_bootstrapped,
                     "scan_run_id": result.scan_run_id,
                     "status": result.status,
                     "budget_exhausted": False,
@@ -457,7 +582,6 @@ def library_verify_command(
         ``0`` on success, ``1`` on infrastructure error, ``2`` on unknown disk.
     """
     import json  # noqa: PLC0415
-    import sqlite3  # noqa: PLC0415
 
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
@@ -807,8 +931,6 @@ def library_show_command(
         ``0`` on success, ``1`` on infrastructure error, ``2`` if no item with
         the given id exists.
     """
-    import sqlite3  # noqa: PLC0415
-
     from personalscraper.conf.loader import (  # noqa: PLC0415
         ConfigNotFoundError,
         ConfigValidationError,
