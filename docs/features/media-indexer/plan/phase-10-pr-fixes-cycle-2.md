@@ -142,10 +142,6 @@ os.path.ismount('/Volumes/Disk1')         # → True
 
 ---
 
-### 10.6 — _(placeholder, à remplir avec autres bugs feature trouvés)_
-
----
-
 ## Out of scope
 
 - Bugs Cycle 1 déjà corrigés (C1, C2, M1–M4)
