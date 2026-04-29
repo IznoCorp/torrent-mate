@@ -3,12 +3,11 @@
 Catalogue #14 — crash-recovery invariant.
 
 Tests that run_dispatch detects an existing media folder via filesystem scan
-when media_index.json is empty (simulating a post-crash state where the
+when the DB index is empty (simulating a post-crash state where the
 index was not persisted), and performs the correct action (replace for movies)
 rather than treating the item as new.
 """
 
-import json
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -16,6 +15,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.dispatch.run import run_dispatch
 from personalscraper.sorter.file_type import FileType
 
@@ -98,7 +98,7 @@ def test_crash_recovery_uses_filesystem_scan(
     4. Dispatch detects the existing entry and performs a **replace** action
        (correct behaviour for movies) rather than moving to a new disk.
     5. The old file is removed; the new file is present on Disk1.
-    6. ``media_index.json`` is re-populated with an entry for ``SomeMovie (2023)``.
+    6. The DB-backed MediaIndex contains an entry for ``SomeMovie (2023)``.
 
     Args:
         staging_tree: Staging root fixture (tmp_path/staging).
@@ -122,13 +122,13 @@ def test_crash_recovery_uses_filesystem_scan(
     old_file = existing_movie_dir / "file.mkv"
     old_file.write_bytes(b"old_content" * 10)
 
-    # Ensure data_dir exists — MediaIndex.load() requires the parent directory.
+    # Ensure data_dir exists — MediaIndex requires the parent directory for its DB.
     config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write an empty index to simulate a crashed prior run.
+    # The DB starts empty (no prior entries) to simulate a crashed prior run.
     # run_dispatch detects count == 0 and triggers a filesystem rebuild.
+    # media_index.json is no longer read/written; the DB lifecycle is automatic.
     index_path = config.paths.data_dir / "media_index.json"
-    index_path.write_text("{}", encoding="utf-8")
 
     # Place a new version of the movie in the staging 001-MOVIES subdirectory.
     movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))
@@ -158,9 +158,10 @@ def test_crash_recovery_uses_filesystem_scan(
         f"Dispatch details: {report.details}"
     )
 
-    # media_index.json must be re-populated with an entry for the movie.
-    updated_index = json.loads(index_path.read_text(encoding="utf-8"))
-    assert updated_index, "media_index.json should not be empty after dispatch"
-    assert any(folder.lower() in k for k in updated_index), (
-        f"media_index.json should contain an entry for '{folder}'. Keys found: {list(updated_index.keys())}"
+    # The DB-backed index must have an entry for the movie after dispatch.
+    # MediaIndex.save() / load() are no-ops; query the DB directly via find().
+    post_index = MediaIndex(index_path)
+    entry = post_index.find(folder, "movie")
+    assert entry is not None, (
+        f"MediaIndex should have an entry for '{folder}' after dispatch. Total entries in index: {post_index.count}"
     )

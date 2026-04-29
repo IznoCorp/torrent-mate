@@ -7,7 +7,6 @@ on disk: existing episodes are preserved, new episodes are added, the staging
 folder is removed, and no _tmp_dispatch_* or .merge_backup residue remains.
 """
 
-import json
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -15,6 +14,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.dispatch.run import run_dispatch
 from personalscraper.sorter.file_type import FileType
 
@@ -116,7 +116,7 @@ def test_dispatch_merges_tvshow_new_episodes(
     - The staging folder is gone.
     - No ``_tmp_dispatch_*`` residue remains anywhere on Disk2.
     - No ``.merge_backup`` residue remains anywhere on Disk2.
-    - ``media_index.json`` contains an entry for ``Fallout (2024)``.
+    - The DB-backed MediaIndex contains an entry for ``Fallout (2024)``.
 
     Args:
         staging_tree: Staging root fixture (tmp_path/staging).
@@ -140,24 +140,23 @@ def test_dispatch_merges_tvshow_new_episodes(
     existing_ep = existing_show_dir / "Saison 01" / "episode1.mkv"
     existing_ep.write_bytes(_SMALL_BYTES)
 
-    # Ensure data_dir exists — MediaIndex.load() requires the parent directory.
+    # Ensure data_dir exists — MediaIndex requires the parent directory.
     config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
     # Pre-seed the media index so dispatch knows the show is already on disk1.
     # Without this the dispatcher treats the show as "new" and picks the disk
     # with most free space instead of merging into the existing folder.
     index_path = config.paths.data_dir / "media_index.json"
-    index_data = {
-        folder.lower(): {
-            "name": folder,
-            "disk": "disk1",
-            "category": CID.TV_SHOWS,
-            "path": str(existing_show_dir),
-            "media_type": "tvshow",
-            "last_updated": "2024-01-01T00:00:00+00:00",
-        }
-    }
-    index_path.write_text(json.dumps(index_data), encoding="utf-8")
+    seed_index = MediaIndex(index_path)
+    seed_index.add(
+        IndexEntry(
+            name=folder,
+            disk="disk1",
+            category=CID.TV_SHOWS,
+            path=str(existing_show_dir),
+            media_type="tvshow",
+        )
+    )
 
     # Build a fully-verified staging TV show folder containing only episode2.
     tvshows_staging = staging_tree / folder_name(find_by_file_type(config, FileType.TVSHOW))
@@ -197,18 +196,12 @@ def test_dispatch_merges_tvshow_new_episodes(
     backup_residue = list(disk1_root.rglob(".merge_backup"))
     assert not backup_residue, f"Unexpected .merge_backup residue on Disk1: {backup_residue}"
 
-    # media_index.json must be re-written by dispatch (not just the pre-seeded copy).
-    # We assert the entry's last_updated differs from the pre-seeded sentinel
-    # "2024-01-01T00:00:00+00:00" — a stale value means dispatch never saved the index.
-    _PRESEED_LAST_UPDATED = "2024-01-01T00:00:00+00:00"
-    updated_index = json.loads(index_path.read_text(encoding="utf-8"))
-    assert any(folder.lower() in k for k in updated_index), (
-        f"media_index.json should have an entry for '{folder}'. Keys: {list(updated_index.keys())}"
+    # The DB-backed index must have an entry for the show after dispatch.
+    # MediaIndex.save() / load() are no-ops; query the DB directly via find().
+    post_index = MediaIndex(index_path)
+    entry = post_index.find(folder, "tvshow")
+    assert entry is not None, (
+        f"MediaIndex should have an entry for '{folder}' after dispatch. Total entries in index: {post_index.count}"
     )
-    entry_key = next(k for k in updated_index if folder.lower() in k)
-    entry_last_updated = updated_index[entry_key].get("last_updated")
-    assert entry_last_updated != _PRESEED_LAST_UPDATED, (
-        f"media_index.json entry for '{folder}' has the pre-seeded last_updated "
-        f"({_PRESEED_LAST_UPDATED!r}) — dispatch did not re-write the index. "
-        f"Got last_updated={entry_last_updated!r}"
-    )
+    assert entry.disk == "disk1", f"Index entry for '{folder}' should point to disk1. Got: {entry.disk!r}"
+    assert entry.path == str(dest_dir), f"Index entry path for '{folder}' should be '{dest_dir}'. Got: {entry.path!r}"
