@@ -110,6 +110,67 @@ For nightly scheduled scans (launchd), set the budget to ≤ 3 600 s (1 hour) to
 ensure the job completes before the next wake window. Use `--mode incremental`
 for nightly runs and reserve `--mode full` for weekend maintenance windows.
 
+## Indexer Cold-Rebuild Playbook
+
+Use these steps after any of the following events:
+
+- `library.db` is corrupted (`library status` exits 1 with `IndexerCorruptError`).
+- A disk was replaced and its volume UUID changed.
+- The database was lost (e.g. `.data/` directory deleted or internal disk reformatted).
+- An unclean unmount left the index inconsistent with the disks.
+
+### Quick path — use `--rebuild`
+
+```bash
+# Quarantines the existing DB and runs a full Stage-A rescan from scratch.
+personalscraper library index --rebuild
+
+# Verify the result
+personalscraper library status
+```
+
+The quarantined database is moved to `.data/library.db.quarantine.<timestamp>`.
+
+### Manual path (if `--rebuild` itself fails)
+
+```bash
+# 1. Remove or quarantine the corrupt database manually
+mv .data/library.db .data/library.db.bak
+
+# 2. Run a full scan — creates a fresh database
+personalscraper library index --mode full
+
+# 3. Verify
+personalscraper library status
+```
+
+### Per-disk cold rebuild (disk replaced or UUID changed)
+
+When only one disk needs rebuilding, scope the scan to avoid I/O on healthy disks:
+
+```bash
+# Step 1: update disk registry (re-detect new UUID on remount)
+personalscraper library index --mode full --disk Disk3
+
+# Step 2: verify
+personalscraper library status
+```
+
+If the old disk row is still in the database with a stale UUID, the scanner
+detects the mismatch and logs `indexer.disk.uuid_changed` at INFO level. The
+row is updated automatically; no manual SQL is needed.
+
+### Recovery timing
+
+See §Budget Planning above for expected scan durations. For a 6 TB NTFS disk
+over USB 3.0, allow 60–90 minutes for a full cold rebuild. Use `--budget`
+to cap wall-clock time and resume across sessions:
+
+```bash
+# Cap at 90 minutes; resumes from checkpoint on next invocation
+personalscraper library index --mode full --disk Disk3 --budget 5400
+```
+
 ## Paths
 
 - Paths contain spaces (`/path/to/staging/`) — always quote paths in shell commands.

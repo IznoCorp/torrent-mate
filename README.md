@@ -21,6 +21,7 @@ qBittorrent  →  staging/  →  Disques de stockage (configurés)
 | **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)                  |
 | **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre                    |
 | **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage                     |
+| **Library**  | `personalscraper library`  | Index SQLite des disques — scan, search, verify, repair, show  |
 
 Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour prévisualiser).
 
@@ -89,6 +90,12 @@ make format                             # Formater le code
 | [CONFIGURATION.md](CONFIGURATION.md) | Guide config.json5 + .env — toutes les sections, clés API |
 | [MANUAL.md](MANUAL.md)               | Manuel d'utilisation — commandes, disques, nommage        |
 
+## Dépendances système
+
+```bash
+brew install media-info   # pymediainfo backend (stream extraction for the indexer)
+```
+
 ## Technologies
 
 - **Python 3.10+** avec [Typer](https://typer.tiangolo.com/) (CLI) et [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) (config)
@@ -98,6 +105,7 @@ make format                             # Formater le code
 - **rsync** — Transferts cross-filesystem (resume, checksum, crash-safe)
 - **structlog** — Logging JSON structuré (console + fichier)
 - **rich** — Affichage CLI (progress bars, tables, couleurs)
+- **pymediainfo** — Extraction des streams vidéo/audio (requiert `brew install media-info`)
 
 ## Licence
 
