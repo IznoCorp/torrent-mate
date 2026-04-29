@@ -45,9 +45,36 @@ Bugs détectés pendant le smoke-test pipeline du 2026-04-29 sur la branche `fea
 
 ---
 
-### 10.3 — _(placeholder, à remplir avec les bugs de la feature media-indexer trouvés au 2ᵉ pipeline run)_
+### 10.3 — Fix: First-run UX broken — `library-index` ne bootstrappe pas les disques depuis Config.disks
 
-Après le bootstrap `library index --mode full` et le re-run pipeline avec l'outbox actif, ajouter ici les bugs trouvés (publish_event qui rate, drift detection qui rate, etc.).
+**Finding (CRITICAL — feature bug)** : sur une DB fraîche (`disk` table vide), `personalscraper library-index --mode full` retourne `files_walked=0, dirs_walked=0, disks_skipped=0, status=ok` en moins d'1 seconde. Aucune erreur, aucun warning. L'utilisateur n'a aucun moyen de savoir que rien ne s'est passé sans inspecter la DB.
+
+**Step concerné** : `personalscraper.indexer.cli.library_index_command`
+**Reproductible** : `rm -rf .personalscraper/library.db && personalscraper library-index --mode full`
+
+**Root cause** : `personalscraper/indexer/cli.py:340-358` lit les disques uniquement depuis la table `disk` :
+
+```python
+raw_rows = conn.execute("SELECT ... FROM disk").fetchall()
+disks: list[DiskRow] = [DiskRow(...) for r in raw_rows]
+```
+
+Si la table est vide, `disks=[]`, `filter_disks([], None) = []`, `scan(disks=[], ...)` ne fait rien. **Il n'existe aucun chemin de code qui peuple la table `disk` depuis `Config.disks`.**
+
+**Fix shape** :
+
+- Dans `library_index_command`, après `apply_migrations` et avant le SELECT FROM disk : si la table `disk` est vide ET `cfg.disks` est non-vide, bootstrapper la table en INSERTant chaque `DiskConfig` (id, uuid via `bootstrap_disk_identity`, label, mount_path).
+- Logger `indexer.bootstrap.disk_registered` à `info` pour chaque insert.
+- Surfacer dans la sortie JSON un nouveau champ `disks_bootstrapped: int` quand le bootstrap a tourné.
+- **Acceptance** : `rm -rf .personalscraper/library.db && personalscraper library-index --mode full` enregistre les 4 disques + scanne le contenu, files_walked > 0 et disks_bootstrapped=4.
+
+**Sévérité** : Critical — la feature est inutilisable telle quelle au premier run. C'est exactement le bug que cycle 1 visait C1/C2 mais l'UX bootstrap a été oublié.
+
+---
+
+### 10.4 — _(placeholder, à remplir avec autres bugs feature trouvés au 2ᵉ pipeline run)_
+
+Après bootstrap manuel + re-run pipeline avec outbox actif.
 
 ---
 
