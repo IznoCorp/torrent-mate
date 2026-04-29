@@ -13,9 +13,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
-import types
 from pathlib import Path
-from unittest.mock import patch
 
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.outbox import drain_if_present
@@ -109,15 +107,8 @@ def test_write_nfo_publishes_outbox_row_and_drains(tmp_path: Path) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / "Test (2024).nfo"
 
-    # --- Patch IndexerConfig to use our tmp db_path ---
-    # publish_event and disk_id_for_path both call IndexerConfig() internally.
-    fake_config = types.SimpleNamespace(db_path=db_path)
-
-    with patch(
-        "personalscraper.indexer.outbox.IndexerConfig",
-        return_value=fake_config,
-    ):
-        NFOGenerator().write_nfo("<movie></movie>", target_path)
+    # Pass db_path directly so write_nfo publishes to the test DB.
+    NFOGenerator(db_path=db_path).write_nfo("<movie></movie>", target_path)
 
     # --- Assert the NFO file was written ---
     assert target_path.exists(), "write_nfo must create the NFO file on disk"
@@ -168,13 +159,9 @@ def test_write_nfo_no_outbox_row_when_disk_not_registered(tmp_path: Path) -> Non
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / "Ghost (2001).nfo"
 
-    fake_config = types.SimpleNamespace(db_path=db_path)
-
-    with patch(
-        "personalscraper.indexer.outbox.IndexerConfig",
-        return_value=fake_config,
-    ):
-        NFOGenerator().write_nfo("<movie></movie>", target_path)
+    # Pass db_path directly — NFOGenerator skips outbox publish when disk_id_for_path
+    # returns None (no disk row inserted above, so no match).
+    NFOGenerator(db_path=db_path).write_nfo("<movie></movie>", target_path)
 
     assert target_path.exists()
 

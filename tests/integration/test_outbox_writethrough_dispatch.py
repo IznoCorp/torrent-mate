@@ -20,10 +20,8 @@ from __future__ import annotations
 import shutil
 import sqlite3
 import time
-import types
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
 import pytest
@@ -214,8 +212,10 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     for i, disk_path in enumerate(fake_disks, start=1):
         _insert_mounted_disk(conn, mount_path=str(disk_path), label=f"Disk{i}")
 
-    # --- Patch IndexerConfig to use our tmp db_path in all outbox call-sites ---
-    fake_indexer_cfg = types.SimpleNamespace(db_path=db_path)
+    # --- Override indexer.db_path in the config so dispatch_movie lands events
+    # in the test DB rather than the default .personalscraper/library.db ---
+    new_indexer = integration_config.indexer.model_copy(update={"db_path": db_path})
+    test_config = integration_config.model_copy(update={"indexer": new_indexer})
 
     # --- Monkeypatch shutil.disk_usage so disk1 wins free-space election ---
     _real_disk_usage = shutil.disk_usage
@@ -257,20 +257,18 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     index.load()
 
     # --- Ensure data_dir exists (MediaIndex.save may need it) ---
-    integration_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Invoke dispatch_movie directly (bypass run_dispatch for precision) ---
-    with patch(
-        "personalscraper.indexer.outbox.IndexerConfig",
-        return_value=fake_indexer_cfg,
-    ):
-        dispatcher = Dispatcher(
-            config=integration_config,
-            settings=_make_settings(),
-            index=index,
-            dry_run=False,
-        )
-        result = dispatcher.dispatch_movie(movie_dir, CID.MOVIES)
+    # test_config has indexer.db_path overridden to point at our tmp DB so
+    # dispatch_movie's publish_event call lands in the right database.
+    dispatcher = Dispatcher(
+        config=test_config,
+        settings=_make_settings(),
+        index=index,
+        dry_run=False,
+    )
+    result = dispatcher.dispatch_movie(movie_dir, CID.MOVIES)
 
     # --- Assert dispatch succeeded (moved to disk1) ---
     assert result.action == "moved", (

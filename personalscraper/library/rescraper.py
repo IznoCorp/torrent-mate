@@ -543,8 +543,14 @@ def rescrape_library(
 
     tmdb_client = TMDBClient(settings.tmdb_api_key, language=settings.scraper_language)
     tvdb_client = TVDBClient(settings.tvdb_api_key)
-    nfo_gen = NFOGenerator()
-    artwork_dl = ArtworkDownloader(dry_run=dry_run, artwork_language=settings.artwork_language)
+    # Pass db_path so write-through outbox publishes land in the user-configured
+    # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).
+    nfo_gen = NFOGenerator(db_path=config.indexer.db_path)
+    artwork_dl = ArtworkDownloader(
+        dry_run=dry_run,
+        artwork_language=settings.artwork_language,
+        db_path=config.indexer.db_path,
+    )
     patterns = NamingPatterns()
 
     items: list[RescrapeAction] = []

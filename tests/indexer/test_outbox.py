@@ -22,7 +22,6 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
-import types
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -1093,16 +1092,14 @@ def test_drain_nfo_write_resolves_path_from_file_path(conn: sqlite3.Connection) 
 
 def test_publish_event_swallows_bad_db_path(tmp_path: Path) -> None:
     """publish_event() returns silently when the DB path does not exist (bad path)."""
-    # Override db_path to a nonexistent location on a non-macFUSE path.
-    with patch("personalscraper.indexer.outbox.IndexerConfig") as MockConfig:
-        instance = MockConfig.return_value
-        instance.db_path = tmp_path / "nonexistent_dir" / "library.db"
-        # Should not raise.
-        publish_event(
-            disk_id=1,
-            op="move",
-            payload={"dst_rel_path": "foo", "filename": "bar.mkv", "size_bytes": 1, "mtime_ns": 1},
-        )
+    bad_db_path = tmp_path / "nonexistent_dir" / "library.db"
+    # Should not raise.
+    publish_event(
+        disk_id=1,
+        op="move",
+        payload={"dst_rel_path": "foo", "filename": "bar.mkv", "size_bytes": 1, "mtime_ns": 1},
+        db_path=bad_db_path,
+    )
 
 
 def test_publish_event_swallows_exception_on_sqlite_error(tmp_path: Path) -> None:
@@ -1110,7 +1107,12 @@ def test_publish_event_swallows_exception_on_sqlite_error(tmp_path: Path) -> Non
     with patch("personalscraper.indexer.outbox.sqlite3.connect") as mock_connect:
         mock_connect.side_effect = sqlite3.OperationalError("database is locked")
         # Should not raise.
-        publish_event(disk_id=99, op="nfo_write", payload={"rel_path": "foo", "item_kind": "movie"})
+        publish_event(
+            disk_id=99,
+            op="nfo_write",
+            payload={"rel_path": "foo", "item_kind": "movie"},
+            db_path=tmp_path / "library.db",
+        )
 
 
 def test_publish_event_inserts_row(tmp_path: Path) -> None:
@@ -1123,15 +1125,12 @@ def test_publish_event_inserts_row(tmp_path: Path) -> None:
     _am(c, MIGRATIONS_DIR)
     c.close()
 
-    with patch("personalscraper.indexer.outbox.IndexerConfig") as MockConfig:
-        instance = MockConfig.return_value
-        instance.db_path = db_path
-
-        publish_event(
-            disk_id=1,
-            op="move",
-            payload={"dst_rel_path": "movies/Foo", "filename": "foo.mkv", "size_bytes": 10, "mtime_ns": 100},
-        )
+    publish_event(
+        disk_id=1,
+        op="move",
+        payload={"dst_rel_path": "movies/Foo", "filename": "foo.mkv", "size_bytes": 10, "mtime_ns": 100},
+        db_path=db_path,
+    )
 
     c2 = sqlite3.connect(str(db_path), isolation_level=None)
     c2.row_factory = sqlite3.Row
@@ -1139,6 +1138,53 @@ def test_publish_event_inserts_row(tmp_path: Path) -> None:
     c2.close()
     assert len(rows) == 1
     assert rows[0]["op"] == "move"
+
+
+def test_publish_event_uses_custom_db_path(tmp_path: Path) -> None:
+    """publish_event() writes to the supplied db_path, not the default IndexerConfig path.
+
+    This is the acceptance test for DESIGN §9.4: customising ``Config.indexer.db_path``
+    must cause all write-through events to land in the user-configured database, not the
+    default ``.personalscraper/library.db``.
+
+    Steps:
+    - Create two separate databases: ``custom.db`` (the target) and ``other.db``
+      (a control DB — must remain empty after the call).
+    - Apply migrations to both so the schema exists in each.
+    - Call publish_event with ``db_path=custom_db_path``.
+    - Assert index_outbox in ``custom.db`` has exactly one row.
+    - Assert ``other.db`` remains empty (no accidental write to a default path).
+    """
+    custom_db_path = tmp_path / "custom.db"
+    other_db_path = tmp_path / "other.db"
+
+    for path in (custom_db_path, other_db_path):
+        c = sqlite3.connect(str(path), isolation_level=None)
+        c.execute("PRAGMA foreign_keys=ON")
+        apply_migrations(c, MIGRATIONS_DIR)
+        c.close()
+
+    publish_event(
+        disk_id=1,
+        op="move",
+        payload={"dst_rel_path": "movies/Custom", "filename": "custom.mkv", "size_bytes": 42, "mtime_ns": 999},
+        db_path=custom_db_path,
+    )
+
+    # The row must land in the custom DB.
+    c_custom = sqlite3.connect(str(custom_db_path), isolation_level=None)
+    c_custom.row_factory = sqlite3.Row
+    custom_rows = c_custom.execute("SELECT * FROM index_outbox").fetchall()
+    c_custom.close()
+    assert len(custom_rows) == 1, f"Expected 1 row in custom.db, got {len(custom_rows)}"
+    assert custom_rows[0]["op"] == "move"
+
+    # The other DB must be untouched (proves the default path is not used).
+    c_other = sqlite3.connect(str(other_db_path), isolation_level=None)
+    c_other.row_factory = sqlite3.Row
+    other_rows = c_other.execute("SELECT * FROM index_outbox").fetchall()
+    c_other.close()
+    assert len(other_rows) == 0, f"Expected 0 rows in other.db, got {len(other_rows)}"
 
 
 # ---------------------------------------------------------------------------
@@ -1323,9 +1369,7 @@ def _make_disk_row(uuid: str, label: str, mount_path: str | None, is_mounted: in
 class TestDiskIdForPath:
     """Tests for the disk_id_for_path helper."""
 
-    def test_returns_disk_id_and_rel_path_for_mounted_disk(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_returns_disk_id_and_rel_path_for_mounted_disk(self, tmp_path: Path) -> None:
         """Returns (disk_id, rel_path) for a path under a mounted disk."""
         from personalscraper.indexer.repos import disk_repo  # noqa: PLC0415
 
@@ -1340,16 +1384,10 @@ class TestDiskIdForPath:
         finally:
             conn.close()
 
-        # Patch IndexerConfig to return our temp db_path
-        monkeypatch.setattr(
-            "personalscraper.indexer.outbox.IndexerConfig",
-            lambda: types.SimpleNamespace(db_path=db_path),
-        )
-
-        result = disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4"))
+        result = disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4"), db_path)
         assert result == (disk_id, "movies/foo.mp4")
 
-    def test_returns_none_for_unmounted_or_no_match(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_none_for_unmounted_or_no_match(self, tmp_path: Path) -> None:
         """Returns None when no mounted disk matches the path prefix."""
         from personalscraper.indexer.repos import disk_repo  # noqa: PLC0415
 
@@ -1365,25 +1403,16 @@ class TestDiskIdForPath:
         finally:
             conn.close()
 
-        monkeypatch.setattr(
-            "personalscraper.indexer.outbox.IndexerConfig",
-            lambda: types.SimpleNamespace(db_path=db_path),
-        )
-
         # Path under unmounted disk → None
-        assert disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4")) is None
+        assert disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4"), db_path) is None
         # Path with no matching disk → None
-        assert disk_id_for_path(Path("/some/other/path")) is None
+        assert disk_id_for_path(Path("/some/other/path"), db_path) is None
 
-    def test_returns_none_on_db_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_returns_none_on_db_error(self) -> None:
         """Returns None when DB cannot be opened (best-effort contract)."""
-        monkeypatch.setattr(
-            "personalscraper.indexer.outbox.IndexerConfig",
-            lambda: types.SimpleNamespace(db_path=Path("/nonexistent/dir/library.db")),
-        )
-        assert disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4")) is None
+        assert disk_id_for_path(Path("/Volumes/D1/movies/foo.mp4"), Path("/nonexistent/dir/library.db")) is None
 
-    def test_longest_prefix_match_wins(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_longest_prefix_match_wins(self, tmp_path: Path) -> None:
         """When two disks have nested mount_paths, the longest match wins."""
         from personalscraper.indexer.repos import disk_repo  # noqa: PLC0415
 
@@ -1402,10 +1431,5 @@ class TestDiskIdForPath:
         finally:
             conn.close()
 
-        monkeypatch.setattr(
-            "personalscraper.indexer.outbox.IndexerConfig",
-            lambda: types.SimpleNamespace(db_path=db_path),
-        )
-
-        result = disk_id_for_path(Path("/Volumes/D1/foo.mp4"))
+        result = disk_id_for_path(Path("/Volumes/D1/foo.mp4"), db_path)
         assert result == (d2, "foo.mp4")

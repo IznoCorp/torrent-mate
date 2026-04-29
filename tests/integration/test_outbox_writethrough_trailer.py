@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
-import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -148,11 +147,10 @@ def test_trailer_download_publishes_outbox_row_and_drains(tmp_path: Path) -> Non
         tmdb_id="99999",
     )
 
-    # Fake IndexerConfig points at our tmp db so publish_event and disk_id_for_path
-    # connect to the same database that contains our disk row.
-    fake_config = types.SimpleNamespace(db_path=db_path)
-
+    # Set indexer.db_path on the mock config so publish_event and disk_id_for_path
+    # inside the orchestrator connect to the same test database that contains our disk row.
     config = _make_config(tmp_path)
+    config.indexer.db_path = db_path
     orch = TrailersOrchestrator(config=config, staging_dir=tmp_path)
 
     def _download_side_effect(url: str, dest: Path) -> DownloadResult:
@@ -161,7 +159,6 @@ def test_trailer_download_publishes_outbox_row_and_drains(tmp_path: Path) -> Non
         return DownloadResult(status=DownloadStatus.SUCCESS, output_path=dest)
 
     with (
-        patch("personalscraper.indexer.outbox.IndexerConfig", return_value=fake_config),
         patch.object(orch._scanner, "scan_staging", return_value=[scan_item]),
         patch.object(orch._finder, "find", return_value="https://youtube.com/watch?v=FAKE"),
         patch.object(orch._downloader, "download", side_effect=_download_side_effect),
@@ -230,8 +227,8 @@ def test_no_outbox_row_when_trailer_not_under_registered_disk(tmp_path: Path) ->
         tmdb_id="11888",
     )
 
-    fake_config = types.SimpleNamespace(db_path=db_path)
     config = _make_config(tmp_path)
+    config.indexer.db_path = db_path
     orch = TrailersOrchestrator(config=config, staging_dir=tmp_path)
 
     def _download_side_effect(url: str, dest: Path) -> DownloadResult:
@@ -240,7 +237,6 @@ def test_no_outbox_row_when_trailer_not_under_registered_disk(tmp_path: Path) ->
         return DownloadResult(status=DownloadStatus.SUCCESS, output_path=dest)
 
     with (
-        patch("personalscraper.indexer.outbox.IndexerConfig", return_value=fake_config),
         patch.object(orch._scanner, "scan_staging", return_value=[scan_item]),
         patch.object(orch._finder, "find", return_value="https://youtube.com/watch?v=FAKE"),
         patch.object(orch._downloader, "download", side_effect=_download_side_effect),

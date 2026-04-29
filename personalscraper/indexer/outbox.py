@@ -773,14 +773,15 @@ def publish_event(
     disk_id: int,
     op: str,
     payload: dict[str, Any],
+    db_path: Path,
     source: str = "dispatch",
 ) -> None:
     """Insert a pending outbox row for a pipeline mutation event (best-effort).
 
-    Opens a **short, independent** connection to ``library.db`` (determined from
-    the default :class:`IndexerConfig`), inserts one row in ``index_outbox``,
-    then closes.  Does NOT acquire ``indexer_lock`` — publishers must write
-    while a scan holds the lock (DESIGN §6.4 / §5.3).
+    Opens a **short, independent** connection to ``library.db`` at *db_path*,
+    inserts one row in ``index_outbox``, then closes.  Does NOT acquire
+    ``indexer_lock`` — publishers must write while a scan holds the lock
+    (DESIGN §6.4 / §5.3).
 
     On any exception (DB locked, disk full, path error): logs
     ``indexer.db.outbox_lost`` with the payload and returns silently.
@@ -793,6 +794,9 @@ def publish_event(
             or ``'trailer_download'``.
         payload: Dict of op-specific fields (per DESIGN §9.3).  ``disk_id`` is
             injected automatically.
+        db_path: Absolute path to the indexer SQLite database.  Must be the
+            resolved ``Config.indexer.db_path`` so events land in the
+            user-configured DB (DESIGN §9.4).
         source: Originating subsystem: ``'dispatch'``, ``'scraper'``,
             ``'trailers'``, or ``'scanner'``.  Defaults to ``'dispatch'``.
     """
@@ -806,9 +810,6 @@ def publish_event(
         return
 
     try:
-        cfg = IndexerConfig()
-        db_path: Path = cfg.db_path
-
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
         conn.execute("PRAGMA busy_timeout=5000")
         try:
@@ -826,15 +827,18 @@ def publish_event(
         )
 
 
-def disk_id_for_path(path: Path) -> tuple[int, str] | None:
+def disk_id_for_path(path: Path, db_path: Path) -> tuple[int, str] | None:
     """Resolve (disk_id, rel_path) for *path* via the disk table (best-effort).
 
-    Opens a short independent connection to ``IndexerConfig().db_path``,
-    queries mounted disks, and returns the longest mount_path prefix match.
-    Never raises — same best-effort contract as :func:`publish_event`.
+    Opens a short independent connection to *db_path*, queries mounted disks,
+    and returns the longest mount_path prefix match.  Never raises — same
+    best-effort contract as :func:`publish_event`.
 
     Args:
         path: Absolute filesystem path on a mounted disk.
+        db_path: Absolute path to the indexer SQLite database.  Must be the
+            resolved ``Config.indexer.db_path`` so lookups target the
+            user-configured DB (DESIGN §9.4).
 
     Returns:
         ``(disk_id, rel_path)`` where ``rel_path`` is *path* relative to
@@ -842,8 +846,7 @@ def disk_id_for_path(path: Path) -> tuple[int, str] | None:
         matches or on any error.
     """
     try:
-        cfg = IndexerConfig()
-        conn = sqlite3.connect(str(cfg.db_path), isolation_level=None, check_same_thread=False)
+        conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
         conn.execute("PRAGMA busy_timeout=5000")
         try:
             cursor = conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted=1")

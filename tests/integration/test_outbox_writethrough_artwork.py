@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
-import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -118,14 +117,9 @@ def test_download_image_publishes_artwork_write_and_drains(tmp_path: Path) -> No
     target_dir.mkdir(parents=True, exist_ok=True)
     dest = target_dir / "poster.jpg"
 
-    fake_config = types.SimpleNamespace(db_path=db_path)
+    downloader = ArtworkDownloader(dry_run=False, artwork_language="en", db_path=db_path)
 
-    downloader = ArtworkDownloader(dry_run=False, artwork_language="en")
-
-    with (
-        patch("personalscraper.indexer.outbox.IndexerConfig", return_value=fake_config),
-        patch.object(downloader, "_session", _make_fake_session()),
-    ):
+    with patch.object(downloader, "_session", _make_fake_session()):
         result = downloader.download_image("http://fake/poster.jpg", dest)
 
     assert result is True, "download_image should return True on success"
@@ -179,8 +173,6 @@ def test_kind_derivation(tmp_path: Path) -> None:
     target_dir = tmp_path / "Disk1" / "Movies" / "Kind (2024)"
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    fake_config = types.SimpleNamespace(db_path=db_path)
-
     cases = [
         ("fanart.jpg", "landscape"),
         ("thumb.jpg", "thumb"),
@@ -189,12 +181,9 @@ def test_kind_derivation(tmp_path: Path) -> None:
 
     for filename, expected_kind in cases:
         dest = target_dir / filename
-        downloader = ArtworkDownloader(dry_run=False, artwork_language="en")
+        downloader = ArtworkDownloader(dry_run=False, artwork_language="en", db_path=db_path)
 
-        with (
-            patch("personalscraper.indexer.outbox.IndexerConfig", return_value=fake_config),
-            patch.object(downloader, "_session", _make_fake_session()),
-        ):
+        with patch.object(downloader, "_session", _make_fake_session()):
             downloader.download_image(f"http://fake/{filename}", dest)
 
         conn.row_factory = sqlite3.Row
@@ -229,13 +218,9 @@ def test_download_image_no_outbox_row_when_disk_not_registered(tmp_path: Path) -
     target_dir.mkdir(parents=True, exist_ok=True)
     dest = target_dir / "poster.jpg"
 
-    fake_config = types.SimpleNamespace(db_path=db_path)
-    downloader = ArtworkDownloader(dry_run=False, artwork_language="en")
+    downloader = ArtworkDownloader(dry_run=False, artwork_language="en", db_path=db_path)
 
-    with (
-        patch("personalscraper.indexer.outbox.IndexerConfig", return_value=fake_config),
-        patch.object(downloader, "_session", _make_fake_session()),
-    ):
+    with patch.object(downloader, "_session", _make_fake_session()):
         result = downloader.download_image("http://fake/poster.jpg", dest)
 
     assert result is True

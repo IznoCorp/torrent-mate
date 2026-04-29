@@ -385,7 +385,8 @@ class Dispatcher:
 
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
         if result.action in ("replaced", "moved") and result.destination is not None:
-            resolved = disk_id_for_path(result.destination)
+            _db_path = self.config.indexer.db_path
+            resolved = disk_id_for_path(result.destination, _db_path)
             if resolved is not None:
                 disk_id, rel_path = resolved
                 publish_event(
@@ -398,6 +399,7 @@ class Dispatcher:
                         "size_bytes": None,
                         "mtime_ns": None,
                     },
+                    db_path=_db_path,
                     source="dispatch",
                 )
 
@@ -486,7 +488,8 @@ class Dispatcher:
 
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
         if result.action in ("merged", "moved") and result.destination is not None:
-            resolved = disk_id_for_path(result.destination)
+            _db_path = self.config.indexer.db_path
+            resolved = disk_id_for_path(result.destination, _db_path)
             if resolved is not None:
                 disk_id, rel_path = resolved
                 publish_event(
@@ -499,6 +502,7 @@ class Dispatcher:
                         "size_bytes": None,
                         "mtime_ns": None,
                     },
+                    db_path=_db_path,
                     source="dispatch",
                 )
 

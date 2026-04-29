@@ -469,7 +469,8 @@ class TrailersOrchestrator:
 
                 # Best-effort outbox publish for the indexer (DESIGN §9.1).
                 if result.output_path is not None:
-                    resolved = disk_id_for_path(result.output_path)
+                    _db_path = self._config.indexer.db_path
+                    resolved = disk_id_for_path(result.output_path, _db_path)
                     if resolved is not None:
                         disk_id, rel_path = resolved
                         publish_event(
@@ -479,6 +480,7 @@ class TrailersOrchestrator:
                                 "rel_path": rel_path,
                                 "trailer_path": str(result.output_path),
                             },
+                            db_path=_db_path,
                             source="trailers",
                         )
 

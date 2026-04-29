@@ -574,11 +574,15 @@ class Scraper:
             circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
         )
 
-        # Initialize helpers
-        self._nfo = NFOGenerator()
+        # Initialize helpers.  Pass db_path so write-through outbox publishes
+        # land in the user-configured DB (DESIGN §9.4).  When config is None
+        # (legacy/test mode) db_path is None and outbox publishing is skipped.
+        _db_path = config.indexer.db_path if config is not None else None
+        self._nfo = NFOGenerator(db_path=_db_path)
         self._artwork = ArtworkDownloader(
             dry_run=dry_run,
             artwork_language=settings.artwork_language,
+            db_path=_db_path,
         )
 
         # Classification helpers — only set up when config is provided.

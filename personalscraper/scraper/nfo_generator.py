@@ -87,7 +87,21 @@ class NFOGenerator:
 
     Produces XML that matches the structure of MediaElch-generated NFO files,
     including ratings, uniqueids, inline thumbs, streamdetails, and actors.
+
+    Attributes:
+        _db_path: Path to the indexer SQLite database used for best-effort
+            outbox publish on :meth:`write_nfo`.  ``None`` disables publishing.
     """
+
+    def __init__(self, db_path: Path | None = None) -> None:
+        """Initialise the NFO generator.
+
+        Args:
+            db_path: Resolved ``Config.indexer.db_path`` passed through from
+                the caller.  When ``None``, the write-through outbox publish
+                in :meth:`write_nfo` is silently skipped (best-effort contract).
+        """
+        self._db_path = db_path
 
     def generate_movie_nfo(
         self,
@@ -448,25 +462,28 @@ class NFOGenerator:
         path.write_text(xml_content, encoding="utf-8")
 
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
-        resolved = disk_id_for_path(path)
-        if resolved is not None:
-            disk_id, rel_path = resolved
-            item_kind = (
-                "tvshow"
-                if path.parent.name.lower() in {"saison", "season"} or "episodes" in path.name.lower()
-                else "movie"
-            )
-            publish_event(
-                disk_id,
-                op="nfo_write",
-                payload={
-                    "rel_path": rel_path,
-                    "item_kind": item_kind,
-                    "tmdb_id": None,
-                    "imdb_id": None,
-                },
-                source="scraper",
-            )
+        # Skipped when _db_path is None (no config available at construction time).
+        if self._db_path is not None:
+            resolved = disk_id_for_path(path, self._db_path)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                item_kind = (
+                    "tvshow"
+                    if path.parent.name.lower() in {"saison", "season"} or "episodes" in path.name.lower()
+                    else "movie"
+                )
+                publish_event(
+                    disk_id,
+                    op="nfo_write",
+                    payload={
+                        "rel_path": rel_path,
+                        "item_kind": item_kind,
+                        "tmdb_id": None,
+                        "imdb_id": None,
+                    },
+                    db_path=self._db_path,
+                    source="scraper",
+                )
 
     # --- Private helpers ---
 

@@ -107,18 +107,24 @@ class ArtworkDownloader:
 
     Attributes:
         dry_run: If True, log planned downloads without writing files.
+        _db_path: Path to the indexer SQLite database used for best-effort
+            outbox publish on :meth:`download_image`.  ``None`` disables publishing.
     """
 
-    def __init__(self, dry_run: bool = False, artwork_language: str = "en"):
+    def __init__(self, dry_run: bool = False, artwork_language: str = "en", db_path: Path | None = None):
         """Initialize the artwork downloader.
 
         Args:
             dry_run: If True, only log what would be downloaded.
             artwork_language: Preferred language for artwork selection (ISO 639-1).
+            db_path: Resolved ``Config.indexer.db_path`` passed through from
+                the caller.  When ``None``, the write-through outbox publish
+                in :meth:`download_image` is silently skipped (best-effort contract).
         """
         self.dry_run = dry_run
         self._lang_priority = build_lang_priority(artwork_language)
         self._session = requests.Session()
+        self._db_path = db_path
 
     @retry(
         stop=stop_after_attempt(3),
@@ -163,28 +169,31 @@ class ArtworkDownloader:
         dest.write_bytes(response.content)
 
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
-        resolved = disk_id_for_path(dest)
-        if resolved is not None:
-            disk_id, rel_path = resolved
-            stem = dest.stem.lower()
-            kind = (
-                "poster"
-                if "poster" in stem
-                else "landscape"
-                if "landscape" in stem or "fanart" in stem or "backdrop" in stem
-                else "thumb"
-                if "thumb" in stem
-                else "unknown"
-            )
-            publish_event(
-                disk_id,
-                op="artwork_write",
-                payload={
-                    "rel_path": rel_path,
-                    "kind": kind,
-                },
-                source="scraper",
-            )
+        # Skipped when _db_path is None (no config available at construction time).
+        if self._db_path is not None:
+            resolved = disk_id_for_path(dest, self._db_path)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                stem = dest.stem.lower()
+                kind = (
+                    "poster"
+                    if "poster" in stem
+                    else "landscape"
+                    if "landscape" in stem or "fanart" in stem or "backdrop" in stem
+                    else "thumb"
+                    if "thumb" in stem
+                    else "unknown"
+                )
+                publish_event(
+                    disk_id,
+                    op="artwork_write",
+                    payload={
+                        "rel_path": rel_path,
+                        "kind": kind,
+                    },
+                    db_path=self._db_path,
+                    source="scraper",
+                )
 
         log.info("artwork_downloaded", filename=dest.name, bytes=len(response.content))
         return True
