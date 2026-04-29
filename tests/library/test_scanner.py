@@ -17,6 +17,7 @@ Pattern:
 from __future__ import annotations
 
 import sqlite3
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -123,6 +124,12 @@ def scanner_config(tmp_path: Path) -> Config:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 11),
+    reason="pyfakefs/xml.etree C-accelerator interop is broken on Python 3.10; "
+    "the indexer scan FD-based syscalls also bypass the fake FS. "
+    "Tested in CI on 3.11/3.12/3.13.",
+)
 class TestScanLibraryPopulatesDB:
     """scan_library(config, conn) writes media_item, media_file, season, episode rows."""
 
