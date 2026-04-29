@@ -873,8 +873,11 @@ def test_drain_nfo_write_idempotent(conn: sqlite3.Connection) -> None:
     rel_path = "movies/NfoIdempotent (2020)"
     _, item_id, release_id, _ = _seed_linked_item(conn, disk_id, rel_path)
 
+    # rel_path in the payload must be a FILE path (e.g. the .nfo file);
+    # _apply_nfo_write resolves path_id via its parent directory (Bug 3 fix).
+    nfo_file_path = rel_path + "/NfoIdempotent (2020).nfo"
     payload = json.dumps(
-        {"disk_id": disk_id, "rel_path": rel_path, "item_kind": "movie", "tmdb_id": 42, "imdb_id": "tt0000042"}
+        {"disk_id": disk_id, "rel_path": nfo_file_path, "item_kind": "movie", "tmdb_id": 42, "imdb_id": "tt0000042"}
     )
 
     # Apply twice.
@@ -896,7 +899,10 @@ def test_drain_artwork_write_idempotent(conn: sqlite3.Connection) -> None:
     rel_path = "movies/ArtIdempotent (2020)"
     _, item_id, release_id, _ = _seed_linked_item(conn, disk_id, rel_path)
 
-    payload = json.dumps({"disk_id": disk_id, "rel_path": rel_path, "kind": "poster"})
+    # rel_path in the payload must be a FILE path (e.g. the artwork file);
+    # _apply_artwork_write resolves path_id via its parent directory (Bug 3 fix).
+    artwork_file_path = rel_path + "/ArtIdempotent (2020)-poster.jpg"
+    payload = json.dumps({"disk_id": disk_id, "rel_path": artwork_file_path, "kind": "poster"})
 
     # Apply twice.
     outbox_repo.insert(conn, source="scraper", op="artwork_write", payload_json=payload)
@@ -918,7 +924,10 @@ def test_drain_trailer_download_idempotent(conn: sqlite3.Connection) -> None:
     _, item_id, release_id, _ = _seed_linked_item(conn, disk_id, rel_path)
     trailer_path = "/Volumes/Disk1/movies/TrailerIdempotent (2020)/trailer.mp4"
 
-    payload = json.dumps({"disk_id": disk_id, "rel_path": rel_path, "trailer_path": trailer_path})
+    # rel_path in the payload must be a FILE path (e.g. the trailer file);
+    # _apply_trailer_download resolves path_id via its parent directory (Bug 3 fix).
+    trailer_rel_path = rel_path + "/trailer.mp4"
+    payload = json.dumps({"disk_id": disk_id, "rel_path": trailer_rel_path, "trailer_path": trailer_path})
 
     # Apply twice.
     outbox_repo.insert(conn, source="trailers", op="trailer_download", payload_json=payload)
@@ -934,6 +943,147 @@ def test_drain_trailer_download_idempotent(conn: sqlite3.Connection) -> None:
     # Only one row (UPSERT idempotent).
     assert len(rows) == 1
     assert rows[0]["value"] == trailer_path
+
+
+# ---------------------------------------------------------------------------
+# Bug hardening tests (Phase 5 between-phase fixes)
+# ---------------------------------------------------------------------------
+
+
+def test_drain_defer_with_nonexistent_disk_marks_row_failed(conn: sqlite3.Connection) -> None:
+    """drain() marks a row 'failed' (not loops forever) when defer insert fails.
+
+    Bug 1: When the disk row referenced by disk_id does not exist in the disk
+    table, insert_pending_op_row raises an FK violation.  Without the fix, the
+    defer transaction rolls back, the outbox row stays 'pending', and
+    fetch_pending re-fetches it forever.  With the fix, the row is marked
+    'failed' and stats.failed == 1.
+    """
+    # Insert a disk and then DELETE it so disk_id has no matching disk row
+    # (FK violation when we try to insert into pending_op).
+    disk_id = _insert_disk(conn)
+    conn.execute("DELETE FROM disk WHERE id = ?", (disk_id,))
+
+    row_id = outbox_repo.insert(
+        conn,
+        source="dispatch",
+        op="move",
+        payload_json=json.dumps(
+            {
+                "disk_id": disk_id,
+                "dst_rel_path": "movies/Ghost (2020)",
+                "filename": "ghost.mkv",
+                "size_bytes": 100,
+                "mtime_ns": 1000,
+            }
+        ),
+    )
+
+    # Patch _disk_is_mounted so the drainer thinks the disk is unreachable
+    # (it no longer exists, so is_mounted lookup returns False anyway, but
+    # we make it explicit to isolate the behaviour under test).
+    with patch("personalscraper.indexer.outbox._disk_is_mounted", return_value=False):
+        stats = drain(conn, _make_config())
+
+    # Drainer must not loop: exactly one row processed, marked failed.
+    assert stats.failed == 1
+    assert stats.deferred == 0
+
+    conn.row_factory = sqlite3.Row
+    r = conn.execute("SELECT status FROM index_outbox WHERE id = ?", (row_id,)).fetchone()
+    assert r is not None
+    assert r["status"] == "failed", f"Expected 'failed', got {r['status']!r}"
+
+
+def test_drain_move_with_none_size_bytes_marks_row_done(conn: sqlite3.Connection) -> None:
+    """drain() marks a 'move' row 'done' when size_bytes/mtime_ns are None.
+
+    Bug 2: _apply_move previously called int(payload["size_bytes"]) which
+    raised TypeError on None, causing the row to be marked 'failed'.  After
+    the fix, missing size_bytes/mtime_ns skip the media_file UPSERT and return
+    normally; the caller marks the row 'done'.  Next scan reconciles.
+    """
+    disk_id = _insert_disk(conn)
+    rel_path = "movies/NullFields (2021)"
+    _insert_path(conn, disk_id, rel_path)
+
+    row_id = outbox_repo.insert(
+        conn,
+        source="dispatch",
+        op="move",
+        payload_json=json.dumps(
+            {
+                "disk_id": disk_id,
+                "dst_rel_path": rel_path,
+                "filename": "nullfields.mkv",
+                "size_bytes": None,
+                "mtime_ns": None,
+            }
+        ),
+    )
+
+    stats = drain(conn, _make_config())
+
+    # Row must be 'done', not 'failed'.
+    assert stats.applied == 1
+    assert stats.failed == 0
+
+    conn.row_factory = sqlite3.Row
+    r = conn.execute("SELECT status FROM index_outbox WHERE id = ?", (row_id,)).fetchone()
+    assert r is not None
+    assert r["status"] == "done", f"Expected 'done', got {r['status']!r}"
+
+    # No media_file row should have been created (size_bytes was None).
+    mf = conn.execute("SELECT id FROM media_file WHERE filename = 'nullfields.mkv'").fetchone()
+    assert mf is None, "media_file row must NOT be created when size_bytes/mtime_ns are None"
+
+
+def test_drain_nfo_write_resolves_path_from_file_path(conn: sqlite3.Connection) -> None:
+    """_apply_nfo_write resolves path_id from the parent directory of rel_path.
+
+    Bug 3: rel_path in the nfo_write payload is a FILE path (e.g.
+    "Movies/Test/Test.nfo"), but the path table stores DIRECTORY paths
+    (e.g. "Movies/Test").  Before the fix, _resolve_path_id returned None
+    because the full file path is not in the path table.  After the fix,
+    the parent directory is used for the lookup.
+    """
+    disk_id = _insert_disk(conn)
+    dir_rel_path = "movies/Test (2024)"
+    _, item_id, _, _ = _seed_linked_item(conn, disk_id, dir_rel_path)
+
+    # Payload uses a FILE path pointing into the directory.
+    nfo_file_rel_path = dir_rel_path + "/Test (2024).nfo"
+    row_id = outbox_repo.insert(
+        conn,
+        source="scraper",
+        op="nfo_write",
+        payload_json=json.dumps(
+            {
+                "disk_id": disk_id,
+                "rel_path": nfo_file_rel_path,
+                "item_kind": "movie",
+                "tmdb_id": 99,
+                "imdb_id": "tt9999999",
+            }
+        ),
+    )
+
+    stats = drain(conn, _make_config())
+
+    # Row must be 'done' (path was resolved correctly via parent dir).
+    assert stats.applied == 1
+    assert stats.failed == 0
+
+    conn.row_factory = sqlite3.Row
+    r = conn.execute("SELECT status FROM index_outbox WHERE id = ?", (row_id,)).fetchone()
+    assert r is not None
+    assert r["status"] == "done", f"Expected 'done', got {r['status']!r}"
+
+    # The media_item must have been updated with nfo_status='valid' and tmdb_id=99.
+    item = conn.execute("SELECT nfo_status, tmdb_id FROM media_item WHERE id = ?", (item_id,)).fetchone()
+    assert item is not None
+    assert item["nfo_status"] == "valid", f"Expected nfo_status='valid', got {item['nfo_status']!r}"
+    assert item["tmdb_id"] == 99, f"Expected tmdb_id=99, got {item['tmdb_id']!r}"
 
 
 # ---------------------------------------------------------------------------

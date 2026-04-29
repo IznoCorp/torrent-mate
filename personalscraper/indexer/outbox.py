@@ -145,16 +145,51 @@ def _apply_move(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
 
     Idempotent: replaying with the same payload produces the same row.
 
+    ``size_bytes`` and ``mtime_ns`` are best-effort: if either is absent/None,
+    the media_file UPSERT is skipped and the caller still marks the row
+    ``'done'``.  The next scan reconciles the missing file row via the
+    dir-mtime walk (DESIGN §17.1).
+
     Args:
         conn: Open SQLite connection.
         payload: Parsed JSON payload with keys:
             ``disk_id``, ``dst_rel_path``, ``filename``, ``size_bytes``, ``mtime_ns``.
+            ``size_bytes`` and ``mtime_ns`` may be ``None`` (best-effort).
     """
-    disk_id: int = int(payload["disk_id"])
-    dst_rel_path: str = str(payload["dst_rel_path"])
-    filename: str = str(payload["filename"])
-    size_bytes: int = int(payload["size_bytes"])
-    mtime_ns: int = int(payload["mtime_ns"])
+    disk_id_raw = payload.get("disk_id")
+    dst_rel_path_raw = payload.get("dst_rel_path")
+    filename_raw = payload.get("filename")
+    size_bytes_raw = payload.get("size_bytes")
+    mtime_ns_raw = payload.get("mtime_ns")
+
+    # disk_id, dst_rel_path, filename are required for any meaningful update.
+    if disk_id_raw is None or dst_rel_path_raw is None or filename_raw is None:
+        log.warning(
+            "indexer.outbox.move.fields_missing",
+            disk_id=disk_id_raw,
+            dst_rel_path=dst_rel_path_raw,
+            filename=filename_raw,
+        )
+        return
+
+    # size_bytes / mtime_ns are best-effort; if missing, defer file-row
+    # materialisation to the next scan (DESIGN §17.1: silent miss reconciled
+    # by walk).  The row is still marked 'done' by the caller.
+    if size_bytes_raw is None or mtime_ns_raw is None:
+        log.info(
+            "indexer.outbox.move.fields_missing",
+            disk_id=disk_id_raw,
+            dst_rel_path=dst_rel_path_raw,
+            filename=filename_raw,
+            reason="size_bytes_or_mtime_ns_none",
+        )
+        return
+
+    disk_id: int = int(disk_id_raw)
+    dst_rel_path: str = str(dst_rel_path_raw)
+    filename: str = str(filename_raw)
+    size_bytes: int = int(size_bytes_raw)
+    mtime_ns: int = int(mtime_ns_raw)
 
     path_id = _ensure_path_id(conn, disk_id, dst_rel_path)
     now = int(time.time())
@@ -181,7 +216,9 @@ def _apply_move(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
 def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
     """Apply an ``nfo_write`` outbox row: UPDATE ``media_item.nfo_status`` and IDs.
 
-    Resolved by ``(disk_id, rel_path)`` → nearest ``media_item`` via ``path`` table.
+    Resolved by ``(disk_id, rel_dir)`` → nearest ``media_item`` via ``path`` table.
+    ``rel_path`` in the payload is the .nfo FILE path; ``path`` table stores
+    directories, so we resolve via the parent directory.
     Idempotent when current values equal payload.
 
     Args:
@@ -194,12 +231,20 @@ def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
     tmdb_id: int | None = payload.get("tmdb_id")
     imdb_id: str | None = payload.get("imdb_id")
 
-    # Resolve path_id → find any media_file in that path → get item via release.
-    # Simplified approach: match media_item where path row maps via media_file.
-    # Use JSON1 update on nfo_status directly via path resolution.
-    path_id = _resolve_path_id(conn, disk_id, rel_path)
+    # rel_path points at the .nfo file; resolve via its parent directory
+    # because the path table stores directories, not individual files.
+    rel_dir = str(Path(rel_path).parent) if "/" in rel_path else ""
+    if rel_dir == ".":
+        rel_dir = ""  # disk-root edge case
+
+    path_id = _resolve_path_id(conn, disk_id, rel_dir)
     if path_id is None:
-        log.warning("indexer.outbox.nfo_write.path_not_found", disk_id=disk_id, rel_path=rel_path)
+        log.warning(
+            "indexer.outbox.nfo_write.path_not_found",
+            disk_id=disk_id,
+            rel_path=rel_path,
+            rel_dir=rel_dir,
+        )
         return
 
     now = int(time.time())
@@ -228,6 +273,9 @@ def _apply_artwork_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> N
     Uses SQLite JSON1 ``json_set`` to toggle the ``kind`` key to ``true``.
     Idempotent: replaying when the bit is already set is a no-op.
 
+    ``rel_path`` in the payload is the artwork FILE path; ``path`` table stores
+    directories, so we resolve via the parent directory.
+
     Args:
         conn: Open SQLite connection.
         payload: Parsed JSON payload with keys:
@@ -237,9 +285,20 @@ def _apply_artwork_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> N
     rel_path: str = str(payload["rel_path"])
     kind: str = str(payload["kind"])
 
-    path_id = _resolve_path_id(conn, disk_id, rel_path)
+    # rel_path points at the artwork file; resolve via its parent directory
+    # because the path table stores directories, not individual files.
+    rel_dir = str(Path(rel_path).parent) if "/" in rel_path else ""
+    if rel_dir == ".":
+        rel_dir = ""  # disk-root edge case
+
+    path_id = _resolve_path_id(conn, disk_id, rel_dir)
     if path_id is None:
-        log.warning("indexer.outbox.artwork_write.path_not_found", disk_id=disk_id, rel_path=rel_path)
+        log.warning(
+            "indexer.outbox.artwork_write.path_not_found",
+            disk_id=disk_id,
+            rel_path=rel_path,
+            rel_dir=rel_dir,
+        )
         return
 
     now = int(time.time())
@@ -266,6 +325,9 @@ def _apply_trailer_download(conn: sqlite3.Connection, payload: dict[str, Any]) -
 
     Idempotent: replaying with the same ``trailer_path`` is a no-op.
 
+    ``rel_path`` in the payload is the trailer FILE path; ``path`` table stores
+    directories, so we resolve via the parent directory.
+
     Args:
         conn: Open SQLite connection.
         payload: Parsed JSON payload with keys:
@@ -275,9 +337,20 @@ def _apply_trailer_download(conn: sqlite3.Connection, payload: dict[str, Any]) -
     rel_path: str = str(payload["rel_path"])
     trailer_path: str = str(payload["trailer_path"])
 
-    path_id = _resolve_path_id(conn, disk_id, rel_path)
+    # rel_path points at the trailer file; resolve via its parent directory
+    # because the path table stores directories, not individual files.
+    rel_dir = str(Path(rel_path).parent) if "/" in rel_path else ""
+    if rel_dir == ".":
+        rel_dir = ""  # disk-root edge case
+
+    path_id = _resolve_path_id(conn, disk_id, rel_dir)
     if path_id is None:
-        log.warning("indexer.outbox.trailer_download.path_not_found", disk_id=disk_id, rel_path=rel_path)
+        log.warning(
+            "indexer.outbox.trailer_download.path_not_found",
+            disk_id=disk_id,
+            rel_path=rel_path,
+            rel_dir=rel_dir,
+        )
         return
 
     # Find item_id via path → media_file → media_release → media_item.
@@ -596,6 +669,7 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
 
             raw_disk_id: Any = payload.get("disk_id")
             if raw_disk_id is not None and not _disk_is_mounted(conn, int(raw_disk_id)):
+                deferred_ok = False
                 try:
                     conn.execute("BEGIN IMMEDIATE")
                     outbox_repo.insert_pending_op_row(
@@ -606,13 +680,35 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
                     )
                     outbox_repo.mark_deferred(conn, row.id)
                     conn.execute("COMMIT")
-                except Exception:  # noqa: BLE001
+                    deferred_ok = True
+                except Exception as exc:  # noqa: BLE001
                     try:
                         conn.execute("ROLLBACK")
                     except Exception:  # noqa: BLE001
                         pass
-                log.info("indexer.outbox.deferred", row_id=row.id, disk_id=raw_disk_id)
-                stats.deferred += 1
+                    log.warning(
+                        "indexer.outbox.defer_failed",
+                        row_id=row.id,
+                        disk_id=raw_disk_id,
+                        error=str(exc),
+                    )
+                if deferred_ok:
+                    log.info("indexer.outbox.deferred", row_id=row.id, disk_id=raw_disk_id)
+                    stats.deferred += 1
+                else:
+                    # Defer failed — row cannot be replayed; mark it failed so
+                    # the outer fetch_pending loop terminates (without this, the
+                    # same row would be re-fetched forever — Bug 1).
+                    try:
+                        conn.execute("BEGIN IMMEDIATE")
+                        outbox_repo.mark_failed(conn, row.id)
+                        conn.execute("COMMIT")
+                    except Exception:  # noqa: BLE001
+                        try:
+                            conn.execute("ROLLBACK")
+                        except Exception:  # noqa: BLE001
+                            pass
+                    stats.failed += 1
                 continue
 
             # Apply the row with retry.

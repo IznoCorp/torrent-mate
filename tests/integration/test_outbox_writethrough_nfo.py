@@ -88,10 +88,12 @@ def test_write_nfo_publishes_outbox_row_and_drains(tmp_path: Path) -> None:
     - Drain the outbox with drain_if_present(conn).
     - Assert the outbox row is marked 'done'.
 
-    The drainer's _apply_nfo_write is best-effort: if it cannot resolve a
-    path row or media_item, it returns silently.  The outbox row is still
-    marked 'done' by drain(). The test tolerates this and only asserts
-    outbox round-trip correctness, not media_item side-effects.
+    Per the Bug 3 fix, _apply_nfo_write now resolves path_id via the parent
+    directory of the .nfo FILE path in rel_path (not the path directly).
+    The path row for "Movies/Test (2024)" is not seeded in this test (scope
+    is intentionally light: outbox round-trip only), so _apply_nfo_write
+    will log a path_not_found warning and return silently — the row is still
+    marked 'done' by the drainer per the best-effort contract (DESIGN §9.1).
     """
     db_path = tmp_path / "library.db"
 

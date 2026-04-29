@@ -4,17 +4,15 @@ Verifies the full write-through path introduced in sub-phase 5.3b:
   1. Dispatcher.dispatch_movie moves a movie dir to a fake disk and calls
      publish_event via disk_id_for_path (both hooked into the real outbox module).
   2. Exactly one ``index_outbox`` row is inserted with op='move'.
-  3. drain_if_present processes the row (marks it 'done' or 'failed').
-  4. The primary assertion is outbox row presence + drain marks the row
-     as processed (status != 'pending').
+  3. drain_if_present processes the row (marks it 'done').
+  4. The primary assertion is outbox row presence + drain marks the row 'done'.
 
-Note on status='failed' vs 'done': Dispatcher.dispatch_movie publishes
+Note on size_bytes/mtime_ns: Dispatcher.dispatch_movie publishes
 size_bytes=None and mtime_ns=None in the payload (best-effort contract from
-DESIGN §9.1).  _apply_move calls int(payload["size_bytes"]) which raises
-TypeError on None, so the drainer marks the row 'failed' rather than 'done'.
-The test therefore asserts status != 'pending' (row was processed), not
-status == 'done'.  This is documented as a known deviation (see Deviations
-in the sub-phase report).
+DESIGN §9.1).  Per the Bug 2 fix, _apply_move treats missing size_bytes/mtime_ns
+as best-effort and marks the row 'done' without creating a media_file row.
+The next scan reconciles the file via dir-mtime walk (DESIGN §17.1).
+The test therefore asserts status == 'done'.
 """
 
 from __future__ import annotations
@@ -189,13 +187,12 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     - Assert exactly one index_outbox row exists with op='move'.
     - Assert the payload contains dst_rel_path pointing to the destination disk.
     - Drain the outbox via drain_if_present(conn).
-    - Assert the outbox row is processed (status != 'pending').
+    - Assert the outbox row is processed (status == 'done').
 
-    Deviations:
-    - Dispatcher publishes size_bytes=None and mtime_ns=None (best-effort
-      contract). _apply_move fails on int(None), so the row ends up
-      'failed' rather than 'done'.  The test therefore checks
-      status != 'pending' (row was drained / processed), not status == 'done'.
+    Note on size_bytes/mtime_ns: Dispatcher publishes size_bytes=None and
+    mtime_ns=None (best-effort contract). Per the Bug 2 fix, _apply_move
+    treats missing fields as best-effort and marks the row 'done' without
+    inserting a media_file row.  The next scan reconciles via dir-mtime walk.
 
     Args:
         staging_tree: Staging root fixture (tmp_path/staging).
@@ -310,17 +307,17 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     # --- Drain the outbox ---
     drain_if_present(conn)
 
-    # --- Assert the outbox row is processed (no longer pending) ---
-    # Deviation from plan: the row may be 'failed' rather than 'done' because
-    # Dispatcher publishes size_bytes=None / mtime_ns=None and _apply_move
-    # fails on int(None).  The primary assertion is that the row was processed.
+    # --- Assert the outbox row is marked 'done' ---
+    # Per the Bug 2 fix: _apply_move treats missing size_bytes/mtime_ns as
+    # best-effort (DESIGN §17.1) and returns without inserting a media_file row,
+    # so the drainer still marks the row 'done'.
     conn.row_factory = sqlite3.Row
     row_after = conn.execute(
         "SELECT status FROM index_outbox WHERE op = 'move'",
     ).fetchone()
     assert row_after is not None, "Outbox row must still exist after drain"
-    assert row_after["status"] != "pending", (
-        f"Outbox row must be processed after drain, got status={row_after['status']!r}"
+    assert row_after["status"] == "done", (
+        f"Outbox row must be marked 'done' after drain, got status={row_after['status']!r}"
     )
 
     conn.close()
