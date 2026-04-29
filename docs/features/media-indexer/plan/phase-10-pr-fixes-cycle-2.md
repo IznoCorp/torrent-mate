@@ -76,17 +76,53 @@ Si la table est vide, `disks=[]`, `filter_disks([], None) = []`, `scan(disks=[],
 
 **Finding (CRITICAL — feature bug)** : `personalscraper.indexer.merkle.bootstrap_disk_identity(mount_path)` appelle `diskutil info -plist <mount_path>`. Si `mount_path = /Volumes/Disk1/medias` (sous-dossier configuré dans `Config.disks[].path`), diskutil retourne `ExitCode=1` avec `Could not find disk: /Volumes/Disk1/medias`. La fonction lève `BootstrapError` avec stderr vide → message peu informatif (`diskutil failed: `).
 
-**Step concerné** : `personalscraper.indexer.merkle.bootstrap_disk_identity` + tout call site (sera utilisé par 10.3 fix)
-**Reproductible** : `python -c "from personalscraper.indexer.merkle import bootstrap_disk_identity; from pathlib import Path; bootstrap_disk_identity(Path('/Volumes/Disk1/medias'))"`
+**Step concerné — multi-site** : la même hypothèse "disk.path/mount_path = mount root" est répétée à plusieurs endroits :
 
-**Root cause** : la fonction présume que `mount_path` est le mount point racine (ex: `/Volumes/Disk1`). En pratique, la config v1 du projet utilise des sous-dossiers (`/Volumes/<DiskName>/medias`) car les disques sont partagés avec d'autres usages.
+1. `personalscraper.indexer.merkle.bootstrap_disk_identity:240` → `diskutil info -plist <mount_path>` rejette les sous-dossiers (`Could not find disk: /Volumes/Disk1/medias`)
+2. `personalscraper.indexer.merkle.verify_disk_mounted:283` → `os.path.ismount(disk.mount_path)` retourne `False` pour un sous-dossier → `DiskMountStatus.UNMOUNTED` → scanner skip systématique
+3. (probablement aussi le scanner walker pour le Merkle root computation)
+
+**Reproductible** :
+
+```python
+# Bug 1: bootstrap fails
+from personalscraper.indexer.merkle import bootstrap_disk_identity
+from pathlib import Path
+bootstrap_disk_identity(Path('/Volumes/Disk1/medias'))  # raises BootstrapError
+
+# Bug 2: verify_disk_mounted returns UNMOUNTED even with valid sentinel + diskutil-resolved UUID
+import os
+os.path.ismount('/Volumes/Disk1/medias')  # → False (subdir, not mount)
+os.path.ismount('/Volumes/Disk1')         # → True
+```
+
+**Conséquence en pratique** : avec `disk.path = /Volumes/Disk1/medias` (la config v1 du projet), **la nouvelle feature media-indexer est inutilisable** :
+
+- `library-index --mode full` rapporte `files_walked=0, status=ok` silencieusement
+- Aucun disque ne peut être enregistré, aucun fichier ne peut être indexé
+- L'outbox reste vide
+- Le pipeline tourne en mode legacy sans bénéficier du nouvel indexer
+
+**Root cause structurel** : la nouvelle feature présume que `disk.path` IS le mount root du volume. Le projet (v1 config) utilise délibérément un sous-dossier (`<volume>/medias`) car les disques sont partagés. La feature ne supporte pas cette topologie.
 
 **Fix shape** :
 
-- Avant l'appel diskutil, remonter `mount_path` jusqu'au premier ancêtre qui est un mount point réel. Détection via `os.path.ismount(p)` ou via `subprocess.run(["mount"])` parsing.
-- Alternative : laisser le user configurer `disk.path` librement, mais résoudre le mount root séparément en interne pour bootstrap.
-- Améliorer le message d'erreur quand `result.stderr` est vide : parser le `<key>ErrorMessage</key>` du plist de retour pour exposer la vraie raison.
-- **Acceptance** : `bootstrap_disk_identity(Path('/Volumes/Disk1/medias'))` réussit et écrit la sentinel UUID dans le mount root (`/Volumes/Disk1/.personalscraper-disk-uuid` ou similaire).
+- **Décision design needed** : `disk.path` doit-il rester le sous-dossier configuré (et la feature doit résoudre le mount root séparément) OU forcer `disk.path = mount root` dans la migration v1→v2 ?
+- Si on garde `disk.path = subdir` :
+  - Ajouter helper `find_mount_root(p: Path) -> Path` qui remonte les ancêtres avec `os.path.ismount`
+  - `bootstrap_disk_identity` appelle `diskutil` sur le mount root, écrit la sentinelle au mount root (pas au subdir)
+  - `verify_disk_mounted` check `os.path.ismount(find_mount_root(disk.mount_path))` ET sentinel au mount root
+  - `disk.mount_path` reste le subdir (pour le scanner walker)
+  - Ajouter peut-être un champ `disk.scan_root` distinct si nécessaire
+- Si on force `disk.path = mount root` :
+  - Mettre à jour la migration v1→v2 pour remonter automatiquement
+  - Le scanner walker n'a alors aucun moyen de scope au sous-dossier `medias` → mauvaise expérience pour les disques partagés
+- Améliorer aussi le message d'erreur `BootstrapError` : parser `<key>ErrorMessage</key>` du plist de retour quand stderr est vide
+
+**Acceptance** :
+
+- `library-index --mode full` sur la config actuelle (avec `disk.path = /Volumes/Disk1/medias`) walk effectivement les fichiers, registre 4 disques, peuple `media_file`/`media_item`
+- Re-run pipeline : outbox events publiés, drainés au prochain `library-index`
 
 ---
 
