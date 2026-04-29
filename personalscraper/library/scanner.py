@@ -4,14 +4,23 @@ Scans storage disks without ffprobe. Produces LibraryScanItem for each
 media directory found. Uses existing utilities: is_nfo_complete()
 and SEASON_DIR_RE.
 
-``scan_library`` accepts a ``Config`` object and resolves folder names
-from ``config.category(id).folder_name``. ``LibraryScanItem.category`` stores
-the category_id (not the folder label).
+``scan_library`` accepts a ``Config`` object and a SQLite connection and
+populates the indexer DB (``media_item``, ``season``, ``episode`` tables via
+repos; ``media_file`` / ``path`` via :func:`personalscraper.indexer.scanner.scan`).
+
+Deprecated: ``LibraryScanResult`` is kept as a transitional stub in
+``personalscraper.library.models`` until sub-phases 7.2–7.4 migrate all
+consumers.  The helper functions ``scan_movie_dir``, ``scan_tvshow_dir``,
+``parse_title_year``, and ``extract_nfo_ids`` remain public for callers that
+still use them directly (e.g. ``library/rescraper.py``,
+``trailers/scanner.py``).
 """
 
 from __future__ import annotations
 
 import re
+import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,6 +30,11 @@ if TYPE_CHECKING:
     from personalscraper.conf.models import Config, DiskConfig
 
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
+from personalscraper.indexer.repos import disk_repo, tv_repo
+from personalscraper.indexer.repos import item_repo as _item_repo
+from personalscraper.indexer.scanner import ScanMode
+from personalscraper.indexer.scanner import scan as _indexer_scan
+from personalscraper.indexer.schema import ArtworkInventory, DiskRow, EpisodeRow, MediaItemRow, SeasonRow
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_BAD_DIR_NAME,
@@ -30,7 +44,6 @@ from personalscraper.library.models import (
     ISSUE_RELEASE_ARTIFACT,
     ArtworkStatus,
     LibraryScanItem,
-    LibraryScanResult,
     NfoStatus,
     SeasonInfo,
 )
@@ -382,72 +395,280 @@ def scan_tvshow_dir(show_dir: Path, disk_id: str, category_id: str) -> LibrarySc
     )
 
 
-def scan_library(
-    disk_configs: list[DiskConfig],
-    config: Config,
-    disk_filter: str | None = None,
-    category_filter: str | None = None,
-) -> LibraryScanResult:
-    """Scan all mounted storage disks and collect library inventory.
-
-    Iterates disk configs, resolves folder names from config.category(id).folder_name,
-    filters by disk/category if specified, and produces a LibraryScanResult.
-    LibraryScanItem.category stores the category_id (not the folder label).
+def _nfo_status_string(nfo: NfoStatus) -> str:
+    """Map a NfoStatus to the DB status string.
 
     Args:
-        disk_configs: List of DiskConfig objects from Config.
-        config: Config used to resolve category folder_name → category_id.
-        disk_filter: Only scan this disk (by disk.id). None = all.
-        category_filter: Only scan this category_id. None = all.
+        nfo: NfoStatus from library scan.
 
     Returns:
-        LibraryScanResult with all scanned items.
+        ``'valid'`` when NFO is present and valid, ``'invalid'`` when present
+        but invalid, ``'missing'`` when absent.
     """
-    items: list[LibraryScanItem] = []
-    start = datetime.now(tz=timezone.utc).isoformat()
+    if not nfo.present:
+        return "missing"
+    if nfo.valid:
+        return "valid"
+    return "invalid"
 
-    for disk in disk_configs:
-        # Disk filter (by disk.id)
-        if disk_filter and disk.id != disk_filter:
+
+def _artwork_inventory(artwork: ArtworkStatus) -> ArtworkInventory:
+    """Convert an ArtworkStatus to the DB-friendly ArtworkInventory Pydantic model.
+
+    Args:
+        artwork: ArtworkStatus populated by the library scanner.
+
+    Returns:
+        :class:`~personalscraper.indexer.schema.ArtworkInventory` instance.
+    """
+    return ArtworkInventory(
+        poster=artwork.poster,
+        fanart=artwork.fanart,
+        landscape=artwork.landscape,
+        banner=artwork.banner,
+        clearlogo=artwork.clearlogo,
+        clearart=artwork.clearart,
+        discart=artwork.discart,
+        characterart=artwork.characterart,
+    )
+
+
+def _upsert_media_item(
+    conn: sqlite3.Connection,
+    scan_item: LibraryScanItem,
+    now_s: int,
+) -> int:
+    """Upsert a ``media_item`` row from a library scan result.
+
+    Converts a :class:`LibraryScanItem` into a :class:`MediaItemRow` and calls
+    :func:`personalscraper.indexer.repos.item_repo.upsert`.
+
+    Args:
+        conn: Open SQLite connection.
+        scan_item: Library scan result for one media directory.
+        now_s: Current time in unix epoch seconds (stamped on ``date_created``
+            and ``date_modified`` for new rows).
+
+    Returns:
+        PK of the inserted or updated ``media_item`` row.
+    """
+    kind = "show" if scan_item.media_type == "tvshow" else "movie"
+    nfo_status = _nfo_status_string(scan_item.nfo)
+    artwork_json = _artwork_inventory(scan_item.artwork).model_dump_json()
+
+    # TMDB IDs from NFO are stored as strings; the schema column is INTEGER.
+    # Convert only when the string is purely numeric.
+    tmdb_id: int | None = None
+    if scan_item.nfo.tmdb_id and scan_item.nfo.tmdb_id.isdigit():
+        tmdb_id = int(scan_item.nfo.tmdb_id)
+
+    row = MediaItemRow(
+        id=0,
+        kind=kind,
+        title=scan_item.title,
+        title_sort=scan_item.title,  # stripped sort key is handled by scraper (7.2+)
+        original_title=None,
+        year=scan_item.year,
+        category_id=scan_item.category,
+        tmdb_id=tmdb_id,
+        imdb_id=scan_item.nfo.imdb_id,
+        tvdb_id=None,
+        nfo_status=nfo_status,
+        artwork_json=artwork_json,
+        date_created=now_s,
+        date_modified=now_s,
+        date_metadata_refreshed=None,
+        is_locked=0,
+        preferred_lang="fr",
+    )
+    return _item_repo.upsert(conn, row)
+
+
+def _upsert_seasons_and_episodes(
+    conn: sqlite3.Connection,
+    item_id: int,
+    seasons: list[SeasonInfo],
+) -> None:
+    """Insert ``season`` and ``episode`` rows for a TV show.
+
+    Skips inserting a season if a row with the same ``(item_id, number)`` pair
+    already exists (idempotent on repeated calls).
+
+    Args:
+        conn: Open SQLite connection.
+        item_id: PK of the owning ``media_item`` (kind must be ``'show'``).
+        seasons: Season list from :func:`scan_tvshow_dir`.
+    """
+    for season_info in seasons:
+        # Check for an existing season row to keep the function idempotent.
+        existing = conn.execute(
+            "SELECT id FROM season WHERE item_id = ? AND number = ?",
+            (item_id, season_info.number),
+        ).fetchone()
+        if existing is not None:
+            season_id: int = existing[0]
+        else:
+            season_row = SeasonRow(
+                id=0,
+                item_id=item_id,
+                number=season_info.number,
+                episode_count=season_info.episode_count,
+                has_poster=int(season_info.has_poster),
+                episodes_with_nfo=season_info.episodes_with_nfo,
+            )
+            season_id = tv_repo.insert_season(conn, season_row)
+
+        # Insert episode stubs — one row per video file found in the season dir.
+        # Episode numbers are 1-based; we use ordinal position since filenames
+        # are not parsed at this stage (scraper phase 7.2+ handles titles/numbers).
+        for ep_num in range(1, season_info.episode_count + 1):
+            existing_ep = conn.execute(
+                "SELECT id FROM episode WHERE season_id = ? AND number = ?",
+                (season_id, ep_num),
+            ).fetchone()
+            if existing_ep is None:
+                ep_row = EpisodeRow(
+                    id=0,
+                    season_id=season_id,
+                    number=ep_num,
+                    title=None,
+                )
+                tv_repo.insert_episode(conn, ep_row)
+
+
+def _build_disk_row(disk_cfg: DiskConfig, now_s: int) -> DiskRow:
+    """Build a :class:`DiskRow` from a :class:`DiskConfig`.
+
+    Uses the ``DiskConfig.id`` as both the UUID and label so that the library
+    scanner's DB rows can be correlated back to config identifiers.
+
+    Args:
+        disk_cfg: Config entry for a storage disk.
+        now_s: Current unix epoch seconds (stamped on ``last_seen_at``).
+
+    Returns:
+        :class:`DiskRow` with ``id=0`` (to be assigned by the DB on insert).
+    """
+    return DiskRow(
+        id=0,
+        uuid=disk_cfg.id,
+        label=disk_cfg.id,
+        mount_path=str(disk_cfg.path),
+        last_seen_at=now_s,
+        merkle_root=None,
+        is_mounted=1,
+        unreachable_strikes=0,
+    )
+
+
+def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int) -> DiskRow:
+    """Ensure a ``disk`` row exists for the given config entry and return it.
+
+    Performs a SELECT-then-INSERT pattern: if a disk with the same UUID
+    (i.e. ``DiskConfig.id``) already exists it is returned unchanged; otherwise
+    a new row is inserted.
+
+    Args:
+        conn: Open SQLite connection.
+        disk_cfg: Config entry for a storage disk.
+        now_s: Current unix epoch seconds passed to :func:`_build_disk_row`.
+
+    Returns:
+        :class:`DiskRow` with the PK assigned by the DB.
+    """
+    existing = disk_repo.get_by_uuid(conn, disk_cfg.id)
+    if existing is not None:
+        return existing
+
+    row = _build_disk_row(disk_cfg, now_s)
+    disk_id = disk_repo.insert(conn, row)
+    return DiskRow(
+        id=disk_id,
+        uuid=row.uuid,
+        label=row.label,
+        mount_path=row.mount_path,
+        last_seen_at=row.last_seen_at,
+        merkle_root=row.merkle_root,
+        is_mounted=row.is_mounted,
+        unreachable_strikes=row.unreachable_strikes,
+    )
+
+
+def scan_library(config: Config, conn: sqlite3.Connection) -> None:
+    """Populate the indexer DB from a full walk of all mounted storage disks.
+
+    Replaces the legacy ``LibraryScanResult``-returning implementation.  For
+    each media directory found on disk the function writes:
+
+    * ``media_item`` — one row per movie / TV show directory.
+    * ``season`` — one row per season directory found inside a TV show.
+    * ``episode`` — one stub row per video file found in each season.
+    * ``media_file`` / ``path`` — populated by delegating to
+      :func:`personalscraper.indexer.scanner.scan` (full mode).
+
+    Disks that are not mounted (``disk_cfg.path`` does not exist) are skipped
+    with a warning log.
+
+    Args:
+        config: Loaded pipeline :class:`~personalscraper.conf.models.Config`.
+        conn: Open SQLite connection with all migrations applied.
+    """
+    now_s = int(time.time())
+    disk_rows: list[DiskRow] = []
+
+    for disk_cfg in config.disks:
+        # Skip unmounted disks.
+        if not disk_cfg.path.exists():
+            log.warning("library_scan_disk_not_mounted", disk=disk_cfg.id, path=str(disk_cfg.path))
             continue
 
-        # Skip unmounted disks
-        if not disk.path.exists():
-            log.warning("library_scan_disk_not_mounted", disk=disk.id, path=str(disk.path))
-            continue
+        # Ensure a disk row exists in the DB so that indexer.scanner.scan()
+        # can write media_file rows linked to it.
+        disk_row = _ensure_disk_row(conn, disk_cfg, now_s)
+        disk_rows.append(disk_row)
 
-        # Iterate category IDs on this disk
-        for category_id in disk.categories:
-            if category_filter and category_id != category_filter:
-                continue
-
-            # Resolve physical folder name from config
+        for category_id in disk_cfg.categories:
             cat_cfg = config.category(category_id)
-            category_dir = disk.path / cat_cfg.folder_name
+            category_dir = disk_cfg.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                log.debug("library_scan_category_not_found", category_dir=str(category_dir), disk=disk.id)
+                log.debug(
+                    "library_scan_category_not_found",
+                    category_dir=str(category_dir),
+                    disk=disk_cfg.id,
+                )
                 continue
 
-            # TV shows have season/episode structure; movies have single-file structure
             is_tvshow = category_id in TV_CATEGORY_IDS
 
-            # Iterate media directories
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
                     continue
                 try:
                     if is_tvshow:
-                        item = scan_tvshow_dir(media_dir, disk.id, category_id)
+                        scan_item = scan_tvshow_dir(media_dir, disk_cfg.id, category_id)
                     else:
-                        item = scan_movie_dir(media_dir, disk.id, category_id)
-                    items.append(item)
-                except OSError as exc:
-                    log.warning("library_scan_item_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
+                        scan_item = scan_movie_dir(media_dir, disk_cfg.id, category_id)
 
-    return LibraryScanResult(
-        scanned_at=start,
-        disk_filter=disk_filter,
-        category_filter=category_filter,
-        item_count=len(items),
-        items=items,
-    )
+                    item_id = _upsert_media_item(conn, scan_item, now_s)
+
+                    # Insert season and episode stubs for TV shows.
+                    if is_tvshow and scan_item.seasons:
+                        _upsert_seasons_and_episodes(conn, item_id, scan_item.seasons)
+
+                except OSError as exc:
+                    log.warning(
+                        "library_scan_item_error",
+                        media_dir=str(media_dir),
+                        exc_info=True,
+                        error=str(exc),
+                    )
+
+    # Delegate file-level indexing to the indexer scanner so that media_file
+    # and path rows are populated alongside the media_item rows created above.
+    if disk_rows:
+        _indexer_scan(
+            disks=disk_rows,
+            mode=ScanMode.full,
+            generation=1,
+            conn=conn,
+        )
