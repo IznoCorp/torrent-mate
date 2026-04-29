@@ -1075,13 +1075,15 @@ def library_report(
         personalscraper library-report --format json
     """
     from personalscraper.dispatch.disk_scanner import get_disk_status
+    from personalscraper.indexer.db import open_db
+    from personalscraper.library.analyzer import analyze
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
     config = ctx.obj.config
     console = state["console"]
 
-    # Load available data
+    # Load available supplementary JSON data (validation, recommendations, rescrape)
     def _load(name: str) -> dict[str, Any] | None:
         path = config.paths.data_dir / name
         if path.exists():
@@ -1094,13 +1096,25 @@ def library_report(
         return None
 
     scan_data = _load("library_scan.json")
-    analysis_data = _load("library_analysis.json")
     validation_data = _load("library_validation.json")
     recommendation_data = _load("library_recommendations.json")
     rescrape_data = _load("library_rescrape.json")
 
-    if not any([scan_data, analysis_data, validation_data, recommendation_data, rescrape_data]):
-        console.print("[yellow]No library data found. Run library-scan or library-analyze first.[/yellow]")
+    # Query the indexer DB for NFO / artwork health metrics.
+    # library_analysis.json is no longer read — AnalysisResult replaces it.
+    db_path = config.indexer.db_path
+    analysis_result = None
+    if db_path.exists():
+        try:
+            conn = open_db(db_path)
+            analysis_result = analyze(conn)
+            conn.close()
+        except Exception as exc:
+            log.warning("report_indexer_query_failed", error=str(exc))
+            console.print(f"[yellow]Warning: indexer DB query failed ({exc}), skipping analysis.[/yellow]")
+
+    if not any([scan_data, analysis_result, validation_data, recommendation_data, rescrape_data]):
+        console.print("[yellow]No library data found. Run library-scan or library-index first.[/yellow]")
         raise typer.Exit(1)
 
     # Get live disk free space
@@ -1108,7 +1122,7 @@ def library_report(
 
     report = generate_report(
         scan_data,
-        analysis_data,
+        analysis_result,
         validation_data,
         recommendation_data,
         disk_statuses=disk_statuses,
