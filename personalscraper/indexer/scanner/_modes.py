@@ -16,7 +16,7 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from personalscraper.indexer import drift as _drift
 from personalscraper.indexer.mediainfo import MediaInfoUnavailableError, MediaInfoWrapper
@@ -959,7 +959,7 @@ _ARTWORK_FILENAMES: dict[str, str] = {
 }
 
 
-def _inventory_artwork(parent_dir: str) -> ArtworkInventory:
+def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     """Scan *parent_dir* for known artwork filenames and return an :class:`ArtworkInventory`.
 
     Only the presence of a file is checked — no content validation is performed.
@@ -970,7 +970,10 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory:
         parent_dir: Absolute path of the directory to scan.
 
     Returns:
-        :class:`ArtworkInventory` instance reflecting what artwork files exist.
+        :class:`ArtworkInventory` instance reflecting what artwork files exist,
+        or ``None`` when the directory is not readable (transient OS error).
+        Callers must skip the DB column update when ``None`` is returned so that
+        previously-valid data is not overwritten on a transient permission error.
     """
     found: dict[str, bool] = {}
     try:
@@ -979,9 +982,15 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory:
                 key = _ARTWORK_FILENAMES.get(entry.name.lower())
                 if key is not None:
                     found[key] = True
-    except OSError:
-        # Directory not readable — return empty inventory rather than crashing.
-        pass
+    except OSError as exc:
+        # Directory temporarily unreadable — preserve the existing DB value.
+        log.warning(
+            "indexer.enrich.artwork_inventory_failed",
+            parent_dir=parent_dir,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return None
 
     return ArtworkInventory(
         poster=found.get("poster", False),
@@ -995,7 +1004,7 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory:
     )
 
 
-def _check_nfo_status(parent_dir: str) -> str:
+def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"] | None:
     """Check whether a ``.nfo`` file exists in *parent_dir* and return a status string.
 
     Full NFO parsing (XML validation) is deferred to the scraper integration phases.
@@ -1003,20 +1012,31 @@ def _check_nfo_status(parent_dir: str) -> str:
 
     - ``'valid'`` — a ``.nfo`` file is present (we cannot validate content yet).
     - ``'missing'`` — no ``.nfo`` file found.
+    - ``None`` — the directory scan raised an :exc:`OSError` (transient permission
+      error or filesystem hiccup); the caller must skip the DB column update so that
+      previously-valid data is not overwritten.
 
     Args:
         parent_dir: Absolute path of the directory to inspect.
 
     Returns:
-        ``'valid'`` if any ``.nfo`` file exists in *parent_dir*, ``'missing'`` otherwise.
+        ``'valid'`` if any ``.nfo`` file exists in *parent_dir*, ``'missing'`` if
+        none are found, or ``None`` when the directory is not readable.
     """
     try:
         with os.scandir(parent_dir) as it:
             for entry in it:
                 if entry.name.lower().endswith(".nfo"):
                     return "valid"
-    except OSError:
-        pass
+    except OSError as exc:
+        # Directory temporarily unreadable — preserve the existing DB value.
+        log.warning(
+            "indexer.enrich.nfo_check_failed",
+            parent_dir=parent_dir,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return None
     return "missing"
 
 
@@ -1096,12 +1116,25 @@ def _enrich_one_file(
     if item_id is not None:
         nfo_status = _check_nfo_status(parent_dir)
         artwork = _inventory_artwork(parent_dir)
-        artwork_json = artwork.model_dump_json()
 
-        conn.execute(
-            "UPDATE media_item SET nfo_status = ?, artwork_json = ? WHERE id = ?",
-            (nfo_status, artwork_json, item_id),
-        )
+        # Skip column updates when either scan returned None — a transient OS error
+        # occurred and the existing DB values must be preserved rather than overwritten
+        # with a spurious 'missing' / empty-inventory result.
+        if nfo_status is not None and artwork is not None:
+            conn.execute(
+                "UPDATE media_item SET nfo_status = ?, artwork_json = ? WHERE id = ?",
+                (nfo_status, artwork.model_dump_json(), item_id),
+            )
+        elif nfo_status is not None:
+            conn.execute(
+                "UPDATE media_item SET nfo_status = ? WHERE id = ?",
+                (nfo_status, item_id),
+            )
+        elif artwork is not None:
+            conn.execute(
+                "UPDATE media_item SET artwork_json = ? WHERE id = ?",
+                (artwork.model_dump_json(), item_id),
+            )
 
     # --- Set enriched_at ---
     conn.execute(
