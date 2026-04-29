@@ -4,7 +4,7 @@ Catalogue #12 — replace invariant.
 
 Tests that run_dispatch replaces an existing movie folder on disk atomically:
 old files are removed, new files are present, no _tmp_dispatch_* residue
-remains, and the media_index.json entry is updated.
+remains, and the DB-backed MediaIndex entry is updated.
 """
 
 from pathlib import Path
@@ -14,6 +14,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.dispatch.run import run_dispatch
 from personalscraper.sorter.file_type import FileType
 
@@ -91,7 +92,7 @@ def test_dispatch_replaces_existing_movie(
     - The old file must be gone.
     - The new file must be present on Disk1.
     - No ``_tmp_dispatch_*`` residue must remain on Disk1.
-    - ``media_index.json`` must contain an entry for the movie.
+    - The DB-backed MediaIndex must contain an updated entry for the movie.
 
     Args:
         staging_tree: Staging root fixture (tmp_path/staging).
@@ -120,22 +121,20 @@ def test_dispatch_replaces_existing_movie(
     # Ensure data_dir exists — MediaIndex.load() requires the parent directory.
     config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build and seed the media index so dispatch knows an existing copy is on disk1.
+    # Build and seed the DB-backed media index so dispatch knows an existing copy is on disk1.
     # Without this the dispatcher would treat the movie as "new" and try to move it
     # to the disk with most free space instead of replacing the existing folder.
-    index_path = config.paths.data_dir / "media_index.json"
-    import json
-
-    index_data = {
-        folder: {
-            "name": folder,
-            "disk": "disk1",
-            "category": CID.MOVIES,
-            "path": str(existing_movie_dir),
-            "media_type": "movie",
-        }
-    }
-    index_path.write_text(json.dumps(index_data), encoding="utf-8")
+    index_path = config.paths.data_dir / "library.db"
+    seed_index = MediaIndex(index_path)
+    seed_index.add(
+        IndexEntry(
+            name=folder,
+            disk="disk1",
+            category=CID.MOVIES,
+            path=str(existing_movie_dir),
+            media_type="movie",
+        )
+    )
 
     # Place the new (larger) version in the staging 001-MOVIES subdirectory.
     movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))
@@ -165,8 +164,9 @@ def test_dispatch_replaces_existing_movie(
     tmp_residue = list(disk1_root.rglob("_tmp_dispatch_*"))
     assert not tmp_residue, f"Unexpected _tmp_dispatch_* residue on Disk1: {tmp_residue}"
 
-    # media_index.json must contain an updated entry for the movie.
-    updated_index = json.loads(index_path.read_text(encoding="utf-8"))
-    assert folder in updated_index, (
-        f"media_index.json should have an entry for '{folder}'. Keys: {list(updated_index.keys())}"
+    # The DB-backed index must have an updated entry for the movie after dispatch.
+    post_index = MediaIndex(index_path)
+    entry = post_index.find(folder, "movie")
+    assert entry is not None, (
+        f"MediaIndex should have an entry for '{folder}' after replace. Total entries in index: {post_index.count}"
     )

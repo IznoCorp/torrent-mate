@@ -143,10 +143,10 @@ def test_dispatch_merges_tvshow_new_episodes(
     # Ensure data_dir exists — MediaIndex requires the parent directory.
     config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
-    # Pre-seed the media index so dispatch knows the show is already on disk1.
+    # Pre-seed the DB-backed media index so dispatch knows the show is already on disk1.
     # Without this the dispatcher treats the show as "new" and picks the disk
     # with most free space instead of merging into the existing folder.
-    index_path = config.paths.data_dir / "media_index.json"
+    index_path = config.paths.data_dir / "library.db"
     seed_index = MediaIndex(index_path)
     seed_index.add(
         IndexEntry(

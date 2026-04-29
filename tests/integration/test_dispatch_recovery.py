@@ -127,8 +127,8 @@ def test_crash_recovery_uses_filesystem_scan(
 
     # The DB starts empty (no prior entries) to simulate a crashed prior run.
     # run_dispatch detects count == 0 and triggers a filesystem rebuild.
-    # media_index.json is no longer read/written; the DB lifecycle is automatic.
-    index_path = config.paths.data_dir / "media_index.json"
+    # No JSON file is involved; the DB lifecycle is fully automatic.
+    index_path = config.paths.data_dir / "library.db"
 
     # Place a new version of the movie in the staging 001-MOVIES subdirectory.
     movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))

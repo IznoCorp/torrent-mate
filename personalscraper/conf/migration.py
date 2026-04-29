@@ -246,14 +246,27 @@ def plan_migration(legacy_path: Path) -> dict[str, Any]:
         else:
             plan[fname] = {}
 
-    # Unknown keys → local.json5
+    # migration-warnings.txt: always present — carries the media_index.json
+    # deprecation notice; also lists unknown keys when present.
+    warnings_lines = [
+        "--- media-indexer migration notice ---",
+        ".data/media_index.json is no longer used by the dispatch pipeline.",
+        "It can be safely deleted once `personalscraper library index --mode full`",
+        "has been run to populate the new SQLite-backed index (library.db).",
+        "",
+    ]
     if unknown_keys:
         plan["local.json5"] = {"_migration_unknown_keys": {k: data[k] for k in unknown_keys}}
-        plan["migration-warnings.txt"] = (
-            "migration-warnings: the following keys from the v1 config were not recognised "
-            "by the splitter and have been placed in local.json5 under "
-            "'_migration_unknown_keys':\n  " + "\n  ".join(unknown_keys)
+        warnings_lines += (
+            [
+                "--- v1 config splitter warnings ---",
+                "The following keys from the v1 config were not recognised",
+                "by the splitter and have been placed in local.json5 under '_migration_unknown_keys':",
+            ]
+            + [f"  {k}" for k in unknown_keys]
+            + [""]
         )
+    plan["migration-warnings.txt"] = "\n".join(warnings_lines)
 
     return plan
 
@@ -397,16 +410,30 @@ def migrate_v1_to_v2(legacy_path: Path, target_dir: Path) -> None:
     log.info("migration.v1_to_v2.renamed", target_dir=str(target_dir))
 
     # ------------------------------------------------------------------
-    # Write migration-warnings.txt next to target_dir (if unknown keys).
+    # Write migration-warnings.txt next to target_dir.
+    # Always includes the media_index.json deprecation notice; also lists
+    # any unknown keys when present.
     # ------------------------------------------------------------------
+    warnings_path = target_dir.parent / "migration-warnings.txt"
+    warnings_lines: list[str] = [
+        "--- media-indexer migration notice ---",
+        ".data/media_index.json is no longer used by the dispatch pipeline.",
+        "It can be safely deleted once `personalscraper library index --mode full`",
+        "has been run to populate the new SQLite-backed index (library.db).",
+        "",
+    ]
     if unknown_keys:
-        warnings_path = target_dir.parent / "migration-warnings.txt"
-        warnings_lines = [
-            "migration-warnings: the following keys from the v1 config were not recognised",
-            "by the splitter and have been placed in local.json5 under '_migration_unknown_keys':",
-        ] + [f"  {k}" for k in unknown_keys]
-        _write_file(warnings_path, "\n".join(warnings_lines) + "\n")
-        log.warning("migration.v1_to_v2.warnings_written", path=str(warnings_path))
+        warnings_lines += (
+            [
+                "--- v1 config splitter warnings ---",
+                "The following keys from the v1 config were not recognised",
+                "by the splitter and have been placed in local.json5 under '_migration_unknown_keys':",
+            ]
+            + [f"  {k}" for k in unknown_keys]
+            + [""]
+        )
+    _write_file(warnings_path, "\n".join(warnings_lines))
+    log.warning("migration.v1_to_v2.warnings_written", path=str(warnings_path))
 
     # ------------------------------------------------------------------
     # Rename legacy file to .v1.bak.

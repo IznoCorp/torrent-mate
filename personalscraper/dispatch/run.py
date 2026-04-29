@@ -89,7 +89,10 @@ def run_dispatch(
         StepReport with dispatch counts and details.
     """
     staging_dir = config.paths.staging_dir
-    index_path = config.paths.data_dir / "media_index.json"
+    # Pass the DB path directly; MediaIndex.__init__ ignores the filename and
+    # uses index_path.parent / "library.db" — so any path under data_dir works.
+    # Using "library.db" here makes the intent explicit: no JSON file involved.
+    index_path = config.paths.data_dir / "library.db"
 
     # Clean orphaned temp dirs from staging area
     cleaned = 0

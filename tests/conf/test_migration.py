@@ -286,9 +286,16 @@ class TestUnknownKeys:
         assert "beta" in warnings_text
 
     def test_no_local_json5_when_no_unknown_keys(self, tmp_path: Path) -> None:
-        """local.json5 must NOT be written when all keys are recognised."""
+        """local.json5 must NOT be written when all keys are recognised.
+
+        migration-warnings.txt is always written (contains the media_index.json
+        deprecation notice), but local.json5 is only written for unknown keys.
+        """
         legacy = _write_v1(tmp_path)
         target = tmp_path / "config"
         migrate_v1_to_v2(legacy, target)
         assert not (target / "local.json5").exists()
-        assert not (tmp_path / "migration-warnings.txt").exists()
+        # warnings.txt is always written: it carries the media_index.json notice.
+        warnings_path = tmp_path / "migration-warnings.txt"
+        assert warnings_path.is_file()
+        assert "media_index.json" in warnings_path.read_text(encoding="utf-8")
