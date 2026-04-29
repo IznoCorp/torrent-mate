@@ -587,35 +587,50 @@ def library_scan(
     disk: str = typer.Option(None, "--disk", help="Scan only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Scan only this category"),
 ) -> None:
-    """Scan library structure and metadata on storage disks.
+    """Scan library structure and populate the indexer database.
 
-    Lightweight scan: reads directories and NFOs, no ffprobe.
-    Produces library_scan.json in .personalscraper/.
+    Walks all configured storage disks and records every media file in the
+    indexer database.  The ``--disk`` and ``--category`` filters are no longer
+    supported (the indexer always performs a full scan); passing them prints a
+    deprecation warning and the flags are ignored.
+
+    Use ``library-index`` for the full-featured indexer command.
 
     Examples:
         personalscraper library-scan
-        personalscraper library-scan --disk Disk1
-        personalscraper library-scan --category films
     """
-    from personalscraper.library.models import write_json
-    from personalscraper.library.scanner import scan_library
+    import sqlite3  # noqa: PLC0415
 
-    category_id = _resolve_category(ctx, category)
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.library.scanner import scan_library  # noqa: PLC0415
+
     console = state["console"]
     config = ctx.obj.config
 
+    # --disk and --category are no longer forwarded to scan_library; warn once.
+    if disk is not None:
+        console.print(
+            "[yellow]Warning:[/yellow] --disk is deprecated for library-scan "
+            "and is ignored. Use library-index --disk instead."
+        )
+    if category is not None:
+        console.print(
+            "[yellow]Warning:[/yellow] --category is deprecated for library-scan "
+            "and is ignored. Use library-index instead."
+        )
+
+    db_path = config.indexer.db_path
+    migrations_dir = Path(_migrations_pkg.__file__).parent
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn: sqlite3.Connection = open_db(db_path)
+    apply_migrations(conn, migrations_dir)
+
     console.print("[bold]Scanning library...[/bold]")
-    result = scan_library(
-        config.disks,
-        config=config,
-        disk_filter=disk,
-        category_filter=category_id,
-    )
+    scan_library(config, conn)
 
-    output_path = config.paths.data_dir / "library_scan.json"
-    write_json(result, output_path)
-
-    console.print(f"[green]Scan complete:[/green] {result.item_count} items → {output_path}")
+    total = conn.execute("SELECT COUNT(*) FROM media_file").fetchone()[0]
+    console.print(f"[green]Scan complete:[/green] {total} files indexed in {db_path}")
 
 
 @app.command("library-status")
