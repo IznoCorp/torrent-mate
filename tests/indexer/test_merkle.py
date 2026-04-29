@@ -2,8 +2,11 @@
 
 Covers:
 - ``compute_merkle_root`` — determinism, order-independence, distinct-input sensitivity, empty input.
-- ``bootstrap_disk_identity`` — sentinel write, diskutil missing, no VolumeUUID.
-- ``verify_disk_mounted`` — UNMOUNTED, NO_SENTINEL, MOUNTED_WRONG_DISK, MOUNTED_AND_VERIFIED.
+- ``_resolve_volume_root`` — subdir resolution, mount-root pass-through, filesystem-root fallback.
+- ``bootstrap_disk_identity`` — sentinel write, diskutil missing, no VolumeUUID,
+  subdir mount_path resolves to volume root, ErrorMessage plist parsing.
+- ``verify_disk_mounted`` — UNMOUNTED, NO_SENTINEL, MOUNTED_WRONG_DISK, MOUNTED_AND_VERIFIED,
+  subdir mount_path resolved to volume root for ismount check and sentinel read.
 - ``guard_disk_mounted`` — each state transition (raises or returns None).
 """
 
@@ -22,6 +25,7 @@ from personalscraper.indexer.merkle import (
     DiskMountStatus,
     DiskUnmountedError,
     FileFingerprint,
+    _resolve_volume_root,
     bootstrap_disk_identity,
     compute_merkle_root,
     guard_disk_mounted,
@@ -117,7 +121,40 @@ class TestComputeMerkleRoot:
 
 
 # ---------------------------------------------------------------------------
-# bootstrap_disk_identity
+# _resolve_volume_root
+# ---------------------------------------------------------------------------
+
+
+class TestResolveVolumeRoot:
+    """Tests for :func:`_resolve_volume_root`."""
+
+    def test_returns_self_when_already_mount_root(self, tmp_path: Path) -> None:
+        """When the given path IS a mount point, it is returned unchanged."""
+        # tmp_path itself is not a real OS mount point but we simulate it.
+        with patch("os.path.ismount", side_effect=lambda p: str(p) == str(tmp_path.resolve())):
+            result = _resolve_volume_root(tmp_path)
+        assert result == tmp_path.resolve()
+
+    def test_resolves_subdir_to_parent_mount(self, tmp_path: Path) -> None:
+        """A subdirectory path resolves to the nearest ancestor that is a mount point."""
+        subdir = tmp_path / "medias"
+        subdir.mkdir()
+        # Pretend tmp_path is the mount root, not the subdir.
+        with patch("os.path.ismount", side_effect=lambda p: str(p) == str(tmp_path.resolve())):
+            result = _resolve_volume_root(subdir)
+        assert result == tmp_path.resolve()
+
+    def test_resolves_deep_subdir_to_mount_root(self, tmp_path: Path) -> None:
+        """A deeply nested path resolves up to the correct mount ancestor."""
+        deep = tmp_path / "a" / "b" / "c"
+        deep.mkdir(parents=True)
+        with patch("os.path.ismount", side_effect=lambda p: str(p) == str(tmp_path.resolve())):
+            result = _resolve_volume_root(deep)
+        assert result == tmp_path.resolve()
+
+
+# ---------------------------------------------------------------------------
+# bootstrap_disk_identity — subdir and ErrorMessage tests
 # ---------------------------------------------------------------------------
 
 
@@ -134,8 +171,14 @@ class TestBootstrapDiskIdentity:
         mock_result.stdout = plist_output
         mock_result.stderr = ""
 
-        with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
-            returned_uuid = bootstrap_disk_identity(tmp_path)
+        # Patch ismount so that tmp_path is treated as the volume root, preventing
+        # _resolve_volume_root from walking up to the real filesystem root (/).
+        def _ismount(p: str) -> bool:
+            return str(p) == str(tmp_path.resolve())
+
+        with patch("os.path.ismount", side_effect=_ismount):
+            with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
+                returned_uuid = bootstrap_disk_identity(tmp_path)
 
         assert returned_uuid == expected_uuid
         sentinel = (tmp_path / SENTINEL_FILENAME).read_text(encoding="utf-8")
@@ -172,6 +215,56 @@ class TestBootstrapDiskIdentity:
 
         with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
             with pytest.raises(BootstrapError, match="no VolumeUUID"):
+                bootstrap_disk_identity(tmp_path)
+
+    def test_subdir_mount_path_calls_diskutil_on_volume_root(self, tmp_path: Path) -> None:
+        """bootstrap_disk_identity(subdir) resolves to volume root and calls diskutil there.
+
+        Sentinel must be written at the volume root, not at the subdir.
+        """
+        subdir = tmp_path / "medias"
+        subdir.mkdir()
+        expected_uuid = "SUBDIR-TEST-UUID"
+        plist_output = _plist_bytes(expected_uuid).decode("utf-8")
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = plist_output
+        mock_result.stderr = ""
+
+        # Simulate tmp_path as the OS mount root (subdir is NOT a mount point).
+        def _ismount(p: str) -> bool:
+            return str(p) == str(tmp_path.resolve())
+
+        captured_args: list[list[str]] = []
+
+        def _run(args: list[str], **kwargs: object) -> MagicMock:
+            captured_args.append(args)
+            return mock_result
+
+        with patch("os.path.ismount", side_effect=_ismount):
+            with patch("personalscraper.indexer.merkle.subprocess.run", side_effect=_run):
+                returned_uuid = bootstrap_disk_identity(subdir)
+
+        assert returned_uuid == expected_uuid
+        # diskutil must have received the volume root, not the subdir.
+        assert captured_args[0][-1] == str(tmp_path.resolve())
+        # Sentinel lives at the volume root.
+        assert (tmp_path / SENTINEL_FILENAME).read_text(encoding="utf-8") == expected_uuid
+        # No sentinel at the subdir.
+        assert not (subdir / SENTINEL_FILENAME).exists()
+
+    def test_error_message_parsed_from_plist_when_stderr_empty(self, tmp_path: Path) -> None:
+        """When diskutil fails with empty stderr, ErrorMessage is parsed from the plist."""
+        error_plist = plistlib.dumps({"ErrorMessage": "Could not find disk: /Volumes/Disk1/medias"}).decode("utf-8")
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stdout = error_plist
+        mock_result.stderr = ""
+
+        with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
+            with pytest.raises(BootstrapError, match="Could not find disk"):
                 bootstrap_disk_identity(tmp_path)
 
 
@@ -223,12 +316,42 @@ class TestVerifyDiskMounted:
         mock_result.stdout = plist_output
         mock_result.stderr = ""
 
-        with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
-            bootstrap_disk_identity(tmp_path)
+        # Treat tmp_path as the OS mount root so sentinel is written there.
+        def _ismount(p: str) -> bool:
+            return str(p) == str(tmp_path.resolve())
+
+        with patch("os.path.ismount", side_effect=_ismount):
+            with patch("personalscraper.indexer.merkle.subprocess.run", return_value=mock_result):
+                bootstrap_disk_identity(tmp_path)
 
         disk = _make_disk(mount_path=str(tmp_path), uuid=expected_uuid)
-        with patch("os.path.ismount", return_value=True):
+        with patch("os.path.ismount", side_effect=_ismount):
             status = verify_disk_mounted(disk)
+        assert status is DiskMountStatus.MOUNTED_AND_VERIFIED
+
+    def test_subdir_mount_path_resolves_to_volume_root_for_verify(self, tmp_path: Path) -> None:
+        """verify_disk_mounted with subdir mount_path checks ismount on volume root and reads sentinel there.
+
+        When disk.mount_path = /Volumes/Disk1/medias (a subdir), verify_disk_mounted
+        must resolve to /Volumes/Disk1 for the ismount check and sentinel read, returning
+        MOUNTED_AND_VERIFIED when the sentinel at the volume root matches disk.uuid.
+        """
+        subdir = tmp_path / "medias"
+        subdir.mkdir()
+        expected_uuid = "SUBDIR-VERIFY-UUID"
+
+        # Write sentinel at volume root (tmp_path), not at subdir.
+        (tmp_path / SENTINEL_FILENAME).write_text(expected_uuid, encoding="utf-8")
+
+        disk = _make_disk(mount_path=str(subdir), uuid=expected_uuid)
+
+        # Only tmp_path (volume root) is a mount point; subdir is not.
+        def _ismount(p: str) -> bool:
+            return str(p) == str(tmp_path.resolve())
+
+        with patch("os.path.ismount", side_effect=_ismount):
+            status = verify_disk_mounted(disk)
+
         assert status is DiskMountStatus.MOUNTED_AND_VERIFIED
 
 

@@ -5,6 +5,7 @@ Provides:
 - :func:`compute_merkle_root` — deterministic xxh3_64 hash over a set of files.
 - :func:`compute_merkle_delta` — ratio of fresh files whose tier-1 fingerprint differs from stored.
 - :class:`DiskMountStatus` — enum classifying a disk's mount state.
+- :func:`_resolve_volume_root` — walk ancestors until a real OS mount point is found.
 - :func:`bootstrap_disk_identity` — write a ``.personalscraper-disk-id`` sentinel to a disk.
 - :func:`verify_disk_mounted` — classify a disk's mount state without side effects.
 - :func:`guard_disk_mounted` — raise on any non-verified mount state; bootstrap on NO_SENTINEL.
@@ -215,19 +216,58 @@ def compute_merkle_delta(
 
 
 # ---------------------------------------------------------------------------
+# Volume root resolution
+# ---------------------------------------------------------------------------
+
+
+def _resolve_volume_root(p: Path) -> Path:
+    """Walk up the ancestor chain until a real OS mount point is found.
+
+    ``os.path.ismount`` returns ``True`` for actual volume mount roots (e.g.
+    ``/Volumes/Disk1``) but ``False`` for subdirectories inside a volume (e.g.
+    ``/Volumes/Disk1/medias``).  When ``Config.disks[].path`` points to a
+    subdirectory of a volume (the common case when a disk is shared), this
+    helper resolves the underlying mount root so that ``diskutil`` and sentinel
+    operations target the correct path.
+
+    Args:
+        p: Absolute path to start the search from (typically ``DiskConfig.path``
+            or ``DiskRow.mount_path``).
+
+    Returns:
+        The nearest ancestor (inclusive) that satisfies ``os.path.ismount``.
+        Falls back to ``p`` itself when the filesystem root is reached without
+        finding a mount point (degenerate case — should not occur in practice).
+    """
+    candidate = p.resolve()
+    while True:
+        if os.path.ismount(str(candidate)):
+            return candidate
+        parent = candidate.parent
+        if parent == candidate:
+            # Reached filesystem root without finding a mount point — return p as-is.
+            return p.resolve()
+        candidate = parent
+
+
+# ---------------------------------------------------------------------------
 # Disk identity bootstrap
 # ---------------------------------------------------------------------------
 
 
 def bootstrap_disk_identity(mount_path: Path) -> str:
-    """Write a UUID sentinel to a disk mount point and return the UUID.
+    """Write a UUID sentinel to the volume root of a disk and return the UUID.
 
-    Calls ``diskutil info -plist <mount_path>`` to retrieve the ``VolumeUUID``
-    assigned by macOS, then writes that UUID to
-    ``<mount_path>/<SENTINEL_FILENAME>``.
+    Resolves the actual OS mount root from ``mount_path`` (which may be a
+    subdirectory, e.g. ``/Volumes/Disk1/medias``) using
+    :func:`_resolve_volume_root`, then calls
+    ``diskutil info -plist <volume_root>`` to retrieve the ``VolumeUUID``
+    assigned by macOS.  The sentinel file is written at
+    ``<volume_root>/<SENTINEL_FILENAME>`` so it is per-volume, not per-subdir.
 
     Args:
-        mount_path: Absolute path to the disk's mount point.
+        mount_path: Absolute path to the disk's configured path.  May be the
+            mount root itself or a subdirectory of it.
 
     Returns:
         The ``VolumeUUID`` string extracted from diskutil output.
@@ -236,9 +276,12 @@ def bootstrap_disk_identity(mount_path: Path) -> str:
         BootstrapError: If ``diskutil`` is not on ``PATH``, returns a non-zero
             exit code, or the plist does not contain a ``VolumeUUID``.
     """
+    # Resolve to the actual OS mount root so diskutil receives a valid path.
+    volume_root = _resolve_volume_root(mount_path)
+
     try:
         result = subprocess.run(
-            ["diskutil", "info", "-plist", str(mount_path)],
+            ["diskutil", "info", "-plist", str(volume_root)],
             capture_output=True,
             text=True,
         )
@@ -246,7 +289,17 @@ def bootstrap_disk_identity(mount_path: Path) -> str:
         raise BootstrapError("diskutil not available on this system")
 
     if result.returncode != 0:
-        raise BootstrapError(f"diskutil failed: {result.stderr}")
+        # stderr is often empty for diskutil failures; try parsing the plist
+        # ErrorMessage key for a more informative message.
+        error_detail: str = result.stderr.strip()
+        if not error_detail and result.stdout:
+            try:
+                err_plist: dict[str, object] = plistlib.loads(result.stdout.encode("utf-8"))
+                raw_msg = err_plist.get("ErrorMessage", "")
+                error_detail = str(raw_msg) if raw_msg else ""
+            except Exception:  # noqa: BLE001 — best-effort plist parse
+                pass
+        raise BootstrapError(f"diskutil failed: {error_detail}")
 
     plist_data: dict[str, object] = plistlib.loads(result.stdout.encode("utf-8"))
     raw_uuid = plist_data.get("VolumeUUID", "")
@@ -254,10 +307,17 @@ def bootstrap_disk_identity(mount_path: Path) -> str:
     if not volume_uuid:
         raise BootstrapError("diskutil returned no VolumeUUID")
 
-    sentinel_path = mount_path / SENTINEL_FILENAME
+    # Write sentinel at the volume root, not at the configured subdir,
+    # so it is tied to the volume identity rather than a specific subdir path.
+    sentinel_path = volume_root / SENTINEL_FILENAME
     sentinel_path.write_text(volume_uuid, encoding="utf-8")
 
-    log.info("indexer.disk.bootstrapped", disk_uuid=volume_uuid, mount_path=str(mount_path))
+    log.info(
+        "indexer.disk.bootstrapped",
+        disk_uuid=volume_uuid,
+        mount_path=str(mount_path),
+        volume_root=str(volume_root),
+    )
     return volume_uuid
 
 
@@ -269,9 +329,14 @@ def bootstrap_disk_identity(mount_path: Path) -> str:
 def verify_disk_mounted(disk: DiskRow) -> DiskMountStatus:
     """Classify the mount state of a disk without performing any side effects.
 
-    Reads the sentinel file at ``<mount_path>/<SENTINEL_FILENAME>`` and compares
-    its content to ``disk.uuid``.  Does **not** bootstrap a missing sentinel —
-    that decision belongs to the caller (:func:`guard_disk_mounted`).
+    Resolves the actual OS mount root from ``disk.mount_path`` (which may be a
+    subdirectory, e.g. ``/Volumes/Disk1/medias``) via :func:`_resolve_volume_root`,
+    then checks ``os.path.ismount`` against that root.  The sentinel file is read
+    from ``<volume_root>/<SENTINEL_FILENAME>`` (not from the configured subdir),
+    mirroring the placement chosen by :func:`bootstrap_disk_identity`.
+
+    Does **not** bootstrap a missing sentinel — that decision belongs to the
+    caller (:func:`guard_disk_mounted`).
 
     Args:
         disk: :class:`~personalscraper.indexer.schema.DiskRow` describing the
@@ -280,10 +345,17 @@ def verify_disk_mounted(disk: DiskRow) -> DiskMountStatus:
     Returns:
         A :class:`DiskMountStatus` value classifying the current state.
     """
-    if disk.mount_path is None or not os.path.ismount(disk.mount_path):
+    if disk.mount_path is None:
         return DiskMountStatus.UNMOUNTED
 
-    sentinel_path = Path(disk.mount_path) / SENTINEL_FILENAME
+    # Resolve to the actual OS mount root: a subdir like /Volumes/Disk1/medias
+    # would return False from os.path.ismount, masking a live volume.
+    volume_root = _resolve_volume_root(Path(disk.mount_path))
+    if not os.path.ismount(str(volume_root)):
+        return DiskMountStatus.UNMOUNTED
+
+    # Read sentinel from the volume root, where bootstrap_disk_identity wrote it.
+    sentinel_path = volume_root / SENTINEL_FILENAME
     try:
         sentinel_content = sentinel_path.read_text(encoding="utf-8").strip()
     except OSError:
@@ -337,10 +409,12 @@ def guard_disk_mounted(disk: DiskRow) -> None:
             return None
         raise DiskMismatchError(disk.uuid, expected=disk.uuid, found=bootstrapped_uuid)
 
-    # MOUNTED_WRONG_DISK
-    sentinel_path = Path(disk.mount_path) / SENTINEL_FILENAME  # type: ignore[arg-type]
+    # MOUNTED_WRONG_DISK — read sentinel from volume root for the mismatch detail.
+    assert disk.mount_path is not None  # narrowing for mypy (UNMOUNTED already excluded)
+    wrong_root = _resolve_volume_root(Path(disk.mount_path))
+    sentinel_path = wrong_root / SENTINEL_FILENAME
     try:
-        found_uuid = (sentinel_path).read_text(encoding="utf-8").strip()
+        found_uuid = sentinel_path.read_text(encoding="utf-8").strip()
     except OSError:
         found_uuid = "<unreadable>"
     raise DiskMismatchError(disk.uuid, expected=disk.uuid, found=found_uuid)

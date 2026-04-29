@@ -14,13 +14,14 @@ Commands:
 - :func:`config_migrate_category_command` — rewrite ``category_id`` for renamed categories.
 
 Helpers (module-private):
-- :func:`_resolve_volume_root` — walk ancestors until a real mount point is found.
 - :func:`_bootstrap_disks_from_config` — populate the ``disk`` table from ``Config.disks``.
+
+Note: :func:`~personalscraper.indexer.merkle._resolve_volume_root` is defined in
+:mod:`personalscraper.indexer.merkle` and re-used here via import.
 """
 
 from __future__ import annotations
 
-import os
 import sqlite3
 import time
 from collections.abc import Sequence
@@ -29,6 +30,7 @@ from pathlib import Path
 import typer
 
 from personalscraper.conf.models import DiskConfig
+from personalscraper.indexer.merkle import _resolve_volume_root
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -37,35 +39,6 @@ log = get_logger("indexer.cli")
 # ---------------------------------------------------------------------------
 # Module-private helpers
 # ---------------------------------------------------------------------------
-
-
-def _resolve_volume_root(p: Path) -> Path:
-    """Walk up the ancestor chain until a real OS mount point is found.
-
-    ``os.path.ismount`` returns ``True`` for actual volume mount roots (e.g.
-    ``/Volumes/Disk1``) but ``False`` for subdirectories inside a volume (e.g.
-    ``/Volumes/Disk1/medias``).  When ``Config.disks[].path`` points to a
-    subdirectory of a volume (the common case when a disk is shared), this
-    helper resolves the underlying mount root so that ``diskutil`` and sentinel
-    operations target the correct path.
-
-    Args:
-        p: Absolute path to start the search from (typically ``DiskConfig.path``).
-
-    Returns:
-        The nearest ancestor (inclusive) that satisfies ``os.path.ismount``.
-        Falls back to ``p`` itself when the filesystem root is reached without
-        finding a mount point (degenerate case — should not occur in practice).
-    """
-    candidate = p.resolve()
-    while True:
-        if os.path.ismount(str(candidate)):
-            return candidate
-        parent = candidate.parent
-        if parent == candidate:
-            # Reached filesystem root without finding a mount point — return p as-is.
-            return p.resolve()
-        candidate = parent
 
 
 def _bootstrap_disks_from_config(
