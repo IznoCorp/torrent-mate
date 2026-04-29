@@ -219,3 +219,23 @@ def mock_settings(tmp_path, monkeypatch):
         A Settings instance with neutral test values.
     """
     return Settings(_env_file=None)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Skip ``darwin_only`` tests when not running on macOS.
+
+    Applied unconditionally at collection time so the marker works without
+    any per-test ``@pytest.mark.skipif`` decorator.
+
+    Args:
+        items: Collected test items (mutated in place).
+    """
+    import sys
+
+    if sys.platform == "darwin":
+        return  # All platforms supported; nothing to skip.
+
+    skip_non_darwin = pytest.mark.skip(reason="darwin_only: requires macOS launchctl")
+    for item in items:
+        if item.get_closest_marker("darwin_only"):
+            item.add_marker(skip_non_darwin)

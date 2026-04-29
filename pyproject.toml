@@ -76,6 +76,7 @@ markers = [
     "e2e_idempotence: E2E idempotence tests on real staging data (manual only)",
     "network: Network tests — opt-in via TRAILER_INTEGRATION_TESTS=1 env var",
     "slow: slow tests (perf regression), off by default — run with -m slow",
+    "darwin_only: macOS-only smoke tests (skipped on Linux/Windows CI runners)",
 ]
 addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not network and not slow'"
 
