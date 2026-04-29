@@ -1,15 +1,26 @@
-"""Library analyzer — deep ffprobe scan for encoding, audio, subtitles.
+"""Library analyzer — query indexer DB for health metrics + ffprobe deep scan.
 
-Most I/O-intensive library command. Designed for off-peak scheduling.
-Supports --incremental to skip already-analyzed files.
+Two modes of analysis are exposed:
 
-``analyze_library`` accepts a ``Config`` object and resolves folder
-names from ``config.category(id).folder_name``. TV detection uses
-``TV_CATEGORY_IDS`` from ``conf/ids``.
+1. ``analyze(conn) -> AnalysisResult`` — lightweight, always available.
+   Queries the indexer DB (populated by :func:`personalscraper.library.scanner.scan_library`)
+   and returns aggregate health counts: NFO status distribution, artwork presence,
+   TV show season-poster coverage.  No ffprobe or filesystem access required.
+
+2. ``analyze_library(config, ...) -> LibraryAnalysisResult`` — heavy, optional.
+   Runs ffprobe on every video file and returns per-file codec/audio/subtitle
+   information.  Schedule during off-peak hours; use ``--incremental`` to skip
+   files that have not changed size since the last run.
+
+Callers in ``reporter.py`` and ``rescraper.py`` consume :class:`AnalysisResult`.
+``analyze_library`` is still called by the ``library-analyze`` CLI command for
+on-demand ffprobe deep-scan.
 """
 
 from __future__ import annotations
 
+import sqlite3
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -34,6 +45,165 @@ log = get_logger("library.analyzer")
 
 # French language codes (ISO 639-2/T and /B variants)
 _FRENCH_CODES = frozenset({"fra", "fre"})
+
+
+# ---------------------------------------------------------------------------
+# AnalysisResult — DB-query health summary
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class NfoStatusCounts:
+    """NFO status breakdown across the whole library.
+
+    Attributes:
+        valid: Number of items whose NFO is present and valid.
+        invalid: Number of items with a present but invalid NFO.
+        missing: Number of items with no NFO at all.
+    """
+
+    valid: int = 0
+    invalid: int = 0
+    missing: int = 0
+
+
+@dataclass
+class ArtworkCounts:
+    """Artwork presence counts across the whole library.
+
+    Attributes:
+        poster_present: Items that have a poster.
+        poster_missing: Items that have no poster.
+    """
+
+    poster_present: int = 0
+    poster_missing: int = 0
+
+
+@dataclass
+class AnalysisResult:
+    """Aggregate library health metrics queried from the indexer DB.
+
+    Produced by :func:`analyze`.  Preserved for consumers in
+    ``library/reporter.py`` and ``library/rescraper.py``.
+
+    Attributes:
+        analyzed_at: ISO 8601 timestamp of analysis.
+        total_items: Total ``media_item`` rows in the DB.
+        movies_count: Items with ``kind='movie'``.
+        shows_count: Items with ``kind='show'``.
+        nfo: NFO status breakdown (valid / invalid / missing).
+        artwork: Poster presence breakdown.
+        seasons_missing_poster: Total ``season`` rows with ``has_poster=0``.
+        nfo_invalid_by_category: Count of invalid-NFO items per ``category_id``.
+        poster_missing_by_category: Count of poster-missing items per ``category_id``.
+        items_needing_rescrape: Items with ``nfo_status != 'valid'`` or
+            ``date_metadata_refreshed IS NULL`` — candidates for rescraper.
+    """
+
+    analyzed_at: str = ""
+    total_items: int = 0
+    movies_count: int = 0
+    shows_count: int = 0
+    nfo: NfoStatusCounts = field(default_factory=NfoStatusCounts)
+    artwork: ArtworkCounts = field(default_factory=ArtworkCounts)
+    seasons_missing_poster: int = 0
+    nfo_invalid_by_category: dict[str, int] = field(default_factory=dict)
+    poster_missing_by_category: dict[str, int] = field(default_factory=dict)
+    items_needing_rescrape: int = 0
+
+
+# ---------------------------------------------------------------------------
+# DB-query analysis
+# ---------------------------------------------------------------------------
+
+
+def analyze(conn: sqlite3.Connection) -> AnalysisResult:
+    """Query the indexer DB and return an aggregate health summary.
+
+    Does not access the filesystem or run ffprobe.  Requires that
+    :func:`personalscraper.library.scanner.scan_library` has already been
+    called with the same ``conn`` so the ``media_item``, ``season``, and
+    ``episode`` tables are populated.
+
+    Queries performed:
+
+    * ``SELECT COUNT(*) FROM media_item`` — totals.
+    * ``SELECT COUNT(*) ... WHERE nfo_status = ?`` — NFO breakdown.
+    * ``SELECT COUNT(*) ... WHERE json_extract(artwork_json, '$.poster') = 0`` —
+      poster coverage.
+    * ``SELECT COUNT(*) FROM season WHERE has_poster = 0`` — season poster gaps.
+    * ``SELECT category_id, COUNT(*) ... GROUP BY category_id`` — per-category breakdowns.
+    * ``SELECT COUNT(*) FROM media_item WHERE nfo_status != 'valid'
+      OR date_metadata_refreshed IS NULL`` — rescrape candidates.
+
+    Args:
+        conn: Open SQLite connection with all migrations applied and
+            ``media_item`` / ``season`` tables populated.
+
+    Returns:
+        :class:`AnalysisResult` with aggregate health metrics.
+    """
+    result = AnalysisResult(analyzed_at=datetime.now(tz=timezone.utc).isoformat())
+
+    # --- total / kind breakdown -----------------------------------------------
+    result.total_items = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
+    result.movies_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+    result.shows_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
+
+    # --- NFO status breakdown -------------------------------------------------
+    result.nfo.valid = conn.execute("SELECT COUNT(*) FROM media_item WHERE nfo_status = 'valid'").fetchone()[0]
+    result.nfo.invalid = conn.execute("SELECT COUNT(*) FROM media_item WHERE nfo_status = 'invalid'").fetchone()[0]
+    result.nfo.missing = conn.execute(
+        "SELECT COUNT(*) FROM media_item WHERE nfo_status = 'missing' OR nfo_status IS NULL"
+    ).fetchone()[0]
+
+    # --- Poster presence (artwork_json column) ---------------------------------
+    # artwork_json is a JSON string; $.poster is a boolean stored as 0/1/true/false.
+    # json_extract returns SQLite JSON types: true→1, false→0 (as integers in SQLite).
+    result.artwork.poster_present = conn.execute(
+        "SELECT COUNT(*) FROM media_item WHERE json_extract(artwork_json, '$.poster') = 1"
+    ).fetchone()[0]
+    result.artwork.poster_missing = conn.execute(
+        "SELECT COUNT(*) FROM media_item WHERE json_extract(artwork_json, '$.poster') = 0 OR artwork_json IS NULL"
+    ).fetchone()[0]
+
+    # --- Season poster gaps ---------------------------------------------------
+    result.seasons_missing_poster = conn.execute("SELECT COUNT(*) FROM season WHERE has_poster = 0").fetchone()[0]
+
+    # --- Per-category NFO-invalid breakdown -----------------------------------
+    rows = conn.execute(
+        "SELECT category_id, COUNT(*) AS cnt FROM media_item WHERE nfo_status != 'valid' GROUP BY category_id"
+    ).fetchall()
+    result.nfo_invalid_by_category = {row[0]: row[1] for row in rows}
+
+    # --- Per-category poster-missing breakdown --------------------------------
+    rows = conn.execute(
+        "SELECT category_id, COUNT(*) AS cnt FROM media_item "
+        "WHERE json_extract(artwork_json, '$.poster') = 0 OR artwork_json IS NULL "
+        "GROUP BY category_id"
+    ).fetchall()
+    result.poster_missing_by_category = {row[0]: row[1] for row in rows}
+
+    # --- Rescrape candidates: NFO invalid/missing OR never scraped ------------
+    result.items_needing_rescrape = conn.execute(
+        "SELECT COUNT(*) FROM media_item WHERE nfo_status != 'valid' OR date_metadata_refreshed IS NULL"
+    ).fetchone()[0]
+
+    log.info(
+        "library_analyze_complete",
+        total=result.total_items,
+        nfo_valid=result.nfo.valid,
+        nfo_invalid=result.nfo.invalid,
+        poster_missing=result.artwork.poster_missing,
+        seasons_missing_poster=result.seasons_missing_poster,
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Audio profile deduction (retained — used by analyze_library)
+# ---------------------------------------------------------------------------
 
 
 def deduce_audio_profile(
@@ -160,21 +330,6 @@ def _analyze_video_file(path: Path) -> MediaFileAnalysis | None:
         subtitle_languages=[s.language for s in subtitle_tracks],
         analyzed_at=datetime.now(tz=timezone.utc).isoformat(),
     )
-
-
-def _file_size_bytes(path: Path) -> int:
-    """Get file size in bytes for incremental comparison.
-
-    Args:
-        path: File path.
-
-    Returns:
-        File size in bytes, or 0 if inaccessible.
-    """
-    try:
-        return path.stat().st_size
-    except OSError:
-        return 0
 
 
 def analyze_library(
