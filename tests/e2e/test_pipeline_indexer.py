@@ -33,12 +33,12 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from typer.testing import CliRunner
 
 from personalscraper.cli import app
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import outbox_repo
 from personalscraper.indexer.scanner import ScanRunResult
+from tests.conftest import make_cli_runner
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -52,7 +52,7 @@ _PATCH_SCAN = "personalscraper.indexer.scanner.scan"
 
 _N_ITEMS = 50
 
-runner = CliRunner(mix_stderr=False)
+runner = make_cli_runner()
 
 
 # ---------------------------------------------------------------------------

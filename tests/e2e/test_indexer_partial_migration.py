@@ -19,6 +19,7 @@ import pytest
 
 from personalscraper.conf.loader import ConfigNotFoundError, load_config_dir
 from personalscraper.conf.migration import MigrationError, migrate_v1_to_v2
+from tests.conftest import make_cli_runner
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -170,8 +171,6 @@ class TestPartialMigrationE2E:
         """Full E2E via the CLI runner: crash → loader refuses → rm → rerun → success."""
         import shutil
 
-        from typer.testing import CliRunner
-
         from personalscraper.cli import app
         from personalscraper.conf.loader import load_config_dir
         from personalscraper.conf.models import Config
@@ -191,7 +190,7 @@ class TestPartialMigrationE2E:
                 raise OSError("simulated crash in CLI path")
             original_write(path, content)
 
-        runner = CliRunner(mix_stderr=False)
+        runner = make_cli_runner()
 
         with patch("personalscraper.conf.migration._write_file", side_effect=_crashing_write):
             result = runner.invoke(app, ["config", "migrate-to-v2", str(legacy), str(target)])

@@ -52,11 +52,10 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from typer.testing import CliRunner
-
 from personalscraper.cli import app
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner import ScanRunResult
+from tests.conftest import make_cli_runner
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -78,7 +77,7 @@ _PATCH_QUERY_EXECUTE = "personalscraper.indexer.query.execute"
 
 # mix_stderr=False so result.output contains only stdout and result.stderr
 # is available without raising ValueError.
-runner = CliRunner(mix_stderr=False)
+runner = make_cli_runner()
 
 
 # ---------------------------------------------------------------------------

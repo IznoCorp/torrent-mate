@@ -14,6 +14,7 @@ from personalscraper.conf.migration import (
     MigrationMalformedError,
     migrate_v1_to_v2,
 )
+from tests.conftest import make_cli_runner
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -308,53 +309,45 @@ class TestCliMigrateToV2:
 
     def test_cli_dry_run_exits_zero_no_files_written(self, tmp_path: Path) -> None:
         """--dry-run must exit 0 without writing any files."""
-        from typer.testing import CliRunner
-
         from personalscraper.cli import app
 
         legacy = _write_v1(tmp_path)
         target = tmp_path / "config"
 
-        runner = CliRunner(mix_stderr=False)
+        runner = make_cli_runner()
         result = runner.invoke(app, ["config", "migrate-to-v2", "--dry-run", str(legacy), str(target)])
         assert result.exit_code == 0, result.output
         assert not target.exists()
 
     def test_cli_dry_run_mentions_files(self, tmp_path: Path) -> None:
         """--dry-run output must mention the overlay filenames."""
-        from typer.testing import CliRunner
-
         from personalscraper.cli import app
 
         legacy = _write_v1(tmp_path)
         target = tmp_path / "config"
 
-        runner = CliRunner(mix_stderr=False)
+        runner = make_cli_runner()
         result = runner.invoke(app, ["config", "migrate-to-v2", "--dry-run", str(legacy), str(target)])
         assert "paths.json5" in result.output
         assert "disks.json5" in result.output
 
     def test_cli_migration_success(self, tmp_path: Path) -> None:
         """Real migration via CLI must create target_dir and exit 0."""
-        from typer.testing import CliRunner
-
         from personalscraper.cli import app
 
         legacy = _write_v1(tmp_path)
         target = tmp_path / "config"
 
-        runner = CliRunner(mix_stderr=False)
+        runner = make_cli_runner()
         result = runner.invoke(app, ["config", "migrate-to-v2", str(legacy), str(target)])
         assert result.exit_code == 0, result.output
         assert target.is_dir()
 
     def test_cli_missing_legacy_exits_nonzero(self, tmp_path: Path) -> None:
         """CLI must exit non-zero when legacy file is absent."""
-        from typer.testing import CliRunner
-
         from personalscraper.cli import app
 
-        runner = CliRunner(mix_stderr=False)
+        runner = make_cli_runner()
         result = runner.invoke(
             app, ["config", "migrate-to-v2", str(tmp_path / "noexist.json5"), str(tmp_path / "config")]
         )
@@ -362,8 +355,6 @@ class TestCliMigrateToV2:
 
     def test_cli_already_migrated_exits_zero(self, tmp_path: Path) -> None:
         """CLI must exit 0 with a message when target_dir is already migrated."""
-        from typer.testing import CliRunner
-
         from personalscraper.cli import app
 
         legacy = _write_v1(tmp_path)
@@ -374,7 +365,7 @@ class TestCliMigrateToV2:
         # Write a second legacy file to try again.
         legacy2 = _write_v1(tmp_path)
 
-        runner = CliRunner(mix_stderr=False)
+        runner = make_cli_runner()
         result = runner.invoke(app, ["config", "migrate-to-v2", str(legacy2), str(target)])
         assert result.exit_code == 0
         assert "Already migrated" in result.output or "already" in result.output.lower()
