@@ -58,6 +58,14 @@
 - Cycle 1 fixes verified: all 6 (C1, C2, M1, M2, M3, M4) plus the regression guard correctly resolve the cycle 1 findings with adequate test coverage.
 - Status: clean — proceeding to merge handoff (manual mode)
 
+### Cycle 3
+
+- Findings received: focused review of phase-10 commits (51f32e1..8ae99c2)
+- Retained: 0 (0 critical, 0 major, 0 medium)
+- Reclassified to minor / deferred: 3 — (a) false positive on `_resolve_volume_root` "duplication" (it's imported from merkle in cli.py:33); (b) `mount_path` stored as configured subdir while sentinel lives at volume root — intentional design decision in 10.4, doc could clarify; (c) `[unmatched] <name>` detail string parsing is brittle — future refactor target (typed `StepReport.unmatched_paths` field) but not a current bug.
+- Phase 10 fixes verified: 5 sub-phases (10.1–10.5) all solve their stated problems with adequate test coverage. No regressions introduced.
+- Status: clean — proceeding to merge handoff (manual mode)
+
 ## Next action
 
 All phases complete — run `/implement:feature-pr`.
