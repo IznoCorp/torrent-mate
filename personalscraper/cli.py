@@ -662,9 +662,9 @@ def library_status(
 @handle_cli_errors
 def library_index(
     ctx: typer.Context,
-    mode: str = typer.Option("full", "--mode", help="Scan mode: full or quick"),
+    mode: str = typer.Option("full", "--mode", help="Scan mode: full, quick, incremental, or enrich"),
     disk: Optional[str] = typer.Option(None, "--disk", help="Restrict scan to this disk label"),
-    budget: Optional[int] = typer.Option(None, "--budget", help="Budget in seconds (reserved for Phase 4)"),
+    budget: Optional[int] = typer.Option(None, "--budget", help="Budget in seconds"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
     wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
@@ -672,6 +672,11 @@ def library_index(
         False,
         "--confirm-bulk-change",
         help="Bypass bulk-restore freeze guard (use after --mode quick reports a high Merkle delta).",
+    ),
+    rebuild: bool = typer.Option(
+        False,
+        "--rebuild",
+        help="Quarantine corrupt DB and create a fresh one, then run full Stage-A scan.",
     ),
 ) -> None:
     """Run a full or quick media indexer scan.
@@ -682,6 +687,7 @@ def library_index(
     Use --mode quick for a fast Merkle + dir-mtime short-circuit scan.
     Use --dry-run to simulate without committing any DB changes.
     Use --confirm-bulk-change to override the bulk-restore freeze guard.
+    Use --rebuild to quarantine a corrupt DB and rebuild from scratch.
 
     Examples:
         personalscraper library-index
@@ -689,6 +695,7 @@ def library_index(
         personalscraper library-index --disk MyDisk --mode full
         personalscraper library-index --dry-run --mode full
         personalscraper library-index --mode quick --confirm-bulk-change
+        personalscraper library-index --rebuild
     """
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
@@ -701,7 +708,107 @@ def library_index(
         wait_for_lock_seconds=wait_for_lock,
         config_path=effective_config,
         confirm_bulk_change=confirm_bulk_change,
+        rebuild=rebuild,
     )
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-verify")
+@handle_cli_errors
+def library_verify(
+    ctx: typer.Context,
+    disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Re-stat every indexed file and mark mismatches for repair.
+
+    Runs a verify-mode scan that re-checks every file's stat metadata against
+    the stored snapshot.  Files that no longer match are escalated to the repair
+    queue — they are NOT soft-deleted.  Use this command to identify drift
+    before deciding whether to accept or revert changes.
+
+    Examples:
+        personalscraper library-verify
+        personalscraper library-verify --disk Disk2
+    """
+    from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_verify_command(disk=disk, config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-search")
+@handle_cli_errors
+def library_search(
+    ctx: typer.Context,
+    query: str = typer.Argument(..., help="Query string, e.g. 'year:2024 disk:Disk1 -nfo:valid'"),
+    limit: int = typer.Option(50, "--limit", help="Maximum number of results to return"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Search indexed media items with the flex-attr query language.
+
+    Field syntax: ``field:value``, ``-field:value`` (negation), ``year:>=2020``,
+    ``title:"Exact Title"``.  Unknown fields exit 2.
+
+    Examples:
+        personalscraper library-search "year:2024 disk:Disk1 -nfo:valid"
+        personalscraper library-search "kind:show codec:hevc -trailer"
+        personalscraper library-search 'title:"Lost Highway"'
+    """
+    from personalscraper.indexer.cli import library_search_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_search_command(query, limit=limit, config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-repair")
+@handle_cli_errors
+def library_repair(
+    ctx: typer.Context,
+    budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Drain the repair queue within a time budget.
+
+    Processes pending repair rows in FIFO order.  Stops cleanly when the budget
+    is exhausted.  Prints a JSON summary of processed / succeeded / failed counts.
+
+    Examples:
+        personalscraper library-repair
+        personalscraper library-repair --budget 120
+    """
+    from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-show")
+@handle_cli_errors
+def library_show(
+    ctx: typer.Context,
+    item_id: int = typer.Argument(..., help="media_item.id to display"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Pretty-print all stored data for a single media item.
+
+    Prints media_item fields, season/episode rows, media_file rows with streams,
+    item_attribute rows, and deleted_item history.  Exits 2 for unknown ids.
+
+    Examples:
+        personalscraper library-show 42
+    """
+    from personalscraper.indexer.cli import library_show_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_show_command(item_id, config_path=effective_config)
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -1155,6 +1262,37 @@ def library_report(
 # ---------------------------------------------------------------------------
 # Config sub-app commands
 # ---------------------------------------------------------------------------
+
+
+@config_app.command("migrate-category")
+def config_migrate_category(
+    ctx: typer.Context,
+    from_cat: str = typer.Option(..., "--from", help="Old category_id to replace"),
+    to_cat: str = typer.Option(..., "--to", help="New category_id to write (must be declared in config)"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Rewrite media_item.category_id for renamed categories.
+
+    Rewrites every ``media_item`` row whose ``category_id`` equals ``--from``
+    to ``--to``.  Run this after renaming a category in ``categories.json5``
+    to clear orphan-tagged rows shown by ``library status``.
+
+    The target ``--to`` must already be a declared category id in the current
+    config (the rename must be applied first).  The operation is idempotent.
+
+    Examples:
+        personalscraper config migrate-category --from old_cat --to new_cat
+    """
+    from personalscraper.indexer.cli import config_migrate_category_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = config_migrate_category_command(
+        from_category=from_cat,
+        to_category=to_cat,
+        config_path=effective_config,
+    )
+    if rc != 0:
+        raise typer.Exit(rc)
 
 
 @config_app.command("migrate-to-v2")

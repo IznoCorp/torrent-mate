@@ -164,10 +164,10 @@ def _insert_disk(conn: sqlite3.Connection, mount_path: str, merkle_root: str | N
 class TestScanMode:
     """Tests for the :class:`ScanMode` enum."""
 
-    def test_all_four_members_declared(self) -> None:
-        """quick, incremental, enrich, full must all be present."""
+    def test_all_members_declared(self) -> None:
+        """quick, incremental, enrich, full, verify must all be present."""
         members = {m.value for m in ScanMode}
-        assert members == {"quick", "incremental", "enrich", "full"}
+        assert members == {"quick", "incremental", "enrich", "full", "verify"}
 
     def test_members_are_strings(self) -> None:
         """ScanMode members behave as plain strings (str, Enum pattern)."""

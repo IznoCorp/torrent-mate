@@ -6,9 +6,10 @@ modules (which are table-scoped) so that cross-table queries have a single,
 discoverable home.
 
 Note:
-    This is a stub module introduced in Phase 7.5.  The full query parser
-    (structured filtering, sorting, pagination) is implemented in Phase 8.
-    Only the queries required by Phase 7 consumers are present here.
+    The full flex-attr query parser (tokeniser, FIELD_REGISTRY, SQL composer)
+    is implemented in Phase 8.2.  The :class:`QueryError` exception and
+    :func:`execute` function are stubbed here so the Phase 8.1 CLI can import
+    them; the stubs raise ``NotImplementedError`` until Phase 8.2 fills them in.
 """
 
 from __future__ import annotations
@@ -16,6 +17,58 @@ from __future__ import annotations
 import sqlite3
 
 from personalscraper.indexer.schema import MediaItemRow
+
+# ---------------------------------------------------------------------------
+# QueryError — raised by the query parser for unknown fields / syntax errors
+# ---------------------------------------------------------------------------
+
+
+class QueryError(ValueError):
+    """Raised by :func:`execute` when the query string is invalid.
+
+    Phase 8.2 implements the full tokeniser and FIELD_REGISTRY.  Until then
+    this is a plain ``ValueError`` subclass so callers can catch it uniformly.
+
+    Args:
+        message: Human-readable error description, e.g.
+            ``"unknown field 'foo'; recognised fields: kind, title, year, ..."``.
+    """
+
+    def __init__(self, message: str) -> None:
+        """Initialize with an actionable error message."""
+        super().__init__(message)
+
+
+# ---------------------------------------------------------------------------
+# execute — top-level query entry point (stub until Phase 8.2)
+# ---------------------------------------------------------------------------
+
+
+def execute(
+    conn: sqlite3.Connection,
+    query_str: str,
+    limit: int = 50,
+) -> list[MediaItemRow]:
+    """Tokenise *query_str*, compile a WHERE clause, and return matching items.
+
+    This is a Phase 8.2 stub.  The full implementation (tokeniser,
+    FIELD_REGISTRY, SQL fragment composer) lives in Phase 8.2.  Calling this
+    stub raises :class:`NotImplementedError` with a clear message.
+
+    Args:
+        conn: Open, read-capable SQLite connection to the indexer database.
+        query_str: Query string in the flex-attr syntax.
+        limit: Maximum number of rows to return.
+
+    Returns:
+        List of :class:`~personalscraper.indexer.schema.MediaItemRow` instances.
+
+    Raises:
+        NotImplementedError: Always — full implementation is in Phase 8.2.
+        QueryError: On invalid query syntax (Phase 8.2+).
+    """
+    raise NotImplementedError("execute() is a Phase 8.2 stub; the full query parser is not yet implemented.")
+
 
 # ---------------------------------------------------------------------------
 # Row helper (mirrors item_repo._row_to_item but kept local to avoid coupling)

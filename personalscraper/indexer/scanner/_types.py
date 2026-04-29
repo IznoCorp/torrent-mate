@@ -54,12 +54,15 @@ class ScanMode(str, Enum):
         incremental: Changed-files only based on dir-mtime deltas (Phase 4).
         enrich: Re-run mediainfo / NFO / artwork on un-enriched files (Phase 4).
         full: Walk every file on every disk and (re-)compute tier-1 fingerprints (Phase 2.5).
+        verify: Re-stat every indexed file and escalate mismatches to the repair
+            queue without soft-deleting (Phase 8.1).
     """
 
     quick = "quick"
     incremental = "incremental"
     enrich = "enrich"
     full = "full"
+    verify = "verify"
 
 
 # ---------------------------------------------------------------------------
