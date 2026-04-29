@@ -767,8 +767,12 @@ def scan(
         finished_at = int(time.time())
         log_repo.update_scan_run_status(conn, scan_run_id, "failed", finished_at=finished_at)
         raise
-    except Exception as exc:
-        # Unexpected failure — record it and re-raise.
+    except Exception:
+        # Unexpected failure — update the scan_run row to status='failed' so the
+        # DB is never left with a dangling 'running' row, then re-raise so the
+        # caller receives the original traceback.  This matches the documented
+        # contract in the Raises section above and mirrors the DiskBulkChangeDetected
+        # branch immediately above.
         finished_at = int(time.time())
         log_repo.update_scan_run_status(
             conn,
@@ -776,14 +780,7 @@ def scan(
             "failed",
             finished_at=finished_at,
         )
-        return ScanRunResult(
-            scan_run_id=scan_run_id,
-            files_visited=files_visited[0],
-            dirs_visited=dirs_visited[0],
-            status="failed",
-            disks_skipped=disks_skipped[0],
-            error=str(exc),
-        )
+        raise
     finally:
         # Always clear the active bucket so a subsequent scan does not
         # inherit this run's throttle state.  Tests rely on the absence of

@@ -36,6 +36,11 @@ Sub-phase 4.4 additions:
 - Non-fatal: subprocess failure is caught and logged at DEBUG; scan still proceeds.
 - Tested via mocked ``subprocess.run`` for the ``mount`` command.
 
+Sub-phase 9.4 additions:
+- ``scan`` re-raises unexpected exceptions after recording ``scan_run.status='failed'``,
+  matching the documented ``Raises`` contract and mirroring the ``DiskBulkChangeDetected``
+  branch.  Regression test: ``TestScanUnexpectedExceptionReraise``.
+
 Note on ``release_id`` / FK constraints:
     ``media_file.release_id`` is now nullable (migration 002).  Stage A inserts
     file rows with ``release_id=NULL``; release linkage is populated by the scraper
@@ -2399,4 +2404,70 @@ class TestQuickModeParanoiaBranch:
         info_texts = [r.getMessage() for r in caplog.records]
         assert not any("indexer.scan.paranoia_branch" in t for t in info_texts), (
             f"indexer.scan.paranoia_branch must not be logged when window=0, got: {info_texts}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Regression test — sub-phase 9.4: unexpected exception re-raise contract
+# ---------------------------------------------------------------------------
+
+
+class TestScanUnexpectedExceptionReraise:
+    """scan() re-raises unexpected exceptions after recording scan_run.status='failed'.
+
+    The docstring ``Raises`` section documents this contract.  Prior to the 9.4 fix,
+    the ``except Exception`` block returned a ``ScanRunResult(status='failed')``
+    instead of re-raising, silently swallowing tracebacks and letting callers
+    (e.g. ``library/scanner.scan_library``) treat catastrophic failures as completed
+    scans.
+    """
+
+    def test_unexpected_exception_is_reraised_and_scan_run_marked_failed(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """An unexpected exception during the walk propagates and scan_run is set to 'failed'.
+
+        Injects a ``RuntimeError`` via a patched ``os.scandir`` to simulate a walk-loop
+        crash.  Asserts:
+
+        - The exception propagates out of ``scan()`` (not swallowed).
+        - The ``scan_run`` row created during the scan is updated to ``status='failed'``.
+
+        Args:
+            tmp_path: pytest-provided temporary directory.
+        """
+        db_file = tmp_path / "indexer.db"
+        conn = _make_conn_file(db_file)
+
+        mount = str(tmp_path / "CrashDisk")
+        Path(mount).mkdir()
+        # Create a file so the walk actually calls scandir.
+        Path(f"{mount}/movie.mkv").write_bytes(b"X" * 200)
+
+        disk = _insert_disk_on_conn(conn, mount)
+
+        _bomb = RuntimeError("injected walk-loop crash")
+
+        def _crashing_scandir(path: object) -> object:
+            """Raise RuntimeError unconditionally to simulate a catastrophic walk failure."""
+            raise _bomb
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_crashing_scandir):
+                with pytest.raises(RuntimeError, match="injected walk-loop crash"):
+                    scan(
+                        [disk],
+                        ScanMode.full,
+                        generation=1,
+                        conn=conn,
+                        db_path=db_file,
+                    )
+
+        # The scan_run row must have been inserted and then marked 'failed'.
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT status FROM scan_run").fetchall()
+        assert len(rows) == 1, f"Expected exactly one scan_run row, got {len(rows)}"
+        assert rows[0]["status"] == "failed", (
+            f"Expected scan_run.status='failed' after unexpected exception, got {rows[0]['status']!r}"
         )
