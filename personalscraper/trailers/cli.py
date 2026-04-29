@@ -497,7 +497,6 @@ def verify(
     category: str | None = typer.Option(None, "--category", help="Restrict to one category ID."),
     since: str | None = typer.Option(None, "--since", help="Only items added/modified after YYYY-MM-DD."),
     deep: bool = typer.Option(False, "--deep", help="Run ffprobe playability probe (expensive)."),
-    no_refresh: bool = typer.Option(False, "--no-refresh", help="Skip library cache refresh."),
     level: str = typer.Option(
         "both",
         "--level",
@@ -530,10 +529,12 @@ def verify(
         category: Optional category ID filter.
         since: Optional ISO date lower bound for item age.
         deep: When True, run ffprobe playability check (expensive).
-        no_refresh: Skip library cache refresh when True.
         level: Trailer level filter (show / season / both).
         season: Specific season number; implies --level=season.
     """
+    import sqlite3  # noqa: PLC0415 — deferred to avoid top-level import cost
+
+    from personalscraper.indexer.db import open_db  # noqa: PLC0415
     from personalscraper.trailers.placement import trailer_path_for, trailer_path_for_season  # noqa: PLC0415
 
     config = ctx.obj.config
@@ -548,13 +549,19 @@ def verify(
 
     scanner = Scanner(min_file_size_bytes=min_size, seasons_enabled=seasons_enabled)
 
-    # verify operates on the permanent library (scan_library)
-    items = scanner.scan_library(
-        config=config,
-        disk_filter=disk,
-        category_filter=category,
-        force_refresh=not no_refresh,
-    )
+    # verify operates on the permanent library (scan_library); open the indexer DB
+    # so the scanner can query items without trailer_found attribute.
+    db_path = config.indexer.db_path
+    conn: sqlite3.Connection = open_db(db_path)
+    try:
+        # verify operates on the permanent library (scan_library)
+        items = scanner.scan_library(
+            conn=conn,
+            disk_filter=disk,
+            category_filter=category,
+        )
+    finally:
+        conn.close()
 
     items = _filter_since(items, since_dt)
     items = _apply_level_filter(items, resolved_level, resolved_season)

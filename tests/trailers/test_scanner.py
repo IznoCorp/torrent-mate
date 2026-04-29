@@ -1,7 +1,8 @@
 """Unit tests for trailers/scanner.py -- media-without-trailer detection.
 
 Uses tmpdir fixtures to build fake media trees (movies and TV shows with/without
-trailers). Library scanning path uses mocked library.scanner.scan_library().
+trailers). Library scanning path uses a seeded in-memory SQLite DB that mirrors
+the indexer schema, asserting that find_items_without_trailer drives the result.
 """
 
 from pathlib import Path
@@ -80,6 +81,59 @@ def _make_tvshow_with_seasons(parent: Path, name: str, season_count: int) -> Pat
     for n in range(1, season_count + 1):
         (d / f"Saison {n:02d}").mkdir()
     return d
+
+
+# ---------------------------------------------------------------------------
+# Seeded indexer DB fixture helpers
+# ---------------------------------------------------------------------------
+
+
+def _open_seeded_db(schema_sql: str, seed_sql: str):  # type: ignore[no-untyped-def]
+    """Open an in-memory SQLite connection with schema and seed data applied.
+
+    Args:
+        schema_sql: DDL statements to create tables.
+        seed_sql: DML statements to insert test rows.
+
+    Returns:
+        An open :class:`sqlite3.Connection` (in-memory).
+    """
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(schema_sql)
+    conn.executescript(seed_sql)
+    return conn
+
+
+_MINIMAL_SCHEMA = """
+CREATE TABLE media_item (
+    id                      INTEGER PRIMARY KEY,
+    kind                    TEXT NOT NULL,
+    title                   TEXT NOT NULL,
+    title_sort              TEXT NOT NULL,
+    original_title          TEXT,
+    year                    INTEGER,
+    category_id             TEXT NOT NULL,
+    tmdb_id                 INTEGER,
+    imdb_id                 TEXT,
+    tvdb_id                 INTEGER,
+    nfo_status              TEXT,
+    artwork_json            TEXT,
+    date_created            INTEGER NOT NULL,
+    date_modified           INTEGER NOT NULL,
+    date_metadata_refreshed INTEGER,
+    is_locked               INTEGER NOT NULL DEFAULT 0,
+    preferred_lang          TEXT NOT NULL DEFAULT 'fr'
+);
+
+CREATE TABLE item_attribute (
+    item_id INTEGER NOT NULL REFERENCES media_item(id) ON DELETE CASCADE,
+    key     TEXT NOT NULL,
+    value   TEXT,
+    PRIMARY KEY(item_id, key)
+);
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -389,148 +443,162 @@ class TestScanStagingFileTypeWhitelist:
         assert any(i.path == item for i in items)
 
 
+# ---------------------------------------------------------------------------
+# scan_library — indexer-query-based tests
+# ---------------------------------------------------------------------------
+
+
 class TestScanLibrary:
-    """Tests for Scanner.scan_library() -- uses mocked library.scanner.scan_library()."""
+    """Tests for Scanner.scan_library() -- uses seeded in-memory indexer DB."""
 
-    def test_scan_library_returns_items_missing_trailers(self, tmp_path: "Path") -> None:
-        """scan_library returns ScanItems for library entries without trailers."""
-        from unittest.mock import MagicMock, patch
+    def _seed_movie(
+        self,
+        conn: object,  # sqlite3.Connection
+        tmp_path: Path,
+        *,
+        item_id: int,
+        title: str,
+        tmdb_id: int | None = 550,
+        with_trailer_attr: bool = False,
+        with_dispatch_path: bool = True,
+    ) -> Path:
+        """Insert a movie row into the DB and create a fake directory.
 
-        from personalscraper.library.models import ArtworkStatus, LibraryScanItem, LibraryScanResult, NfoStatus
+        Args:
+            conn: Open in-memory SQLite connection.
+            tmp_path: Base temp directory for creating fake media dirs.
+            item_id: Primary key for the media_item row.
+            title: Movie title.
+            tmdb_id: TMDB integer ID (or None).
+            with_trailer_attr: If True, insert ``item_attribute(key='trailer_found')``.
+            with_dispatch_path: If True, insert ``dispatch_path`` attribute pointing
+                to the created media directory.
 
-        movie_dir = tmp_path / "Fight Club (1999)"
-        movie_dir.mkdir()
+        Returns:
+            Path to the fake media directory created on disk.
+        """
+        import sqlite3 as _sqlite3
 
-        fake_item = LibraryScanItem(
-            path=str(movie_dir),
-            disk="disk_1",
-            category="movies",
-            media_type="movie",
-            title="Fight Club",
-            year=1999,
-            folder_size_gb=4.2,
-            nfo=NfoStatus(present=True, valid=True, tmdb_id="550", imdb_id="tt0137523"),
-            artwork=ArtworkStatus(
-                poster=True,
-                fanart=True,
-                landscape=False,
-                banner=False,
-                clearlogo=False,
-                clearart=False,
-                discart=False,
-            ),
-            actors_dir=False,
+        assert isinstance(conn, _sqlite3.Connection)
+        movie_dir = tmp_path / f"{title} (1999)"
+        movie_dir.mkdir(exist_ok=True)
+
+        conn.execute(
+            "INSERT INTO media_item (id, kind, title, title_sort, year, category_id, "
+            "tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, "
+            "date_created, date_modified, is_locked, preferred_lang) "
+            "VALUES (?, 'movie', ?, ?, 1999, 'movies', ?, NULL, NULL, 'valid', NULL, 0, 0, 0, 'fr')",
+            (item_id, title, title, tmdb_id),
         )
-        fake_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z",
-            disk_filter=None,
-            category_filter=None,
-            item_count=1,
-            items=[fake_item],
-        )
+        if with_trailer_attr:
+            conn.execute(
+                "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'trailer_found', ?)",
+                (item_id, str(movie_dir / f"{title}-trailer.mp4")),
+            )
+        if with_dispatch_path:
+            conn.execute(
+                "INSERT INTO item_attribute (item_id, key, value) VALUES (?, 'dispatch_path', ?)",
+                (item_id, str(movie_dir)),
+            )
+        conn.commit()
+        return movie_dir
 
-        config = MagicMock()
-        config.disks = []
-        config.trailers.library_scan_max_age_hours = 24
+    def test_scan_library_returns_items_missing_trailers(self, tmp_path: Path) -> None:
+        """scan_library returns ScanItems for library entries without trailer_found attribute."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club", tmdb_id=550)
 
-        with patch("personalscraper.trailers.scanner._lib_scan", return_value=fake_result):
-            scanner = Scanner(min_file_size_bytes=102400)
-            items = scanner.scan_library(config)
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_library(conn)
 
         assert len(items) == 1
         assert items[0].title == "Fight Club"
         assert items[0].tmdb_id == "550"
+        assert items[0].media_type == "movie"
 
-    def test_scan_library_skips_item_with_existing_trailer(self, tmp_path: "Path") -> None:
-        """scan_library skips library items whose trailer file already exists."""
-        from unittest.mock import MagicMock, patch
+    def test_scan_library_skips_item_with_trailer_found_attribute(self, tmp_path: Path) -> None:
+        """scan_library skips items that have a trailer_found attribute in the DB."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club", with_trailer_attr=True)
 
-        from personalscraper.library.models import ArtworkStatus, LibraryScanItem, LibraryScanResult, NfoStatus
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_library(conn)
 
-        movie_dir = tmp_path / "Fight Club (1999)"
-        movie_dir.mkdir()
+        assert items == []
+
+    def test_scan_library_skips_item_with_existing_trailer_on_disk(self, tmp_path: Path) -> None:
+        """scan_library skips items whose trailer file exists on disk even when DB has no trailer_found."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        movie_dir = self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+        # Place a real trailer file — scan_library checks filesystem existence.
         (movie_dir / "Fight Club (1999)-trailer.mp4").write_bytes(b"x" * 200000)
 
-        fake_item = LibraryScanItem(
-            path=str(movie_dir),
-            disk="disk_1",
-            category="movies",
-            media_type="movie",
-            title="Fight Club",
-            year=1999,
-            folder_size_gb=4.2,
-            nfo=NfoStatus(present=True, valid=True, tmdb_id="550", imdb_id=None),
-            artwork=ArtworkStatus(
-                poster=True,
-                fanart=True,
-                landscape=False,
-                banner=False,
-                clearlogo=False,
-                clearart=False,
-                discart=False,
-            ),
-            actors_dir=False,
-        )
-        fake_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z",
-            disk_filter=None,
-            category_filter=None,
-            item_count=1,
-            items=[fake_item],
-        )
-
-        config = MagicMock()
-        config.disks = []
-        config.trailers.library_scan_max_age_hours = 24
-
-        with patch("personalscraper.trailers.scanner._lib_scan", return_value=fake_result):
-            scanner = Scanner(min_file_size_bytes=102400)
-            items = scanner.scan_library(config)
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_library(conn)
 
         assert items == []
 
-    def test_scan_library_fresh_cache_returns_empty(self, tmp_path: "Path") -> None:
-        """scan_library returns [] without calling _lib_scan when cache is still fresh."""
-        from datetime import datetime, timezone
-        from unittest.mock import MagicMock, patch
-
-        config = MagicMock()
-        config.disks = []
-        config.trailers.library_scan_max_age_hours = 24
+    def test_scan_library_skips_item_without_dispatch_path(self, tmp_path: Path) -> None:
+        """scan_library silently skips items that have no dispatch_path attribute."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        # Seed without dispatch_path so scanner cannot locate the directory.
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club", with_dispatch_path=False)
 
         scanner = Scanner(min_file_size_bytes=102400)
-        scanner._last_scan_time = datetime.now(tz=timezone.utc)
-
-        with patch("personalscraper.trailers.scanner._lib_scan") as mock_lib:
-            items = scanner.scan_library(config)
-            mock_lib.assert_not_called()
+        items = scanner.scan_library(conn)
 
         assert items == []
 
-    def test_scan_library_force_refresh_bypasses_cache(self, tmp_path: "Path") -> None:
-        """force_refresh=True bypasses freshness check and always rescans."""
-        from datetime import datetime, timezone
-        from unittest.mock import MagicMock, patch
-
-        from personalscraper.library.models import LibraryScanResult
-
-        config = MagicMock()
-        config.disks = []
-        config.trailers.library_scan_max_age_hours = 24
-
-        empty_result = LibraryScanResult(
-            scanned_at="2026-01-01T00:00:00Z",
-            disk_filter=None,
-            category_filter=None,
-            item_count=0,
-            items=[],
+    def test_scan_library_disk_filter_excludes_other_disks(self, tmp_path: Path) -> None:
+        """scan_library respects disk_filter by checking dispatch_disk attribute."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+        # Add dispatch_disk attribute pointing to a different disk.
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (1, 'dispatch_disk', 'drive_b')",
         )
+        conn.commit()
 
         scanner = Scanner(min_file_size_bytes=102400)
-        scanner._last_scan_time = datetime.now(tz=timezone.utc)
-
-        with patch("personalscraper.trailers.scanner._lib_scan", return_value=empty_result) as mock_lib:
-            items = scanner.scan_library(config, force_refresh=True)
-            mock_lib.assert_called_once()
-
+        # Filtering to "drive_a" should return empty because our item is on "drive_b".
+        items = scanner.scan_library(conn, disk_filter="drive_a")
         assert items == []
+
+    def test_scan_library_disk_filter_includes_matching_disk(self, tmp_path: Path) -> None:
+        """scan_library returns items when disk_filter matches dispatch_disk."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+        conn.execute(
+            "INSERT INTO item_attribute (item_id, key, value) VALUES (1, 'dispatch_disk', 'drive_a')",
+        )
+        conn.commit()
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_library(conn, disk_filter="drive_a")
+        assert len(items) == 1
+        assert items[0].title == "Fight Club"
+
+    def test_scan_library_category_filter(self, tmp_path: Path) -> None:
+        """scan_library respects category_filter by checking media_item.category_id."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+        # Fight Club has category_id='movies'; filtering on 'animation' returns nothing.
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_library(conn, category_filter="animation")
+        assert items == []
+
+    def test_scan_library_multiple_items_partial_trailer_found(self, tmp_path: Path) -> None:
+        """scan_library returns only items missing trailer_found when multiple are seeded."""
+        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        # Item 1: no trailer → should appear
+        self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
+        # Item 2: has trailer_found → should be excluded
+        self._seed_movie(conn, tmp_path, item_id=2, title="Inception", with_trailer_attr=True)
+
+        scanner = Scanner(min_file_size_bytes=102400)
+        items = scanner.scan_library(conn)
+
+        titles = [i.title for i in items]
+        assert "Fight Club" in titles
+        assert "Inception" not in titles
+        assert len(items) == 1
