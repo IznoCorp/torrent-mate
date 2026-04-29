@@ -800,6 +800,20 @@ def publish_event(
         source: Originating subsystem: ``'dispatch'``, ``'scraper'``,
             ``'trailers'``, or ``'scanner'``.  Defaults to ``'dispatch'``.
     """
+    # Guard against non-Path inputs: tests sometimes pass a bare ``MagicMock``
+    # config whose ``.indexer.db_path`` resolves to a Mock attribute. Without
+    # this guard, ``sqlite3.connect(str(<MagicMock ...>))`` would create a
+    # garbage file at the stringified mock repr in the cwd. Best-effort: skip
+    # silently when ``db_path`` is not a real ``pathlib.Path``.
+    if not isinstance(db_path, Path):
+        log.debug(
+            "indexer.db.outbox_skipped_invalid_db_path",
+            op=op,
+            disk_id=disk_id,
+            db_path_type=type(db_path).__name__,
+        )
+        return
+
     # Merge disk_id into the payload so the drainer can resolve it.
     full_payload: dict[str, Any] = {"disk_id": disk_id, **payload}
 
@@ -845,6 +859,17 @@ def disk_id_for_path(path: Path, db_path: Path) -> tuple[int, str] | None:
         the matched disk's ``mount_path``. ``None`` when no mounted disk
         matches or on any error.
     """
+    # Guard against non-Path inputs: tests sometimes pass a bare ``MagicMock``
+    # config whose ``.indexer.db_path`` resolves to a Mock attribute. See the
+    # equivalent guard in :func:`publish_event` for rationale.
+    if not isinstance(db_path, Path):
+        log.debug(
+            "indexer.db.disk_lookup_skipped_invalid_db_path",
+            path=str(path),
+            db_path_type=type(db_path).__name__,
+        )
+        return None
+
     try:
         conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
         conn.execute("PRAGMA busy_timeout=5000")
