@@ -90,9 +90,23 @@ Si la table est vide, `disks=[]`, `filter_disks([], None) = []`, `scan(disks=[],
 
 ---
 
-### 10.5 — _(placeholder, à remplir avec autres bugs feature trouvés au 2ᵉ pipeline run)_
+### 10.5 — Fix: `indexer.disk.skipped_unmounted` warning : champ `reason` contient l'UUID au lieu du motif
 
-Après bootstrap workaround + re-run pipeline avec outbox actif.
+**Finding (Mineur — observability)** : quand un disque est skip pour cause de sentinelle absente / UUID mismatch, le log warning `indexer.disk.skipped_unmounted` retourne `reason=<UUID>` au lieu d'un code lisible (ex: `reason=sentinel_missing`, `reason=sentinel_mismatch`, `reason=mount_path_inaccessible`).
+
+**Reproductible** :
+
+```
+[warning] indexer.disk.skipped_unmounted disk_id=1 label=disk_1 reason=F7E3C03C-48B7-4C23-BFEE-3E19B052C014
+```
+
+**Fix shape** : dans le scanner, séparer le `reason` (un str enum: `sentinel_missing`, `sentinel_mismatch`, `mount_inaccessible`, `bootstrap_failed`) et un champ optionnel `disk_uuid` ou `expected_uuid`. Le `reason` doit être lisible/grep-able.
+
+**Acceptance** : `reason` est une chaîne lisible, l'UUID est dans un champ séparé.
+
+---
+
+### 10.6 — _(placeholder, à remplir avec autres bugs feature trouvés)_
 
 ---
 
