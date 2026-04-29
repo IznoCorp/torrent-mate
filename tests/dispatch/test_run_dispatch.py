@@ -47,6 +47,11 @@ class TestRunDispatch:
             patch("personalscraper.dispatch.run.MediaIndex") as MockIdx,
         ):
             mock_idx = MockIdx.return_value
+            # run_dispatch now uses ``with MediaIndex(...) as index:``;
+            # configure __enter__ to return the same mock instance so that
+            # assertions on mock_idx still target the object inside the block.
+            mock_idx.__enter__ = MagicMock(return_value=mock_idx)
+            mock_idx.__exit__ = MagicMock(return_value=False)
             mock_idx.count = 5  # non-zero so rebuild branch is skipped
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []

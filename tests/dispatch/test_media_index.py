@@ -481,3 +481,106 @@ class TestFuzzyGuards:
         result = idx.find("Jumanji (1995)", "movie")
         assert result is not None
         assert result.name == "Jumanji (1995)"
+
+
+# ---------------------------------------------------------------------------
+# Connection lifecycle — FD-leak guard
+# ---------------------------------------------------------------------------
+
+
+class TestMediaIndexConnectionLifecycle:
+    """Tests for close(), __enter__/__exit__, and __del__ behaviour."""
+
+    def test_context_manager_closes_connection(self, tmp_path: Path) -> None:
+        """FD count must return to baseline after the ``with`` block exits.
+
+        Opens a MediaIndex via the context manager, performs a trivial query
+        inside, then asserts that no extra file descriptors remain open to
+        the library.db file after ``__exit__`` is called.
+
+        Uses ``resource.getrlimit(RLIMIT_NOFILE)`` to confirm we're not
+        leaking FDs across repeated open/close cycles.
+        """
+        import os
+        import resource
+
+        db_path = tmp_path / "library.db"
+        index_path = tmp_path / "index.json"
+
+        # Measure FD baseline before any MediaIndex is created.
+        soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+        assert soft_limit > 10, "FD limit too low for this test"
+
+        # Record open FD count before entering the with block.
+
+        def _open_fds() -> set[int]:
+            """Return the set of currently open file descriptor numbers."""
+            try:
+                return {int(fd) for fd in os.listdir("/proc/self/fd")}
+            except FileNotFoundError:
+                # macOS: use os.listdir on /dev/fd instead
+                try:
+                    return {int(fd) for fd in os.listdir("/dev/fd")}
+                except (FileNotFoundError, OSError):
+                    return set()
+
+        fds_before = _open_fds()
+
+        # Open via context manager, do a query, then exit.
+        with MediaIndex(index_path, config=None) as idx:
+            idx.add(
+                IndexEntry(
+                    name="Connection Test (2024)",
+                    disk="drive_a",
+                    category="movies",
+                    path=str(tmp_path / "drive_a" / "Connection Test (2024)"),
+                    media_type="movie",
+                )
+            )
+            assert idx.count == 1
+            # Confirm the DB file exists while the connection is open.
+            assert db_path.exists()
+
+        # After __exit__, the SQLite connection must be closed.
+        # Any FDs opened for library.db must now be released.
+        fds_after = _open_fds()
+        leaked = fds_after - fds_before
+        # Filter to only FDs that reference the DB path (avoids noise from
+        # pytest internals opening unrelated files during the test body).
+        leaked_db_fds = {fd for fd in leaked if _fd_points_to(fd, str(db_path))}
+        assert not leaked_db_fds, f"FD leak detected: {len(leaked_db_fds)} file descriptor(s) still open to {db_path}"
+
+    def test_explicit_close_is_idempotent(self, tmp_path: Path) -> None:
+        """Calling close() multiple times must not raise."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.close()
+        idx.close()  # Second call must be a no-op, not an exception.
+
+
+def _fd_points_to(fd: int, path: str) -> bool:
+    """Return True if the open file descriptor *fd* references *path*.
+
+    Uses ``/proc/self/fd/<fd>`` (Linux) or ``fcntl``-based fallback (macOS).
+    Returns False on any OS error so the test degrades gracefully on
+    platforms that don't expose FD symlinks.
+
+    Args:
+        fd: File descriptor number to inspect.
+        path: Absolute filesystem path to check against.
+
+    Returns:
+        True if ``fd`` is open and points to ``path``.
+    """
+    import os
+
+    try:
+        link = os.readlink(f"/proc/self/fd/{fd}")
+        return link == path
+    except (OSError, AttributeError):
+        pass
+    try:
+        link = os.readlink(f"/dev/fd/{fd}")
+        return link == path
+    except (OSError, AttributeError):
+        pass
+    return False

@@ -99,41 +99,41 @@ def run_dispatch(
     if not dry_run:
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
-    index = MediaIndex(index_path, config=config)
-    index.load()
+    with MediaIndex(index_path, config=config) as index:
+        index.load()
 
-    # Log index freshness at entry so dry-run reviews know whether the plan
-    # is computed against a fresh or cached index.
-    index_source = "cache" if index.count > 0 else "empty"
-    log.info("dispatch_index_state", entries=index.count, source=index_source, path=str(index_path))
+        # Log index freshness at entry so dry-run reviews know whether the plan
+        # is computed against a fresh or cached index.
+        index_source = "cache" if index.count > 0 else "empty"
+        log.info("dispatch_index_state", entries=index.count, source=index_source, path=str(index_path))
 
-    # Rebuild index if empty (first run or corrupted) to detect existing media
-    # on all 4 disks. Without this, all items are treated as "new" and sent
-    # to the disk with most free space, ignoring existing series/movies.
-    # The rebuild is persisted even on dry-run because the index is a cache
-    # of disk reality, not pipeline output — skipping persistence would make
-    # every dry-run redo the scan (observed waste: ~2044 entries per call).
-    if index.count == 0:
-        from personalscraper.dispatch.disk_scanner import get_disk_configs
+        # Rebuild index if empty (first run or corrupted) to detect existing media
+        # on all 4 disks. Without this, all items are treated as "new" and sent
+        # to the disk with most free space, ignoring existing series/movies.
+        # The rebuild is persisted even on dry-run because the index is a cache
+        # of disk reality, not pipeline output — skipping persistence would make
+        # every dry-run redo the scan (observed waste: ~2044 entries per call).
+        if index.count == 0:
+            from personalscraper.dispatch.disk_scanner import get_disk_configs
 
-        disk_configs = get_disk_configs(config)
-        count = index.rebuild(disk_configs, categories=config.categories)
-        log.info("index_rebuilt_on_empty", entries=count)
-        index.save()
+            disk_configs = get_disk_configs(config)
+            count = index.rebuild(disk_configs, categories=config.categories)
+            log.info("index_rebuilt_on_empty", entries=count)
+            index.save()
 
-    dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
+        dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
 
-    if verified is None:
-        # Standalone mode: run verify first to get dispatchable items
-        from personalscraper.verify.run import run_verify
+        if verified is None:
+            # Standalone mode: run verify first to get dispatchable items
+            from personalscraper.verify.run import run_verify
 
-        _, verified = run_verify(settings, config, dry_run=dry_run)
+            _, verified = run_verify(settings, config, dry_run=dry_run)
 
-    results = dispatcher.process(verified=verified)
+        results = dispatcher.process(verified=verified)
 
-    # Save updated index
-    if not dry_run:
-        index.save()
+        # Save updated index
+        if not dry_run:
+            index.save()
 
     report = _to_step_report(results)
     if cleaned:

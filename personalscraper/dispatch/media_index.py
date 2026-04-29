@@ -157,6 +157,10 @@ class MediaIndex:
     triggers an automatic full rebuild so that dispatch decisions are
     immediately accurate.  Subsequent instantiations with rows present
     skip the rebuild.
+
+    The class implements the context manager protocol so it can be used
+    with ``with MediaIndex(...) as idx:`` to guarantee the underlying
+    SQLite connection is closed when the block exits.
     """
 
     def __init__(self, index_path: Path, *, config: Config | None = None) -> None:
@@ -212,6 +216,60 @@ class MediaIndex:
                     "indexer.config.no_index",
                     message=("Empty DB detected but no Config provided to MediaIndex; manual rebuild required."),
                 )
+
+    # ------------------------------------------------------------------
+    # Connection lifecycle
+    # ------------------------------------------------------------------
+
+    def close(self) -> None:
+        """Close the underlying SQLite connection.
+
+        Safe to call multiple times: subsequent calls are no-ops.  After
+        ``close()`` the instance must not be used for any further queries.
+        """
+        try:
+            self._conn.close()
+        except Exception as exc:  # noqa: BLE001 — defensive; log and swallow
+            log.warning("media_index.close_error", error=str(exc), error_type=type(exc).__name__)
+
+    def __enter__(self) -> "MediaIndex":
+        """Enter the context manager.
+
+        Returns:
+            This ``MediaIndex`` instance.
+        """
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit the context manager and close the connection.
+
+        Args:
+            exc_type: Exception type, if any was raised inside the ``with`` block.
+            exc_val: Exception instance, if any.
+            exc_tb: Traceback object, if any.
+        """
+        self.close()
+
+    def __del__(self) -> None:
+        """Defensive finalizer: close the connection if the caller forgets.
+
+        Called by the garbage collector when no more references exist.
+        Should not be relied upon in production code — prefer the ``with``
+        statement or an explicit ``close()`` call instead.
+        """
+        try:
+            self.close()
+        except Exception:  # noqa: BLE001 — __del__ must never raise
+            pass
+
+    # ------------------------------------------------------------------
+    # No-op persistence shims (kept for backward compatibility)
+    # ------------------------------------------------------------------
 
     def load(self) -> None:
         """No-op: the SQLite DB has its own lifecycle; no explicit load needed."""
