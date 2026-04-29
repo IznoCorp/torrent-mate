@@ -330,6 +330,45 @@ class TestMediaIndexRebuild:
         assert matrix is not None
         assert matrix.category == "movies"
 
+    def test_first_run_empty_db_triggers_auto_rebuild(self, tmp_path: Path) -> None:
+        """Empty library.db at __init__ time triggers rebuild when config is supplied.
+
+        Scenario: brand-new install, library.db does not yet contain any
+        media_item rows.  Passing a Config to MediaIndex.__init__ must fire
+        rebuild() automatically so dispatch decisions are immediately accurate.
+        After __init__ returns, media_item rows must be present.
+        """
+        from personalscraper.conf.models import DiskConfig
+
+        # Create a real disk structure so rebuild() can scan it.
+        disk = tmp_path / "medias"
+        (disk / "movies" / "The Matrix (1999)").mkdir(parents=True)
+        (disk / "tv_shows" / "Fallout (2024)").mkdir(parents=True)
+
+        disk_config = DiskConfig(
+            id="drive_a",
+            path=disk,
+            categories=["movies", "tv_shows"],
+        )
+
+        # Build a minimal stub that looks enough like Config for __init__:
+        # only .disks and .categories are accessed during the auto-rebuild.
+        class _StubConfig:
+            disks = [disk_config]
+            categories: dict[str, object] = {}  # no folder_name remapping needed
+
+        # Pass a fresh DB path — library.db does not exist yet (empty first run).
+        idx = MediaIndex(tmp_path / "index.json", config=_StubConfig())  # type: ignore[arg-type]
+
+        # Auto-rebuild must have inserted the two media directories.
+        assert idx.count == 2
+        assert idx.find("The Matrix (1999)", "movie") is not None
+        assert idx.find("Fallout (2024)", "tvshow") is not None
+
+        # A second instantiation (rows now present) must NOT trigger another rebuild.
+        idx2 = MediaIndex(tmp_path / "index.json")
+        assert idx2.count == 2
+
     def test_rebuild_without_categories_falls_back_to_legacy(self, tmp_path: Path) -> None:
         """When no ``categories`` provided, rebuild keeps legacy behaviour.
 

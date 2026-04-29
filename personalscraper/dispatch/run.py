@@ -99,7 +99,7 @@ def run_dispatch(
     if not dry_run:
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
-    index = MediaIndex(index_path)
+    index = MediaIndex(index_path, config=config)
     index.load()
 
     # Log index freshness at entry so dry-run reviews know whether the plan

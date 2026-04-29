@@ -10,8 +10,13 @@ is preserved exactly; callers (``dispatch/dispatcher.py``,
 lifecycle and does not need explicit flush/hydrate calls.
 
 ``media_index.json`` is no longer written or read.  If one is present on
-disk it is silently ignored.  Run ``personalscraper library index --mode full``
-to populate the indexer and make dispatch decisions accurate on a fresh install.
+disk it is silently ignored (a deprecation warning is logged once).  Run
+``personalscraper library index --mode full`` to populate the indexer and
+make dispatch decisions accurate on a fresh install.
+
+On first run (empty DB), ``__init__`` triggers an automatic full rebuild
+when a ``Config`` is supplied.  Subsequent ``__init__`` calls that find
+existing ``media_item`` rows skip the rebuild.
 
 IndexEntry.category and IndexEntry.disk always store canonical IDs
 (e.g. ``"movies"``, ``"drive_a"``).
@@ -38,7 +43,7 @@ from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import CategoryConfig, DiskConfig, FuzzyMatchConfig
+    from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, FuzzyMatchConfig
 
 log = get_logger("media_index")
 
@@ -147,17 +152,32 @@ class MediaIndex:
 
     ``load()`` and ``save()`` are intentional no-ops: the DB has its own
     lifecycle; explicit flushes are not needed.
+
+    On first run (empty DB), if a ``Config`` is passed the constructor
+    triggers an automatic full rebuild so that dispatch decisions are
+    immediately accurate.  Subsequent instantiations with rows present
+    skip the rebuild.
     """
 
-    def __init__(self, index_path: Path) -> None:
+    def __init__(self, index_path: Path, *, config: Config | None = None) -> None:
         """Open the indexer database adjacent to *index_path*.
 
         ``index_path`` is accepted for backward compatibility with existing
         callers (which pass ``data_dir / "media_index.json"``); the value is
         ignored. The actual DB is opened at ``index_path.parent / "library.db"``.
 
+        If the DB is empty (no ``media_item`` rows) and ``config`` is
+        supplied, a full rebuild is triggered automatically so that
+        dispatch decisions are accurate from the very first run.
+
+        If a legacy ``media_index.json`` file is found next to *index_path*,
+        a one-time deprecation warning is logged; the file is NOT read.
+
         Args:
             index_path: Legacy path argument (ignored; kept for API compat).
+            config: Optional Config used for the automatic first-run rebuild.
+                If None and the DB is empty, a warning is logged and the
+                rebuild is skipped (manual rebuild required).
         """
         # Derive the DB path from the directory that held the old JSON file.
         db_path = index_path.parent / "library.db"
@@ -165,6 +185,33 @@ class MediaIndex:
         self._db_path = db_path
         self._conn = open_db(db_path)
         apply_migrations(self._conn, _MIGRATIONS_DIR)
+
+        # Warn once if a legacy media_index.json is present alongside the DB.
+        # The file is intentionally NOT read; users should run a full rebuild.
+        legacy_json = index_path.parent / "media_index.json"
+        if legacy_json.exists():
+            log.warning(
+                "indexer.legacy_json_found",
+                message=(
+                    "media_index.json found; it is no longer used — run "
+                    "`personalscraper library index --mode full` to populate the indexer."
+                ),
+                path=str(legacy_json),
+            )
+
+        # First-run detection: trigger an automatic rebuild when the DB is empty.
+        row_count = self._conn.execute("SELECT COUNT(*) FROM media_item").fetchone()
+        is_empty = (row_count[0] if row_count else 0) == 0
+
+        if is_empty:
+            if config is not None:
+                log.info("indexer.config.no_index", message="Empty DB detected; triggering automatic rebuild.")
+                self.rebuild(config.disks, categories=config.categories)
+            else:
+                log.warning(
+                    "indexer.config.no_index",
+                    message=("Empty DB detected but no Config provided to MediaIndex; manual rebuild required."),
+                )
 
     def load(self) -> None:
         """No-op: the SQLite DB has its own lifecycle; no explicit load needed."""
