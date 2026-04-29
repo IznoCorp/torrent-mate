@@ -11,6 +11,8 @@ import pytest
 
 from personalscraper.trailers.scanner import Scanner
 
+_MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+
 # ---------------------------------------------------------------------------
 # Helper fixtures
 # ---------------------------------------------------------------------------
@@ -88,52 +90,23 @@ def _make_tvshow_with_seasons(parent: Path, name: str, season_count: int) -> Pat
 # ---------------------------------------------------------------------------
 
 
-def _open_seeded_db(schema_sql: str, seed_sql: str):  # type: ignore[no-untyped-def]
-    """Open an in-memory SQLite connection with schema and seed data applied.
+def _open_seeded_db():  # type: ignore[return]
+    """Open an in-memory SQLite connection with the full indexer schema applied.
 
-    Args:
-        schema_sql: DDL statements to create tables.
-        seed_sql: DML statements to insert test rows.
+    Uses :func:`~personalscraper.indexer.db.apply_migrations` so that every
+    table required by :func:`~personalscraper.indexer.query.execute` (including
+    ``media_release``, ``media_file``, ``path``, and ``disk``) exists.
 
     Returns:
-        An open :class:`sqlite3.Connection` (in-memory).
+        An open :class:`sqlite3.Connection` (in-memory) with the full schema.
     """
     import sqlite3
 
+    from personalscraper.indexer.db import apply_migrations
+
     conn = sqlite3.connect(":memory:")
-    conn.executescript(schema_sql)
-    conn.executescript(seed_sql)
+    apply_migrations(conn, _MIGRATIONS_DIR)
     return conn
-
-
-_MINIMAL_SCHEMA = """
-CREATE TABLE media_item (
-    id                      INTEGER PRIMARY KEY,
-    kind                    TEXT NOT NULL,
-    title                   TEXT NOT NULL,
-    title_sort              TEXT NOT NULL,
-    original_title          TEXT,
-    year                    INTEGER,
-    category_id             TEXT NOT NULL,
-    tmdb_id                 INTEGER,
-    imdb_id                 TEXT,
-    tvdb_id                 INTEGER,
-    nfo_status              TEXT,
-    artwork_json            TEXT,
-    date_created            INTEGER NOT NULL,
-    date_modified           INTEGER NOT NULL,
-    date_metadata_refreshed INTEGER,
-    is_locked               INTEGER NOT NULL DEFAULT 0,
-    preferred_lang          TEXT NOT NULL DEFAULT 'fr'
-);
-
-CREATE TABLE item_attribute (
-    item_id INTEGER NOT NULL REFERENCES media_item(id) ON DELETE CASCADE,
-    key     TEXT NOT NULL,
-    value   TEXT,
-    PRIMARY KEY(item_id, key)
-);
-"""
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +478,7 @@ class TestScanLibrary:
 
     def test_scan_library_returns_items_missing_trailers(self, tmp_path: Path) -> None:
         """scan_library returns ScanItems for library entries without trailer_found attribute."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club", tmdb_id=550)
 
         scanner = Scanner(min_file_size_bytes=102400)
@@ -518,7 +491,7 @@ class TestScanLibrary:
 
     def test_scan_library_skips_item_with_trailer_found_attribute(self, tmp_path: Path) -> None:
         """scan_library skips items that have a trailer_found attribute in the DB."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club", with_trailer_attr=True)
 
         scanner = Scanner(min_file_size_bytes=102400)
@@ -528,7 +501,7 @@ class TestScanLibrary:
 
     def test_scan_library_skips_item_with_existing_trailer_on_disk(self, tmp_path: Path) -> None:
         """scan_library skips items whose trailer file exists on disk even when DB has no trailer_found."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         movie_dir = self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
         # Place a real trailer file — scan_library checks filesystem existence.
         (movie_dir / "Fight Club (1999)-trailer.mp4").write_bytes(b"x" * 200000)
@@ -540,7 +513,7 @@ class TestScanLibrary:
 
     def test_scan_library_skips_item_without_dispatch_path(self, tmp_path: Path) -> None:
         """scan_library silently skips items that have no dispatch_path attribute."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         # Seed without dispatch_path so scanner cannot locate the directory.
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club", with_dispatch_path=False)
 
@@ -551,7 +524,7 @@ class TestScanLibrary:
 
     def test_scan_library_disk_filter_excludes_other_disks(self, tmp_path: Path) -> None:
         """scan_library respects disk_filter by checking dispatch_disk attribute."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
         # Add dispatch_disk attribute pointing to a different disk.
         conn.execute(
@@ -566,7 +539,7 @@ class TestScanLibrary:
 
     def test_scan_library_disk_filter_includes_matching_disk(self, tmp_path: Path) -> None:
         """scan_library returns items when disk_filter matches dispatch_disk."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
         conn.execute(
             "INSERT INTO item_attribute (item_id, key, value) VALUES (1, 'dispatch_disk', 'drive_a')",
@@ -580,7 +553,7 @@ class TestScanLibrary:
 
     def test_scan_library_category_filter(self, tmp_path: Path) -> None:
         """scan_library respects category_filter by checking media_item.category_id."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
         # Fight Club has category_id='movies'; filtering on 'animation' returns nothing.
         scanner = Scanner(min_file_size_bytes=102400)
@@ -589,7 +562,7 @@ class TestScanLibrary:
 
     def test_scan_library_multiple_items_partial_trailer_found(self, tmp_path: Path) -> None:
         """scan_library returns only items missing trailer_found when multiple are seeded."""
-        conn = _open_seeded_db(_MINIMAL_SCHEMA, "")
+        conn = _open_seeded_db()
         # Item 1: no trailer → should appear
         self._seed_movie(conn, tmp_path, item_id=1, title="Fight Club")
         # Item 2: has trailer_found → should be excluded
