@@ -2,9 +2,14 @@
 
 IndexEntry.category and .disk always store canonical IDs. MediaIndex
 requires an explicit index_path (no implicit default).
+
+MediaIndex is backed by an indexer SQLite database (library.db) derived
+from the parent directory of the supplied index_path.  ``load()`` and
+``save()`` are intentional no-ops; persistence is handled automatically by
+the DB.  Tests that previously exercised JSON round-trips now verify
+equivalent behaviour via ``add()`` / ``find()`` / ``count``.
 """
 
-import json
 from pathlib import Path
 
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
@@ -115,8 +120,10 @@ class TestMediaIndexCRUD:
                 media_type="tvshow",
             )
         )
-        # Only one entry should exist after both adds (NFC normalization collapses keys)
-        assert len(idx._entries) == 1
+        # Only one entry should exist after both adds (NFC normalization collapses keys).
+        # Both NFD and NFC forms share the same normalized key, so the second add
+        # overwrites the first via the upsert path.
+        assert idx.count == 1
         result = idx.find(nfc_name, "tvshow")
         assert result is not None
         assert result.disk == "disk_2"
@@ -128,10 +135,10 @@ class TestMediaIndexCRUD:
 
 
 class TestMediaIndexPersistence:
-    """Tests for save and load."""
+    """Tests for save and load (DB-backed; load/save are no-ops)."""
 
     def test_save_and_load(self, tmp_path: Path) -> None:
-        """Saved index should be loadable."""
+        """Data added to one instance is visible in a second instance on the same DB."""
         idx = MediaIndex(tmp_path / "index.json")
         idx.add(
             IndexEntry(
@@ -142,29 +149,32 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
+        # save() is a no-op; data is committed to the DB immediately.
         idx.save()
 
+        # A second instance opening the same DB directory sees the entry.
         idx2 = MediaIndex(tmp_path / "index.json")
-        idx2.load()
+        idx2.load()  # no-op; DB is already up to date
         assert idx2.count == 1
         assert idx2.find("Test", "movie") is not None
 
     def test_load_missing_file(self, tmp_path: Path) -> None:
-        """Loading missing file should create empty index."""
+        """Opening with no prior DB (or a non-existent legacy JSON) gives empty index."""
         idx = MediaIndex(tmp_path / "nonexistent.json")
-        idx.load()
+        idx.load()  # no-op; freshly created DB has zero entries
         assert idx.count == 0
 
     def test_load_corrupted_file(self, tmp_path: Path) -> None:
-        """Corrupted file should reset to empty index."""
+        """A stale or corrupted legacy JSON file is ignored; DB starts empty."""
+        # The old JSON file is irrelevant to the new DB-backed implementation.
         path = tmp_path / "bad.json"
         path.write_text("not json {{{")
         idx = MediaIndex(path)
-        idx.load()
+        idx.load()  # no-op; DB is fresh regardless of any JSON sidecar
         assert idx.count == 0
 
     def test_atomic_save(self, tmp_path: Path) -> None:
-        """Save should not leave .tmp files."""
+        """save() is a no-op: it must not crash and must leave no .tmp files."""
         idx = MediaIndex(tmp_path / "index.json")
         idx.add(
             IndexEntry(
@@ -175,12 +185,14 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
+        # save() must complete without error and must not create temporary files.
         idx.save()
-        assert (tmp_path / "index.json").exists()
         assert not (tmp_path / "index.json.tmp").exists()
+        # Entry is still accessible (committed to DB, not lost).
+        assert idx.count == 1
 
     def test_save_always_v15_format(self, tmp_path: Path) -> None:
-        """Saved entries must use V15 IDs (not V14 labels)."""
+        """Entries must round-trip with V15 canonical IDs (not V14 labels)."""
         idx = MediaIndex(tmp_path / "index.json")
         idx.add(
             IndexEntry(
@@ -191,13 +203,13 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
-        idx.save()
+        idx.save()  # no-op; data already in DB
 
-        raw = json.loads((tmp_path / "index.json").read_text())
-        entry = next(iter(raw.values()))
-        # V15 IDs — not V14 labels
-        assert entry["category"] == "movies"
-        assert entry["disk"] == "disk_1"
+        # V15 IDs must survive the round-trip through the DB.
+        entry = idx.find("Inception (2010)", "movie")
+        assert entry is not None
+        assert entry.category == "movies"
+        assert entry.disk == "disk_1"
 
 
 # ---------------------------------------------------------------------------
@@ -206,25 +218,21 @@ class TestMediaIndexPersistence:
 
 
 class TestCanonicalIdLoad:
-    """Loading an index already written with canonical IDs is a no-op."""
+    """Canonical IDs added via add() are round-tripped verbatim through find()."""
 
     def test_canonical_ids_loaded_verbatim(self, tmp_path: Path) -> None:
-        """Canonical-ID entries round-trip through load() unchanged."""
-        data = {
-            "inception (2010)": {
-                "name": "Inception (2010)",
-                "disk": "drive_a",
-                "category": "movies",
-                "path": "/drive_a/movies/Inception (2010)",
-                "media_type": "movie",
-                "last_updated": "2024-01-01T00:00:00+00:00",
-            }
-        }
-        idx_path = tmp_path / "index.json"
-        idx_path.write_text(json.dumps(data), encoding="utf-8")
-
-        idx = MediaIndex(idx_path)
-        idx.load()
+        """Canonical-ID entries written via add() are returned unchanged by find()."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.add(
+            IndexEntry(
+                name="Inception (2010)",
+                disk="drive_a",
+                category="movies",
+                path="/drive_a/movies/Inception (2010)",
+                media_type="movie",
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
 
         entry = idx.find("Inception (2010)", "movie")
         assert entry is not None
