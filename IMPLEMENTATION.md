@@ -23,7 +23,7 @@
 | 6   | Consumer migration: dispatch             | [phase-06-migrate-dispatch.md](docs/features/media-indexer/plan/phase-06-migrate-dispatch.md)                 | [x]    |
 | 7   | Consumer migration: library + trailers   | [phase-07-migrate-library-trailers.md](docs/features/media-indexer/plan/phase-07-migrate-library-trailers.md) | [x]    |
 | 8   | CLI + cron + query language              | [phase-08-cli-cron-query.md](docs/features/media-indexer/plan/phase-08-cli-cron-query.md)                     | [x]    |
-| 9   | PR fixes cycle 1                         | [phase-09-pr-fixes-cycle-1.md](docs/features/media-indexer/plan/phase-09-pr-fixes-cycle-1.md)                 | [ ]    |
+| 9   | PR fixes cycle 1                         | [phase-09-pr-fixes-cycle-1.md](docs/features/media-indexer/plan/phase-09-pr-fixes-cycle-1.md)                 | [x]    |
 
 ## Review cycles
 
@@ -33,7 +33,7 @@
 - Retained: 6 (2 critical, 4 major, 0 medium, ~20 reclassified to minor / deferred)
 - Ignored: many out-of-scope (style preferences not codified, pre-existing items on main)
 - Fix phase created: phase-09-pr-fixes-cycle-1.md
-- Status: fix phase dispatched → awaiting /implement:phase
+- Status: fix phase complete → /implement:feature-pr re-running for cycle 2
 
 **Critical**:
 
