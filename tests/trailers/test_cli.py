@@ -35,7 +35,6 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.enabled = True
     cfg.trailers.filters.min_file_size_bytes = 102400
     cfg.trailers.state_file = str(tmp_path / ".data/trailers_state.json")
-    cfg.trailers.library_scan_max_age_hours = 24
     cfg.paths.staging_dir = tmp_path
     cfg.disks = []
     # DESIGN SS4 + SS8 extensions

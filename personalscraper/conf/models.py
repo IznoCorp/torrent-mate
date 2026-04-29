@@ -719,7 +719,6 @@ class TrailersConfig(_StrictModel):
         state_file: Path to the per-media-item state JSON.
         retry_after_days: Days after a failed attempt before retrying.
         bot_detected_max_consecutive_attempts: Max consecutive bot-detected errors.
-        library_scan_max_age_hours: Max age of the cached library scan result in hours.
         circuit_breakers: Per-service circuit breaker configuration.
         youtube_api: YouTube Data API v3 quota and cache settings.
         ytdlp: yt-dlp download options.
@@ -742,7 +741,8 @@ class TrailersConfig(_StrictModel):
         Field(min_length=1),
     ] = Field(default_factory=lambda: [1, 7, 30])
     bot_detected_max_consecutive_attempts: int = Field(default=5, ge=1)
-    library_scan_max_age_hours: int = Field(default=24, ge=1)
+    # library_scan_max_age_hours removed in sub-phase 7.6 — trailers/scanner.py
+    # now queries the indexer DB directly instead of relying on a TTL-cached JSON scan.
     circuit_breakers: TrailersCircuitBreakersConfig = Field(default_factory=TrailersCircuitBreakersConfig)
     youtube_api: TrailersYoutubeApiConfig = Field(default_factory=TrailersYoutubeApiConfig)
     ytdlp: TrailersYtdlpConfig = Field(default_factory=TrailersYtdlpConfig)

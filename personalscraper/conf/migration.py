@@ -247,12 +247,19 @@ def plan_migration(legacy_path: Path) -> dict[str, Any]:
             plan[fname] = {}
 
     # migration-warnings.txt: always present — carries the media_index.json
-    # deprecation notice; also lists unknown keys when present.
+    # deprecation notice and the library_scan_max_age_hours removal notice;
+    # also lists unknown keys when present.
     warnings_lines = [
         "--- media-indexer migration notice ---",
         ".data/media_index.json is no longer used by the dispatch pipeline.",
         "It can be safely deleted once `personalscraper library index --mode full`",
         "has been run to populate the new SQLite-backed index (library.db).",
+        "",
+        "--- sub-phase 7.6 removal notice ---",
+        "The `library_scan_max_age_hours` config knob has been removed from",
+        "TrailersConfig. The trailers scanner now queries the indexer DB directly",
+        "instead of relying on a TTL-cached library JSON scan. Remove this key",
+        "from your trailers.json5 (or config.json5) if present.",
         "",
     ]
     if unknown_keys:
@@ -420,6 +427,12 @@ def migrate_v1_to_v2(legacy_path: Path, target_dir: Path) -> None:
         ".data/media_index.json is no longer used by the dispatch pipeline.",
         "It can be safely deleted once `personalscraper library index --mode full`",
         "has been run to populate the new SQLite-backed index (library.db).",
+        "",
+        "--- sub-phase 7.6 removal notice ---",
+        "The `library_scan_max_age_hours` config knob has been removed from",
+        "TrailersConfig. The trailers scanner now queries the indexer DB directly",
+        "instead of relying on a TTL-cached library JSON scan. Remove this key",
+        "from your trailers.json5 (or config.json5) if present.",
         "",
     ]
     if unknown_keys:
