@@ -325,6 +325,36 @@ class TestScanLibraryPopulatesDB:
         assert row is not None
         assert row["nfo_status"] == "missing"
 
+    def test_consecutive_calls_increment_scan_generation(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """Two consecutive scan_library calls produce strictly-increasing scan generations.
+
+        Verifies DESIGN §8.1: generations are monotonic across library walks so
+        that miss-strike escalation works correctly.  The first call produces
+        generation 1; the second call must produce generation 2 (or higher).
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        movie = disk_a / "films" / "Monotonic (2023)"
+        movie.mkdir()
+        (movie / "Monotonic.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Monotonic.nfo").write_text('<movie><uniqueid type="tmdb">999001</uniqueid></movie>')
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn)
+            gen_after_first: int = conn.execute("SELECT MAX(generation) FROM scan_run").fetchone()[0] or 0
+
+            scan_library(scanner_config, conn)
+            gen_after_second: int = conn.execute("SELECT MAX(generation) FROM scan_run").fetchone()[0] or 0
+
+        assert gen_after_first >= 1, f"first scan generation must be >= 1, got {gen_after_first}"
+        assert gen_after_second > gen_after_first, (
+            f"second call must use a higher generation than the first ({gen_after_second} > {gen_after_first})"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Unit tests — scan_movie_dir (unchanged public API; still used by callers)

@@ -666,9 +666,15 @@ def scan_library(config: Config, conn: sqlite3.Connection) -> None:
     # Delegate file-level indexing to the indexer scanner so that media_file
     # and path rows are populated alongside the media_item rows created above.
     if disk_rows:
+        # Allocate the next scan generation monotonically from scan_run so that
+        # miss-strike escalation logic in the analyzer works correctly across
+        # consecutive library walks (DESIGN §8.1).
+        gen_row = conn.execute("SELECT COALESCE(MAX(generation), 0) FROM scan_run").fetchone()
+        next_generation: int = (gen_row[0] or 0) + 1
+
         _indexer_scan(
             disks=disk_rows,
             mode=ScanMode.full,
-            generation=1,
+            generation=next_generation,
             conn=conn,
         )
