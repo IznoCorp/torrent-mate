@@ -49,6 +49,14 @@
 
 **Deferred to follow-up PR** (~30 items): type-design tightening (Literal aliases / bool conversions / frozen dataclasses), observability gaps (log level / `exc_info=True` / `error_type`), comment sweep (orphan plan refs / outdated docstrings), CLI cosmetic fixes, test-coverage suggestions.
 
+### Cycle 2
+
+- Findings received: focused review of cycle 1 fix commits (f10100d..51f32e1)
+- Retained: 0 (0 critical, 0 major, 0 medium, 1 reclassified to minor)
+- Reclassified to minor / deferred: 1 — `scraper/artwork.py` publishes `kind="thumb"` / `kind="unknown"` for unmatched filename stems; after M1's whitelist these now produce permanent `status='failed'` outbox rows instead of silent JSON garbage. Producer bug pre-dates cycle 1. Recommendation: whitelist at publisher (skip `publish_event` when kind unrecognised) or normalise stems before publishing. Does not block merge.
+- Cycle 1 fixes verified: all 6 (C1, C2, M1, M2, M3, M4) plus the regression guard correctly resolve the cycle 1 findings with adequate test coverage.
+- Status: clean — proceeding to merge handoff (manual mode)
+
 ## Next action
 
 All phases complete — run `/implement:feature-pr`.
