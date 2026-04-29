@@ -32,7 +32,13 @@ from hypothesis import strategies as st
 
 from personalscraper.indexer.config import IndexerConfig
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import DrainStats, disk_id_for_path, drain, drain_if_present, publish_event
+from personalscraper.indexer.outbox import (
+    DrainStats,
+    disk_id_for_path,
+    drain,
+    drain_if_present,
+    publish_event,
+)
 from personalscraper.indexer.repos import outbox_repo
 from personalscraper.indexer.schema import DiskRow, MediaItemRow, PathRow
 
@@ -1433,3 +1439,33 @@ class TestDiskIdForPath:
 
         result = disk_id_for_path(Path("/Volumes/D1/foo.mp4"), db_path)
         assert result == (d2, "foo.mp4")
+
+
+# ---------------------------------------------------------------------------
+# §9.6 — Artwork kind whitelist in _apply_artwork_write
+# ---------------------------------------------------------------------------
+
+
+def test_apply_artwork_write_rejects_unknown_kind(conn: sqlite3.Connection) -> None:
+    """_apply_artwork_write raises OutboxPayloadError for an unknown artwork kind.
+
+    A payload with kind='malicious; DROP TABLE' must be rejected before any DB
+    UPDATE is executed, demonstrating defensive depth in the JSON path builder.
+    """
+    from personalscraper.indexer.outbox import OutboxPayloadError, _apply_artwork_write  # noqa: PLC0415
+
+    disk_id = _insert_disk(conn)
+    rel_path = "movies/ArtKindTest (2020)"
+    _seed_linked_item(conn, disk_id, rel_path)
+
+    payload: dict[str, object] = {
+        "disk_id": disk_id,
+        "rel_path": rel_path + "/ArtKindTest (2020)-poster.jpg",
+        "kind": "malicious; DROP TABLE",
+    }
+    with pytest.raises(OutboxPayloadError, match="unknown artwork kind"):
+        _apply_artwork_write(conn, payload)  # type: ignore[arg-type]
+
+    # No UPDATE should have been executed — media_item.artwork_json stays NULL.
+    row = conn.execute("SELECT artwork_json FROM media_item").fetchone()
+    assert row is None or row[0] is None

@@ -10,6 +10,7 @@ Public API:
 - :func:`drain` — full drainer; returns :class:`DrainStats`.
 - :func:`drain_if_present` — convenience wrapper (replaces the Phase 2 stub).
 - :func:`publish_event` — best-effort outbox insert from pipeline mutation points.
+- :class:`OutboxPayloadError` — raised on invalid payload values (e.g. unknown artwork kind).
 """
 
 from __future__ import annotations
@@ -37,6 +38,30 @@ _RETRY_DELAYS: tuple[float, ...] = (0.05, 0.20, 1.0)
 
 #: Maximum number of retries on ``OperationalError: database is locked``.
 _MAX_RETRIES: int = len(_RETRY_DELAYS)
+
+
+# ---------------------------------------------------------------------------
+# Public exceptions
+# ---------------------------------------------------------------------------
+
+
+class OutboxPayloadError(ValueError):
+    """Raised when an outbox payload contains an invalid or unexpected value.
+
+    Used to signal defensive validation failures before any DB write is attempted,
+    e.g. an unknown ``kind`` in an ``artwork_write`` payload.
+    """
+
+
+# ---------------------------------------------------------------------------
+# Artwork kind whitelist (DESIGN §9.6 defensive depth)
+# ---------------------------------------------------------------------------
+
+#: Allowed values for ``payload["kind"]`` in ``artwork_write`` outbox rows.
+#: Cross-checked against :class:`personalscraper.indexer.schema.ArtworkInventory` field names.
+_ALLOWED_ARTWORK_KINDS: frozenset[str] = frozenset(
+    {"poster", "fanart", "landscape", "banner", "clearlogo", "clearart", "discart", "characterart"}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -280,10 +305,18 @@ def _apply_artwork_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> N
         conn: Open SQLite connection.
         payload: Parsed JSON payload with keys:
             ``disk_id``, ``rel_path``, ``kind``.
+
+    Raises:
+        OutboxPayloadError: If ``kind`` is not in :data:`_ALLOWED_ARTWORK_KINDS`.
     """
     disk_id: int = int(payload["disk_id"])
     rel_path: str = str(payload["rel_path"])
     kind: str = str(payload["kind"])
+
+    # Whitelist kind before it is interpolated into the JSON path expression.
+    # The internal trust boundary is narrow, but defensive depth is cheap.
+    if kind not in _ALLOWED_ARTWORK_KINDS:
+        raise OutboxPayloadError(f"unknown artwork kind: {kind!r}")
 
     # rel_path points at the artwork file; resolve via its parent directory
     # because the path table stores directories, not individual files.
