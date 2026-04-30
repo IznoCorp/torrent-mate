@@ -274,6 +274,35 @@ class TestMatchTvshow:
         assert result.source == "tmdb"
         assert result.api_id == 67195
 
+    def test_french_documentary_subject_tmdb_fallback(self) -> None:
+        """French documentary release titles should try a subject TMDB query."""
+        tvdb = MagicMock()
+        tvdb.search_series.return_value = []
+
+        tmdb = MagicMock()
+
+        def fake_search_tv(query: str, year: int | None) -> list[dict]:
+            if query == "Prince Andrew":
+                return [
+                    {
+                        "id": 225658,
+                        "name": "Andrew: The Problem Prince",
+                        "first_air_date": "2023-05-01",
+                    },
+                ]
+            return []
+
+        tmdb.search_tv.side_effect = fake_search_tv
+
+        result = match_tvshow(tvdb, tmdb, "Les secrets du Prince Andrew", 2023)
+
+        assert result is not None
+        assert result.source == "tmdb"
+        assert result.api_id == 225658
+        assert result.confidence >= HIGH_CONFIDENCE
+        tmdb.search_tv.assert_any_call("Les secrets du Prince Andrew", 2023)
+        tmdb.search_tv.assert_any_call("Prince Andrew", 2023)
+
     def test_tvdb_preferred_at_equal_confidence(self) -> None:
         """TVDB should win when both providers have equal confidence."""
         tvdb = MagicMock()

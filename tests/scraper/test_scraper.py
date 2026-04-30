@@ -18,6 +18,7 @@ from personalscraper.scraper.scraper import (
     Scraper,
     ScrapeResult,
     _find_video_file,
+    _infer_year_from_child_names,
     _parse_folder_name,
 )
 
@@ -75,6 +76,30 @@ class TestFindVideoFile:
         (tmp_path / "readme.txt").write_text("text")
         result = _find_video_file(tmp_path)
         assert result is None
+
+
+class TestInferYearFromChildNames:
+    """Tests for release child year inference."""
+
+    def test_infers_year_from_matching_release_subdir(self, tmp_path: Path) -> None:
+        """Should use a matching release subdirectory year."""
+        show_dir = tmp_path / "Les secrets du Prince Andrew"
+        release_dir = (
+            show_dir / "Les.secrets.du.Prince.Andrew.2023.S01.DOC.FRENCH.1080p.WEB.H264-BOUBA"
+        )
+        release_dir.mkdir(parents=True)
+        (release_dir / "Les.secrets.du.Prince.Andrew.S01E01.mkv").write_text("video")
+
+        assert _infer_year_from_child_names(show_dir, "Les secrets du Prince Andrew") == 2023
+
+    def test_ignores_unrelated_child_title(self, tmp_path: Path) -> None:
+        """Should not infer a year from an unrelated child release."""
+        show_dir = tmp_path / "Les secrets du Prince Andrew"
+        release_dir = show_dir / "Different.Show.2023.S01.FRENCH.1080p.WEB"
+        release_dir.mkdir(parents=True)
+        (release_dir / "Different.Show.S01E01.mkv").write_text("video")
+
+        assert _infer_year_from_child_names(show_dir, "Les secrets du Prince Andrew") is None
 
 
 # ---------------------------------------------------------------------------

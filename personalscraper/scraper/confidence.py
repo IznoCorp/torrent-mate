@@ -11,6 +11,7 @@ does NOT strip accents.
 See docs/rapidfuzz-reference.md for scorer details.
 """
 
+import re
 from dataclasses import dataclass
 
 import typer
@@ -34,6 +35,11 @@ LOW_CONFIDENCE = 0.5  # Skip in automatic mode (no match)
 # its own S01..S04 catalog).
 SEASON_VETO_BYPASS = 0.95
 
+_FRENCH_DOCUMENTARY_SUBJECT_RE = re.compile(
+    r"^les?\s+secrets?\s+(?:du|de la|de l'|des|de)\s+(.+)$",
+    re.IGNORECASE,
+)
+
 
 @dataclass
 class MatchResult:
@@ -52,6 +58,17 @@ class MatchResult:
     api_year: int | None
     confidence: float
     source: str
+
+
+def _tv_fallback_title_variants(title: str) -> list[str]:
+    """Return conservative alternate TMDB queries for TV documentary titles."""
+    variants = [title]
+    match = _FRENCH_DOCUMENTARY_SUBJECT_RE.match(title.strip())
+    if match:
+        subject = match.group(1).strip()
+        if subject and media_processor(subject) != media_processor(title):
+            variants.append(subject)
+    return variants
 
 
 def score_match(
@@ -362,17 +379,22 @@ def match_tvshow(
     except Exception as e:  # noqa: BLE001 — see block comment above; narrowing requires lazy imports for TVDBError/CircuitOpenError/requests and still masks adapter bugs
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
-    # Fallback to TMDB
-    tmdb_results = tmdb_client.search_tv(title, year)  # type: ignore[attr-defined]
+    # Fallback to TMDB. Some French documentary releases are localized as
+    # "Les secrets de <subject>" while TMDB indexes the original title under
+    # the subject name, so try a narrow subject-only query as well.
+    tmdb_results: list[tuple[str, dict]] = []
+    for query_title in _tv_fallback_title_variants(title):
+        results = tmdb_client.search_tv(query_title, year)  # type: ignore[attr-defined]
+        tmdb_results.extend((query_title, result) for result in results)
     tmdb_match: MatchResult | None = None
     best_score = -1.0
 
-    for result in tmdb_results:
+    for query_title, result in tmdb_results:
         api_title = result.get("name", "")
         first_air = result.get("first_air_date", "")
         api_year = int(first_air[:4]) if first_air and len(first_air) >= 4 else None
 
-        score = score_match(title, year, api_title, api_year)
+        score = score_match(query_title, year, api_title, api_year)
         if score > best_score:
             best_score = score
             tmdb_match = MatchResult(

@@ -44,7 +44,7 @@ from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
 from personalscraper.scraper.tvdb_client import TVDBClient
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
-from personalscraper.text_utils import sanitize_filename
+from personalscraper.text_utils import media_processor, sanitize_filename
 
 log = get_logger("scraper")
 
@@ -319,6 +319,36 @@ def _local_show_seasons(show_dir: Path) -> set[int]:
         if season and season > 0:
             seasons.add(season)
     return seasons
+
+
+def _infer_year_from_child_names(show_dir: Path, title: str) -> int | None:
+    """Infer a show year from release subfolders or video files.
+
+    Some staging folders use a clean localized parent name without a year,
+    while the release directory below still carries the original year token.
+    Only accept years from child names whose cleaned title matches the parent
+    closely enough to avoid leaking an episode title or unrelated extra.
+    """
+    expected_title = media_processor(title)
+    if not expected_title:
+        return None
+
+    candidates = list(show_dir.iterdir())
+    candidates.extend(
+        f for f in show_dir.rglob("*") if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+    )
+
+    for child in candidates:
+        name = child.stem if child.is_file() else child.name
+        child_title, child_year = _parse_folder_name(name)
+        if child_year is None:
+            continue
+        parsed_title = media_processor(child_title)
+        if parsed_title == expected_title or expected_title in parsed_title:
+            log.info("show_year_inferred_from_child", directory=show_dir.name, child=name, year=child_year)
+            return child_year
+
+    return None
 
 
 def verify_tvshow_scrape_drift(
@@ -1506,6 +1536,8 @@ class Scraper:
             ScrapeResult with action and details.
         """
         title, year = _parse_folder_name(show_dir.name)
+        if year is None:
+            year = _infer_year_from_child_names(show_dir, title)
         result = ScrapeResult(media_path=show_dir, media_type="tvshow")
 
         # Check for existing valid NFO
