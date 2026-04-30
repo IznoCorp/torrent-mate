@@ -25,6 +25,7 @@ from personalscraper.indexer.merkle import (
     compute_merkle_delta,
     compute_merkle_root,
 )
+from personalscraper.indexer.release_linker import link_file_to_release
 from personalscraper.indexer.repos import disk_repo, file_repo
 from personalscraper.indexer.scanner._db_writes import (
     _compute_oshash,
@@ -1270,6 +1271,7 @@ def _scan_disk_enrich(
 
         file_id: int = row["file_id"]
         item_id: int | None = row["item_id"]
+        release_id: int | None = row["release_id"]
 
         if not file_path.exists():
             # File no longer on disk — skip without updating enriched_at so the
@@ -1280,6 +1282,36 @@ def _scan_disk_enrich(
                 path=str(file_path),
             )
             continue
+
+        # Stage B linkage: when a file has not been attached to a release yet
+        # (cold Stage A inserts release_id=NULL), resolve the owning item via
+        # the dispatch_path attribute chain and create the release / season /
+        # episode rows on demand. Item id is then re-derived for downstream
+        # NFO + artwork updates in _enrich_one_file.
+        if release_id is None:
+            try:
+                new_release_id = link_file_to_release(conn, file_id, str(file_path))
+            except sqlite3.Error as exc:
+                log.warning(
+                    "indexer.enrich.release_link_failed",
+                    file_id=file_id,
+                    path=str(file_path),
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                )
+                new_release_id = None
+
+            if new_release_id is not None:
+                resolved = conn.execute(
+                    "SELECT mr.item_id, s.item_id AS show_item_id "
+                    "FROM media_release mr "
+                    "LEFT JOIN episode e ON e.id = mr.episode_id "
+                    "LEFT JOIN season s ON s.id = e.season_id "
+                    "WHERE mr.id = ?",
+                    (new_release_id,),
+                ).fetchone()
+                if resolved is not None:
+                    item_id = resolved[0] if resolved[0] is not None else resolved[1]
 
         try:
             _enrich_one_file(conn, file_id, file_path, item_id, wrapper)
