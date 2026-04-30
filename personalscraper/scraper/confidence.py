@@ -382,7 +382,7 @@ def match_tvshow(
     # Fallback to TMDB. Some French documentary releases are localized as
     # "Les secrets de <subject>" while TMDB indexes the original title under
     # the subject name, so try a narrow subject-only query as well.
-    tmdb_results: list[tuple[str, dict]] = []
+    tmdb_results: list[tuple[str, dict[str, Any]]] = []
     for query_title in _tv_fallback_title_variants(title):
         results = tmdb_client.search_tv(query_title, year)  # type: ignore[attr-defined]
         tmdb_results.extend((query_title, result) for result in results)
