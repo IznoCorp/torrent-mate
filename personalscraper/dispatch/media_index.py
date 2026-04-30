@@ -190,6 +190,10 @@ class MediaIndex:
         self._conn = open_db(db_path)
         apply_migrations(self._conn, _MIGRATIONS_DIR)
 
+        # Surface the active indexer DB at INFO so a pipeline run can verify
+        # the dispatcher is consulting the SQLite store and not a stale JSON.
+        log.info("indexer.dispatch.opened", db_path=str(db_path))
+
         # Warn once if a legacy media_index.json is present alongside the DB.
         # The file is intentionally NOT read; users should run a full rebuild.
         legacy_json = index_path.parent / "media_index.json"
@@ -306,6 +310,15 @@ class MediaIndex:
         result = item_repo.find_by_normalized_name(self._conn, key, kind)
         if result is not None:
             item_row, dispatch_disk, dispatch_path = result
+            log.info(
+                "indexer.dispatch.lookup_hit",
+                name=name,
+                media_type=media_type,
+                match_type="exact",
+                title=item_row.title,
+                disk=dispatch_disk,
+                category=item_row.category_id,
+            )
             return IndexEntry(
                 name=item_row.title,
                 disk=dispatch_disk,
@@ -346,6 +359,23 @@ class MediaIndex:
                         last_updated=datetime.fromtimestamp(item_row.date_modified, tz=timezone.utc).isoformat(),
                     )
 
+            if best_entry is not None:
+                log.info(
+                    "indexer.dispatch.lookup_hit",
+                    name=name,
+                    media_type=media_type,
+                    match_type="fuzzy",
+                    title=best_entry.name,
+                    disk=best_entry.disk,
+                    score=best_score,
+                )
+            else:
+                log.info(
+                    "indexer.dispatch.lookup_miss",
+                    name=name,
+                    media_type=media_type,
+                    candidates_scanned=len(all_items),
+                )
             return best_entry
         except ImportError:
             log.warning("fuzzy_match_disabled", reason="rapidfuzz_not_available")
