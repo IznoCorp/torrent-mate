@@ -80,11 +80,29 @@ class TestResolveConfigPath:
         result = resolve_config_path()
         assert result == env_path.expanduser().resolve()
 
-    def test_default_when_neither(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Default ./config.json5 must be used when no CLI and no env."""
+    def test_default_when_neither(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Default points to the v2 split dir when present, else legacy file.
+
+        With no CLI/env override: if ``.personalscraper/config/config.json5``
+        exists in cwd the resolver returns that directory; otherwise it falls
+        back to ``./config.json5``. We exercise both branches from a clean
+        ``tmp_path`` cwd to avoid contamination from the developer's own
+        ``.personalscraper/`` directory.
+        """
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        # Branch 1: nothing exists → falls through to legacy file path.
         result = resolve_config_path()
         assert result.name == "config.json5"
+        assert not result.is_dir()
+
+        # Branch 2: v2 dir exists with a master config.json5 → returns dir.
+        (tmp_path / ".personalscraper" / "config").mkdir(parents=True)
+        (tmp_path / ".personalscraper" / "config" / "config.json5").write_text("{}")
+        result_v2 = resolve_config_path()
+        assert result_v2.is_dir()
+        assert result_v2.name == "config"
 
     def test_expanduser_applied(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Tilde paths must be expanded."""
@@ -112,7 +130,7 @@ class TestLoadConfig:
 
     def test_missing_file_raises_not_found(self, tmp_path: Path) -> None:
         """A missing file must raise ConfigNotFoundError."""
-        with pytest.raises(ConfigNotFoundError, match="No config file at"):
+        with pytest.raises(ConfigNotFoundError, match="No config file or split-config directory"):
             load_config(tmp_path / "nonexistent.json5")
 
     def test_invalid_json5_raises_validation_error(self, tmp_path: Path) -> None:
