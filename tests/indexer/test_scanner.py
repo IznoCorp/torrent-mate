@@ -2651,3 +2651,115 @@ class TestScanUnexpectedExceptionReraise:
         assert rows[0]["status"] == "failed", (
             f"Expected scan_run.status='failed' after unexpected exception, got {rows[0]['status']!r}"
         )
+
+
+class TestVerifyMode:
+    """Verify mode: re-stat existing media_file rows and enqueue repair on drift."""
+
+    def test_verify_clean_files_bump_last_verified_at(self, fs: "FakeFilesystem") -> None:
+        """Files whose on-disk size + mtime match the DB get last_verified_at updated."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyCleanDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/movie.mkv").write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        before = conn.execute(
+            "SELECT id, last_verified_at FROM media_file WHERE filename = 'movie.mkv'"
+        ).fetchone()
+        assert before is not None
+        baseline_verified = before["last_verified_at"]
+
+        # Sleep a beat so last_verified_at strictly advances.
+        time.sleep(1)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn)
+
+        after = conn.execute(
+            "SELECT last_verified_at, scan_generation FROM media_file WHERE id = ?",
+            (before["id"],),
+        ).fetchone()
+        assert after is not None
+        assert after["last_verified_at"] >= baseline_verified
+        assert after["scan_generation"] == 2
+
+        # No repair_queue rows should be enqueued.
+        repair_count = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+        assert repair_count == 0
+
+    def test_verify_size_mismatch_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+        """A file whose size has changed since last scan is escalated to repair_queue."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyDriftDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        movie = Path(f"{mount}/movie.mkv")
+        movie.write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Mutate the file size on disk.
+        movie.write_bytes(b"V" * 600)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT scope, scope_id, reason, payload_json FROM repair_queue"
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["scope"] == "file"
+        assert "drift" in rows[0]["reason"]
+        assert "expected_size" in rows[0]["payload_json"]
+
+    def test_verify_missing_file_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+        """A file deleted from disk is enqueued for repair (no soft-delete)."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyMissingDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        movie = Path(f"{mount}/movie.mkv")
+        movie.write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        movie.unlink()
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT scope, reason FROM repair_queue"
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["scope"] == "file"
+        assert "missing" in rows[0]["reason"]
+
+        # The media_file row must NOT have been soft-deleted (verify is non-destructive).
+        deleted_at = conn.execute(
+            "SELECT deleted_at FROM media_file WHERE filename = 'movie.mkv'"
+        ).fetchone()
+        assert deleted_at is not None
+        assert deleted_at[0] is None
+

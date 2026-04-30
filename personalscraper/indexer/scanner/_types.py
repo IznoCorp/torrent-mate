@@ -56,6 +56,12 @@ class ScanMode(str, Enum):
         full: Walk every file on every disk and (re-)compute tier-1 fingerprints.
         verify: Re-stat every indexed file and escalate mismatches to the repair
             queue without soft-deleting.
+
+    Note:
+        The ``scan_run.mode`` SQL CHECK constraint also accepts ``'repair'``
+        as a forward-compatibility allowance — currently no scanner mode is
+        associated with that value (``library-repair`` drains the outbox
+        without launching a scan, so it never writes a ``scan_run`` row).
     """
 
     quick = "quick"

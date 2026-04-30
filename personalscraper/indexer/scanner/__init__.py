@@ -52,6 +52,7 @@ from personalscraper.indexer.scanner._modes import (
     _scan_disk_full,
     _scan_disk_incremental,
     _scan_disk_quick,
+    _scan_disk_verify,
 )
 from personalscraper.indexer.scanner._shutdown import install_sigterm_handler, reset_shutdown
 from personalscraper.indexer.scanner._spotlight import SpotlightChangeDetector, probe_spotlight
@@ -719,6 +720,21 @@ def scan(
                     local_exhausted,
                     scan_run_id,
                     quick_enrich=quick_enrich,
+                )
+            elif mode == ScanMode.verify:
+                # Verify mode: re-stat every indexed file and enqueue
+                # repair_queue rows for missing files / size+mtime drift.
+                # Non-destructive: never soft-deletes, never recomputes
+                # fingerprints, only bumps last_verified_at on clean rows.
+                _scan_disk_verify(
+                    worker_conn,
+                    disk,
+                    local_files,
+                    generation,
+                    budget_seconds,
+                    _started_at_monotonic,
+                    local_exhausted,
+                    scan_run_id,
                 )
             else:
                 # Skeleton walk for any future modes not yet implemented.
