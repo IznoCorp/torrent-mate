@@ -365,6 +365,13 @@ class ArtworkDownloader:
             except requests.exceptions.RequestException:
                 log.warning("artwork_show_landscape_failed")
 
+        handled_seasons: set[int] = set()
+        disk_seasons = {
+            int(path.name.split()[-1])
+            for path in show_dir.iterdir()
+            if path.is_dir() and path.name.startswith("Saison ") and path.name.split()[-1].isdigit()
+        }
+
         # Season posters (only for seasons that exist on disk)
         for season in show_data.get("seasons", []):
             season_num = season.get("season_number", 0)
@@ -375,15 +382,32 @@ class ArtworkDownloader:
             season_dir_name = patterns.format("season_dir", Season=season_num)
             if not (show_dir / season_dir_name).is_dir():
                 continue
-            season_poster = season.get("poster_path", "")
+            handled_seasons.add(season_num)
+            season_poster = season.get("poster_path", "") or poster_path
             if season_poster:
                 poster_name = patterns.format("season_poster", Season=season_num)
                 dest = show_dir / poster_name
-                url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{season_poster}"
+                url = (
+                    season_poster
+                    if season_poster.startswith("http")
+                    else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{season_poster}"
+                )
                 try:
                     if self.download_image(url, dest):
                         downloaded.append(dest)
                 except requests.exceptions.RequestException:
                     log.warning("artwork_season_poster_failed", season=season_num)
+
+        for season_num in sorted(disk_seasons - handled_seasons):
+            if not poster_path:
+                continue
+            poster_name = patterns.format("season_poster", Season=season_num)
+            dest = show_dir / poster_name
+            url = poster_path if poster_path.startswith("http") else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
+            try:
+                if self.download_image(url, dest):
+                    downloaded.append(dest)
+            except requests.exceptions.RequestException:
+                log.warning("artwork_season_poster_failed", season=season_num)
 
         return downloaded

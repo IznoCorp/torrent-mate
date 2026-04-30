@@ -462,6 +462,51 @@ class TestScrapeTvshow:
         result = scraper.scrape_tvshow(show_dir)
         assert result.action == "skipped_already_done"
 
+    def test_recovers_missing_season_poster_on_valid_tvshow(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Should recover season posters during the valid-NFO fast path."""
+        show_dir = tmp_path / "Fallout (2024)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            (
+                "<tvshow><title>Fallout</title><year>2024</year>"
+                '<uniqueid type="tmdb">106379</uniqueid></tvshow>'
+            )
+        )
+        (show_dir / "poster.jpg").write_bytes(b"\xff")
+        (show_dir / "landscape.jpg").write_bytes(b"\xff")
+        season_dir = show_dir / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        (season_dir / "S01E01 - The Beginning.nfo").write_text(
+            "<episodedetails><title>The Beginning</title></episodedetails>"
+        )
+
+        show_data = {
+            "id": 106379,
+            "name": "Fallout",
+            "images": {"posters": [], "backdrops": []},
+            "seasons": [{"season_number": 1, "poster_path": "/season01.jpg"}],
+        }
+        season_poster = show_dir / "season01-poster.jpg"
+
+        def fake_download_tvshow_artwork(*args: object, **kwargs: object) -> list[Path]:
+            season_poster.write_bytes(b"\xff")
+            return [season_poster]
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._artwork, "download_tvshow_artwork", side_effect=fake_download_tvshow_artwork),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        assert result.action == "artwork_recovered"
+        assert result.artwork_downloaded == ["season01-poster.jpg"]
+        assert season_poster.exists()
+
     def _build_coherent_show_dir(
         self,
         tmp_path: Path,

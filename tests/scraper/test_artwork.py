@@ -359,6 +359,48 @@ class TestDownloadTvshowArtwork:
         assert "season01-poster.jpg" in season_names
         assert "season02-poster.jpg" in season_names
 
+    def test_season_poster_falls_back_to_show_poster(self, tmp_path: Path) -> None:
+        """Season poster should use show poster when season poster is absent."""
+        downloader = ArtworkDownloader()
+        patterns = NamingPatterns()
+        (tmp_path / "Saison 01").mkdir()
+        data = {
+            "name": "Show",
+            "images": {
+                "posters": [{"file_path": "/show-poster.jpg", "iso_639_1": "fr", "vote_average": 7.0}],
+                "backdrops": [],
+            },
+            "seasons": [{"season_number": 1, "poster_path": ""}],
+        }
+
+        with patch.object(downloader, "download_image", return_value=True) as mock_dl:
+            result = downloader.download_tvshow_artwork(data, tmp_path, patterns)
+
+        assert len(result) == 2
+        assert mock_dl.call_args_list[1].args[0].endswith("/show-poster.jpg")
+        assert mock_dl.call_args_list[1].args[1].name == "season01-poster.jpg"
+
+    def test_unmatched_disk_season_uses_show_poster(self, tmp_path: Path) -> None:
+        """Disk season without API season entry should still get a poster."""
+        downloader = ArtworkDownloader()
+        patterns = NamingPatterns()
+        (tmp_path / "Saison 17").mkdir()
+        data = {
+            "name": "Spin Off",
+            "images": {
+                "posters": [{"file_path": "/show-poster.jpg", "iso_639_1": "fr", "vote_average": 7.0}],
+                "backdrops": [],
+            },
+            "seasons": [{"season_number": 1, "poster_path": "/season01.jpg"}],
+        }
+
+        with patch.object(downloader, "download_image", return_value=True) as mock_dl:
+            result = downloader.download_tvshow_artwork(data, tmp_path, patterns)
+
+        assert len(result) == 2
+        assert mock_dl.call_args_list[1].args[0].endswith("/show-poster.jpg")
+        assert mock_dl.call_args_list[1].args[1].name == "season17-poster.jpg"
+
     def test_skips_specials_season(self, tmp_path: Path) -> None:
         """Season 0 (specials) should not get a poster."""
         downloader = ArtworkDownloader()

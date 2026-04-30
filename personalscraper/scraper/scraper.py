@@ -798,8 +798,8 @@ class Scraper:
     def _check_missing_tvshow_artwork(self, show_dir: Path) -> list[str]:
         """List missing essential artwork for a TV show directory.
 
-        Checks poster and landscape only (the two files required by
-        the fast-skip gate in _has_unscraped_items).
+        Checks show-level poster/landscape and season posters for seasons
+        already present on disk.
 
         Args:
             show_dir: Path to the TV show directory.
@@ -812,6 +812,13 @@ class Scraper:
             missing.append(self.patterns.tvshow_poster)
         if not (show_dir / self.patterns.tvshow_landscape).exists():
             missing.append(self.patterns.tvshow_landscape)
+        for season_dir in show_dir.iterdir():
+            if not season_dir.is_dir() or not SEASON_DIR_RE.match(season_dir.name):
+                continue
+            season_num = int(season_dir.name.split()[-1])
+            poster_name = self.patterns.format("season_poster", Season=season_num)
+            if not (show_dir / poster_name).exists():
+                missing.append(poster_name)
         return missing
 
     @staticmethod
