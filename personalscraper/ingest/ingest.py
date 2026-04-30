@@ -26,6 +26,39 @@ log = get_logger("ingest")
 STAGING_TMP_PREFIX = ".ingest_tmp_"
 
 
+def _is_orphan_tracker_entry(entry: dict[str, object]) -> bool:
+    """Return ``True`` when a tracker entry's recorded destination is gone.
+
+    Used to detect *orphan tracker entries*: items recorded as ``"copied"`` in
+    ``ingested_torrents.json`` whose ``dest_path`` no longer exists on disk —
+    typically because a downstream step (sort/process/dispatch) silently
+    failed and removed the staging copy without producing a final
+    destination. The tracker keeps skipping the hash on every subsequent
+    ingest and the operator never sees the item lost.
+
+    The check is intentionally conservative: it relies on the explicit
+    ``dest_path`` field stored at ingest time. Legacy entries written before
+    ``dest_path`` was recorded return ``False`` (no opinion) so the probe
+    never produces false positives on torrents whose destination was never
+    captured. Filename-based heuristics are not used here because the
+    canonical downstream folder name diverges from the torrent name in
+    too many lawful ways (year suffix, translated title, season layout).
+
+    Args:
+        entry: A single tracker dict as returned by
+            :meth:`personalscraper.ingest.tracker.IngestTracker.get_entry`.
+
+    Returns:
+        ``True`` when ``entry['dest_path']`` is set and the path does not
+        exist on disk, ``False`` otherwise (including legacy entries
+        without ``dest_path``).
+    """
+    raw_dest = entry.get("dest_path") if isinstance(entry, dict) else None
+    if not isinstance(raw_dest, str) or not raw_dest:
+        return False
+    return not Path(raw_dest).exists()
+
+
 def _get_dir_size(path: Path) -> int:
     """Calculate total size of a directory tree in bytes.
 
@@ -197,9 +230,11 @@ def run_ingest(
     """
     report = StepReport(name="ingest")
 
-    # Resolve ingest_dir: prefer explicit arg, then derive from config.
+    # Resolve ingest_dir + staging_dir up-front so both the orphan-tracker
+    # probe and the per-torrent transfer path use the same paths.
     resolved_ingest_dir: Path = ingest_dir if ingest_dir is not None else staging_path(config, find_ingest_dir(config))
     resolved_ingest_dir.mkdir(parents=True, exist_ok=True)
+    resolved_staging_dir: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
 
     # Clean orphaned temp dirs from interrupted runs
     if not dry_run:
@@ -241,6 +276,28 @@ def run_ingest(
                     if tracker.is_ingested(torrent_hash):
                         log.debug("already_ingested", name=name)
                         report.skip_count += 1
+                        # Orphan-tracker safety net: when a prior ingest
+                        # recorded a dest_path and that file/directory has
+                        # since vanished without a successor on disk, the
+                        # tracker is silently lying — a likely sign of a
+                        # mid-pipeline failure. Surface it so the operator
+                        # can remove the entry and re-ingest. Legacy
+                        # entries without dest_path are skipped (the helper
+                        # returns False on missing field).
+                        entry = tracker.get_entry(torrent_hash)
+                        if entry is not None and _is_orphan_tracker_entry(entry):
+                            dest_str = str(entry.get("dest_path", ""))
+                            warning_msg = (
+                                f"{name}: tracker says ingested but recorded "
+                                f"dest_path '{dest_str}' no longer exists — orphan entry"
+                            )
+                            log.warning(
+                                "ingest.orphan_tracker_entry",
+                                hash=torrent_hash,
+                                name=name,
+                                dest_path=dest_str,
+                            )
+                            report.warnings.append(warning_msg)
                         continue
 
                     # Skip torrents that have not yet reached the minimum ratio threshold.
@@ -271,19 +328,27 @@ def run_ingest(
                     source = client.get_content_path(torrent)
                     if not source.exists():
                         # Check staging dirs for this content (already ingested pre-tracker).
-                        # Prefer explicit staging_dir arg, then config.paths.staging_dir.
-                        resolved_staging: Path = staging_dir if staging_dir is not None else config.paths.staging_dir
                         _movies_dir = folder_name(find_by_file_type(config, FileType.MOVIE))
                         _tvshows_dir = folder_name(find_by_file_type(config, FileType.TVSHOW))
                         staging_dirs = [
-                            resolved_staging / _movies_dir,
-                            resolved_staging / _tvshows_dir,
+                            resolved_staging_dir / _movies_dir,
+                            resolved_staging_dir / _tvshows_dir,
                             resolved_ingest_dir,
                         ]
-                        found_in_staging = any((d / source.name).exists() for d in staging_dirs)
-                        if found_in_staging:
+                        # Find the actual staging path so the orphan probe can
+                        # validate it on subsequent runs.
+                        staging_dest = next(
+                            (d / source.name for d in staging_dirs if (d / source.name).exists()),
+                            None,
+                        )
+                        if staging_dest is not None:
                             log.info("already_in_staging", name=name)
-                            tracker.mark_ingested(torrent_hash, name, "found_in_staging")
+                            tracker.mark_ingested(
+                                torrent_hash,
+                                name,
+                                "found_in_staging",
+                                dest_path=str(staging_dest),
+                            )
                             report.skip_count += 1
                         else:
                             log.warning("content_missing", name=name, path=str(source))
@@ -298,7 +363,7 @@ def run_ingest(
                         log.info("already_exists", name=name, dest=str(dest))
                         report.skip_count += 1
                         # Still mark as ingested to avoid re-checking
-                        tracker.mark_ingested(torrent_hash, name, "skipped_exists")
+                        tracker.mark_ingested(torrent_hash, name, "skipped_exists", dest_path=str(dest))
                         continue
 
                     # Check disk space
@@ -318,7 +383,7 @@ def run_ingest(
                         report.success_count += 1
                         report.details.append(f"{name} → {action}")
                         if not dry_run:
-                            tracker.mark_ingested(torrent_hash, name, action)
+                            tracker.mark_ingested(torrent_hash, name, action, dest_path=str(dest))
                     else:
                         report.error_count += 1
                         report.details.append(f"{name}: transfer failed")
