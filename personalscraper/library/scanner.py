@@ -649,10 +649,17 @@ def scan_library(config: Config, conn: sqlite3.Connection) -> None:
             cat_cfg = config.category(category_id)
             category_dir = disk_cfg.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                log.debug(
+                # Bumped from DEBUG to WARNING (2026-04-30): when a user
+                # misconfigures categories[id].folder_name, every category
+                # silently produces zero rows.  WARNING surfaces the
+                # misconfig without flooding noisy logs in the common case
+                # (the warning fires at most once per missing dir per scan).
+                log.warning(
                     "library_scan_category_not_found",
                     category_dir=str(category_dir),
                     disk=disk_cfg.id,
+                    category_id=category_id,
+                    folder_name=cat_cfg.folder_name,
                 )
                 continue
 

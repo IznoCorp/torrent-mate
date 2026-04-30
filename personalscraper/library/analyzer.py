@@ -203,36 +203,69 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
     rows = conn.execute("SELECT category_id, COUNT(*) FROM media_item GROUP BY category_id").fetchall()
     result.items_per_category = {row[0]: row[1] for row in rows}
 
-    # --- Per-disk distribution + size + top-largest --------------------------
-    # Joins media_item → media_release → media_file → path → disk.  An item is
-    # counted on a disk if it has at least one (release-linked) file there,
-    # and its size on that disk is the sum of those file sizes.  Items that
-    # have no media_file rows yet (scan never enriched) are silently skipped
-    # from these aggregates — they still appear in total_items.
+    # --- Per-disk distribution -----------------------------------------------
+    # Source items_per_disk from item_attribute(dispatch_disk) so the count is
+    # populated by every library-scanned item, regardless of whether enrich
+    # has linked its files to a media_release.
     rows = conn.execute(
-        "SELECT d.label AS disk_label, m.title AS title, "
-        "COUNT(DISTINCT m.id) AS items, "
-        "COALESCE(SUM(mf.size_bytes), 0) AS bytes "
+        "SELECT ia.value AS disk_label, COUNT(DISTINCT ia.item_id) AS items "
+        "FROM item_attribute ia "
+        "WHERE ia.key = 'dispatch_disk' "
+        "GROUP BY ia.value"
+    ).fetchall()
+    result.items_per_disk = {row[0]: row[1] for row in rows}
+
+    # --- Disk-level size aggregation -----------------------------------------
+    # Sum media_file.size_bytes per disk via path → disk join.  Independent
+    # of media_release, so size totals are populated whether or not enrich
+    # has run.  Excludes soft-deleted files.
+    rows = conn.execute(
+        "SELECT d.label AS disk_label, COALESCE(SUM(mf.size_bytes), 0) AS bytes "
+        "FROM media_file mf "
+        "INNER JOIN path p ON p.id = mf.path_id "
+        "INNER JOIN disk d ON d.id = p.disk_id "
+        "WHERE mf.deleted_at IS NULL "
+        "GROUP BY d.label"
+    ).fetchall()
+    bytes_to_gb = 1024**3
+    size_per_disk: dict[str, int] = {row[0]: int(row[1]) for row in rows}
+    result.size_per_disk_gb = {k: round(v / bytes_to_gb, 1) for k, v in size_per_disk.items()}
+    result.total_size_gb = round(sum(size_per_disk.values()) / bytes_to_gb, 1)
+
+    # --- Top-20 largest items ------------------------------------------------
+    # Per-item size requires linking media_file rows to a media_item.  When
+    # release linkage is present (post-enrich), the join is exact.  Otherwise
+    # we fall back to matching media_file paths by their on-disk parent
+    # against item_attribute(dispatch_path), which is written for every
+    # library-scanned item.  No release linkage and no dispatch_path → the
+    # item is skipped from top_largest only (still counted everywhere else).
+    rows = conn.execute(
+        "SELECT m.title AS title, SUM(mf.size_bytes) AS bytes "
         "FROM media_item m "
         "INNER JOIN media_release mr ON mr.item_id = m.id "
         "INNER JOIN media_file mf ON mf.release_id = mr.id "
-        "INNER JOIN path p ON p.id = mf.path_id "
-        "INNER JOIN disk d ON d.id = p.disk_id "
-        "GROUP BY d.label, m.id"
+        "WHERE mf.deleted_at IS NULL "
+        "GROUP BY m.id "
+        "UNION ALL "
+        "SELECT m.title AS title, COALESCE(SUM(mf.size_bytes), 0) AS bytes "
+        "FROM media_item m "
+        "INNER JOIN item_attribute ia ON ia.item_id = m.id AND ia.key = 'dispatch_path' "
+        "INNER JOIN item_attribute id_disk ON id_disk.item_id = m.id AND id_disk.key = 'dispatch_disk' "
+        "INNER JOIN disk d ON d.label = id_disk.value "
+        "INNER JOIN path p ON p.disk_id = d.id "
+        "  AND ia.value = d.mount_path || '/' || p.rel_path "
+        "INNER JOIN media_file mf ON mf.path_id = p.id "
+        "WHERE mf.deleted_at IS NULL "
+        "  AND NOT EXISTS ( "
+        "    SELECT 1 FROM media_release mr2 WHERE mr2.item_id = m.id "
+        "  ) "
+        "GROUP BY m.id"
     ).fetchall()
-    items_per_disk: dict[str, int] = {}
-    size_per_disk: dict[str, int] = {}
-    item_sizes: list[tuple[str, int]] = []
-    for disk_label, title, _items, byte_count in rows:
-        items_per_disk[disk_label] = items_per_disk.get(disk_label, 0) + 1
-        size_per_disk[disk_label] = size_per_disk.get(disk_label, 0) + int(byte_count)
-        item_sizes.append((title, int(byte_count)))
-    result.items_per_disk = items_per_disk
-    bytes_to_gb = 1024**3
-    result.size_per_disk_gb = {k: round(v / bytes_to_gb, 1) for k, v in size_per_disk.items()}
-    result.total_size_gb = round(sum(size_per_disk.values()) / bytes_to_gb, 1)
-    item_sizes.sort(key=lambda kv: -kv[1])
-    result.top_largest = [(title, round(byte_count / bytes_to_gb, 1)) for title, byte_count in item_sizes[:20]]
+    item_sizes: dict[str, int] = {}
+    for title, byte_count in rows:
+        item_sizes[title] = item_sizes.get(title, 0) + int(byte_count or 0)
+    sorted_sizes = sorted(item_sizes.items(), key=lambda kv: -kv[1])
+    result.top_largest = [(title, round(byte_count / bytes_to_gb, 1)) for title, byte_count in sorted_sizes[:20]]
 
     log.info(
         "library_analyze_complete",
