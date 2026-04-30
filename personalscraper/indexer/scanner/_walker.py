@@ -37,6 +37,22 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.scan")
 
 
+def _log_stat_failed(path: str, exc: OSError) -> None:
+    """Log a stat() failure at the appropriate severity.
+
+    macFUSE/NTFS-3G volumes occasionally expose ghost directory entries:
+    ``os.scandir`` lists a name whose underlying inode cannot be resolved by
+    ``stat()`` (errno 2 / ENOENT) regardless of Unicode normalisation. Those
+    are filesystem-level inconsistencies the scanner cannot fix, so they are
+    demoted to ``debug`` to keep the operational warning channel meaningful.
+    Real failures (EACCES, EIO, etc.) stay at ``warning``.
+    """
+    if exc.errno == 2:
+        log.debug("indexer.scan.stat_failed", path=path, errno=exc.errno, reason="ghost_dirent")
+    else:
+        log.warning("indexer.scan.stat_failed", path=path, errno=exc.errno, error_type=type(exc).__name__)
+
+
 # ---------------------------------------------------------------------------
 # Quick-mode reliability check
 # ---------------------------------------------------------------------------
@@ -255,8 +271,8 @@ def _walk_dir(
         # Stat without following symlinks — this is the *only* stat call per entry.
         try:
             st = entry.stat(follow_symlinks=False)
-        except OSError:
-            log.warning("indexer.scan.stat_failed", path=entry.path)
+        except OSError as exc:
+            _log_stat_failed(entry.path, exc)
             continue
 
         if entry.is_dir(follow_symlinks=False):
@@ -415,8 +431,8 @@ def _walk_dir_full(
         # Stat without following symlinks — this is the *only* stat call per entry.
         try:
             st = entry.stat(follow_symlinks=False)
-        except OSError:
-            log.warning("indexer.scan.stat_failed", path=entry.path)
+        except OSError as exc:
+            _log_stat_failed(entry.path, exc)
             continue
 
         if entry.is_dir(follow_symlinks=False):
@@ -654,8 +670,8 @@ def _walk_dir_quick(
 
         try:
             st = entry.stat(follow_symlinks=False)
-        except OSError:
-            log.warning("indexer.scan.stat_failed", path=entry.path)
+        except OSError as exc:
+            _log_stat_failed(entry.path, exc)
             continue
 
         if entry.is_dir(follow_symlinks=False):
