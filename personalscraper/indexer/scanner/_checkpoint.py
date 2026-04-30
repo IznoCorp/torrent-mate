@@ -85,6 +85,11 @@ def _check_crash_resume(conn: sqlite3.Connection, db_path: Path) -> str | None:
         log.info("indexer.scan.resumed", reason="lock_file_invalid", last_path=last_path)
         return last_path
 
+    if pid == os.getpid():
+        # Lock metadata records our own PID — this is the scan_run row we just
+        # inserted, not a concurrent scan. Nothing to resume from.
+        return None
+
     try:
         os.kill(pid, 0)
     except (ProcessLookupError, OSError):
