@@ -156,6 +156,40 @@ def _fake_scan_result(scan_run_id: int = 1, files: int = 5, dirs: int = 2) -> Sc
 # ---------------------------------------------------------------------------
 
 
+class TestLibraryIndexNoBudget:
+    """``--no-budget`` overrides both ``--budget`` and the config default to ``None``."""
+
+    def test_no_budget_passes_none(self, tmp_path: Path) -> None:
+        """``--no-budget`` causes ``scan(...)`` to be invoked with ``budget_seconds=None``."""
+        cfg = _make_config(tmp_path)
+        fake_result = _fake_scan_result(scan_run_id=1, files=0, dirs=0)
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCAN, return_value=fake_result) as mock_scan,
+        ):
+            result = runner.invoke(app, ["library-index", "--mode", "enrich", "--no-budget"])
+
+        assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+        assert mock_scan.call_args.kwargs["budget_seconds"] is None
+
+    def test_no_budget_overrides_explicit_budget(self, tmp_path: Path) -> None:
+        """``--no-budget`` wins when ``--budget N`` is also supplied."""
+        cfg = _make_config(tmp_path)
+        fake_result = _fake_scan_result(scan_run_id=1, files=0, dirs=0)
+
+        with (
+            patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
+            patch(_PATCH_LOAD_CONFIG, return_value=cfg),
+            patch(_PATCH_SCAN, return_value=fake_result) as mock_scan,
+        ):
+            result = runner.invoke(app, ["library-index", "--mode", "enrich", "--budget", "60", "--no-budget"])
+
+        assert result.exit_code == 0
+        assert mock_scan.call_args.kwargs["budget_seconds"] is None
+
+
 class TestLibraryIndexQuickMode:
     """library-index --mode quick exits 0 and emits JSON."""
 

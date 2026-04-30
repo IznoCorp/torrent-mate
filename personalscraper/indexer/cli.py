@@ -289,6 +289,7 @@ def library_index_command(
     mode: str = "full",
     disk: str | None = None,
     budget_seconds: int | None = None,
+    no_budget: bool = False,
     dry_run: bool = False,
     wait_for_lock_seconds: int = 0,
     config_path: Path | None = None,
@@ -308,7 +309,12 @@ def library_index_command(
         disk: If provided, restrict the scan to the disk with this label.
             On ``IndexerConfigError("no disk with label 'X'")`` the error
             is printed to stderr and exit code 2 is returned.
-        budget_seconds: Maximum wall-clock seconds for the scan.  ``None`` = unlimited.
+        budget_seconds: Maximum wall-clock seconds for the scan.  ``None`` falls
+            back to ``cfg.indexer.scan.budget_seconds`` (cron-friendly default).
+        no_budget: When ``True``, ignore both ``budget_seconds`` and the config
+            default and run with no wall-clock cap.  Use for manual passes that
+            must drain every pending file in one go (full enrich after a cold
+            Stage A walk); the writer lock is held for the full duration.
         dry_run: When ``True``, all DB writes are wrapped in a SQLite savepoint
             that is always rolled back so no rows are persisted.
         wait_for_lock_seconds: Seconds to wait for the writer lock before
@@ -360,6 +366,7 @@ def library_index_command(
         disk=disk,
         dry_run=dry_run,
         rebuild=rebuild,
+        no_budget=no_budget,
         config_path=str(config_path) if config_path else None,
     )
 
@@ -469,9 +476,12 @@ def library_index_command(
                 if dry_run:
                     conn.execute("SAVEPOINT _dry_run")
 
-                effective_budget_seconds = (
-                    budget_seconds if budget_seconds is not None else cfg.indexer.scan.budget_seconds
-                )
+                if no_budget:
+                    effective_budget_seconds: int | None = None
+                elif budget_seconds is not None:
+                    effective_budget_seconds = budget_seconds
+                else:
+                    effective_budget_seconds = cfg.indexer.scan.budget_seconds
 
                 try:
                     result = scan(

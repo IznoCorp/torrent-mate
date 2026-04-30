@@ -667,6 +667,14 @@ def library_index(
     mode: str = typer.Option("full", "--mode", help="Scan mode: full, quick, incremental, or enrich"),
     disk: Optional[str] = typer.Option(None, "--disk", help="Restrict scan to this disk label"),
     budget: Optional[int] = typer.Option(None, "--budget", help="Budget in seconds"),
+    no_budget: bool = typer.Option(
+        False,
+        "--no-budget",
+        help=(
+            "Disable the wall-clock budget for this run (overrides --budget and config). "
+            "Use for manual full enrich passes that must drain every pending file."
+        ),
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
     wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
@@ -706,6 +714,7 @@ def library_index(
         mode=mode,
         disk=disk,
         budget_seconds=budget,
+        no_budget=no_budget,
         dry_run=dry_run,
         wait_for_lock_seconds=wait_for_lock,
         config_path=effective_config,

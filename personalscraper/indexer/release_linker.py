@@ -137,8 +137,7 @@ def get_or_create_season(conn: sqlite3.Connection, item_id: int, season_num: int
     if row is not None:
         return int(row[0])
     cursor = conn.execute(
-        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) "
-        "VALUES (?, ?, 0, 0, 0)",
+        "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) VALUES (?, ?, 0, 0, 0)",
         (item_id, season_num),
     )
     return int(cursor.lastrowid)  # type: ignore[arg-type]

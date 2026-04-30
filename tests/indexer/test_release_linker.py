@@ -112,9 +112,7 @@ def _seed_show(conn: sqlite3.Connection, *, title: str, dispatch_path: str) -> i
     return item_id
 
 
-def _seed_disk_and_file(
-    conn: sqlite3.Connection, *, mount_path: str, rel_path: str, filename: str
-) -> int:
+def _seed_disk_and_file(conn: sqlite3.Connection, *, mount_path: str, rel_path: str, filename: str) -> int:
     """Insert disk + path + media_file rows. Returns the file_id."""
     now = int(time.time())
     disk_id = disk_repo.insert(
@@ -310,9 +308,7 @@ def test_get_or_create_default_release_requires_exclusive_args(conn: sqlite3.Con
 
 def test_link_file_to_release_movie_creates_release(conn: sqlite3.Connection) -> None:
     """Movie file gets a brand-new default release pointing at the item."""
-    item_id = _seed_movie(
-        conn, title="Inception (2010)", dispatch_path="/Volumes/D/films/Inception (2010)"
-    )
+    item_id = _seed_movie(conn, title="Inception (2010)", dispatch_path="/Volumes/D/films/Inception (2010)")
     file_id = _seed_disk_and_file(
         conn,
         mount_path="/Volumes/D",
@@ -320,17 +316,13 @@ def test_link_file_to_release_movie_creates_release(conn: sqlite3.Connection) ->
         filename="Inception.mkv",
     )
 
-    release_id = link_file_to_release(
-        conn, file_id, "/Volumes/D/films/Inception (2010)/Inception.mkv"
-    )
+    release_id = link_file_to_release(conn, file_id, "/Volumes/D/films/Inception (2010)/Inception.mkv")
 
     assert release_id is not None
     file_row = conn.execute("SELECT release_id FROM media_file WHERE id = ?", (file_id,)).fetchone()
     assert file_row[0] == release_id
 
-    release_row = conn.execute(
-        "SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)
-    ).fetchone()
+    release_row = conn.execute("SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)).fetchone()
     assert release_row == (item_id, None)
 
 
@@ -344,14 +336,10 @@ def test_link_file_to_release_tv_episode(conn: sqlite3.Connection) -> None:
         filename="S02E15 - Pilot.mkv",
     )
 
-    release_id = link_file_to_release(
-        conn, file_id, "/Volumes/D/series/H (1998)/Saison 02/S02E15 - Pilot.mkv"
-    )
+    release_id = link_file_to_release(conn, file_id, "/Volumes/D/series/H (1998)/Saison 02/S02E15 - Pilot.mkv")
 
     assert release_id is not None
-    release_row = conn.execute(
-        "SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)
-    ).fetchone()
+    release_row = conn.execute("SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)).fetchone()
     assert release_row[0] is None
     episode_id = release_row[1]
     assert episode_id is not None
@@ -415,7 +403,5 @@ def test_link_file_to_release_tv_no_episode_marker_falls_back(conn: sqlite3.Conn
     release_id = link_file_to_release(conn, file_id, "/Volumes/D/series/Show/Saison 01/random.jpg")
     assert release_id is not None
 
-    release_row = conn.execute(
-        "SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)
-    ).fetchone()
+    release_row = conn.execute("SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)).fetchone()
     assert release_row == (item_id, None)
