@@ -228,10 +228,11 @@ def library_status_command(config_path: Path | None = None) -> int:
         from personalscraper.indexer import repair  # noqa: PLC0415
 
         oldest_pending_age_seconds, pending_depth = repair.get_queue_health(conn)
-        typer.echo(
-            f"repair queue: depth={pending_depth}, "
-            f"oldest={'never' if oldest_pending_age_seconds is None else oldest_pending_age_seconds // 3600}h"
-        )
+        if oldest_pending_age_seconds is None:
+            oldest_label = "never"
+        else:
+            oldest_label = f"{oldest_pending_age_seconds // 3600}h"
+        typer.echo(f"repair queue: depth={pending_depth}, oldest={oldest_label}")
 
         # --- Outbox pending depth ---
         outbox_depth = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0]
