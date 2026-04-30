@@ -441,6 +441,30 @@ class TVDBClient:
                 return None
             raise
 
+    def get_series_translation(self, series_id: int, lang: str = "fra") -> dict[str, Any] | None:
+        """Get translated title and overview for a series.
+
+        Uses 3-char language codes (fra, eng, spa). Auto-converts 2-char
+        codes via LANG_MAP.
+
+        Args:
+            series_id: TVDB series ID.
+            lang: Language code (3-char preferred, 2-char auto-converted).
+
+        Returns:
+            Dict with name, overview, and language. None if translation is not
+            available.
+        """
+        lang_3 = self._map_lang(lang)
+        try:
+            data = self._get(f"/series/{series_id}/translations/{lang_3}")
+            return data if isinstance(data, dict) else None
+        except TVDBError as e:
+            if e.http_status == 404:
+                log.debug("tvdb_series_translation_not_found", lang=lang_3, series_id=series_id)
+                return None
+            raise
+
     def get_series_artworks(self, series_id: int, type_id: int | None = None) -> list[dict[str, Any]]:
         """Get artworks for a series.
 

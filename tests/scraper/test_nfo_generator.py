@@ -562,6 +562,19 @@ class TestTvshowNFOBase:
         root = ET.fromstring(xml.split("\n", 1)[1])
         assert root.findtext("originaltitle") == "Fallout"
 
+    def test_originaltitle_strips_matching_year(self, generator: NFOGenerator) -> None:
+        """Original title should not duplicate the separate year field."""
+        data = SAMPLE_TVSHOW_DATA.copy()
+        data["name"] = "Invincible"
+        data["original_name"] = "INVINCIBLE (2021)"
+        data["first_air_date"] = "2021-03-25"
+
+        xml = generator.generate_tvshow_nfo(data)
+        root = ET.fromstring(xml.split("\n", 1)[1])
+
+        assert root.findtext("title") == "Invincible"
+        assert root.findtext("originaltitle") == "INVINCIBLE"
+
 
 # ---------------------------------------------------------------------------
 # TV show NFO — IDs

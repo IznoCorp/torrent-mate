@@ -511,12 +511,22 @@ class ScraperConfig(_StrictModel):
     """Scraper runtime tunables.
 
     Attributes:
+        language: Primary metadata language for titles and episode names.
+            Uses TMDB BCP-47 format (e.g. ``"fr-FR"``). TVDB calls are mapped
+            to their 3-letter language codes internally.
+        fallback_language: Fallback metadata language when ``language`` has no
+            translation.
+        prefer_local_title: Prefer the configured-language title over the API
+            match title when available.
         episode_default_name: Prefix for the synthetic episode title used when
             the provider lacks the episode and no phantom-season remap was
             found (``"{episode_default_name} {N}"``). Default ``"Episode"``
             gives ``"Episode 8"`` for an E08 fallback.
     """
 
+    language: str = Field(default="fr-FR", min_length=2)
+    fallback_language: str = Field(default="en-US", min_length=2)
+    prefer_local_title: bool = Field(default=True)
     episode_default_name: str = Field(default="Episode", min_length=1)
 
 

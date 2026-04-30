@@ -259,16 +259,16 @@ class NFOGenerator:
         title = raw_title
         if year_str and title.endswith(f" ({year_str})"):
             title = title[: -len(f" ({year_str})")]
+        raw_original_title = show_data.get(
+            "original_name",
+            show_data.get("originalName", ""),
+        )
+        original_title = raw_original_title
+        if year_str and original_title.endswith(f" ({year_str})"):
+            original_title = original_title[: -len(f" ({year_str})")]
         _sub(root, "title", title)
         _sub(root, "showtitle", "")
-        _sub(
-            root,
-            "originaltitle",
-            show_data.get(
-                "original_name",
-                show_data.get("originalName", ""),
-            ),
-        )
+        _sub(root, "originaltitle", original_title)
 
         # --- IDs (TMDB default for TV shows, unlike movies) ---
         # When TMDB resolves to 0/empty (show missing from TMDB), promote TVDB

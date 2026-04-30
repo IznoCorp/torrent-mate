@@ -157,6 +157,14 @@
 
   // Tunables scraper (fallbacks de nommage, etc.)
   scraper: {
+    // Langue principale des métadonnées pour les noms de films, séries et épisodes.
+    // TMDB utilise des codes BCP-47 (fr-FR, en-US). TVDB est mappé automatiquement.
+    language: "fr-FR",
+    // Langue de fallback quand la traduction principale est absente.
+    fallback_language: "en-US",
+    // Préférer le titre dans la langue configurée pour les dossiers/fichiers.
+    prefer_local_title: true,
+
     // Préfixe utilisé pour forger un titre d'épisode synthétique quand le
     // fournisseur ne référence pas l'épisode (concaténé avec le numéro:
     // "Episode 8"). S'applique aussi quand un remap phantom-season échoue.

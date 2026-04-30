@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from guessit.api import GuessitException
 
+from personalscraper.conf.models import ScraperConfig
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.scraper import (
@@ -20,6 +21,8 @@ from personalscraper.scraper.scraper import (
     _find_video_file,
     _infer_year_from_child_names,
     _parse_folder_name,
+    _rename_dir_case_safe,
+    _tvdb_series_to_show_data,
 )
 
 # ---------------------------------------------------------------------------
@@ -100,6 +103,94 @@ class TestInferYearFromChildNames:
         (release_dir / "Different.Show.S01E01.mkv").write_text("video")
 
         assert _infer_year_from_child_names(show_dir, "Les secrets du Prince Andrew") is None
+
+
+class TestScraperLanguage:
+    """Tests for configured scraper metadata language."""
+
+    def test_tvdb_series_uses_configured_translation(self) -> None:
+        """TVDB show data should prefer the configured-language title."""
+        show_data = _tvdb_series_to_show_data(
+            {
+                "name": "INVINCIBLE (2021)",
+                "originalName": None,
+                "translations": {"fra": "Invincible", "eng": "INVINCIBLE (2021)"},
+                "year": "2021",
+            },
+            tvdb_id=368207,
+            preferred_language="fr-FR",
+        )
+
+        assert show_data["name"] == "Invincible"
+        assert show_data["original_name"] == "INVINCIBLE (2021)"
+
+    def test_tvdb_series_fetches_configured_translation(self) -> None:
+        """TVDB show data should fetch series translation if extended lacks it."""
+        tvdb = MagicMock()
+        tvdb.get_series_artworks.return_value = []
+        tvdb.get_series_translation.return_value = {"name": "Invincible", "overview": "Résumé FR"}
+
+        show_data = _tvdb_series_to_show_data(
+            {"name": "INVINCIBLE (2021)", "year": "2021", "overview": "English overview"},
+            tvdb_id=368207,
+            tvdb_client=tvdb,
+            preferred_language="fr-FR",
+        )
+
+        assert show_data["name"] == "Invincible"
+        assert show_data["overview"] == "Résumé FR"
+        tvdb.get_series_translation.assert_called_once_with(368207, "fra")
+
+    def test_config_language_overrides_settings_for_tmdb_client(
+        self,
+        test_config,
+    ) -> None:
+        """Config scraper.language should be passed to TMDB."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        settings.scraper_language = "fr-FR"
+        settings.scraper_fallback_language = "en-US"
+        settings.scraper_prefer_local_title = True
+        settings.artwork_language = "fr"
+        settings.circuit_breaker_threshold = 5
+        settings.circuit_breaker_cooldown = 300
+
+        config = test_config.model_copy(
+            update={
+                "scraper": ScraperConfig(
+                    language="en-US",
+                    fallback_language="fr-FR",
+                    prefer_local_title=False,
+                ),
+            }
+        )
+
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient") as tmdb_cls,
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            scraper = Scraper(settings, NamingPatterns(), config=config)
+
+        assert scraper._scraper_language == "en-US"
+        assert scraper._tvdb_language == "eng"
+        tmdb_cls.assert_called_once()
+        assert tmdb_cls.call_args.kwargs["language"] == "en-US"
+
+
+class TestRenameDirCaseSafe:
+    """Tests for case-only directory rename helper."""
+
+    def test_same_path_uses_temp_rename(self, tmp_path: Path) -> None:
+        """Same-file rename should preserve directory contents."""
+        source = tmp_path / "INVINCIBLE (2021)"
+        source.mkdir()
+        (source / "tvshow.nfo").write_text("nfo")
+
+        result = _rename_dir_case_safe(source, source)
+
+        assert result == source
+        assert (source / "tvshow.nfo").read_text() == "nfo"
 
 
 # ---------------------------------------------------------------------------
@@ -561,6 +652,24 @@ class TestScrapeTvshow:
         is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
         assert not is_valid
         assert reason.startswith("folder_name_drift")
+
+    def test_verify_rejects_nfo_title_with_duplicate_year(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """NFO title must not carry the year when <year> is separate."""
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            folder_name="INVINCIBLE (2021)",
+            nfo_title="INVINCIBLE (2021)",
+            nfo_year="2021",
+        )
+
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+
+        assert not is_valid
+        assert reason == "nfo_title_contains_year"
 
     def test_verify_tolerates_nfc_nfd_equivalence(
         self,

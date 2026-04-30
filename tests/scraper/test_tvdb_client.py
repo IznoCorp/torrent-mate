@@ -560,6 +560,22 @@ class TestTVDBClientDetails:
 
         assert result is None
 
+    def test_get_series_translation_fr(self, logged_in_client: TVDBClient) -> None:
+        """get_series_translation should return translated title/overview."""
+        mock_resp = _mock_response(
+            200,
+            {
+                "status": "success",
+                "data": SAMPLE_TRANSLATION,
+            },
+        )
+
+        with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
+            result = logged_in_client.get_series_translation(368207, "fra")
+
+        assert result["name"] == "Épisode pilote"
+        assert "/series/368207/translations/fra" in mock_get.call_args[0][0]
+
 
 # ---------------------------------------------------------------------------
 # TVDBClient — artworks and cross-reference IDs
