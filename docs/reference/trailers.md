@@ -16,15 +16,14 @@ All keys under the trailers block in config.json5.
 
 ### Top-level keys
 
-| Key                                   | Type | Default                        | Description                    |
-| ------------------------------------- | ---- | ------------------------------ | ------------------------------ |
-| enabled                               | bool | false                          | Master switch                  |
-| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes      |
-| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query         |
-| state_file                            | str  | ".data/trailers_state.json"    | State JSON path                |
-| retry_after_days                      | list | [1,7,30]                       | Days before retry              |
-| bot_detected_max_consecutive_attempts | int  | 5                              | Max consecutive BOT_DETECTED   |
-| library_scan_max_age_hours            | int  | 24                             | Max age of cached library scan |
+| Key                                   | Type | Default                        | Description                  |
+| ------------------------------------- | ---- | ------------------------------ | ---------------------------- |
+| enabled                               | bool | false                          | Master switch                |
+| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes    |
+| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query       |
+| state_file                            | str  | ".data/trailers_state.json"    | State JSON path              |
+| retry_after_days                      | list | [1,7,30]                       | Days before retry            |
+| bot_detected_max_consecutive_attempts | int  | 5                              | Max consecutive BOT_DETECTED |
 
 ### trailers.filters
 
@@ -231,10 +230,14 @@ place and are reported as already-present on each pipeline run.
 
 ### Library-aware idempotence (DESIGN section 8)
 
-When trailers.library_check.tv_shows = true (default), the orchestrator calls
-library.scanner.scan_library() once before processing TV show items.
-If the show exists on a storage disk with a valid trailer, the entry is marked
-already_present_on_disk and no network call is made.
+When trailers.library_check.tv_shows = true (default), the orchestrator
+queries the indexer DB (via `trailers.scanner.Scanner.scan_library`, which
+calls `indexer.query.find_items_without_trailer`) once before processing TV
+show items. If the show is already indexed and has a valid trailer file on
+a storage disk, the entry is marked `already_present_on_disk` and no
+network call is made. The previous TTL-cached library walk and the
+`library_scan_max_age_hours` config knob were removed when the indexer DB
+became the single source of truth (DESIGN §10.3).
 
 - movies = false (films rarely re-ingested)
 - tv_shows = true (new episodes arrive frequently)
