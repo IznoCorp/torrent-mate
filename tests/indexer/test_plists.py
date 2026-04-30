@@ -227,20 +227,29 @@ def test_rotate_shell_wrapper_references_correct_modes() -> None:
 def test_plist_launchctl_bootstrap_and_bootout(plist_path: Path, tmp_path: Path) -> None:
     """Smoke test: launchctl bootstrap + bootout must succeed on macOS.
 
-    Creates a copy of the plist with a unique label (to avoid collisions with
-    any real installed agent) and points StandardOutPath / StandardErrorPath at
-    temporary files.  Bootstraps, then immediately boots out.
+    Creates a copy of the plist with a per-process-unique label (to avoid
+    collisions with any real installed agent and with leftovers from prior
+    test runs) and points StandardOutPath / StandardErrorPath at temporary
+    files.  Bootstraps, then immediately boots out.
+
+    A preemptive bootout-by-target is issued before the bootstrap to clear
+    any stale registration from a previous crashed run — without it,
+    ``launchctl bootstrap`` returns ``5: Input/output error`` when the same
+    label is already loaded in the user's domain.
 
     Args:
         plist_path: Absolute path to the plist template under test.
         tmp_path: Pytest temporary directory for log paths and modified plist.
     """
-    # Build a uniquely-labelled copy to avoid label collisions.
+    import uuid
+
+    # Build a uniquely-labelled copy to avoid label collisions across test
+    # runs: pid alone is recycled, uuid4 prevents same-pid double-fire.
     raw = plist_path.read_bytes()
     parsed: dict = plistlib.loads(raw)
 
-    # Patch the label to avoid colliding with a real installed agent.
-    parsed["Label"] = parsed["Label"] + ".test"
+    unique_label = f"{parsed['Label']}.test.{os.getpid()}.{uuid.uuid4().hex[:8]}"
+    parsed["Label"] = unique_label
 
     # Redirect logs to tmp_path so no real __logit__/ is needed.
     parsed["StandardOutPath"] = str(tmp_path / "out.log")
@@ -255,6 +264,17 @@ def test_plist_launchctl_bootstrap_and_bootout(plist_path: Path, tmp_path: Path)
 
     uid = str(os.getuid())
     domain = f"gui/{uid}"
+    target = f"{domain}/{unique_label}"
+
+    # Preemptively bootout by target in case a prior crashed run left a
+    # registration with the same label.  Failures here are expected and
+    # ignored — there is usually nothing to bootout on a clean run.
+    subprocess.run(
+        ["launchctl", "bootout", target],
+        capture_output=True,
+        timeout=10,
+        check=False,
+    )
 
     try:
         result = subprocess.run(
