@@ -87,9 +87,7 @@ class TestInferYearFromChildNames:
     def test_infers_year_from_matching_release_subdir(self, tmp_path: Path) -> None:
         """Should use a matching release subdirectory year."""
         show_dir = tmp_path / "Les secrets du Prince Andrew"
-        release_dir = (
-            show_dir / "Les.secrets.du.Prince.Andrew.2023.S01.DOC.FRENCH.1080p.WEB.H264-BOUBA"
-        )
+        release_dir = show_dir / "Les.secrets.du.Prince.Andrew.2023.S01.DOC.FRENCH.1080p.WEB.H264-BOUBA"
         release_dir.mkdir(parents=True)
         (release_dir / "Les.secrets.du.Prince.Andrew.S01E01.mkv").write_text("video")
 
@@ -562,10 +560,7 @@ class TestScrapeTvshow:
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
         (show_dir / "tvshow.nfo").write_text(
-            (
-                "<tvshow><title>Fallout</title><year>2024</year>"
-                '<uniqueid type="tmdb">106379</uniqueid></tvshow>'
-            )
+            ('<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tmdb">106379</uniqueid></tvshow>')
         )
         (show_dir / "poster.jpg").write_bytes(b"\xff")
         (show_dir / "landscape.jpg").write_bytes(b"\xff")
