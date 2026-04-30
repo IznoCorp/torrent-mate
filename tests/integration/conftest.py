@@ -107,6 +107,10 @@ def integration_config(staging_tree: Path, fake_disks: list[Path], test_config: 
     overrides:
     - ``paths.staging_dir`` → ``staging_tree``
     - ``disks`` → four DiskConfig entries pointing at ``fake_disks``
+    - ``indexer.db_path`` → ``paths.data_dir / "library.db"`` so dispatch and
+      assertions share a tmp_path-scoped SQLite file (the default
+      ``IndexerConfig.db_path`` is a CWD-relative path that would otherwise
+      land in the developer's real ``.personalscraper/library.db``).
 
     The 11 builtin category IDs from ``test_config`` are redistributed
     across the four fake disks so every disk has at least one category and
@@ -149,7 +153,11 @@ def integration_config(staging_tree: Path, fake_disks: list[Path], test_config: 
         ),
     ]
 
-    return test_config.model_copy(update={"paths": new_paths, "disks": new_disks})
+    # Pin indexer.db_path under tmp_path/data_dir so dispatch never writes
+    # into the developer's real library.db via the relative default.
+    new_indexer = test_config.indexer.model_copy(update={"db_path": new_paths.data_dir / "library.db"})
+
+    return test_config.model_copy(update={"paths": new_paths, "disks": new_disks, "indexer": new_indexer})
 
 
 @pytest.fixture()

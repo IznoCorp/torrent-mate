@@ -122,13 +122,13 @@ def test_crash_recovery_uses_filesystem_scan(
     old_file = existing_movie_dir / "file.mkv"
     old_file.write_bytes(b"old_content" * 10)
 
-    # Ensure data_dir exists — MediaIndex requires the parent directory for its DB.
-    config.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    # Ensure the indexer DB parent directory exists — MediaIndex needs it.
+    index_path = config.indexer.db_path
+    index_path.parent.mkdir(parents=True, exist_ok=True)
 
     # The DB starts empty (no prior entries) to simulate a crashed prior run.
     # run_dispatch detects count == 0 and triggers a filesystem rebuild.
     # No JSON file is involved; the DB lifecycle is fully automatic.
-    index_path = config.paths.data_dir / "library.db"
 
     # Place a new version of the movie in the staging 001-MOVIES subdirectory.
     movies_staging = staging_tree / folder_name(find_by_file_type(config, FileType.MOVIE))
