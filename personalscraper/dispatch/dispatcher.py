@@ -373,9 +373,16 @@ class Dispatcher:
 
         # Update index with current IDs
         if result.action in ("replaced", "moved") and result.destination:
+            # ``replaced`` writes into an existing on-disk folder whose casing
+            # is canonical; record that, not the staging spelling, so the
+            # indexer never drifts away from the filesystem (see the matching
+            # comment in dispatch_tvshow for the rationale).
+            canonical_name = (
+                result.destination.name if result.action == "replaced" else movie_dir.name
+            )
             self.index.add(
                 IndexEntry(
-                    name=movie_dir.name,
+                    name=canonical_name,
                     disk=result.disk or "",
                     category=category_id,
                     path=str(result.destination),
@@ -476,9 +483,21 @@ class Dispatcher:
             result.action = "moved" if success else "error"
 
         if result.action in ("merged", "moved") and result.destination:
+            # When merging into an existing on-disk folder, the destination's
+            # name carries the canonical casing (NTFS is case-insensitive, so
+            # rsync resolves to the pre-existing folder). Recording the
+            # staging-side casing here would silently overwrite the indexer
+            # title with the new spelling on every dispatch and cause the
+            # next case-mismatch scan to keep flagging it. Use the
+            # destination's basename as the canonical title for merges /
+            # replacements; ``moved`` actions write a brand-new folder so
+            # the staging name is correct in that branch.
+            canonical_name = (
+                result.destination.name if result.action == "merged" else show_dir.name
+            )
             self.index.add(
                 IndexEntry(
-                    name=show_dir.name,
+                    name=canonical_name,
                     disk=result.disk or "",
                     category=category_id,
                     path=str(result.destination),
