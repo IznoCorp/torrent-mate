@@ -69,32 +69,13 @@ _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 # NTFS-illegal characters
 _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 
-# Junk files (same set as process/cleanup.py)
-# Includes .DS_Store, Thumbs.db, desktop.ini + macOS resource fork prefix "._"
-_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
-
-# Video extensions (same set as sorter/file_type.py)
-_VIDEO_EXTENSIONS = frozenset(
-    {
-        "mp4",
-        "mkv",
-        "avi",
-        "mov",
-        "wmv",
-        "flv",
-        "mpg",
-        "mpeg",
-        "m4v",
-        "webm",
-        "ts",
-        "m2ts",
-        "mts",
-        "3gp",
-        "vob",
-        "ogv",
-        "rmvb",
-    }
-)
+# Junk files: shared SSOT in text_utils.JUNK_FILE_NAMES.  macOS resource
+# fork prefix "._" is matched separately at every call site.
+# Video extensions: re-exported from sorter.file_type so the library
+# scanner and the sorter share the single source of truth for what counts
+# as a video file across the pipeline.
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS  # noqa: E402
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
 
 
 def parse_title_year(dirname: str) -> tuple[str, int | None]:

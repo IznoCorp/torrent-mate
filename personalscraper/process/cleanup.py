@@ -9,11 +9,9 @@ from pathlib import Path
 
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES
 
 log = get_logger("process.cleanup")
-
-# Files that don't count as "content" (macOS metadata)
-_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
 
 
 def _is_effectively_empty(directory: Path) -> bool:

@@ -29,6 +29,13 @@ _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
 _FILENAME_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 _MULTI_SPACE = re.compile(r" {2,}")
 
+#: Junk filenames that show up next to media on macOS / Windows / Linux and
+#: should be skipped, removed, or ignored by every consumer that walks the
+#: filesystem (process/cleanup, library/scanner, library/disk_cleaner).
+#: macOS resource-fork shadows ``._*`` are matched separately because they
+#: are a prefix family rather than fixed names.
+JUNK_FILE_NAMES: frozenset[str] = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
+
 
 def sanitize_filename(name: str) -> str:
     r"""Remove characters that are illegal or problematic in filenames.

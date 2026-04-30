@@ -29,7 +29,7 @@ from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
 
-_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
 
 
 @dataclass
