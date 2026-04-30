@@ -1302,6 +1302,14 @@ class Scraper:
         # Resolve title: use local FR title if preferred and available
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, movie_data, "movie"))
         api_year = match.api_year or year
+        # Folder name is filesystem-safe (sanitize_filename strips ``:``, ``?``,
+        # ``"`` etc. for NTFS compatibility) while the NFO ``<title>`` keeps
+        # the original punctuation for Plex/Kodi display. The two values are
+        # *intentionally* allowed to diverge — same item ``Some Show: Subtitle``
+        # ends up as folder ``Some Show Subtitle`` and NFO title
+        # ``Some Show: Subtitle``. Verified items downstream (verify/run.py)
+        # compare on NFC-normalised, NTFS-sanitised forms so this asymmetry
+        # does not cause false-positive drift.
         clean_name = sanitize_filename(f"{resolved_title} ({api_year})" if api_year else resolved_title)
 
         # Save old title before rename for stale file cleanup

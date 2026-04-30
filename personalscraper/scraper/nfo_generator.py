@@ -131,7 +131,17 @@ class NFOGenerator:
         root = ET.Element("movie")
 
         # --- Basic metadata ---
-        _sub(root, "title", movie_data.get("title", ""))
+        # TMDB occasionally returns titles with the year baked in for
+        # disambiguation. Kodi/Plex expect ``<title>`` bare with ``<year>``
+        # separate, so strip a trailing ``(YYYY)`` when it matches the
+        # release year. Mirrors the same defensive logic applied to TV shows.
+        raw_movie_title = movie_data.get("title", "")
+        release_date = movie_data.get("release_date") or ""
+        year_str = release_date[:4] if release_date else ""
+        movie_title = raw_movie_title
+        if year_str and movie_title.endswith(f" ({year_str})"):
+            movie_title = movie_title[: -len(f" ({year_str})")]
+        _sub(root, "title", movie_title)
         self._add_ratings(root, movie_data)
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
@@ -238,7 +248,17 @@ class NFOGenerator:
         root = ET.Element("tvshow")
 
         # --- Basic metadata ---
-        title = show_data.get("name", show_data.get("title", ""))
+        # TVDB sometimes returns the disambiguating year inside the title
+        # itself (e.g. ``INVINCIBLE (2021)``). Kodi/Plex NFO conventions
+        # expect ``<title>`` to be the bare title and ``<year>`` to carry the
+        # year separately, so strip a trailing ``(YYYY)`` when it matches the
+        # year we're about to write below.
+        raw_title = show_data.get("name", show_data.get("title", ""))
+        first_aired = show_data.get("first_air_date") or show_data.get("firstAired") or ""
+        year_str = first_aired[:4] if first_aired else ""
+        title = raw_title
+        if year_str and title.endswith(f" ({year_str})"):
+            title = title[: -len(f" ({year_str})")]
         _sub(root, "title", title)
         _sub(root, "showtitle", "")
         _sub(

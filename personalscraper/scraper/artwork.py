@@ -258,6 +258,7 @@ class ArtworkDownloader:
         title = movie_data.get("title", "")
 
         # Poster
+        posters_count = len(images.get("posters", []))
         poster_path = select_best_image(images.get("posters", []), self._lang_priority)
         if poster_path:
             poster_name = patterns.format("movie_poster", Title=title)
@@ -268,9 +269,28 @@ class ArtworkDownloader:
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
                 log.warning("artwork_movie_poster_failed", filename=poster_name)
+        else:
+            # Surface gaps in upstream metadata (TMDB returned 0 posters for
+            # this movie). Without this log a missing poster.jpg looks like
+            # a local code failure when it is really an upstream data gap.
+            log.warning("artwork_movie_poster_missing_source", title=title, source="tmdb", candidates=posters_count)
 
-        # Landscape (from backdrops)
-        landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
+        # Landscape (from backdrops). TMDB exposes the show-/movie-level
+        # backdrop both as ``backdrop_path`` on the main detail payload and
+        # as a list under ``images.backdrops``; fall back to the former when
+        # the list is empty so a single backdrop still produces a landscape.
+        backdrops = images.get("backdrops", [])
+        backdrops_count = len(backdrops)
+        landscape_path = select_best_image(backdrops, self._lang_priority)
+        if not landscape_path:
+            fallback_backdrop = movie_data.get("backdrop_path")
+            if fallback_backdrop:
+                landscape_path = fallback_backdrop
+                log.info(
+                    "artwork_movie_landscape_fallback",
+                    title=title,
+                    source="tmdb_main_detail_backdrop_path",
+                )
         if landscape_path:
             landscape_name = patterns.format("movie_landscape", Title=title)
             dest = movie_dir / landscape_name
@@ -280,6 +300,16 @@ class ArtworkDownloader:
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
                 log.warning("artwork_movie_landscape_failed", filename=landscape_name)
+        else:
+            # Surface upstream metadata gaps so the operator can distinguish
+            # "TMDB has no backdrop" (this log) from "downloader failed"
+            # (artwork_movie_landscape_failed log above).
+            log.warning(
+                "artwork_movie_landscape_missing_source",
+                title=title,
+                source="tmdb",
+                candidates=backdrops_count,
+            )
 
         return downloaded
 
