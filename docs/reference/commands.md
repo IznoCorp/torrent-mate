@@ -21,29 +21,49 @@ personalscraper run --continue-on-trailer-error  # Continue to dispatch even on 
 
 ## Library Maintenance
 
+### Indexer (DB-backed)
+
 ```bash
-personalscraper library-scan                         # Scan library structure/metadata
-personalscraper library-scan --disk Disk1            # Scan single disk
-personalscraper library-clean                        # Dry-run: show what would be cleaned
-personalscraper library-clean --apply                # Delete .actors/, empty dirs, junk
-personalscraper library-clean --only actors --apply  # Only .actors/ dirs
-personalscraper library-validate                     # Validate NFO/artwork/naming conformity
-personalscraper library-validate --fix --apply       # Auto-fix what's possible
-personalscraper library-analyze                      # Deep ffprobe scan (codec, audio, subs)
-personalscraper library-analyze --incremental        # Skip already-analyzed files
-personalscraper library-recommend                    # Generate re-download list
-personalscraper library-recommend --export csv       # Export to CSV
-personalscraper library-rescrape --dry-run           # Preview targeted re-scraping
-personalscraper library-rescrape --only artwork      # Only re-download missing artwork
-personalscraper library-rescrape --only nfo          # Only regenerate broken/missing NFOs
-personalscraper library-rescrape --only episodes     # Only rename episodes via TMDB/TVDB
-personalscraper library-rescrape --disk Disk1        # Single disk
-personalscraper library-rescrape --max-items 50      # Limit items processed
-personalscraper library-rescrape --interactive       # Confirm low-confidence matches
-personalscraper library-report                       # Library health statistics
-personalscraper library-report --format json         # Export as JSON
+personalscraper library-index                                # Full indexer scan (all disks)
+personalscraper library-index --mode quick                   # Quick: Merkle short-circuit + dir-mtime
+personalscraper library-index --mode incremental             # Changed-files-only
+personalscraper library-index --mode enrich                  # Mediainfo + NFO + artwork on un-enriched files
+personalscraper library-index --disk Disk1 --mode full       # Restrict to one disk
+personalscraper library-index --dry-run                      # Plan only, no DB writes
+personalscraper library-index --rebuild                      # Drop and rebuild from scratch
+personalscraper library-index --confirm-bulk-change          # Confirm large Merkle delta
+personalscraper library-status                               # Latest indexer scan run summary
+personalscraper library-verify                               # Re-stat every indexed file; enqueue mismatches
+personalscraper library-verify --disk Disk1                  # Verify one disk
+personalscraper library-search "<query>"                     # Flex-attr query (e.g. nfo_status:invalid)
+personalscraper library-show <item_id>                       # Pretty-print all data for one item
+personalscraper library-repair                               # Drain repair queue (default budget)
+personalscraper library-repair --budget 120                  # Drain with explicit time budget (s)
 ```
 
+### Disk-walking commands
+
+```bash
+personalscraper library-scan                                 # Walk disks, populate indexer + dispatch_path attrs
+personalscraper library-scan --disk Disk1                    # Single disk
+personalscraper library-clean                                # Dry-run: show what would be cleaned
+personalscraper library-clean --apply                        # Delete .actors/, empty dirs, junk
+personalscraper library-clean --only actors --apply          # Only .actors/ dirs
+personalscraper library-validate                             # Validate NFO/artwork/naming conformity
+personalscraper library-validate --fix --apply               # Auto-fix what's possible
+personalscraper library-analyze                              # Deep ffprobe scan (codec, audio, subs)
+personalscraper library-recommend                            # Run analysis inline + generate re-download list
+personalscraper library-recommend --export csv               # Export to CSV
+personalscraper library-rescrape --dry-run                   # Preview targeted re-scraping
+personalscraper library-rescrape --only artwork              # Only re-download missing artwork
+personalscraper library-rescrape --only nfo                  # Only regenerate broken/missing NFOs
+personalscraper library-rescrape --only episodes             # Only rename episodes via TMDB/TVDB
+personalscraper library-rescrape --disk Disk1                # Single disk
+personalscraper library-rescrape --max-items 50              # Limit items processed
+personalscraper library-rescrape --interactive               # Confirm low-confidence matches
+personalscraper library-report                               # Library health statistics (DB-backed)
+personalscraper library-report --format json                 # Export as JSON
+```
 
 ## Trailers
 
@@ -54,12 +74,21 @@ personalscraper trailers purge [--dry-run] [--disk D]
 
 Exit codes: 0 ok, 1 error, 2 bad argument.
 
-## Bootstrap
+## Bootstrap & Inspection
 
 ```bash
 personalscraper init-config                          # Create config.json5 from the example template (interactive)
 personalscraper init-config --yes                    # Non-interactive — accept all defaults
 personalscraper init-config --force                  # Overwrite existing config.json5 (backs up to .bak)
+personalscraper info                                 # Display version, config paths, disk status
+```
+
+## Config Migration
+
+```bash
+personalscraper config migrate-to-v2                 # Migrate legacy config.json5 → split-config layout
+personalscraper config migrate-to-v2 --dry-run       # Preview migration without writes
+personalscraper config migrate-category <old> <new>  # Rename a category id across config + on-disk paths
 ```
 
 ## Aliases

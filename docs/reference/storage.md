@@ -114,34 +114,37 @@ for nightly runs and reserve `--mode full` for weekend maintenance windows.
 
 Use these steps after any of the following events:
 
-- `library.db` is corrupted (`library status` exits 1 with `IndexerCorruptError`).
+- `library.db` is corrupted (`library-status` exits 1 with `IndexerCorruptError`).
 - A disk was replaced and its volume UUID changed.
-- The database was lost (e.g. `.data/` directory deleted or internal disk reformatted).
+- The database was lost (e.g. the `.personalscraper/` directory deleted or the internal disk reformatted).
 - An unclean unmount left the index inconsistent with the disks.
+
+The default DB path is `.personalscraper/library.db` (configurable via `indexer.db_path` in `config.json5`).
 
 ### Quick path — use `--rebuild`
 
 ```bash
 # Quarantines the existing DB and runs a full Stage-A rescan from scratch.
-personalscraper library index --rebuild
+personalscraper library-index --rebuild
 
 # Verify the result
-personalscraper library status
+personalscraper library-status
 ```
 
-The quarantined database is moved to `.data/library.db.quarantine.<timestamp>`.
+The quarantined database is renamed to `<db_path>.corrupt-<unix_ts>` (e.g.
+`.personalscraper/library.db.corrupt-1714567890`).
 
 ### Manual path (if `--rebuild` itself fails)
 
 ```bash
 # 1. Remove or quarantine the corrupt database manually
-mv .data/library.db .data/library.db.bak
+mv .personalscraper/library.db .personalscraper/library.db.bak
 
 # 2. Run a full scan — creates a fresh database
-personalscraper library index --mode full
+personalscraper library-index --mode full
 
 # 3. Verify
-personalscraper library status
+personalscraper library-status
 ```
 
 ### Per-disk cold rebuild (disk replaced or UUID changed)
@@ -150,10 +153,10 @@ When only one disk needs rebuilding, scope the scan to avoid I/O on healthy disk
 
 ```bash
 # Step 1: update disk registry (re-detect new UUID on remount)
-personalscraper library index --mode full --disk Disk3
+personalscraper library-index --mode full --disk Disk3
 
 # Step 2: verify
-personalscraper library status
+personalscraper library-status
 ```
 
 If the old disk row is still in the database with a stale UUID, the scanner
@@ -168,7 +171,7 @@ to cap wall-clock time and resume across sessions:
 
 ```bash
 # Cap at 90 minutes; resumes from checkpoint on next invocation
-personalscraper library index --mode full --disk Disk3 --budget 5400
+personalscraper library-index --mode full --disk Disk3 --budget 5400
 ```
 
 ## Paths
