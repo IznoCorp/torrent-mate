@@ -89,10 +89,10 @@ def run_dispatch(
         StepReport with dispatch counts and details.
     """
     staging_dir = config.paths.staging_dir
-    # Pass the DB path directly; MediaIndex.__init__ ignores the filename and
-    # uses index_path.parent / "library.db" — so any path under data_dir works.
-    # Using "library.db" here makes the intent explicit: no JSON file involved.
-    index_path = config.paths.data_dir / "library.db"
+    # Dispatch must consult the same indexer DB populated by ``library index``
+    # and the outbox publishers.  ``paths.data_dir`` can differ from the
+    # indexer storage directory in the split config layout.
+    index_path = config.indexer.db_path
 
     # Clean orphaned temp dirs from staging area
     cleaned = 0

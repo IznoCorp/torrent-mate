@@ -39,6 +39,7 @@ class TestRunDispatch:
         config = MagicMock()
         config.paths.staging_dir = tmp_path
         config.paths.data_dir = tmp_path / ".data"
+        config.indexer.db_path = tmp_path / ".personalscraper" / "library.db"
         config.disks = []
         config.staging_dirs = CANONICAL_STAGING_DIRS
 
@@ -59,4 +60,5 @@ class TestRunDispatch:
             report = run_dispatch(settings, config=config, dry_run=True)
 
         assert report.name == "dispatch"
+        MockIdx.assert_called_once_with(config.indexer.db_path, config=config)
         mock_idx.load.assert_called_once()

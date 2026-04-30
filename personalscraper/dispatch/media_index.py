@@ -164,11 +164,12 @@ class MediaIndex:
     """
 
     def __init__(self, index_path: Path, *, config: Config | None = None) -> None:
-        """Open the indexer database adjacent to *index_path*.
+        """Open the configured indexer database.
 
         ``index_path`` is accepted for backward compatibility with existing
-        callers (which pass ``data_dir / "media_index.json"``); the value is
-        ignored. The actual DB is opened at ``index_path.parent / "library.db"``.
+        callers.  When *config* is supplied, ``config.indexer.db_path`` is the
+        source of truth.  Without *config*, a ``*.db`` path is used directly;
+        legacy JSON-style paths still resolve to ``index_path.parent / "library.db"``.
 
         If the DB is empty (no ``media_item`` rows) and ``config`` is
         supplied, a full rebuild is triggered automatically so that
@@ -183,8 +184,16 @@ class MediaIndex:
                 If None and the DB is empty, a warning is logged and the
                 rebuild is skipped (manual rebuild required).
         """
-        # Derive the DB path from the directory that held the old JSON file.
-        db_path = index_path.parent / "library.db"
+        # Use the configured indexer DB when available.  This keeps dispatch on
+        # the same SQLite file as ``personalscraper library index`` and outbox
+        # publishers even when paths.data_dir differs from indexer.db_path.
+        configured_db_path = getattr(getattr(config, "indexer", None), "db_path", None)
+        if isinstance(configured_db_path, Path):
+            db_path = configured_db_path
+        elif index_path.suffix == ".db":
+            db_path = index_path
+        else:
+            db_path = index_path.parent / "library.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
         self._conn = open_db(db_path)
@@ -231,6 +240,8 @@ class MediaIndex:
         Safe to call multiple times: subsequent calls are no-ops.  After
         ``close()`` the instance must not be used for any further queries.
         """
+        if not hasattr(self, "_conn"):
+            return
         try:
             self._conn.close()
         except Exception as exc:  # noqa: BLE001 — defensive; log and swallow

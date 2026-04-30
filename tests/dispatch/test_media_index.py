@@ -491,6 +491,34 @@ class TestFuzzyGuards:
 class TestMediaIndexConnectionLifecycle:
     """Tests for close(), __enter__/__exit__, and __del__ behaviour."""
 
+    def test_configured_db_path_wins_over_legacy_index_path(self, tmp_path: Path) -> None:
+        """When Config is supplied, MediaIndex must open config.indexer.db_path."""
+
+        class _Indexer:
+            db_path = tmp_path / ".personalscraper" / "library.db"
+
+        class _Config:
+            indexer = _Indexer()
+            disks = []
+            categories = {}
+
+        legacy_index_path = tmp_path / ".data" / "media_index.json"
+        legacy_index_path.parent.mkdir()
+
+        with MediaIndex(legacy_index_path, config=_Config()) as idx:  # type: ignore[arg-type]
+            idx.add(
+                IndexEntry(
+                    name="Configured DB (2026)",
+                    disk="drive_a",
+                    category="movies",
+                    path="/drive_a/movies/Configured DB (2026)",
+                    media_type="movie",
+                )
+            )
+
+        assert _Indexer.db_path.exists()
+        assert not (legacy_index_path.parent / "library.db").exists()
+
     def test_context_manager_closes_connection(self, tmp_path: Path) -> None:
         """FD count must return to baseline after the ``with`` block exits.
 
