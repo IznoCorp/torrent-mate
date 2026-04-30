@@ -469,6 +469,10 @@ def library_index_command(
                 if dry_run:
                     conn.execute("SAVEPOINT _dry_run")
 
+                effective_budget_seconds = (
+                    budget_seconds if budget_seconds is not None else cfg.indexer.scan.budget_seconds
+                )
+
                 try:
                     result = scan(
                         disks=filtered_disks,
@@ -476,8 +480,16 @@ def library_index_command(
                         generation=next_gen,
                         conn=conn,
                         disk_filter=disk,
+                        drop_indexes=cfg.indexer.scan.drop_indexes_during_full_scan,
+                        budget_seconds=effective_budget_seconds,
+                        db_path=db_path,
+                        checkpoint_every_n_files=cfg.indexer.scan.checkpoint_every_n_files,
                         confirm_bulk_change=confirm_bulk_change,
                         merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
+                        max_workers=cfg.indexer.scan.max_workers_total,
+                        read_rate_mb_per_sec=cfg.indexer.scan.read_rate_mb_per_sec,
+                        staging_dir=str(cfg.paths.staging_dir),
+                        spotlight_enabled=cfg.indexer.spotlight.use_when_available,
                         paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
                     )
                 except DiskBulkChangeDetected as bulk_exc:
@@ -507,7 +519,7 @@ def library_index_command(
                             pass
 
                 # --- Drain outbox ---
-                drained = drain_if_present(conn)
+                drained = drain_if_present(conn, cfg.indexer)
                 log.debug("indexer.cli.index.outbox_drained", count=drained)
 
                 # --- Print JSON summary to stdout ---

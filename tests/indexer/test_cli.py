@@ -105,6 +105,7 @@ def _make_config(tmp_path: Path, *, extra_categories: frozenset[str] | None = No
     mock_cfg = MagicMock()
     ic = IndexerConfig(db_path=tmp_path / "library.db")
     mock_cfg.indexer = ic
+    mock_cfg.paths.staging_dir = tmp_path / "staging"
 
     # Provide a minimal set of known category IDs for migrate-category tests.
     base_cats: frozenset[str] = frozenset({"movies", "tv_shows", "anime", "standup"})
@@ -170,11 +171,20 @@ class TestLibraryIndexQuickMode:
         with (
             patch(_PATCH_RESOLVE_PATH, return_value=Path("/fake/config.json5")),
             patch(_PATCH_LOAD_CONFIG, return_value=cfg),
-            patch(_PATCH_SCAN, return_value=fake_result),
+            patch(_PATCH_SCAN, return_value=fake_result) as mock_scan,
         ):
             result = runner.invoke(app, ["library-index", "--mode", "quick"])
 
         assert result.exit_code == 0, f"Expected 0, got {result.exit_code}. Output:\n{result.output}"
+        call_kwargs = mock_scan.call_args.kwargs
+        assert call_kwargs["db_path"] == cfg.indexer.db_path
+        assert call_kwargs["max_workers"] == cfg.indexer.scan.max_workers_total
+        assert call_kwargs["checkpoint_every_n_files"] == cfg.indexer.scan.checkpoint_every_n_files
+        assert call_kwargs["drop_indexes"] == cfg.indexer.scan.drop_indexes_during_full_scan
+        assert call_kwargs["budget_seconds"] == cfg.indexer.scan.budget_seconds
+        assert call_kwargs["read_rate_mb_per_sec"] == cfg.indexer.scan.read_rate_mb_per_sec
+        assert call_kwargs["staging_dir"] == str(cfg.paths.staging_dir)
+        assert call_kwargs["spotlight_enabled"] == cfg.indexer.spotlight.use_when_available
         summary = json.loads(result.stdout.strip())
         assert summary["mode"] == "quick"
         assert summary["files_walked"] == 10
