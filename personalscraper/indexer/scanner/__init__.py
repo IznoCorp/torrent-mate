@@ -851,7 +851,7 @@ def scan(
                 return _factory
 
             factories: list[DiskWorkerFactory] = [_make_factory(d) for d in disks]
-            _run_disks_in_parallel(
+            worker_errors = _run_disks_in_parallel(
                 factories,
                 db_path,
                 max_workers=_effective_workers,
@@ -860,6 +860,8 @@ def scan(
                 shared_disks_skipped=disks_skipped,
                 shared_budget_exhausted=_budget_exhausted,
             )
+            if worker_errors:
+                raise RuntimeError("; ".join(worker_errors))
         else:
             # -------------------------------------------------------------------
             # Sequential fallback: original loop (used when db_path is None,

@@ -1794,6 +1794,50 @@ class TestParallelScan:
         # Overall scan must not be marked failed.
         assert result.status == "ok", f"Expected status='ok' after absorbed disk failure, got {result.status!r}"
 
+    def test_parallel_scan_unexpected_worker_exception_fails_scan(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Unexpected worker exceptions propagate and mark the scan_run failed."""
+        import personalscraper.indexer.scanner as scanner_module
+
+        db_file = tmp_path / "indexer.db"
+        conn = _make_conn_file(db_file)
+
+        mount1 = str(tmp_path / "DiskOK")
+        mount2 = str(tmp_path / "DiskFail")
+        Path(mount1).mkdir()
+        Path(mount2).mkdir()
+        Path(f"{mount1}/good_film.mkv").write_bytes(b"G" * 200)
+        Path(f"{mount2}/bad_film.mkv").write_bytes(b"X" * 200)
+
+        disk1 = _insert_disk_on_conn(conn, mount1, label="DiskOK")
+        disk2 = _insert_disk_on_conn(conn, mount2, label="DiskFail")
+
+        original_scan_disk_full = scanner_module._scan_disk_full
+
+        def _raise_for_disk_fail(*args: object, **kwargs: object) -> object:
+            disk = args[1]
+            if isinstance(disk, DiskRow) and disk.label == "DiskFail":
+                raise RuntimeError("synthetic worker failure")
+            return original_scan_disk_full(*args, **kwargs)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.scanner._scan_disk_full", side_effect=_raise_for_disk_fail):
+                with pytest.raises(RuntimeError, match="disk worker .* synthetic worker failure"):
+                    scan(
+                        [disk1, disk2],
+                        ScanMode.full,
+                        generation=1,
+                        conn=conn,
+                        db_path=db_file,
+                        max_workers=2,
+                    )
+
+        row = conn.execute("SELECT status FROM scan_run ORDER BY id DESC LIMIT 1").fetchone()
+        assert row is not None
+        assert row[0] == "failed"
+
     # ------------------------------------------------------------------
     # Test 3: single-disk filter uses max_workers=1
     # ------------------------------------------------------------------
