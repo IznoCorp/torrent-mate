@@ -1,0 +1,12 @@
+{
+  // Non-disk paths used by the pipeline.
+  paths: {
+    // Folder where qBittorrent deposits completed torrents.
+    torrent_complete_dir: "/path/to/torrents/complete",
+    // Intermediate staging folder before dispatch.
+    // Portable relative default for CI and fresh clones.
+    staging_dir: "./staging/",
+    // Pipeline state directory (index, locks, analysis). Default: .data/ at repo root.
+    data_dir: "./.data",
+  },
+}

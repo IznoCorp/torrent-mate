@@ -3,6 +3,9 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig, ScraperConfig
+from tests.fixtures.config import CANONICAL_STAGING_DIRS
+
 
 class TestDetectNeeds:
     """Tests for _detect_needs — what needs repair per item."""
@@ -258,3 +261,40 @@ class TestRescrapeItem:
         assert result.id_source == "nfo"
         # Dry-run: artwork_dl methods should NOT have been called
         mock_artwork.download_movie_artwork.assert_not_called()
+
+
+class TestRescrapeLibraryConfig:
+    """Tests for config-backed library rescraper wiring."""
+
+    def test_uses_configured_scraper_language_for_tmdb(self, tmp_path: Path) -> None:
+        """library-rescrape must not read scraper language from .env settings."""
+        from personalscraper.library.rescraper import rescrape_library
+
+        config = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["movies"])],
+            categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(language="fr-FR", fallback_language="en-US", prefer_local_title=True),
+        )
+        settings = MagicMock()
+        settings.tmdb_api_key = "tmdb-key"
+        settings.tvdb_api_key = "tvdb-key"
+        settings.artwork_language = "en"
+        settings.scraper_language = "en-US"
+
+        with (
+            patch("personalscraper.library.rescraper._collect_rescrape_candidates", return_value=[]),
+            patch("personalscraper.scraper.tmdb_client.TMDBClient") as tmdb_client_cls,
+            patch("personalscraper.scraper.tvdb_client.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(config, settings, dry_run=True)
+
+        assert result.items == []
+        tmdb_client_cls.assert_called_once_with("tmdb-key", language="fr-FR")

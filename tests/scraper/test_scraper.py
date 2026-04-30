@@ -12,13 +12,17 @@ from unittest.mock import MagicMock, patch
 import pytest
 from guessit.api import GuessitException
 
+from personalscraper.conf.models import ScraperConfig
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.scraper import (
     Scraper,
     ScrapeResult,
     _find_video_file,
+    _infer_year_from_child_names,
     _parse_folder_name,
+    _rename_dir_case_safe,
+    _tvdb_series_to_show_data,
 )
 
 # ---------------------------------------------------------------------------
@@ -75,6 +79,116 @@ class TestFindVideoFile:
         (tmp_path / "readme.txt").write_text("text")
         result = _find_video_file(tmp_path)
         assert result is None
+
+
+class TestInferYearFromChildNames:
+    """Tests for release child year inference."""
+
+    def test_infers_year_from_matching_release_subdir(self, tmp_path: Path) -> None:
+        """Should use a matching release subdirectory year."""
+        show_dir = tmp_path / "Les secrets du Prince Andrew"
+        release_dir = show_dir / "Les.secrets.du.Prince.Andrew.2023.S01.DOC.FRENCH.1080p.WEB.H264-BOUBA"
+        release_dir.mkdir(parents=True)
+        (release_dir / "Les.secrets.du.Prince.Andrew.S01E01.mkv").write_text("video")
+
+        assert _infer_year_from_child_names(show_dir, "Les secrets du Prince Andrew") == 2023
+
+    def test_ignores_unrelated_child_title(self, tmp_path: Path) -> None:
+        """Should not infer a year from an unrelated child release."""
+        show_dir = tmp_path / "Les secrets du Prince Andrew"
+        release_dir = show_dir / "Different.Show.2023.S01.FRENCH.1080p.WEB"
+        release_dir.mkdir(parents=True)
+        (release_dir / "Different.Show.S01E01.mkv").write_text("video")
+
+        assert _infer_year_from_child_names(show_dir, "Les secrets du Prince Andrew") is None
+
+
+class TestScraperLanguage:
+    """Tests for configured scraper metadata language."""
+
+    def test_tvdb_series_uses_configured_translation(self) -> None:
+        """TVDB show data should prefer the configured-language title."""
+        show_data = _tvdb_series_to_show_data(
+            {
+                "name": "INVINCIBLE (2021)",
+                "originalName": None,
+                "translations": {"fra": "Invincible", "eng": "INVINCIBLE (2021)"},
+                "year": "2021",
+            },
+            tvdb_id=368207,
+            preferred_language="fr-FR",
+        )
+
+        assert show_data["name"] == "Invincible"
+        assert show_data["original_name"] == "INVINCIBLE (2021)"
+
+    def test_tvdb_series_fetches_configured_translation(self) -> None:
+        """TVDB show data should fetch series translation if extended lacks it."""
+        tvdb = MagicMock()
+        tvdb.get_series_artworks.return_value = []
+        tvdb.get_series_translation.return_value = {"name": "Invincible", "overview": "Résumé FR"}
+
+        show_data = _tvdb_series_to_show_data(
+            {"name": "INVINCIBLE (2021)", "year": "2021", "overview": "English overview"},
+            tvdb_id=368207,
+            tvdb_client=tvdb,
+            preferred_language="fr-FR",
+        )
+
+        assert show_data["name"] == "Invincible"
+        assert show_data["overview"] == "Résumé FR"
+        tvdb.get_series_translation.assert_called_once_with(368207, "fra")
+
+    def test_config_language_overrides_settings_for_tmdb_client(
+        self,
+        test_config,
+    ) -> None:
+        """Config scraper.language should be passed to TMDB."""
+        settings = MagicMock()
+        settings.tmdb_api_key = "fake-key"
+        settings.tvdb_api_key = "fake-key"
+        settings.scraper_language = "fr-FR"
+        settings.scraper_fallback_language = "en-US"
+        settings.scraper_prefer_local_title = True
+        settings.artwork_language = "fr"
+        settings.circuit_breaker_threshold = 5
+        settings.circuit_breaker_cooldown = 300
+
+        config = test_config.model_copy(
+            update={
+                "scraper": ScraperConfig(
+                    language="en-US",
+                    fallback_language="fr-FR",
+                    prefer_local_title=False,
+                ),
+            }
+        )
+
+        with (
+            patch("personalscraper.scraper.scraper.TMDBClient") as tmdb_cls,
+            patch("personalscraper.scraper.scraper.TVDBClient"),
+        ):
+            scraper = Scraper(settings, NamingPatterns(), config=config)
+
+        assert scraper._scraper_language == "en-US"
+        assert scraper._tvdb_language == "eng"
+        tmdb_cls.assert_called_once()
+        assert tmdb_cls.call_args.kwargs["language"] == "en-US"
+
+
+class TestRenameDirCaseSafe:
+    """Tests for case-only directory rename helper."""
+
+    def test_same_path_uses_temp_rename(self, tmp_path: Path) -> None:
+        """Same-file rename should preserve directory contents."""
+        source = tmp_path / "INVINCIBLE (2021)"
+        source.mkdir()
+        (source / "tvshow.nfo").write_text("nfo")
+
+        result = _rename_dir_case_safe(source, source)
+
+        assert result == source
+        assert (source / "tvshow.nfo").read_text() == "nfo"
 
 
 # ---------------------------------------------------------------------------
@@ -437,6 +551,48 @@ class TestScrapeTvshow:
         result = scraper.scrape_tvshow(show_dir)
         assert result.action == "skipped_already_done"
 
+    def test_recovers_missing_season_poster_on_valid_tvshow(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Should recover season posters during the valid-NFO fast path."""
+        show_dir = tmp_path / "Fallout (2024)"
+        show_dir.mkdir()
+        (show_dir / "tvshow.nfo").write_text(
+            ('<tvshow><title>Fallout</title><year>2024</year><uniqueid type="tmdb">106379</uniqueid></tvshow>')
+        )
+        (show_dir / "poster.jpg").write_bytes(b"\xff")
+        (show_dir / "landscape.jpg").write_bytes(b"\xff")
+        season_dir = show_dir / "Saison 01"
+        season_dir.mkdir()
+        (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        (season_dir / "S01E01 - The Beginning.nfo").write_text(
+            "<episodedetails><title>The Beginning</title></episodedetails>"
+        )
+
+        show_data = {
+            "id": 106379,
+            "name": "Fallout",
+            "images": {"posters": [], "backdrops": []},
+            "seasons": [{"season_number": 1, "poster_path": "/season01.jpg"}],
+        }
+        season_poster = show_dir / "season01-poster.jpg"
+
+        def fake_download_tvshow_artwork(*args: object, **kwargs: object) -> list[Path]:
+            season_poster.write_bytes(b"\xff")
+            return [season_poster]
+
+        with (
+            patch.object(scraper._tmdb, "get_tv", return_value=show_data),
+            patch.object(scraper._artwork, "download_tvshow_artwork", side_effect=fake_download_tvshow_artwork),
+        ):
+            result = scraper.scrape_tvshow(show_dir)
+
+        assert result.action == "artwork_recovered"
+        assert result.artwork_downloaded == ["season01-poster.jpg"]
+        assert season_poster.exists()
+
     def _build_coherent_show_dir(
         self,
         tmp_path: Path,
@@ -491,6 +647,24 @@ class TestScrapeTvshow:
         is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
         assert not is_valid
         assert reason.startswith("folder_name_drift")
+
+    def test_verify_rejects_nfo_title_with_duplicate_year(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """NFO title must not carry the year when <year> is separate."""
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            folder_name="INVINCIBLE (2021)",
+            nfo_title="INVINCIBLE (2021)",
+            nfo_year="2021",
+        )
+
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+
+        assert not is_valid
+        assert reason == "nfo_title_contains_year"
 
     def test_verify_tolerates_nfc_nfd_equivalence(
         self,
@@ -2351,3 +2525,85 @@ class TestShowArtworkFailedNarrowedExceptions:
         assert any(isinstance(r.msg, dict) and r.msg.get("event") == "show_artwork_failed" for r in caplog.records), (
             "expected 'show_artwork_failed' warning event in caplog"
         )
+
+
+# ---------------------------------------------------------------------------
+# _to_step_report — unmatched counter (10.1)
+# ---------------------------------------------------------------------------
+
+
+class TestToStepReportUnmatched:
+    """Tests for unmatched counter surfacing in _to_step_report.
+
+    Items with action ``skipped_low_confidence`` must be counted in both
+    ``skip_count`` (backward compat) and ``counts["unmatched"]`` (new
+    distinct observable for diagnosis).
+    """
+
+    def _make_result(self, action: str, path: Path) -> ScrapeResult:
+        """Build a minimal ScrapeResult with the given action.
+
+        Args:
+            action: ScrapeResult action string.
+            path: Media path for the result.
+
+        Returns:
+            Minimal ScrapeResult with the given action.
+        """
+        return ScrapeResult(media_path=path, media_type="movie", action=action)
+
+    def test_no_unmatched_produces_no_counts_entry(self, tmp_path: Path) -> None:
+        """When no skipped_low_confidence results exist, counts is empty."""
+        from personalscraper.scraper.run import _to_step_report
+
+        results = [
+            self._make_result("scraped", tmp_path / "Movie A (2020)"),
+            self._make_result("skipped_already_done", tmp_path / "Movie B (2021)"),
+        ]
+        report = _to_step_report(results)
+
+        assert report.success_count == 1
+        assert report.skip_count == 1
+        assert report.error_count == 0
+        assert "unmatched" not in report.counts
+
+    def test_one_unmatched_increments_counter(self, tmp_path: Path) -> None:
+        """Single skipped_low_confidence item → unmatched=1 in counts."""
+        from personalscraper.scraper.run import _to_step_report
+
+        results = [
+            self._make_result("scraped", tmp_path / "The Matrix (1999)"),
+            self._make_result("skipped_low_confidence", tmp_path / "The Butterfly Effect (2004)"),
+        ]
+        report = _to_step_report(results)
+
+        assert report.success_count == 1
+        # skipped_low_confidence is still counted in skip_count for backward compat
+        assert report.skip_count == 1
+        assert report.counts.get("unmatched") == 1
+
+    def test_multiple_unmatched_all_counted(self, tmp_path: Path) -> None:
+        """Multiple skipped_low_confidence items accumulate in unmatched."""
+        from personalscraper.scraper.run import _to_step_report
+
+        results = [
+            self._make_result("skipped_low_confidence", tmp_path / "Film A (2000)"),
+            self._make_result("skipped_low_confidence", tmp_path / "Film B (2001)"),
+            self._make_result("error", tmp_path / "Film C (2002)"),
+        ]
+        results[2].error = "API timeout"
+        report = _to_step_report(results)
+
+        assert report.skip_count == 2
+        assert report.error_count == 1
+        assert report.counts.get("unmatched") == 2
+
+    def test_unmatched_detail_label_is_unmatched(self, tmp_path: Path) -> None:
+        """Detail line for skipped_low_confidence uses [unmatched] prefix."""
+        from personalscraper.scraper.run import _to_step_report
+
+        item_path = tmp_path / "The Butterfly Effect (2004)"
+        results = [self._make_result("skipped_low_confidence", item_path)]
+        report = _to_step_report(results)
+
+        assert any("[unmatched]" in d for d in report.details), f"Expected [unmatched] detail, got: {report.details}"

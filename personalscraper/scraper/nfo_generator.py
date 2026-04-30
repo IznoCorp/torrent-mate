@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
 
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
+
 # Preview image sizes for inline thumbs
 POSTER_PREVIEW_SIZE = "w342"
 BACKDROP_PREVIEW_SIZE = "w780"
@@ -85,7 +87,21 @@ class NFOGenerator:
 
     Produces XML that matches the structure of MediaElch-generated NFO files,
     including ratings, uniqueids, inline thumbs, streamdetails, and actors.
+
+    Attributes:
+        _db_path: Path to the indexer SQLite database used for best-effort
+            outbox publish on :meth:`write_nfo`.  ``None`` disables publishing.
     """
+
+    def __init__(self, db_path: Path | None = None) -> None:
+        """Initialise the NFO generator.
+
+        Args:
+            db_path: Resolved ``Config.indexer.db_path`` passed through from
+                the caller.  When ``None``, the write-through outbox publish
+                in :meth:`write_nfo` is silently skipped (best-effort contract).
+        """
+        self._db_path = db_path
 
     def generate_movie_nfo(
         self,
@@ -115,7 +131,17 @@ class NFOGenerator:
         root = ET.Element("movie")
 
         # --- Basic metadata ---
-        _sub(root, "title", movie_data.get("title", ""))
+        # TMDB occasionally returns titles with the year baked in for
+        # disambiguation. Kodi/Plex expect ``<title>`` bare with ``<year>``
+        # separate, so strip a trailing ``(YYYY)`` when it matches the
+        # release year. Mirrors the same defensive logic applied to TV shows.
+        raw_movie_title = movie_data.get("title", "")
+        release_date = movie_data.get("release_date") or ""
+        year_str = release_date[:4] if release_date else ""
+        movie_title = raw_movie_title
+        if year_str and movie_title.endswith(f" ({year_str})"):
+            movie_title = movie_title[: -len(f" ({year_str})")]
+        _sub(root, "title", movie_title)
         self._add_ratings(root, movie_data)
         _sub(root, "userrating", "0")
         _sub(root, "top250", "0")
@@ -222,17 +248,27 @@ class NFOGenerator:
         root = ET.Element("tvshow")
 
         # --- Basic metadata ---
-        title = show_data.get("name", show_data.get("title", ""))
+        # TVDB sometimes returns the disambiguating year inside the title
+        # itself (e.g. ``INVINCIBLE (2021)``). Kodi/Plex NFO conventions
+        # expect ``<title>`` to be the bare title and ``<year>`` to carry the
+        # year separately, so strip a trailing ``(YYYY)`` when it matches the
+        # year we're about to write below.
+        raw_title = show_data.get("name", show_data.get("title", ""))
+        first_aired = show_data.get("first_air_date") or show_data.get("firstAired") or ""
+        year_str = first_aired[:4] if first_aired else ""
+        title = raw_title
+        if year_str and title.endswith(f" ({year_str})"):
+            title = title[: -len(f" ({year_str})")]
+        raw_original_title = show_data.get(
+            "original_name",
+            show_data.get("originalName", ""),
+        )
+        original_title = raw_original_title
+        if year_str and original_title.endswith(f" ({year_str})"):
+            original_title = original_title[: -len(f" ({year_str})")]
         _sub(root, "title", title)
         _sub(root, "showtitle", "")
-        _sub(
-            root,
-            "originaltitle",
-            show_data.get(
-                "original_name",
-                show_data.get("originalName", ""),
-            ),
-        )
+        _sub(root, "originaltitle", original_title)
 
         # --- IDs (TMDB default for TV shows, unlike movies) ---
         # When TMDB resolves to 0/empty (show missing from TMDB), promote TVDB
@@ -444,6 +480,30 @@ class NFOGenerator:
             path: Destination file path.
         """
         path.write_text(xml_content, encoding="utf-8")
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        # Skipped when _db_path is None (no config available at construction time).
+        if self._db_path is not None:
+            resolved = disk_id_for_path(path, self._db_path)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                item_kind = (
+                    "tvshow"
+                    if path.parent.name.lower() in {"saison", "season"} or "episodes" in path.name.lower()
+                    else "movie"
+                )
+                publish_event(
+                    disk_id,
+                    op="nfo_write",
+                    payload={
+                        "rel_path": rel_path,
+                        "item_kind": item_kind,
+                        "tmdb_id": None,
+                        "imdb_id": None,
+                    },
+                    db_path=self._db_path,
+                    source="scraper",
+                )
 
     # --- Private helpers ---
 

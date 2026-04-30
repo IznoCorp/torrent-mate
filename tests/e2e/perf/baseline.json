@@ -1,0 +1,44 @@
+[
+  {
+    "fixture_version": 1,
+    "mode": "quick_merkle_hit",
+    "target_seconds": 5,
+    "last_measured_seconds": 4.0,
+    "last_measured_at": "1970-01-01T00:00:00Z"
+  },
+  {
+    "fixture_version": 1,
+    "mode": "quick_merkle_miss",
+    "target_seconds": 90,
+    "last_measured_seconds": 72.0,
+    "last_measured_at": "1970-01-01T00:00:00Z"
+  },
+  {
+    "fixture_version": 1,
+    "mode": "quick_changed_100",
+    "target_seconds": 90,
+    "last_measured_seconds": 72.0,
+    "last_measured_at": "1970-01-01T00:00:00Z"
+  },
+  {
+    "fixture_version": 1,
+    "mode": "incremental_new_100",
+    "target_seconds": 120,
+    "last_measured_seconds": 96.0,
+    "last_measured_at": "1970-01-01T00:00:00Z"
+  },
+  {
+    "fixture_version": 1,
+    "mode": "enrich_missing_1000",
+    "target_seconds": 300,
+    "last_measured_seconds": 240.0,
+    "last_measured_at": "1970-01-01T00:00:00Z"
+  },
+  {
+    "fixture_version": 1,
+    "mode": "full_one_disk",
+    "target_seconds": 1800,
+    "last_measured_seconds": 1440.0,
+    "last_measured_at": "1970-01-01T00:00:00Z"
+  }
+]

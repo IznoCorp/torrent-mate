@@ -25,6 +25,7 @@ from personalscraper.conf.models import Config
 from personalscraper.config import Settings
 from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import _FILENAME_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
@@ -372,15 +373,40 @@ class Dispatcher:
 
         # Update index with current IDs
         if result.action in ("replaced", "moved") and result.destination:
+            # ``replaced`` writes into an existing on-disk folder whose casing
+            # is canonical; record that, not the staging spelling, so the
+            # indexer never drifts away from the filesystem (see the matching
+            # comment in dispatch_tvshow for the rationale).
+            canonical_name = result.destination.name if result.action == "replaced" else movie_dir.name
             self.index.add(
                 IndexEntry(
-                    name=movie_dir.name,
+                    name=canonical_name,
                     disk=result.disk or "",
                     category=category_id,
                     path=str(result.destination),
                     media_type="movie",
                 )
             )
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        if result.action in ("replaced", "moved") and result.destination is not None:
+            _db_path = self.config.indexer.db_path
+            resolved = disk_id_for_path(result.destination, _db_path)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                publish_event(
+                    disk_id,
+                    op="move",
+                    payload={
+                        "src_rel_path": "",
+                        "dst_rel_path": rel_path,
+                        "filename": result.destination.name,
+                        "size_bytes": None,
+                        "mtime_ns": None,
+                    },
+                    db_path=_db_path,
+                    source="dispatch",
+                )
 
         return result
 
@@ -455,15 +481,45 @@ class Dispatcher:
             result.action = "moved" if success else "error"
 
         if result.action in ("merged", "moved") and result.destination:
+            # When merging into an existing on-disk folder, the destination's
+            # name carries the canonical casing (NTFS is case-insensitive, so
+            # rsync resolves to the pre-existing folder). Recording the
+            # staging-side casing here would silently overwrite the indexer
+            # title with the new spelling on every dispatch and cause the
+            # next case-mismatch scan to keep flagging it. Use the
+            # destination's basename as the canonical title for merges /
+            # replacements; ``moved`` actions write a brand-new folder so
+            # the staging name is correct in that branch.
+            canonical_name = result.destination.name if result.action == "merged" else show_dir.name
             self.index.add(
                 IndexEntry(
-                    name=show_dir.name,
+                    name=canonical_name,
                     disk=result.disk or "",
                     category=category_id,
                     path=str(result.destination),
                     media_type="tvshow",
                 )
             )
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        if result.action in ("merged", "moved") and result.destination is not None:
+            _db_path = self.config.indexer.db_path
+            resolved = disk_id_for_path(result.destination, _db_path)
+            if resolved is not None:
+                disk_id, rel_path = resolved
+                publish_event(
+                    disk_id,
+                    op="move",
+                    payload={
+                        "src_rel_path": "",
+                        "dst_rel_path": rel_path,
+                        "filename": result.destination.name,
+                        "size_bytes": None,
+                        "mtime_ns": None,
+                    },
+                    db_path=_db_path,
+                    source="dispatch",
+                )
 
         return result
 

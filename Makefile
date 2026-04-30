@@ -1,4 +1,4 @@
-.PHONY: help clean test lint lint-logging format install-dev version update-ytdlp
+.PHONY: help clean test lint lint-logging format install-dev version update-ytdlp perf-rebaseline
 
 help:
 	@echo "PersonalScraper — Available commands:"
@@ -8,7 +8,8 @@ help:
 	@echo "  make lint-logging - Run logging convention audit (fails on errors)"
 	@echo "  make format      - Format code with ruff"
 	@echo "  make install-dev - Install package in development mode with dev deps"
-	@echo "  make version     - Show current version"
+	@echo "  make version         - Show current version"
+	@echo "  make perf-rebaseline - Run slow perf tests and write new baseline.json"
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -49,3 +50,8 @@ update-ytdlp:
 	python -m pip install -U yt-dlp
 	@echo "Running yt-dlp integration test (requires TRAILER_INTEGRATION_TESTS=1)..."
 	TRAILER_INTEGRATION_TESTS=1 python -m pytest tests/scraper/test_ytdlp_downloader.py -v -m network
+
+perf-rebaseline:
+	@echo "Running perf regression tests and updating baseline.json..."
+	PERF_REBASELINE=1 python -m pytest -m slow tests/e2e/perf/test_indexer_perf.py -v
+	@echo "baseline.json updated with fresh measurements."

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    personalscraper-index-quick.plist
+    Nightly quick index at 03:30.  Runs a per-disk Merkle short-circuit scan;
+    sub-minute when nothing changed on disk.
+
+    Installation (per-user agent):
+        cp personalscraper-index-quick.plist ~/Library/LaunchAgents/
+        launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/personalscraper-index-quick.plist
+
+    Removal:
+        launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/personalscraper-index-quick.plist
+        rm ~/Library/LaunchAgents/personalscraper-index-quick.plist
+
+    Log rotation: __logit__/ is managed by personalscraper; old log files are
+    pruned automatically.  Adjust StandardOutPath / StandardErrorPath below if
+    your installation uses a different log directory.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.personalscraper.index-quick</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Replace /usr/local/bin with the output of: which personalscraper -->
+        <string>/usr/local/bin/personalscraper</string>
+        <string>library</string>
+        <string>index</string>
+        <string>--mode</string>
+        <string>quick</string>
+        <string>--wait-for-lock</string>
+        <string>0</string>
+    </array>
+
+    <!-- Logs land in __logit__/ next to the project working directory.
+         Replace the path prefix with your actual project directory. -->
+    <key>StandardOutPath</key>
+    <string>/Users/REPLACE_ME/dev/PersonnalScaper/__logit__/index.quick.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/REPLACE_ME/dev/PersonnalScaper/__logit__/index.quick.err.log</string>
+
+    <!-- Run at 03:30 every night after the main pipeline cron at 03:00. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <!-- Do NOT run immediately on agent load; only fire at the scheduled time. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- Prevent overlapping runs if a previous invocation is still running.
+         The wait-for-lock 0 argument ensures the process exits quickly
+         rather than blocking if the indexer lock is held. -->
+    <key>LaunchOnlyOnce</key>
+    <false/>
+
+    <!-- Working directory must contain config.json5. -->
+    <key>WorkingDirectory</key>
+    <string>/Users/REPLACE_ME/dev/PersonnalScaper</string>
+
+    <!-- Inherit the user environment so PATH includes pyenv/nvm shims. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>

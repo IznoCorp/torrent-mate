@@ -1,8 +1,12 @@
-"""Library reporter — aggregate statistics from all JSON data files.
+"""Library reporter — aggregate statistics from the indexer DB and JSON data files.
 
-Reads scan, analysis, validation, and recommendation JSON files from
-.personalscraper/ and produces a comprehensive library health report
-with clear explanations and suggested remediation commands.
+Reads health metrics from :class:`~personalscraper.library.analyzer.AnalysisResult`
+(produced by :func:`~personalscraper.library.analyzer.analyze`) and supplementary
+JSON files (validation, recommendations, rescrape) to produce a comprehensive
+library health report with clear explanations and suggested remediation commands.
+
+``library_analysis.json`` is no longer read; the DB-backed :class:`AnalysisResult`
+replaces it for all NFO / artwork metrics.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from personalscraper.dispatch.disk_scanner import DiskStatus
+    from personalscraper.library.analyzer import AnalysisResult
 
 # Human-readable explanations for scan issues
 _ISSUE_EXPLANATIONS: dict[str, str] = {
@@ -136,19 +141,24 @@ class LibraryReport:
 
 def generate_report(
     scan_data: dict[str, Any] | None = None,
-    analysis_data: dict[str, Any] | None = None,
+    analysis_result: AnalysisResult | None = None,
     validation_data: dict[str, Any] | None = None,
     recommendation_data: dict[str, Any] | None = None,
     disk_statuses: list[DiskStatus] | None = None,
     rescrape_data: dict[str, Any] | None = None,
 ) -> LibraryReport:
-    """Generate a library health report from JSON data.
+    """Generate a library health report from the indexer DB analysis and JSON data.
 
     Each parameter is optional — report includes whatever data is available.
+    ``analysis_result`` is produced by :func:`~personalscraper.library.analyzer.analyze`
+    and replaces the legacy ``library_analysis.json`` file: it provides NFO-status
+    and artwork-presence breakdowns queried directly from the indexer DB.
 
     Args:
-        scan_data: Parsed library_scan.json.
-        analysis_data: Parsed library_analysis.json.
+        scan_data: Parsed library_scan.json (disk/category distribution, sizes).
+        analysis_result: DB-backed health summary from ``analyzer.analyze(conn)``.
+            Supplies NFO status counts, artwork presence, season poster gaps, and
+            per-category breakdowns.  Replaces the removed library_analysis.json.
         validation_data: Parsed library_validation.json.
         recommendation_data: Parsed library_recommendations.json.
         disk_statuses: List of DiskStatus objects for live free space.
@@ -159,7 +169,7 @@ def generate_report(
     """
     report = LibraryReport(generated_at=datetime.now(tz=timezone.utc).isoformat())
 
-    # --- Scan data ---
+    # --- Scan data — disk/category distribution and per-item sizes ---
     if scan_data:
         items = scan_data.get("items", [])
         report.total_items = len(items)
@@ -183,16 +193,6 @@ def generate_report(
             if item.get("actors_dir"):
                 report.actors_dir_count += 1
 
-            nfo = item.get("nfo", {})
-            if nfo.get("valid"):
-                report.nfo_valid_count += 1
-            else:
-                report.nfo_invalid_count += 1
-
-            artwork = item.get("artwork", {})
-            if not artwork.get("poster"):
-                report.poster_missing_count += 1
-
             for iss in item.get("issues", []):
                 issue_counter[iss] += 1
 
@@ -209,25 +209,17 @@ def generate_report(
         size_list.sort(key=lambda x: -x[1])
         report.top_largest = size_list[:20]
 
-    # --- Analysis data ---
-    if analysis_data:
-        report.analysis_item_count = analysis_data.get("item_count", 0)
-        report.analysis_file_count = analysis_data.get("file_count", 0)
+    # --- DB-backed analysis result — NFO/artwork health metrics ---
+    # Replaces the removed library_analysis.json: all NFO and poster counts now
+    # come from the indexer DB via analyzer.analyze(conn).
+    if analysis_result is not None:
+        # Prefer DB total when scan_data is absent
+        if not scan_data:
+            report.total_items = analysis_result.total_items
 
-        codec_counter: Counter[str] = Counter()
-        audio_counter: Counter[str] = Counter()
-
-        for item in analysis_data.get("items", []):
-            for f in item.get("files", []):
-                video = f.get("video", {})
-                codec = video.get("codec", "unknown")
-                codec_counter[codec] += 1
-
-                profile = f.get("audio_profile", "unknown")
-                audio_counter[profile] += 1
-
-        report.codec_distribution = dict(codec_counter)
-        report.audio_distribution = dict(audio_counter)
+        report.nfo_valid_count = analysis_result.nfo.valid
+        report.nfo_invalid_count = analysis_result.nfo.invalid + analysis_result.nfo.missing
+        report.poster_missing_count = analysis_result.artwork.poster_missing
 
     # --- Disk free space (from live DiskStatus objects) ---
     if disk_statuses:

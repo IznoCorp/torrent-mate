@@ -77,6 +77,8 @@
 # Python
 # ===========================================
 .venv/
+.venv*/
+.python-version
 __pycache__/
 *.pyc
 *.pyo
@@ -123,6 +125,9 @@ docs/pipeline-runs/
 .personalscraper/
 # V15 runtime state (library index, tracker, lock, analysis results, .v14.bak backups)
 .data/
+# Legacy dispatch index — superseded by library.db; safe to delete after
+# running `personalscraper library index --mode full`.
+.data/media_index.json
 
 # V15: personal config (paths + preferences, no secrets but gitignored for privacy)
 config.json5
@@ -137,3 +142,9 @@ tmdb_keywords_cache.json
 # launchd plist is generated from .plist.template via scripts/install-launchd.sh
 # and installed to ~/Library/LaunchAgents/ — never commit the rendered copy
 com.personalscraper.pipeline.plist
+
+# Parity fixture filesystem (built by build_v07_fs.py — gitignored, re-run to regenerate)
+tests/fixtures/parity/v0.7-fs/
+
+# Perf-test fixture filesystem (built by build_fixture.py — gitignored, re-run to regenerate)
+tests/e2e/perf/.fixture/

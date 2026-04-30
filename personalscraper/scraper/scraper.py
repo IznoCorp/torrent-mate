@@ -44,9 +44,24 @@ from personalscraper.scraper.nfo_generator import NFOGenerator
 from personalscraper.scraper.tmdb_client import TMDBClient
 from personalscraper.scraper.tvdb_client import TVDBClient
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
-from personalscraper.text_utils import sanitize_filename
+from personalscraper.text_utils import media_processor, sanitize_filename
 
 log = get_logger("scraper")
+
+_TVDB_LANG_MAP: dict[str, str] = {
+    "fr": "fra",
+    "en": "eng",
+    "es": "spa",
+    "de": "deu",
+    "it": "ita",
+    "ja": "jpn",
+    "ko": "kor",
+    "pt": "por",
+    "ru": "rus",
+    "zh": "zho",
+    "ar": "ara",
+    "nl": "nld",
+}
 
 # Regex for parsing "Title (Year)" folder names
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
@@ -115,6 +130,25 @@ def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
             failed=failed,
         )
     return moved, failed
+
+
+def _rename_dir_case_safe(source: Path, target: Path) -> Path:
+    """Rename a directory, handling case-only renames on case-insensitive filesystems."""
+    if target.exists():
+        try:
+            if source.samefile(target):
+                tmp = source.with_name(f"{source.name}.case-rename-tmp")
+                suffix = 1
+                while tmp.exists():
+                    tmp = source.with_name(f"{source.name}.case-rename-tmp-{suffix}")
+                    suffix += 1
+                source.rename(tmp)
+                tmp.rename(target)
+                return target
+        except OSError:
+            pass
+    source.rename(target)
+    return target
 
 
 @dataclass
@@ -321,6 +355,36 @@ def _local_show_seasons(show_dir: Path) -> set[int]:
     return seasons
 
 
+def _infer_year_from_child_names(show_dir: Path, title: str) -> int | None:
+    """Infer a show year from release subfolders or video files.
+
+    Some staging folders use a clean localized parent name without a year,
+    while the release directory below still carries the original year token.
+    Only accept years from child names whose cleaned title matches the parent
+    closely enough to avoid leaking an episode title or unrelated extra.
+    """
+    expected_title = media_processor(title)
+    if not expected_title:
+        return None
+
+    candidates = list(show_dir.iterdir())
+    candidates.extend(
+        f for f in show_dir.rglob("*") if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS
+    )
+
+    for child in candidates:
+        name = child.stem if child.is_file() else child.name
+        child_title, child_year = _parse_folder_name(name)
+        if child_year is None:
+            continue
+        parsed_title = media_processor(child_title)
+        if parsed_title == expected_title or expected_title in parsed_title:
+            log.info("show_year_inferred_from_child", directory=show_dir.name, child=name, year=child_year)
+            return child_year
+
+    return None
+
+
 def verify_tvshow_scrape_drift(
     show_dir: Path,
     nfo_path: Path,
@@ -372,12 +436,16 @@ def verify_tvshow_scrape_drift(
     has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
     if not has_uniqueid:
         return False, "nfo_missing_uniqueid"
+    trailing_year_pattern = f" ({nfo_year})"
+    if nfo_title.endswith(trailing_year_pattern):
+        return False, "nfo_title_contains_year"
 
     # 2. Canonical folder name. Compare under NFC normalization so macOS's
     # NFD-stored filenames don't trip the check (the two strings can look
     # identical in logs but differ in codepoints — "è" as U+00E8 vs
     # "e" + U+0300). Without this, the drift check falsely fires and the
     # subsequent rename-into-itself corrupts the folder.
+    #
     canonical = patterns.format("movie_dir", Title=nfo_title, Year=nfo_year)
     if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
         return False, f"folder_name_drift:{show_dir.name}!={canonical}"
@@ -414,6 +482,8 @@ def _tvdb_series_to_show_data(
     tvdb_client: Any = None,
     tmdb_id: int = 0,
     imdb_id: str = "",
+    preferred_language: str = "fr-FR",
+    fallback_language: str = "en-US",
 ) -> dict[str, Any]:
     """Convert TVDB series data to a TMDB-like show_data dict.
 
@@ -444,6 +514,10 @@ def _tvdb_series_to_show_data(
             ``uniqueid type="tmdb"`` when non-zero — strictly for Kodi/Jellyfin
             cross-linking, never used to fetch content.
         imdb_id: Optional IMDB cross-reference id (same rationale as tmdb_id).
+        preferred_language: Configured scraping language. Used to select TVDB
+            translated titles when available.
+        fallback_language: Fallback scraping language when preferred
+            translation is unavailable.
 
     Returns:
         Dict with TMDB-compatible fields for NFO/artwork generation.
@@ -499,11 +573,35 @@ def _tvdb_series_to_show_data(
         elif isinstance(year_val, str) and year_val.isdigit():
             first_air = f"{year_val}-01-01"
 
+    raw_name = tvdb_data.get("name", "")
+    lang_code = preferred_language.split("-", 1)[0].lower()
+    tvdb_lang_code = _TVDB_LANG_MAP.get(lang_code, lang_code)
+    translations = tvdb_data.get("translations") or {}
+    translated_overview: str | None = None
+    translated_name = None
+    if isinstance(translations, dict):
+        translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
+    if not translated_name and tvdb_client is not None:
+        fallback_code = fallback_language.split("-", 1)[0].lower()
+        fallback_tvdb_code = _TVDB_LANG_MAP.get(fallback_code, fallback_code)
+        for candidate_lang in (tvdb_lang_code, fallback_tvdb_code):
+            try:
+                translation = tvdb_client.get_series_translation(tvdb_id, candidate_lang)
+            except Exception as exc:  # noqa: BLE001 — translation is best-effort metadata
+                log.debug("tvdb_series_translation_fetch_failed", tvdb_id=tvdb_id, lang=candidate_lang, error=str(exc))
+                translation = None
+            if isinstance(translation, dict) and isinstance(translation.get("name"), str):
+                translated_name = translation["name"]
+                overview = translation.get("overview")
+                translated_overview = overview if isinstance(overview, str) else None
+                break
+    display_name = translated_name or raw_name
+
     return {
         "id": tmdb_id,  # Cross-ref TMDB id (0 when none) — NFO-only, never queried
-        "name": tvdb_data.get("name", ""),
-        "original_name": tvdb_data.get("originalName", tvdb_data.get("name", "")),
-        "overview": tvdb_data.get("overview", ""),
+        "name": display_name,
+        "original_name": tvdb_data.get("originalName") or raw_name,
+        "overview": translated_overview or tvdb_data.get("overview", ""),
         "status": status_name,
         "genres": [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])],
         "networks": [],
@@ -561,10 +659,21 @@ class Scraper:
         self.patterns = patterns
         self.dry_run = dry_run
         self.interactive = interactive
+        scraper_config = config.scraper if config is not None else None
+        self._scraper_language = scraper_config.language if scraper_config is not None else settings.scraper_language
+        self._scraper_fallback_language = (
+            scraper_config.fallback_language if scraper_config is not None else settings.scraper_fallback_language
+        )
+        self._prefer_local_title = (
+            scraper_config.prefer_local_title if scraper_config is not None else settings.scraper_prefer_local_title
+        )
+        self._tvdb_language = self._to_tvdb_language(self._scraper_language)
+        self._tvdb_fallback_language = self._to_tvdb_language(self._scraper_fallback_language)
 
         # Initialize API clients with circuit breaker config from settings
         self._tmdb = TMDBClient(
             api_key=settings.tmdb_api_key,
+            language=self._scraper_language,
             circuit_breaker_threshold=settings.circuit_breaker_threshold,
             circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
         )
@@ -574,11 +683,15 @@ class Scraper:
             circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
         )
 
-        # Initialize helpers
-        self._nfo = NFOGenerator()
+        # Initialize helpers.  Pass db_path so write-through outbox publishes
+        # land in the user-configured DB (DESIGN §9.4).  When config is None
+        # (legacy/test mode) db_path is None and outbox publishing is skipped.
+        _db_path = config.indexer.db_path if config is not None else None
+        self._nfo = NFOGenerator(db_path=_db_path)
         self._artwork = ArtworkDownloader(
             dry_run=dry_run,
             artwork_language=settings.artwork_language,
+            db_path=_db_path,
         )
 
         # Classification helpers — only set up when config is provided.
@@ -590,6 +703,12 @@ class Scraper:
         else:
             self._keywords_cache = None
             self._needs_keywords = False
+
+    @staticmethod
+    def _to_tvdb_language(language: str) -> str:
+        """Convert configured scraper language to TVDB's 3-letter code."""
+        code = language.split("-", 1)[0].lower()
+        return _TVDB_LANG_MAP.get(code, code)
 
     def _classify_item(
         self,
@@ -692,7 +811,7 @@ class Scraper:
         Returns:
             Best title string for folder naming.
         """
-        if not self.settings.scraper_prefer_local_title:
+        if not self._prefer_local_title:
             return match_title
 
         # TMDB movies use "title", TV shows use "name"
@@ -754,8 +873,8 @@ class Scraper:
     def _check_missing_tvshow_artwork(self, show_dir: Path) -> list[str]:
         """List missing essential artwork for a TV show directory.
 
-        Checks poster and landscape only (the two files required by
-        the fast-skip gate in _has_unscraped_items).
+        Checks show-level poster/landscape and season posters for seasons
+        already present on disk.
 
         Args:
             show_dir: Path to the TV show directory.
@@ -768,6 +887,13 @@ class Scraper:
             missing.append(self.patterns.tvshow_poster)
         if not (show_dir / self.patterns.tvshow_landscape).exists():
             missing.append(self.patterns.tvshow_landscape)
+        for season_dir in show_dir.iterdir():
+            if not season_dir.is_dir() or not SEASON_DIR_RE.match(season_dir.name):
+                continue
+            season_num = int(season_dir.name.split()[-1])
+            poster_name = self.patterns.format("season_poster", Season=season_num)
+            if not (show_dir / poster_name).exists():
+                missing.append(poster_name)
         return missing
 
     @staticmethod
@@ -1260,9 +1386,10 @@ class Scraper:
 
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
-            log.info(
+            log.warning(
                 "movie_no_confident_match",
                 title=title,
+                year=year,
                 score=round(match.confidence if match else 0.0, 2),
             )
             return result
@@ -1287,6 +1414,14 @@ class Scraper:
         # Resolve title: use local FR title if preferred and available
         resolved_title = self._strip_trailing_year(self._resolve_title(match.api_title, movie_data, "movie"))
         api_year = match.api_year or year
+        # Folder name is filesystem-safe (sanitize_filename strips ``:``, ``?``,
+        # ``"`` etc. for NTFS compatibility) while the NFO ``<title>`` keeps
+        # the original punctuation for Plex/Kodi display. The two values are
+        # *intentionally* allowed to diverge — same item ``Some Show: Subtitle``
+        # ends up as folder ``Some Show Subtitle`` and NFO title
+        # ``Some Show: Subtitle``. Verified items downstream (verify/run.py)
+        # compare on NFC-normalised, NTFS-sanitised forms so this asymmetry
+        # does not cause false-positive drift.
         clean_name = sanitize_filename(f"{resolved_title} ({api_year})" if api_year else resolved_title)
 
         # Save old title before rename for stale file cleanup
@@ -1467,8 +1602,9 @@ class Scraper:
         # Summary
         scraped = sum(1 for r in results if r.action == "scraped")
         skipped = sum(1 for r in results if r.action.startswith("skipped"))
+        unmatched = sum(1 for r in results if r.action == "skipped_low_confidence")
         errors = sum(1 for r in results if r.action == "error")
-        log.info("movies_done", scraped=scraped, skipped=skipped, errors=errors)
+        log.info("movies_done", scraped=scraped, skipped=skipped, unmatched=unmatched, errors=errors)
 
         return results
 
@@ -1482,6 +1618,8 @@ class Scraper:
             ScrapeResult with action and details.
         """
         title, year = _parse_folder_name(show_dir.name)
+        if year is None:
+            year = _infer_year_from_child_names(show_dir, title)
         result = ScrapeResult(media_path=show_dir, media_type="tvshow")
 
         # Check for existing valid NFO
@@ -1550,9 +1688,10 @@ class Scraper:
 
         if match is None or match.confidence < LOW_CONFIDENCE:
             result.action = "skipped_low_confidence"
-            log.info(
+            log.warning(
                 "show_no_confident_match",
                 title=title,
+                year=year,
                 score=round(match.confidence if match else 0.0, 2),
             )
             return result
@@ -1590,6 +1729,8 @@ class Scraper:
                     self._tvdb,
                     tmdb_id=tmdb_id or 0,
                     imdb_id=imdb_id,
+                    preferred_language=self._scraper_language,
+                    fallback_language=self._scraper_fallback_language,
                 )
             else:
                 # Fallback path: TVDB had no match → use TMDB for content.
@@ -1620,12 +1761,20 @@ class Scraper:
             if not self.dry_run:
                 try:
                     if new_dir.exists():
-                        moved, merge_failed = _merge_dirs(show_dir, new_dir)
-                        log.info("show_folder_merged", title=title, dest=canonical, items=moved)
-                        if merge_failed:
-                            result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
+                        try:
+                            is_same_dir = show_dir.samefile(new_dir)
+                        except OSError:
+                            is_same_dir = False
+                        if is_same_dir:
+                            _rename_dir_case_safe(show_dir, new_dir)
+                            log.info("show_folder_renamed", title=title, dest=canonical)
+                        else:
+                            moved, merge_failed = _merge_dirs(show_dir, new_dir)
+                            log.info("show_folder_merged", title=title, dest=canonical, items=moved)
+                            if merge_failed:
+                                result.warnings.append(f"Partial merge: {merge_failed} item(s) failed")
                     else:
-                        show_dir.rename(new_dir)
+                        _rename_dir_case_safe(show_dir, new_dir)
                         log.info("show_folder_renamed", title=title, dest=canonical)
                     show_dir = new_dir
                     result.media_path = new_dir
@@ -1722,11 +1871,11 @@ class Scraper:
                             ep_id = ep.get("id", 0)
                             title = ep.get("name") or f"{episode_default_name} {e_num}"
                             if ep_id:
-                                trans = self._tvdb.get_episode_translation(ep_id, "fra")
+                                trans = self._tvdb.get_episode_translation(ep_id, self._tvdb_language)
                                 if trans and trans.get("name"):
                                     title = trans["name"]
                                 else:
-                                    en_trans = self._tvdb.get_episode_translation(ep_id, "eng")
+                                    en_trans = self._tvdb.get_episode_translation(ep_id, self._tvdb_fallback_language)
                                     if en_trans and en_trans.get("name"):
                                         title = en_trans["name"]
                             api_episodes[(s_num, e_num)] = {
@@ -1949,7 +2098,8 @@ class Scraper:
 
         scraped = sum(1 for r in results if r.action == "scraped")
         skipped = sum(1 for r in results if r.action.startswith("skipped"))
+        unmatched = sum(1 for r in results if r.action == "skipped_low_confidence")
         errors = sum(1 for r in results if r.action == "error")
-        log.info("tvshows_done", scraped=scraped, skipped=skipped, errors=errors)
+        log.info("tvshows_done", scraped=scraped, skipped=skipped, unmatched=unmatched, errors=errors)
 
         return results

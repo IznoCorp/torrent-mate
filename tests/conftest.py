@@ -5,15 +5,32 @@ so that stdlib-bridged `caplog` assertions see the expected records irrespective
 subset of tests is collected (e.g. ``pytest tests/sorter/`` in isolation).
 """
 
+import inspect
 import os
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner as _RawCliRunner
 
 import personalscraper.logger as _logger_mod
 from personalscraper.config import Settings
 from personalscraper.logger import configure_logging
+
+
+def make_cli_runner() -> _RawCliRunner:
+    """Return a CliRunner that separates stdout from stderr across click versions.
+
+    Click 8.2 removed the ``mix_stderr`` keyword (separated streams became the
+    default).  Older click required ``mix_stderr=False`` to get the same behaviour.
+    Typer subclasses click's CliRunner, so the keyword propagates through.  This
+    helper inspects the constructor signature and passes the keyword only when
+    it is still accepted.
+    """
+    if "mix_stderr" in inspect.signature(_RawCliRunner.__init__).parameters:
+        return _RawCliRunner(mix_stderr=False)
+    return _RawCliRunner()
+
 
 # Expose shared fixtures from the fixtures package
 pytest_plugins = ["tests.fixtures.config"]
@@ -219,3 +236,23 @@ def mock_settings(tmp_path, monkeypatch):
         A Settings instance with neutral test values.
     """
     return Settings(_env_file=None)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Skip ``darwin_only`` tests when not running on macOS.
+
+    Applied unconditionally at collection time so the marker works without
+    any per-test ``@pytest.mark.skipif`` decorator.
+
+    Args:
+        items: Collected test items (mutated in place).
+    """
+    import sys
+
+    if sys.platform == "darwin":
+        return  # All platforms supported; nothing to skip.
+
+    skip_non_darwin = pytest.mark.skip(reason="darwin_only: requires macOS launchctl")
+    for item in items:
+        if item.get_closest_marker("darwin_only"):
+            item.add_marker(skip_non_darwin)

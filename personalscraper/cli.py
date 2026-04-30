@@ -54,6 +54,10 @@ from personalscraper.trailers.cli import app as trailers_app  # noqa: E402
 
 app.add_typer(trailers_app, name="trailers")
 
+# Mount config sub-app (personalscraper config <subcommand>)
+config_app = typer.Typer(help="Configuration management commands.")
+app.add_typer(config_app, name="config")
+
 
 class _State(TypedDict):
     """Typed shape of the global CLI state dict.
@@ -148,8 +152,10 @@ def main(
         "--config",
         "-c",
         help=(
-            "Path to config.json5 (overrides ./config.json5 and "
-            "$PERSONALSCRAPER_CONFIG). Must be placed BEFORE the subcommand."
+            "Path to a v2 split-config directory (containing config.json5 + "
+            "overlays) or a legacy v1 config.json5 file. Overrides "
+            "./.personalscraper/config/, ./config.json5 and "
+            "$PERSONALSCRAPER_CONFIG. Must be placed BEFORE the subcommand."
         ),
     ),
 ) -> None:
@@ -169,8 +175,10 @@ def main(
     state["quiet"] = quiet
     configure_logging(verbose=verbose, quiet=quiet)
 
-    # init-config bypasses eager load: config.json5 may not exist yet.
-    if ctx.invoked_subcommand == "init-config":
+    # init-config and config sub-app bypass eager load: config.json5 may not
+    # exist yet (init-config) or the user is performing the migration itself
+    # (config migrate-to-v2).
+    if ctx.invoked_subcommand in {"init-config", "config"}:
         ctx.obj = AppCtx(config=None, config_override=config)
         return
 
@@ -581,35 +589,239 @@ def library_scan(
     disk: str = typer.Option(None, "--disk", help="Scan only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Scan only this category"),
 ) -> None:
-    """Scan library structure and metadata on storage disks.
+    """Scan library structure and populate the indexer database.
 
-    Lightweight scan: reads directories and NFOs, no ffprobe.
-    Produces library_scan.json in .personalscraper/.
+    Walks all configured storage disks and records every media file in the
+    indexer database.  The ``--disk`` and ``--category`` filters are no longer
+    supported (the indexer always performs a full scan); passing them prints a
+    deprecation warning and the flags are ignored.
+
+    Use ``library-index`` for the full-featured indexer command.
 
     Examples:
         personalscraper library-scan
-        personalscraper library-scan --disk Disk1
-        personalscraper library-scan --category films
     """
-    from personalscraper.library.models import write_json
-    from personalscraper.library.scanner import scan_library
+    import sqlite3  # noqa: PLC0415
 
-    category_id = _resolve_category(ctx, category)
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+    from personalscraper.library.scanner import scan_library  # noqa: PLC0415
+
     console = state["console"]
     config = ctx.obj.config
 
+    # --disk and --category are no longer forwarded to scan_library; warn once.
+    if disk is not None:
+        console.print(
+            "[yellow]Warning:[/yellow] --disk is deprecated for library-scan "
+            "and is ignored. Use library-index --disk instead."
+        )
+    if category is not None:
+        console.print(
+            "[yellow]Warning:[/yellow] --category is deprecated for library-scan "
+            "and is ignored. Use library-index instead."
+        )
+
+    db_path = config.indexer.db_path
+    migrations_dir = Path(_migrations_pkg.__file__).parent
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn: sqlite3.Connection = open_db(db_path)
+    apply_migrations(conn, migrations_dir)
+
     console.print("[bold]Scanning library...[/bold]")
-    result = scan_library(
-        config.disks,
-        config=config,
-        disk_filter=disk,
-        category_filter=category_id,
+    scan_library(config, conn)
+
+    total = conn.execute("SELECT COUNT(*) FROM media_file").fetchone()[0]
+    console.print(f"[green]Scan complete:[/green] {total} files indexed in {db_path}")
+
+
+@app.command("library-status")
+@handle_cli_errors
+def library_status(
+    ctx: typer.Context,
+    config: Path | None = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Show the latest completed indexer scan run summary.
+
+    Queries the indexer database for the most recently completed scan run
+    and prints a one-line summary.  Prints "no scans yet" when the database
+    has no completed scan runs.
+
+    Examples:
+        personalscraper library-status
+        personalscraper library-status --config /path/to/config.json5
+    """
+    from personalscraper.indexer.cli import library_status_command  # noqa: PLC0415
+
+    # Prefer explicit --config passed to this sub-command; fall back to the
+    # global --config stored on the app context.
+    effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_status_command(effective_config)
+    raise typer.Exit(rc)
+
+
+@app.command("library-index")
+@handle_cli_errors
+def library_index(
+    ctx: typer.Context,
+    mode: str = typer.Option("full", "--mode", help="Scan mode: full, quick, incremental, or enrich"),
+    disk: Optional[str] = typer.Option(None, "--disk", help="Restrict scan to this disk label"),
+    budget: Optional[int] = typer.Option(None, "--budget", help="Budget in seconds"),
+    no_budget: bool = typer.Option(
+        False,
+        "--no-budget",
+        help=(
+            "Disable the wall-clock budget for this run (overrides --budget and config). "
+            "Use for manual full enrich passes that must drain every pending file."
+        ),
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
+    wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+    confirm_bulk_change: bool = typer.Option(
+        False,
+        "--confirm-bulk-change",
+        help="Bypass bulk-restore freeze guard (use after --mode quick reports a high Merkle delta).",
+    ),
+    rebuild: bool = typer.Option(
+        False,
+        "--rebuild",
+        help="Quarantine corrupt DB and create a fresh one, then run full Stage-A scan.",
+    ),
+) -> None:
+    """Run a full or quick media indexer scan.
+
+    Walks all configured storage disks (or a single disk with --disk),
+    records every file in the indexer database, and prints a JSON summary.
+
+    Use --mode quick for a fast Merkle + dir-mtime short-circuit scan.
+    Use --dry-run to simulate without committing any DB changes.
+    Use --confirm-bulk-change to override the bulk-restore freeze guard.
+    Use --rebuild to quarantine a corrupt DB and rebuild from scratch.
+
+    Examples:
+        personalscraper library-index
+        personalscraper library-index --mode quick
+        personalscraper library-index --disk MyDisk --mode full
+        personalscraper library-index --dry-run --mode full
+        personalscraper library-index --mode quick --confirm-bulk-change
+        personalscraper library-index --rebuild
+    """
+    from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_index_command(
+        mode=mode,
+        disk=disk,
+        budget_seconds=budget,
+        no_budget=no_budget,
+        dry_run=dry_run,
+        wait_for_lock_seconds=wait_for_lock,
+        config_path=effective_config,
+        confirm_bulk_change=confirm_bulk_change,
+        rebuild=rebuild,
     )
+    if rc != 0:
+        raise typer.Exit(rc)
 
-    output_path = config.paths.data_dir / "library_scan.json"
-    write_json(result, output_path)
 
-    console.print(f"[green]Scan complete:[/green] {result.item_count} items → {output_path}")
+@app.command("library-verify")
+@handle_cli_errors
+def library_verify(
+    ctx: typer.Context,
+    disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Re-stat every indexed file and mark mismatches for repair.
+
+    Runs a verify-mode scan that re-checks every file's stat metadata against
+    the stored snapshot.  Files that no longer match are escalated to the repair
+    queue — they are NOT soft-deleted.  Use this command to identify drift
+    before deciding whether to accept or revert changes.
+
+    Examples:
+        personalscraper library-verify
+        personalscraper library-verify --disk Disk2
+    """
+    from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_verify_command(disk=disk, config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-search")
+@handle_cli_errors
+def library_search(
+    ctx: typer.Context,
+    query: str = typer.Argument(..., help="Query string, e.g. 'year:2024 disk:Disk1 -nfo:valid'"),
+    limit: int = typer.Option(50, "--limit", help="Maximum number of results to return"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Search indexed media items with the flex-attr query language.
+
+    Field syntax: ``field:value``, ``-field:value`` (negation), ``year:>=2020``,
+    ``title:"Exact Title"``.  Unknown fields exit 2.
+
+    Examples:
+        personalscraper library-search "year:2024 disk:Disk1 -nfo:valid"
+        personalscraper library-search "kind:show codec:hevc -trailer"
+        personalscraper library-search 'title:"Lost Highway"'
+    """
+    from personalscraper.indexer.cli import library_search_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_search_command(query, limit=limit, config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-repair")
+@handle_cli_errors
+def library_repair(
+    ctx: typer.Context,
+    budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Drain the repair queue within a time budget.
+
+    Processes pending repair rows in FIFO order.  Stops cleanly when the budget
+    is exhausted.  Prints a JSON summary of processed / succeeded / failed counts.
+
+    Examples:
+        personalscraper library-repair
+        personalscraper library-repair --budget 120
+    """
+    from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-show")
+@handle_cli_errors
+def library_show(
+    ctx: typer.Context,
+    item_id: int = typer.Argument(..., help="media_item.id to display"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Pretty-print all stored data for a single media item.
+
+    Prints media_item fields, season/episode rows, media_file rows with streams,
+    item_attribute rows, and deleted_item history.  Exits 2 for unknown ids.
+
+    Examples:
+        personalscraper library-show 42
+    """
+    from personalscraper.indexer.cli import library_show_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_show_command(item_id, config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
 
 
 @app.command()
@@ -996,13 +1208,15 @@ def library_report(
         personalscraper library-report --format json
     """
     from personalscraper.dispatch.disk_scanner import get_disk_status
+    from personalscraper.indexer.db import open_db
+    from personalscraper.library.analyzer import analyze
     from personalscraper.library.models import read_json, write_json
     from personalscraper.library.reporter import format_report_text, generate_report
 
     config = ctx.obj.config
     console = state["console"]
 
-    # Load available data
+    # Load available supplementary JSON data (validation, recommendations, rescrape)
     def _load(name: str) -> dict[str, Any] | None:
         path = config.paths.data_dir / name
         if path.exists():
@@ -1015,13 +1229,25 @@ def library_report(
         return None
 
     scan_data = _load("library_scan.json")
-    analysis_data = _load("library_analysis.json")
     validation_data = _load("library_validation.json")
     recommendation_data = _load("library_recommendations.json")
     rescrape_data = _load("library_rescrape.json")
 
-    if not any([scan_data, analysis_data, validation_data, recommendation_data, rescrape_data]):
-        console.print("[yellow]No library data found. Run library-scan or library-analyze first.[/yellow]")
+    # Query the indexer DB for NFO / artwork health metrics.
+    # library_analysis.json is no longer read — AnalysisResult replaces it.
+    db_path = config.indexer.db_path
+    analysis_result = None
+    if db_path.exists():
+        try:
+            conn = open_db(db_path)
+            analysis_result = analyze(conn)
+            conn.close()
+        except Exception as exc:
+            log.warning("report_indexer_query_failed", error=str(exc))
+            console.print(f"[yellow]Warning: indexer DB query failed ({exc}), skipping analysis.[/yellow]")
+
+    if not any([scan_data, analysis_result, validation_data, recommendation_data, rescrape_data]):
+        console.print("[yellow]No library data found. Run library-scan or library-index first.[/yellow]")
         raise typer.Exit(1)
 
     # Get live disk free space
@@ -1029,7 +1255,7 @@ def library_report(
 
     report = generate_report(
         scan_data,
-        analysis_data,
+        analysis_result,
         validation_data,
         recommendation_data,
         disk_statuses=disk_statuses,
@@ -1042,6 +1268,121 @@ def library_report(
         console.print(f"[green]Report written to {output_path}[/green]")
     else:
         console.print(format_report_text(report))
+
+
+# ---------------------------------------------------------------------------
+# Config sub-app commands
+# ---------------------------------------------------------------------------
+
+
+@config_app.command("migrate-category")
+def config_migrate_category(
+    ctx: typer.Context,
+    from_cat: str = typer.Option(..., "--from", help="Old category_id to replace"),
+    to_cat: str = typer.Option(..., "--to", help="New category_id to write (must be declared in config)"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Rewrite media_item.category_id for renamed categories.
+
+    Rewrites every ``media_item`` row whose ``category_id`` equals ``--from``
+    to ``--to``.  Run this after renaming a category in ``categories.json5``
+    to clear orphan-tagged rows shown by ``library status``.
+
+    The target ``--to`` must already be a declared category id in the current
+    config (the rename must be applied first).  The operation is idempotent.
+
+    Examples:
+        personalscraper config migrate-category --from old_cat --to new_cat
+    """
+    from personalscraper.indexer.cli import config_migrate_category_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = config_migrate_category_command(
+        from_category=from_cat,
+        to_category=to_cat,
+        config_path=effective_config,
+    )
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@config_app.command("migrate-to-v2")
+def config_migrate_to_v2(
+    ctx: typer.Context,
+    legacy: Path = typer.Argument(
+        ...,
+        help="Path to the legacy monolithic config.json5 to migrate.",
+    ),
+    target_dir: Path = typer.Argument(
+        ...,
+        help="Destination directory for the split v2 config files.",
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be written without touching disk."),
+) -> None:
+    """Migrate a v1 monolithic config.json5 to the v2 split layout.
+
+    Reads the legacy single-file config.json5, splits its top-level keys
+    across per-concern JSON5 files, and writes them atomically to TARGET_DIR.
+
+    The legacy file is renamed to <legacy>.v1.bak on success.  Unknown v1 keys
+    are placed in TARGET_DIR/local.json5 and listed in migration-warnings.txt.
+
+    Use --dry-run to preview the plan without writing anything.
+
+    Examples:
+        personalscraper config migrate-to-v2 ~/.personalscraper/config.json5 ~/.personalscraper/config/
+        personalscraper config migrate-to-v2 --dry-run ~/.personalscraper/config.json5 ~/.personalscraper/config/
+
+    Args:
+        ctx: Typer context (unused here — config sub-app runs without the
+            main callback's eager config load).
+        legacy: Path to the legacy monolithic config.json5.
+        target_dir: Destination directory for the split v2 files.
+        dry_run: When True, print planned writes and exit 0 without touching disk.
+    """
+    from personalscraper.conf.migration import (  # noqa: PLC0415
+        MigrationAlreadyDoneError,
+        MigrationError,
+        MigrationMalformedError,
+        migrate_v1_to_v2,
+        plan_migration,
+    )
+
+    console = state["console"]
+    legacy_resolved = legacy.expanduser().resolve()
+    target_resolved = target_dir.expanduser().resolve()
+
+    if dry_run:
+        try:
+            plan = plan_migration(legacy_resolved)
+        except MigrationMalformedError as exc:
+            typer.echo(f"Migration error: {exc}", err=True)
+            raise typer.Exit(code=2) from exc
+
+        console.print(f"[yellow]DRY-RUN:[/yellow] Would write the following files to {target_resolved}:")
+        for fname, content in plan.items():
+            if fname == "migration-warnings.txt":
+                console.print(f"  [dim]{fname}[/dim]  (warnings text file)")
+            else:
+                key_list = ", ".join(content.keys()) if isinstance(content, dict) else "<text>"
+                console.print(f"  [cyan]{fname}[/cyan]  keys: {key_list}")
+        console.print(f"[dim]Legacy file would be renamed to {legacy_resolved}.v1.bak[/dim]")
+        return
+
+    try:
+        migrate_v1_to_v2(legacy_resolved, target_resolved)
+    except MigrationAlreadyDoneError as exc:
+        console.print(f"[yellow]Already migrated:[/yellow] {exc}")
+        raise typer.Exit(code=0) from exc
+    except MigrationMalformedError as exc:
+        typer.echo(f"Migration error (malformed input): {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except MigrationError as exc:
+        typer.echo(f"Migration failed: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[green]Migration complete.[/green] Split config written to {target_resolved}")
+    console.print(f"[dim]Legacy file backed up as {legacy_resolved}.v1.bak[/dim]")
 
 
 @app.command()

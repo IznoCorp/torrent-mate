@@ -51,6 +51,45 @@ staging/
 │   │   └── trailers_cache.py    # Per-media trailer URL TTL cache
 │   ├── process/         # reclean, dedup, cleanup (between sort and scrape)
 │   ├── enforce/         # file sanitizer, structure validator, coherence checker
+│   ├── indexer/         # SQLite-backed media index — scan, drift, repair, query, outbox
+│   │   ├── __init__.py
+│   │   ├── db.py                # connection, WAL PRAGMAs, lock, migrations applier
+│   │   ├── schema.py            # frozen dataclass row types + Pydantic JSON-column models
+│   │   ├── scanner/             # scan engine (os.scandir + ThreadPool, modes, checkpoint)
+│   │   │   ├── _core.py         # scan() entry point + filter_disks()
+│   │   │   ├── _modes.py        # ScanMode enum and per-mode logic
+│   │   │   ├── _walker.py       # recursive dir walker + dir-mtime skip
+│   │   │   ├── _db_writes.py    # batch upserts into media_file + path tables
+│   │   │   ├── _checkpoint.py   # crash-resume checkpoint read/write
+│   │   │   ├── _concurrency.py  # ThreadPoolExecutor wiring
+│   │   │   ├── _exclusions.py   # junk-file patterns, sentinel checks
+│   │   │   ├── _spotlight.py    # macOS Spotlight availability probe
+│   │   │   ├── _index_ddl.py    # per-scan WAL index creation
+│   │   │   ├── _shutdown.py     # SIGTERM handler + budget guard
+│   │   │   ├── _throttle.py     # token-bucket I/O throttle
+│   │   │   └── _types.py        # internal ScanContext / FileVisit types
+│   │   ├── drift.py             # racy-mtime rule, N-strikes soft-delete, rename detection
+│   │   ├── fingerprint.py       # OSHash + xxh3_64 partial + racy detection
+│   │   ├── mediainfo.py         # pymediainfo wrapper, normalised stream extraction
+│   │   ├── merkle.py            # per-disk Merkle root + mountpoint sentinel guard
+│   │   ├── repair.py            # repair queue worker + budget drain
+│   │   ├── outbox.py            # outbox drainer + write-through helpers
+│   │   ├── query.py             # flex-attr query parser (FIELD_REGISTRY, execute())
+│   │   ├── cli.py               # library {index|status|verify|search|repair|show} commands
+│   │   ├── config.py            # IndexerConfig pydantic submodel
+│   │   ├── breaker.py           # per-disk circuit breaker
+│   │   ├── _macos_io.py         # macOS-specific I/O helpers (diskutil, volume UUID)
+│   │   ├── _throttle.py         # token-bucket I/O rate limiter
+│   │   ├── migrations/          # numbered .sql files + applier
+│   │   │   └── 001_init.sql     # full schema DDL
+│   │   └── repos/               # one Repository class per entity group
+│   │       ├── disk_repo.py     # disk + path tables
+│   │       ├── item_repo.py     # media_item + item_attribute (flex attrs)
+│   │       ├── release_repo.py  # media_release
+│   │       ├── file_repo.py     # media_file + media_stream
+│   │       ├── tv_repo.py       # season + episode
+│   │       ├── log_repo.py      # scan_run + scan_event + deleted_item
+│   │       └── outbox_repo.py   # index_outbox + pending_op + repair_queue
 │   ├── library/         # scan, clean, validate, analyze, recommend, report
 │   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks
 │   ├── dispatch/        # disk scanner, media index, rsync transfer + rollback/fallback
@@ -65,7 +104,10 @@ staging/
 │   ├── notifier.py      # Telegram notifications
 │   └── genre_mapper.py  # Genre → category mapping
 ├── tests/               # pytest tests (unit + E2E)
-│   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent)
+│   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent); indexer E2E scenarios
+│   ├── indexer/         # indexer unit + property tests (db, schema, repos, scanner, drift, query, CLI, plists)
+│   ├── integration/     # cross-module integration tests (outbox write-through, dispatch merge/replace/new)
+│   ├── conf/            # config-overhaul unit tests (loader, overlay, migration, classifier)
 │   ├── ingest/          # ingest unit tests
 │   ├── sorter/          # sorter unit tests
 │   ├── scraper/         # scraper unit tests

@@ -6,13 +6,14 @@ Media-without-trailer detection for staging and library.
 from __future__ import annotations
 
 import re
+import sqlite3
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from personalscraper.indexer import query as indexer_query
+from personalscraper.indexer.repos import item_repo
 from personalscraper.library.scanner import extract_nfo_ids, parse_title_year
-from personalscraper.library.scanner import scan_library as _lib_scan
 from personalscraper.logger import get_logger
 from personalscraper.trailers.placement import (
     trailer_exists,
@@ -87,7 +88,6 @@ class Scanner:
         """
         self._min_size = min_file_size_bytes
         self._seasons_enabled = seasons_enabled
-        self._last_scan_time: datetime | None = None
 
     def scan_staging(self, staging_dir: Path, config: Any | None = None) -> list[ScanItem]:
         """Walk a staging directory tree and return items missing trailers.
@@ -175,79 +175,115 @@ class Scanner:
 
     def scan_library(
         self,
-        config: Any,
+        conn: sqlite3.Connection,
         disk_filter: str | None = None,
         category_filter: str | None = None,
-        force_refresh: bool = False,
     ) -> list[ScanItem]:
-        """Scan the permanent library for media missing trailers.
+        """Scan the permanent library for media missing trailers using the indexer DB.
+
+        Queries the indexer database for media items that have no
+        ``item_attribute(key='trailer_found')`` row.  The filesystem path for
+        each item is recovered from the ``dispatch_path`` attribute stored by
+        the dispatch layer when the item was first moved to permanent storage.
+
+        Items whose ``dispatch_path`` attribute is absent or whose path does
+        not exist on disk are skipped with a debug-level log — they may belong
+        to an unmounted disk.
+
+        The TTL-based in-memory cache (``_last_scan_time`` / ``_is_scan_fresh``)
+        and the ``library_scan_max_age_hours`` config knob used in earlier
+        versions of this method have been removed.  Every call performs a fresh
+        DB query; callers that previously relied on ``force_refresh=True`` to
+        bypass the cache can now simply call this method unconditionally.
 
         Args:
-            config: Loaded pipeline Config. Must expose config.disks and
-                optionally config.trailers.library_scan_max_age_hours.
-            disk_filter: Only scan this disk (by disk.id). None = all.
-            category_filter: Only scan this category_id. None = all.
-            force_refresh: If True, bypass the age threshold and always rescan.
+            conn: Open, readable SQLite connection to the indexer database.
+            disk_filter: When provided, restrict to items on this disk ID
+                (matches the ``dispatch_disk`` attribute value).  None = all disks.
+            category_filter: When provided, restrict to items with this
+                ``category_id`` value.  None = all categories.
 
         Returns:
             List of ScanItem objects for library entries missing a valid trailer.
         """
-        # Pydantic strict guarantees this attribute on a real Config; the
-        # ``Any`` annotation lets test fixtures pass narrower mocks without
-        # going through the loader. Direct access surfaces test misconfig loudly.
-        max_age_hours = int(config.trailers.library_scan_max_age_hours)
-        if not force_refresh and self._is_scan_fresh(max_age_hours):
-            log.debug("scanner_library_scan_skipped_fresh", max_age_hours=max_age_hours)
-            return []
         log.info("scanner_library_scan_start", disk_filter=disk_filter, category_filter=category_filter)
-        result = _lib_scan(config.disks, config, disk_filter=disk_filter, category_filter=category_filter)
-        self._last_scan_time = datetime.now(tz=timezone.utc)
+
+        # Query the indexer for every item that has not yet received a trailer.
+        candidate_items = indexer_query.find_items_without_trailer(conn)
+
         items: list[ScanItem] = []
-        for lib_item in result.items:
-            media_dir = Path(lib_item.path)
-            media_name = media_dir.name
-            # Narrow library_scanner's str media_type to the strict Literal.
-            if lib_item.media_type not in ("movie", "tvshow"):
+        for db_item in candidate_items:
+            # Recover the on-disk path stored by the dispatch layer.
+            dispatch_path_attr = item_repo.get_attr(conn, db_item.id, "dispatch_path")
+            if dispatch_path_attr is None or dispatch_path_attr.value is None:
                 log.debug(
-                    "scanner_unknown_media_type",
-                    media_type=lib_item.media_type,
+                    "scanner_library_item_no_dispatch_path",
+                    item_id=db_item.id,
+                    title=db_item.title,
+                )
+                continue
+
+            media_dir = Path(dispatch_path_attr.value)
+
+            # Apply optional disk filter (matches the dispatch_disk attribute).
+            if disk_filter is not None:
+                dispatch_disk_attr = item_repo.get_attr(conn, db_item.id, "dispatch_disk")
+                if dispatch_disk_attr is None or dispatch_disk_attr.value != disk_filter:
+                    continue
+
+            # Apply optional category filter.
+            if category_filter is not None and db_item.category_id != category_filter:
+                continue
+
+            if not media_dir.exists():
+                log.debug(
+                    "scanner_library_item_path_missing",
+                    item_id=db_item.id,
+                    title=db_item.title,
                     path=str(media_dir),
                 )
                 continue
-            media_type: MediaTypeLiteral = "tvshow" if lib_item.media_type == "tvshow" else "movie"
-            nfo_path: Path | None = self._nfo_path_for(media_dir, lib_item.title, media_type)
+
+            # Narrow the DB kind ('movie' / 'show') to the scanner Literal.
+            if db_item.kind == "show":
+                media_type: MediaTypeLiteral = "tvshow"
+            elif db_item.kind == "movie":
+                media_type = "movie"
+            else:
+                log.debug(
+                    "scanner_library_unknown_kind",
+                    item_id=db_item.id,
+                    kind=db_item.kind,
+                )
+                continue
+
+            nfo_path: Path | None = self._nfo_path_for(media_dir, db_item.title, media_type)
+            media_name = media_dir.name
             expected = trailer_path_for(media_dir, media_name, media_type=media_type)
             if trailer_exists(expected, self._min_size):
+                # Trailer file already present (DB not yet updated); skip.
                 continue
+
+            # tmdb_id in the DB is an int; ScanItem expects str | None.
+            tmdb_id_str: str | None = str(db_item.tmdb_id) if db_item.tmdb_id is not None else None
+
             scan_item = ScanItem(
                 path=media_dir,
                 media_type=media_type,
-                title=lib_item.title,
-                year=lib_item.year,
-                tmdb_id=lib_item.nfo.tmdb_id,
-                imdb_id=lib_item.nfo.imdb_id,
+                title=db_item.title,
+                year=db_item.year,
+                tmdb_id=tmdb_id_str,
+                imdb_id=db_item.imdb_id,
                 nfo_path=nfo_path,
                 season_number=None,
             )
             items.append(scan_item)
+
             if self._seasons_enabled and media_type == "tvshow":
                 items.extend(self._scan_seasons(media_dir, scan_item))
+
         log.debug("scanner_library_scan_complete", items_found=len(items))
         return items
-
-    def _is_scan_fresh(self, max_age_hours: int) -> bool:
-        """Return True when the cached scan is younger than max_age_hours.
-
-        Args:
-            max_age_hours: Threshold for treating the cached scan as fresh.
-
-        Returns:
-            True if a previous scan completed within the window.
-        """
-        if self._last_scan_time is None:
-            return False
-        age_seconds = (datetime.now(tz=timezone.utc) - self._last_scan_time).total_seconds()
-        return age_seconds < max_age_hours * 3600
 
     def _scan_media_dir(self, media_dir: Path, forced_type: MediaTypeLiteral | None = None) -> list[ScanItem]:
         """Scan a single media directory and return missing-trailer ScanItems.

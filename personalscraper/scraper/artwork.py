@@ -25,6 +25,7 @@ from tenacity import (
     wait_fixed,
 )
 
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
@@ -37,6 +38,44 @@ IMAGE_SIZE = "original"
 
 # Default language priority for image selection (lower = better)
 _DEFAULT_LANG_PRIORITY: dict[str | None, int] = {"en": 0, "fr": 1}
+
+# Stem substrings → outbox artwork ``kind`` value.
+# Order matters: the first match in iteration wins, so put the more specific
+# tokens first (``clearlogo``/``clearart`` before ``logo``/``art``, etc.).
+# Kinds must remain a subset of
+# :data:`personalscraper.indexer.outbox._ALLOWED_ARTWORK_KINDS`; stems that
+# match no entry skip the outbox publish entirely (best-effort contract).
+_KIND_BY_STEM_TOKEN: tuple[tuple[str, str], ...] = (
+    ("poster", "poster"),
+    ("landscape", "landscape"),
+    ("fanart", "fanart"),
+    ("backdrop", "fanart"),
+    ("banner", "banner"),
+    ("clearlogo", "clearlogo"),
+    ("clearart", "clearart"),
+    ("discart", "discart"),
+    ("characterart", "characterart"),
+)
+
+
+def _kind_from_stem(stem: str) -> str | None:
+    """Resolve the outbox ``kind`` for an artwork file by stem.
+
+    Args:
+        stem: Filename stem (lower-cased), e.g. ``"poster"`` or
+            ``"my-movie-fanart"``.
+
+    Returns:
+        A whitelisted ``kind`` value (subset of
+        :data:`~personalscraper.indexer.outbox._ALLOWED_ARTWORK_KINDS`)
+        when the stem contains a known token, otherwise ``None`` so the
+        caller can skip the outbox publish.
+    """
+    lowered = stem.lower()
+    for token, kind in _KIND_BY_STEM_TOKEN:
+        if token in lowered:
+            return kind
+    return None
 
 
 _is_retryable = make_retryable_predicate()
@@ -106,18 +145,24 @@ class ArtworkDownloader:
 
     Attributes:
         dry_run: If True, log planned downloads without writing files.
+        _db_path: Path to the indexer SQLite database used for best-effort
+            outbox publish on :meth:`download_image`.  ``None`` disables publishing.
     """
 
-    def __init__(self, dry_run: bool = False, artwork_language: str = "en"):
+    def __init__(self, dry_run: bool = False, artwork_language: str = "en", db_path: Path | None = None):
         """Initialize the artwork downloader.
 
         Args:
             dry_run: If True, only log what would be downloaded.
             artwork_language: Preferred language for artwork selection (ISO 639-1).
+            db_path: Resolved ``Config.indexer.db_path`` passed through from
+                the caller.  When ``None``, the write-through outbox publish
+                in :meth:`download_image` is silently skipped (best-effort contract).
         """
         self.dry_run = dry_run
         self._lang_priority = build_lang_priority(artwork_language)
         self._session = requests.Session()
+        self._db_path = db_path
 
     @retry(
         stop=stop_after_attempt(3),
@@ -160,6 +205,31 @@ class ArtworkDownloader:
 
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(response.content)
+
+        # Best-effort outbox publish for the indexer (DESIGN §9.1).
+        # Skipped when _db_path is None (no config available at construction time)
+        # or when the stem does not map to a whitelisted artwork ``kind`` — the
+        # outbox drainer would otherwise mark the row permanently failed
+        # (DESIGN §9.6 producer guard, IMPLEMENTATION cycle 2).
+        if self._db_path is not None:
+            kind = _kind_from_stem(dest.stem)
+            if kind is None:
+                log.debug("artwork_outbox_skipped_unknown_kind", filename=dest.name, stem=dest.stem)
+            else:
+                resolved = disk_id_for_path(dest, self._db_path)
+                if resolved is not None:
+                    disk_id, rel_path = resolved
+                    publish_event(
+                        disk_id,
+                        op="artwork_write",
+                        payload={
+                            "rel_path": rel_path,
+                            "kind": kind,
+                        },
+                        db_path=self._db_path,
+                        source="scraper",
+                    )
+
         log.info("artwork_downloaded", filename=dest.name, bytes=len(response.content))
         return True
 
@@ -188,6 +258,7 @@ class ArtworkDownloader:
         title = movie_data.get("title", "")
 
         # Poster
+        posters_count = len(images.get("posters", []))
         poster_path = select_best_image(images.get("posters", []), self._lang_priority)
         if poster_path:
             poster_name = patterns.format("movie_poster", Title=title)
@@ -198,9 +269,28 @@ class ArtworkDownloader:
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
                 log.warning("artwork_movie_poster_failed", filename=poster_name)
+        else:
+            # Surface gaps in upstream metadata (TMDB returned 0 posters for
+            # this movie). Without this log a missing poster.jpg looks like
+            # a local code failure when it is really an upstream data gap.
+            log.warning("artwork_movie_poster_missing_source", title=title, source="tmdb", candidates=posters_count)
 
-        # Landscape (from backdrops)
-        landscape_path = select_best_image(images.get("backdrops", []), self._lang_priority)
+        # Landscape (from backdrops). TMDB exposes the show-/movie-level
+        # backdrop both as ``backdrop_path`` on the main detail payload and
+        # as a list under ``images.backdrops``; fall back to the former when
+        # the list is empty so a single backdrop still produces a landscape.
+        backdrops = images.get("backdrops", [])
+        backdrops_count = len(backdrops)
+        landscape_path = select_best_image(backdrops, self._lang_priority)
+        if not landscape_path:
+            fallback_backdrop = movie_data.get("backdrop_path")
+            if fallback_backdrop:
+                landscape_path = fallback_backdrop
+                log.info(
+                    "artwork_movie_landscape_fallback",
+                    title=title,
+                    source="tmdb_main_detail_backdrop_path",
+                )
         if landscape_path:
             landscape_name = patterns.format("movie_landscape", Title=title)
             dest = movie_dir / landscape_name
@@ -210,6 +300,16 @@ class ArtworkDownloader:
                     downloaded.append(dest)
             except requests.exceptions.RequestException:
                 log.warning("artwork_movie_landscape_failed", filename=landscape_name)
+        else:
+            # Surface upstream metadata gaps so the operator can distinguish
+            # "TMDB has no backdrop" (this log) from "downloader failed"
+            # (artwork_movie_landscape_failed log above).
+            log.warning(
+                "artwork_movie_landscape_missing_source",
+                title=title,
+                source="tmdb",
+                candidates=backdrops_count,
+            )
 
         return downloaded
 
@@ -265,6 +365,13 @@ class ArtworkDownloader:
             except requests.exceptions.RequestException:
                 log.warning("artwork_show_landscape_failed")
 
+        handled_seasons: set[int] = set()
+        disk_seasons = {
+            int(path.name.split()[-1])
+            for path in show_dir.iterdir()
+            if path.is_dir() and path.name.startswith("Saison ") and path.name.split()[-1].isdigit()
+        }
+
         # Season posters (only for seasons that exist on disk)
         for season in show_data.get("seasons", []):
             season_num = season.get("season_number", 0)
@@ -275,15 +382,32 @@ class ArtworkDownloader:
             season_dir_name = patterns.format("season_dir", Season=season_num)
             if not (show_dir / season_dir_name).is_dir():
                 continue
-            season_poster = season.get("poster_path", "")
+            handled_seasons.add(season_num)
+            season_poster = season.get("poster_path", "") or poster_path
             if season_poster:
                 poster_name = patterns.format("season_poster", Season=season_num)
                 dest = show_dir / poster_name
-                url = f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{season_poster}"
+                url = (
+                    season_poster
+                    if season_poster.startswith("http")
+                    else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{season_poster}"
+                )
                 try:
                     if self.download_image(url, dest):
                         downloaded.append(dest)
                 except requests.exceptions.RequestException:
                     log.warning("artwork_season_poster_failed", season=season_num)
+
+        for season_num in sorted(disk_seasons - handled_seasons):
+            if not poster_path:
+                continue
+            poster_name = patterns.format("season_poster", Season=season_num)
+            dest = show_dir / poster_name
+            url = poster_path if poster_path.startswith("http") else f"{IMAGE_BASE_URL}/{IMAGE_SIZE}{poster_path}"
+            try:
+                if self.download_image(url, dest):
+                    downloaded.append(dest)
+            except requests.exceptions.RequestException:
+                log.warning("artwork_season_poster_failed", season=season_num)
 
         return downloaded

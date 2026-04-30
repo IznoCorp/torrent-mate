@@ -1,0 +1,27 @@
+{
+  // Trailer download feature configuration.
+  // enabled: false by default — set to true to activate.
+  trailers: {
+    enabled: false,
+
+    // Ordered language codes for TMDB video lookups. First match wins.
+    languages: ["fr-FR", "en-US"],
+
+    // YouTube search query template when TMDB yields nothing.
+    // Placeholders: {title}, {year}
+    search_query_format: "{title} {year} bande annonce",
+
+    // Season-level trailer discovery (opt-in, off by default).
+    seasons: {
+      enabled: false,
+    },
+
+    // Library-aware idempotence per media type.
+    // When enabled, a library scan is run before trailer discovery to avoid
+    // re-downloading trailers that already exist on disk.
+    library_check: {
+      movies: false,
+      tv_shows: true,
+    },
+  },
+}

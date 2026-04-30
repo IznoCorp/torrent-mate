@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from personalscraper.models import StepReport
-from personalscraper.process.run import run_clean, run_process
+from personalscraper.process.run import _revert_unmatched_recleans, run_clean, run_process
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -196,3 +196,69 @@ class TestRunCleanFastSkip:
 
         # Polluted folder was processed (re-cleaned)
         assert report.success_count >= 1
+
+
+class TestRevertUnmatchedRecleans:
+    """Tests for _revert_unmatched_recleans() helper."""
+
+    def test_unmatched_dir_reverted_to_torrent_name(self, tmp_path):
+        """An unmatched clean-named dir is renamed back to its original torrent name."""
+        category_dir = tmp_path / "002-TVSHOWS"
+        category_dir.mkdir()
+
+        # Simulate what reclean produced: the polluted torrent folder was renamed.
+        original_name = "Les.secrets.du.Prince.Andrew.2023.S01.DOC.FRENCH.1080p.WEB.H264-BOUBA"
+        clean_name = "Les secrets du Prince Andrew S01 (2023)"
+        clean_dir = category_dir / clean_name
+        clean_dir.mkdir()
+
+        rename_map = {clean_name: original_name}
+        unmatched_names = {clean_name}
+
+        reverted = _revert_unmatched_recleans(
+            category_dirs=[category_dir],
+            unmatched_names=unmatched_names,
+            rename_map=rename_map,
+        )
+
+        assert reverted == 1
+        # The clean-named dir should no longer exist.
+        assert not clean_dir.exists()
+        # The original torrent-named dir should be back.
+        assert (category_dir / original_name).exists()
+
+    def test_matched_dir_not_reverted(self, tmp_path):
+        """A folder that was successfully scraped is left under its clean name."""
+        category_dir = tmp_path / "001-MOVIES"
+        category_dir.mkdir()
+
+        clean_name = "The Butterfly Effect (2004)"
+        clean_dir = category_dir / clean_name
+        clean_dir.mkdir()
+
+        rename_map = {clean_name: "The.Butterfly.Effect.2004.DC.MULTi.TRUEFRENCH.1080p.x264"}
+        # This folder is NOT in unmatched_names — scraper succeeded.
+        unmatched_names: set[str] = set()
+
+        reverted = _revert_unmatched_recleans(
+            category_dirs=[category_dir],
+            unmatched_names=unmatched_names,
+            rename_map=rename_map,
+        )
+
+        assert reverted == 0
+        # Clean dir must remain untouched.
+        assert clean_dir.exists()
+
+    def test_empty_rename_map_returns_zero(self, tmp_path):
+        """Returns 0 immediately when rename_map is empty (fast path)."""
+        category_dir = tmp_path / "002-TVSHOWS"
+        category_dir.mkdir()
+
+        reverted = _revert_unmatched_recleans(
+            category_dirs=[category_dir],
+            unmatched_names={"Some Clean Name"},
+            rename_map={},
+        )
+
+        assert reverted == 0

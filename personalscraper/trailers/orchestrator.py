@@ -8,12 +8,16 @@ SOT recheck), and SS12 (step budget + disk-space pre-check).
 from __future__ import annotations
 
 import shutil
+import sqlite3
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from personalscraper.library import scanner as library_scanner
+from personalscraper.indexer.db import open_db as _open_indexer_db
+from personalscraper.indexer.outbox import disk_id_for_path, publish_event
+from personalscraper.indexer.repos import item_repo as _indexer_item_repo
 from personalscraper.logger import get_logger
 from personalscraper.scraper.ytdlp_downloader import (
     CookieConfig,
@@ -43,6 +47,22 @@ if TYPE_CHECKING:
 log = get_logger(__name__)
 
 _DEFAULT_EXT: str = "mp4"
+
+
+@dataclass(frozen=True)
+class _LibraryEntry:
+    """Minimal record stored in the library index.
+
+    Holds only the on-disk path needed by the library-aware SOT recheck
+    (DESIGN SS8).  Built from ``item_attribute.dispatch_path`` rows written by
+    the dispatch layer when media is first moved to permanent storage.
+
+    Attributes:
+        path: Absolute filesystem path of the media directory on the storage
+            disk (e.g. ``/Volumes/Disk1/TV/Breaking Bad (2008)``).
+    """
+
+    path: str
 
 
 def _set_state_for_item(
@@ -100,7 +120,8 @@ class TrailersOrchestrator:
         _downloader: yt-dlp wrapper.
         _state_store: Persistent JSON state store.
         _failed_items: Per-item failure list populated by run().
-        _library_index: Lazily built index of library items by (category, id).
+        _library_index: Lazily built index mapping (category_id, id_value) to
+            :class:`_LibraryEntry`.  Populated on first need during run().
     """
 
     def __init__(self, config: Any, staging_dir: Path | None) -> None:
@@ -145,7 +166,7 @@ class TrailersOrchestrator:
         state_file = Path(str(config.trailers.state_file))
         self._state_store = TrailerStateStore(state_file=state_file)
 
-        self._library_index: dict[tuple[str, str], Any] | None = None
+        self._library_index: dict[tuple[str, str], _LibraryEntry] | None = None
 
     def run(self, items: "list[Any] | None" = None) -> dict[str, int]:
         """Execute the full trailer acquisition loop.
@@ -445,6 +466,24 @@ class TrailersOrchestrator:
                     output_path=str(result.output_path),
                 )
                 counts["downloaded"] += 1
+
+                # Best-effort outbox publish for the indexer (DESIGN §9.1).
+                if result.output_path is not None:
+                    _db_path = self._config.indexer.db_path
+                    resolved = disk_id_for_path(result.output_path, _db_path)
+                    if resolved is not None:
+                        disk_id, rel_path = resolved
+                        publish_event(
+                            disk_id,
+                            op="trailer_download",
+                            payload={
+                                "rel_path": rel_path,
+                                "trailer_path": str(result.output_path),
+                            },
+                            db_path=_db_path,
+                            source="trailers",
+                        )
+
                 state_written = _set_state_for_item(
                     self._state_store,
                     key,
@@ -636,20 +675,35 @@ class TrailersOrchestrator:
             )
             return None
 
-    def _build_library_index(self) -> dict[tuple[str, str], Any]:
-        """Scan all configured disks and index LibraryScanItems by ID.
+    def _build_library_index(self) -> dict[tuple[str, str], _LibraryEntry]:
+        """Query the indexer DB and index library items by ID for SOT recheck.
 
-        Builds a flat dict keyed by (category, id_value) tuples for both
-        tmdb_id and imdb_id of each LibraryScanItem.
-        Used for the library-aware SOT recheck (DESIGN SS8).
+        Opens a read-only connection to the indexer database and retrieves all
+        media items that have ``dispatch_path`` attributes (set by the dispatch
+        layer when media is first moved to permanent storage).  Builds a flat
+        dict keyed by ``(category_id, id_value)`` tuples using both ``tmdb_id``
+        and ``imdb_id`` of each row.  Used for the library-aware SOT recheck
+        (DESIGN SS8).
+
+        Items inserted by the library scanner but not yet through dispatch
+        (no ``dispatch_path`` attribute) are silently skipped — they have no
+        known on-disk path and cannot be checked for an existing trailer.
 
         Returns:
-            Dict mapping (category, id_value) to LibraryScanItem instances.
-            Empty when the library scan fails or returns nothing.
+            Dict mapping ``(category_id, id_value)`` to :class:`_LibraryEntry`.
+            ``id_value`` is always a string (``str(tmdb_id)`` for integer TMDB
+            IDs, ``imdb_id`` verbatim for IMDB IDs).  Returns an empty dict
+            when the indexer DB is unavailable or contains no dispatched items.
         """
-        index: dict[tuple[str, str], Any] = {}
+        index: dict[tuple[str, str], _LibraryEntry] = {}
+        db_path = self._config.indexer.db_path
+        if not db_path.exists():
+            log.debug("trailers_library_index_db_missing", db_path=str(db_path))
+            return index
+        conn: sqlite3.Connection | None = None
         try:
-            result = library_scanner.scan_library(self._config.disks, self._config)
+            conn = _open_indexer_db(db_path)
+            rows = _indexer_item_repo.list_all_dispatch_items(conn)
         except Exception as exc:  # noqa: BLE001 — degraded, but loudly logged
             log.error(
                 "trailers_library_index_build_failed",
@@ -658,15 +712,21 @@ class TrailersOrchestrator:
                 exc_info=True,
             )
             return index
-        for lib_item in result.items:
-            if lib_item.nfo.tmdb_id:
-                index[(lib_item.category, lib_item.nfo.tmdb_id)] = lib_item
-            if lib_item.nfo.imdb_id:
-                index[(lib_item.category, lib_item.nfo.imdb_id)] = lib_item
+        finally:
+            if conn is not None:
+                conn.close()
+        for db_item, _disk, dispatch_path in rows:
+            if not dispatch_path:
+                continue
+            entry = _LibraryEntry(path=dispatch_path)
+            if db_item.tmdb_id is not None:
+                index[(db_item.category_id, str(db_item.tmdb_id))] = entry
+            if db_item.imdb_id:
+                index[(db_item.category_id, db_item.imdb_id)] = entry
         log.debug("trailers_library_index_built", entries=len(index))
         return index
 
-    def _lookup_library_item(self, item: Any) -> Any | None:
+    def _lookup_library_item(self, item: Any) -> _LibraryEntry | None:
         """Look up a ScanItem in the library index by tmdb_id.
 
         Searches across all categories (the category dimension is ignored so
@@ -674,15 +734,15 @@ class TrailersOrchestrator:
         from a differently named staging directory).
 
         Args:
-            item: A ScanItem whose tmdb_id to use for lookup.
+            item: A ScanItem whose ``tmdb_id`` to use for lookup.
 
         Returns:
-            Matching LibraryScanItem from the library index, or None.
+            Matching :class:`_LibraryEntry` from the library index, or None.
         """
         if self._library_index is None:
             return None
         if item.tmdb_id:
-            for (_, idx_id), lib_item in self._library_index.items():
+            for (_, idx_id), entry in self._library_index.items():
                 if idx_id == item.tmdb_id:
-                    return lib_item
+                    return entry
         return None

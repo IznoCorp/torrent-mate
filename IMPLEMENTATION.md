@@ -1,159 +1,87 @@
-# Implementation Progress — trailer
+# Implementation Progress — media-indexer
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Feature**: YoutubeTrailerScraper Integration (minor)
-**Version bump**: 0.6.0 → 0.7.0
-**Branch**: feat/trailer
+**Feature**: Media Indexer + Config Overhaul (minor)
+**Version bump**: 0.7.0 → 0.8.0
+**Branch**: feat/media-indexer
 **PR merge**: manual
-**PR**: https://github.com/LounisBou/personal-scraper/pull/15
-**Design**: docs/features/trailer/DESIGN.md
-**Master plan**: docs/features/trailer/plan/INDEX.md
+**PR**: https://github.com/LounisBou/personal-scraper/pull/16
+**Design**: docs/features/media-indexer/DESIGN.md
+**Master plan**: docs/features/media-indexer/plan/INDEX.md
 
 ## Phases
 
-| #   | Phase                                                                    | File                             | Status |
-| --- | ------------------------------------------------------------------------ | -------------------------------- | ------ |
-| 1   | Extend `TMDBClient` with video endpoints                                 | phase-01-tmdbclient-videos.md    | [x]    |
-| 2   | Extract `JsonTTLCache` primitive                                         | phase-02-json-ttl-cache.md       | [x]    |
-| 3a  | Trailer discovery (`trailer_finder`, `youtube_search`, `trailers_cache`) | phase-03a-trailer-discovery.md   | [x]    |
-| 3b  | Download wrapper (`ytdlp_downloader`)                                    | phase-03b-ytdlp-downloader.md    | [x]    |
-| 3c  | Placement (`placement.py`)                                               | phase-03c-placement.md           | [x]    |
-| 4   | State tracking (`state.py`)                                              | phase-04-state-tracking.md       | [x]    |
-| 5   | Pipeline step (`trailers/step.py`)                                       | phase-05-pipeline-step.md        | [x]    |
-| 6   | Scanner + orchestrator                                                   | phase-06-scanner-orchestrator.md | [x]    |
-| 7   | Config schema via Pydantic defaults                                      | phase-07-config-defaults.md      | [x]    |
-| 8   | CLI (`personalscraper trailers …`)                                       | phase-08-cli.md                  | [x]    |
-| 9   | E2E + docs + gate                                                        | phase-09-e2e-docs-gate.md        | [x]    |
-| 10  | PR fixes cycle 3 (40 findings)                                           | phase-10-pr-review-cycle-3.md    | [x]    |
-| 11  | PR fixes cycle 4 (22 findings)                                           | phase-11-pr-fixes-cycle-4.md     | [x]    |
+| #   | Phase                                    | File                                                                                                          | Status |
+| --- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------ |
+| 0   | Config Overhaul                          | [phase-00-config-overhaul.md](docs/features/media-indexer/plan/phase-00-config-overhaul.md)                   | [x]    |
+| 1   | Indexer Core: DB layer                   | [phase-01-db-layer.md](docs/features/media-indexer/plan/phase-01-db-layer.md)                                 | [x]    |
+| 2   | Indexer Core: Scanner (full + quick)     | [phase-02-scanner-full-quick.md](docs/features/media-indexer/plan/phase-02-scanner-full-quick.md)             | [x]    |
+| 3   | Indexer Core: Drift + Reconciliation     | [phase-03-drift-reconciliation.md](docs/features/media-indexer/plan/phase-03-drift-reconciliation.md)         | [x]    |
+| 4   | Performance + Incremental + Enrich modes | [phase-04-perf-incremental-enrich.md](docs/features/media-indexer/plan/phase-04-perf-incremental-enrich.md)   | [x]    |
+| 5   | Outbox + Write-through                   | [phase-05-outbox-writethrough.md](docs/features/media-indexer/plan/phase-05-outbox-writethrough.md)           | [x]    |
+| 6   | Consumer migration: dispatch             | [phase-06-migrate-dispatch.md](docs/features/media-indexer/plan/phase-06-migrate-dispatch.md)                 | [x]    |
+| 7   | Consumer migration: library + trailers   | [phase-07-migrate-library-trailers.md](docs/features/media-indexer/plan/phase-07-migrate-library-trailers.md) | [x]    |
+| 8   | CLI + cron + query language              | [phase-08-cli-cron-query.md](docs/features/media-indexer/plan/phase-08-cli-cron-query.md)                     | [x]    |
+| 9   | PR fixes cycle 1                         | [phase-09-pr-fixes-cycle-1.md](docs/features/media-indexer/plan/phase-09-pr-fixes-cycle-1.md)                 | [x]    |
+| 10  | PR fixes cycle 2 (smoke-test bugs)       | [phase-10-pr-fixes-cycle-2.md](docs/features/media-indexer/plan/phase-10-pr-fixes-cycle-2.md)                 | [x]    |
 
 ## Review cycles
 
 ### Cycle 1
 
-- Findings received: 30 across 5 reviewers (code, tests, errors, types, comments)
-- Retained: 14 actionable (0 critical, 2 major, 9 medium, 3 minor)
-- Ignored: 16 (CI flake speculation, cosmetic, out of scope, validated as sound)
-- Fix phase: applied inline (cohesive small fixes, hot session)
-- Status: clean — all retained fixed and tests added; proceeding to merge
+- Findings received: ~80 raw (5 review agents)
+- Retained: 6 (2 critical, 4 major, 0 medium, ~20 reclassified to minor / deferred)
+- Ignored: many out-of-scope (style preferences not codified, pre-existing items on main)
+- Fix phase created: phase-09-pr-fixes-cycle-1.md
+- Status: fix phase complete → /implement:feature-pr re-running for cycle 2
 
-**Major fixes**:
+**Critical**:
 
-- `Video.type` `.capitalize()` corrupted multi-word types ("Behind the scenes" instead of "Behind the Scenes") → introduced canonical-vocabulary mapping
-- `retry_after_days` per-element `ge=0` missing → negative day collapsed back-off ladder
+- C1: `outbox.publish_event`/`disk_id_for_path` ignore configured `db_path` (DESIGN §9.4)
+- C2: `library/scanner.scan_library` hardcodes `generation=1` (DESIGN §8.1)
 
-**Medium fixes**:
+**Major**:
 
-- `Video.size` doc/code mismatch — tightened validator to `> 0` (docstring already said `> 0`, code allowed `0`)
-- scanner.py removed silent AttributeError fallback on library_scan_max_age_hours; relies on Pydantic-strict guarantee instead
-- `_backup_corrupt` filename now preserves `.json` suffix (`with_name` instead of `with_suffix`)
-- `CookieConfig.from_env()` narrowed to `(ImportError, ValidationError)` + DEBUG log instead of swallow-all
-- orchestrator disk_usage `FileNotFoundError` adds `log.debug` breadcrumb
-- state.py `_save` outer OSError logs at error level with `error_type` before re-raising
-- `all_entries()` aggregates malformed-dropped count and emits a summary warning
-- `_fallback_search` second except catches non-DownloadError yt-dlp failures and trips the breaker
-- `TrailerState` field annotations now `str | datetime | None` (was `str` while runtime accepted both)
+- M1: SQL f-string interpolation in `_apply_artwork_write` without kind whitelist
+- M2: `MediaIndex` sqlite connection leak (no close/`__exit__`)
+- M3: `_inventory_artwork`/`_check_nfo_status` overwrite valid data on transient OSError
+- M4: `scan()` swallows exceptions, contradicting documented re-raise contract
 
-**Minor fixes**:
-
-- `_validate_season_number` extracted into shared helper used by both TrailerState and ScanItem
-- `allowed_extensions` per-element pattern `^[a-z0-9]+$` rejects `""` and `"mp4 "`
-
-**Tests added**: Video site/type normalisation + `> 0` size validation (5 tests), retry_after_days negative element rejected, allowed_extensions empty-string + trailing-space rejected.
+**Deferred to follow-up PR** (~30 items): type-design tightening (Literal aliases / bool conversions / frozen dataclasses), observability gaps (log level / `exc_info=True` / `error_type`), comment sweep (orphan plan refs / outdated docstrings), CLI cosmetic fixes, test-coverage suggestions.
 
 ### Cycle 2
 
-- Findings received: ~10 across 5 reviewers (verification pass on cycle 1 fixes)
-- Retained: 2 minor (parametrise + comment rewording)
-- Ignored: out-of-scope pre-existing observations (DEBUG vs WARNING level for Settings fallback, malformed retry timestamp silent skip pre-existing, unknown-type DEBUG enhancement)
-- Verdict from all 5 reviewers: cycle 1 fixes are sound, no regressions, no new bugs introduced
-- Status: clean — proceeding to merge
-
-**Polish applied**:
-
-- Test parametrise expanded `_TMDB_TYPE_CANONICAL` coverage to all 8 documented types + all 3 sites (was 1 site + 1 multi-word type) — catches a broader regression net
-- Reworded `state.py:should_skip` "type system can't narrow" comment to be more explicit about the invariant
-- Reworded IMPLEMENTATION.md cycle 1 record to drop process-meta phrasing
+- Findings received: focused review of cycle 1 fix commits (f10100d..51f32e1)
+- Retained: 0 (0 critical, 0 major, 0 medium, 1 reclassified to minor)
+- Reclassified to minor / deferred: 1 — `scraper/artwork.py` publishes `kind="thumb"` / `kind="unknown"` for unmatched filename stems; after M1's whitelist these now produce permanent `status='failed'` outbox rows instead of silent JSON garbage. Producer bug pre-dates cycle 1. Recommendation: whitelist at publisher (skip `publish_event` when kind unrecognised) or normalise stems before publishing. Does not block merge.
+- Cycle 1 fixes verified: all 6 (C1, C2, M1, M2, M3, M4) plus the regression guard correctly resolve the cycle 1 findings with adequate test coverage.
+- Status: clean — proceeding to merge handoff (manual mode)
 
 ### Cycle 3
 
-- Findings received: 40 across 4 reviewers (code, tests, errors, comments) on 2026-04-25
-- Retained: 40 actionable (10 critical, 20 important, 10 suggestions)
-- Ignored: a small number flagged in "Out of scope" of the Phase 10 plan
-  (e.g. `_lookup_library_item` data-structure refactor, `noqa: BLE001` audit,
-  `purge --legacy-paths` helper)
-- Fix phase: Phase 10 (`docs/features/trailer/plan/phase-10-pr-review-cycle-3.md`),
-  organised into 7 sub-phases by code area
-- Status: clean — all 6 implementation sub-phases done (10.1 downloader/state-store
-  correctness, 10.2 cache integrity, 10.3 orchestrator status taxonomy + flag wiring,
-  10.4 error-handling hardening, 10.5 test gaps + MagicMock leak fix, 10.6 docs refresh);
-  10.7 milestone gate completed
-- Final test count: 1955 passing, 3 skipped, 18 deselected (+15 from baseline of 1940)
-- Sub-phase commits: a6364c3, 0bb883e, 62e25b3, 9eae956, 1f2dc6d, 97c0bd0, d34e906, caf4665,
-  aeea2d5, 8a99320, 3340bf1
+- Findings received: focused review of phase-10 commits (51f32e1..8ae99c2)
+- Retained: 0 (0 critical, 0 major, 0 medium)
+- Reclassified to minor / deferred: 3 — (a) false positive on `_resolve_volume_root` "duplication" (it's imported from merkle in cli.py:33); (b) `mount_path` stored as configured subdir while sentinel lives at volume root — intentional design decision in 10.4, doc could clarify; (c) `[unmatched] <name>` detail string parsing is brittle — future refactor target (typed `StepReport.unmatched_paths` field) but not a current bug.
+- Phase 10 fixes verified: 5 sub-phases (10.1–10.5) all solve their stated problems with adequate test coverage. No regressions introduced.
+- Status: clean — proceeding to merge handoff (manual mode)
 
-**Critical themes** (cluster of root-cause pathologies surviving cycles 1-2):
+### Cycle 4 — deferred-items follow-up (2026-04-30)
 
-- **Silent persistence of broken state**: TMDB/YouTube outages cached as `[]`
-  / `__no_result__` for 7 days; finder import failures persisted as
-  `NO_TRAILER_AVAILABLE`; yt-dlp returning SUCCESS without verifying output
-  existed; `<MagicMock name='mock.trailers.lock` literal file leaked at repo
-  root from a pipeline fixture
-- **Flag wired but no-op**: `--continue-on-trailer-error` does nothing in
-  `pipeline.py:291-299`
-- **Lock contention with no surface signal**: `fcntl.flock(LOCK_EX)` without
-  `LOCK_NB` deadlocks two concurrent runs silently
-- **Docs lag behind code**: TV-show placement convention changed in `28d9f75`
-  but `trailers.md`, `naming.md`, `CLAUDE.md`, `step.py`, `pipeline.py` still
-  describe the old flat naming
+Cleanup of all minor / deferred items rolled up across cycles 1–3 (≈30 items).
+Single non-milestone working session, full test suite green (2373 passed, 17 skipped, 0 failed).
 
-### Cycle 4
+- **Cycle 2 producer guard** — `scraper/artwork.py` now resolves `kind` via a stem→whitelisted-kind table (`poster`, `landscape`, `fanart`, `backdrop`, `banner`, `clearlogo`, `clearart`, `discart`, `characterart`) and skips `publish_event` when the stem matches none. Eliminates the permanent-`failed` outbox rows for `thumb`/`unknown` previously emitted at the producer side. Test `tests/integration/test_outbox_writethrough_artwork.py::test_kind_derivation` rewritten to assert both whitelisted kinds and unrecognised-skip behaviour.
+- **Cycle 3 — mount_path doc clarification** — `DiskRow.mount_path` and the DESIGN §6.2 schema comment now explicitly document the two-level model (`mount_path` = configured scan root, sentinel/diskutil resolve volume root via `_resolve_volume_root`).
+- **Cycle 3 — typed `StepReport.unmatched_paths`** — new typed field on `StepReport`, populated in `scraper/run.py::_to_step_report`, consumed directly by `process/run.py` instead of grepping the `[unmatched] <name>` detail strings. Detail strings kept for human reporting.
+- **Type design tightening** — added `Literal` aliases in `indexer/schema.py` (`MediaItemKind`, `NfoStatus`, `OutboxSource`, `OutboxOp`, `OutboxStatus`, `ScanMode`, `ScanStatus`, `RepairScope`, `RepairQueueStatus`, `DeletedKind`, `StreamKind`) and applied them on the corresponding row dataclass fields. Marked `ScanRunResult` `frozen=True` (no mutation observed at any call site).
+- **Observability gaps** — added `error_type=type(exc).__name__` and `exc_info=True` on the `log.warning` / `log.error` sites in `outbox.py`, `db.py`, `drift.py`, `scanner/_db_writes.py`. The structured event names were already in place; this completes the payload.
+- **Comment sweep** — removed orphan plan-phase markers in `scanner/_types.py::ScanMode` and `scanner/_walker.py`; updated the `F_RDADVISE` references in `conf/models.py` and `indexer/mediainfo.py` to point at the actual `mmap+madvise(MADV_SEQUENTIAL)` implementation in `_macos_io.sequential_hint`.
+- **`library_search` CLI fix** — header dropped the bogus `TRAILER` column and re-aligned widths so they match the data row in a fixed-width terminal; docstring updated to reflect the actual 4 columns (`id | title | year | nfo`).
+- **`apply_migrations` closed-connection invariant** — `Raises:` section now spells out that the connection is `.close()`-d before re-raising `IndexerMigrationError`, so callers must re-open via `open_db` (matching the inline comment that was already at the failure path).
 
-- Findings received: ~50 across 4 reviewers (code, tests, errors, comments) on
-  post-cycle-3 push (`918e070`)
-- Retained: 22 actionable (7 critical, 8 major, 7 medium)
-- Ignored: design-coherent suggestions, defensive hardening for hypothetical
-  futures, polish (see Phase 11 "Out of scope")
-- Fix phase created: `docs/features/trailer/plan/phase-11-pr-fixes-cycle-4.md`
-  (7 sub-phases organised by code area)
-- Status: clean — all 7 implementation sub-phases done (11.1 lock contention,
-  11.2 cache poisoning closure + DownloadError catch, 11.3 cache hygiene,
-  11.4 atomic NFO + redaction, 11.5 docs, 11.6 state-store error semantics,
-  11.7 test sentinel + coverage); milestone gate ready
-- Final test count: 1981 passing, 3 skipped (+19 from cycle-3 baseline of 1962)
-- Sub-phase commits: af9feee, 75c2b37, f1637cd, e7291e8, 0270381, e207fe0,
-  d3a2d46, 234feaf
-
-**Critical themes**:
-
-- **`TrailerStateLocked` only caught in `step.py`** — every other call site
-  in the orchestrator and CLI leaks raw tracebacks under contention; per-item
-  contention aborts the whole orchestrator
-- **Cache poisoning prevention is half-done** — `TypeError` from yt-dlp parser
-  drift and transport errors still slip through `_fallback_search`'s fail-soft
-  contract → cached as `__no_result__` for 7d
-- **Cycle-3 test work was partial** — `MagicMock(spec=…)` advertised but never
-  applied; `verify --deep` error-path tests planned but only happy path
-  delivered; misleading comment at `test_orchestrator.py:17`
-- **New regression in `logger.py`** — broadened redaction regex over-matches
-  `cookie_count`, `token_count`, `secret_count` (integer counters silently
-  redacted)
-
-### Cycle 5
-
-- Findings received: 1 (code-reviewer); silent-failure-hunter returned clean
-- Retained: 0 actionable
-- Ignored: 1 (the lone finding — `circuit_open` counter unreachable because
-  `find()`'s catch-all swallows `CircuitOpenError` before the increment site
-  fires — is the same observability gap deferred in Phase 11's "Out of scope"
-  section. Functional retry contract is preserved via `next_retry_at`. Not a
-  correctness, security, data-loss, or DESIGN.md-contract finding. Out of
-  scope for cycle 4 by deliberate plan choice.)
-- Fix phase created: none
-- Status: clean — proceeding to manual merge
+Verification: `ruff check personalscraper/` clean; full non-e2e pytest suite green.
 
 ## Next action
 
-Cycle 5 review clean — no retained findings. Squash merge PR #15 manually
-when ready, then run `/implement:archive`.
+All phases complete — run `/implement:feature-pr`.

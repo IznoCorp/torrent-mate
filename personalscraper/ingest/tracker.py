@@ -109,21 +109,58 @@ class IngestTracker:
         """
         return torrent_hash in self._data
 
-    def mark_ingested(self, torrent_hash: str, torrent_name: str, action: str) -> None:
+    def get_entry(self, torrent_hash: str) -> dict[str, Any] | None:
+        """Return the tracker dict for a torrent hash, or ``None`` if absent.
+
+        Used by the orphan-detection probe in
+        :func:`personalscraper.ingest.ingest._torrent_present_downstream` to
+        read back the recorded ``dest_path`` (when present) without relying
+        on a separate filename heuristic.
+
+        Args:
+            torrent_hash: Torrent hash to look up.
+
+        Returns:
+            The full entry dict (``name``, ``action``, ``date``,
+            optionally ``dest_path``) or ``None`` when the hash is unknown.
+        """
+        entry = self._data.get(torrent_hash)
+        return dict(entry) if entry is not None else None
+
+    def mark_ingested(
+        self,
+        torrent_hash: str,
+        torrent_name: str,
+        action: str,
+        dest_path: str | None = None,
+    ) -> None:
         """Record a torrent as ingested and persist to disk.
 
         Args:
             torrent_hash: The torrent hash identifier.
             torrent_name: Human-readable torrent name.
             action: Transfer action performed ("copied" or "moved").
+            dest_path: Optional absolute path the content was written to
+                (typically inside ``097-TEMP``). When set, future ingest
+                runs cross-check this path's existence to detect orphan
+                tracker entries left behind by a silent dispatch failure.
         """
-        self._data[torrent_hash] = {
+        entry: dict[str, Any] = {
             "name": torrent_name,
             "action": action,
             "date": datetime.now().isoformat(),
         }
+        if dest_path is not None:
+            entry["dest_path"] = dest_path
+        self._data[torrent_hash] = entry
         self.save()
-        log.info("torrent_marked", hash=torrent_hash, name=torrent_name, action=action)
+        log.info(
+            "torrent_marked",
+            hash=torrent_hash,
+            name=torrent_name,
+            action=action,
+            dest_path=dest_path,
+        )
 
     def cleanup(self, active_hashes: set[str]) -> int:
         """Remove entries for torrents no longer in qBittorrent.

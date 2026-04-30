@@ -19,6 +19,7 @@ _PATCH_LOAD_CONFIG = "personalscraper.conf.loader.load_config"
 _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 _PATCH_ORCH = "personalscraper.trailers.cli.TrailersOrchestrator"
 _PATCH_SCANNER = "personalscraper.trailers.cli.Scanner"
+_PATCH_OPEN_DB = "personalscraper.indexer.db.open_db"
 
 
 def _fake_config(tmp_path: Path) -> MagicMock:
@@ -34,7 +35,6 @@ def _fake_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.enabled = True
     cfg.trailers.filters.min_file_size_bytes = 102400
     cfg.trailers.state_file = str(tmp_path / ".data/trailers_state.json")
-    cfg.trailers.library_scan_max_age_hours = 24
     cfg.paths.staging_dir = tmp_path
     cfg.disks = []
     # DESIGN SS4 + SS8 extensions
@@ -198,6 +198,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
         ):
             MockScanner.return_value.scan_library.return_value = []
             result = runner.invoke(app, ["trailers", "verify"])
@@ -219,6 +220,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
         ):
             MockScanner.return_value.scan_library.return_value = [item]
@@ -241,6 +243,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
         ):
             MockScanner.return_value.scan_library.return_value = [item]
@@ -262,6 +265,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
         ):
             MockScanner.return_value.scan_library.return_value = [item]
@@ -287,6 +291,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=fake_proc),
         ):
@@ -325,6 +330,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=corrupt_proc),
         ):
@@ -364,6 +370,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", return_value=zero_dur_proc),
         ):
@@ -394,6 +401,7 @@ class TestTrailersVerifyCommand:
         with (
             patch(_PATCH_LOAD_CONFIG, return_value=_fake_config(tmp_path)),
             patch(_PATCH_SCANNER) as MockScanner,
+            patch(_PATCH_OPEN_DB),
             patch("personalscraper.trailers.placement.trailer_path_for") as mock_tp,
             patch("personalscraper.trailers.cli.subprocess.run", side_effect=FileNotFoundError("ffprobe not found")),
         ):

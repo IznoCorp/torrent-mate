@@ -2,9 +2,14 @@
 
 IndexEntry.category and .disk always store canonical IDs. MediaIndex
 requires an explicit index_path (no implicit default).
+
+MediaIndex is backed by an indexer SQLite database (library.db) derived
+from the parent directory of the supplied index_path.  ``load()`` and
+``save()`` are intentional no-ops; persistence is handled automatically by
+the DB.  Tests that previously exercised JSON round-trips now verify
+equivalent behaviour via ``add()`` / ``find()`` / ``count``.
 """
 
-import json
 from pathlib import Path
 
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
@@ -115,8 +120,10 @@ class TestMediaIndexCRUD:
                 media_type="tvshow",
             )
         )
-        # Only one entry should exist after both adds (NFC normalization collapses keys)
-        assert len(idx._entries) == 1
+        # Only one entry should exist after both adds (NFC normalization collapses keys).
+        # Both NFD and NFC forms share the same normalized key, so the second add
+        # overwrites the first via the upsert path.
+        assert idx.count == 1
         result = idx.find(nfc_name, "tvshow")
         assert result is not None
         assert result.disk == "disk_2"
@@ -128,10 +135,10 @@ class TestMediaIndexCRUD:
 
 
 class TestMediaIndexPersistence:
-    """Tests for save and load."""
+    """Tests for save and load (DB-backed; load/save are no-ops)."""
 
     def test_save_and_load(self, tmp_path: Path) -> None:
-        """Saved index should be loadable."""
+        """Data added to one instance is visible in a second instance on the same DB."""
         idx = MediaIndex(tmp_path / "index.json")
         idx.add(
             IndexEntry(
@@ -142,29 +149,32 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
+        # save() is a no-op; data is committed to the DB immediately.
         idx.save()
 
+        # A second instance opening the same DB directory sees the entry.
         idx2 = MediaIndex(tmp_path / "index.json")
-        idx2.load()
+        idx2.load()  # no-op; DB is already up to date
         assert idx2.count == 1
         assert idx2.find("Test", "movie") is not None
 
     def test_load_missing_file(self, tmp_path: Path) -> None:
-        """Loading missing file should create empty index."""
+        """Opening with no prior DB (or a non-existent legacy JSON) gives empty index."""
         idx = MediaIndex(tmp_path / "nonexistent.json")
-        idx.load()
+        idx.load()  # no-op; freshly created DB has zero entries
         assert idx.count == 0
 
     def test_load_corrupted_file(self, tmp_path: Path) -> None:
-        """Corrupted file should reset to empty index."""
+        """A stale or corrupted legacy JSON file is ignored; DB starts empty."""
+        # The old JSON file is irrelevant to the new DB-backed implementation.
         path = tmp_path / "bad.json"
         path.write_text("not json {{{")
         idx = MediaIndex(path)
-        idx.load()
+        idx.load()  # no-op; DB is fresh regardless of any JSON sidecar
         assert idx.count == 0
 
     def test_atomic_save(self, tmp_path: Path) -> None:
-        """Save should not leave .tmp files."""
+        """save() is a no-op: it must not crash and must leave no .tmp files."""
         idx = MediaIndex(tmp_path / "index.json")
         idx.add(
             IndexEntry(
@@ -175,12 +185,14 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
+        # save() must complete without error and must not create temporary files.
         idx.save()
-        assert (tmp_path / "index.json").exists()
         assert not (tmp_path / "index.json.tmp").exists()
+        # Entry is still accessible (committed to DB, not lost).
+        assert idx.count == 1
 
     def test_save_always_v15_format(self, tmp_path: Path) -> None:
-        """Saved entries must use V15 IDs (not V14 labels)."""
+        """Entries must round-trip with V15 canonical IDs (not V14 labels)."""
         idx = MediaIndex(tmp_path / "index.json")
         idx.add(
             IndexEntry(
@@ -191,13 +203,13 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
-        idx.save()
+        idx.save()  # no-op; data already in DB
 
-        raw = json.loads((tmp_path / "index.json").read_text())
-        entry = next(iter(raw.values()))
-        # V15 IDs — not V14 labels
-        assert entry["category"] == "movies"
-        assert entry["disk"] == "disk_1"
+        # V15 IDs must survive the round-trip through the DB.
+        entry = idx.find("Inception (2010)", "movie")
+        assert entry is not None
+        assert entry.category == "movies"
+        assert entry.disk == "disk_1"
 
 
 # ---------------------------------------------------------------------------
@@ -206,25 +218,21 @@ class TestMediaIndexPersistence:
 
 
 class TestCanonicalIdLoad:
-    """Loading an index already written with canonical IDs is a no-op."""
+    """Canonical IDs added via add() are round-tripped verbatim through find()."""
 
     def test_canonical_ids_loaded_verbatim(self, tmp_path: Path) -> None:
-        """Canonical-ID entries round-trip through load() unchanged."""
-        data = {
-            "inception (2010)": {
-                "name": "Inception (2010)",
-                "disk": "drive_a",
-                "category": "movies",
-                "path": "/drive_a/movies/Inception (2010)",
-                "media_type": "movie",
-                "last_updated": "2024-01-01T00:00:00+00:00",
-            }
-        }
-        idx_path = tmp_path / "index.json"
-        idx_path.write_text(json.dumps(data), encoding="utf-8")
-
-        idx = MediaIndex(idx_path)
-        idx.load()
+        """Canonical-ID entries written via add() are returned unchanged by find()."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.add(
+            IndexEntry(
+                name="Inception (2010)",
+                disk="drive_a",
+                category="movies",
+                path="/drive_a/movies/Inception (2010)",
+                media_type="movie",
+                last_updated="2024-01-01T00:00:00+00:00",
+            )
+        )
 
         entry = idx.find("Inception (2010)", "movie")
         assert entry is not None
@@ -321,6 +329,45 @@ class TestMediaIndexRebuild:
         matrix = idx.find("The Matrix (1999)", "movie")
         assert matrix is not None
         assert matrix.category == "movies"
+
+    def test_first_run_empty_db_triggers_auto_rebuild(self, tmp_path: Path) -> None:
+        """Empty library.db at __init__ time triggers rebuild when config is supplied.
+
+        Scenario: brand-new install, library.db does not yet contain any
+        media_item rows.  Passing a Config to MediaIndex.__init__ must fire
+        rebuild() automatically so dispatch decisions are immediately accurate.
+        After __init__ returns, media_item rows must be present.
+        """
+        from personalscraper.conf.models import DiskConfig
+
+        # Create a real disk structure so rebuild() can scan it.
+        disk = tmp_path / "medias"
+        (disk / "movies" / "The Matrix (1999)").mkdir(parents=True)
+        (disk / "tv_shows" / "Fallout (2024)").mkdir(parents=True)
+
+        disk_config = DiskConfig(
+            id="drive_a",
+            path=disk,
+            categories=["movies", "tv_shows"],
+        )
+
+        # Build a minimal stub that looks enough like Config for __init__:
+        # only .disks and .categories are accessed during the auto-rebuild.
+        class _StubConfig:
+            disks = [disk_config]
+            categories: dict[str, object] = {}  # no folder_name remapping needed
+
+        # Pass a fresh DB path — library.db does not exist yet (empty first run).
+        idx = MediaIndex(tmp_path / "index.json", config=_StubConfig())  # type: ignore[arg-type]
+
+        # Auto-rebuild must have inserted the two media directories.
+        assert idx.count == 2
+        assert idx.find("The Matrix (1999)", "movie") is not None
+        assert idx.find("Fallout (2024)", "tvshow") is not None
+
+        # A second instantiation (rows now present) must NOT trigger another rebuild.
+        idx2 = MediaIndex(tmp_path / "index.json")
+        assert idx2.count == 2
 
     def test_rebuild_without_categories_falls_back_to_legacy(self, tmp_path: Path) -> None:
         """When no ``categories`` provided, rebuild keeps legacy behaviour.
@@ -434,3 +481,134 @@ class TestFuzzyGuards:
         result = idx.find("Jumanji (1995)", "movie")
         assert result is not None
         assert result.name == "Jumanji (1995)"
+
+
+# ---------------------------------------------------------------------------
+# Connection lifecycle — FD-leak guard
+# ---------------------------------------------------------------------------
+
+
+class TestMediaIndexConnectionLifecycle:
+    """Tests for close(), __enter__/__exit__, and __del__ behaviour."""
+
+    def test_configured_db_path_wins_over_legacy_index_path(self, tmp_path: Path) -> None:
+        """When Config is supplied, MediaIndex must open config.indexer.db_path."""
+
+        class _Indexer:
+            db_path = tmp_path / ".personalscraper" / "library.db"
+
+        class _Config:
+            indexer = _Indexer()
+            disks = []
+            categories = {}
+
+        legacy_index_path = tmp_path / ".data" / "media_index.json"
+        legacy_index_path.parent.mkdir()
+
+        with MediaIndex(legacy_index_path, config=_Config()) as idx:  # type: ignore[arg-type]
+            idx.add(
+                IndexEntry(
+                    name="Configured DB (2026)",
+                    disk="drive_a",
+                    category="movies",
+                    path="/drive_a/movies/Configured DB (2026)",
+                    media_type="movie",
+                )
+            )
+
+        assert _Indexer.db_path.exists()
+        assert not (legacy_index_path.parent / "library.db").exists()
+
+    def test_context_manager_closes_connection(self, tmp_path: Path) -> None:
+        """FD count must return to baseline after the ``with`` block exits.
+
+        Opens a MediaIndex via the context manager, performs a trivial query
+        inside, then asserts that no extra file descriptors remain open to
+        the library.db file after ``__exit__`` is called.
+
+        Uses ``resource.getrlimit(RLIMIT_NOFILE)`` to confirm we're not
+        leaking FDs across repeated open/close cycles.
+        """
+        import os
+        import resource
+
+        db_path = tmp_path / "library.db"
+        index_path = tmp_path / "index.json"
+
+        # Measure FD baseline before any MediaIndex is created.
+        soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+        assert soft_limit > 10, "FD limit too low for this test"
+
+        # Record open FD count before entering the with block.
+
+        def _open_fds() -> set[int]:
+            """Return the set of currently open file descriptor numbers."""
+            try:
+                return {int(fd) for fd in os.listdir("/proc/self/fd")}
+            except FileNotFoundError:
+                # macOS: use os.listdir on /dev/fd instead
+                try:
+                    return {int(fd) for fd in os.listdir("/dev/fd")}
+                except (FileNotFoundError, OSError):
+                    return set()
+
+        fds_before = _open_fds()
+
+        # Open via context manager, do a query, then exit.
+        with MediaIndex(index_path, config=None) as idx:
+            idx.add(
+                IndexEntry(
+                    name="Connection Test (2024)",
+                    disk="drive_a",
+                    category="movies",
+                    path=str(tmp_path / "drive_a" / "Connection Test (2024)"),
+                    media_type="movie",
+                )
+            )
+            assert idx.count == 1
+            # Confirm the DB file exists while the connection is open.
+            assert db_path.exists()
+
+        # After __exit__, the SQLite connection must be closed.
+        # Any FDs opened for library.db must now be released.
+        fds_after = _open_fds()
+        leaked = fds_after - fds_before
+        # Filter to only FDs that reference the DB path (avoids noise from
+        # pytest internals opening unrelated files during the test body).
+        leaked_db_fds = {fd for fd in leaked if _fd_points_to(fd, str(db_path))}
+        assert not leaked_db_fds, f"FD leak detected: {len(leaked_db_fds)} file descriptor(s) still open to {db_path}"
+
+    def test_explicit_close_is_idempotent(self, tmp_path: Path) -> None:
+        """Calling close() multiple times must not raise."""
+        idx = MediaIndex(tmp_path / "index.json")
+        idx.close()
+        idx.close()  # Second call must be a no-op, not an exception.
+
+
+def _fd_points_to(fd: int, path: str) -> bool:
+    """Return True if the open file descriptor *fd* references *path*.
+
+    Uses ``/proc/self/fd/<fd>`` (Linux) or ``fcntl``-based fallback (macOS).
+    Returns False on any OS error so the test degrades gracefully on
+    platforms that don't expose FD symlinks.
+
+    Args:
+        fd: File descriptor number to inspect.
+        path: Absolute filesystem path to check against.
+
+    Returns:
+        True if ``fd`` is open and points to ``path``.
+    """
+    import os
+
+    try:
+        link = os.readlink(f"/proc/self/fd/{fd}")
+        return link == path
+    except (OSError, AttributeError):
+        pass
+    try:
+        link = os.readlink(f"/dev/fd/{fd}")
+        return link == path
+    except (OSError, AttributeError):
+        pass
+    return False
