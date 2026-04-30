@@ -136,7 +136,12 @@ def match_movie(
         release_date = result.get("release_date", "")
         api_year = int(release_date[:4]) if release_date and len(release_date) >= 4 else None
 
-        score = score_match(title, year, api_title, api_year)
+        candidate_titles = [api_title]
+        original_title = result.get("original_title", "")
+        if original_title and original_title not in candidate_titles:
+            candidate_titles.append(original_title)
+
+        score = max(score_match(title, year, candidate_title, api_year) for candidate_title in candidate_titles)
 
         if score > best_score:
             best_score = score

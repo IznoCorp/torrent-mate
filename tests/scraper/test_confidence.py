@@ -166,6 +166,26 @@ class TestMatchMovie:
         assert result is not None
         assert result.api_id == 603  # Exact match should win
 
+    def test_original_title_used_for_localized_movie_score(self) -> None:
+        """Original title should rescue localized TMDB titles with the same year."""
+        client = self._make_tmdb_client(
+            [
+                {
+                    "id": 1954,
+                    "title": "L'Effet papillon",
+                    "original_title": "The Butterfly Effect",
+                    "release_date": "2004-01-22",
+                },
+            ]
+        )
+
+        result = match_movie(client, "The Butterfly Effect", 2004)
+
+        assert result is not None
+        assert result.api_id == 1954
+        assert result.api_title == "L'Effet papillon"
+        assert result.confidence >= HIGH_CONFIDENCE
+
     def test_year_from_release_date(self) -> None:
         """Year should be extracted from release_date field."""
         client = self._make_tmdb_client(
