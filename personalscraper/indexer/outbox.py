@@ -795,8 +795,20 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
                     except Exception:  # noqa: BLE001
                         pass
                 stats.failed += 1
-            # outcome == 'skip': unknown op or bad payload — leave pending for
-            # operator investigation; do not increment any counter.
+            elif outcome == "skip":
+                # Unknown op or malformed payload cannot become valid by
+                # retrying the same row.  Mark terminal so drain() can make
+                # progress and surface the bad row via maintenance queries.
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                    outbox_repo.mark_failed(conn, row.id)
+                    conn.execute("COMMIT")
+                except Exception:  # noqa: BLE001
+                    try:
+                        conn.execute("ROLLBACK")
+                    except Exception:  # noqa: BLE001
+                        pass
+                stats.failed += 1
 
     # --- TTL purge of stale pending_op rows ---
     outbox_repo.purge_expired(conn, ttl_days=30)

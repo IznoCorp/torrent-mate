@@ -697,6 +697,26 @@ def test_drain_marks_failed_after_exhausting_retries(conn: sqlite3.Connection) -
     assert r["status"] == "failed"
 
 
+def test_drain_marks_malformed_payload_terminal(conn: sqlite3.Connection) -> None:
+    """Malformed JSON rows are marked failed so drain() cannot spin forever."""
+    row_id = outbox_repo.insert(
+        conn,
+        source="dispatch",
+        op="move",
+        payload_json="NOT_JSON{{{",
+    )
+
+    stats = drain(conn, IndexerConfig())
+
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT status, processed_at FROM index_outbox WHERE id = ?", (row_id,)).fetchone()
+    assert row is not None
+    assert row["status"] == "failed"
+    assert row["processed_at"] is not None
+    assert stats.failed == 1
+    assert conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0] == 0
+
+
 def test_apply_row_with_retry_retries_on_lock_then_succeeds(conn: sqlite3.Connection) -> None:
     """_apply_row_with_retry succeeds after initial lock: patches _apply_move to fail once."""
     from personalscraper.indexer.outbox import _apply_row_with_retry  # noqa: PLC0415
