@@ -803,7 +803,7 @@ def scan(
         # audit trail is durable.  Best-effort: the helper logs and swallows
         # SQL errors without aborting the scan.
         _finalize_disk_after_walk(
-            conn,
+            worker_conn,
             disk,
             scan_run_id,
             files_visited=local_files[0],

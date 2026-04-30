@@ -1838,6 +1838,48 @@ class TestParallelScan:
         assert row is not None
         assert row[0] == "failed"
 
+    def test_parallel_scan_finalize_uses_worker_connections(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Post-walk disk finalization must use per-worker SQLite connections."""
+        import personalscraper.indexer.scanner as scanner_module
+
+        db_file = tmp_path / "indexer.db"
+        conn = _make_conn_file(db_file)
+
+        mount1 = str(tmp_path / "Disk1")
+        mount2 = str(tmp_path / "Disk2")
+        Path(mount1).mkdir()
+        Path(mount2).mkdir()
+        Path(f"{mount1}/film_a.mkv").write_bytes(b"A" * 200)
+        Path(f"{mount2}/film_b.mkv").write_bytes(b"B" * 200)
+
+        disk1 = _insert_disk_on_conn(conn, mount1)
+        disk2 = _insert_disk_on_conn(conn, mount2)
+
+        original_finalize = scanner_module._finalize_disk_after_walk
+        finalize_connection_ids: list[int] = []
+
+        def _record_finalize_conn(*args: object, **kwargs: object) -> object:
+            finalize_connection_ids.append(id(args[0]))
+            return original_finalize(*args, **kwargs)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch("personalscraper.indexer.scanner._finalize_disk_after_walk", side_effect=_record_finalize_conn):
+                result = scan(
+                    [disk1, disk2],
+                    ScanMode.full,
+                    generation=1,
+                    conn=conn,
+                    db_path=db_file,
+                    max_workers=2,
+                )
+
+        assert result.status == "ok"
+        assert len(finalize_connection_ids) == 2
+        assert id(conn) not in finalize_connection_ids
+
     # ------------------------------------------------------------------
     # Test 3: single-disk filter uses max_workers=1
     # ------------------------------------------------------------------
