@@ -88,6 +88,7 @@ class TestPlanMigration:
             "encoding.json5",
             "scraper.json5",
             "trailers.json5",
+            "indexer.json5",
         }
         assert expected.issubset(plan.keys())
 
@@ -115,6 +116,20 @@ class TestPlanMigration:
         legacy = _write_v1(tmp_path)
         plan = plan_migration(legacy)
         assert "staging_dirs" in plan["patterns.json5"]
+
+    def test_indexer_in_indexer_file(self, tmp_path: Path) -> None:
+        """Indexer key must land in indexer.json5."""
+        legacy = _write_v1(tmp_path)
+        raw = legacy.read_text(encoding="utf-8")
+        raw = raw.replace(
+            "    staging_dirs:",
+            '    indexer: { db_path: ".personalscraper/library.db" },\n    staging_dirs:',
+        )
+        legacy.write_text(raw, encoding="utf-8")
+
+        plan = plan_migration(legacy)
+
+        assert "indexer" in plan["indexer.json5"]
 
     def test_does_not_write_disk(self, tmp_path: Path) -> None:
         """plan_migration must not create any files on disk."""
@@ -153,6 +168,7 @@ class TestMigrateV1ToV2:
             "encoding.json5",
             "scraper.json5",
             "trailers.json5",
+            "indexer.json5",
         }
         written = {f.name for f in target.iterdir() if f.is_file()}
         assert expected.issubset(written)

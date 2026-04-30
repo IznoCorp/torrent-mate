@@ -62,6 +62,7 @@ _KEY_TO_FILE: dict[str, str] = {
     "ingest": "scraper.json5",
     "fuzzy_match": "scraper.json5",
     "trailers": "trailers.json5",
+    "indexer": "indexer.json5",
 }
 
 # Canonical overlay declaration order for the master config.json5.
@@ -73,6 +74,7 @@ _OVERLAY_ORDER: list[str] = [
     "encoding.json5",
     "scraper.json5",
     "trailers.json5",
+    "indexer.json5",
 ]
 
 # Keys always present on the master, never split into overlays.
@@ -371,6 +373,7 @@ def migrate_v1_to_v2(legacy_path: Path, target_dir: Path) -> None:
             "encoding.json5": "Library encoding and media quality preferences.",
             "scraper.json5": "Scraper, ingest, and fuzzy-match tunables.",
             "trailers.json5": "Trailer download feature configuration.",
+            "indexer.json5": "SQLite media indexer configuration.",
         }
         for fname in _OVERLAY_ORDER:
             bucket = buckets.get(fname, {})
