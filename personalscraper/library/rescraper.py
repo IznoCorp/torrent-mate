@@ -208,6 +208,7 @@ def _rescrape_item(
     only: str | None,
     interactive: bool,
     dry_run: bool,
+    episode_default_name: str = "Episode",
 ) -> RescrapeAction | None:
     """Rescrape a single media item.
 
@@ -226,6 +227,8 @@ def _rescrape_item(
         only: Action filter.
         interactive: Prompt for low-confidence matches.
         dry_run: Preview without changes.
+        episode_default_name: Prefix used when an episode title is missing
+            from the configured scraper-language response.
 
     Returns:
         RescrapeAction or None if item is already OK.
@@ -328,7 +331,15 @@ def _rescrape_item(
     # Fix episodes (TV shows only)
     if needs_episodes and media_type == "tvshow":
         try:
-            _rescrape_episodes(media_dir, api_data, api_id, tmdb_client, patterns, dry_run)
+            _rescrape_episodes(
+                media_dir,
+                api_data,
+                api_id,
+                tmdb_client,
+                patterns,
+                dry_run,
+                episode_default_name=episode_default_name,
+            )
             actions.append(ACTION_EPISODES_RENAMED)
             log.info("library_rescrape_episodes", title=title, dry_run=dry_run)
         except Exception as exc:
@@ -358,6 +369,7 @@ def _rescrape_episodes(
     tmdb_client: TMDBClient,
     patterns: NamingPatterns,
     dry_run: bool,
+    episode_default_name: str = "Episode",
 ) -> None:
     """Rescrape TV show episodes: fetch season data and rename.
 
@@ -368,6 +380,8 @@ def _rescrape_episodes(
         tmdb_client: TMDB API client.
         patterns: NamingPatterns instance.
         dry_run: Preview without changes.
+        episode_default_name: Prefix used when the provider has no episode
+            title in the configured scraper language.
     """
     from personalscraper.scraper.episode_manager import (
         create_season_dirs,
@@ -386,7 +400,7 @@ def _rescrape_episodes(
             for ep in season_data.get("episodes", []):
                 ep_num = ep.get("episode_number", 0)
                 all_episodes[(season_num, ep_num)] = {
-                    "title": ep.get("name", f"Episode {ep_num}"),
+                    "title": ep.get("name") or f"{episode_default_name} {ep_num}",
                     "still_path": ep.get("still_path"),
                 }
         except Exception as exc:
@@ -541,7 +555,8 @@ def rescrape_library(
     from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
     from personalscraper.scraper.tvdb_client import TVDBClient  # noqa: PLC0415
 
-    tmdb_client = TMDBClient(settings.tmdb_api_key, language=settings.scraper_language)
+    scraper_config = config.scraper
+    tmdb_client = TMDBClient(settings.tmdb_api_key, language=scraper_config.language)
     tvdb_client = TVDBClient(settings.tvdb_api_key)
     # Pass db_path so write-through outbox publishes land in the user-configured
     # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).
@@ -584,6 +599,7 @@ def rescrape_library(
                 only=only,
                 interactive=interactive,
                 dry_run=dry_run,
+                episode_default_name=scraper_config.episode_default_name,
             )
         except Exception as exc:
             log.exception("library_rescrape_item_error", media_dir=str(media_dir), error=str(exc))
