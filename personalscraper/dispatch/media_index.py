@@ -15,8 +15,8 @@ disk it is silently ignored (a deprecation warning is logged once).  Run
 make dispatch decisions accurate on a fresh install.
 
 On first run (empty DB), ``__init__`` triggers an automatic full rebuild
-when a ``Config`` is supplied.  Subsequent ``__init__`` calls that find
-existing ``media_item`` rows skip the rebuild.
+when a ``Config`` is supplied and auto-rebuild is enabled.  Subsequent
+``__init__`` calls that find existing ``media_item`` rows skip the rebuild.
 
 IndexEntry.category and IndexEntry.disk always store canonical IDs
 (e.g. ``"movies"``, ``"drive_a"``).
@@ -163,7 +163,13 @@ class MediaIndex:
     SQLite connection is closed when the block exits.
     """
 
-    def __init__(self, index_path: Path, *, config: Config | None = None) -> None:
+    def __init__(
+        self,
+        index_path: Path,
+        *,
+        config: Config | None = None,
+        auto_rebuild: bool = True,
+    ) -> None:
         """Open the configured indexer database.
 
         ``index_path`` is accepted for backward compatibility with existing
@@ -183,6 +189,9 @@ class MediaIndex:
             config: Optional Config used for the automatic first-run rebuild.
                 If None and the DB is empty, a warning is logged and the
                 rebuild is skipped (manual rebuild required).
+            auto_rebuild: Whether to rebuild an empty DB during construction.
+                Dry-run callers disable this and wrap any preview rebuild in a
+                rollbackable savepoint.
         """
         # Use the configured indexer DB when available.  This keeps dispatch on
         # the same SQLite file as ``personalscraper library index`` and outbox
@@ -220,7 +229,7 @@ class MediaIndex:
         row_count = self._conn.execute("SELECT COUNT(*) FROM media_item").fetchone()
         is_empty = (row_count[0] if row_count else 0) == 0
 
-        if is_empty:
+        if is_empty and auto_rebuild:
             if config is not None:
                 log.info("indexer.config.no_index", message="Empty DB detected; triggering automatic rebuild.")
                 self.rebuild(config.disks, categories=config.categories)
@@ -229,6 +238,8 @@ class MediaIndex:
                     "indexer.config.no_index",
                     message=("Empty DB detected but no Config provided to MediaIndex; manual rebuild required."),
                 )
+        elif is_empty:
+            log.info("indexer.config.no_index", message="Empty DB detected; automatic rebuild disabled.")
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -291,6 +302,15 @@ class MediaIndex:
 
     def save(self) -> None:
         """No-op: writes are committed immediately; no explicit flush needed."""
+
+    def begin_preview(self) -> None:
+        """Start a rollbackable preview transaction for dry-run index writes."""
+        self._conn.execute("SAVEPOINT media_index_preview")
+
+    def rollback_preview(self) -> None:
+        """Rollback and release the dry-run preview transaction if active."""
+        self._conn.execute("ROLLBACK TO SAVEPOINT media_index_preview")
+        self._conn.execute("RELEASE SAVEPOINT media_index_preview")
 
     def find(
         self,
