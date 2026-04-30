@@ -19,7 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from personalscraper.indexer.schema import RepairQueueRow
+from personalscraper.indexer.schema import RepairQueueRow, RepairScope
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.repair")
@@ -33,7 +33,7 @@ log = get_logger("indexer.repair")
 def enqueue_repair(
     conn: sqlite3.Connection,
     *,
-    scope: str,
+    scope: RepairScope,
     scope_id: int,
     reason: str,
     payload: dict[str, Any] | None = None,

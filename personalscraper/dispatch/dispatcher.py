@@ -377,9 +377,7 @@ class Dispatcher:
             # is canonical; record that, not the staging spelling, so the
             # indexer never drifts away from the filesystem (see the matching
             # comment in dispatch_tvshow for the rationale).
-            canonical_name = (
-                result.destination.name if result.action == "replaced" else movie_dir.name
-            )
+            canonical_name = result.destination.name if result.action == "replaced" else movie_dir.name
             self.index.add(
                 IndexEntry(
                     name=canonical_name,
@@ -492,9 +490,7 @@ class Dispatcher:
             # destination's basename as the canonical title for merges /
             # replacements; ``moved`` actions write a brand-new folder so
             # the staging name is correct in that branch.
-            canonical_name = (
-                result.destination.name if result.action == "merged" else show_dir.name
-            )
+            canonical_name = result.destination.name if result.action == "merged" else show_dir.name
             self.index.add(
                 IndexEntry(
                     name=canonical_name,

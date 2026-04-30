@@ -222,8 +222,7 @@ def test_kind_derivation(tmp_path: Path) -> None:
 
     rows_after = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE op = 'artwork_write'").fetchone()[0]
     assert rows_after == rows_before, (
-        f"Unrecognised stems must not insert outbox rows; "
-        f"row count went from {rows_before} to {rows_after}"
+        f"Unrecognised stems must not insert outbox rows; row count went from {rows_before} to {rows_after}"
     )
 
     conn.close()

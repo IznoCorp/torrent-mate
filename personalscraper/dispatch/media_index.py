@@ -39,7 +39,7 @@ from personalscraper.indexer.repos.item_repo import (
     _ATTR_DISPATCH_NORM_TITLE,
     _ATTR_DISPATCH_PATH,
 )
-from personalscraper.indexer.schema import ItemAttributeRow, MediaItemRow
+from personalscraper.indexer.schema import ItemAttributeRow, MediaItemKind, MediaItemRow
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ def _normalize_key(name: str) -> str:
     return unicodedata.normalize("NFC", name).lower().strip()
 
 
-def _media_type_to_kind(media_type: str) -> str:
+def _media_type_to_kind(media_type: str) -> MediaItemKind:
     """Map dispatch ``media_type`` to indexer DB ``kind`` value.
 
     Args:

@@ -34,7 +34,17 @@ from personalscraper.indexer.repos import disk_repo, tv_repo
 from personalscraper.indexer.repos import item_repo as _item_repo
 from personalscraper.indexer.scanner import ScanMode
 from personalscraper.indexer.scanner import scan as _indexer_scan
-from personalscraper.indexer.schema import ArtworkInventory, DiskRow, EpisodeRow, MediaItemRow, SeasonRow
+from personalscraper.indexer.schema import (
+    ArtworkInventory,
+    DiskRow,
+    EpisodeRow,
+    MediaItemKind,
+    MediaItemRow,
+    SeasonRow,
+)
+from personalscraper.indexer.schema import (
+    NfoStatus as DbNfoStatus,
+)
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_BAD_DIR_NAME,
@@ -395,7 +405,7 @@ def scan_tvshow_dir(show_dir: Path, disk_id: str, category_id: str) -> LibrarySc
     )
 
 
-def _nfo_status_string(nfo: NfoStatus) -> str:
+def _nfo_status_string(nfo: NfoStatus) -> DbNfoStatus:
     """Map a NfoStatus to the DB status string.
 
     Args:
@@ -452,7 +462,7 @@ def _upsert_media_item(
     Returns:
         PK of the inserted or updated ``media_item`` row.
     """
-    kind = "show" if scan_item.media_type == "tvshow" else "movie"
+    kind: MediaItemKind = "show" if scan_item.media_type == "tvshow" else "movie"
     nfo_status = _nfo_status_string(scan_item.nfo)
     artwork_json = _artwork_inventory(scan_item.artwork).model_dump_json()
 

@@ -20,11 +20,11 @@ import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from personalscraper.indexer.config import IndexerConfig
 from personalscraper.indexer.repos import outbox_repo
-from personalscraper.indexer.schema import IndexOutboxRow, ItemAttributeRow
+from personalscraper.indexer.schema import IndexOutboxRow, ItemAttributeRow, OutboxOp
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.outbox")
@@ -582,7 +582,7 @@ def _replay_pending_ops(conn: sqlite3.Connection, disk_id: int, stats: DrainStat
         synthetic = IndexOutboxRow(
             id=op_row.id,
             source="pending_op",
-            op=op_row.op,
+            op=cast(OutboxOp, op_row.op),
             payload_json=op_row.payload_json,
             created_at=op_row.created_at,
             processed_at=None,

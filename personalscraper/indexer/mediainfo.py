@@ -39,7 +39,7 @@ from pathlib import Path
 
 from personalscraper.indexer._macos_io import sequential_hint
 from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
-from personalscraper.indexer.schema import MediaStreamRow
+from personalscraper.indexer.schema import MediaStreamRow, StreamKind
 
 # ---------------------------------------------------------------------------
 # Availability guard — try to import pymediainfo at module load time
@@ -88,7 +88,7 @@ class MediaInfoUnavailableError(RuntimeError):
 
 # Map pymediainfo track_type strings to MediaStreamRow.kind values.
 # Unmapped types (e.g. "General", "Menu", "Other") are excluded.
-_TRACK_TYPE_MAP: dict[str, str] = {
+_TRACK_TYPE_MAP: dict[str, StreamKind] = {
     "Video": "video",
     "Audio": "audio",
     "Text": "subtitle",

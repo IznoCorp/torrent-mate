@@ -135,12 +135,8 @@ def _finalize_disk_after_walk(
     # earlier in their pipeline and we must not clobber it.
     try:
         conn.row_factory = sqlite3.Row
-        existing_root_row = conn.execute(
-            "SELECT merkle_root FROM disk WHERE id = ?", (disk.id,)
-        ).fetchone()
-        existing_root: str | None = (
-            existing_root_row["merkle_root"] if existing_root_row is not None else None
-        )
+        existing_root_row = conn.execute("SELECT merkle_root FROM disk WHERE id = ?", (disk.id,)).fetchone()
+        existing_root: str | None = existing_root_row["merkle_root"] if existing_root_row is not None else None
 
         if existing_root is None:
             cursor = conn.execute(
@@ -210,7 +206,7 @@ def _finalize_disk_after_walk(
         log.warning(
             "indexer.scan.event_insert_failed",
             disk_id=disk.id,
-            event="indexer.scan.disk_done",
+            scan_event="indexer.scan.disk_done",
             error=str(exc),
             error_type=type(exc).__name__,
         )
