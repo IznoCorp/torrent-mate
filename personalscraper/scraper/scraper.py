@@ -378,7 +378,17 @@ def verify_tvshow_scrape_drift(
     # identical in logs but differ in codepoints — "è" as U+00E8 vs
     # "e" + U+0300). Without this, the drift check falsely fires and the
     # subsequent rename-into-itself corrupts the folder.
-    canonical = patterns.format("movie_dir", Title=nfo_title, Year=nfo_year)
+    #
+    # Some TMDB/TVDB titles already end with `(YYYY)` (e.g. "INVINCIBLE (2021)"
+    # from TVDB show searches that disambiguate by year). Re-appending the
+    # year via patterns.format would produce "INVINCIBLE (2021) (2021)" and
+    # trigger a false-positive drift on every scan. Strip a trailing year
+    # parenthetical when it matches the NFO year.
+    title_for_canonical = nfo_title
+    trailing_year_pattern = f" ({nfo_year})"
+    if title_for_canonical.endswith(trailing_year_pattern):
+        title_for_canonical = title_for_canonical[: -len(trailing_year_pattern)]
+    canonical = patterns.format("movie_dir", Title=title_for_canonical, Year=nfo_year)
     if unicodedata.normalize("NFC", show_dir.name) != unicodedata.normalize("NFC", canonical):
         return False, f"folder_name_drift:{show_dir.name}!={canonical}"
 
