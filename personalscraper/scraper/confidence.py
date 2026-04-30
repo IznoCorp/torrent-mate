@@ -13,6 +13,7 @@ See docs/rapidfuzz-reference.md for scorer details.
 
 import re
 from dataclasses import dataclass
+from typing import Any
 
 import typer
 from rapidfuzz import fuzz
