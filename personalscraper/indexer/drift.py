@@ -234,7 +234,13 @@ def reconcile_file(
     try:
         t2_current = xxh3_partial(full_path)
     except OSError as exc:
-        log.warning("indexer.drift.xxh3_partial_failed", file_id=stored.id, error=str(exc))
+        log.warning(
+            "indexer.drift.xxh3_partial_failed",
+            file_id=stored.id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
         enqueue_repair(conn, stored.id, "content_drift")
         return "content_drift"
 

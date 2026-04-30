@@ -521,13 +521,34 @@ def _apply_row_with_retry(conn: sqlite3.Connection, row: IndexOutboxRow) -> str:
                     time.sleep(delay)
                     continue
                 # Exhausted all retries.
-                log.error("indexer.outbox.row_failed", row_id=row.id, op=row.op, error=str(exc))
+                log.error(
+                    "indexer.outbox.row_failed",
+                    row_id=row.id,
+                    op=row.op,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    exc_info=True,
+                )
                 return "failed"
             # Non-lock OperationalError: give up immediately.
-            log.error("indexer.outbox.row_failed", row_id=row.id, op=row.op, error=str(exc))
+            log.error(
+                "indexer.outbox.row_failed",
+                row_id=row.id,
+                op=row.op,
+                error=str(exc),
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
             return "failed"
         except Exception as exc:  # noqa: BLE001
-            log.error("indexer.outbox.row_failed", row_id=row.id, op=row.op, error=str(exc))
+            log.error(
+                "indexer.outbox.row_failed",
+                row_id=row.id,
+                op=row.op,
+                error=str(exc),
+                error_type=type(exc).__name__,
+                exc_info=True,
+            )
             return "failed"
 
     # Unreachable, but satisfies type checker.
@@ -604,10 +625,22 @@ def _replay_pending_ops(conn: sqlite3.Connection, disk_id: int, stats: DrainStat
                     )
                     time.sleep(delay)
                     continue
-                log.error("indexer.pending_op.replay_failed", row_id=op_row.id, error=str(exc))
+                log.error(
+                    "indexer.pending_op.replay_failed",
+                    row_id=op_row.id,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    exc_info=True,
+                )
                 break
             except Exception as exc:  # noqa: BLE001
-                log.error("indexer.pending_op.replay_failed", row_id=op_row.id, error=str(exc))
+                log.error(
+                    "indexer.pending_op.replay_failed",
+                    row_id=op_row.id,
+                    error=str(exc),
+                    error_type=type(exc).__name__,
+                    exc_info=True,
+                )
                 break
 
         # Suppress unused variable warning for synthetic (it is used for typing context).
@@ -724,6 +757,8 @@ def drain(conn: sqlite3.Connection, config: IndexerConfig) -> DrainStats:
                         row_id=row.id,
                         disk_id=raw_disk_id,
                         error=str(exc),
+                        error_type=type(exc).__name__,
+                        exc_info=True,
                     )
                 if deferred_ok:
                     log.info("indexer.outbox.deferred", row_id=row.id, disk_id=raw_disk_id)
@@ -853,7 +888,15 @@ def publish_event(
     try:
         payload_json = json.dumps(full_payload)
     except (TypeError, ValueError) as exc:
-        log.warning("indexer.db.outbox_lost", op=op, disk_id=disk_id, error=str(exc), payload=str(payload))
+        log.warning(
+            "indexer.db.outbox_lost",
+            op=op,
+            disk_id=disk_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            payload=str(payload),
+            exc_info=True,
+        )
         return
 
     try:
@@ -870,7 +913,9 @@ def publish_event(
             op=op,
             disk_id=disk_id,
             error=str(exc),
+            error_type=type(exc).__name__,
             payload=full_payload,
+            exc_info=True,
         )
 
 
@@ -912,7 +957,13 @@ def disk_id_for_path(path: Path, db_path: Path) -> tuple[int, str] | None:
         finally:
             conn.close()
     except Exception as exc:  # noqa: BLE001
-        log.warning("indexer.db.disk_lookup_failed", path=str(path), error=str(exc))
+        log.warning(
+            "indexer.db.disk_lookup_failed",
+            path=str(path),
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
         return None
 
     path_str = str(path)

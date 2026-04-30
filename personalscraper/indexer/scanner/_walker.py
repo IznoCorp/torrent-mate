@@ -212,8 +212,8 @@ def _walk_dir(
 
     After visiting all children of a directory, the ``path`` row for that
     directory is upserted with its current ``dir_mtime_ns``.  This write-through
-    is the mechanism used by ``--mode quick`` (Phase 2.6) to detect changed
-    subtrees without re-reading every file.
+    is the mechanism used by ``--mode quick`` to detect changed subtrees
+    without re-reading every file.
 
     Args:
         conn: Open SQLite connection.

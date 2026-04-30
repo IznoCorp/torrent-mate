@@ -50,12 +50,12 @@ class ScanMode(str, Enum):
     """Enumeration of available scan modes.
 
     Members:
-        quick: Merkle short-circuit + dir-mtime subtree skip (Phase 2.6).
-        incremental: Changed-files only based on dir-mtime deltas (Phase 4).
-        enrich: Re-run mediainfo / NFO / artwork on un-enriched files (Phase 4).
-        full: Walk every file on every disk and (re-)compute tier-1 fingerprints (Phase 2.5).
+        quick: Merkle short-circuit + dir-mtime subtree skip.
+        incremental: Changed-files only based on dir-mtime deltas.
+        enrich: Re-run mediainfo / NFO / artwork on un-enriched files.
+        full: Walk every file on every disk and (re-)compute tier-1 fingerprints.
         verify: Re-stat every indexed file and escalate mismatches to the repair
-            queue without soft-deleting (Phase 8.1).
+            queue without soft-deleting.
     """
 
     quick = "quick"
@@ -70,9 +70,12 @@ class ScanMode(str, Enum):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(frozen=True)
 class ScanRunResult:
     """Summary result returned by :func:`scan`.
+
+    Frozen so callers cannot mutate a result after the scan has completed —
+    the values reflect a snapshot of the scan's outcome.
 
     Args:
         scan_run_id: PK of the ``scan_run`` row created for this scan.

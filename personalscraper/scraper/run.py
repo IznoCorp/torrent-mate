@@ -230,6 +230,7 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
     errors = 0
     warnings: list[str] = []
     details: list[str] = []
+    unmatched_paths: list[str] = []
 
     for r in results:
         name = r.media_path.name
@@ -258,6 +259,7 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
             skipped += 1
             unmatched += 1
             details.append(f"[unmatched] {name}")
+            unmatched_paths.append(name)
         elif r.action.startswith("skipped"):
             skipped += 1
             details.append(f"[skipped] {name} ({r.action})")
@@ -278,4 +280,5 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
         warnings=warnings,
         details=details,
         counts=counts,
+        unmatched_paths=unmatched_paths,
     )

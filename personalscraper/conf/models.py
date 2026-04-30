@@ -775,8 +775,12 @@ class IndexerScanConfig(_StrictModel):
             unmounted disk from wiping its entries.
         read_rate_mb_per_sec: IO throttle in MB/s. ``None`` = unlimited.
             Set to e.g. 80 on spinning rust to avoid starving other processes.
-        sequential_read_hint: Emit ``F_RDADVISE`` on macOS to hint sequential
-            reads to the OS buffer cache. No-op on other platforms.
+        sequential_read_hint: Hint the OS buffer cache that the file will be
+            read sequentially. On macOS this is implemented via
+            ``mmap + madvise(MADV_SEQUENTIAL)`` (the historical ``fcntl``
+            ``F_RDADVISE`` path is unusable from pure Python — see
+            :mod:`personalscraper.indexer._macos_io`). No-op on other
+            platforms.
         drop_indexes_during_full_scan: Drop non-PK indexes during a full
             cold scan and rebuild them on finish — faster bulk inserts.
         paranoia_window_seconds: Look-back window in seconds for the
@@ -806,7 +810,7 @@ class IndexerScanConfig(_StrictModel):
     )
     sequential_read_hint: bool = Field(
         default=True,
-        description="Emit F_RDADVISE on macOS; no-op elsewhere.",
+        description="Hint sequential reads via mmap+madvise on macOS; no-op elsewhere.",
     )
     drop_indexes_during_full_scan: bool = Field(
         default=True,

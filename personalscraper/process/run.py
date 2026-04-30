@@ -245,10 +245,8 @@ def run_process(
         staging = config.paths.staging_dir
         movies_dir = staging / folder_name(find_by_file_type(config, FileType.MOVIE))
         tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
-        # Extract unmatched names from scrape report details ("« [unmatched] <name> »").
-        unmatched_names: set[str] = {
-            line[len("[unmatched] ") :].strip() for line in scrape_report.details if line.startswith("[unmatched] ")
-        }
+        # Read the typed unmatched_paths field directly (no detail-string parsing).
+        unmatched_names: set[str] = set(scrape_report.unmatched_paths)
         _revert_unmatched_recleans(
             category_dirs=[movies_dir, tvshows_dir],
             unmatched_names=unmatched_names,

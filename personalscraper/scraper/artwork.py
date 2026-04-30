@@ -39,6 +39,44 @@ IMAGE_SIZE = "original"
 # Default language priority for image selection (lower = better)
 _DEFAULT_LANG_PRIORITY: dict[str | None, int] = {"en": 0, "fr": 1}
 
+# Stem substrings → outbox artwork ``kind`` value.
+# Order matters: the first match in iteration wins, so put the more specific
+# tokens first (``clearlogo``/``clearart`` before ``logo``/``art``, etc.).
+# Kinds must remain a subset of
+# :data:`personalscraper.indexer.outbox._ALLOWED_ARTWORK_KINDS`; stems that
+# match no entry skip the outbox publish entirely (best-effort contract).
+_KIND_BY_STEM_TOKEN: tuple[tuple[str, str], ...] = (
+    ("poster", "poster"),
+    ("landscape", "landscape"),
+    ("fanart", "fanart"),
+    ("backdrop", "fanart"),
+    ("banner", "banner"),
+    ("clearlogo", "clearlogo"),
+    ("clearart", "clearart"),
+    ("discart", "discart"),
+    ("characterart", "characterart"),
+)
+
+
+def _kind_from_stem(stem: str) -> str | None:
+    """Resolve the outbox ``kind`` for an artwork file by stem.
+
+    Args:
+        stem: Filename stem (lower-cased), e.g. ``"poster"`` or
+            ``"my-movie-fanart"``.
+
+    Returns:
+        A whitelisted ``kind`` value (subset of
+        :data:`~personalscraper.indexer.outbox._ALLOWED_ARTWORK_KINDS`)
+        when the stem contains a known token, otherwise ``None`` so the
+        caller can skip the outbox publish.
+    """
+    lowered = stem.lower()
+    for token, kind in _KIND_BY_STEM_TOKEN:
+        if token in lowered:
+            return kind
+    return None
+
 
 _is_retryable = make_retryable_predicate()
 
@@ -169,31 +207,28 @@ class ArtworkDownloader:
         dest.write_bytes(response.content)
 
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
-        # Skipped when _db_path is None (no config available at construction time).
+        # Skipped when _db_path is None (no config available at construction time)
+        # or when the stem does not map to a whitelisted artwork ``kind`` — the
+        # outbox drainer would otherwise mark the row permanently failed
+        # (DESIGN §9.6 producer guard, IMPLEMENTATION cycle 2).
         if self._db_path is not None:
-            resolved = disk_id_for_path(dest, self._db_path)
-            if resolved is not None:
-                disk_id, rel_path = resolved
-                stem = dest.stem.lower()
-                kind = (
-                    "poster"
-                    if "poster" in stem
-                    else "landscape"
-                    if "landscape" in stem or "fanart" in stem or "backdrop" in stem
-                    else "thumb"
-                    if "thumb" in stem
-                    else "unknown"
-                )
-                publish_event(
-                    disk_id,
-                    op="artwork_write",
-                    payload={
-                        "rel_path": rel_path,
-                        "kind": kind,
-                    },
-                    db_path=self._db_path,
-                    source="scraper",
-                )
+            kind = _kind_from_stem(dest.stem)
+            if kind is None:
+                log.debug("artwork_outbox_skipped_unknown_kind", filename=dest.name, stem=dest.stem)
+            else:
+                resolved = disk_id_for_path(dest, self._db_path)
+                if resolved is not None:
+                    disk_id, rel_path = resolved
+                    publish_event(
+                        disk_id,
+                        op="artwork_write",
+                        payload={
+                            "rel_path": rel_path,
+                            "kind": kind,
+                        },
+                        db_path=self._db_path,
+                        source="scraper",
+                    )
 
         log.info("artwork_downloaded", filename=dest.name, bytes=len(response.content))
         return True

@@ -357,8 +357,13 @@ The DB lives on `path` which is **always** `.data/library.db` on the internal AP
 ```sql
 -- ---------------------------------------------------------------------------
 -- Disks: stable identity by volume UUID, never by mount path.
--- A disk row exists per known volume; mount_path is the *current* mount, NULL
--- when unmounted. last_seen_at is updated whenever the disk is observed mounted.
+-- A disk row exists per known volume; mount_path is the *current* configured
+-- scan root (i.e. DiskConfig.path) which may be a SUBDIRECTORY of the actual OS
+-- mount point — e.g. mount_path='/Volumes/Disk1/medias' while the volume itself
+-- mounts at '/Volumes/Disk1'. The scanner walks mount_path and computes
+-- rel_path against it, but diskutil/sentinel operations target the underlying
+-- volume root (resolved on demand by merkle._resolve_volume_root). NULL when
+-- unmounted. last_seen_at is updated whenever the disk is observed mounted.
 -- merkle_root is a 16-char hex (xxh3_64) over sorted (path_id, size, mtime_ns,
 -- oshash) of every file on the disk; cheap to recompute, lets the scanner
 -- fast-skip an entire disk if unchanged.

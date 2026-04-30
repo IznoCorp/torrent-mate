@@ -692,7 +692,8 @@ def library_search_command(
 
     Delegates to :func:`~personalscraper.indexer.query.execute` for tokenisation,
     SQL compilation, and execution.  Each matching item is printed as one
-    tab-separated row: ``id | title | year | disk | nfo | trailer``.
+    space-padded row with the columns ``id | title | year | nfo``; the header
+    row uses the same widths so columns line up in a fixed-width terminal.
 
     Args:
         query_str: Query string in the flex-attr syntax, e.g.
@@ -772,12 +773,13 @@ def library_search_command(
             typer.echo("(no results)")
             return 0
 
-        # Print header + rows
-        typer.echo(f"{'ID':<8} {'TITLE':<40} {'YEAR':<6} {'NFO':<10} {'TRAILER'}")
+        # Print header + rows. Widths must match between header and data so
+        # columns align in a fixed-width terminal.
+        typer.echo(f"{'ID':<8}{'TITLE':<40} {'YEAR':<6} {'NFO':<10}")
         for item in items:
             year_str = str(item.year) if item.year is not None else ""
             nfo_str = item.nfo_status or ""
-            typer.echo(f"  {item.id:<6} {(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
+            typer.echo(f"{item.id:<8}{(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
 
         return 0
 

@@ -149,9 +149,11 @@ class MediaInfoWrapper:
         # Advise the OS to read the file sequentially before pymediainfo opens
         # it internally.  pymediainfo manages its own file descriptor (via
         # libmediainfo), so we cannot pass it an fd directly.  Instead we open
-        # the file at the Python level solely to issue the F_RDADVISE hint,
-        # then close it immediately.  The hint primes the unified buffer cache;
-        # libmediainfo's subsequent open benefits from the pre-fetched pages.
+        # the file at the Python level solely to issue the sequential-read hint
+        # (mmap+madvise(MADV_SEQUENTIAL) on macOS, posix_fadvise elsewhere; see
+        # _macos_io.sequential_hint), then close it immediately.  The hint
+        # primes the unified buffer cache; libmediainfo's subsequent open
+        # benefits from the pre-fetched pages.
         _fd = os.open(path, os.O_RDONLY)
         try:
             sequential_hint(_fd, offset=0, length=0)

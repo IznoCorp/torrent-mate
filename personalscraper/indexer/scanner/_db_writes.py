@@ -245,5 +245,11 @@ def _compute_oshash(entry_path: str, filename: str, is_symlink: bool) -> str | N
     try:
         return fingerprint.oshash(Path(entry_path))
     except OSError as exc:
-        log.warning("indexer.scan.oshash_failed", path=entry_path, error=str(exc))
+        log.warning(
+            "indexer.scan.oshash_failed",
+            path=entry_path,
+            error=str(exc),
+            error_type=type(exc).__name__,
+            exc_info=True,
+        )
         return None

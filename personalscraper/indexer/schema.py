@@ -17,9 +17,41 @@ Helper:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict
+
+# ---------------------------------------------------------------------------
+# Literal aliases for stringly-typed enum columns
+# ---------------------------------------------------------------------------
+# These are the exact string sets enforced by SQLite ``CHECK`` constraints
+# on the corresponding columns (see ``indexer/migrations/*.sql``).  Using
+# :data:`typing.Literal` here is purely additive at runtime — call sites
+# that already pass valid strings keep working — but it lets ``mypy`` /
+# pyright catch typos in code that constructs these rows.
+
+#: ``media_item.kind`` discriminator.
+MediaItemKind: TypeAlias = Literal["movie", "show"]
+#: ``media_item.nfo_status``; ``None`` means "not yet checked".
+NfoStatus: TypeAlias = Literal["missing", "invalid", "valid"]
+#: ``index_outbox.source`` — originating subsystem.
+OutboxSource: TypeAlias = Literal["dispatch", "scraper", "trailers", "scanner", "pending_op"]
+#: ``index_outbox.op`` — supported operation types.
+OutboxOp: TypeAlias = Literal["move", "nfo_write", "artwork_write", "trailer_download"]
+#: ``index_outbox.status`` — drainer lifecycle.
+OutboxStatus: TypeAlias = Literal["pending", "done", "failed", "deferred"]
+#: ``scan_run.mode``.
+ScanMode: TypeAlias = Literal["quick", "incremental", "enrich", "full", "verify", "repair"]
+#: ``scan_run.status``.
+ScanStatus: TypeAlias = Literal["running", "ok", "failed", "aborted"]
+#: ``repair_queue.scope``.
+RepairScope: TypeAlias = Literal["file", "item", "release", "subtree", "path", "disk"]
+#: ``repair_queue.status``.
+RepairQueueStatus: TypeAlias = Literal["pending", "running", "done", "failed"]
+#: ``deleted_item.kind`` — what was soft-deleted.
+DeletedKind: TypeAlias = Literal["item", "file", "release"]
+#: ``media_stream.kind``.
+StreamKind: TypeAlias = Literal["video", "audio", "subtitle"]
 
 # ---------------------------------------------------------------------------
 # Custom exception
@@ -96,7 +128,15 @@ class DiskRow:
         id: Primary key (auto-assigned by SQLite on insert; 0 = unset).
         uuid: Volume UUID from ``diskutil info -plist``.
         label: Display label, e.g. "Disk1".
-        mount_path: Current mount point; ``None`` when unmounted.
+        mount_path: Configured scan root for the disk (i.e. ``DiskConfig.path``).
+            This is the directory the scanner walks and where ``rel_path`` values
+            are computed against. It may be a **subdirectory** of the actual OS
+            mount point (e.g. ``/Volumes/Disk1/medias`` while the volume mounts at
+            ``/Volumes/Disk1``); the indexer resolves the underlying mount root on
+            demand via :func:`personalscraper.indexer.merkle._resolve_volume_root`
+            so ``diskutil`` calls and the per-disk sentinel file land at the
+            volume root rather than the configured subdir. ``None`` when the
+            disk has never been observed mounted.
         last_seen_at: Unix epoch seconds; ``None`` = never seen.
         merkle_root: xxh3_64 hex (16 chars); ``None`` until first scan.
         is_mounted: 0 or 1.
@@ -157,7 +197,7 @@ class MediaItemRow:
     """
 
     id: int
-    kind: str
+    kind: MediaItemKind
     title: str
     title_sort: str
     original_title: str | None
@@ -166,7 +206,7 @@ class MediaItemRow:
     tmdb_id: int | None
     imdb_id: str | None
     tvdb_id: int | None
-    nfo_status: str | None
+    nfo_status: NfoStatus | None
     artwork_json: str | None
     date_created: int
     date_modified: int
@@ -319,7 +359,7 @@ class MediaStreamRow:
     id: int
     file_id: int
     idx: int
-    kind: str
+    kind: StreamKind
     codec: str | None
     lang: str | None
     channels: int | None
@@ -363,12 +403,12 @@ class IndexOutboxRow:
     """
 
     id: int
-    source: str
-    op: str
+    source: OutboxSource
+    op: OutboxOp
     payload_json: str
     created_at: int
     processed_at: int | None
-    status: str
+    status: OutboxStatus
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -410,12 +450,12 @@ class RepairQueueRow:
     """
 
     id: int
-    scope: str
+    scope: RepairScope
     scope_id: int | None
     reason: str
     payload_json: str | None
     enqueued_at: int
-    status: str
+    status: RepairQueueStatus
     attempted_at: int | None
     attempts: int
 
@@ -439,12 +479,12 @@ class ScanRunRow:
 
     id: int
     generation: int
-    mode: str
+    mode: ScanMode
     disk_filter: str | None
     started_at: int
     finished_at: int | None
     last_path: str | None
-    status: str
+    status: ScanStatus
     stats_json: str | None
 
 
@@ -485,7 +525,7 @@ class DeletedItemRow:
     """
 
     id: int
-    kind: str
+    kind: DeletedKind
     original_id: int
     deleted_at: int
     reason: str | None

@@ -63,6 +63,11 @@ class StepReport:
         renames: Rename map populated by reclean_folders — maps new_name → old_name.
             Consumed by run_process to revert reclean-renamed folders whose scrape
             subsequently yields ``skipped_low_confidence``.
+        unmatched_paths: Folder names for which the scraper could not produce a
+            confident match (action ``skipped_low_confidence``). Consumed by
+            run_process to revert reclean renames so unmatched items keep their
+            original torrent name and remain rescrape-eligible. Populated as a
+            typed field instead of being parsed back from ``details`` strings.
     """
 
     name: str
@@ -75,6 +80,7 @@ class StepReport:
     counts: dict[str, int] = field(default_factory=dict)
     failed_items: list[tuple[str, str, str]] = field(default_factory=list)
     renames: dict[str, str] = field(default_factory=dict)
+    unmatched_paths: list[str] = field(default_factory=list)
 
 
 @dataclass

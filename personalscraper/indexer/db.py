@@ -230,7 +230,12 @@ def handle_disk_full(conn: sqlite3.Connection, exc: sqlite3.OperationalError) ->
     except Exception:  # noqa: BLE001 — best-effort; ignore secondary errors
         pass
 
-    log.warning("indexer.db.disk_full", error=str(exc))
+    log.warning(
+        "indexer.db.disk_full",
+        error=str(exc),
+        error_type=type(exc).__name__,
+        exc_info=True,
+    )
     raise IndexerDiskFullError(Path("."), 0, 0) from exc
 
 
@@ -521,6 +526,14 @@ def apply_migrations(conn: sqlite3.Connection, dir_: Path) -> None:
         IndexerMigrationError: When a migration script fails to apply.
             The database is restored from the pre-migration snapshot before
             the exception propagates.
+
+            **Closed-connection invariant**: when this exception is raised
+            because of a restore-from-snapshot, *conn* has already been
+            ``.close()``-d (the snapshot is restored by overwriting the DB
+            file on disk, which requires the active connection to be closed).
+            Callers MUST re-open a fresh connection (e.g. via
+            :func:`open_db`) before issuing further queries; reusing the
+            closed *conn* will raise ``sqlite3.ProgrammingError``.
     """
     # Resolve current schema version from the database.
     current_version: int = conn.execute("PRAGMA user_version").fetchone()[0]

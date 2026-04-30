@@ -157,12 +157,21 @@ def test_download_image_publishes_artwork_write_and_drains(tmp_path: Path) -> No
 
 
 def test_kind_derivation(tmp_path: Path) -> None:
-    """download_image derives the correct ``kind`` from the destination filename stem.
+    """download_image derives the correct whitelisted ``kind`` from the filename stem.
+
+    Stems whose tokens are in :data:`_ALLOWED_ARTWORK_KINDS` map to the
+    corresponding kind; stems with no recognised token cause the producer to
+    skip the outbox publish entirely (no row is inserted).  See cycle 2 fix:
+    emitting ``thumb`` or ``unknown`` would land permanently-failed rows in
+    ``index_outbox`` because those values are not whitelisted.
 
     Covers:
-    - 'fanart.jpg'  → kind='landscape'   (fanart in stem)
-    - 'thumb.jpg'   → kind='thumb'        (thumb in stem)
-    - 'random.jpg'  → kind='unknown'      (no recognised keyword)
+    - ``poster.jpg``    → kind='poster'
+    - ``landscape.jpg`` → kind='landscape'
+    - ``fanart.jpg``    → kind='fanart'
+    - ``backdrop.jpg``  → kind='fanart' (backdrop alias)
+    - ``thumb.jpg``     → no outbox row inserted
+    - ``random.jpg``    → no outbox row inserted
     """
     db_path = tmp_path / "library.db"
     conn = _open_db(db_path)
@@ -173,13 +182,17 @@ def test_kind_derivation(tmp_path: Path) -> None:
     target_dir = tmp_path / "Disk1" / "Movies" / "Kind (2024)"
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    cases = [
-        ("fanart.jpg", "landscape"),
-        ("thumb.jpg", "thumb"),
-        ("random.jpg", "unknown"),
+    # Whitelisted kinds: outbox row should be inserted with the expected kind.
+    whitelisted_cases = [
+        ("poster.jpg", "poster"),
+        ("landscape.jpg", "landscape"),
+        ("fanart.jpg", "fanart"),
+        ("backdrop.jpg", "fanart"),
     ]
+    # Unrecognised stems: producer must skip publish_event so no row is created.
+    unrecognised_filenames = ["thumb.jpg", "random.jpg"]
 
-    for filename, expected_kind in cases:
+    for filename, expected_kind in whitelisted_cases:
         dest = target_dir / filename
         downloader = ArtworkDownloader(dry_run=False, artwork_language="en", db_path=db_path)
 
@@ -195,6 +208,23 @@ def test_kind_derivation(tmp_path: Path) -> None:
         assert payload.get("kind") == expected_kind, (
             f"filename={filename!r}: expected kind={expected_kind!r}, got {payload.get('kind')!r}"
         )
+
+    # Snapshot the outbox row count before testing the unrecognised cases so we
+    # can prove no new rows are inserted when the stem is not whitelisted.
+    rows_before = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE op = 'artwork_write'").fetchone()[0]
+
+    for filename in unrecognised_filenames:
+        dest = target_dir / filename
+        downloader = ArtworkDownloader(dry_run=False, artwork_language="en", db_path=db_path)
+
+        with patch.object(downloader, "_session", _make_fake_session()):
+            downloader.download_image(f"http://fake/{filename}", dest)
+
+    rows_after = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE op = 'artwork_write'").fetchone()[0]
+    assert rows_after == rows_before, (
+        f"Unrecognised stems must not insert outbox rows; "
+        f"row count went from {rows_before} to {rows_after}"
+    )
 
     conn.close()
 
