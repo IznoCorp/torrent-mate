@@ -34,6 +34,8 @@ from personalscraper.indexer.merkle import (
     DiskMismatchError,
     DiskMountStatus,
     DiskUnmountedError,
+    FileFingerprint,
+    compute_merkle_root,
     guard_disk_mounted,
     verify_disk_mounted,
 )
@@ -64,7 +66,7 @@ from personalscraper.indexer.scanner._walker import (
     _verify_dir_mtime_reliable,
     _walk_dir,
 )
-from personalscraper.indexer.schema import DiskRow, ScanRunRow
+from personalscraper.indexer.schema import DiskRow, ScanEventRow, ScanRunRow
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.scan")
@@ -81,6 +83,137 @@ _RECOMMENDED_MOUNT_FLAGS: frozenset[str] = frozenset(
         "allow_other",
     }
 )
+
+
+def _finalize_disk_after_walk(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    scan_run_id: int,
+    files_visited: int,
+    dirs_visited: int,
+) -> None:
+    """Persist post-walk per-disk state: ``merkle_root``, ``last_seen_at``, scan_event.
+
+    Called once per disk after a successful walk (read_success on the circuit
+    breaker has already fired).  The function is best-effort: any failure is
+    logged at ``warning`` level but does not fail the scan, since the file rows
+    have already been committed by the walker.
+
+    Steps:
+
+    1. ``last_seen_at`` is always updated to ``now()`` — the disk was
+       observably reachable.
+    2. ``merkle_root`` is recomputed only when the on-disk row currently has
+       it set to ``NULL`` (i.e. the disk has never been fingerprinted, or a
+       previous run cleared it).  Quick/incremental modes already maintain
+       merkle_root in their own happy paths via
+       :mod:`personalscraper.indexer.scanner._modes`; full scans, which do
+       not, fall through to this branch and get their first-ever fingerprint
+       written here.  Files with ``oshash IS NULL`` (Stage A only — OSHash
+       deferred to ``--mode enrich``) are skipped so a partial Stage A walk
+       does not overwrite a real merkle with the empty-set hash.
+    3. One ``indexer.scan.disk_done`` row is inserted into ``scan_event``
+       with the per-disk counters as JSON payload, giving the audit trail a
+       durable per-disk endpoint that survives log rotation.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: The :class:`DiskRow` that was just walked.
+        scan_run_id: PK of the active ``scan_run`` row (used as FK on the
+            ``scan_event`` insert).
+        files_visited: Number of files visited by this walk on this disk.
+        dirs_visited: Number of directories visited.
+    """
+    now = int(time.time())
+    merkle_root: str | None = None
+
+    # Step 1: always touch last_seen_at — the disk responded to the walk.
+    disk_repo.update_last_seen_at(conn, disk.id, now)
+
+    # Step 2: recompute merkle_root only when it is currently NULL on the
+    # disk row.  Quick/incremental modes already write the right value
+    # earlier in their pipeline and we must not clobber it.
+    try:
+        conn.row_factory = sqlite3.Row
+        existing_root_row = conn.execute(
+            "SELECT merkle_root FROM disk WHERE id = ?", (disk.id,)
+        ).fetchone()
+        existing_root: str | None = (
+            existing_root_row["merkle_root"] if existing_root_row is not None else None
+        )
+
+        if existing_root is None:
+            cursor = conn.execute(
+                """
+                SELECT mf.path_id   AS path_id,
+                       mf.size_bytes AS size,
+                       mf.mtime_ns  AS mtime_ns,
+                       mf.oshash    AS oshash
+                FROM media_file mf
+                JOIN path p ON p.id = mf.path_id
+                WHERE p.disk_id = ?
+                  AND mf.deleted_at IS NULL
+                  AND mf.oshash IS NOT NULL
+                """,
+                (disk.id,),
+            )
+            fingerprints = [
+                FileFingerprint(
+                    path_id=int(row["path_id"]),
+                    size=int(row["size"]),
+                    mtime_ns=int(row["mtime_ns"]),
+                    oshash=str(row["oshash"]),
+                )
+                for row in cursor.fetchall()
+            ]
+            # Only persist a freshly-computed root when at least one file is
+            # fully fingerprinted; otherwise leave NULL so the next enrich
+            # pass can compute a meaningful value.
+            if fingerprints:
+                merkle_root = compute_merkle_root(fingerprints)
+                disk_repo.update_merkle_root(conn, disk.id, merkle_root)
+        else:
+            merkle_root = existing_root
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.scan.merkle_root_failed",
+            disk_id=disk.id,
+            label=disk.label,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+
+    # Step 4: emit a structured scan_event row so the audit trail of "which
+    # disk got scanned in which run" survives in the DB beyond log files.
+    try:
+        log_repo.insert_scan_event(
+            conn,
+            ScanEventRow(
+                id=0,
+                scan_id=scan_run_id,
+                ts=now,
+                item_id=None,
+                file_id=None,
+                event="indexer.scan.disk_done",
+                payload_json=json.dumps(
+                    {
+                        "disk_id": disk.id,
+                        "label": disk.label,
+                        "files_visited": files_visited,
+                        "dirs_visited": dirs_visited,
+                        "merkle_root": merkle_root,
+                    }
+                ),
+            ),
+        )
+    except sqlite3.Error as exc:
+        log.warning(
+            "indexer.scan.event_insert_failed",
+            disk_id=disk.id,
+            event="indexer.scan.disk_done",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
 
 
 def _check_mount_flags(disks: list[DiskRow]) -> None:
@@ -665,6 +798,18 @@ def scan(
             dirs_visited=local_dirs[0],
         )
 
+        # Persist post-walk per-disk state (merkle_root, last_seen_at,
+        # scan_event row) so the next quick-mode run can fast-skip and the
+        # audit trail is durable.  Best-effort: the helper logs and swallows
+        # SQL errors without aborting the scan.
+        _finalize_disk_after_walk(
+            conn,
+            disk,
+            scan_run_id,
+            files_visited=local_files[0],
+            dirs_visited=local_dirs[0],
+        )
+
     # -----------------------------------------------------------------------
     # Decide worker count.
     #
@@ -765,7 +910,22 @@ def scan(
 
         # All disks processed — mark scan_run ok.
         finished_at = int(time.time())
-        log_repo.update_scan_run_status(conn, scan_run_id, "ok", finished_at=finished_at)
+        # Persist final stats so post-mortem queries can recover counts without
+        # replaying the log file.  Mirrors the budget-exhausted branch above
+        # but goes through the repo helper so all status transitions share one
+        # write path.
+        final_stats: dict[str, int] = {
+            "files_visited": files_visited[0],
+            "dirs_visited": dirs_visited[0],
+            "disks_skipped": disks_skipped[0],
+        }
+        log_repo.update_scan_run_status(
+            conn,
+            scan_run_id,
+            "ok",
+            finished_at=finished_at,
+            stats_json=json.dumps(final_stats),
+        )
         return ScanRunResult(
             scan_run_id=scan_run_id,
             files_visited=files_visited[0],

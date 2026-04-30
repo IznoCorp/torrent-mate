@@ -245,6 +245,29 @@ def update_merkle_root(conn: sqlite3.Connection, id: int, merkle_root: str | Non
     return updated
 
 
+def update_last_seen_at(conn: sqlite3.Connection, id: int, last_seen_at: int) -> bool:
+    """Update the ``last_seen_at`` column for a disk row.
+
+    Called whenever a scan visits the disk successfully so observers can tell
+    "when was this disk last touched by the indexer". Distinct from
+    ``update_is_mounted`` (state) and ``update_merkle_root`` (content
+    fingerprint).
+
+    Args:
+        conn: Open SQLite connection.
+        id: PK of the disk row to update.
+        last_seen_at: Unix epoch seconds (typically ``int(time.time())``).
+
+    Returns:
+        ``True`` if a row was updated, ``False`` if no row matched ``id``.
+    """
+    cursor = conn.execute("UPDATE disk SET last_seen_at = ? WHERE id = ?", (last_seen_at, id))
+    updated = cursor.rowcount > 0
+    if updated:
+        log.info("indexer.disk.update_last_seen_at", id=id, last_seen_at=last_seen_at)
+    return updated
+
+
 # ---------------------------------------------------------------------------
 # path table operations
 # ---------------------------------------------------------------------------
@@ -300,7 +323,12 @@ def upsert_path(conn: sqlite3.Connection, row: PathRow) -> int:
     )
     returned = cursor.fetchone()
     rowid: int = returned[0]
-    log.info("indexer.disk.upsert_path", disk_id=row.disk_id, rel_path=row.rel_path, rowid=rowid)
+    # Per-path upserts fire once per file visit on a full scan, which produces
+    # tens of thousands of identical-rowid log lines under INFO and drowns
+    # out everything else.  Demoted to debug — the walker emits one
+    # ``indexer.scan.disk_done`` summary at INFO per disk, which is the right
+    # granularity for an operator skim.
+    log.debug("indexer.disk.upsert_path", disk_id=row.disk_id, rel_path=row.rel_path, rowid=rowid)
     return rowid
 
 
