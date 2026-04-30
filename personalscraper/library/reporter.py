@@ -5,8 +5,12 @@ Reads health metrics from :class:`~personalscraper.library.analyzer.AnalysisResu
 JSON files (validation, recommendations, rescrape) to produce a comprehensive
 library health report with clear explanations and suggested remediation commands.
 
-``library_analysis.json`` is no longer read; the DB-backed :class:`AnalysisResult`
-replaces it for all NFO / artwork metrics.
+The legacy ``library_scan.json`` and ``library_analysis.json`` files are no
+longer read — the DB-backed :class:`AnalysisResult` is the only source of
+totals, NFO / artwork metrics, disk distribution, and per-item size data
+(DESIGN §10.2).  Scan-issue data (``actors_dir``, ``junk_files``, etc.) is
+no longer reported because there is no indexer-resident equivalent yet;
+``library-clean`` continues to detect and act on these on demand.
 """
 
 from __future__ import annotations
@@ -140,7 +144,6 @@ class LibraryReport:
 
 
 def generate_report(
-    scan_data: dict[str, Any] | None = None,
     analysis_result: AnalysisResult | None = None,
     validation_data: dict[str, Any] | None = None,
     recommendation_data: dict[str, Any] | None = None,
@@ -151,71 +154,33 @@ def generate_report(
 
     Each parameter is optional — report includes whatever data is available.
     ``analysis_result`` is produced by :func:`~personalscraper.library.analyzer.analyze`
-    and replaces the legacy ``library_analysis.json`` file: it provides NFO-status
-    and artwork-presence breakdowns queried directly from the indexer DB.
+    and is the single source of truth for totals, NFO / artwork status, disk
+    distribution, and per-item sizes.  Supplementary JSON files (validation,
+    recommendations, rescrape) are individual command outputs that this report
+    aggregates when present.
 
     Args:
-        scan_data: Parsed library_scan.json (disk/category distribution, sizes).
-        analysis_result: DB-backed health summary from ``analyzer.analyze(conn)``.
-            Supplies NFO status counts, artwork presence, season poster gaps, and
-            per-category breakdowns.  Replaces the removed library_analysis.json.
-        validation_data: Parsed library_validation.json.
-        recommendation_data: Parsed library_recommendations.json.
+        analysis_result: DB-backed library summary from ``analyzer.analyze(conn)``.
+            Supplies totals, disk / category distribution, top-largest items,
+            NFO status counts, artwork presence, and season poster gaps.
+        validation_data: Parsed library_validation.json (output of library-validate).
+        recommendation_data: Parsed library_recommendations.json (output of library-recommend).
         disk_statuses: List of DiskStatus objects for live free space.
-        rescrape_data: Parsed library_rescrape.json.
+        rescrape_data: Parsed library_rescrape.json (output of library-rescrape).
 
     Returns:
         LibraryReport with aggregated statistics.
     """
     report = LibraryReport(generated_at=datetime.now(tz=timezone.utc).isoformat())
 
-    # --- Scan data — disk/category distribution and per-item sizes ---
-    if scan_data:
-        items = scan_data.get("items", [])
-        report.total_items = len(items)
-
-        disk_counter: Counter[str] = Counter()
-        category_counter: Counter[str] = Counter()
-        disk_size: dict[str, float] = {}
-        size_list: list[tuple[str, float]] = []
-        issue_counter: Counter[str] = Counter()
-
-        for item in items:
-            disk = item.get("disk", "unknown")
-            category = item.get("category", "unknown")
-            size = item.get("folder_size_gb", 0.0)
-
-            disk_counter[disk] += 1
-            category_counter[category] += 1
-            disk_size[disk] = disk_size.get(disk, 0.0) + size
-            report.total_size_gb += size
-
-            if item.get("actors_dir"):
-                report.actors_dir_count += 1
-
-            for iss in item.get("issues", []):
-                issue_counter[iss] += 1
-
-            title = item.get("title", item.get("path", "unknown"))
-            size_list.append((title, size))
-
-        report.items_per_disk = dict(disk_counter)
-        report.items_per_category = dict(category_counter)
-        report.size_per_disk_gb = {k: round(v, 1) for k, v in disk_size.items()}
-        report.total_size_gb = round(report.total_size_gb, 1)
-        report.scan_issues = dict(issue_counter.most_common())
-
-        # Top 20 largest
-        size_list.sort(key=lambda x: -x[1])
-        report.top_largest = size_list[:20]
-
-    # --- DB-backed analysis result — NFO/artwork health metrics ---
-    # Replaces the removed library_analysis.json: all NFO and poster counts now
-    # come from the indexer DB via analyzer.analyze(conn).
+    # --- DB-backed analysis result — totals, distribution, NFO/artwork metrics
     if analysis_result is not None:
-        # Prefer DB total when scan_data is absent
-        if not scan_data:
-            report.total_items = analysis_result.total_items
+        report.total_items = analysis_result.total_items
+        report.total_size_gb = analysis_result.total_size_gb
+        report.items_per_disk = dict(analysis_result.items_per_disk)
+        report.items_per_category = dict(analysis_result.items_per_category)
+        report.size_per_disk_gb = dict(analysis_result.size_per_disk_gb)
+        report.top_largest = list(analysis_result.top_largest)
 
         report.nfo_valid_count = analysis_result.nfo.valid
         report.nfo_invalid_count = analysis_result.nfo.invalid + analysis_result.nfo.missing

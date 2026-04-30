@@ -325,6 +325,43 @@ class TestScanLibraryPopulatesDB:
         assert row is not None
         assert row["nfo_status"] == "missing"
 
+    def test_dispatch_attrs_written_for_each_item(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """Each media_item gets dispatch_path + dispatch_disk attributes.
+
+        This guarantees that downstream consumers — in particular
+        ``trailers/scanner.py`` and ``indexer/release_linker.py`` — can
+        locate the on-disk media directory for any item discovered by the
+        library scanner, not only by the dispatch layer.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        movie = disk_a / "films" / "Tenet (2020)"
+        movie.mkdir()
+        (movie / "Tenet.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Tenet.nfo").write_text('<movie><uniqueid type="tmdb">577922</uniqueid></movie>')
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn)
+
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT id FROM media_item WHERE title = 'Tenet'").fetchone()
+        assert row is not None
+        item_id = row["id"]
+
+        attrs = {
+            r["key"]: r["value"]
+            for r in conn.execute(
+                "SELECT key, value FROM item_attribute WHERE item_id = ?",
+                (item_id,),
+            ).fetchall()
+        }
+        assert attrs.get("dispatch_path") == str(movie)
+        assert attrs.get("dispatch_disk") == scanner_config.disks[0].id
+
     def test_consecutive_calls_increment_scan_generation(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Two consecutive scan_library calls produce strictly-increasing scan generations.
 

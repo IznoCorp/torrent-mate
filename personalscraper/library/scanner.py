@@ -1,16 +1,16 @@
 """Lightweight library scanner — structure, NFO, artwork inventory.
 
-Scans storage disks without ffprobe. Produces LibraryScanItem for each
-media directory found. Uses existing utilities: is_nfo_complete()
-and SEASON_DIR_RE.
+Scans storage disks without ffprobe. Produces ``LibraryScanItem`` for each
+media directory found and writes the result to the indexer DB. Uses existing
+utilities: ``is_nfo_complete()`` and ``SEASON_DIR_RE``.
 
 ``scan_library`` accepts a ``Config`` object and a SQLite connection and
 populates the indexer DB (``media_item``, ``season``, ``episode`` tables via
-repos; ``media_file`` / ``path`` via :func:`personalscraper.indexer.scanner.scan`).
+repos; ``media_file`` / ``path`` via :func:`personalscraper.indexer.scanner.scan`;
+``dispatch_path`` / ``dispatch_disk`` flex attributes via
+:func:`personalscraper.indexer.repos.item_repo.upsert_attr`).
 
-Deprecated: ``LibraryScanResult`` is kept as a transitional stub in
-``personalscraper.library.models`` until sub-phases 7.2–7.4 migrate all
-consumers.  The helper functions ``scan_movie_dir``, ``scan_tvshow_dir``,
+The helper functions ``scan_movie_dir``, ``scan_tvshow_dir``,
 ``parse_title_year``, and ``extract_nfo_ids`` remain public for callers that
 still use them directly (e.g. ``library/rescraper.py``,
 ``trailers/scanner.py``).
@@ -451,7 +451,14 @@ def _upsert_media_item(
     """Upsert a ``media_item`` row from a library scan result.
 
     Converts a :class:`LibraryScanItem` into a :class:`MediaItemRow` and calls
-    :func:`personalscraper.indexer.repos.item_repo.upsert`.
+    :func:`personalscraper.indexer.repos.item_repo.upsert`.  Also writes the
+    ``dispatch_path`` and ``dispatch_disk`` flex attributes so consumers that
+    rely on them (``trailers/scanner.py``, ``indexer/release_linker.py``) can
+    locate the on-disk media directory regardless of whether the item was
+    discovered by the dispatch layer or by this library scanner.  The
+    attribute key prefix is historical (originally introduced by dispatch);
+    the values stored here are the same shape — absolute media-dir path and
+    config-level disk ID.
 
     Args:
         conn: Open SQLite connection.
@@ -462,6 +469,12 @@ def _upsert_media_item(
     Returns:
         PK of the inserted or updated ``media_item`` row.
     """
+    from personalscraper.indexer.repos.item_repo import (  # noqa: PLC0415
+        _ATTR_DISPATCH_DISK,
+        _ATTR_DISPATCH_PATH,
+    )
+    from personalscraper.indexer.schema import ItemAttributeRow  # noqa: PLC0415
+
     kind: MediaItemKind = "show" if scan_item.media_type == "tvshow" else "movie"
     nfo_status = _nfo_status_string(scan_item.nfo)
     artwork_json = _artwork_inventory(scan_item.artwork).model_dump_json()
@@ -491,7 +504,19 @@ def _upsert_media_item(
         is_locked=0,
         preferred_lang="fr",
     )
-    return _item_repo.upsert(conn, row)
+    item_id = _item_repo.upsert(conn, row)
+
+    # Persist the on-disk path + disk ID as flex attributes so trailers and
+    # release_linker can locate the media directory.  Without these, items
+    # created by the library scanner (no dispatch event) are invisible to
+    # those consumers.
+    for key, value in (
+        (_ATTR_DISPATCH_PATH, scan_item.path),
+        (_ATTR_DISPATCH_DISK, scan_item.disk),
+    ):
+        _item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=key, value=value))
+
+    return item_id
 
 
 def _upsert_seasons_and_episodes(
@@ -607,14 +632,16 @@ def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int)
 def scan_library(config: Config, conn: sqlite3.Connection) -> None:
     """Populate the indexer DB from a full walk of all mounted storage disks.
 
-    Replaces the legacy ``LibraryScanResult``-returning implementation.  For
-    each media directory found on disk the function writes:
+    For each media directory found on disk the function writes:
 
     * ``media_item`` — one row per movie / TV show directory.
     * ``season`` — one row per season directory found inside a TV show.
     * ``episode`` — one stub row per video file found in each season.
     * ``media_file`` / ``path`` — populated by delegating to
       :func:`personalscraper.indexer.scanner.scan` (full mode).
+    * ``item_attribute`` — ``dispatch_path`` and ``dispatch_disk`` so that
+      consumers (``trailers/scanner.py``, ``indexer/release_linker.py``) can
+      locate the on-disk media directory for any indexed item.
 
     Disks that are not mounted (``disk_cfg.path`` does not exist) are skipped
     with a warning log.

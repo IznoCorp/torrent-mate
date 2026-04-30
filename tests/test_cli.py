@@ -565,7 +565,6 @@ class TestLibraryAnalyze:
         result = runner.invoke(app, ["library-analyze", "--help"])
         assert result.exit_code == 0
         assert "--disk" in result.output
-        assert "--incremental" in result.output
         assert "--max-items" in result.output
 
 

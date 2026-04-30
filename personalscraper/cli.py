@@ -965,56 +965,56 @@ def library_analyze(
     ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
     category: str = typer.Option(None, "--category", help="Analyze only this category"),
-    incremental: bool = typer.Option(False, "--incremental", help="Skip already-analyzed files"),
     max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
 ) -> None:
-    """Deep scan video files with ffprobe (codec, audio, subtitles).
+    """Deep scan video files with ffprobe (codec, audio, subtitles) and print a summary.
 
     Most I/O-intensive command — schedule during off-peak hours.
-    Use --incremental to skip files that haven't changed since last analysis.
+
+    The result set is **not persisted to disk** (the legacy
+    ``library_analysis.json`` cache was removed when the indexer DB became
+    the single source of truth).  ``library-recommend`` runs this scan
+    inline before producing recommendations, so there is no need to call
+    ``library-analyze`` first as a side-effect setup step.
 
     Examples:
-        personalscraper library-analyze --incremental
+        personalscraper library-analyze
         personalscraper library-analyze --disk <disk_id> --category series
         personalscraper library-analyze --max-items 50
     """
     from personalscraper.library.analyzer import analyze_library
-    from personalscraper.library.models import read_json, write_json
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
-
-    # Load existing analysis for incremental mode (compare size_gb with tolerance)
-    existing: dict[str, float] = {}
-    analysis_path = config.paths.data_dir / "library_analysis.json"
-    if incremental and analysis_path.exists():
-        try:
-            data = read_json(analysis_path)
-            for item in data.get("items", []):
-                for f in item.get("files", []):
-                    path = f.get("path", "")
-                    existing[path] = f.get("size_gb", 0.0)
-        except (OSError, KeyError, ValueError, TypeError) as exc:
-            log.warning("incremental_analysis_load_failed", error=str(exc))
-            console.print(f"[yellow]Warning:[/yellow] Cannot read existing analysis ({exc}), re-analyzing all files.")
-            existing = {}
 
     console.print("[bold]Analyzing library (ffprobe)...[/bold]")
     result = analyze_library(
         config,
         disk_filter=disk,
         category_filter=category_id,
-        incremental=incremental,
-        existing_sizes=existing if incremental else None,
         max_items=max_items,
     )
 
-    write_json(result, analysis_path)
+    # Aggregate codec / audio profile distributions for the summary.
+    codec_counts: dict[str, int] = {}
+    audio_counts: dict[str, int] = {}
+    for item in result.items:
+        for media_file in item.files:
+            codec = media_file.video.codec or "unknown"
+            codec_counts[codec] = codec_counts.get(codec, 0) + 1
+            profile = media_file.audio_profile or "unknown"
+            audio_counts[profile] = audio_counts.get(profile, 0) + 1
 
     console.print(
-        f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files → {analysis_path}"
+        f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files"
     )
+    if codec_counts:
+        codecs = ", ".join(f"{c}={n}" for c, n in sorted(codec_counts.items(), key=lambda kv: -kv[1]))
+        console.print(f"  Codecs: {codecs}")
+    if audio_counts:
+        audio = ", ".join(f"{p}={n}" for p, n in sorted(audio_counts.items(), key=lambda kv: -kv[1]))
+        console.print(f"  Audio profiles: {audio}")
 
 
 @app.command()
@@ -1026,10 +1026,11 @@ def library_recommend(
     disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
     category: str = typer.Option(None, "--category", help="Filter to this category"),
 ) -> None:
-    """Generate re-download recommendations from library analysis.
+    """Generate re-download recommendations from a fresh ffprobe analysis.
 
-    Requires library-analyze to have been run first.
-    Reads library_analysis.json; preferences come from config.library.
+    Runs the ffprobe analysis inline (no on-disk cache) and feeds the
+    in-memory result to the recommender.  Preferences come from
+    ``config.library``.  Output is written to ``library_recommendations.json``.
 
     Examples:
         personalscraper library-recommend
@@ -1038,12 +1039,12 @@ def library_recommend(
     """
     import csv
 
-    from personalscraper.library.analyzer import _reconstruct_analysis_items
-    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.analyzer import analyze_library
+    from personalscraper.library.models import write_json
     from personalscraper.library.recommender import generate_recommendations
 
     # Resolve alias now so unknown --category values fail fast.
-    _resolve_category(ctx, category)
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
 
@@ -1053,19 +1054,20 @@ def library_recommend(
         console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
         raise typer.Exit(1)
 
-    # Load analysis
-    analysis_path = config.paths.data_dir / "library_analysis.json"
-    if not analysis_path.exists():
-        console.print("[red]No analysis found. Run library-analyze first.[/red]")
-        raise typer.Exit(1)
-
-    analysis_data = read_json(analysis_path)
+    # Run analysis inline — no on-disk cache.  The legacy
+    # library_analysis.json was removed when the indexer DB became the
+    # single source of truth (DESIGN §10.2).
+    console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+    analysis = analyze_library(
+        config,
+        disk_filter=disk,
+        category_filter=category_id,
+    )
 
     # Use preferences from config.library (no separate file).
     prefs = config.library
 
-    items = _reconstruct_analysis_items(analysis_data)
-    result = generate_recommendations(items, prefs)
+    result = generate_recommendations(analysis.items, prefs)
 
     # Sort
     sort_keys = {
@@ -1200,8 +1202,9 @@ def library_report(
 ) -> None:
     """Display library statistics and health report.
 
-    Aggregates data from scan, analysis, validation, and recommendations.
-    Run other library commands first to populate the data.
+    Aggregates data from the indexer DB (totals, NFO / artwork health, disk
+    distribution, per-item sizes) and supplementary JSON outputs from
+    ``library-validate``, ``library-recommend``, and ``library-rescrape``.
 
     Examples:
         personalscraper library-report
@@ -1216,7 +1219,9 @@ def library_report(
     config = ctx.obj.config
     console = state["console"]
 
-    # Load available supplementary JSON data (validation, recommendations, rescrape)
+    # Load supplementary JSON outputs (validation, recommendations, rescrape).
+    # The legacy library_scan.json / library_analysis.json files are no
+    # longer read — the indexer DB is the source of truth (DESIGN §10.2).
     def _load(name: str) -> dict[str, Any] | None:
         path = config.paths.data_dir / name
         if path.exists():
@@ -1228,13 +1233,11 @@ def library_report(
                 return None
         return None
 
-    scan_data = _load("library_scan.json")
     validation_data = _load("library_validation.json")
     recommendation_data = _load("library_recommendations.json")
     rescrape_data = _load("library_rescrape.json")
 
-    # Query the indexer DB for NFO / artwork health metrics.
-    # library_analysis.json is no longer read — AnalysisResult replaces it.
+    # Query the indexer DB for totals, NFO / artwork health, disk distribution.
     db_path = config.indexer.db_path
     analysis_result = None
     if db_path.exists():
@@ -1246,15 +1249,14 @@ def library_report(
             log.warning("report_indexer_query_failed", error=str(exc))
             console.print(f"[yellow]Warning: indexer DB query failed ({exc}), skipping analysis.[/yellow]")
 
-    if not any([scan_data, analysis_result, validation_data, recommendation_data, rescrape_data]):
-        console.print("[yellow]No library data found. Run library-scan or library-index first.[/yellow]")
+    if not any([analysis_result, validation_data, recommendation_data, rescrape_data]):
+        console.print("[yellow]No library data found. Run library-index first.[/yellow]")
         raise typer.Exit(1)
 
     # Get live disk free space
     disk_statuses = [get_disk_status(dc) for dc in config.disks]
 
     report = generate_report(
-        scan_data,
         analysis_result,
         validation_data,
         recommendation_data,

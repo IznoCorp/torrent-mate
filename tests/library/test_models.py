@@ -17,7 +17,7 @@ from personalscraper.library.models import (
     CurrentState,
     LibraryRescrapeResult,
     LibraryScanItem,
-    LibraryScanResult,
+    LibraryValidationResult,
     MediaFileAnalysis,
     NfoStatus,
     Recommendation,
@@ -129,21 +129,6 @@ class TestLibraryScanItem:
         )
         assert len(item.seasons) == 1
         assert ISSUE_ACTORS_DIR in item.issues
-
-
-class TestLibraryScanResult:
-    """Tests for LibraryScanResult container."""
-
-    def test_empty_result(self) -> None:
-        """Empty scan result."""
-        result = LibraryScanResult(
-            scanned_at="2026-04-15T12:00:00",
-            disk_filter=None,
-            category_filter=None,
-            item_count=0,
-            items=[],
-        )
-        assert result.item_count == 0
 
 
 class TestVideoInfo:
@@ -271,29 +256,35 @@ class TestValidationItem:
 
 
 class TestJsonSerialization:
-    """Tests for JSON serialization helpers."""
+    """Tests for JSON serialization helpers (validation output)."""
 
-    def test_roundtrip_scan_result(self) -> None:
-        """Serialize and deserialize a scan result."""
-        result = LibraryScanResult(
-            scanned_at="2026-04-15T12:00:00",
+    def test_roundtrip_validation_result(self) -> None:
+        """Serialize and deserialize a validation result."""
+        result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
             disk_filter=None,
             category_filter=None,
-            item_count=0,
+            total_items=0,
+            valid_count=0,
+            fixed_count=0,
+            issues_count=0,
             items=[],
         )
         json_str = serialize_to_json(result)
         parsed = json.loads(json_str)
-        assert parsed["scanned_at"] == "2026-04-15T12:00:00"
-        assert parsed["item_count"] == 0
+        assert parsed["validated_at"] == "2026-04-15T12:00:00"
+        assert parsed["total_items"] == 0
 
     def test_atomic_write_and_read(self, tmp_path) -> None:
         """Write to file atomically and read back."""
-        result = LibraryScanResult(
-            scanned_at="2026-04-15T12:00:00",
+        result = LibraryValidationResult(
+            validated_at="2026-04-15T12:00:00",
             disk_filter="Disk1",
             category_filter=None,
-            item_count=0,
+            total_items=0,
+            valid_count=0,
+            fixed_count=0,
+            issues_count=0,
             items=[],
         )
         path = tmp_path / "test.json"
@@ -301,7 +292,7 @@ class TestJsonSerialization:
         assert path.exists()
 
         data = read_json(path)
-        assert data["scanned_at"] == "2026-04-15T12:00:00"
+        assert data["validated_at"] == "2026-04-15T12:00:00"
         assert data["disk_filter"] == "Disk1"
 
 

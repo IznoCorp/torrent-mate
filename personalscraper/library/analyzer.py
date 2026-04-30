@@ -4,17 +4,16 @@ Two modes of analysis are exposed:
 
 1. ``analyze(conn) -> AnalysisResult`` — lightweight, always available.
    Queries the indexer DB (populated by :func:`personalscraper.library.scanner.scan_library`)
-   and returns aggregate health counts: NFO status distribution, artwork presence,
-   TV show season-poster coverage.  No ffprobe or filesystem access required.
+   and returns aggregate health counts plus disk / category distribution and
+   per-item sizes.  No ffprobe or filesystem access required.
 
 2. ``analyze_library(config, ...) -> LibraryAnalysisResult`` — heavy, optional.
    Runs ffprobe on every video file and returns per-file codec/audio/subtitle
-   information.  Schedule during off-peak hours; use ``--incremental`` to skip
-   files that have not changed size since the last run.
+   information in memory (no on-disk cache).  Schedule during off-peak hours.
 
 Callers in ``reporter.py`` and ``rescraper.py`` consume :class:`AnalysisResult`.
-``analyze_library`` is still called by the ``library-analyze`` CLI command for
-on-demand ffprobe deep-scan.
+``analyze_library`` is consumed by the ``library-analyze`` and
+``library-recommend`` CLI commands for on-demand ffprobe deep-scan.
 """
 
 from __future__ import annotations
@@ -90,6 +89,7 @@ class AnalysisResult:
     Attributes:
         analyzed_at: ISO 8601 timestamp of analysis.
         total_items: Total ``media_item`` rows in the DB.
+        total_size_gb: Total bytes of all ``media_file`` rows, expressed in GB.
         movies_count: Items with ``kind='movie'``.
         shows_count: Items with ``kind='show'``.
         nfo: NFO status breakdown (valid / invalid / missing).
@@ -99,10 +99,15 @@ class AnalysisResult:
         poster_missing_by_category: Count of poster-missing items per ``category_id``.
         items_needing_rescrape: Items with ``nfo_status != 'valid'`` or
             ``date_metadata_refreshed IS NULL`` — candidates for rescraper.
+        items_per_disk: Item count per ``disk.label`` (i.e. config disk ID).
+        items_per_category: Item count per ``category_id``.
+        size_per_disk_gb: Total ``media_file`` bytes per disk, in GB.
+        top_largest: Top 20 ``(title, size_gb)`` ordered by descending size.
     """
 
     analyzed_at: str = ""
     total_items: int = 0
+    total_size_gb: float = 0.0
     movies_count: int = 0
     shows_count: int = 0
     nfo: NfoStatusCounts = field(default_factory=NfoStatusCounts)
@@ -111,6 +116,10 @@ class AnalysisResult:
     nfo_invalid_by_category: dict[str, int] = field(default_factory=dict)
     poster_missing_by_category: dict[str, int] = field(default_factory=dict)
     items_needing_rescrape: int = 0
+    items_per_disk: dict[str, int] = field(default_factory=dict)
+    items_per_category: dict[str, int] = field(default_factory=dict)
+    size_per_disk_gb: dict[str, float] = field(default_factory=dict)
+    top_largest: list[tuple[str, float]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +199,41 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
         "SELECT COUNT(*) FROM media_item WHERE nfo_status != 'valid' OR date_metadata_refreshed IS NULL"
     ).fetchone()[0]
 
+    # --- Per-category item counts --------------------------------------------
+    rows = conn.execute("SELECT category_id, COUNT(*) FROM media_item GROUP BY category_id").fetchall()
+    result.items_per_category = {row[0]: row[1] for row in rows}
+
+    # --- Per-disk distribution + size + top-largest --------------------------
+    # Joins media_item → media_release → media_file → path → disk.  An item is
+    # counted on a disk if it has at least one (release-linked) file there,
+    # and its size on that disk is the sum of those file sizes.  Items that
+    # have no media_file rows yet (scan never enriched) are silently skipped
+    # from these aggregates — they still appear in total_items.
+    rows = conn.execute(
+        "SELECT d.label AS disk_label, m.title AS title, "
+        "COUNT(DISTINCT m.id) AS items, "
+        "COALESCE(SUM(mf.size_bytes), 0) AS bytes "
+        "FROM media_item m "
+        "INNER JOIN media_release mr ON mr.item_id = m.id "
+        "INNER JOIN media_file mf ON mf.release_id = mr.id "
+        "INNER JOIN path p ON p.id = mf.path_id "
+        "INNER JOIN disk d ON d.id = p.disk_id "
+        "GROUP BY d.label, m.id"
+    ).fetchall()
+    items_per_disk: dict[str, int] = {}
+    size_per_disk: dict[str, int] = {}
+    item_sizes: list[tuple[str, int]] = []
+    for disk_label, title, _items, byte_count in rows:
+        items_per_disk[disk_label] = items_per_disk.get(disk_label, 0) + 1
+        size_per_disk[disk_label] = size_per_disk.get(disk_label, 0) + int(byte_count)
+        item_sizes.append((title, int(byte_count)))
+    result.items_per_disk = items_per_disk
+    bytes_to_gb = 1024**3
+    result.size_per_disk_gb = {k: round(v / bytes_to_gb, 1) for k, v in size_per_disk.items()}
+    result.total_size_gb = round(sum(size_per_disk.values()) / bytes_to_gb, 1)
+    item_sizes.sort(key=lambda kv: -kv[1])
+    result.top_largest = [(title, round(byte_count / bytes_to_gb, 1)) for title, byte_count in item_sizes[:20]]
+
     log.info(
         "library_analyze_complete",
         total=result.total_items,
@@ -197,6 +241,7 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
         nfo_invalid=result.nfo.invalid,
         poster_missing=result.artwork.poster_missing,
         seasons_missing_poster=result.seasons_missing_poster,
+        total_size_gb=result.total_size_gb,
     )
     return result
 
@@ -448,66 +493,3 @@ def analyze_library(
     )
 
 
-def _reconstruct_analysis_items(data: dict[str, Any]) -> list[LibraryAnalysisItem]:
-    """Reconstruct LibraryAnalysisItem list from JSON data.
-
-    Args:
-        data: Parsed library_analysis.json dict.
-
-    Returns:
-        List of LibraryAnalysisItem with full type structure.
-    """
-    items = []
-    for item_data in data.get("items", []):
-        files = []
-        for f_data in item_data.get("files", []):
-            vid = f_data.get("video", {})
-            files.append(
-                MediaFileAnalysis(
-                    path=f_data.get("path", ""),
-                    size_gb=f_data.get("size_gb", 0),
-                    duration_seconds=f_data.get("duration_seconds"),
-                    video=VideoInfo(
-                        codec=vid.get("codec", ""),
-                        width=vid.get("width", 0),
-                        height=vid.get("height", 0),
-                        bitrate_kbps=vid.get("bitrate_kbps"),
-                        hdr=vid.get("hdr", False),
-                        hdr_type=vid.get("hdr_type"),
-                    ),
-                    audio_tracks=[
-                        AudioTrack(
-                            codec=a.get("codec", ""),
-                            language=a.get("language", "und"),
-                            channels=a.get("channels", 2),
-                            is_atmos=a.get("is_atmos", False),
-                            is_default=a.get("is_default", False),
-                        )
-                        for a in f_data.get("audio_tracks", [])
-                    ],
-                    subtitle_tracks=[
-                        SubtitleTrack(
-                            language=s.get("language", "und"),
-                            format=s.get("format", "unknown"),
-                            forced=s.get("forced", False),
-                            is_default=s.get("is_default", False),
-                        )
-                        for s in f_data.get("subtitle_tracks", [])
-                    ],
-                    audio_profile=f_data.get("audio_profile", "vo"),
-                    subtitle_languages=f_data.get("subtitle_languages", []),
-                    analyzed_at=f_data.get("analyzed_at", ""),
-                )
-            )
-        items.append(
-            LibraryAnalysisItem(
-                path=item_data.get("path", ""),
-                disk=item_data.get("disk", ""),
-                category=item_data.get("category", ""),
-                media_type=item_data.get("media_type", "movie"),
-                title=item_data.get("title", ""),
-                year=item_data.get("year"),
-                files=files,
-            )
-        )
-    return items
