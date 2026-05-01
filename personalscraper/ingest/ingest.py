@@ -26,7 +26,7 @@ log = get_logger("ingest")
 STAGING_TMP_PREFIX = ".ingest_tmp_"
 
 
-def _is_orphan_tracker_entry(entry: dict[str, object]) -> bool:
+def _is_orphan_tracker_entry(entry: dict[str, object], ingest_dir: Path | None = None) -> bool:
     """Return ``True`` when a tracker entry's recorded destination is gone.
 
     Used to detect *orphan tracker entries*: items recorded as ``"copied"`` in
@@ -44,19 +44,45 @@ def _is_orphan_tracker_entry(entry: dict[str, object]) -> bool:
     canonical downstream folder name diverges from the torrent name in
     too many lawful ways (year suffix, translated title, season layout).
 
+    The ``ingest_dir`` argument suppresses a pervasive false positive: when
+    sort moves the freshly-ingested file out of the ingest staging dir
+    (e.g. ``097-TEMP``) into a category dir (``002-TVSHOWS``), the tracker
+    keeps the old path.  Recorded paths inside ``ingest_dir`` that no
+    longer exist are therefore *expected* — sort completed successfully —
+    rather than orphaned.  Without this carve-out the warning fires on
+    every pipeline run after the first successful sort, drowning the
+    legitimate "downstream silently failed" signal.
+
     Args:
         entry: A single tracker dict as returned by
             :meth:`personalscraper.ingest.tracker.IngestTracker.get_entry`.
+        ingest_dir: Resolved ingest staging directory.  When provided,
+            ``dest_path`` values inside it are treated as "naturally moved
+            by sort" and not flagged.
 
     Returns:
-        ``True`` when ``entry['dest_path']`` is set and the path does not
-        exist on disk, ``False`` otherwise (including legacy entries
-        without ``dest_path``).
+        ``True`` when ``entry['dest_path']`` is set, the path does not
+        exist on disk, and (when ``ingest_dir`` is provided) the path is
+        not inside the ingest staging area.
     """
     raw_dest = entry.get("dest_path") if isinstance(entry, dict) else None
     if not isinstance(raw_dest, str) or not raw_dest:
         return False
-    return not Path(raw_dest).exists()
+    dest_path = Path(raw_dest)
+    if dest_path.exists():
+        return False
+    if ingest_dir is not None:
+        try:
+            dest_path.resolve().relative_to(ingest_dir.resolve())
+        except (OSError, ValueError):
+            # Recorded path is outside the ingest staging dir — it's a
+            # final-destination path whose disappearance is a real
+            # orphan signal.
+            return True
+        # Recorded path was inside the ingest staging dir; sort
+        # consumed it, no longer interesting.
+        return False
+    return True
 
 
 def _get_dir_size(path: Path) -> int:
@@ -304,7 +330,7 @@ def run_ingest(
                         # entries without dest_path are skipped (the helper
                         # returns False on missing field).
                         entry = tracker.get_entry(torrent_hash)
-                        if entry is not None and _is_orphan_tracker_entry(entry):
+                        if entry is not None and _is_orphan_tracker_entry(entry, resolved_ingest_dir):
                             dest_str = str(entry.get("dest_path", ""))
                             warning_msg = (
                                 f"{name}: tracker says ingested but recorded "
