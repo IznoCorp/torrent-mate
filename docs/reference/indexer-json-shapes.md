@@ -56,48 +56,60 @@ from this JSON via `json_extract()` and indexed for fast WHERE queries.
 
 ## `index_outbox.payload_json`
 
-**Pydantic model**: `OutboxPayload` (`personalscraper/indexer/schema.py`)
-
-Shape varies by the `op` column value. The model uses `extra="allow"` to
-accommodate per-op extensions. The common envelope fields are:
-
-| Field         | Type         | Present for                                              |
-| ------------- | ------------ | -------------------------------------------------------- |
-| `op`          | string       | All ops (must match parent `op`)                         |
-| `source_path` | string\|null | `move`, `nfo_write`, `artwork_write`, `trailer_download` |
-| `dest_path`   | string\|null | `move`                                                   |
-| `item_id`     | int\|null    | All ops that have an item context                        |
+**Pydantic shape model (documentation only)**: `OutboxPayload`
+(`personalscraper/indexer/schema.py`). The runtime apply functions in
+`personalscraper/indexer/outbox.py` parse the dict directly — they do
+not instantiate `OutboxPayload` — so the _real_ payload contract is
+the set of `payload[...]` accesses inside each `_apply_*` function, not
+the envelope fields on the Pydantic class. The shapes below mirror
+those accesses verbatim.
 
 ### `op: "move"`
 
+Apply function: `_apply_move` — UPSERTs a `media_file` row.
+
 ```json
 {
-  "op": "move",
-  "source_path": "/Volumes/Staging/001-MOVIES/Inception (2010)",
-  "dest_path": "/Volumes/Disk1/medias/films/Inception (2010)",
-  "item_id": 42
+  "disk_id": 1,
+  "dst_rel_path": "films/Inception (2010)",
+  "filename": "Inception (2010).mkv",
+  "size_bytes": 8589934592,
+  "mtime_ns": 1700000000000000000
 }
 ```
+
+`size_bytes` and `mtime_ns` may be omitted/null; in that case the row
+is left to be reconciled by the next dir-mtime walk (DESIGN §17.1) and
+the outbox row is still marked `'done'`.
 
 ### `op: "nfo_write"`
 
+Apply function: `_apply_nfo_write` — UPDATEs `media_item.nfo_status`,
+`tmdb_id`, `imdb_id`.
+
 ```json
 {
-  "op": "nfo_write",
-  "source_path": "/Volumes/Disk1/medias/films/Inception (2010)/Inception (2010).nfo",
-  "dest_path": null,
-  "item_id": 42
+  "disk_id": 1,
+  "rel_path": "films/Inception (2010)/Inception (2010).nfo",
+  "item_kind": "movie",
+  "tmdb_id": 27205,
+  "imdb_id": "tt1375666"
 }
 ```
 
+`rel_path` points at the `.nfo` file; the apply function resolves the
+owning directory via `Path(rel_path).parent`. `item_kind` is
+informational; `tmdb_id` / `imdb_id` are merged with `COALESCE`.
+
 ### `op: "artwork_write"`
+
+Apply function: `_apply_artwork_write` — flips a boolean in
+`media_item.artwork_json` via SQLite `json_set`.
 
 ```json
 {
-  "op": "artwork_write",
-  "source_path": "/Volumes/Disk1/medias/films/Inception (2010)/poster.jpg",
-  "dest_path": null,
-  "item_id": 42,
+  "disk_id": 1,
+  "rel_path": "films/Inception (2010)/poster.jpg",
   "kind": "poster"
 }
 ```
@@ -108,15 +120,20 @@ unknown values raise `OutboxPayloadError` before any DB UPDATE.
 
 ### `op: "trailer_download"`
 
+Apply function: `_apply_trailer_download` — UPSERTs
+`item_attribute(key='trailer_found')`.
+
 ```json
 {
-  "op": "trailer_download",
-  "source_path": null,
-  "dest_path": "/Volumes/Disk1/medias/films/Inception (2010)/Trailers/Inception (2010)-trailer.mp4",
-  "item_id": 42,
-  "youtube_url": "https://www.youtube.com/watch?v=..."
+  "disk_id": 1,
+  "rel_path": "films/Inception (2010)/Trailers/Inception (2010)-trailer.mp4",
+  "trailer_path": "/Volumes/Disk1/medias/films/Inception (2010)/Trailers/Inception (2010)-trailer.mp4"
 }
 ```
+
+`rel_path` is the trailer FILE path; the apply function resolves the
+owning directory via `Path(rel_path).parent` because the `path` table
+stores directories, not individual files.
 
 ---
 
