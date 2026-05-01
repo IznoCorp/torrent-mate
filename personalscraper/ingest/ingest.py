@@ -62,25 +62,44 @@ def _is_orphan_tracker_entry(entry: dict[str, object]) -> bool:
 def _get_dir_size(path: Path) -> int:
     """Calculate total size of a directory tree in bytes.
 
+    Uses ``os.scandir`` recursively rather than ``Path.rglob('*')`` +
+    ``Path.stat()``: scandir returns DirEntry objects whose ``stat()``
+    method reads from the same syscall used to enumerate the directory,
+    saving one ``stat()`` per file on filesystems where ``rglob`` would
+    issue a separate one (notably NTFS-via-macFUSE on USB).
+
     Handles permission errors gracefully to avoid crashing the ingest
-    step on a single inaccessible file. Broken symlinks are silently
-    skipped (is_file() returns False for them).
+    step on a single inaccessible file.  Broken symlinks are silently
+    skipped (DirEntry.is_file() returns False for them when
+    ``follow_symlinks=False``).
 
     Args:
         path: Directory or file path to measure.
 
     Returns:
-        Total size in bytes. For a file, returns its size directly.
+        Total size in bytes.  For a file, returns its size directly.
     """
     if path.is_file():
         return path.stat().st_size
+
     total = 0
-    for f in path.rglob("*"):
+    pending: list[str] = [str(path)]
+    while pending:
+        current = pending.pop()
         try:
-            if f.is_file():
-                total += f.stat().st_size
-        except OSError:
-            log.warning("cannot_stat_file", path=str(f))
+            it = os.scandir(current)
+        except OSError as exc:
+            log.warning("cannot_scan_dir", path=current, error=str(exc))
+            continue
+        with it:
+            for entry in it:
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(entry.path)
+                    elif entry.is_file(follow_symlinks=False):
+                        total += entry.stat(follow_symlinks=False).st_size
+                except OSError:
+                    log.warning("cannot_stat_file", path=entry.path)
     return total
 
 

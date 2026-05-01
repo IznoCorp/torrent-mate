@@ -18,7 +18,9 @@ Callers in ``reporter.py`` and ``rescraper.py`` consume :class:`AnalysisResult`.
 
 from __future__ import annotations
 
+import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -734,9 +736,11 @@ def analyze_library(
                 if not video_files:
                     continue
 
-                file_analyses: list[MediaFileAnalysis] = []
+                # Filter out files we'd skip in incremental mode before
+                # spawning ffprobe workers — saves the thread pool from
+                # bouncing on cheap stat()-only paths.
+                analyze_targets: list[Path] = []
                 for vf in video_files:
-                    # Incremental: skip if file size_gb hasn't changed
                     if incremental:
                         try:
                             current_size_gb = round(vf.stat().st_size / (1024**3), 3)
@@ -746,11 +750,30 @@ def analyze_library(
                         if prev_size_gb is not None and prev_size_gb == current_size_gb:
                             log.debug("library_analyze_skip_unchanged", path=str(vf))
                             continue
+                    analyze_targets.append(vf)
 
-                    analysis = _analyze_video_file(vf)
-                    if analysis:
-                        file_analyses.append(analysis)
-                        file_count += 1
+                # Run ffprobe in parallel — each call shells out to a
+                # subprocess that mostly waits on disk I/O and ffprobe
+                # parsing, so a bounded ThreadPoolExecutor scales well
+                # without saturating CPU.  Worker count capped at 4 for
+                # NTFS-USB targets (mechanical drives saturate fast on
+                # concurrent reads); SSD libraries can override via
+                # ``LIBRARY_ANALYZER_MAX_WORKERS`` env var.
+                file_analyses: list[MediaFileAnalysis] = []
+                if analyze_targets:
+                    max_workers = int(os.environ.get("LIBRARY_ANALYZER_MAX_WORKERS", "4"))
+                    if max_workers <= 1 or len(analyze_targets) == 1:
+                        for vf in analyze_targets:
+                            analysis = _analyze_video_file(vf)
+                            if analysis is not None:
+                                file_analyses.append(analysis)
+                                file_count += 1
+                    else:
+                        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                            for analysis in pool.map(_analyze_video_file, analyze_targets):
+                                if analysis is not None:
+                                    file_analyses.append(analysis)
+                                    file_count += 1
 
                 if file_analyses:
                     items.append(

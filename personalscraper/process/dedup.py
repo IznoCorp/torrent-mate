@@ -90,6 +90,13 @@ def dedup_folders(
     # Track folders that have been merged away
     removed: set[str] = set()
 
+    # Cache _completeness_score per folder.  Without it, the inner loop
+    # would re-walk every folder's entire file tree once per pair tested,
+    # producing an O(N² × K) workload where N=folders and K=files-per-folder.
+    # The score is invariant within a dedup run (we never mutate the source
+    # folder before deciding the merge target) so a single pre-pass is safe.
+    completeness: dict[str, tuple[int, int, int]] = {f.name: _completeness_score(f) for f in folders}
+
     for i, folder_a in enumerate(folders):
         if folder_a.name in removed:
             continue
@@ -110,9 +117,9 @@ def dedup_folders(
             if score is None:
                 continue
 
-            # Determine which folder is more complete
-            score_a = _completeness_score(folder_a)
-            score_b = _completeness_score(folder_b)
+            # Determine which folder is more complete (cached)
+            score_a = completeness[folder_a.name]
+            score_b = completeness[folder_b.name]
 
             if score_b >= score_a:
                 source, target = folder_a, folder_b
