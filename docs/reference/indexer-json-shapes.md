@@ -1,8 +1,17 @@
 # Indexer JSON Column Shapes
 
-Every JSON column in the indexer schema (DESIGN §6.5) is validated by a Pydantic
-model in `personalscraper/indexer/schema.py`. This document provides the
-canonical shape and a concrete example for each column.
+Every JSON column in the indexer schema (DESIGN §6.5) has a Pydantic
+shape model in `personalscraper/indexer/schema.py`. This document provides
+the canonical shape and a concrete example for each column.
+
+> **Validation status (2026-05):** `ArtworkInventory` is the only model
+> that is genuinely instantiated at write time (by `library/scanner.py`
+> and `indexer/scanner/_modes.py`). The other models — `OutboxPayload`,
+> `RepairPayload`, `ScanStats`, `ScanEventPayload`, `DeletedSnapshot`
+> — currently serve as **documentation only**: production writers do
+> `json.dumps` directly from a raw `dict` and readers parse with
+> `json.loads` + `payload.get(key)`. The shapes below remain the
+> contract; they are simply not enforced by the runtime today.
 
 ---
 
