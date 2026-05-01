@@ -188,31 +188,40 @@ Schema: `extra="forbid"` — unknown keys are rejected.
 
 ## `scan_run.stats_json`
 
-**Pydantic model**: `ScanStats` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `ScanStats`
+(`personalscraper/indexer/schema.py`). The runtime serialises a raw
+`dict[str, int]` directly via `json.dumps` in
+`personalscraper/indexer/scanner/__init__.py` (around the
+`UPDATE scan_run SET stats_json` writes); the `ScanStats` Pydantic
+class is documentation, not enforcement.
 
-Written at scan completion (or on budget-exhaustion checkpoint).
+Written at scan completion (or on budget-exhaustion checkpoint). The
+two write sites differ slightly in which counters are populated:
 
 ```json
 {
-  "items_added": 3,
-  "items_updated": 12,
-  "items_deleted": 0,
-  "files_walked": 8421,
-  "bytes_read": 536870912,
-  "budget_exhausted": false
+  "files_visited": 8421,
+  "dirs_visited": 312,
+  "disks_skipped": 0
 }
 ```
 
-| Field              | Type    | Default | Meaning                                             |
-| ------------------ | ------- | ------- | --------------------------------------------------- |
-| `items_added`      | int     | 0       | New `media_item` rows created.                      |
-| `items_updated`    | int     | 0       | Existing `media_item` rows updated.                 |
-| `items_deleted`    | int     | 0       | Items soft-deleted (`deleted_at` set).              |
-| `files_walked`     | int     | 0       | Total files visited by the walker.                  |
-| `bytes_read`       | int     | 0       | Total bytes read for fingerprinting.                |
-| `budget_exhausted` | boolean | false   | `true` when halted due to budget; resume on re-run. |
+| Field           | Type | Written by                                                   | Meaning                                                                                      |
+| --------------- | ---- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `files_visited` | int  | both branches (success + budget-exhausted)                   | Total files visited by the walker across all disks.                                          |
+| `dirs_visited`  | int  | both branches                                                | Total directories visited.                                                                   |
+| `disks_skipped` | int  | success branch only (omitted by the budget-exhausted branch) | Disks short-circuited by the Merkle root check (mode=quick) or unreachable-strikes guarding. |
 
-Schema: `extra="forbid"` — unknown keys are rejected.
+Notes:
+
+- The `ScanStats` Pydantic class declares richer fields
+  (`items_added`, `items_updated`, `items_deleted`, `bytes_read`,
+  `budget_exhausted`). Those are reserved for future runtime
+  bookkeeping; today's writers do not populate them. Reader code
+  treats missing keys as `0`/`False`.
+- The budget-exhausted path writes `files_visited` + `dirs_visited`
+  only (no `disks_skipped`); the post-mortem viewer should default
+  the missing key.
 
 ---
 
