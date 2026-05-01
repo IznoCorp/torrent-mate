@@ -139,18 +139,22 @@ stores directories, not individual files.
 
 ## `pending_op.payload_json`
 
-**Pydantic model**: `OutboxPayload` (same model as `index_outbox.payload_json`)
+**Shape model (documentation only)**: `OutboxPayload` — same shape model
+as `index_outbox.payload_json`, same caveat that the runtime parses the
+dict directly without instantiating the model.
 
-`pending_op` rows are created when a write-through event targets an **unmounted
-disk**. The payload is identical in shape to `index_outbox.payload_json` — it
-is replayed into the outbox when the disk remounts.
+`pending_op` rows are created when a write-through event targets an
+**unmounted disk**. The payload is identical in shape to
+`index_outbox.payload_json` (matching the apply-function dict accessors
+listed above) — it is replayed into the outbox when the disk remounts.
 
 ```json
 {
-  "op": "move",
-  "source_path": "/Volumes/Staging/001-MOVIES/Dune (2021)",
-  "dest_path": "/Volumes/Disk2/medias/films/Dune (2021)",
-  "item_id": 117
+  "disk_id": 2,
+  "dst_rel_path": "films/Dune (2021)",
+  "filename": "Dune (2021).mkv",
+  "size_bytes": 8589934592,
+  "mtime_ns": 1700000000000000000
 }
 ```
 
