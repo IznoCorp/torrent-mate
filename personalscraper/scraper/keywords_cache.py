@@ -185,6 +185,7 @@ class KeywordsCache:
                 path=str(self._path),
                 error=str(exc),
                 reason=reason,
+                exc_info=True,
             )
 
     def _load(self) -> dict[str, dict[str, object]]:
