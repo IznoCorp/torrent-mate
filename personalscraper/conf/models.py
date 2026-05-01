@@ -980,8 +980,8 @@ class IndexerLogConfig(_StrictModel):
     Attributes:
         scan_event_retention_days: How many days to keep rows in the
             ``scan_event`` table before pruning.
-        deleted_item_retention_days: How many days to keep soft-deleted
-            ``media_item`` rows (``deleted_at IS NOT NULL``) before hard-purge.
+        deleted_item_retention_days: How many days to keep ``deleted_item``
+            tombstone rows before hard-purge by ``purge_old_tombstones``.
     """
 
     scan_event_retention_days: int = Field(
@@ -992,7 +992,7 @@ class IndexerLogConfig(_StrictModel):
     deleted_item_retention_days: int = Field(
         default=365,
         gt=0,
-        description="Days to retain soft-deleted media_item rows before hard-purge.",
+        description="Days to retain deleted_item tombstone rows before hard-purge.",
     )
 
 
