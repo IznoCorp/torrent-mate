@@ -861,23 +861,33 @@ class IndexerScanConfig(_StrictModel):
 class IndexerFingerprintConfig(_StrictModel):
     """Fingerprint strategy tunables for the media indexer.
 
+    Every field in this class is currently **reserved**: the indexer
+    always computes both OSHash and xxh3 with hardcoded defaults.  The
+    schema is kept so the future wiring can land without a config-format
+    change, but customising any of these fields today has no effect.
+
     Attributes:
-        oshash: Store OpenSubtitles OSHash on every file. Survives renames.
-        xxh3_partial_bytes: Number of bytes read from head + tail for the
-            xxh3_64 partial fingerprint (default 1 048 576 = 1 MB).
-        compute_xxh3_on_racy: Compute xxh3 on racy-window files to confirm
-            whether a detected change is a real content change.
+        oshash: **Reserved.** OSHash is always computed and stored
+            (``indexer/scanner/_db_writes.py``).  Setting False does not
+            currently disable it.
+        xxh3_partial_bytes: **Reserved.** ``xxh3_partial`` callers in
+            ``indexer/drift.py:235`` invoke the function without the
+            ``partial_bytes`` argument, so the function's default
+            (``1_048_576``) is always used regardless of this config
+            value.
+        compute_xxh3_on_racy: **Reserved.** No code path currently checks
+            this flag.  Racy-window xxh3 computation is unconditional.
     """
 
-    oshash: bool = Field(default=True, description="Store OSHash on every file.")
+    oshash: bool = Field(default=True, description="Reserved (OSHash always computed today).")
     xxh3_partial_bytes: int = Field(
         default=1_048_576,
         gt=0,
-        description="Bytes from head + tail for the xxh3_64 partial fingerprint.",
+        description="Reserved (default 1 MB used at every call site today).",
     )
     compute_xxh3_on_racy: bool = Field(
         default=True,
-        description="Compute xxh3 on racy-window files to confirm real changes.",
+        description="Reserved (racy-window xxh3 is unconditional today).",
     )
 
 
