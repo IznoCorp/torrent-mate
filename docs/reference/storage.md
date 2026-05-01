@@ -73,14 +73,14 @@ missing. With 6 TB disks and ~100 MB/s USB-3 sequential throughput, a full scan
 takes roughly 60–90 minutes per disk. To avoid saturating the USB hub and blocking
 the pipeline during normal operation, rotate cold rebuilds one disk at a time:
 
-1. **Identify the target disk**: use `personalscraper index status` to find disks
+1. **Identify the target disk**: use `personalscraper library-status` to find disks
    with a stale generation or a high `unreachable_strikes` count.
 2. **Unmount other disks** (optional but recommended): reduces USB contention and
    ensures the scanner can dedicate full bandwidth to the rebuild disk.
-3. **Run a scoped full scan**: `personalscraper index scan --mode full --disk <label>`.
+3. **Run a scoped full scan**: `personalscraper library-index --mode full --disk <label>`.
    The `--disk` flag limits the scan to one disk and forces `max_workers=1`
    (DESIGN §11.8), preventing accidental parallel I/O to neighbouring disks.
-4. **Verify the result**: `personalscraper index status --disk <label>` — confirm
+4. **Verify the result**: `personalscraper library-status --disk <label>` — confirm
    `generation` advanced and `unreachable_strikes` reset to 0.
 5. **Rotate to the next disk** only after the previous rebuild completes and its
    `scan_run.status` is `'ok'`.

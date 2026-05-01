@@ -77,7 +77,7 @@ distinct `media_file` rows; the collision is logged as
 ### N-strikes soft-delete policy
 
 A file that is not found on disk across **N consecutive scan generations** (N is
-configurable via `indexer.json5: drift.miss_strikes_threshold`, default 3)
+configurable via `indexer.json5: scan.n_strikes_for_softdelete`, default 3)
 receives a soft-delete tombstone (`deleted_at` set, `deleted_item` row inserted).
 The `media_item` and `media_release` rows are **never automatically deleted**;
 only `media_file` rows are soft-deleted. A human-readable `reason` is stored in

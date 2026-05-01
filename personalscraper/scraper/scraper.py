@@ -1416,7 +1416,7 @@ class Scraper:
             match = match_movie(self._tmdb, title, year)
         except Exception as e:
             result.error = f"Match failed: {e}"
-            log.error("movie_match_failed", title=title, error=str(e))
+            log.error("movie_match_failed", title=title, error=str(e), exc_info=True)
             return result
 
         if match is None or match.confidence < LOW_CONFIDENCE:
@@ -1443,7 +1443,7 @@ class Scraper:
             movie_data = self._tmdb.get_movie(match.api_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
-            log.error("movie_details_failed", api_title=match.api_title, error=str(e))
+            log.error("movie_details_failed", api_title=match.api_title, error=str(e), exc_info=True)
             return result
 
         # Resolve title: use local FR title if preferred and available
@@ -1551,7 +1551,7 @@ class Scraper:
                 log.info("nfo_would_write", filename=nfo_path.name)
         except Exception as e:
             result.error = f"NFO generation failed: {e}"
-            log.error("nfo_generation_failed", title=title, error=str(e))
+            log.error("nfo_generation_failed", title=title, error=str(e), exc_info=True)
             return result
 
         # Download artwork
@@ -1624,7 +1624,7 @@ class Scraper:
                     )
                 )
             except Exception as e:
-                log.error("movies_unexpected_error", directory=movie_dir.name, error=str(e))
+                log.error("movies_unexpected_error", directory=movie_dir.name, error=str(e), exc_info=True)
                 results.append(
                     ScrapeResult(
                         media_path=movie_dir,
@@ -1723,7 +1723,7 @@ class Scraper:
             )
         except Exception as e:
             result.error = f"Match failed: {e}"
-            log.error("show_match_failed", title=title, error=str(e))
+            log.error("show_match_failed", title=title, error=str(e), exc_info=True)
             return result
 
         if match is None or match.confidence < LOW_CONFIDENCE:
@@ -1778,7 +1778,7 @@ class Scraper:
                 show_data = self._tmdb.get_tv(tmdb_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
-            log.error("show_details_failed", error=str(e))
+            log.error("show_details_failed", error=str(e), exc_info=True)
             return result
 
         # Resolve title: use local FR title if preferred and available
@@ -2130,7 +2130,7 @@ class Scraper:
                     )
                 )
             except Exception as e:
-                log.error("tvshows_unexpected_error", directory=show_dir.name, error=str(e))
+                log.error("tvshows_unexpected_error", directory=show_dir.name, error=str(e), exc_info=True)
                 results.append(
                     ScrapeResult(
                         media_path=show_dir,

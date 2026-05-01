@@ -24,7 +24,7 @@ This feature **bundles both refactors** in a single PR because the indexer's con
 
 ## 2. Goals
 
-1. **Single source of truth, in code, against the disks.** One SQLite database (`.data/library.db`) replaces `media_index.json`, `library_scan.json`, and `library_analysis.json`. The disks remain the SSOT — the database is a queryable mirror that detects and self-repairs divergence.
+1. **Single source of truth, in code, against the disks.** One SQLite database (`.personalscraper/library.db`) replaces `media_index.json`, `library_scan.json`, and `library_analysis.json`. The disks remain the SSOT — the database is a queryable mirror that detects and self-repairs divergence.
 
 2. **Drift detection + auto-repair without ever wiping live entries.** Combine `git`'s racy-index escalation rule, OpenSubtitles `OSHash` for rename-survival, per-disk Merkle roots for fast "did anything change here" gating, mountpoint sentinels to block "USB unplugged → library wiped" disasters, and an N-strikes soft-delete policy with `deleted_at` audit.
 
@@ -71,7 +71,7 @@ This feature **bundles both refactors** in a single PR because the indexer's con
                                               │  - Per-disk circuit breaker          │
                                               └──────────────────────┬───────────────┘
                                                                      │
-                                                       .data/library.db (WAL on internal disk)
+                                                       .personalscraper/library.db (WAL on internal disk)
 ```
 
 ### 4.2 Package layout
@@ -350,7 +350,7 @@ def open_db(path: Path) -> sqlite3.Connection:
     return conn
 ```
 
-The DB lives on `path` which is **always** `.data/library.db` on the internal APFS disk. The loader rejects any `db_path` that resolves to a mounted external volume (WAL is unreliable on macFUSE-NTFS).
+The DB lives on `path` which is **always** `.personalscraper/library.db` on the internal APFS disk. The loader rejects any `db_path` that resolves to a mounted external volume (WAL is unreliable on macFUSE-NTFS).
 
 ### 6.2 Schema (final)
 
@@ -668,7 +668,7 @@ Each script must be **re-runnable defensively** (`CREATE TABLE IF NOT EXISTS`, `
 
 ### 6.4 Concurrency model
 
-- **Single writer at a time.** `personalscraper/indexer/db.py` exposes an `indexer_lock()` context manager backed by `filelock` on `.data/library.db.lock`. The lockfile content is `{pid, started_at_unix_s, hostname}`. The lock prevents _logical_ races (two scans running in parallel) — SQLite WAL itself protects DB-level integrity across processes, so this lock is additive, not strictly required for correctness. Any CLI command that mutates (scan, repair, write-through drain) acquires this lock with a short timeout. Reads do not need the lock — WAL gives them snapshot isolation.
+- **Single writer at a time.** `personalscraper/indexer/db.py` exposes an `indexer_lock()` context manager backed by `filelock` on `.personalscraper/library.db.lock`. The lockfile content is `{pid, started_at_unix_s, hostname}`. The lock prevents _logical_ races (two scans running in parallel) — SQLite WAL itself protects DB-level integrity across processes, so this lock is additive, not strictly required for correctness. Any CLI command that mutates (scan, repair, write-through drain) acquires this lock with a short timeout. Reads do not need the lock — WAL gives them snapshot isolation.
 - **`BEGIN IMMEDIATE`** at the start of every write transaction → fail fast on contention rather than deadlock mid-transaction.
 - **Per-disk transactions** during a scan: each disk is one transaction. A crash on Disk3 does not roll back Disk1's progress.
 - **Outbox drain** runs in its own short transaction per outbox row, _outside_ the indexer_lock — outbox publishers (dispatch/scraper/trailers) must be able to write while a scan holds the lock. Concurrent outbox inserts rely on `BEGIN IMMEDIATE` + `busy_timeout=5000` for safety; collisions are absorbed by the retry-with-backoff policy in §17.1.
