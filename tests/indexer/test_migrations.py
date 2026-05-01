@@ -122,15 +122,23 @@ class TestApplyMigrations001:
         assert _table_names(conn) == _EXPECTED_TABLES_V1
 
     def test_schema_version_row_exists(self, tmp_path: Path) -> None:
-        """After applying all migrations, schema_version contains the latest version."""
+        """After applying all migrations, schema_version contains every version 1..N.
+
+        Specifically, every migration script must record its version in the
+        ``schema_version`` audit table — this is the contract that lets
+        ``library-status`` and downgrade tooling reason about the migration
+        chain. A migration that bumps ``PRAGMA user_version`` without
+        inserting into ``schema_version`` is a bug (see fc7d16c).
+        """
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path)
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
         assert rows is not None
         versions = [r[0] for r in rows]
-        assert 1 in versions
-        assert 2 in versions
+        # Every migration in the chain must register its version.
+        for v in (1, 2, 3, 4):
+            assert v in versions, f"migration {v} did not insert into schema_version"
 
 
 # ---------------------------------------------------------------------------
