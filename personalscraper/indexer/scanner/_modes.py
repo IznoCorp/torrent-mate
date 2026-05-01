@@ -1093,8 +1093,9 @@ def _enrich_one_file(
             conn.executemany(
                 """
                 INSERT INTO media_stream (file_id, idx, kind, codec, lang,
-                    channels, width, height, duration_ms, bitrate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    channels, width, height, duration_ms, bitrate,
+                    hdr_format, is_atmos, is_default, forced, format)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -1108,6 +1109,11 @@ def _enrich_one_file(
                         row.height,
                         row.duration_ms,
                         row.bitrate,
+                        row.hdr_format,
+                        None if row.is_atmos is None else int(row.is_atmos),
+                        None if row.is_default is None else int(row.is_default),
+                        None if row.forced is None else int(row.forced),
+                        row.format,
                     )
                     for global_idx, row in enumerate(stream_rows)
                 ],

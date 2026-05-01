@@ -68,6 +68,14 @@ def _row_to_stream(row: sqlite3.Row) -> MediaStreamRow:
     Returns:
         Populated :class:`MediaStreamRow` instance.
     """
+    keys = row.keys()
+
+    def _opt_bool(name: str) -> bool | None:
+        if name not in keys:
+            return None
+        v = row[name]
+        return None if v is None else bool(v)
+
     return MediaStreamRow(
         id=row["id"],
         file_id=row["file_id"],
@@ -80,6 +88,11 @@ def _row_to_stream(row: sqlite3.Row) -> MediaStreamRow:
         height=row["height"],
         duration_ms=row["duration_ms"],
         bitrate=row["bitrate"],
+        hdr_format=row["hdr_format"] if "hdr_format" in keys else None,
+        is_atmos=_opt_bool("is_atmos"),
+        is_default=_opt_bool("is_default"),
+        forced=_opt_bool("forced"),
+        format=row["format"] if "format" in keys else None,
     )
 
 
@@ -231,8 +244,9 @@ def insert_stream(conn: sqlite3.Connection, row: MediaStreamRow) -> int:
     cursor = conn.execute(
         """
         INSERT INTO media_stream (
-            file_id, idx, kind, codec, lang, channels, width, height, duration_ms, bitrate
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            file_id, idx, kind, codec, lang, channels, width, height, duration_ms, bitrate,
+            hdr_format, is_atmos, is_default, forced, format
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             row.file_id,
@@ -245,6 +259,11 @@ def insert_stream(conn: sqlite3.Connection, row: MediaStreamRow) -> int:
             row.height,
             row.duration_ms,
             row.bitrate,
+            row.hdr_format,
+            None if row.is_atmos is None else int(row.is_atmos),
+            None if row.is_default is None else int(row.is_default),
+            None if row.forced is None else int(row.forced),
+            row.format,
         ),
     )
     rowid: int = cursor.lastrowid  # type: ignore[assignment]

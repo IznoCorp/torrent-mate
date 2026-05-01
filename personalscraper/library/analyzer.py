@@ -574,7 +574,8 @@ def _file_analysis_from_index(conn: sqlite3.Connection, file_row: sqlite3.Row) -
     """
     stream_rows = conn.execute(
         """
-        SELECT kind, codec, lang, channels, width, height, duration_ms, bitrate
+        SELECT kind, codec, lang, channels, width, height, duration_ms, bitrate,
+               hdr_format, is_atmos, is_default, forced, format
           FROM media_stream
          WHERE file_id = ?
          ORDER BY kind, idx
@@ -596,28 +597,37 @@ def _file_analysis_from_index(conn: sqlite3.Connection, file_row: sqlite3.Row) -
     for a in audio_rows:
         codec = a["codec"] or ""
         channels = a["channels"] or 2
-        # Conservative Atmos approximation: pymediainfo reports E-AC-3 + 8 ch
-        # for Atmos-encoded tracks. False negatives possible (TrueHD-Atmos);
-        # follow-up will persist a real ``is_atmos`` column.
-        is_atmos = codec.lower() in {"eac3", "e-ac-3", "ac-3+"} and channels >= 8
+        is_atmos_raw = a["is_atmos"]
+        if is_atmos_raw is not None:
+            is_atmos = bool(is_atmos_raw)
+        else:
+            # Pre-migration row: fall back to the codec + channel heuristic so
+            # rows enriched before migration 004 still surface a best-effort
+            # signal until the next enrich pass overwrites them.
+            is_atmos = codec.lower() in {"eac3", "e-ac-3", "ac-3+"} and channels >= 8
+        is_default_raw = a["is_default"]
+        is_default = bool(is_default_raw) if is_default_raw is not None else False
         audio_tracks.append(
             AudioTrack(
                 codec=codec,
                 language=a["lang"] or "und",
                 channels=channels,
                 is_atmos=is_atmos,
-                is_default=False,
+                is_default=is_default,
             )
         )
 
     subtitle_tracks: list[SubtitleTrack] = []
     for s in subtitle_rows:
+        format_raw = s["format"]
+        forced_raw = s["forced"]
+        is_default_raw = s["is_default"]
         subtitle_tracks.append(
             SubtitleTrack(
                 language=s["lang"] or "und",
-                format="unknown",
-                forced=False,
-                is_default=False,
+                format=format_raw if format_raw else "unknown",
+                forced=bool(forced_raw) if forced_raw is not None else False,
+                is_default=bool(is_default_raw) if is_default_raw is not None else False,
             )
         )
 
@@ -634,6 +644,7 @@ def _file_analysis_from_index(conn: sqlite3.Connection, file_row: sqlite3.Row) -
 
     size_gb = round((file_row["size_bytes"] or 0) / (1024**3), 3)
 
+    hdr_format = video_row["hdr_format"]
     return MediaFileAnalysis(
         path=str(file_row["abs_path"]),
         size_gb=size_gb,
@@ -643,8 +654,8 @@ def _file_analysis_from_index(conn: sqlite3.Connection, file_row: sqlite3.Row) -
             width=video_row["width"] or 0,
             height=video_row["height"] or 0,
             bitrate_kbps=bitrate_kbps,
-            hdr=False,
-            hdr_type=None,
+            hdr=bool(hdr_format),
+            hdr_type=hdr_format,
         ),
         audio_tracks=audio_tracks,
         subtitle_tracks=subtitle_tracks,

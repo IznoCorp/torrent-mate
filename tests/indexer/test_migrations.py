@@ -104,15 +104,15 @@ def _user_version(conn: sqlite3.Connection) -> int:
 class TestApplyMigrations001:
     """apply_migrations applies all migrations to a fresh database correctly.
 
-    With migration 002 present, the final schema version is 2.
+    With migrations 001-004 present, the final schema version is 4.
     """
 
-    def test_user_version_is_2(self, tmp_path: Path) -> None:
-        """After applying 001+002, PRAGMA user_version equals 2."""
+    def test_user_version_matches_latest(self, tmp_path: Path) -> None:
+        """After applying every migration, PRAGMA user_version equals the latest version (4)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path)
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 2
+        assert _user_version(conn) == 4
 
     def test_all_17_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all 17 expected tables exist."""
@@ -147,7 +147,7 @@ class TestApplyMigrationsIdempotence:
         conn = open_db(db_path)
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
-        assert version_after_first == 2
+        assert version_after_first == 4
         # Second call must be a no-op.
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
@@ -237,24 +237,25 @@ class TestApplyMigrationsFailureRollback:
     """
 
     def _setup_db_and_mig_dir(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection, Path]:
-        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 003_noop + 999_bad.
+        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 005_noop + 999_bad.
 
-        After applying MIGRATIONS_DIR the DB is at version 2 (migrations 001+002).
-        The custom mig_dir uses version 003 for the noop migration so it runs after 002.
+        After applying MIGRATIONS_DIR the DB is at the latest committed version
+        (migrations 001-004). The custom mig_dir uses version 005 for the noop
+        migration so it runs after the real chain.
 
         Args:
             tmp_path: Pytest-provided temporary directory.
 
         Returns:
             A tuple of ``(db_path, conn, mig_dir)`` ready for the rollback scenario.
-            ``conn`` is the open connection after applying 001+002.
-            ``mig_dir`` contains both ``003_noop.sql`` and ``999_bad.sql``.
+            ``conn`` is the open connection after applying the full chain.
+            ``mig_dir`` contains both ``005_noop.sql`` and ``999_bad.sql``.
         """
         mig_dir = tmp_path / "migrations"
         mig_dir.mkdir()
-        # Valid migration: creates `noop` table at version 3.
-        (mig_dir / "003_noop.sql").write_text(
-            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 3;\n",
+        # Valid migration: creates `noop` table at version 5.
+        (mig_dir / "005_noop.sql").write_text(
+            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 5;\n",
             encoding="utf-8",
         )
         # Malformed migration: intentionally broken SQL at version 999.
@@ -264,7 +265,7 @@ class TestApplyMigrationsFailureRollback:
         )
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path)
-        apply_migrations(conn, MIGRATIONS_DIR)  # applies 001+002; user_version=2
+        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest
         return db_path, conn, mig_dir
 
     def test_bad_migration_raises_indexer_migration_error(self, tmp_path: Path) -> None:
@@ -296,7 +297,7 @@ class TestApplyMigrationsFailureRollback:
     def test_db_restored_no_foo_table_after_rollback(self, tmp_path: Path) -> None:
         """After rollback, the ``foo`` table from the malformed migration does not exist.
 
-        The snapshot for version 999 is taken after version 3 has been applied (``noop``
+        The snapshot for version 999 is taken after version 5 has been applied (``noop``
         table exists).  After rollback, the DB is at the snapshot state: ``noop`` present,
         ``foo`` absent.
         """
@@ -309,6 +310,6 @@ class TestApplyMigrationsFailureRollback:
         conn2 = open_db(db_path)
         tables = _table_names(conn2)
         assert "foo" not in tables, "foo table should not exist after rollback"
-        # noop was added by the successful 003 migration and should still be present
+        # noop was added by the successful 005 migration and should still be present
         # in the restored snapshot (which was taken just before 999).
-        assert "noop" in tables, "noop table from migration 003 should be preserved in snapshot"
+        assert "noop" in tables, "noop table from migration 005 should be preserved in snapshot"

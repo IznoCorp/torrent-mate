@@ -50,6 +50,15 @@ def _make_track(track_type: str, **kwargs: object) -> SimpleNamespace:
         "height": None,
         "duration": None,
         "bit_rate": None,
+        "hdr_format": None,
+        "hdr_format_commercial": None,
+        "transfer_characteristics": None,
+        "commercial_name": None,
+        "format_commercial": None,
+        "format_commercial_if_any": None,
+        "additionalfeatures": None,
+        "default": None,
+        "forced": None,
     }
     defaults.update(kwargs)
     return SimpleNamespace(**defaults)
@@ -218,3 +227,119 @@ def test_extract_streams_above_threshold_calls_parse() -> None:
         mock_mi_cls.parse.assert_called_once_with(str(sparse_path), parse_speed=0.5)
     finally:
         os.unlink(sparse_path)
+
+
+# ---------------------------------------------------------------------------
+# Helper unit tests — yes/no, hdr, atmos, subtitle format
+# ---------------------------------------------------------------------------
+
+
+def test_yesno_to_bool() -> None:
+    """``_yesno_to_bool`` accepts pymediainfo's "Yes"/"No" strings, ints, and bools."""
+    from personalscraper.indexer.mediainfo import _yesno_to_bool
+
+    assert _yesno_to_bool("Yes") is True
+    assert _yesno_to_bool("yes") is True
+    assert _yesno_to_bool("No") is False
+    assert _yesno_to_bool(True) is True
+    assert _yesno_to_bool(0) is False
+    assert _yesno_to_bool(None) is None
+    assert _yesno_to_bool("garbage") is None
+
+
+def test_normalise_hdr_format() -> None:
+    """``_normalise_hdr_format`` collapses pymediainfo HDR fields to a canonical label."""
+    from personalscraper.indexer.mediainfo import _normalise_hdr_format
+
+    assert _normalise_hdr_format(_make_track("Video", hdr_format="Dolby Vision")) == "Dolby Vision"
+    assert _normalise_hdr_format(_make_track("Video", hdr_format_commercial="HDR10+")) == "HDR10+"
+    assert _normalise_hdr_format(_make_track("Video", hdr_format="HDR10 / SMPTE ST 2086")) == "HDR10"
+    assert _normalise_hdr_format(_make_track("Video", transfer_characteristics="HLG")) == "HLG"
+    assert _normalise_hdr_format(_make_track("Video")) is None
+
+
+def test_detect_atmos() -> None:
+    """``_detect_atmos`` flags Atmos via commercial_name / additionalfeatures (JOC)."""
+    from personalscraper.indexer.mediainfo import _detect_atmos
+
+    assert _detect_atmos(_make_track("Audio", commercial_name="Dolby Atmos")) is True
+    assert _detect_atmos(_make_track("Audio", format_commercial="Dolby TrueHD with Dolby Atmos")) is True
+    assert _detect_atmos(_make_track("Audio", additionalfeatures="JOC")) is True
+    assert _detect_atmos(_make_track("Audio", commercial_name="Plain DTS")) is False
+    assert _detect_atmos(_make_track("Audio")) is False
+
+
+def test_normalise_subtitle_format() -> None:
+    """``_normalise_subtitle_format`` maps codec_id / format to canonical short labels."""
+    from personalscraper.indexer.mediainfo import _normalise_subtitle_format
+
+    assert _normalise_subtitle_format(_make_track("Text", codec_id="S_TEXT/UTF8")) == "srt"
+    assert _normalise_subtitle_format(_make_track("Text", codec_id="S_HDMV/PGS")) == "pgs"
+    assert _normalise_subtitle_format(_make_track("Text", format="ASS")) == "ass"
+    assert _normalise_subtitle_format(_make_track("Text", codec_id="S_VOBSUB")) == "vobsub"
+    assert _normalise_subtitle_format(_make_track("Text", format="WebVTT")) == "webvtt"
+    assert _normalise_subtitle_format(_make_track("Text")) is None
+
+
+# ---------------------------------------------------------------------------
+# extract_streams populates new fields from pymediainfo tracks
+# ---------------------------------------------------------------------------
+
+
+def test_extract_streams_populates_hdr_atmos_default_forced_format() -> None:
+    """Migration 004 fields (hdr_format, is_atmos, is_default, forced, format) are populated."""
+    video_track = _make_track(
+        "Video",
+        codec_id="hevc",
+        width=3840,
+        height=2160,
+        hdr_format="Dolby Vision",
+        default="Yes",
+    )
+    audio_track = _make_track(
+        "Audio",
+        codec_id="A_TRUEHD",
+        language="eng",
+        channel_s=8,
+        commercial_name="Dolby TrueHD with Dolby Atmos",
+        default="Yes",
+    )
+    sub_track = _make_track(
+        "Text",
+        codec_id="S_HDMV/PGS",
+        language="fra",
+        forced="Yes",
+        default="No",
+    )
+    fake_mi = _fake_mediainfo([video_track, audio_track, sub_track])
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mkv") as fh:
+        fh.seek(2 * 1024 * 1024)
+        fh.write(b"\x00")
+        big_path = Path(fh.name)
+
+    try:
+        wrapper = MediaInfoWrapper(min_size_mb=1)
+        with patch("personalscraper.indexer.mediainfo.MediaInfo") as mock_mi_cls:
+            mock_mi_cls.parse.return_value = fake_mi
+            rows = wrapper.extract_streams(big_path)
+    finally:
+        os.unlink(big_path)
+
+    by_kind = {r.kind: r for r in rows}
+    assert by_kind["video"].hdr_format == "Dolby Vision"
+    assert by_kind["video"].is_default is True
+    assert by_kind["video"].is_atmos is None  # video has no atmos
+    assert by_kind["video"].forced is None  # video has no forced
+
+    assert by_kind["audio"].is_atmos is True
+    assert by_kind["audio"].is_default is True
+    assert by_kind["audio"].hdr_format is None
+    assert by_kind["audio"].forced is None  # audio has no forced
+    assert by_kind["audio"].format is None  # only subtitles get a format label
+
+    assert by_kind["subtitle"].format == "pgs"
+    assert by_kind["subtitle"].forced is True
+    assert by_kind["subtitle"].is_default is False
+    assert by_kind["subtitle"].hdr_format is None
+    assert by_kind["subtitle"].is_atmos is None

@@ -354,6 +354,17 @@ class MediaStreamRow:
         height: Video height in pixels; ``None`` for non-video streams.
         duration_ms: Stream duration in milliseconds; ``None`` if unknown.
         bitrate: Stream bitrate in bps; ``None`` if unknown.
+        hdr_format: HDR standard for video streams (``'HDR10'``, ``'HDR10+'``,
+            ``'Dolby Vision'``, ``'HLG'``); ``None`` for SDR or non-video.
+        is_atmos: ``True`` when the audio track is encoded with Dolby Atmos
+            (TrueHD-Atmos or E-AC-3 JOC); ``None`` for non-audio or
+            pre-migration rows.
+        is_default: Whether the track is flagged as the default track in its
+            container; ``None`` when unknown / pre-migration.
+        forced: Whether a subtitle track is flagged as forced; ``None`` for
+            non-subtitle or pre-migration rows.
+        format: Normalised subtitle format (``'srt'``, ``'pgs'``, ``'ass'``,
+            ``'dvd_subtitle'``, ...); ``None`` for non-subtitle or unknown.
     """
 
     id: int
@@ -367,6 +378,11 @@ class MediaStreamRow:
     height: int | None
     duration_ms: int | None
     bitrate: int | None
+    hdr_format: str | None = None
+    is_atmos: bool | None = None
+    is_default: bool | None = None
+    forced: bool | None = None
+    format: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

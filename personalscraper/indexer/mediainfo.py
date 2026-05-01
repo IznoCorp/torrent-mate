@@ -209,6 +209,11 @@ class MediaInfoWrapper:
                     height=_int_or_none(getattr(track, "height", None)),
                     duration_ms=_int_or_none(getattr(track, "duration", None)),
                     bitrate=_int_or_none(getattr(track, "bit_rate", None)),
+                    hdr_format=_normalise_hdr_format(track) if kind == "video" else None,
+                    is_atmos=_detect_atmos(track) if kind == "audio" else None,
+                    is_default=_yesno_to_bool(getattr(track, "default", None)),
+                    forced=_yesno_to_bool(getattr(track, "forced", None)) if kind == "subtitle" else None,
+                    format=_normalise_subtitle_format(track) if kind == "subtitle" else None,
                 )
             )
 
@@ -230,6 +235,130 @@ def _str_or_none(value: object) -> str | None:
         ``str(value)`` when *value* is truthy, else ``None``.
     """
     return str(value) if value else None
+
+
+def _yesno_to_bool(value: object) -> bool | None:
+    """Map pymediainfo's ``"Yes"`` / ``"No"`` (or ``True`` / ``False``) to bool.
+
+    pymediainfo exposes track flags as either ``"Yes"`` / ``"No"`` strings
+    (legacy MediaInfo XML) or native booleans depending on the version. We
+    accept both and return ``None`` when the attribute is absent so that
+    callers can store NULL in the DB rather than fabricate a default.
+
+    Args:
+        value: Raw attribute value pulled from a pymediainfo track.
+
+    Returns:
+        ``True`` for truthy "Yes" / 1 / True; ``False`` for "No" / 0 /
+        False; ``None`` when the value is ``None`` or unrecognised.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"yes", "true", "1"}:
+        return True
+    if text in {"no", "false", "0"}:
+        return False
+    return None
+
+
+def _normalise_hdr_format(track: object) -> str | None:
+    """Derive a normalised HDR label from a pymediainfo video track.
+
+    pymediainfo exposes HDR information through several adjacent fields:
+    ``hdr_format``, ``hdr_format_compatibility``, ``transfer_characteristics``,
+    and ``color_primaries``. We collapse those into one of the four labels
+    the rest of the codebase uses: ``"HDR10"``, ``"HDR10+"``, ``"Dolby Vision"``,
+    ``"HLG"``. Returns ``None`` for SDR or undetectable cases.
+
+    Args:
+        track: Video track from ``pymediainfo.MediaInfo.parse``.
+
+    Returns:
+        Normalised HDR label or ``None``.
+    """
+    raw_hdr = getattr(track, "hdr_format", None) or getattr(track, "hdr_format_commercial", None)
+    raw_transfer = getattr(track, "transfer_characteristics", None)
+
+    blob = " ".join(str(v) for v in (raw_hdr, raw_transfer) if v).lower()
+
+    if not blob:
+        return None
+    if "dolby vision" in blob:
+        return "Dolby Vision"
+    if "hdr10+" in blob or "hdr10 plus" in blob:
+        return "HDR10+"
+    if "hdr10" in blob or "smpte st 2084" in blob or "pq" == blob.strip():
+        return "HDR10"
+    if "hlg" in blob or "arib std-b67" in blob:
+        return "HLG"
+    if "hdr" in blob:
+        return "HDR10"
+    return None
+
+
+def _detect_atmos(track: object) -> bool | None:
+    """Detect Dolby Atmos on a pymediainfo audio track.
+
+    Atmos surfaces in pymediainfo via ``commercial_name`` / ``format_commercial``
+    (e.g. ``"Dolby Atmos"``, ``"Dolby TrueHD with Dolby Atmos"``) and
+    occasionally via ``additionalfeatures`` (``"JOC"`` for E-AC-3+JOC). We
+    union those signals.
+
+    Args:
+        track: Audio track from ``pymediainfo.MediaInfo.parse``.
+
+    Returns:
+        ``True`` when any Atmos signal is found, ``False`` otherwise. Never
+        returns ``None`` for an audio track — the negative answer is itself
+        information.
+    """
+    candidates: list[str] = []
+    for attr in ("commercial_name", "format_commercial", "format_commercial_if_any", "additionalfeatures"):
+        v = getattr(track, attr, None)
+        if v:
+            candidates.append(str(v).lower())
+    blob = " ".join(candidates)
+    if not blob:
+        return False
+    return ("atmos" in blob) or ("joc" in blob)
+
+
+def _normalise_subtitle_format(track: object) -> str | None:
+    """Map a pymediainfo subtitle track's codec / format string to a normalised label.
+
+    Returns one of ``"srt"``, ``"pgs"``, ``"ass"``, ``"dvd_subtitle"``,
+    ``"vobsub"``, ``"webvtt"``, or the lower-cased raw string when no
+    match is found.
+
+    Args:
+        track: Subtitle ("Text") track from pymediainfo.
+
+    Returns:
+        Normalised subtitle format string, or ``None`` when no codec / format
+        is exposed by the track.
+    """
+    raw = getattr(track, "codec_id", None) or getattr(track, "format", None)
+    if raw is None:
+        return None
+    text = str(raw).strip().lower()
+    if not text:
+        return None
+    if "subrip" in text or text in {"s_text/utf8", "srt"}:
+        return "srt"
+    if "pgs" in text or text == "s_hdmv/pgs":
+        return "pgs"
+    if "ass" in text or "ssa" in text:
+        return "ass"
+    if "dvd" in text or text == "s_vobsub":
+        return "vobsub" if "vobsub" in text else "dvd_subtitle"
+    if "webvtt" in text or text == "s_text/webvtt":
+        return "webvtt"
+    return text
 
 
 def _int_or_none(value: object) -> int | None:

@@ -159,7 +159,8 @@ def _seed_streams(
     if video:
         c.execute(
             "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
-            " duration_ms, bitrate) VALUES (?, ?, 'video', ?, ?, ?, ?, ?, ?, ?)",
+            " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+            "VALUES (?, ?, 'video', ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, NULL)",
             (
                 file_id,
                 idx,
@@ -170,21 +171,42 @@ def _seed_streams(
                 video.get("height"),
                 video.get("duration_ms"),
                 video.get("bitrate"),
+                video.get("hdr_format"),
+                video.get("is_default"),
             ),
         )
         idx += 1
     for a in audios or []:
         c.execute(
             "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
-            " duration_ms, bitrate) VALUES (?, ?, 'audio', ?, ?, ?, NULL, NULL, NULL, ?)",
-            (file_id, idx, a.get("codec"), a.get("lang"), a.get("channels"), a.get("bitrate")),
+            " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+            "VALUES (?, ?, 'audio', ?, ?, ?, NULL, NULL, NULL, ?, NULL, ?, ?, NULL, NULL)",
+            (
+                file_id,
+                idx,
+                a.get("codec"),
+                a.get("lang"),
+                a.get("channels"),
+                a.get("bitrate"),
+                a.get("is_atmos"),
+                a.get("is_default"),
+            ),
         )
         idx += 1
     for s in subs or []:
         c.execute(
             "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
-            " duration_ms, bitrate) VALUES (?, ?, 'subtitle', ?, ?, NULL, NULL, NULL, NULL, NULL)",
-            (file_id, idx, s.get("codec"), s.get("lang")),
+            " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+            "VALUES (?, ?, 'subtitle', ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?, ?)",
+            (
+                file_id,
+                idx,
+                s.get("codec"),
+                s.get("lang"),
+                s.get("is_default"),
+                s.get("forced"),
+                s.get("format"),
+            ),
         )
         idx += 1
 
@@ -251,7 +273,7 @@ def test_analyze_from_index_movie_returns_one_item(conn: sqlite3.Connection) -> 
 
 
 def test_analyze_from_index_atmos_approximation(conn: sqlite3.Connection) -> None:
-    """eac3 codec with >=8 channels → is_atmos True (heuristic)."""
+    """eac3 codec with >=8 channels → is_atmos True (heuristic, used when is_atmos column is NULL)."""
     disk_id = _seed_disk(conn)
     path_id = _seed_path(conn, disk_id=disk_id, rel_path="films/Movie")
     item_id = _seed_item(conn, kind="movie", title="Movie", category_id="movies", disk_label="Disk1")
@@ -261,11 +283,80 @@ def test_analyze_from_index_atmos_approximation(conn: sqlite3.Connection) -> Non
         conn,
         file_id=file_id,
         video={"codec": "h264", "width": 1920, "height": 1080},
-        audios=[{"codec": "eac3", "lang": "eng", "channels": 8}],
+        audios=[{"codec": "eac3", "lang": "eng", "channels": 8}],  # is_atmos column NULL → heuristic kicks in
     )
 
     result = analyze_from_index(conn)
     assert result.items[0].files[0].audio_tracks[0].is_atmos is True
+
+
+def test_analyze_from_index_uses_persisted_atmos_flag_when_set(conn: sqlite3.Connection) -> None:
+    """When ``media_stream.is_atmos`` is persisted, that value wins over the heuristic."""
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id=disk_id, rel_path="films/Movie")
+    item_id = _seed_item(conn, kind="movie", title="Movie", category_id="movies", disk_label="Disk1")
+    release_id = _seed_movie_release(conn, item_id=item_id)
+    # Heuristic would say False (DTS); persisted column says True → persisted wins.
+    file_id = _seed_file(conn, release_id=release_id, path_id=path_id, filename="A.mkv")
+    _seed_streams(
+        conn,
+        file_id=file_id,
+        video={"codec": "h264", "width": 1920, "height": 1080},
+        audios=[{"codec": "dts", "lang": "fra", "channels": 6, "is_atmos": 1}],
+    )
+    # And the inverse: heuristic would say True, persisted says False → persisted wins.
+    file_id_b = _seed_file(conn, release_id=release_id, path_id=path_id, filename="B.mkv")
+    _seed_streams(
+        conn,
+        file_id=file_id_b,
+        video={"codec": "h264", "width": 1920, "height": 1080},
+        audios=[{"codec": "eac3", "lang": "fra", "channels": 8, "is_atmos": 0}],
+    )
+
+    result = analyze_from_index(conn)
+    files = sorted(result.items[0].files, key=lambda f: f.path)
+    a_track = next(t for t in files[0].audio_tracks if t.codec == "dts")
+    b_track = next(t for t in files[1].audio_tracks if t.codec == "eac3")
+    assert a_track.is_atmos is True
+    assert b_track.is_atmos is False
+
+
+def test_analyze_from_index_persisted_hdr_propagates(conn: sqlite3.Connection) -> None:
+    """``hdr_format`` column populates VideoInfo.hdr + hdr_type."""
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id=disk_id, rel_path="films/HDR")
+    item_id = _seed_item(conn, kind="movie", title="HDR", category_id="movies", disk_label="Disk1")
+    release_id = _seed_movie_release(conn, item_id=item_id)
+    file_id = _seed_file(conn, release_id=release_id, path_id=path_id, filename="HDR.mkv")
+    _seed_streams(
+        conn,
+        file_id=file_id,
+        video={"codec": "hevc", "width": 3840, "height": 2160, "hdr_format": "Dolby Vision"},
+    )
+
+    video = analyze_from_index(conn).items[0].files[0].video
+    assert video.hdr is True
+    assert video.hdr_type == "Dolby Vision"
+
+
+def test_analyze_from_index_subtitle_metadata_propagates(conn: sqlite3.Connection) -> None:
+    """Subtitle ``format`` / ``forced`` / ``is_default`` columns flow into SubtitleTrack."""
+    disk_id = _seed_disk(conn)
+    path_id = _seed_path(conn, disk_id=disk_id, rel_path="films/Subs")
+    item_id = _seed_item(conn, kind="movie", title="Subs", category_id="movies", disk_label="Disk1")
+    release_id = _seed_movie_release(conn, item_id=item_id)
+    file_id = _seed_file(conn, release_id=release_id, path_id=path_id, filename="Subs.mkv")
+    _seed_streams(
+        conn,
+        file_id=file_id,
+        video={"codec": "h264", "width": 1920, "height": 1080},
+        subs=[{"lang": "fra", "format": "pgs", "forced": 1, "is_default": 0}],
+    )
+
+    sub = analyze_from_index(conn).items[0].files[0].subtitle_tracks[0]
+    assert sub.format == "pgs"
+    assert sub.forced is True
+    assert sub.is_default is False
 
 
 def test_analyze_from_index_skips_files_without_streams(conn: sqlite3.Connection) -> None:
