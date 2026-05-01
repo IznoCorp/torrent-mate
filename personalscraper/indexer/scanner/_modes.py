@@ -1501,9 +1501,7 @@ def _scan_disk_verify(
                     id=0,
                     scope="file",
                     scope_id=file_id,
-                    reason=(
-                        f"verify: drift detected (size_match={size_match}, mtime_match={mtime_match})"
-                    ),
+                    reason=(f"verify: drift detected (size_match={size_match}, mtime_match={mtime_match})"),
                     payload_json=json.dumps(
                         {
                             "expected_size": row["size_bytes"],

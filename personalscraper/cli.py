@@ -1021,9 +1021,7 @@ def library_analyze(
             profile = media_file.audio_profile or "unknown"
             audio_counts[profile] = audio_counts.get(profile, 0) + 1
 
-    console.print(
-        f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files"
-    )
+    console.print(f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files")
     if codec_counts:
         codecs = ", ".join(f"{c}={n}" for c, n in sorted(codec_counts.items(), key=lambda kv: -kv[1]))
         console.print(f"  Codecs: {codecs}")

@@ -2672,9 +2672,7 @@ class TestVerifyMode:
             scan([disk], ScanMode.full, generation=1, conn=conn)
 
         conn.row_factory = sqlite3.Row
-        before = conn.execute(
-            "SELECT id, last_verified_at FROM media_file WHERE filename = 'movie.mkv'"
-        ).fetchone()
+        before = conn.execute("SELECT id, last_verified_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
         assert before is not None
         baseline_verified = before["last_verified_at"]
 
@@ -2719,9 +2717,7 @@ class TestVerifyMode:
             scan([disk], ScanMode.verify, generation=2, conn=conn)
 
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT scope, scope_id, reason, payload_json FROM repair_queue"
-        ).fetchall()
+        rows = conn.execute("SELECT scope, scope_id, reason, payload_json FROM repair_queue").fetchall()
         assert len(rows) == 1
         assert rows[0]["scope"] == "file"
         assert "drift" in rows[0]["reason"]
@@ -2749,17 +2745,12 @@ class TestVerifyMode:
             scan([disk], ScanMode.verify, generation=2, conn=conn)
 
         conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            "SELECT scope, reason FROM repair_queue"
-        ).fetchall()
+        rows = conn.execute("SELECT scope, reason FROM repair_queue").fetchall()
         assert len(rows) == 1
         assert rows[0]["scope"] == "file"
         assert "missing" in rows[0]["reason"]
 
         # The media_file row must NOT have been soft-deleted (verify is non-destructive).
-        deleted_at = conn.execute(
-            "SELECT deleted_at FROM media_file WHERE filename = 'movie.mkv'"
-        ).fetchone()
+        deleted_at = conn.execute("SELECT deleted_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
         assert deleted_at is not None
         assert deleted_at[0] is None
-

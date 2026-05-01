@@ -36,9 +36,10 @@ from personalscraper.library.models import (
     SubtitleTrack,
     VideoInfo,
 )
-from personalscraper.library.scanner import _VIDEO_EXTENSIONS, parse_title_year
+from personalscraper.library.scanner import parse_title_year
 from personalscraper.logger import get_logger
 from personalscraper.scraper.mediainfo import extract_stream_info
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 
 log = get_logger("library.analyzer")
 
@@ -524,5 +525,3 @@ def analyze_library(
         file_count=file_count,
         items=items,
     )
-
-
