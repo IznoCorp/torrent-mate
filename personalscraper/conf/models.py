@@ -897,26 +897,42 @@ class IndexerDriftConfig(_StrictModel):
     """Drift detection tunables for the media indexer.
 
     Attributes:
-        merkle_per_disk: Maintain a per-disk Merkle root (xxh3_64 over sorted
-            file rows) to fast-skip entirely unchanged disks.
-        verify_disks_each_scan: Run mountpoint and sentinel checks on every
-            scan to catch unmounted or swapped volumes.
-        sentinel_filename: Name of the hidden sentinel file written to each
-            disk's root to confirm UUID identity at mount time.
+        merkle_per_disk: **Reserved.** Currently the indexer always maintains
+            a per-disk Merkle root; this knob is kept in the schema for
+            forward compatibility but is not consumed by any code path —
+            setting it to False has no effect. Tracked for follow-up work.
+        verify_disks_each_scan: **Reserved.** Same status as
+            ``merkle_per_disk``: declared, validated, but unused — mountpoint
+            and sentinel checks always run today.
+        sentinel_filename: **Reserved.** The actual sentinel filename used
+            by ``personalscraper/indexer/merkle.py`` is the module-level
+            constant ``SENTINEL_FILENAME = ".personalscraper-disk-id"``;
+            customising this config field has no runtime effect. Kept
+            because removing the field would break configs that include it
+            (the model is ``extra='forbid'``).
+        merkle_delta_freeze_threshold: Halt the scan if the Merkle delta
+            exceeds this fraction (suggests a bulk restore). Set to 1.0 to
+            disable the freeze entirely. **This field IS consumed** — see
+            ``personalscraper/indexer/cli.py`` and
+            ``personalscraper/indexer/scanner/_modes.py``.
     """
 
     merkle_per_disk: bool = Field(
         default=True,
-        description="Maintain a per-disk Merkle root to fast-skip unchanged disks.",
+        description="Reserved (not currently consumed by any code path).",
     )
     verify_disks_each_scan: bool = Field(
         default=True,
-        description="Run mountpoint + sentinel checks on every scan.",
+        description="Reserved (not currently consumed by any code path).",
     )
     sentinel_filename: str = Field(
         default=".personalscraper-disk-id",
         min_length=1,
-        description="Hidden sentinel file name written to each disk root for UUID identity check.",
+        description=(
+            "Reserved: the runtime sentinel name is the module constant "
+            "``personalscraper.indexer.merkle.SENTINEL_FILENAME``; this "
+            "config field is not consumed."
+        ),
     )
     merkle_delta_freeze_threshold: float = Field(
         default=0.50,
