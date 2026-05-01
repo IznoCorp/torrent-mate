@@ -258,57 +258,39 @@ post-mortem.
 
 ## `deleted_item.payload_json`
 
-**Pydantic model**: `DeletedSnapshot` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `DeletedSnapshot`
+(`personalscraper/indexer/schema.py`). Not instantiated by the
+runtime; the writer in `indexer/drift.py` (the n-strikes soft-delete
+path) builds a flat dict with `json.dumps` directly.
 
-A snapshot of the deleted row's columns at deletion time. The exact keys depend
-on `kind`.
+**Current writer:** the only `insert_deleted_item` call site today
+is the n-strikes file-level soft-delete in `indexer/drift.py:530`.
+`deleted_item` rows always have `kind = 'file'`; `kind = 'item'`
+and `kind = 'release'` are reserved for future tombstone writers
+(item-level soft delete is not implemented yet — see DESIGN §8.3).
 
-### `kind: "item"`
+### `kind: "file"` — only kind currently written
 
-```json
-{
-  "kind": "item",
-  "snapshot": {
-    "id": 42,
-    "title": "Inception",
-    "year": 2010,
-    "category_id": "movies",
-    "tmdb_id": 27205,
-    "nfo_status": "valid"
-  }
-}
-```
-
-### `kind: "file"`
+The payload is a **flat snapshot** (no `kind` wrapper, no `snapshot`
+sub-key — the columns of the deleted `media_file` row inlined):
 
 ```json
 {
-  "kind": "file",
-  "snapshot": {
-    "id": 305,
-    "filename": "Inception (2010).mkv",
-    "size_bytes": 4294967296,
-    "mtime_ns": 1714300000000000000,
-    "oshash": "a3f2e1d0c9b8a7b6",
-    "miss_strikes": 3
-  }
+  "id": 305,
+  "path_id": 47,
+  "filename": "Inception (2010).mkv",
+  "oshash": "a3f2e1d0c9b8a7b6",
+  "size_bytes": 4294967296,
+  "mtime_ns": 1714300000000000000
 }
 ```
 
-### `kind: "release"`
+The deletion `reason` and `deleted_at` epoch are stored on the
+`deleted_item` row itself (separate columns), not in `payload_json`.
 
-```json
-{
-  "kind": "release",
-  "snapshot": {
-    "id": 88,
-    "item_id": 42,
-    "quality": "1080p",
-    "edition": null,
-    "primary_lang": "fr"
-  }
-}
-```
+### `kind: "item"`, `kind: "release"` — reserved
 
-Schema: `extra="allow"` — additional snapshot fields are permitted to future-proof
-the tombstone format.
+Not currently written by any code path. When the item-level / release-
+level soft-delete worker lands the payload shape will be defined in a
+follow-up; do not rely on speculative shapes from earlier drafts of
+this document.
