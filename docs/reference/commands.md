@@ -61,6 +61,7 @@ personalscraper library-validate --from-index                # Fast pre-screen f
 personalscraper library-validate --fix --apply               # Auto-fix what's possible
 personalscraper library-analyze                              # Deep ffprobe scan (codec, audio, subs)
 personalscraper library-analyze --from-index                 # Read streams from indexer DB instead of ffprobe (much faster, HDR/Atmos approximated)
+LIBRARY_ANALYZER_MAX_WORKERS=8 personalscraper library-analyze   # Override the 4-worker cap (use on SSD libraries)
 personalscraper library-recommend                            # Run ffprobe analysis inline + generate re-download list
 personalscraper library-recommend --from-index               # Use indexer DB streams instead of ffprobe
 personalscraper library-recommend --export csv               # Export to CSV
