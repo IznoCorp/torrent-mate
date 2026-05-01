@@ -78,6 +78,7 @@ class IngestTracker:
                     "tracker_corrupted_or_unreadable",
                     path=str(self.tracker_path),
                     error=str(exc),
+                    exc_info=True,
                 )
                 self._data = {}
         else:
