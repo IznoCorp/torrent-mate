@@ -162,27 +162,46 @@ listed above) — it is replayed into the outbox when the disk remounts.
 
 ## `repair_queue.payload_json`
 
-**Pydantic model**: `RepairPayload` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `RepairPayload`
+(`personalscraper/indexer/schema.py`). Not instantiated by the
+runtime; each producer dumps its own dict (or `NULL`) into the
+column.
+
+The column is **per-producer free-form**: there is no shared
+`{context, discovered_at, evidence}` envelope. The trigger reason
+is in the sibling `reason` text column on the same `repair_queue`
+row; the discovery time is in the `enqueued_at` column.
+`payload_json` carries detector-specific evidence only.
+
+### Producer: `library-verify` (scanner `verify` mode)
+
+```python
+# indexer/scanner/_modes.py:1464 — file missing on disk
+payload_json=None
+```
 
 ```json
+// indexer/scanner/_modes.py:1504 — size or mtime drift detected
 {
-  "context": "tier2 drift: size_bytes mismatch on Disk1 media_file id=305",
-  "discovered_at": 1714300000,
-  "evidence": {
-    "expected_size": 4294967296,
-    "actual_size": 4294967100,
-    "file_path": "/Volumes/Disk1/medias/films/Inception (2010)/Inception (2010).mkv"
-  }
+  "expected_size": 4294967296,
+  "actual_size": 4294967100,
+  "expected_mtime_ns": 1714300000000000000,
+  "actual_mtime_ns": 1714399999000000000
 }
 ```
 
-| Field           | Type   | Required | Meaning                                        |
-| --------------- | ------ | -------- | ---------------------------------------------- |
-| `context`       | string | yes      | Human-readable description of the trigger.     |
-| `discovered_at` | int    | yes      | Unix epoch seconds when drift was detected.    |
-| `evidence`      | dict   | no       | Free-form key-value evidence from the scanner. |
+### Producer: `library-reconcile`
 
-Schema: `extra="forbid"` — unknown keys are rejected.
+```json
+// indexer/reconcile.py:499 — typical detector payload
+{
+  "detector": "merkle"
+}
+```
+
+The `DivergenceItem.payload` field accepts `dict[str, object]`;
+each detector chooses its own keys and is expected to keep them
+forward-compatible.
 
 ---
 
