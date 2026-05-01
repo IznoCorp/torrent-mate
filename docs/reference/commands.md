@@ -32,6 +32,9 @@ personalscraper library-index --disk Disk1 --mode full       # Restrict to one d
 personalscraper library-index --dry-run                      # Plan only, no DB writes
 personalscraper library-index --rebuild                      # Drop and rebuild from scratch
 personalscraper library-index --confirm-bulk-change          # Confirm large Merkle delta
+personalscraper library-index --budget 1800                  # Wall-clock cap (seconds; default from indexer.scan.budget_seconds)
+personalscraper library-index --no-budget                    # Disable budget for manual full enrich passes
+personalscraper library-index --wait-for-lock 60             # Wait N seconds for the writer lock instead of failing immediately
 personalscraper library-status                               # Latest indexer scan run summary
 personalscraper library-verify                               # Re-stat every indexed file; enqueue mismatches
 personalscraper library-verify --disk Disk1                  # Verify one disk
