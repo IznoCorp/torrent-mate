@@ -326,11 +326,14 @@ class TestScanLibraryPopulatesDB:
         assert row["nfo_status"] == "missing"
 
     def test_dispatch_attrs_written_for_each_item(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
-        """Each media_item gets dispatch_path + dispatch_disk attributes.
+        """Each media_item gets dispatch_path + dispatch_disk + dispatch_normalized_title.
 
         This guarantees that downstream consumers — in particular
-        ``trailers/scanner.py`` and ``indexer/release_linker.py`` — can
-        locate the on-disk media directory for any item discovered by the
+        ``trailers/scanner.py``, ``indexer/release_linker.py``, and the
+        ``find_by_normalized_title`` / ``list_all_dispatch_items`` queries
+        in ``indexer/repos/item_repo.py`` (both INNER JOIN on
+        ``dispatch_normalized_title``) — can locate the on-disk media
+        directory and the item itself for any item discovered by the
         library scanner, not only by the dispatch layer.
         """
         fs.pause()
@@ -361,6 +364,9 @@ class TestScanLibraryPopulatesDB:
         }
         assert attrs.get("dispatch_path") == str(movie)
         assert attrs.get("dispatch_disk") == scanner_config.disks[0].id
+        # NFC-lowercased title — same normalization as
+        # ``dispatch.media_index._normalize_key``.
+        assert attrs.get("dispatch_normalized_title") == "tenet"
 
     def test_item_issue_rows_persisted_for_dirty_dir(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """A movie with .actors/ + junk file gets matching ``item_issue`` rows.
