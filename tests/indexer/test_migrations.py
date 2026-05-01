@@ -162,6 +162,117 @@ class TestApplyMigrationsIdempotence:
         assert _table_names(conn) == tables_after_first
 
 
+class TestMigration003RepairQueueDedup:
+    """Migration 003 collapses duplicate pending repair rows + adds UNIQUE index.
+
+    Validates the data-mutation path of the migration on a DB that already
+    contains duplicates — guards against future edits that accidentally
+    drop the collapse step or the DELETE filter.
+    """
+
+    def _apply_through_002(self, conn: sqlite3.Connection) -> None:
+        """Run migrations 001 + 002 only (skip 003) so we can seed duplicates."""
+        for name in ("001_init.sql", "002_nullable_release_id_oshash.sql"):
+            sql = (MIGRATIONS_DIR / name).read_text(encoding="utf-8")
+            conn.executescript(sql)
+
+    def _apply_003(self, conn: sqlite3.Connection) -> None:
+        """Run migration 003 (the dedup migration under test)."""
+        sql = (MIGRATIONS_DIR / "003_repair_queue_pending_dedup.sql").read_text(encoding="utf-8")
+        conn.executescript(sql)
+
+    def test_collapses_duplicates_keeps_oldest(self, tmp_path: Path) -> None:
+        """Two pending rows for the same (scope, scope_id) collapse to the oldest."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        self._apply_through_002(conn)
+
+        # Seed three pending duplicates (same scope+scope_id, different enqueued_at)
+        # plus one terminal 'done' row that should survive untouched.
+        conn.executemany(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) VALUES (?, ?, ?, ?, ?)",
+            [
+                ("file", 42, "drift_run_1", 100, "pending"),
+                ("file", 42, "drift_run_2", 200, "pending"),
+                ("file", 42, "drift_run_3", 300, "pending"),
+                ("file", 42, "old_completed", 50, "done"),
+            ],
+        )
+        conn.commit()
+
+        self._apply_003(conn)
+
+        # One pending row survives — the oldest.
+        rows = conn.execute(
+            "SELECT id, reason, enqueued_at FROM repair_queue WHERE scope='file' AND scope_id=42 AND status='pending'"
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0][1] == "drift_run_1"
+        assert rows[0][2] == 100
+
+        # The terminal 'done' row is untouched.
+        done_rows = conn.execute(
+            "SELECT id FROM repair_queue WHERE scope='file' AND scope_id=42 AND status='done'"
+        ).fetchall()
+        assert len(done_rows) == 1
+
+    def test_subsequent_insert_or_ignore_dedups(self, tmp_path: Path) -> None:
+        """After 003, ``INSERT OR IGNORE`` skips a duplicate pending row."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('item', 7, 'first', 100, 'pending')"
+        )
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('item', 7, 'second', 200, 'pending')"
+        )
+        # Second INSERT must be a no-op.
+        assert cursor.rowcount == 0
+
+        rows = conn.execute("SELECT reason FROM repair_queue WHERE scope='item' AND scope_id=7").fetchall()
+        assert len(rows) == 1
+        assert rows[0][0] == "first"
+
+    def test_terminal_row_does_not_block_new_pending(self, tmp_path: Path) -> None:
+        """A 'done'/'failed' row does NOT block a fresh pending row for the same target."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('file', 9, 'first_run', 100, 'done')"
+        )
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('file', 9, 'second_run', 200, 'pending')"
+        )
+        # Insert succeeds — partial UNIQUE INDEX is keyed only on pending rows.
+        assert cursor.rowcount == 1
+
+    def test_idempotent_re_apply_via_apply_migrations(self, tmp_path: Path) -> None:
+        """Running apply_migrations twice is a no-op for migration 003 specifically.
+
+        The migration uses ``CREATE UNIQUE INDEX IF NOT EXISTS`` so even if an
+        outer caller bypassed the user_version skip-if-applied logic, the
+        script itself would not raise on re-execution.
+        """
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        apply_migrations(conn, MIGRATIONS_DIR)
+        # Manually re-execute 003 — must not raise even though the index exists.
+        self._apply_003(conn)
+        # Verify the index still exists exactly once.
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_repair_pending_dedup'"
+        ).fetchall()
+        assert len(rows) == 1
+
+
 # ---------------------------------------------------------------------------
 # Test: chain-replay equivalence (DESIGN §15.5.1)
 # ---------------------------------------------------------------------------

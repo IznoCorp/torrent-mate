@@ -529,6 +529,31 @@ def library_index_command(
                         except Exception:  # noqa: BLE001 — best-effort rollback
                             pass
 
+                # --- Apply soft-deletes (per disk, post-walk) ---
+                # Files that exceeded the miss-strike threshold during the
+                # walk are now finalised: deleted_at is set, a deleted_item
+                # tombstone is inserted (atomic via SAVEPOINT in
+                # drift.apply_soft_deletes).  Skipped on dry_run, on
+                # verify mode (which by contract does NOT soft-delete),
+                # and on quick mode (no strikes accumulated this walk).
+                soft_deleted = 0
+                if not dry_run and scan_mode in (ScanMode.full, ScanMode.incremental):
+                    from personalscraper.indexer.drift import apply_soft_deletes  # noqa: PLC0415
+
+                    n_strikes = int(cfg.indexer.scan.n_strikes_for_softdelete)
+                    for d in filtered_disks:
+                        try:
+                            soft_deleted += apply_soft_deletes(conn, d.id, n_strikes)
+                        except sqlite3.Error as soft_exc:
+                            log.warning(
+                                "indexer.cli.index.soft_delete_failed",
+                                disk_id=d.id,
+                                error=str(soft_exc),
+                                error_type=type(soft_exc).__name__,
+                            )
+                    if soft_deleted:
+                        conn.commit()
+
                 # --- Drain outbox ---
                 drained = drain_if_present(conn, cfg.indexer)
                 log.debug("indexer.cli.index.outbox_drained", count=drained)
@@ -543,6 +568,7 @@ def library_index_command(
                     "scan_run_id": result.scan_run_id,
                     "status": result.status,
                     "budget_exhausted": False,
+                    "soft_deleted": soft_deleted,
                     "dry_run": dry_run,
                     "rebuild": rebuild,
                 }
@@ -810,6 +836,130 @@ def library_search_command(
             nfo_str = item.nfo_status or ""
             typer.echo(f"{item.id:<8}{(item.title or '')[:38]:<40} {year_str:<6} {nfo_str:<10}")
 
+        return 0
+
+
+# ---------------------------------------------------------------------------
+# library-reconcile
+# ---------------------------------------------------------------------------
+
+
+def library_reconcile_command(
+    *,
+    scopes: Sequence[str] | None = None,
+    enqueue_repairs: bool = False,
+    config_path: Path | None = None,
+) -> int:
+    """Detect index ↔ filesystem divergences without a full rescan.
+
+    Runs the DB-only checks in :mod:`personalscraper.indexer.reconcile`
+    and prints a JSON summary of findings.  When ``enqueue_repairs`` is
+    True, every divergence is also pushed into ``repair_queue`` so that
+    ``library-repair`` can drain them with a wall-clock budget.  The
+    partial UNIQUE INDEX from migration 003 deduplicates findings the
+    last reconcile already enqueued, so re-running is safe.
+
+    Args:
+        scopes: Subset of detector scopes to run.  ``None`` runs all six
+            (``merkle``, ``dispatch_path``, ``enrich``, ``release``,
+            ``season``, ``item``).
+        enqueue_repairs: When True, push findings into ``repair_queue``.
+        config_path: Optional explicit path to config.json5 or config dir.
+
+    Returns:
+        ``0`` on success, ``1`` on infrastructure error.
+    """
+    import json  # noqa: PLC0415
+    from typing import cast  # noqa: PLC0415
+
+    from personalscraper.conf.loader import (  # noqa: PLC0415
+        ConfigNotFoundError,
+        ConfigValidationError,
+        load_config,
+        resolve_config_path,
+    )
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import (  # noqa: PLC0415
+        IndexerCorruptError,
+        IndexerDiskFullError,
+        IndexerInvalidPathError,
+        IndexerLockError,
+        IndexerMigrationError,
+        apply_migrations,
+        open_db,
+    )
+    from personalscraper.indexer.reconcile import (  # noqa: PLC0415
+        ReconcileScope,
+        reconcile,
+    )
+
+    log.info("indexer.cli.reconcile", scopes=list(scopes) if scopes else None, enqueue=enqueue_repairs)
+
+    try:
+        cfg = load_config(resolve_config_path(config_path))
+    except (ConfigNotFoundError, ConfigValidationError) as exc:
+        typer.echo(f"Config error: {exc}", err=True)
+        return 1
+
+    db_path: Path = cfg.indexer.db_path
+    migrations_dir = Path(_migrations_pkg.__file__).parent
+
+    from contextlib import closing  # noqa: PLC0415
+
+    try:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = open_db(db_path)
+    except (
+        IndexerLockError,
+        IndexerCorruptError,
+        IndexerDiskFullError,
+        IndexerInvalidPathError,
+        IndexerMigrationError,
+    ) as exc:
+        typer.echo(str(exc), err=True)
+        return 1
+
+    with closing(conn):
+        try:
+            apply_migrations(conn, migrations_dir)
+        except (
+            IndexerLockError,
+            IndexerCorruptError,
+            IndexerDiskFullError,
+            IndexerInvalidPathError,
+            IndexerMigrationError,
+        ) as exc:
+            typer.echo(str(exc), err=True)
+            return 1
+
+        # Type cast: typer hands us Sequence[str], reconcile() requires the
+        # narrower Literal-typed list.  The detector itself silently ignores
+        # unknown scope strings so the cast is safe at runtime — invalid
+        # values surface as "no detector ran" rather than a TypeError.
+        report = reconcile(
+            conn,
+            scopes=cast("list[ReconcileScope]", list(scopes)) if scopes else None,
+            enqueue_repairs=enqueue_repairs,
+        )
+        if enqueue_repairs:
+            conn.commit()
+
+        summary = {
+            "merkle_drift": report.merkle_drift,
+            "dispatch_path_missing_count": len(report.dispatch_path_missing),
+            "dispatch_path_missing_sample": report.dispatch_path_missing[:10],
+            "enrich_stale": report.enrich_stale,
+            "release_orphans_count": len(report.release_orphans),
+            "release_orphans_sample": report.release_orphans[:10],
+            "files_without_release": report.files_without_release,
+            "season_count_drift_count": len(report.season_count_drift),
+            "season_count_drift_sample": report.season_count_drift[:10],
+            "items_without_files_count": len(report.items_without_files),
+            "items_without_files_sample": report.items_without_files[:10],
+            "total_findings": report.total_findings,
+            "enqueued_repairs": report.enqueued_repairs,
+        }
+        typer.echo(json.dumps(summary, indent=2))
         return 0
 
 
