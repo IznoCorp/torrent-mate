@@ -292,11 +292,12 @@ Recovery:
 
 ```bash
 # Manually remove the stale lock file
-rm .personalscraper/library.lock
+rm .personalscraper/library.db.lock
 personalscraper library-index
 ```
 
-The lock file path is `indexer.lock_path` (default `.personalscraper/library.lock`).
+The lock file path is derived from the database path as `<indexer.db_path>.lock`
+(default `.personalscraper/library.db.lock`); it is not separately configurable.
 
 ### Partial migration recovery
 
