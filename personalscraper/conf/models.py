@@ -799,41 +799,43 @@ class IndexerScanConfig(_StrictModel):
     """Scan-engine tunables for the media indexer.
 
     Attributes:
-        nightly_mode: Default scan mode for scheduled nightlies.
-            One of ``"quick"`` | ``"incremental"`` | ``"enrich"`` | ``"full"``.
+        nightly_mode: **Reserved.** Documented as the default scan mode for
+            scheduled nightlies, but no scheduler / cron entry-point reads
+            this field — the launchd plists call ``library-index --mode
+            quick`` directly, with the mode hardcoded.  Kept in the schema
+            so a future scheduler refactor can pick it up without a config
+            format change.
         budget_seconds: Hard time cap per scan run in seconds. Crash-resume
-            picks up where the scan left off.
+            picks up where the scan left off.  **Consumed.**
         checkpoint_every_n_files: Write a checkpoint row every N files so a
-            crashed scan resumes from a known-good point.
+            crashed scan resumes from a known-good point.  **Consumed.**
         max_workers_total: Maximum parallel scan workers, capped at the number
-            of currently mounted disks.
-        racy_window_seconds: git-style mtime-collision window. Files whose
-            mtime changed within this many seconds of the scan start are
-            re-fingerprinted on the next run (avoids false-positive deltas
-            caused by in-progress writes).
+            of currently mounted disks.  **Consumed.**
+        racy_window_seconds: **Reserved.** git-style mtime-collision window.
+            Documented to control re-fingerprinting of files written near
+            scan start, but the only caller of ``drift.reconcile_file``
+            (which would consume it) lives in tests; production scan
+            modes do not currently invoke that path, so the field has no
+            runtime effect today.
         n_strikes_for_softdelete: Number of consecutive missed scans before a
-            file is soft-deleted (``deleted_at`` set). Prevents a single
-            unmounted disk from wiping its entries.
+            file is soft-deleted (``deleted_at`` set). **Consumed** by
+            ``library-index`` post-walk soft-delete pass.
         read_rate_mb_per_sec: IO throttle in MB/s. ``None`` = unlimited.
-            Set to e.g. 80 on spinning rust to avoid starving other processes.
-        sequential_read_hint: Hint the OS buffer cache that the file will be
-            read sequentially. On macOS this is implemented via
-            ``mmap + madvise(MADV_SEQUENTIAL)`` (the historical ``fcntl``
-            ``F_RDADVISE`` path is unusable from pure Python — see
-            :mod:`personalscraper.indexer._macos_io`). No-op on other
-            platforms.
+            **Consumed.**
+        sequential_read_hint: **Reserved.** Documented to enable an
+            ``mmap+madvise(MADV_SEQUENTIAL)`` hint, but no scanner code
+            path reads this flag — the hint is unconditional today on
+            platforms that support it.
         drop_indexes_during_full_scan: Drop non-PK indexes during a full
             cold scan and rebuild them on finish — faster bulk inserts.
+            **Consumed.**
         paranoia_window_seconds: Look-back window in seconds for the
-            quick-mode paranoia branch (DESIGN §17.1).  ``scan_event`` rows
-            with ``event LIKE 'outbox.%'`` within this window are re-checked
-            against on-disk state regardless of dir-mtime status.  Set to
-            ``0`` to disable the branch entirely.
+            quick-mode paranoia branch (DESIGN §17.1).  **Consumed.**
     """
 
     nightly_mode: Literal["quick", "incremental", "enrich", "full"] = Field(
         default="quick",
-        description="Default scan mode for scheduled nightlies.",
+        description="Reserved (launchd / cron entry-points hardcode the mode today).",
     )
     budget_seconds: int = Field(default=1800, gt=0, description="Hard time cap per scan run in seconds.")
     checkpoint_every_n_files: int = Field(default=100, gt=0, description="Write checkpoint every N files.")
@@ -841,7 +843,7 @@ class IndexerScanConfig(_StrictModel):
     racy_window_seconds: float = Field(
         default=2.0,
         ge=0.0,
-        description="git-style mtime-collision window in seconds.",
+        description="Reserved (drift.reconcile_file is currently test-only; not called from production scanner).",
     )
     n_strikes_for_softdelete: int = Field(default=3, gt=0, description="Missed scans before soft-delete.")
     read_rate_mb_per_sec: float | None = Field(
@@ -851,7 +853,7 @@ class IndexerScanConfig(_StrictModel):
     )
     sequential_read_hint: bool = Field(
         default=True,
-        description="Hint sequential reads via mmap+madvise on macOS; no-op elsewhere.",
+        description="Reserved (mmap+madvise hint is unconditional today on supporting platforms).",
     )
     drop_indexes_during_full_scan: bool = Field(
         default=True,
