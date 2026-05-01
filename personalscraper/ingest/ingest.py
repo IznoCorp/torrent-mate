@@ -293,7 +293,7 @@ def run_ingest(
             password=settings.qbit_password,
         )
     except Exception as e:
-        log.error("qbit_init_failed", error=str(e))
+        log.error("qbit_init_failed", error=str(e), exc_info=True)
         report.error_count = 1
         report.details.append(f"qBittorrent init failed: {e}")
         return report
