@@ -613,14 +613,23 @@ class TrailersYoutubeApiConfig(_StrictModel):
     """YouTube Data API v3 quota accounting defaults.
 
     Attributes:
-        daily_quota_units: Total daily quota units allocated by Google. Default 10 000.
-        search_list_cost_units: Quota cost per search.list call. Default 100.
-        cache_ttl_days: TTL for cached YouTube search results in days.
+        daily_quota_units: Total daily quota units allocated by Google.
+            **Consumed** by ``trailers/orchestrator.py:659``.
+        search_list_cost_units: Quota cost per search.list call.
+            **Consumed** by ``trailers/orchestrator.py:660``.
+        cache_ttl_days: **Reserved.** Documented as TTL for cached YouTube
+            search results, but the runtime uses the hardcoded constant
+            ``_YOUTUBE_TTL_SECONDS = 7 * 24 * 3600`` in
+            ``personalscraper/scraper/trailers_cache.py``.  Customising
+            this config field has no runtime effect; the comment in
+            ``trailers_cache.py`` even says ``# 7 days matches DESIGN §9
+            (youtube_api.cache_ttl_days: 7)`` — i.e. the constant was
+            meant to mirror the config but the wiring was never done.
     """
 
     daily_quota_units: int = Field(default=10_000, gt=0)
     search_list_cost_units: int = Field(default=100, gt=0)
-    cache_ttl_days: int = Field(default=7, ge=1)
+    cache_ttl_days: int = Field(default=7, ge=1, description="Reserved (not currently consumed).")
 
 
 class TrailersYtdlpConfig(_StrictModel):
