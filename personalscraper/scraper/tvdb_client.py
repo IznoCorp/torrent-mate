@@ -359,25 +359,47 @@ class TVDBClient:
 
     # -- Type-specific methods --
 
-    def search_series(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
+    def search_series(
+        self,
+        title: str,
+        year: int | None = None,
+        max_pages: int = 3,
+        page_limit: int = 50,
+    ) -> list[dict[str, Any]]:
         """Search for TV series by title.
 
         Uses /search endpoint with type=series. Results use snake_case
         field names (image_url, first_air_time, tvdb_id).
 
+        TVDB v4 /search supports ``limit`` (default 50) + ``offset``.
+        Pagination loops up to ``max_pages`` (capped at 5) to surface
+        candidates beyond the first page for ambiguous franchise titles.
+
         Args:
             title: Series title to search for.
             year: Optional first air date year to narrow results.
+            max_pages: Maximum pages to fetch.  Capped at 5.
+            page_limit: Per-page result count (TVDB default 50).
 
         Returns:
-            List of search result dicts.
+            List of search result dicts (flattened across pages).
         """
-        params: dict[str, Any] = {"query": title, "type": "series"}
+        max_pages = max(1, min(max_pages, 5))
+        base_params: dict[str, Any] = {"query": title, "type": "series", "limit": page_limit}
         if year is not None:
-            params["year"] = year
-        data = self._get("/search", params)
-        # /search returns a list directly in data (envelope flattened via cast in _get)
-        return cast(list[dict[str, Any]], data) if isinstance(data, list) else []
+            base_params["year"] = year
+
+        results: list[dict[str, Any]] = []
+        for page in range(max_pages):
+            params = dict(base_params)
+            params["offset"] = page * page_limit
+            data = self._get("/search", params)
+            page_results = cast(list[dict[str, Any]], data) if isinstance(data, list) else []
+            results.extend(page_results)
+            if len(page_results) < page_limit:
+                # Final page reached (server returned fewer rows than asked).
+                break
+        return results
 
     def get_series(self, series_id: int) -> dict[str, Any]:
         """Get extended series details.
