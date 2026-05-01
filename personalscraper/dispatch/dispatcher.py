@@ -635,7 +635,7 @@ class Dispatcher:
             self._restore_merge_backup(dest, backup_dir)
             return False
         except OSError as e:
-            log.error("merge_failed", error=str(e))
+            log.error("merge_failed", error=str(e), exc_info=True)
             self._restore_merge_backup(dest, backup_dir)
             return False
 
@@ -787,7 +787,7 @@ class Dispatcher:
                 log.warning("failed_dest_cleanup_failed", dest=str(dest), error=str(cleanup_err))
             return False
         except OSError as e:
-            log.error("move_failed", error=str(e))
+            log.error("move_failed", error=str(e), exc_info=True)
             # Clean up temp or dest on any failure
             for path in (tmp_dir, dest):
                 try:
