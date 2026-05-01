@@ -227,65 +227,32 @@ Notes:
 
 ## `scan_event.payload_json`
 
-**Pydantic model**: `ScanEventPayload` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `ScanEventPayload`
+(`personalscraper/indexer/schema.py`). Permissive (`extra="allow"`),
+not instantiated by the runtime.
 
-Each event type carries different keys; the model is permissive (`extra="allow"`)
-to avoid tight coupling with the per-event documentation.
-
-### Common events
-
-**`indexer.scan.checkpoint`** — written every N files to enable crash-resume.
-
-```json
-{
-  "last_path": "001-MOVIES/Inception (2010)",
-  "files_walked": 3000,
-  "generation": 17
-}
-```
-
-**`indexer.drift.tier1`** — stat-only change detected.
+**Current writers:** the only `insert_scan_event` call site today is
+`personalscraper/indexer/scanner/__init__.py:187`, which writes one
+row per scanned disk with `event = "indexer.scan.disk_done"`.
 
 ```json
 {
-  "file_id": 305,
-  "old_mtime_ns": 1714300000000000000,
-  "new_mtime_ns": 1714399999000000000
+  "disk_id": 1,
+  "label": "Disk1",
+  "files_visited": 3140,
+  "dirs_visited": 122,
+  "disks_skipped": 0
 }
 ```
 
-**`indexer.drift.rename`** — file moved or renamed; OSHash match found.
-
-```json
-{
-  "file_id": 305,
-  "old_path": "001-MOVIES/Inception (2010)/Inception.mkv",
-  "new_path": "001-MOVIES/Inception (2010)/Inception (2010).mkv",
-  "oshash": "a3f2e1d0c9b8a7b6"
-}
-```
-
-**`indexer.drift.oshash_collision`** — two distinct files share the same OSHash;
-escalated to `xxh3_full`.
-
-```json
-{
-  "oshash": "deadbeefdeadbeef",
-  "file_id_a": 101,
-  "file_id_b": 202,
-  "resolved_by": "xxh3_full"
-}
-```
-
-**`indexer.fs.invalid_mtime`** — mtime clamped to valid range.
-
-```json
-{
-  "path": "/Volumes/Disk1/medias/films/Old Movie (1999)/Old Movie (1999).mkv",
-  "raw_mtime_ns": -1,
-  "clamped_to": 0
-}
-```
+**Reserved events** — the original DESIGN listed several other event
+types (`indexer.scan.checkpoint`, `indexer.drift.tier1`,
+`indexer.drift.rename`, `indexer.drift.oshash_collision`,
+`indexer.fs.invalid_mtime`) which are emitted to the **structured
+log** (structlog) but are _not_ persisted to the `scan_event` table.
+Future work may move them into `scan_event` for queryable audit; for
+now grep the log file for those event names if you need them
+post-mortem.
 
 ---
 
