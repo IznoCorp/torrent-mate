@@ -651,12 +651,23 @@ class TrailersYtdlpConfig(_StrictModel):
 class TrailersPlacementConfig(_StrictModel):
     """Output path patterns for trailer files.
 
-    Both patterns use the flat convention compatible with Plex, Kodi, and Jellyfin.
-    Each pattern must reference ``{folder}``, ``{name}`` and ``{ext}`` placeholders.
+    **Both fields are currently reserved.** The actual placement is
+    hardcoded in :func:`personalscraper.trailers.placement.trailer_path_for`:
+
+    - movies: ``{media_dir}/{media_name}-trailer.{ext}`` (Plex Local Media
+      Assets flat convention).
+    - TV shows: ``{media_dir}/Trailers/{media_name}.{ext}`` (the only
+      convention recognised by Plex's TV Series agent for show-level
+      extras).
+
+    Customising ``movie_pattern`` or ``tvshow_pattern`` has no runtime
+    effect; the validator below still rejects placeholder typos so
+    config files at least fail loudly rather than appearing to silently
+    take effect.
 
     Attributes:
-        movie_pattern: Pattern template for movie trailers.
-        tvshow_pattern: Pattern template for TV show trailers.
+        movie_pattern: Reserved pattern template for movie trailers.
+        tvshow_pattern: Reserved pattern template for TV show trailers.
     """
 
     movie_pattern: str = "{folder}/{name}-trailer.{ext}"
