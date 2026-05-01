@@ -127,11 +127,11 @@ All commands from DESIGN §12:
 
 Per DESIGN §14:
 
-- `personalscraper-index-quick.plist` — runs `personalscraper library index --mode quick --wait-for-lock 0` every night at 03:30. `StandardOutPath`/`StandardErrorPath` → `__logit__/index.YYYY-MM-DD.log`. `RunAtLoad false`. `StartCalendarInterval` `{Hour:3,Minute:30}`.
+- `personalscraper-index-quick.plist` — runs `personalscraper library-index --mode quick --wait-for-lock 0` every night at 03:30. `StandardOutPath`/`StandardErrorPath` → `__logit__/index.YYYY-MM-DD.log`. `RunAtLoad false`. `StartCalendarInterval` `{Hour:3,Minute:30}`.
 
-- `personalscraper-index-rotate.plist` — runs `personalscraper library index --mode full --disk DiskN --wait-for-lock 0` once per night rotating across disks (Mon=Disk1, Tue=Disk2, Wed=Disk3, Thu=Disk4; Fri/Sat/Sun fall back to `quick`). Implemented via a shell wrapper script `docs/reference/launchd/index-rotate.sh` called from the plist (the rotation logic cannot be expressed in a plist directly).
+- `personalscraper-index-rotate.plist` — runs `personalscraper library-index --mode full --disk DiskN --wait-for-lock 0` once per night rotating across disks (Mon=Disk1, Tue=Disk2, Wed=Disk3, Thu=Disk4; Fri/Sat/Sun fall back to `quick`). Implemented via a shell wrapper script `docs/reference/launchd/index-rotate.sh` called from the plist (the rotation logic cannot be expressed in a plist directly).
 
-- `personalscraper-index-enrich.plist` _(optional)_ — runs `personalscraper library index --mode enrich --budget 1800 --wait-for-lock 0` weekly (Sunday 04:00).
+- `personalscraper-index-enrich.plist` _(optional)_ — runs `personalscraper library-index --mode enrich --budget 1800 --wait-for-lock 0` weekly (Sunday 04:00).
 
 All three plists use `Label` `com.personalscraper.index-{quick|rotate|enrich}`. All are opt-in (manual `launchctl bootstrap` — not auto-installed by any setup script).
 
@@ -180,14 +180,14 @@ Installation instructions in `docs/reference/indexer.md` (8.4).
 
 - [ ] `pytest tests/indexer/test_cli.py` passes all 17 golden cases (14 from §15.5.2 + 3 new for `--rebuild`/`--confirm-bulk-change`/`migrate-category`).
 - [ ] `pytest tests/indexer/test_query.py` passes — all `FIELD_REGISTRY` paths covered.
-- [ ] `personalscraper library search "year:2024 disk:Disk1 -nfo:valid"` returns correct rows on seeded DB.
-- [ ] `personalscraper library search "field_does_not_exist:foo"` exits 2 with `"unknown field"` in stderr.
-- [ ] `personalscraper library status` exits 0 with tabular disk + queue output; exits non-zero when repair queue > 7 days old or category orphans exist.
-- [ ] `personalscraper library verify --disk Disk2` exits 0; repair queue grows on tier-2 mismatch; no soft-deletes.
-- [ ] `personalscraper library show <id>` prints all stored data; exits 2 for unknown id.
-- [ ] `personalscraper library repair --budget 10` stops within budget + 5 s.
-- [ ] `personalscraper library index --rebuild` quarantines a corrupt DB and runs full Stage-A scan to populate a fresh DB.
-- [ ] `personalscraper library index --confirm-bulk-change --disk D` bypasses Merkle-delta freeze.
+- [ ] `personalscraper library-search "year:2024 disk:Disk1 -nfo:valid"` returns correct rows on seeded DB.
+- [ ] `personalscraper library-search "field_does_not_exist:foo"` exits 2 with `"unknown field"` in stderr.
+- [ ] `personalscraper library-status` exits 0 with tabular disk + queue output; exits non-zero when repair queue > 7 days old or category orphans exist.
+- [ ] `personalscraper library-verify --disk Disk2` exits 0; repair queue grows on tier-2 mismatch; no soft-deletes.
+- [ ] `personalscraper library-show <id>` prints all stored data; exits 2 for unknown id.
+- [ ] `personalscraper library-repair --budget 10` stops within budget + 5 s.
+- [ ] `personalscraper library-index --rebuild` quarantines a corrupt DB and runs full Stage-A scan to populate a fresh DB.
+- [ ] `personalscraper library-index --confirm-bulk-change --disk D` bypasses Merkle-delta freeze.
 - [ ] `personalscraper config migrate-category --from old --to new` updates `media_item.category_id`; second run is a no-op; unknown `--to` exits 2.
 - [ ] All three plists pass static `plistlib.loads` validation on Linux CI.
 - [ ] On macOS runner (when available): `launchctl bootstrap` + `launchctl bootout` succeed for all three plists.

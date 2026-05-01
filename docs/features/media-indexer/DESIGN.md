@@ -34,7 +34,7 @@ This feature **bundles both refactors** in a single PR because the indexer's con
 
 5. **Configurable everything, in a structured `.personalscraper/config/` directory.** Split the current `config.json5` into one file per concern (`paths.json5`, `disks.json5`, `categories.json5`, `patterns.json5`, `encoding.json5`, `scraper.json5`, `trailers.json5`, `indexer.json5`, plus a master `config.json5` that lists overlays). Loader unified. Migration script bundled. Behavioural parity with current monolith proven by golden tests.
 
-6. **Reusable query layer.** A small CLI on top of the index — `personalscraper library index|status|verify|search|repair` — that lets the user (and future Web UI) ask questions like "TV shows on Disk2 without valid NFO" without walking the disks.
+6. **Reusable query layer.** A small CLI on top of the index — `personalscraper library-index|status|verify|search|repair` — that lets the user (and future Web UI) ask questions like "TV shows on Disk2 without valid NFO" without walking the disks.
 
 7. **Replace all consumers in a single PR.** No coexistence period. `dispatch/media_index.py`, `library/scanner.py`, `library/analyzer.py`, `trailers/scanner.py` all migrate to the indexer; the legacy JSON files are removed; the trailer feature continues to work end-to-end after the swap.
 
@@ -912,7 +912,7 @@ The pipeline mutates the filesystem in three places: `dispatch/dispatcher.py` (r
 The drainer runs:
 
 - After every pipeline step that wrote to the outbox (synchronous, short).
-- On every `personalscraper library index` invocation (synchronous).
+- On every `personalscraper library-index` invocation (synchronous).
 - On its own short cadence if the daemon were ever to exist (out of scope here).
 
 Drainer rules:
@@ -984,7 +984,7 @@ A `--full` cold scan is **scoped to one disk by default**. The launchd plist tem
 - `personalscraper-index-quick.plist` — runs `library index --quick` every night.
 - `personalscraper-index-rotate.plist` — runs `library index --full --disk DiskN` once per night, rotating across the four disks (Mon=Disk1, Tue=Disk2, Wed=Disk3, Thu=Disk4, Fri/Sat/Sun=quick). One disk per night ensures no single night exceeds ~15-30 min and no disk is double-touched within four days.
 
-Manual override: `personalscraper library index --full --disk Disk1` triggers an immediate full scan of one disk; resumes from `scan_run.last_path` if previously interrupted.
+Manual override: `personalscraper library-index --full --disk Disk1` triggers an immediate full scan of one disk; resumes from `scan_run.last_path` if previously interrupted.
 
 ### 11.3 Two-stage scan: fingerprint then enrich
 
@@ -1068,31 +1068,31 @@ The Merkle root is itself just a hash over rows already in SQLite, so the "did a
 ## 12. CLI surface
 
 ```
-personalscraper library index [--mode {quick|incremental|enrich|full}] [--disk DISK]
+personalscraper library-index [--mode {quick|incremental|enrich|full}] [--disk DISK]
                               [--budget SECONDS] [--dry-run]
     Run a scan in the chosen mode. Defaults to indexer.scan.nightly_mode (quick).
     Acquires the writer lock. Prints summary + scan_run id. --disk scopes to one
     disk; --full --disk D is the standard "rebuild one disk per night" pattern.
 
-personalscraper library status
+personalscraper library-status
     Prints: disk inventory, last scan time per disk, generation, mounted/unmounted,
     pending outbox/repair queue depths, deleted_item counts, Spotlight availability
     per disk, time since last enrich pass.
 
-personalscraper library verify [--disk DISK]
+personalscraper library-verify [--disk DISK]
     Runs a verify scan: re-stat every file, escalate to tier 2 on mismatch, no
     soft-delete (only marks for repair).
 
-personalscraper library search QUERY [--limit N]
+personalscraper library-search QUERY [--limit N]
     Flex-attr query language (see §13). Examples:
       year:2024 disk:Disk1 -nfo:valid
       kind:show codec:hevc -trailer
       title:"Lost Highway"
 
-personalscraper library repair [--budget SECONDS]
+personalscraper library-repair [--budget SECONDS]
     Drains the repair queue with a custom time budget.
 
-personalscraper library show ITEM_ID
+personalscraper library-show ITEM_ID
     Pretty-prints all stored data for one item.
 
 personalscraper config migrate-to-v2 [--dry-run]
@@ -1141,9 +1141,9 @@ The parser is one ~250-LOC module covering tokenisation, registry lookup, SQL fr
 
 Two launchd plist templates ship under `docs/reference/launchd/`:
 
-- **`personalscraper-index-quick.plist`** — runs `personalscraper library index --mode quick` every night at 03:30 (right after `personalscraper run` at 03:00). Sub-minute when no FS changes; never reads more than tier-1 fingerprint per file. **Default recommended cron.**
-- **`personalscraper-index-rotate.plist`** — runs `personalscraper library index --mode full --disk DiskN` once per night, rotating across disks (Mon=Disk1, Tue=Disk2, Wed=Disk3, Thu=Disk4); falls back to `quick` on Fri/Sat/Sun. Use this in addition to the daily `quick` if you want a guaranteed full-rebuild cadence (one disk per night, never more).
-- **`personalscraper-index-enrich.plist`** _(optional)_ — runs `personalscraper library index --mode enrich --budget 1800` weekly to fill in `media_stream`/NFO/artwork data deferred during normal runs.
+- **`personalscraper-index-quick.plist`** — runs `personalscraper library-index --mode quick` every night at 03:30 (right after `personalscraper run` at 03:00). Sub-minute when no FS changes; never reads more than tier-1 fingerprint per file. **Default recommended cron.**
+- **`personalscraper-index-rotate.plist`** — runs `personalscraper library-index --mode full --disk DiskN` once per night, rotating across disks (Mon=Disk1, Tue=Disk2, Wed=Disk3, Thu=Disk4); falls back to `quick` on Fri/Sat/Sun. Use this in addition to the daily `quick` if you want a guaranteed full-rebuild cadence (one disk per night, never more).
+- **`personalscraper-index-enrich.plist`** _(optional)_ — runs `personalscraper library-index --mode enrich --budget 1800` weekly to fill in `media_stream`/NFO/artwork data deferred during normal runs.
 
 Logs land in `__logit__/index.YYYY-MM-DD.log`.
 
@@ -1350,7 +1350,7 @@ Gate: full test suite green on v2 config; `config migrate-to-v2` produces an exa
 - 1.4 `indexer/schema.py` dataclasses + per-table `Repository` skeletons (raw SQL).
 - 1.5 Per-repo unit tests (`test_repos_disk.py`, `test_repos_item.py`, …).
 
-Gate: `personalscraper library status` runs on a fresh DB and prints "no scans yet".
+Gate: `personalscraper library-status` runs on a fresh DB and prints "no scans yet".
 
 ### Phase 2 — Indexer Core: Scanner (modes `full` and `quick`)
 
@@ -1360,7 +1360,7 @@ Gate: `personalscraper library status` runs on a fresh DB and prints "no scans y
 - 2.4 `indexer/scanner.py` core walk: stat + OSHash + `path.dir_mtime_ns` write-through.
 - 2.5 **Stage A (fingerprint-only)** `--mode full` path: stat + OSHash, no mediainfo. `--disk D` scoping.
 - 2.6 **`--mode quick`** path: per-disk Merkle short-circuit first; on miss, dir-mtime subtree-skip; tier-1 fingerprint only on changed files.
-- 2.7 `personalscraper library index --mode {full|quick} [--disk D]` populates the DB. **No outbox integration in this phase** — write-through hooks land in Phase 5 (5.5 wires the drainer into this CLI). The CLI built here calls a no-op `outbox.drain_if_present()` stub that is replaced in Phase 5.
+- 2.7 `personalscraper library-index --mode {full|quick} [--disk D]` populates the DB. **No outbox integration in this phase** — write-through hooks land in Phase 5 (5.5 wires the drainer into this CLI). The CLI built here calls a no-op `outbox.drain_if_present()` stub that is replaced in Phase 5.
 
 Gate: full scan of fixture FS (Stage A) populates `media_file` rows; subsequent `quick` run with no FS changes reads only directory mtimes (asserted via fs_usage trace or syscall counter); `BootstrapError` raised when `diskutil` cannot resolve a UUID.
 
@@ -1395,7 +1395,7 @@ Gate: all four modes hit their target times in §11.11; SIGTERM during a `--full
 - 5.2 `indexer/outbox.py` drainer.
 - 5.3 Hooks in `dispatch/dispatcher.py`, `scraper/nfo_generator.py`, `scraper/artwork.py`, `trailers/orchestrator.py`.
 - 5.4 Tests asserting outbox row presence after each pipeline mutation.
-- 5.5 Drainer integration into `personalscraper library index`.
+- 5.5 Drainer integration into `personalscraper library-index`.
 
 Gate: a pipeline run leaves an empty outbox at end (drained) and the indexer reflects every mutation.
 
@@ -1421,7 +1421,7 @@ Gate: full `personalscraper trailers scan` run produces the same result set as v
 
 ### Phase 8 — CLI + cron + query language
 
-- 8.1 `personalscraper library index --mode {quick|incremental|enrich|full} [--disk D] [--budget S] [--dry-run]` + the rest of the family (`status/verify/search/repair/show`).
+- 8.1 `personalscraper library-index --mode {quick|incremental|enrich|full} [--disk D] [--budget S] [--dry-run]` + the rest of the family (`status/verify/search/repair/show`).
 - 8.2 `indexer/query.py` minimal flex-attr parser.
 - 8.3 Three launchd plist templates: `personalscraper-index-quick.plist` (daily quick), `personalscraper-index-rotate.plist` (weekly rotation full per disk), `personalscraper-index-enrich.plist` (weekly enrich pass).
 - 8.4 Documentation pass: `docs/reference/architecture.md`, `docs/reference/storage.md` (mount flags + 24 TB ops guide), new `docs/reference/indexer.md` covering schema, drift policy, scan modes, query language, cold-rebuild playbook.

@@ -118,7 +118,7 @@ checkpoint and exits cleanly. The next invocation resumes from the checkpoint.
 
 ## Query Language
 
-`personalscraper library search QUERY` delegates to `indexer/query.py: execute()`.
+`personalscraper library-search QUERY` delegates to `indexer/query.py: execute()`.
 
 ### Token syntax
 
@@ -155,19 +155,19 @@ Multiple tokens are combined with `AND`.
 
 ```bash
 # TV shows on Disk2 without a valid NFO
-personalscraper library search "kind:show disk:Disk2 -nfo:valid"
+personalscraper library-search "kind:show disk:Disk2 -nfo:valid"
 
 # Movies from 2024 missing a trailer
-personalscraper library search "kind:movie year:2024 -trailer_found"
+personalscraper library-search "kind:movie year:2024 -trailer_found"
 
 # All HEVC files
-personalscraper library search "codec:hevc"
+personalscraper library-search "codec:hevc"
 
 # Title fragment (case-insensitive)
-personalscraper library search "Lost Highway"
+personalscraper library-search "Lost Highway"
 
 # Unknown field → treated as flex attr
-personalscraper library search "plex_watched:true"
+personalscraper library-search "plex_watched:true"
 ```
 
 `QueryError` is raised (exit 2) for unknown _native_ fields used with comparison
