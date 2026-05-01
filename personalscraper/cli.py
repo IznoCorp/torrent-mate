@@ -12,7 +12,7 @@ import functools
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 
 import typer
 from pydantic import ValidationError
@@ -20,13 +20,18 @@ from rich.console import Console
 from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
-from personalscraper.conf.models import Config
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging, get_logger
+
+# ``Config`` is referenced only as a type annotation; deferring the import
+# keeps the ``personalscraper --version`` path from paying the pydantic
+# config-model import cost (~80 ms) just to print a string.
+if TYPE_CHECKING:
+    from personalscraper.conf.models import Config
 
 log = get_logger("cli")
 
@@ -812,6 +817,60 @@ def library_repair(
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
     rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-reconcile")
+@handle_cli_errors
+def library_reconcile(
+    ctx: typer.Context,
+    scope: list[str] = typer.Option(
+        [],
+        "--scope",
+        help=(
+            "Restrict to a detector scope (repeatable). "
+            "Choices: merkle, dispatch_path, enrich, release, season, item. "
+            "Omit to run every detector."
+        ),
+    ),
+    enqueue_repairs: bool = typer.Option(
+        False,
+        "--enqueue-repairs",
+        help="Push every divergence into repair_queue for library-repair to drain.",
+    ),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Detect index ↔ filesystem divergences without a full rescan.
+
+    Runs DB-only checks (one ``Path.exists()`` for the dispatch_path
+    detector — every other detector is pure SQL) and prints a JSON
+    report of findings.  Optionally enqueues each finding into
+    ``repair_queue`` so ``library-repair`` can fix them within a
+    bounded budget.
+
+    Detector scopes:
+
+    - ``merkle`` — disk merkle drift between stored and computed roots.
+    - ``dispatch_path`` — items whose dispatch_path attribute is gone.
+    - ``enrich`` — files whose enriched_at is older than mtime.
+    - ``release`` — orphan media_release rows + null-release files.
+    - ``season`` — denormalised season.episode_count drift.
+    - ``item`` — media_item rows with no file evidence.
+
+    Examples:
+        personalscraper library-reconcile
+        personalscraper library-reconcile --scope enrich --scope release
+        personalscraper library-reconcile --enqueue-repairs
+    """
+    from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_reconcile_command(
+        scopes=scope if scope else None,
+        enqueue_repairs=enqueue_repairs,
+        config_path=effective_config,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 

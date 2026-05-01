@@ -37,7 +37,6 @@ from personalscraper.indexer.scanner import scan as _indexer_scan
 from personalscraper.indexer.schema import (
     ArtworkInventory,
     DiskRow,
-    EpisodeRow,
     MediaItemKind,
     MediaItemRow,
     SeasonRow,
@@ -497,6 +496,19 @@ def _upsert_media_item(
     ):
         _item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=key, value=value))
 
+    # Persist the directory-hygiene issue tags into ``item_issue`` so the
+    # report layer (and any downstream maintenance UI) can surface them
+    # without re-walking the disks.  We replace the row's whole issue set
+    # on every scan: a previously-flagged issue that has since been
+    # cleaned up (e.g. .actors/ removed by ``library-clean``) must drop
+    # off the report on the next scan.
+    conn.execute("DELETE FROM item_issue WHERE item_id = ?", (item_id,))
+    if scan_item.issues:
+        conn.executemany(
+            "INSERT OR IGNORE INTO item_issue (item_id, type, detail, detected_at) VALUES (?, ?, NULL, ?)",
+            [(item_id, issue, now_s) for issue in scan_item.issues],
+        )
+
     return item_id
 
 
@@ -516,40 +528,38 @@ def _upsert_seasons_and_episodes(
         seasons: Season list from :func:`scan_tvshow_dir`.
     """
     for season_info in seasons:
-        # Check for an existing season row to keep the function idempotent.
-        existing = conn.execute(
+        # Idempotent insert: rely on UNIQUE(item_id, number) at the schema
+        # level and follow up with one SELECT to recover the id (works
+        # whether we just inserted or matched an existing row).  Replaces
+        # the previous SELECT-then-INSERT round-trip pair with one INSERT
+        # OR IGNORE + one SELECT — same row count, half the trips on the
+        # already-indexed insert path.
+        season_row = SeasonRow(
+            id=0,
+            item_id=item_id,
+            number=season_info.number,
+            episode_count=season_info.episode_count,
+            has_poster=int(season_info.has_poster),
+            episodes_with_nfo=season_info.episodes_with_nfo,
+        )
+        tv_repo.insert_season(conn, season_row, ignore_conflict=True)
+        season_id_row = conn.execute(
             "SELECT id FROM season WHERE item_id = ? AND number = ?",
             (item_id, season_info.number),
         ).fetchone()
-        if existing is not None:
-            season_id: int = existing[0]
-        else:
-            season_row = SeasonRow(
-                id=0,
-                item_id=item_id,
-                number=season_info.number,
-                episode_count=season_info.episode_count,
-                has_poster=int(season_info.has_poster),
-                episodes_with_nfo=season_info.episodes_with_nfo,
-            )
-            season_id = tv_repo.insert_season(conn, season_row)
+        if season_id_row is None:
+            # Should not happen — INSERT OR IGNORE + UNIQUE guarantees this row exists.
+            continue
+        season_id: int = season_id_row[0]
 
-        # Insert episode stubs — one row per video file found in the season dir.
-        # Episode numbers are 1-based; we use ordinal position since filenames
-        # are not parsed at this stage (scraper phase 7.2+ handles titles/numbers).
-        for ep_num in range(1, season_info.episode_count + 1):
-            existing_ep = conn.execute(
-                "SELECT id FROM episode WHERE season_id = ? AND number = ?",
-                (season_id, ep_num),
-            ).fetchone()
-            if existing_ep is None:
-                ep_row = EpisodeRow(
-                    id=0,
-                    season_id=season_id,
-                    number=ep_num,
-                    title=None,
-                )
-                tv_repo.insert_episode(conn, ep_row)
+        # Insert episode stubs in a single batched executemany; UNIQUE
+        # (season_id, number) makes INSERT OR IGNORE idempotent across
+        # repeated scans without per-episode SELECTs.
+        if season_info.episode_count > 0:
+            conn.executemany(
+                "INSERT OR IGNORE INTO episode (season_id, number, title) VALUES (?, ?, NULL)",
+                [(season_id, ep_num) for ep_num in range(1, season_info.episode_count + 1)],
+            )
 
 
 def _build_disk_row(disk_cfg: DiskConfig, now_s: int) -> DiskRow:

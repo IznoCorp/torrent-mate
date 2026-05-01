@@ -76,7 +76,7 @@ def _row_to_episode(row: sqlite3.Row) -> EpisodeRow:
 # ---------------------------------------------------------------------------
 
 
-def insert_season(conn: sqlite3.Connection, row: SeasonRow) -> int:
+def insert_season(conn: sqlite3.Connection, row: SeasonRow, *, ignore_conflict: bool = False) -> int:
     """Insert a new season row and return the assigned rowid.
 
     The ``trg_season_requires_show`` trigger aborts the insert if
@@ -85,23 +85,32 @@ def insert_season(conn: sqlite3.Connection, row: SeasonRow) -> int:
     Args:
         conn: Open SQLite connection.
         row: :class:`SeasonRow` to insert.  The ``id`` field is ignored.
+        ignore_conflict: When True, use ``INSERT OR IGNORE`` so a conflict
+            on the ``UNIQUE(item_id, number)`` constraint silently skips
+            the insert.  Callers that want idempotence across rescans
+            should pass True and re-fetch the row's id with a follow-up
+            SELECT.  Returned rowid is ``0`` when the insert was skipped.
 
     Returns:
-        The ``rowid`` (= ``id``) of the newly inserted row.
+        The ``rowid`` (= ``id``) of the newly inserted row, or ``0`` when
+        ``ignore_conflict=True`` and the row was skipped due to UNIQUE conflict.
 
     Raises:
         sqlite3.IntegrityError: If ``item_id`` references a non-show media item,
-            or if the ``(item_id, number)`` pair is not unique.
+            or (when ``ignore_conflict=False``) if the ``(item_id, number)``
+            pair is not unique.
     """
+    verb = "INSERT OR IGNORE" if ignore_conflict else "INSERT"
     cursor = conn.execute(
-        """
-        INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo)
+        f"""
+        {verb} INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo)
         VALUES (?, ?, ?, ?, ?)
         """,
         (row.item_id, row.number, row.episode_count, row.has_poster, row.episodes_with_nfo),
     )
     rowid: int = cursor.lastrowid  # type: ignore[assignment]
-    log.info("indexer.tv.insert_season", item_id=row.item_id, number=row.number, rowid=rowid)
+    if cursor.rowcount > 0:
+        log.info("indexer.tv.insert_season", item_id=row.item_id, number=row.number, rowid=rowid)
     return rowid
 
 
