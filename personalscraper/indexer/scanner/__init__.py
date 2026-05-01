@@ -39,6 +39,7 @@ from personalscraper.indexer.merkle import (
     guard_disk_mounted,
     verify_disk_mounted,
 )
+from personalscraper.indexer.release_linker import recompute_season_episode_counts
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
 from personalscraper.indexer.scanner._concurrency import (
@@ -897,6 +898,8 @@ def scan(
 
         # Budget exhausted — commit current state and return early.
         if _budget_exhausted[0]:
+            if mode == ScanMode.enrich:
+                recompute_season_episode_counts(conn)
             finished_at = int(time.time())
             stats: dict[str, int] = {
                 "files_visited": files_visited[0],
@@ -923,6 +926,8 @@ def scan(
             )
 
         # All disks processed — mark scan_run ok.
+        if mode == ScanMode.enrich:
+            recompute_season_episode_counts(conn)
         finished_at = int(time.time())
         # Persist final stats so post-mortem queries can recover counts without
         # replaying the log file.  Mirrors the budget-exhausted branch above

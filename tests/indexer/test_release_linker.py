@@ -25,6 +25,7 @@ from personalscraper.indexer.release_linker import (
     link_file_to_release,
     parse_episode_number,
     parse_season_dir,
+    recompute_season_episode_counts,
 )
 from personalscraper.indexer.repos import disk_repo, file_repo, item_repo
 from personalscraper.indexer.repos.item_repo import _ATTR_DISPATCH_PATH
@@ -405,3 +406,37 @@ def test_link_file_to_release_tv_no_episode_marker_falls_back(conn: sqlite3.Conn
 
     release_row = conn.execute("SELECT item_id, episode_id FROM media_release WHERE id = ?", (release_id,)).fetchone()
     assert release_row == (item_id, None)
+
+
+# ---------------------------------------------------------------------------
+# recompute_season_episode_counts
+# ---------------------------------------------------------------------------
+
+
+def test_recompute_season_episode_counts_resyncs_stale_counter(conn: sqlite3.Connection) -> None:
+    """``recompute_season_episode_counts`` resyncs the cached counter to actual episodes."""
+    item_id = _seed_show(conn, title="Show", dispatch_path="/x")
+    season_id = get_or_create_season(conn, item_id, 1)
+
+    # Seed three episodes — linker leaves season.episode_count at 0.
+    for ep in (1, 2, 3):
+        get_or_create_episode(conn, season_id, ep)
+
+    stale = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
+    assert stale[0] == 0
+
+    updated = recompute_season_episode_counts(conn)
+    assert updated == 1
+
+    fresh = conn.execute("SELECT episode_count FROM season WHERE id = ?", (season_id,)).fetchone()
+    assert fresh[0] == 3
+
+
+def test_recompute_season_episode_counts_idempotent(conn: sqlite3.Connection) -> None:
+    """Running the recompute twice returns 0 the second time."""
+    item_id = _seed_show(conn, title="Show", dispatch_path="/x")
+    season_id = get_or_create_season(conn, item_id, 1)
+    get_or_create_episode(conn, season_id, 1)
+
+    assert recompute_season_episode_counts(conn) == 1
+    assert recompute_season_episode_counts(conn) == 0

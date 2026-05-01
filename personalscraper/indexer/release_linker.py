@@ -214,6 +214,37 @@ def get_or_create_default_release(
     return int(cursor.lastrowid)  # type: ignore[arg-type]
 
 
+def recompute_season_episode_counts(conn: sqlite3.Connection) -> int:
+    """Refresh ``season.episode_count`` to match the actual episode rows.
+
+    The linker creates ``season`` rows with ``episode_count=0`` and inserts
+    ``episode`` rows lazily as files are enriched, so the stored counter
+    drifts during a pass. Call at the end of an enrich run to bring the
+    cached value back in sync.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        Number of season rows whose ``episode_count`` was updated.
+    """
+    cursor = conn.execute(
+        """
+        UPDATE season
+           SET episode_count = (
+               SELECT COUNT(*) FROM episode WHERE episode.season_id = season.id
+           )
+         WHERE episode_count != (
+               SELECT COUNT(*) FROM episode WHERE episode.season_id = season.id
+           )
+        """
+    )
+    updated = cursor.rowcount
+    if updated > 0:
+        log.info("indexer.release_linker.episode_count_recomputed", updated=updated)
+    return updated
+
+
 def link_file_to_release(conn: sqlite3.Connection, file_id: int, abs_path: str) -> int | None:
     """Link a ``media_file`` row to its ``media_release``.
 
