@@ -39,6 +39,7 @@ personalscraper library-status                               # Latest indexer sc
 personalscraper library-verify                               # Re-stat every indexed file; enqueue mismatches
 personalscraper library-verify --disk Disk1                  # Verify one disk
 personalscraper library-search "<query>"                     # Flex-attr query (e.g. nfo_status:invalid)
+personalscraper library-search "<query>" --limit 200         # Cap result count (default 50)
 personalscraper library-show <item_id>                       # Pretty-print all data for one item
 personalscraper library-repair                               # Drain repair queue (default budget)
 personalscraper library-repair --budget 120                  # Drain with explicit time budget (s)
