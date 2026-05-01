@@ -411,6 +411,249 @@ def _analyze_video_file(path: Path) -> MediaFileAnalysis | None:
     )
 
 
+def analyze_from_index(
+    conn: sqlite3.Connection,
+    disk_filter: str | None = None,
+    category_filter: str | None = None,
+    max_items: int | None = None,
+) -> LibraryAnalysisResult:
+    """Build a :class:`LibraryAnalysisResult` from the indexer DB without ffprobe.
+
+    Reads ``media_file`` size/path data and ``media_stream`` codec/audio/subtitle
+    rows that the enrich pass populated, and assembles the same
+    :class:`LibraryAnalysisItem` / :class:`MediaFileAnalysis` structure that
+    :func:`analyze_library` returns from filesystem ffprobe walks. Drop-in
+    replacement for the recommender, with caveats:
+
+    - HDR detection and HDR type are not stored in ``media_stream`` yet, so
+      ``VideoInfo.hdr`` is always ``False`` here.
+    - Dolby Atmos detection is approximated from codec + channel count
+      (``eac3`` with >= 8 channels) since ``is_atmos`` is not persisted.
+    - Subtitle ``format`` / ``forced`` / ``is_default`` flags are not stored;
+      conservative defaults (``"unknown"`` / ``False`` / ``False``) are used.
+    - ``AudioTrack.is_default`` defaults to ``False`` for the same reason.
+
+    Items lacking any ``media_stream`` rows (Stage A only, never enriched, or
+    enrich budget never reached them) are skipped — they would surface as
+    ``files=[]`` items which the recommender treats as no-op anyway.
+
+    Args:
+        conn: Open SQLite connection on the indexer DB.
+        disk_filter: Restrict to items on a specific disk (matches
+            ``item_attribute.dispatch_disk``).
+        category_filter: Restrict to a single ``media_item.category_id``.
+        max_items: Cap the number of items returned (in title order).
+
+    Returns:
+        :class:`LibraryAnalysisResult` populated from the index.
+    """
+    start = datetime.now(tz=timezone.utc).isoformat()
+    conn.row_factory = sqlite3.Row
+
+    item_query = """
+        SELECT mi.id, mi.kind, mi.title, mi.year, mi.category_id,
+               ia_disk.value AS disk_label,
+               ia_path.value AS dispatch_path
+        FROM media_item mi
+        LEFT JOIN item_attribute ia_disk
+               ON ia_disk.item_id = mi.id AND ia_disk.key = 'dispatch_disk'
+        LEFT JOIN item_attribute ia_path
+               ON ia_path.item_id = mi.id AND ia_path.key = 'dispatch_path'
+        ORDER BY mi.title_sort, mi.id
+    """
+    item_rows = conn.execute(item_query).fetchall()
+
+    items: list[LibraryAnalysisItem] = []
+    file_count = 0
+
+    for it in item_rows:
+        if disk_filter is not None and it["disk_label"] != disk_filter:
+            continue
+        if category_filter is not None and it["category_id"] != category_filter:
+            continue
+        if max_items is not None and len(items) >= max_items:
+            break
+
+        item_id: int = it["id"]
+        files_for_item = _collect_files_for_item(conn, item_id)
+        if not files_for_item:
+            continue
+
+        file_analyses: list[MediaFileAnalysis] = []
+        for f in files_for_item:
+            analysis = _file_analysis_from_index(conn, f)
+            if analysis is not None:
+                file_analyses.append(analysis)
+                file_count += 1
+
+        if not file_analyses:
+            continue
+
+        kind = it["kind"]
+        media_type = "tvshow" if kind == "show" else "movie"
+
+        items.append(
+            LibraryAnalysisItem(
+                path=str(it["dispatch_path"] or ""),
+                disk=str(it["disk_label"] or ""),
+                category=it["category_id"],
+                media_type=media_type,
+                title=it["title"],
+                year=it["year"],
+                files=file_analyses,
+            )
+        )
+
+    conn.row_factory = None
+
+    return LibraryAnalysisResult(
+        analyzed_at=start,
+        disk_filter=disk_filter,
+        category_filter=category_filter,
+        item_count=len(items),
+        file_count=file_count,
+        items=items,
+    )
+
+
+def _collect_files_for_item(conn: sqlite3.Connection, item_id: int) -> list[sqlite3.Row]:
+    """Return media_file rows reachable from ``item_id`` (movie release + episode releases).
+
+    Filters out non-video extensions and soft-deleted files. Each returned row
+    carries the absolute path of the file via the ``abs_path`` virtual column.
+
+    Args:
+        conn: Open SQLite connection (row_factory must already be set to Row).
+        item_id: PK of the owning ``media_item``.
+
+    Returns:
+        List of ``sqlite3.Row`` with columns ``id``, ``filename``, ``size_bytes``,
+        ``abs_path``.
+    """
+    rows = conn.execute(
+        """
+        SELECT mf.id            AS id,
+               mf.filename      AS filename,
+               mf.size_bytes    AS size_bytes,
+               (CASE WHEN p.rel_path = '.' THEN d.mount_path
+                     ELSE d.mount_path || '/' || p.rel_path
+                END) || '/' || mf.filename AS abs_path
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+          JOIN disk d ON d.id = p.disk_id
+          JOIN media_release mr ON mr.id = mf.release_id
+     LEFT JOIN episode e ON e.id = mr.episode_id
+     LEFT JOIN season s ON s.id = e.season_id
+         WHERE mf.deleted_at IS NULL
+           AND (mr.item_id = ? OR s.item_id = ?)
+        """,
+        (item_id, item_id),
+    ).fetchall()
+
+    filtered: list[sqlite3.Row] = []
+    for row in rows:
+        ext = Path(row["filename"]).suffix.lstrip(".").lower()
+        if ext in _VIDEO_EXTENSIONS:
+            filtered.append(row)
+    return filtered
+
+
+def _file_analysis_from_index(conn: sqlite3.Connection, file_row: sqlite3.Row) -> MediaFileAnalysis | None:
+    """Build a :class:`MediaFileAnalysis` from ``media_stream`` rows for ``file_row``.
+
+    Returns ``None`` when no streams have been extracted yet (file pending
+    enrich) or when the file has no video stream — both states are equivalent
+    to "nothing to analyse".
+
+    Args:
+        conn: Open SQLite connection.
+        file_row: ``media_file`` row from :func:`_collect_files_for_item`.
+
+    Returns:
+        :class:`MediaFileAnalysis` populated from the index, or ``None``.
+    """
+    stream_rows = conn.execute(
+        """
+        SELECT kind, codec, lang, channels, width, height, duration_ms, bitrate
+          FROM media_stream
+         WHERE file_id = ?
+         ORDER BY kind, idx
+        """,
+        (file_row["id"],),
+    ).fetchall()
+
+    if not stream_rows:
+        return None
+
+    video_row = next((s for s in stream_rows if s["kind"] == "video"), None)
+    if video_row is None:
+        return None
+
+    audio_rows = [s for s in stream_rows if s["kind"] == "audio"]
+    subtitle_rows = [s for s in stream_rows if s["kind"] == "subtitle"]
+
+    audio_tracks: list[AudioTrack] = []
+    for a in audio_rows:
+        codec = a["codec"] or ""
+        channels = a["channels"] or 2
+        # Conservative Atmos approximation: pymediainfo reports E-AC-3 + 8 ch
+        # for Atmos-encoded tracks. False negatives possible (TrueHD-Atmos);
+        # follow-up will persist a real ``is_atmos`` column.
+        is_atmos = codec.lower() in {"eac3", "e-ac-3", "ac-3+"} and channels >= 8
+        audio_tracks.append(
+            AudioTrack(
+                codec=codec,
+                language=a["lang"] or "und",
+                channels=channels,
+                is_atmos=is_atmos,
+                is_default=False,
+            )
+        )
+
+    subtitle_tracks: list[SubtitleTrack] = []
+    for s in subtitle_rows:
+        subtitle_tracks.append(
+            SubtitleTrack(
+                language=s["lang"] or "und",
+                format="unknown",
+                forced=False,
+                is_default=False,
+            )
+        )
+
+    raw_audio = [{"language": t.language} for t in audio_tracks]
+    raw_subs = [{"language": t.language} for t in subtitle_tracks]
+    audio_profile = deduce_audio_profile(raw_audio, raw_subs)
+
+    duration_seconds: float | None = None
+    if video_row["duration_ms"]:
+        duration_seconds = float(video_row["duration_ms"]) / 1000.0
+
+    bitrate_bps = video_row["bitrate"]
+    bitrate_kbps = (bitrate_bps // 1000) if bitrate_bps else None
+
+    size_gb = round((file_row["size_bytes"] or 0) / (1024**3), 3)
+
+    return MediaFileAnalysis(
+        path=str(file_row["abs_path"]),
+        size_gb=size_gb,
+        duration_seconds=duration_seconds,
+        video=VideoInfo(
+            codec=video_row["codec"] or "",
+            width=video_row["width"] or 0,
+            height=video_row["height"] or 0,
+            bitrate_kbps=bitrate_kbps,
+            hdr=False,
+            hdr_type=None,
+        ),
+        audio_tracks=audio_tracks,
+        subtitle_tracks=subtitle_tracks,
+        audio_profile=audio_profile,
+        subtitle_languages=sorted({t.language for t in subtitle_tracks}),
+        analyzed_at=datetime.now(tz=timezone.utc).isoformat(),
+    )
+
+
 def analyze_library(
     config: Config,
     disk_filter: str | None = None,

@@ -10,6 +10,8 @@ from ``config.category(id).folder_name``. TV detection uses ``TV_CATEGORY_IDS``.
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -112,6 +114,131 @@ def _fix_ntfs_names(media_dir: Path, dry_run: bool) -> list[str]:
     except OSError as exc:
         log.warning("library_validate_ntfs_list_error", media_dir=str(media_dir), exc_info=True, error=str(exc))
     return fixes
+
+
+def validate_from_index(
+    conn: sqlite3.Connection,
+    disk_filter: str | None = None,
+    category_filter: str | None = None,
+) -> LibraryValidationResult:
+    """Cheap validate path that reads NFO + artwork status from the indexer DB.
+
+    Skips every filesystem walk: each ``media_item`` row already carries
+    ``nfo_status`` (from the enrich pass NFO presence check) and
+    ``artwork_json`` (from the enrich pass artwork inventory). This mode
+    surfaces missing / invalid NFO and missing poster + landscape, and
+    nothing else.
+
+    Trade-offs vs :func:`validate_library` (the FS-direct path):
+
+    - **Misses structural issues** — ``no_empty_dirs``, ``ntfs_safe_names``,
+      ``dir_naming``, ``video_present``, ``not_sample``, ``streamdetails``,
+      ``season_structure``, ``season_posters`` checks all need the actual
+      filesystem and are not run here.
+    - **Stale data risk** — if files moved on disk since the last enrich
+      pass, the index still reports the old state. Run
+      ``library-index --mode enrich`` first to refresh.
+    - **No ``--fix`` support** — fixes act on the filesystem; a fast
+      pre-screen has no business mutating disks.
+
+    Use as a quick health check between full validates, or to drive
+    follow-up scoping for ``library-rescrape``.
+
+    Args:
+        conn: Open SQLite connection on the indexer DB.
+        disk_filter: Restrict to items on a specific disk (matches
+            ``item_attribute.dispatch_disk``).
+        category_filter: Restrict to a single ``media_item.category_id``.
+
+    Returns:
+        :class:`LibraryValidationResult` populated from the index.
+    """
+    start = datetime.now(tz=timezone.utc).isoformat()
+    conn.row_factory = sqlite3.Row
+
+    rows = conn.execute(
+        """
+        SELECT mi.id, mi.kind, mi.title, mi.year, mi.category_id,
+               mi.nfo_status, mi.artwork_json,
+               ia_disk.value AS disk_label,
+               ia_path.value AS dispatch_path
+          FROM media_item mi
+     LEFT JOIN item_attribute ia_disk
+            ON ia_disk.item_id = mi.id AND ia_disk.key = 'dispatch_disk'
+     LEFT JOIN item_attribute ia_path
+            ON ia_path.item_id = mi.id AND ia_path.key = 'dispatch_path'
+      ORDER BY mi.title_sort, mi.id
+        """
+    ).fetchall()
+
+    items: list[ValidationItem] = []
+    valid_count = 0
+    issues_count = 0
+
+    for row in rows:
+        if disk_filter is not None and row["disk_label"] != disk_filter:
+            continue
+        if category_filter is not None and row["category_id"] != category_filter:
+            continue
+
+        media_type = "tvshow" if row["kind"] == "show" else "movie"
+
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        nfo_status = row["nfo_status"]
+        if nfo_status == "missing":
+            errors.append("nfo_present")
+        elif nfo_status == "invalid":
+            errors.append("nfo_valid")
+        # nfo_status=='valid' or NULL (item never enriched) → no NFO finding;
+        # NULL is not flagged because we cannot distinguish "not yet enriched"
+        # from "no NFO" without re-walking the filesystem.
+
+        artwork_raw = row["artwork_json"]
+        if artwork_raw:
+            try:
+                artwork = json.loads(artwork_raw)
+            except (TypeError, ValueError):
+                artwork = {}
+            if not artwork.get("poster"):
+                errors.append("poster_present")
+            if media_type == "movie" and not artwork.get("landscape"):
+                warnings.append("artwork_landscape")
+
+        if errors or warnings:
+            status = "issues"
+            issues_count += 1
+        else:
+            status = "valid"
+            valid_count += 1
+
+        items.append(
+            ValidationItem(
+                path=str(row["dispatch_path"] or ""),
+                disk=str(row["disk_label"] or ""),
+                category=row["category_id"],
+                media_type=media_type,
+                title=row["title"],
+                year=row["year"],
+                status=status,
+                errors=errors,
+                warnings=warnings,
+            )
+        )
+
+    conn.row_factory = None
+
+    return LibraryValidationResult(
+        validated_at=start,
+        disk_filter=disk_filter,
+        category_filter=category_filter,
+        total_items=len(items),
+        valid_count=valid_count,
+        fixed_count=0,
+        issues_count=issues_count,
+        items=items,
+    )
 
 
 def validate_library(

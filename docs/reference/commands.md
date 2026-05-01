@@ -49,10 +49,13 @@ personalscraper library-scan --disk Disk1                    # Single disk
 personalscraper library-clean                                # Dry-run: show what would be cleaned
 personalscraper library-clean --apply                        # Delete .actors/, empty dirs, junk
 personalscraper library-clean --only actors --apply          # Only .actors/ dirs
-personalscraper library-validate                             # Validate NFO/artwork/naming conformity
+personalscraper library-validate                             # Validate NFO/artwork/naming conformity (FS walk)
+personalscraper library-validate --from-index                # Fast pre-screen from indexer DB (NFO + poster/landscape only, no structural checks)
 personalscraper library-validate --fix --apply               # Auto-fix what's possible
 personalscraper library-analyze                              # Deep ffprobe scan (codec, audio, subs)
-personalscraper library-recommend                            # Run analysis inline + generate re-download list
+personalscraper library-analyze --from-index                 # Read streams from indexer DB instead of ffprobe (much faster, HDR/Atmos approximated)
+personalscraper library-recommend                            # Run ffprobe analysis inline + generate re-download list
+personalscraper library-recommend --from-index               # Use indexer DB streams instead of ffprobe
 personalscraper library-recommend --export csv               # Export to CSV
 personalscraper library-rescrape --dry-run                   # Preview targeted re-scraping
 personalscraper library-rescrape --only artwork              # Only re-download missing artwork

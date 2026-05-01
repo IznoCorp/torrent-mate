@@ -917,23 +917,41 @@ def library_validate(
     category: str = typer.Option(None, "--category", help="Validate only this category"),
     fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
     apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read NFO + artwork status from the indexer DB instead of walking "
+            "the filesystem. Skips structural checks (empty dirs, NTFS chars, "
+            "dir naming) and does not support --fix. See validate_from_index "
+            "docstring for the full trade-off list."
+        ),
+    ),
 ) -> None:
     """Validate NFO, artwork, naming conformity of library items.
 
     Checks each media item on storage disks against quality rules.
     Use --fix --apply to attempt automatic corrections.
+    Use --from-index for a fast pre-screen that reads NFO + artwork status
+    from the indexer DB (NFO presence + poster/landscape only; no structural
+    checks; no --fix support).
 
     Examples:
         personalscraper library-validate
         personalscraper library-validate --disk Disk1
         personalscraper library-validate --fix --apply
+        personalscraper library-validate --from-index
     """
     from personalscraper.library.models import write_json
-    from personalscraper.library.validator import validate_library
+    from personalscraper.library.validator import validate_from_index, validate_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
+
+    if from_index and (fix or apply):
+        console.print("[red]--from-index does not support --fix / --apply[/red]")
+        raise typer.Exit(1)
 
     if apply and not fix:
         console.print("[red]--apply requires --fix[/red]")
@@ -945,14 +963,34 @@ def library_validate(
             raise typer.Exit(1)
 
     try:
-        console.print("[bold]Validating library...[/bold]")
-        result = validate_library(
-            config,
-            disk_filter=disk,
-            category_filter=category_id,
-            fix=fix,
-            apply=apply,
-        )
+        if from_index:
+            console.print("[bold]Validating library (from index)...[/bold]")
+            import sqlite3  # noqa: PLC0415
+
+            from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+            from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+            db_path = config.indexer.db_path
+            migrations_dir = Path(_migrations_pkg.__file__).parent
+            conn: sqlite3.Connection = open_db(db_path)
+            apply_migrations(conn, migrations_dir)
+            try:
+                result = validate_from_index(
+                    conn,
+                    disk_filter=disk,
+                    category_filter=category_id,
+                )
+            finally:
+                conn.close()
+        else:
+            console.print("[bold]Validating library...[/bold]")
+            result = validate_library(
+                config,
+                disk_filter=disk,
+                category_filter=category_id,
+                fix=fix,
+                apply=apply,
+            )
 
         output_path = config.paths.data_dir / "library_validation.json"
         write_json(result, output_path)
@@ -981,10 +1019,21 @@ def library_analyze(
     disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
     category: str = typer.Option(None, "--category", help="Analyze only this category"),
     max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read codec / audio / subtitle data from the indexer DB instead of "
+            "running ffprobe per file. Requires a prior `library-index --mode enrich` "
+            "pass; HDR / Atmos detection is approximated (see analyze_from_index docstring)."
+        ),
+    ),
 ) -> None:
     """Deep scan video files with ffprobe (codec, audio, subtitles) and print a summary.
 
-    Most I/O-intensive command — schedule during off-peak hours.
+    Most I/O-intensive command — schedule during off-peak hours. Use
+    ``--from-index`` to read enrich-populated streams from the DB instead
+    (orders of magnitude faster, with the documented HDR / Atmos caveats).
 
     The result set is **not persisted to disk** (the legacy
     ``library_analysis.json`` cache was removed when the indexer DB became
@@ -996,20 +1045,42 @@ def library_analyze(
         personalscraper library-analyze
         personalscraper library-analyze --disk <disk_id> --category series
         personalscraper library-analyze --max-items 50
+        personalscraper library-analyze --from-index
     """
-    from personalscraper.library.analyzer import analyze_library
+    from personalscraper.library.analyzer import analyze_from_index, analyze_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
 
-    console.print("[bold]Analyzing library (ffprobe)...[/bold]")
-    result = analyze_library(
-        config,
-        disk_filter=disk,
-        category_filter=category_id,
-        max_items=max_items,
-    )
+    if from_index:
+        console.print("[bold]Analyzing library (from index)...[/bold]")
+        import sqlite3  # noqa: PLC0415
+
+        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+        from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+        db_path = config.indexer.db_path
+        migrations_dir = Path(_migrations_pkg.__file__).parent
+        conn: sqlite3.Connection = open_db(db_path)
+        apply_migrations(conn, migrations_dir)
+        try:
+            result = analyze_from_index(
+                conn,
+                disk_filter=disk,
+                category_filter=category_id,
+                max_items=max_items,
+            )
+        finally:
+            conn.close()
+    else:
+        console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+        result = analyze_library(
+            config,
+            disk_filter=disk,
+            category_filter=category_id,
+            max_items=max_items,
+        )
 
     # Aggregate codec / audio profile distributions for the summary.
     codec_counts: dict[str, int] = {}
@@ -1038,21 +1109,33 @@ def library_recommend(
     export: str = typer.Option(None, "--export", help="Export format: csv"),
     disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
     category: str = typer.Option(None, "--category", help="Filter to this category"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read codec / audio / subtitle data from the indexer DB instead of "
+            "running ffprobe per file. Requires a prior `library-index --mode enrich` "
+            "pass."
+        ),
+    ),
 ) -> None:
     """Generate re-download recommendations from a fresh ffprobe analysis.
 
     Runs the ffprobe analysis inline (no on-disk cache) and feeds the
     in-memory result to the recommender.  Preferences come from
     ``config.library``.  Output is written to ``library_recommendations.json``.
+    Pass ``--from-index`` to skip ffprobe and read streams from the indexer
+    DB instead (orders of magnitude faster on a populated index).
 
     Examples:
         personalscraper library-recommend
         personalscraper library-recommend --sort size
         personalscraper library-recommend --export csv
+        personalscraper library-recommend --from-index
     """
     import csv
 
-    from personalscraper.library.analyzer import analyze_library
+    from personalscraper.library.analyzer import analyze_from_index, analyze_library
     from personalscraper.library.models import write_json
     from personalscraper.library.recommender import generate_recommendations
 
@@ -1067,15 +1150,35 @@ def library_recommend(
         console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
         raise typer.Exit(1)
 
-    # Run analysis inline — no on-disk cache.  The legacy
-    # library_analysis.json was removed when the indexer DB became the
-    # single source of truth (DESIGN §10.2).
-    console.print("[bold]Analyzing library (ffprobe)...[/bold]")
-    analysis = analyze_library(
-        config,
-        disk_filter=disk,
-        category_filter=category_id,
-    )
+    if from_index:
+        console.print("[bold]Analyzing library (from index)...[/bold]")
+        import sqlite3  # noqa: PLC0415
+
+        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+        from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+        db_path = config.indexer.db_path
+        migrations_dir = Path(_migrations_pkg.__file__).parent
+        conn: sqlite3.Connection = open_db(db_path)
+        apply_migrations(conn, migrations_dir)
+        try:
+            analysis = analyze_from_index(
+                conn,
+                disk_filter=disk,
+                category_filter=category_id,
+            )
+        finally:
+            conn.close()
+    else:
+        # Run analysis inline — no on-disk cache.  The legacy
+        # library_analysis.json was removed when the indexer DB became the
+        # single source of truth (DESIGN §10.2).
+        console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+        analysis = analyze_library(
+            config,
+            disk_filter=disk,
+            category_filter=category_id,
+        )
 
     # Use preferences from config.library (no separate file).
     prefs = config.library
