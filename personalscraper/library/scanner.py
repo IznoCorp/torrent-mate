@@ -449,8 +449,11 @@ def _upsert_media_item(
     Returns:
         PK of the inserted or updated ``media_item`` row.
     """
+    import unicodedata  # noqa: PLC0415
+
     from personalscraper.indexer.repos.item_repo import (  # noqa: PLC0415
         _ATTR_DISPATCH_DISK,
+        _ATTR_DISPATCH_NORM_TITLE,
         _ATTR_DISPATCH_PATH,
     )
     from personalscraper.indexer.schema import ItemAttributeRow  # noqa: PLC0415
@@ -486,13 +489,20 @@ def _upsert_media_item(
     )
     item_id = _item_repo.upsert(conn, row)
 
-    # Persist the on-disk path + disk ID as flex attributes so trailers and
-    # release_linker can locate the media directory.  Without these, items
-    # created by the library scanner (no dispatch event) are invisible to
-    # those consumers.
+    # Persist dispatch flex attributes so trailers, release_linker, and the
+    # dispatch index rebuild can locate the media directory and look it up by
+    # normalized title.  Without ``dispatch_normalized_title`` items inserted
+    # by this scanner are invisible to ``find_by_normalized_title`` /
+    # ``list_all_dispatch_items`` (both INNER JOIN on that key), which would
+    # silently break the trailers cross-disk index after a clean DB rebuild.
+    # Normalization mirrors ``dispatch.media_index._normalize_key``: NFC,
+    # lowercase, stripped — APFS / macFUSE-NTFS may otherwise differ on
+    # decomposed accents.
+    norm_title = unicodedata.normalize("NFC", scan_item.title).lower().strip()
     for key, value in (
         (_ATTR_DISPATCH_PATH, scan_item.path),
         (_ATTR_DISPATCH_DISK, scan_item.disk),
+        (_ATTR_DISPATCH_NORM_TITLE, norm_title),
     ):
         _item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=key, value=value))
 
