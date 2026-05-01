@@ -98,9 +98,13 @@ accommodate per-op extensions. The common envelope fields are:
   "source_path": "/Volumes/Disk1/medias/films/Inception (2010)/poster.jpg",
   "dest_path": null,
   "item_id": 42,
-  "artwork_type": "poster"
+  "kind": "poster"
 }
 ```
+
+The `kind` field is whitelisted by `_ALLOWED_ARTWORK_KINDS` in
+`personalscraper/indexer/outbox.py` (DESIGN §9.6 defensive depth);
+unknown values raise `OutboxPayloadError` before any DB UPDATE.
 
 ### `op: "trailer_download"`
 
