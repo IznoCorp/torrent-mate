@@ -54,9 +54,12 @@ class DiskConfig(_StrictModel):
         id: Free-form disk identifier (must match ``^[a-z][a-z0-9_]*$``).
         path: Absolute mounted path.
         categories: Category IDs accepted on this disk.
-        spotlight_enabled: Whether Spotlight indexing is enabled on this disk.
-            Defaults to False. User must opt in after running ``mdutil -i on``
-            on the volume; macFUSE-NTFS volumes are never Spotlight-indexable.
+        spotlight_enabled: **Reserved.** Documented as a per-disk
+            Spotlight opt-in, but ``indexer/scanner/__init__.py:517``
+            passes the *global* ``cfg.indexer.spotlight.use_when_available``
+            flag to ``try_attach`` for every disk — the per-disk field
+            is never read. Use ``indexer.spotlight.use_when_available``
+            globally; setting this per-disk has no effect today.
     """
 
     id: str = Field(
@@ -69,10 +72,7 @@ class DiskConfig(_StrictModel):
     categories: Annotated[list[str], Field(min_length=1)] = Field(..., description="IDs acceptés sur ce disque.")
     spotlight_enabled: bool = Field(
         default=False,
-        description=(
-            "Whether Spotlight indexing is enabled on this disk. "
-            "Opt in after `mdutil -i on`. macFUSE-NTFS volumes are never Spotlight-indexable."
-        ),
+        description="Reserved (global indexer.spotlight.use_when_available used per-disk today).",
     )
 
 
