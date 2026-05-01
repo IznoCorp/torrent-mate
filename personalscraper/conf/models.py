@@ -637,15 +637,25 @@ class TrailersYtdlpConfig(_StrictModel):
 
     Attributes:
         format: yt-dlp format selector string. Capped at 1080p.
-        socket_timeout_sec: Socket timeout in seconds.
+            **Consumed.**
+        socket_timeout_sec: Socket timeout in seconds.  **Consumed.**
         retries: Number of download retries on transient error.
-        default_search: yt-dlp search prefix used when YOUTUBE_API_KEY is absent or quota is exhausted.
+            **Consumed.**
+        default_search: **Reserved.** Documented as the yt-dlp search
+            prefix used when YOUTUBE_API_KEY is absent or quota is
+            exhausted, but ``personalscraper/scraper/youtube_search.py``
+            hardcodes ``"default_search": "ytsearch1"`` in the opts dict
+            — this config field is never read.
     """
 
     format: str = Field(default="bestvideo[height<=1080]+bestaudio/best[height<=1080]", min_length=1)
     socket_timeout_sec: int = Field(default=30, gt=0)
     retries: int = Field(default=3, ge=0)
-    default_search: str = Field(default="ytsearch1", min_length=1)
+    default_search: str = Field(
+        default="ytsearch1",
+        min_length=1,
+        description="Reserved (youtube_search.py hardcodes 'ytsearch1').",
+    )
 
 
 class TrailersPlacementConfig(_StrictModel):
@@ -704,14 +714,30 @@ class TrailersSeasonsConfig(_StrictModel):
     Default off: most shows lack TMDB season-level trailers.
 
     Attributes:
-        enabled: Master switch. Default False.
-        language_fallback: Override language order for TMDB season videos. None reuses TrailersConfig.languages.
-        search_query_format: YouTube fallback query template. Placeholders: {title}, {year}, {season}.
+        enabled: Master switch. **Consumed** by ``trailers/cli.py`` and
+            ``trailers/orchestrator.py:141``.
+        language_fallback: **Reserved.** Documented as a per-season
+            override of the TMDB language list, but no production code
+            path reads it — tests set it on a Config instance for
+            forward-compat, never check it back. Setting a value has no
+            runtime effect today.
+        search_query_format: **Reserved.** Documented as the YouTube
+            fallback query template for season-level trailers, but no
+            production code path reads it. The actual query format used
+            by ``YoutubeSearch`` comes from ``config.trailers.search_query_format``
+            (the show-level field), not this season-specific override.
     """
 
     enabled: bool = False
-    language_fallback: list[str] | None = None
-    search_query_format: str = Field(default="{title} {year} saison {season} bande annonce", min_length=1)
+    language_fallback: list[str] | None = Field(
+        default=None,
+        description="Reserved (no production code path reads this field).",
+    )
+    search_query_format: str = Field(
+        default="{title} {year} saison {season} bande annonce",
+        min_length=1,
+        description="Reserved (no production code path reads this field).",
+    )
 
 
 class TrailersStepConfig(_StrictModel):
@@ -781,7 +807,11 @@ class TrailersConfig(_StrictModel):
         list[Annotated[int, Field(ge=0)]],
         Field(min_length=1),
     ] = Field(default_factory=lambda: [1, 7, 30])
-    bot_detected_max_consecutive_attempts: int = Field(default=5, ge=1)
+    bot_detected_max_consecutive_attempts: int = Field(
+        default=5,
+        ge=1,
+        description="Reserved (no production code path reads this field today).",
+    )
     # library_scan_max_age_hours removed in sub-phase 7.6 — trailers/scanner.py
     # now queries the indexer DB directly instead of relying on a TTL-cached JSON scan.
     circuit_breakers: TrailersCircuitBreakersConfig = Field(default_factory=TrailersCircuitBreakersConfig)
