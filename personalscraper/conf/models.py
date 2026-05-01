@@ -994,16 +994,20 @@ class IndexerLogConfig(_StrictModel):
     """Retention policy for indexer audit tables.
 
     Attributes:
-        scan_event_retention_days: How many days to keep rows in the
-            ``scan_event`` table before pruning.
+        scan_event_retention_days: **Reserved.** No code path currently
+            prunes the ``scan_event`` table — this knob is declared for
+            forward compatibility but has no runtime effect today. The
+            ``scan_event`` table grows monotonically; manual ``DELETE``
+            is the only available cleanup until the prune worker lands.
         deleted_item_retention_days: How many days to keep ``deleted_item``
             tombstone rows before hard-purge by ``purge_old_tombstones``.
+            **This field IS consumed** by ``library-repair``.
     """
 
     scan_event_retention_days: int = Field(
         default=90,
         gt=0,
-        description="Days to retain scan_event rows.",
+        description="Reserved (no scan_event prune worker exists yet).",
     )
     deleted_item_retention_days: int = Field(
         default=365,
