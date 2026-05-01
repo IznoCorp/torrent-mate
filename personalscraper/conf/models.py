@@ -894,32 +894,51 @@ class IndexerFingerprintConfig(_StrictModel):
 class IndexerMediainfoConfig(_StrictModel):
     """libmediainfo extraction tunables for the media indexer.
 
+    Every field in this class is currently **reserved**: the runtime
+    instantiates :class:`MediaInfoWrapper` with hardcoded values
+    (``min_size_mb=0`` and ``parse_speed=0.5/1.0`` chosen from
+    ``quick_enrich``) — none of these config fields are read.
+
     Attributes:
-        library_path: Absolute path to libmediainfo.dylib/so. ``None`` = auto-detect
-            via Homebrew prefix.
-        extract_streams: Extract per-stream codec/audio/subtitle metadata.
-        min_size_mb: Skip mediainfo on files smaller than this threshold (MB).
-            Avoids slow FFI calls on tiny sidecar files.
-        parse_speed: libmediainfo parse speed flag. 0.5 = fast, 1.0 = full.
-        defer_to_enrich: Skip mediainfo entirely during cold/quick/incremental
-            scans; only run during the ``enrich`` pass.
+        library_path: **Reserved.** ``MediaInfoWrapper`` relies on
+            pymediainfo's auto-detection; setting a custom path has no
+            effect.
+        extract_streams: **Reserved.** ``MediaInfoWrapper.extract_streams``
+            is called unconditionally during enrich; toggling this field
+            does not skip the per-stream extraction.
+        min_size_mb: **Reserved.** The runtime instantiates
+            ``MediaInfoWrapper(min_size_mb=0, …)`` so every file is
+            parsed regardless of this config value.
+        parse_speed: **Reserved.** The actual ``parse_speed`` is
+            ``0.5`` for quick-enrich and ``1.0`` otherwise — derived
+            from runtime mode, not from this field.
+        defer_to_enrich: **Reserved.** Mediainfo always runs in the
+            ``enrich`` pass and never in cold/quick/incremental scans;
+            this is hardcoded at the call site, not gated by config.
     """
 
     library_path: str | None = Field(
         default=None,
-        description="Absolute path to libmediainfo. None = auto-detect via brew.",
+        description="Reserved (pymediainfo auto-detection always used today).",
     )
-    extract_streams: bool = Field(default=True, description="Extract per-stream codec/audio/subtitle metadata.")
-    min_size_mb: int = Field(default=50, ge=0, description="Skip mediainfo on files smaller than this MB threshold.")
+    extract_streams: bool = Field(
+        default=True,
+        description="Reserved (per-stream extraction is unconditional).",
+    )
+    min_size_mb: int = Field(
+        default=50,
+        ge=0,
+        description="Reserved (runtime hardcodes min_size_mb=0).",
+    )
     parse_speed: float = Field(
         default=1.0,
         gt=0.0,
         le=1.0,
-        description="libmediainfo parse speed (0.5=fast, 1.0=full).",
+        description="Reserved (runtime derives 0.5/1.0 from quick-enrich mode).",
     )
     defer_to_enrich: bool = Field(
         default=True,
-        description="Skip mediainfo during cold/quick/incremental scans; run only on enrich pass.",
+        description="Reserved (defer-to-enrich is the unconditional behaviour today).",
     )
 
 
