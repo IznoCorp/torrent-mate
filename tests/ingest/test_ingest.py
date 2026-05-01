@@ -63,6 +63,7 @@ class TestIsOrphanTrackerEntry:
         # consumed never created — sort moved it out of ingest_staging
         assert _is_orphan_tracker_entry({"dest_path": str(consumed)}, ingest_dir) is False
 
+
 # ---------------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------------
