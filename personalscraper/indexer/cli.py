@@ -562,6 +562,7 @@ def library_index_command(
 def library_verify_command(
     *,
     disk: str | None = None,
+    budget_seconds: float | None = None,
     config_path: Path | None = None,
 ) -> int:
     """Re-stat every indexed file and escalate mismatches to the repair queue.
@@ -572,6 +573,10 @@ def library_verify_command(
 
     Args:
         disk: Optional disk label to restrict verification to a single disk.
+        budget_seconds: Maximum wall-clock seconds for the verify pass. ``None``
+            means unlimited.  Per-file commit guarantees partial progress is
+            preserved when the budget is exhausted; the next invocation
+            resumes from rows whose ``last_verified_at`` is older than this run.
         config_path: Optional explicit path to config.json5 or config directory.
 
     Returns:
@@ -680,6 +685,7 @@ def library_verify_command(
                     generation=next_gen,
                     conn=conn,
                     disk_filter=disk,
+                    budget_seconds=budget_seconds,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
                 )

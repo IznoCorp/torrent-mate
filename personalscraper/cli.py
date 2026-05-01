@@ -730,6 +730,11 @@ def library_index(
 def library_verify(
     ctx: typer.Context,
     disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
+    budget: Optional[int] = typer.Option(
+        None,
+        "--budget",
+        help="Wall-clock budget in seconds; partial verifies are safe to resume.",
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Re-stat every indexed file and mark mismatches for repair.
@@ -739,14 +744,24 @@ def library_verify(
     queue — they are NOT soft-deleted.  Use this command to identify drift
     before deciding whether to accept or revert changes.
 
+    With ``--budget`` the verify pass exits cleanly when the wall-clock limit
+    is reached; the next invocation continues from where it stopped (every
+    file commits ``last_verified_at`` individually so partial progress is
+    preserved across runs).
+
     Examples:
         personalscraper library-verify
         personalscraper library-verify --disk Disk2
+        personalscraper library-verify --budget 300
     """
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_verify_command(disk=disk, config_path=effective_config)
+    rc = library_verify_command(
+        disk=disk,
+        budget_seconds=float(budget) if budget is not None else None,
+        config_path=effective_config,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 
