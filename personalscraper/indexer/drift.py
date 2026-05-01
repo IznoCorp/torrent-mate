@@ -495,33 +495,44 @@ def apply_soft_deletes(conn: sqlite3.Connection, disk_id: int, n_strikes_for_sof
     for row in candidates:
         file_id: int = row["id"]
 
-        # Mark the live row as soft-deleted.
-        conn.execute(
-            "UPDATE media_file SET deleted_at = ? WHERE id = ?",
-            (now_seconds, file_id),
-        )
+        # Per-row atomic transaction: the deleted_at SET and the
+        # tombstone INSERT must commit together or not at all so a
+        # crash mid-loop cannot leave a row marked deleted without a
+        # tombstone (audit gap) or vice versa.
+        conn.execute("SAVEPOINT soft_delete_row")
+        try:
+            # Mark the live row as soft-deleted.
+            conn.execute(
+                "UPDATE media_file SET deleted_at = ? WHERE id = ?",
+                (now_seconds, file_id),
+            )
 
-        # Build a JSON snapshot of the key fields for the tombstone.
-        snapshot_payload = json.dumps(
-            {
-                "id": file_id,
-                "path_id": row["path_id"],
-                "filename": row["filename"],
-                "oshash": row["oshash"],
-                "size_bytes": row["size_bytes"],
-                "mtime_ns": row["mtime_ns"],
-            }
-        )
+            # Build a JSON snapshot of the key fields for the tombstone.
+            snapshot_payload = json.dumps(
+                {
+                    "id": file_id,
+                    "path_id": row["path_id"],
+                    "filename": row["filename"],
+                    "oshash": row["oshash"],
+                    "size_bytes": row["size_bytes"],
+                    "mtime_ns": row["mtime_ns"],
+                }
+            )
 
-        tombstone = DeletedItemRow(
-            id=0,  # ignored on insert
-            kind="file",
-            original_id=file_id,
-            deleted_at=now_seconds,
-            reason="n_strikes",
-            payload_json=snapshot_payload,
-        )
-        log_repo.insert_deleted_item(conn, tombstone)
+            tombstone = DeletedItemRow(
+                id=0,  # ignored on insert
+                kind="file",
+                original_id=file_id,
+                deleted_at=now_seconds,
+                reason="n_strikes",
+                payload_json=snapshot_payload,
+            )
+            log_repo.insert_deleted_item(conn, tombstone)
+        except sqlite3.Error:
+            conn.execute("ROLLBACK TO soft_delete_row")
+            conn.execute("RELEASE soft_delete_row")
+            raise
+        conn.execute("RELEASE soft_delete_row")
 
         log.info(
             "indexer.drift.soft_delete",

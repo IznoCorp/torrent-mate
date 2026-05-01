@@ -897,12 +897,35 @@ def library_repair_command(
             return 1
 
         stats = drain(conn, budget_seconds=budget_seconds)
+
+        # Tombstone retention: purge deleted_item rows older than the
+        # configured retention window (DESIGN §8.x).  library-repair is
+        # the natural maintenance home for this — drift writes new rows
+        # whenever a soft-delete is finalised; without periodic purge
+        # the tombstone table grows monotonically.
+        from personalscraper.indexer.drift import purge_old_tombstones  # noqa: PLC0415
+
+        retention_days = int(cfg.indexer.log.deleted_item_retention_days)
+        try:
+            tombstones_purged = purge_old_tombstones(conn, retention_days=retention_days)
+            conn.commit()
+        except sqlite3.Error as exc:
+            log.warning(
+                "indexer.repair.tombstone_purge_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                retention_days=retention_days,
+            )
+            tombstones_purged = 0
+
         summary = {
             "processed": stats.processed,
             "succeeded": stats.succeeded,
             "failed": stats.failed,
             "budget_exhausted": stats.budget_exhausted,
             "pending_depth": stats.pending_depth,
+            "tombstones_purged": tombstones_purged,
+            "retention_days": retention_days,
         }
         typer.echo(json.dumps(summary))
         return 0

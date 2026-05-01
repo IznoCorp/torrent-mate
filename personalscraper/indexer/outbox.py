@@ -273,7 +273,12 @@ def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
         return
 
     now = int(time.time())
-    conn.execute(
+    # Primary path: resolve item via media_file → media_release.  Fallback
+    # path: resolve via item_attribute(key='dispatch_path') so files still
+    # in Stage A (release_id=NULL because enrich / release_linker has not
+    # run yet) are not silently dropped.  The fallback matches the
+    # absolute on-disk media directory: mount_path + parent(rel_path).
+    cursor = conn.execute(
         """
         UPDATE media_item SET
             nfo_status = 'valid',
@@ -282,14 +287,33 @@ def _apply_nfo_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
             date_modified = ?
         WHERE id IN (
             SELECT DISTINCT mr.item_id
-            FROM media_file mf
-            JOIN media_release mr ON mr.id = mf.release_id
-            WHERE mf.path_id = ?
+              FROM media_file mf
+              JOIN media_release mr ON mr.id = mf.release_id
+             WHERE mf.path_id = ?
+            UNION
+            SELECT mi.id
+              FROM media_item mi
+              JOIN item_attribute ia ON ia.item_id = mi.id AND ia.key = 'dispatch_path'
+              JOIN path p ON p.id = ?
+              JOIN disk d ON d.id = p.disk_id
+             WHERE ia.value = d.mount_path || CASE WHEN p.rel_path = '' THEN '' ELSE '/' || p.rel_path END
         )
         """,
-        (tmdb_id, imdb_id, now, path_id),
+        (tmdb_id, imdb_id, now, path_id, path_id),
     )
-    log.info("indexer.outbox.applied.nfo_write", disk_id=disk_id, rel_path=rel_path)
+    if cursor.rowcount == 0:
+        log.warning(
+            "indexer.outbox.nfo_write.no_item_matched",
+            disk_id=disk_id,
+            rel_path=rel_path,
+            path_id=path_id,
+        )
+    log.info(
+        "indexer.outbox.applied.nfo_write",
+        disk_id=disk_id,
+        rel_path=rel_path,
+        rows_updated=cursor.rowcount,
+    )
 
 
 def _apply_artwork_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
@@ -336,21 +360,44 @@ def _apply_artwork_write(conn: sqlite3.Connection, payload: dict[str, Any]) -> N
 
     now = int(time.time())
     # Use json_set on the artwork_json column; initialise to '{}' if NULL.
-    conn.execute(
+    # Same fallback semantics as _apply_nfo_write — Stage A files have
+    # release_id=NULL so we resolve via dispatch_path attribute too.
+    cursor = conn.execute(
         f"""
         UPDATE media_item SET
             artwork_json = json_set(COALESCE(artwork_json, '{{}}'), '$.{kind}', json('true')),
             date_modified = ?
         WHERE id IN (
             SELECT DISTINCT mr.item_id
-            FROM media_file mf
-            JOIN media_release mr ON mr.id = mf.release_id
-            WHERE mf.path_id = ?
+              FROM media_file mf
+              JOIN media_release mr ON mr.id = mf.release_id
+             WHERE mf.path_id = ?
+            UNION
+            SELECT mi.id
+              FROM media_item mi
+              JOIN item_attribute ia ON ia.item_id = mi.id AND ia.key = 'dispatch_path'
+              JOIN path p ON p.id = ?
+              JOIN disk d ON d.id = p.disk_id
+             WHERE ia.value = d.mount_path || CASE WHEN p.rel_path = '' THEN '' ELSE '/' || p.rel_path END
         )
         """,
-        (now, path_id),
+        (now, path_id, path_id),
     )
-    log.info("indexer.outbox.applied.artwork_write", disk_id=disk_id, rel_path=rel_path, kind=kind)
+    if cursor.rowcount == 0:
+        log.warning(
+            "indexer.outbox.artwork_write.no_item_matched",
+            disk_id=disk_id,
+            rel_path=rel_path,
+            kind=kind,
+            path_id=path_id,
+        )
+    log.info(
+        "indexer.outbox.applied.artwork_write",
+        disk_id=disk_id,
+        rel_path=rel_path,
+        kind=kind,
+        rows_updated=cursor.rowcount,
+    )
 
 
 def _apply_trailer_download(conn: sqlite3.Connection, payload: dict[str, Any]) -> None:
@@ -386,17 +433,26 @@ def _apply_trailer_download(conn: sqlite3.Connection, payload: dict[str, Any]) -
         )
         return
 
-    # Find item_id via path → media_file → media_release → media_item.
+    # Find item_id via path → media_file → media_release → media_item,
+    # with the same dispatch_path fallback used by nfo_write / artwork_write
+    # so Stage A files (release_id NULL) still resolve to their owning item.
     conn.row_factory = sqlite3.Row
     item_row = conn.execute(
         """
-        SELECT DISTINCT mr.item_id
-        FROM media_file mf
-        JOIN media_release mr ON mr.id = mf.release_id
-        WHERE mf.path_id = ?
+        SELECT DISTINCT mr.item_id AS item_id
+          FROM media_file mf
+          JOIN media_release mr ON mr.id = mf.release_id
+         WHERE mf.path_id = ?
+        UNION
+        SELECT mi.id AS item_id
+          FROM media_item mi
+          JOIN item_attribute ia ON ia.item_id = mi.id AND ia.key = 'dispatch_path'
+          JOIN path p ON p.id = ?
+          JOIN disk d ON d.id = p.disk_id
+         WHERE ia.value = d.mount_path || CASE WHEN p.rel_path = '' THEN '' ELSE '/' || p.rel_path END
         LIMIT 1
         """,
-        (path_id,),
+        (path_id, path_id),
     ).fetchone()
 
     if item_row is None:
