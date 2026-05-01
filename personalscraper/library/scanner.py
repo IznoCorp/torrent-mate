@@ -492,7 +492,7 @@ def _upsert_media_item(
     # Persist dispatch flex attributes so trailers, release_linker, and the
     # dispatch index rebuild can locate the media directory and look it up by
     # normalized title.  Without ``dispatch_normalized_title`` items inserted
-    # by this scanner are invisible to ``find_by_normalized_title`` /
+    # by this scanner are invisible to ``find_by_normalized_name`` /
     # ``list_all_dispatch_items`` (both INNER JOIN on that key), which would
     # silently break the trailers cross-disk index after a clean DB rebuild.
     # Normalization mirrors ``dispatch.media_index._normalize_key``: NFC,

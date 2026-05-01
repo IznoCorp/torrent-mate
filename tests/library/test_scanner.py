@@ -330,7 +330,7 @@ class TestScanLibraryPopulatesDB:
 
         This guarantees that downstream consumers — in particular
         ``trailers/scanner.py``, ``indexer/release_linker.py``, and the
-        ``find_by_normalized_title`` / ``list_all_dispatch_items`` queries
+        ``find_by_normalized_name`` / ``list_all_dispatch_items`` queries
         in ``indexer/repos/item_repo.py`` (both INNER JOIN on
         ``dispatch_normalized_title``) — can locate the on-disk media
         directory and the item itself for any item discovered by the
