@@ -362,6 +362,91 @@ class TestScanLibraryPopulatesDB:
         assert attrs.get("dispatch_path") == str(movie)
         assert attrs.get("dispatch_disk") == scanner_config.disks[0].id
 
+    def test_item_issue_rows_persisted_for_dirty_dir(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """A movie with .actors/ + junk file gets matching ``item_issue`` rows.
+
+        Without these rows the report layer cannot surface
+        directory-hygiene issues without re-walking the disks; the
+        previous library_scan.json path is gone, so the indexer is the
+        single source of truth.
+        """
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        movie = disk_a / "films" / "Dirty (2024)"
+        movie.mkdir()
+        (movie / "Dirty.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Dirty.nfo").write_text('<movie><uniqueid type="tmdb">1</uniqueid></movie>')
+        # Two real, different issue triggers per _detect_issues:
+        # .actors/ subdir → ISSUE_ACTORS_DIR; .DS_Store junk → ISSUE_JUNK_FILES.
+        (movie / ".actors").mkdir()
+        (movie / ".DS_Store").write_text("")
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn)
+
+        conn.row_factory = sqlite3.Row
+        item_row = conn.execute("SELECT id FROM media_item WHERE title = 'Dirty'").fetchone()
+        assert item_row is not None
+
+        issue_types = {
+            r["type"]
+            for r in conn.execute(
+                "SELECT type FROM item_issue WHERE item_id = ?",
+                (item_row["id"],),
+            ).fetchall()
+        }
+        assert ISSUE_ACTORS_DIR in issue_types
+        assert ISSUE_JUNK_FILES in issue_types
+
+    def test_item_issue_drops_resolved_issues_on_rescan(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
+        """Cleaning up an issue between scans removes the matching ``item_issue`` row."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        disk_a = scanner_config.disks[0].path
+        (disk_a / "films").mkdir(parents=True)
+        movie = disk_a / "films" / "Cleaned (2024)"
+        movie.mkdir()
+        (movie / "Cleaned.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Cleaned.nfo").write_text('<movie><uniqueid type="tmdb">2</uniqueid></movie>')
+        actors_dir = movie / ".actors"
+        actors_dir.mkdir()
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn)
+
+        conn.row_factory = sqlite3.Row
+        item_row = conn.execute("SELECT id FROM media_item WHERE title = 'Cleaned'").fetchone()
+        assert item_row is not None
+        item_id = item_row["id"]
+        before = {
+            r["type"]
+            for r in conn.execute(
+                "SELECT type FROM item_issue WHERE item_id = ?",
+                (item_id,),
+            ).fetchall()
+        }
+        assert ISSUE_ACTORS_DIR in before
+
+        # User cleaned up: .actors/ is removed, then re-scans.
+        actors_dir.rmdir()
+        with patch(_GUARD_PATCH, return_value=None):
+            scan_library(scanner_config, conn)
+
+        after = {
+            r["type"]
+            for r in conn.execute(
+                "SELECT type FROM item_issue WHERE item_id = ?",
+                (item_id,),
+            ).fetchall()
+        }
+        assert ISSUE_ACTORS_DIR not in after
+
     def test_consecutive_calls_increment_scan_generation(self, fs: "FakeFilesystem", scanner_config: Config) -> None:
         """Two consecutive scan_library calls produce strictly-increasing scan generations.
 

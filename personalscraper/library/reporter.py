@@ -8,9 +8,12 @@ library health report with clear explanations and suggested remediation commands
 The legacy ``library_scan.json`` and ``library_analysis.json`` files are no
 longer read — the DB-backed :class:`AnalysisResult` is the only source of
 totals, NFO / artwork metrics, disk distribution, and per-item size data
-(DESIGN §10.2).  Scan-issue data (``actors_dir``, ``junk_files``, etc.) is
-no longer reported because there is no indexer-resident equivalent yet;
-``library-clean`` continues to detect and act on these on demand.
+(DESIGN §10.2).  Scan-issue data (``actors_dir_present``, ``junk_files``,
+etc.) and ``actors_dir_count`` are persisted in the indexer's
+``item_issue`` table by ``library-scan`` and surfaced here via
+``AnalysisResult.scan_issues`` / ``actors_dir_count`` so the report can
+flag dirty directories without re-walking the disks.  ``library-clean``
+remains the user-driven action that resolves them.
 """
 
 from __future__ import annotations
@@ -185,6 +188,16 @@ def generate_report(
         report.nfo_valid_count = analysis_result.nfo.valid
         report.nfo_invalid_count = analysis_result.nfo.invalid + analysis_result.nfo.missing
         report.poster_missing_count = analysis_result.artwork.poster_missing
+
+        # Directory-hygiene issues are now persisted in ``item_issue`` and
+        # surfaced via ``AnalysisResult.scan_issues`` / ``actors_dir_count``.
+        # ``Counter.most_common()`` on a dict returns descending counts so
+        # the SCAN section in ``format_report_text`` lists the heaviest
+        # issue type first — same ordering the legacy library_scan.json
+        # path produced.
+        if analysis_result.scan_issues:
+            report.scan_issues = dict(Counter(analysis_result.scan_issues).most_common())
+        report.actors_dir_count = analysis_result.actors_dir_count
 
     # --- Disk free space (from live DiskStatus objects) ---
     if disk_statuses:

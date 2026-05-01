@@ -106,6 +106,13 @@ class AnalysisResult:
         items_per_category: Item count per ``category_id``.
         size_per_disk_gb: Total ``media_file`` bytes per disk, in GB.
         top_largest: Top 20 ``(title, size_gb)`` ordered by descending size.
+        scan_issues: Count of items per directory-hygiene issue type
+            (``actors_dir_present``, ``junk_files``, ``bad_dir_naming``,
+            ``release_group_artifact``, ``empty_subdir``, ``ntfs_unsafe_name``).
+            Populated by ``library-scan`` via the ``item_issue`` table.
+        actors_dir_count: Convenience accessor — items with at least one
+            ``.actors/`` directory.  Equivalent to
+            ``scan_issues.get('actors_dir_present', 0)``.
     """
 
     analyzed_at: str = ""
@@ -123,6 +130,8 @@ class AnalysisResult:
     items_per_category: dict[str, int] = field(default_factory=dict)
     size_per_disk_gb: dict[str, float] = field(default_factory=dict)
     top_largest: list[tuple[str, float]] = field(default_factory=list)
+    scan_issues: dict[str, int] = field(default_factory=dict)
+    actors_dir_count: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +279,15 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
     sorted_sizes = sorted(item_sizes.items(), key=lambda kv: -kv[1])
     result.top_largest = [(title, round(byte_count / bytes_to_gb, 1)) for title, byte_count in sorted_sizes[:20]]
 
+    # --- Directory-hygiene issue counts (sourced from item_issue) ----------
+    # The library scanner persists scan-detected issue tags into
+    # ``item_issue`` so the report layer can surface them without
+    # re-walking the disks.  Drop "ISSUE_" prefix-less raw types straight
+    # through — the reporter already maps issue keys to human strings.
+    rows = conn.execute("SELECT type, COUNT(*) FROM item_issue GROUP BY type").fetchall()
+    result.scan_issues = {row[0]: row[1] for row in rows}
+    result.actors_dir_count = result.scan_issues.get("actors_dir_present", 0)
+
     log.info(
         "library_analyze_complete",
         total=result.total_items,
@@ -278,6 +296,7 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
         poster_missing=result.artwork.poster_missing,
         seasons_missing_poster=result.seasons_missing_poster,
         total_size_gb=result.total_size_gb,
+        scan_issue_types=len(result.scan_issues),
     )
     return result
 
