@@ -361,14 +361,17 @@ class AudioPrefs(_StrictModel):
     """Préférences audio (reprend les champs de l'ancien AudioPreferences).
 
     Attributes:
-        profile_priority: Ordered preference for audio profiles.
-        min_channels: Minimum channel count (flags mono as suspect).
-        preferred_codec: Preferred audio codec (None = no preference).
+        profile_priority: Ordered preference for audio profiles. **Consumed**
+            by ``library/recommender.py`` to rank candidates.
+        min_channels: **Reserved.** Declared as "minimum channel count
+            (flags mono as suspect)" but no code path reads it today.
+        preferred_codec: **Reserved.** Declared but no code path reads it;
+            audio codec is not currently part of the recommender's scoring.
     """
 
     profile_priority: list[str] = Field(default_factory=lambda: ["multi", "vf", "vostfr", "vo"])
-    min_channels: int = Field(default=2, ge=1)
-    preferred_codec: str | None = Field(default=None)
+    min_channels: int = Field(default=2, ge=1, description="Reserved (not currently consumed).")
+    preferred_codec: str | None = Field(default=None, description="Reserved (not currently consumed).")
 
 
 class SubtitlePrefs(_StrictModel):
@@ -377,14 +380,22 @@ class SubtitlePrefs(_StrictModel):
     Language codes use ISO 639-2/T (fra, eng, jpn — NOT fre).
 
     Attributes:
-        required_languages: Languages that must be present (ERROR if missing).
-        preferred_languages: Languages that should be present (WARNING if missing).
-        warn_if_missing: Whether missing subtitles produce warnings.
+        required_languages: Languages that must be present.  **Consumed** by
+            ``library/recommender.py:124`` (flags missing required langs as
+            a recommendation reason).
+        preferred_languages: **Reserved.** The
+            ``preferred_languages_supersets_required`` validator rejects
+            configs where ``required`` ⊄ ``preferred``, but no runtime code
+            reads this field — preferred-language warnings are not emitted.
+        warn_if_missing: **Reserved.** Declared but no code path reads it.
     """
 
     required_languages: list[str] = Field(default_factory=lambda: ["fra"])
-    preferred_languages: list[str] = Field(default_factory=lambda: ["fra", "eng"])
-    warn_if_missing: bool = Field(default=True)
+    preferred_languages: list[str] = Field(
+        default_factory=lambda: ["fra", "eng"],
+        description="Reserved (validated as superset of required, but not consumed at runtime).",
+    )
+    warn_if_missing: bool = Field(default=True, description="Reserved (not currently consumed).")
 
     @model_validator(mode="after")
     def _required_subset_of_preferred(self) -> "SubtitlePrefs":
