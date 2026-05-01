@@ -261,7 +261,7 @@ def library_status_command(config_path: Path | None = None) -> int:
 
         # --- Health warnings ---
         unhealthy = False
-        if oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400 or pending_depth > 1000:
+        if (oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400) or pending_depth > 1000:
             typer.echo(
                 f"WARNING: repair queue: depth={pending_depth},"
                 f" oldest pending {(oldest_pending_age_seconds or 0) // 86400} days",
@@ -1065,6 +1065,7 @@ def library_repair_command(
                 error=str(exc),
                 error_type=type(exc).__name__,
                 retention_days=retention_days,
+                exc_info=True,
             )
             tombstones_purged = 0
 
