@@ -176,14 +176,13 @@ class TestChainReplayEquivalence:
     """
 
     def test_chain_replay_matches_v1_plus_002_fixture(self, tmp_path: Path) -> None:
-        """Path A (v1.sql + 002.sql via executescript) and Path B (apply_migrations) yield identical schemas.
+        """Path A (v1.sql + 002.sql + 003.sql via executescript) and Path B (apply_migrations) yield identical schemas.
 
-        Path A: load ``v1.sql`` then ``002_nullable_release_id_oshash.sql`` directly
-        into an in-memory DB via ``executescript``.
+        Path A: load ``v1.sql`` then every published migration script after
+        the v1 fixture directly into an in-memory DB via ``executescript``.
 
         Path B: open a fresh file-based DB, call ``apply_migrations`` to run
-        ``001_init.sql`` + ``002_nullable_release_id_oshash.sql`` through the
-        normal migration path.
+        every script in ``MIGRATIONS_DIR`` through the normal migration path.
 
         The resulting ``dump_schema()`` strings must be equal.  This guards
         against the case where someone edits a migration script without the other
@@ -191,12 +190,19 @@ class TestChainReplayEquivalence:
         corrupt the schema.
         """
         v1_sql = (FIXTURES_DIR / "v1.sql").read_text(encoding="utf-8")
-        v2_sql = (MIGRATIONS_DIR / "002_nullable_release_id_oshash.sql").read_text(encoding="utf-8")
+        # Apply every migration with version >= 2 in numeric order so the
+        # fixture-replay path mirrors the apply_migrations chain.  v1.sql is
+        # the canonical version-1 schema and stands in for 001_init.sql.
+        post_v1_scripts = sorted(
+            (p for p in MIGRATIONS_DIR.glob("*.sql") if p.name != "001_init.sql"),
+            key=lambda p: int(p.name.split("_", 1)[0]),
+        )
 
-        # Path A: direct executescript on in-memory DB (v1 fixture + 002 migration script).
+        # Path A: direct executescript on in-memory DB (v1 fixture + every later migration).
         db_a = sqlite3.connect(":memory:")
         db_a.executescript(v1_sql)
-        db_a.executescript(v2_sql)
+        for script in post_v1_scripts:
+            db_a.executescript(script.read_text(encoding="utf-8"))
 
         # Path B: apply_migrations on a fresh file-based DB.
         db_path_b = tmp_path / "b.db"
@@ -207,8 +213,8 @@ class TestChainReplayEquivalence:
         schema_b = dump_schema(db_b)
 
         assert schema_a == schema_b, (
-            "Schema mismatch between v1.sql+002.sql fixture and apply_migrations output.\n"
-            f"--- v1.sql+002.sql (Path A) ---\n{schema_a}\n"
+            "Schema mismatch between v1 fixture + post-v1 scripts and apply_migrations output.\n"
+            f"--- fixture-replay (Path A) ---\n{schema_a}\n"
             f"--- apply_migrations (Path B) ---\n{schema_b}"
         )
 

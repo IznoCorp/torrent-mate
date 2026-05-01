@@ -239,18 +239,31 @@ def get_pending_op_by_id(conn: sqlite3.Connection, id: int) -> PendingOpRow | No
 
 
 def insert_repair_queue(conn: sqlite3.Connection, row: RepairQueueRow) -> int:
-    """Insert a repair queue entry and return the assigned rowid.
+    """Insert a repair queue entry, deduplicating on ``(scope, scope_id)``.
+
+    Migration 003 added a partial UNIQUE index keyed on
+    ``(scope, scope_id) WHERE status='pending'`` so independent producers
+    (drift detection, library-verify, etc.) cannot accumulate multiple
+    pending rows targeting the same artefact.  ``INSERT OR IGNORE`` makes
+    the dedup invisible to callers — when an existing pending row already
+    covers the same target, the new call is a no-op and we return the
+    existing row's id so callers behave identically in both branches.
+
+    Terminal rows (``status='done'`` or ``status='failed'``) are *not*
+    covered by the unique index, so re-enqueuing after a repair has been
+    attempted continues to work correctly.
 
     Args:
         conn: Open SQLite connection.
         row: :class:`RepairQueueRow` to insert.  The ``id`` field is ignored.
 
     Returns:
-        The ``rowid`` (= ``id``) of the newly inserted row.
+        The ``rowid`` (= ``id``) of the newly inserted row, or the id of
+        the existing pending row that already covered the same target.
     """
     cursor = conn.execute(
         """
-        INSERT INTO repair_queue (
+        INSERT OR IGNORE INTO repair_queue (
             scope, scope_id, reason, payload_json,
             enqueued_at, status, attempted_at, attempts
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -266,7 +279,28 @@ def insert_repair_queue(conn: sqlite3.Connection, row: RepairQueueRow) -> int:
             row.attempts,
         ),
     )
-    rowid: int = cursor.lastrowid  # type: ignore[assignment]
+    rowid: int | None = cursor.lastrowid
+    if rowid is None or cursor.rowcount == 0:
+        # Existing pending row covered the same (scope, scope_id) — look up
+        # its rowid so the caller can correlate.  scope_id may be NULL.
+        if row.scope_id is None:
+            existing = conn.execute(
+                "SELECT id FROM repair_queue WHERE scope = ? AND scope_id IS NULL AND status = 'pending'",
+                (row.scope,),
+            ).fetchone()
+        else:
+            existing = conn.execute(
+                "SELECT id FROM repair_queue WHERE scope = ? AND scope_id = ? AND status = 'pending'",
+                (row.scope, row.scope_id),
+            ).fetchone()
+        rowid = int(existing[0]) if existing is not None else 0
+        log.debug(
+            "indexer.repair.enqueue_deduped",
+            scope=row.scope,
+            scope_id=row.scope_id,
+            existing_rowid=rowid,
+        )
+        return rowid
     log.info("indexer.repair.enqueued", scope=row.scope, scope_id=row.scope_id, reason=row.reason, rowid=rowid)
     return rowid
 

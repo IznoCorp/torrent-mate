@@ -72,9 +72,13 @@ def enqueue_repair(
         attempts=0,
     )
 
+    # Migration 003 added a partial UNIQUE index keyed on
+    # ``(scope, scope_id) WHERE status='pending'`` so that repeated drift
+    # events targeting the same artefact do not pile up redundant queue
+    # entries.  ``INSERT OR IGNORE`` makes the dedup invisible to callers.
     cursor = conn.execute(
         """
-        INSERT INTO repair_queue (
+        INSERT OR IGNORE INTO repair_queue (
             scope, scope_id, reason, payload_json,
             enqueued_at, status, attempted_at, attempts
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -90,7 +94,15 @@ def enqueue_repair(
             row.attempts,
         ),
     )
-    rowid: int = cursor.lastrowid  # type: ignore[assignment]
+    rowid: int | None = cursor.lastrowid
+    if rowid is None or cursor.rowcount == 0:
+        existing = conn.execute(
+            "SELECT id FROM repair_queue WHERE scope = ? AND scope_id = ? AND status = 'pending'",
+            (scope, scope_id),
+        ).fetchone()
+        rowid = int(existing[0]) if existing is not None else 0
+        log.debug("indexer.repair.enqueue_deduped", scope=scope, scope_id=scope_id, existing_rowid=rowid)
+        return rowid
     log.debug("indexer.repair.enqueued", scope=scope, scope_id=scope_id, reason=reason, rowid=rowid)
     return rowid
 
