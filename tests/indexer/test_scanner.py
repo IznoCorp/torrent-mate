@@ -1942,6 +1942,65 @@ class TestParallelScan:
             )
         # If no executor was created, the sequential path was used — also correct.
 
+    # ------------------------------------------------------------------
+    # Test 4: enrich mode pins to 1 worker (libmediainfo not thread-safe)
+    # ------------------------------------------------------------------
+
+    def test_enrich_mode_uses_one_worker(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """``ScanMode.enrich`` always uses one worker, regardless of max_workers.
+
+        ``libmediainfo`` (the C library backing pymediainfo) segfaults under
+        concurrent ``MediaInfo.parse()`` calls, so the scanner pins enrich
+        mode to a single worker even when the caller passes a higher value.
+        """
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+
+        db_file = tmp_path / "indexer_enrich.db"
+        conn = _make_conn_file(db_file)
+
+        # Two disks so the parallel path is otherwise eligible.
+        mount_a = str(tmp_path / "DiskA")
+        mount_b = str(tmp_path / "DiskB")
+        Path(mount_a).mkdir()
+        Path(mount_b).mkdir()
+        Path(f"{mount_a}/movie.mkv").write_bytes(b"M" * 200)
+        Path(f"{mount_b}/movie.mkv").write_bytes(b"M" * 200)
+
+        disk_a = _insert_disk_on_conn(conn, mount_a)
+        disk_b = _insert_disk_on_conn(conn, mount_b)
+
+        captured_max_workers: list[int] = []
+        real_tpe = _TPE
+
+        class _SpyTPE(real_tpe):  # type: ignore[misc]
+            def __init__(self, *args: object, max_workers: int | None = None, **kwargs: object) -> None:
+                captured_max_workers.append(max_workers if max_workers is not None else 1)
+                super().__init__(*args, max_workers=max_workers, **kwargs)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._concurrency.ThreadPoolExecutor",
+                _SpyTPE,
+            ):
+                result = scan(
+                    [disk_a, disk_b],
+                    ScanMode.enrich,
+                    generation=1,
+                    conn=conn,
+                    db_path=db_file,
+                    max_workers=4,  # caller wants 4; scanner must clamp to 1
+                )
+
+        assert result.status == "ok"
+        # Either sequential fallback (no executor) or executor with max_workers=1.
+        if captured_max_workers:
+            assert captured_max_workers[0] == 1, (
+                f"Expected max_workers=1 for enrich mode, got {captured_max_workers[0]}"
+            )
+
 
 # ---------------------------------------------------------------------------
 # Sub-phase 4.4 — Mount-flag detection

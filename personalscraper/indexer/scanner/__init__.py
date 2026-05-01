@@ -834,6 +834,16 @@ def scan(
     if disk_filter is not None:
         # Single-disk targeted run — degrade to one worker per DESIGN §11.8.
         _effective_workers = 1
+    if mode == ScanMode.enrich:
+        # ``libmediainfo`` (the C library behind pymediainfo) is not thread-safe:
+        # concurrent ``MediaInfo.parse()`` calls segfault the interpreter on
+        # certain media files. The module-level ``_MEDIAINFO_PARSE_LOCK``
+        # serialises parse calls inside one process, but lazy attribute
+        # resolution on ``Track`` objects can still race with another thread's
+        # parse, so the only safe configuration is one worker total during
+        # enrich. The walk is I/O-bound on the per-file mediainfo header read
+        # anyway, so the wall-clock impact is negligible vs. the segfault risk.
+        _effective_workers = 1
 
     try:
         if db_path is not None and _effective_workers > 1:

@@ -286,6 +286,36 @@ def test_normalise_subtitle_format() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_parse_calls_serialised_through_module_lock() -> None:
+    """``MediaInfo.parse`` is serialised through ``_MEDIAINFO_PARSE_LOCK``.
+
+    Asserts the lock object exists and that ``extract_streams`` calls
+    ``MediaInfo.parse`` exactly once per call (regression guard against future
+    refactors that bypass the lock and re-introduce the libmediainfo
+    concurrent-parse segfault).
+    """
+    from personalscraper.indexer.mediainfo import _MEDIAINFO_PARSE_LOCK
+
+    assert _MEDIAINFO_PARSE_LOCK is not None
+    # A real threading.Lock exposes both acquire and release.
+    assert hasattr(_MEDIAINFO_PARSE_LOCK, "acquire")
+    assert hasattr(_MEDIAINFO_PARSE_LOCK, "release")
+
+    fake_mi = _fake_mediainfo([_make_track("Video", codec_id="h264")])
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mkv") as fh:
+        fh.seek(2 * 1024 * 1024)
+        fh.write(b"\x00")
+        path = Path(fh.name)
+    try:
+        wrapper = MediaInfoWrapper(min_size_mb=1)
+        with patch("personalscraper.indexer.mediainfo.MediaInfo") as mock_mi_cls:
+            mock_mi_cls.parse.return_value = fake_mi
+            wrapper.extract_streams(path)
+            assert mock_mi_cls.parse.call_count == 1
+    finally:
+        os.unlink(path)
+
+
 def test_extract_streams_populates_hdr_atmos_default_forced_format() -> None:
     """Migration 004 fields (hdr_format, is_atmos, is_default, forced, format) are populated."""
     video_track = _make_track(

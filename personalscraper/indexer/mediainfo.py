@@ -35,11 +35,20 @@ Usage example::
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
 from personalscraper.indexer._macos_io import sequential_hint
 from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 from personalscraper.indexer.schema import MediaStreamRow, StreamKind
+
+# libmediainfo (the C library behind pymediainfo) is not safe under concurrent
+# parse() calls — Python segfaults reproducibly when four ThreadPoolExecutor
+# workers parse files in parallel. Serialise every MediaInfo.parse() call
+# behind this module-level lock. Per-call parse cost dominates I/O, so the
+# scan is still I/O-bound; we just lose any (illusory) parse-level
+# parallelism the previous code pretended to offer.
+_MEDIAINFO_PARSE_LOCK = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Availability guard — try to import pymediainfo at module load time
@@ -167,7 +176,8 @@ class MediaInfoWrapper:
         # is a no-op.
         _acquire_read_tokens(file_size)
 
-        mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
+        with _MEDIAINFO_PARSE_LOCK:
+            mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
 
         rows: list[MediaStreamRow] = []
         video_idx = audio_idx = subtitle_idx = 0  # per-kind stream counters
