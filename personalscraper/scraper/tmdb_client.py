@@ -26,7 +26,11 @@ from tenacity import (
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
+from personalscraper.scraper.http_retry import (
+    build_retry_logger,
+    make_retryable_predicate,
+    wait_with_retry_after,
+)
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
@@ -221,7 +225,7 @@ class TMDBClient:
 
     @retry(
         retry=retry_if_exception(_is_retryable),
-        wait=wait_exponential_jitter(initial=0.5, max=10, jitter=0.5),
+        wait=wait_with_retry_after(wait_exponential_jitter(initial=0.5, max=10, jitter=0.5)),
         stop=stop_after_attempt(4),
         before_sleep=build_retry_logger(log, "tmdb_retry"),
         reraise=True,

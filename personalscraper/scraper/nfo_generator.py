@@ -8,6 +8,7 @@ The XML structure has been validated against real MediaElch NFO files
 from the {movies_dir}/ directory.
 """
 
+import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
@@ -473,13 +474,21 @@ class NFOGenerator:
         )
 
     def write_nfo(self, xml_content: str, path: Path) -> None:
-        """Write NFO XML content to a file.
+        """Write NFO XML content to a file atomically.
+
+        Writes to a sibling ``<name>.tmp`` file first then os.replace's it
+        onto the final path so a crash mid-write cannot leave a half-written
+        NFO behind.  ``os.replace`` is atomic on POSIX (and on Windows when
+        the destination is on the same filesystem); a partial ``.tmp`` left
+        behind by a crash is harmless and gets overwritten on the next run.
 
         Args:
             xml_content: UTF-8 XML string to write.
             path: Destination file path.
         """
-        path.write_text(xml_content, encoding="utf-8")
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        tmp_path.write_text(xml_content, encoding="utf-8")
+        os.replace(tmp_path, path)
 
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
         # Skipped when _db_path is None (no config available at construction time).

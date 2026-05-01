@@ -29,7 +29,11 @@ from tenacity import (
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
+from personalscraper.scraper.http_retry import (
+    build_retry_logger,
+    make_retryable_predicate,
+    wait_with_retry_after,
+)
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
@@ -191,7 +195,7 @@ class TVDBClient:
 
     @retry(
         retry=retry_if_exception(_is_retryable),
-        wait=wait_exponential(multiplier=1, min=1, max=30),
+        wait=wait_with_retry_after(wait_exponential(multiplier=1, min=1, max=30)),
         stop=stop_after_attempt(3),
         before_sleep=build_retry_logger(log, "tvdb_retry"),
         reraise=True,
