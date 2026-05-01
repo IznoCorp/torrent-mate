@@ -39,6 +39,9 @@ personalscraper library-search "<query>"                     # Flex-attr query (
 personalscraper library-show <item_id>                       # Pretty-print all data for one item
 personalscraper library-repair                               # Drain repair queue (default budget)
 personalscraper library-repair --budget 120                  # Drain with explicit time budget (s)
+personalscraper library-reconcile                            # Detect index ↔ FS divergences (DB-only, no rescan)
+personalscraper library-reconcile --scope enrich             # Restrict to one detector (repeatable)
+personalscraper library-reconcile --enqueue-repairs          # Push findings into repair_queue (drained by library-repair)
 ```
 
 ### Disk-walking commands
