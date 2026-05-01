@@ -11,7 +11,7 @@ lifecycle and does not need explicit flush/hydrate calls.
 
 ``media_index.json`` is no longer written or read.  If one is present on
 disk it is silently ignored (a deprecation warning is logged once).  Run
-``personalscraper library index --mode full`` to populate the indexer and
+``personalscraper library-index --mode full`` to populate the indexer and
 make dispatch decisions accurate on a fresh install.
 
 On first run (empty DB), ``__init__`` triggers an automatic full rebuild
@@ -194,7 +194,7 @@ class MediaIndex:
                 rollbackable savepoint.
         """
         # Use the configured indexer DB when available.  This keeps dispatch on
-        # the same SQLite file as ``personalscraper library index`` and outbox
+        # the same SQLite file as ``personalscraper library-index`` and outbox
         # publishers even when paths.data_dir differs from indexer.db_path.
         configured_db_path = getattr(getattr(config, "indexer", None), "db_path", None)
         if isinstance(configured_db_path, Path):
@@ -220,7 +220,7 @@ class MediaIndex:
                 "indexer.legacy_json_found",
                 message=(
                     "media_index.json found; it is no longer used — run "
-                    "`personalscraper library index --mode full` to populate the indexer."
+                    "`personalscraper library-index --mode full` to populate the indexer."
                 ),
                 path=str(legacy_json),
             )

@@ -89,7 +89,7 @@ def run_dispatch(
         StepReport with dispatch counts and details.
     """
     staging_dir = config.paths.staging_dir
-    # Dispatch must consult the same indexer DB populated by ``library index``
+    # Dispatch must consult the same indexer DB populated by ``library-index``
     # and the outbox publishers.  ``paths.data_dir`` can differ from the
     # indexer storage directory in the split config layout.
     index_path = config.indexer.db_path
