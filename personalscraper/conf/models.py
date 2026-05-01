@@ -972,16 +972,20 @@ class IndexerSpotlightConfig(_StrictModel):
     apply only to APFS volumes where Spotlight is available.
 
     Attributes:
-        probe_at_startup: Run ``mdutil -s`` on each disk at scanner startup to
-            record whether Spotlight is available.
-        use_when_available: Delegate change detection to Spotlight
-            (``mdfind -onlyin … kMDItemFSContentChangeDate > …``) when the
-            probe confirms it is available. Falls back to full walk otherwise.
+        probe_at_startup: **Reserved.** The Spotlight probe always runs at
+            scan start (see ``indexer/scanner/__init__.py`` — the docstring
+            states "the Spotlight probe still runs to log availability"
+            even when the detector is disabled).  Setting this to False
+            does not currently skip the probe.
+        use_when_available: **Consumed** by ``indexer/cli.py:503`` —
+            delegates change detection to Spotlight (``mdfind``) when the
+            probe confirms it is available.  Falls back to full walk
+            otherwise.
     """
 
     probe_at_startup: bool = Field(
         default=True,
-        description="Run mdutil -s on each disk at scanner startup.",
+        description="Reserved (Spotlight probe currently always runs at scan start).",
     )
     use_when_available: bool = Field(
         default=True,
@@ -993,20 +997,25 @@ class IndexerRepairConfig(_StrictModel):
     """Auto-repair queue tunables for the media indexer.
 
     Attributes:
-        queue_drain_on_scan_finish: Drain the repair queue at the end of each
-            scan run (before the budget runs out).
-        max_repair_seconds_per_drain: Maximum seconds spent draining the repair
-            queue in a single scan run.
+        queue_drain_on_scan_finish: **Reserved.** Documented as "drain repair
+            queue at the end of each scan", but no scanner code path reads
+            this field — repair drain is invoked manually via
+            ``library-repair``.  Setting False does not currently disable
+            anything (no automatic post-scan drain happens regardless).
+        max_repair_seconds_per_drain: **Reserved.** Documented as the
+            per-scan-run repair budget, but the runtime budget comes from
+            the ``library-repair --budget`` CLI flag, not from this field.
+            Customising the value has no effect on automatic-drain timing.
     """
 
     queue_drain_on_scan_finish: bool = Field(
         default=True,
-        description="Drain repair queue at the end of each scan.",
+        description="Reserved (no automatic post-scan drain currently runs).",
     )
     max_repair_seconds_per_drain: int = Field(
         default=300,
         gt=0,
-        description="Max seconds spent draining the repair queue per scan run.",
+        description="Reserved (runtime budget comes from --budget CLI flag).",
     )
 
 
