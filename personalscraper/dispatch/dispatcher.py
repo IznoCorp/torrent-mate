@@ -147,11 +147,17 @@ class Dispatcher:
     def _cleanup_orphan_temps(self) -> int:
         """Clean up orphan temporary directories from previous failed runs.
 
-        Scans all storage disks for _tmp_dispatch_* and .merge_backup/
+        Scans all storage disks for ``_tmp_dispatch_*`` and ``.merge_backup/``
         directories that were left behind by interrupted dispatch operations.
 
+        Honors :attr:`dry_run`: when True, every orphan is reported via
+        ``orphan_*_found_dry_run`` log events but no destructive action is
+        taken.  This guarantees ``personalscraper dispatch --dry-run`` is
+        actually side-effect-free.
+
         Returns:
-            Number of orphan directories cleaned up.
+            Number of orphan directories cleaned up (or, in dry-run mode,
+            the number that *would have been* cleaned).
         """
         cleaned = 0
         for config in self._disk_configs:
@@ -175,23 +181,31 @@ class Dispatcher:
                         continue
                     # Clean _tmp_dispatch_* orphans
                     if item.name.startswith("_tmp_dispatch_"):
-                        log.warning("orphan_tmp_found", path=str(item))
-                        try:
-                            _force_rmtree(item)
+                        if self.dry_run:
+                            log.warning("orphan_tmp_found_dry_run", path=str(item))
                             cleaned += 1
-                        except OSError as e:
-                            log.error("orphan_tmp_cleanup_failed", path=str(item), error=str(e))
+                        else:
+                            log.warning("orphan_tmp_found", path=str(item))
+                            try:
+                                _force_rmtree(item)
+                                cleaned += 1
+                            except OSError as e:
+                                log.error("orphan_tmp_cleanup_failed", path=str(item), error=str(e))
                     # Clean .merge_backup/ orphans inside media dirs
                     backup = item / ".merge_backup"
                     if backup.exists():
-                        log.warning("orphan_backup_found", path=str(backup))
-                        try:
-                            _force_rmtree(backup)
+                        if self.dry_run:
+                            log.warning("orphan_backup_found_dry_run", path=str(backup))
                             cleaned += 1
-                        except OSError as e:
-                            log.error("orphan_backup_cleanup_failed", path=str(backup), error=str(e))
+                        else:
+                            log.warning("orphan_backup_found", path=str(backup))
+                            try:
+                                _force_rmtree(backup)
+                                cleaned += 1
+                            except OSError as e:
+                                log.error("orphan_backup_cleanup_failed", path=str(backup), error=str(e))
         if cleaned:
-            log.info("orphans_cleaned", count=cleaned)
+            log.info("orphans_cleaned", count=cleaned, dry_run=self.dry_run)
         return cleaned
 
     def process(
