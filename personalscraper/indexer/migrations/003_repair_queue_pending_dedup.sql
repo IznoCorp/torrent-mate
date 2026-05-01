@@ -45,3 +45,11 @@ AND status = 'pending';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_repair_pending_dedup
   ON repair_queue (scope, scope_id)
   WHERE status = 'pending';
+
+-- 3. Bump schema version in lockstep with PRAGMA user_version, matching the
+-- pattern from migrations 001/002/004.  Use INSERT OR IGNORE because users
+-- whose DBs were upgraded by an earlier (buggy) build of this script may
+-- have already advanced user_version to 4 via migration 004, in which case
+-- this migration is being re-run only if user_version was still <3.
+INSERT OR IGNORE INTO schema_version(version) VALUES (3);
+PRAGMA user_version = 3;
