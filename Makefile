@@ -1,4 +1,4 @@
-.PHONY: help clean test lint lint-logging format install-dev version update-ytdlp perf-rebaseline
+.PHONY: help clean test lint lint-logging check format install-dev version update-ytdlp perf-rebaseline
 
 help:
 	@echo "PersonalScraper — Available commands:"
@@ -6,6 +6,7 @@ help:
 	@echo "  make test            - Run all tests with pytest"
 	@echo "  make lint            - Run ruff linter + logging convention audit"
 	@echo "  make lint-logging    - Run logging convention audit (fails on errors)"
+	@echo "  make check           - Run lint, tests, and advisory module-size check"
 	@echo "  make format          - Format code with ruff"
 	@echo "  make install-dev     - Install package in development mode with dev deps"
 	@echo "  make version         - Show current version"
@@ -32,6 +33,9 @@ lint:
 lint-logging:
 	@echo "Running logging convention audit..."
 	python scripts/check_logging.py personalscraper/
+
+check: lint test
+	python3 scripts/check-module-size.py
 
 format:
 	@echo "Formatting code..."
