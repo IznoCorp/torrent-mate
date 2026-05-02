@@ -63,6 +63,56 @@ Migrate from flat `.env` / pydantic-settings to structured JSON config.
 - EVERYTHING configurable: directories, patterns, values, naming conventions, thresholds
 - The existing `encoding_rules.json` is a prototype of this approach
 
+### Third-Party API Consumer Unification
+
+Unify all external API integrations behind a single client abstraction so new providers plug in without touching the rest of the codebase. Today each provider is wired ad hoc (`scraper/tmdb_client.py`, `scraper/tvdb_client.py`, `scraper/imdb_client.py`, `qbit/qbittorrent_client.py`) and shares no contract — adding a new tracker means re-inventing retry, auth, rate-limiting, and result normalisation each time.
+
+**Goals**
+
+- One `ApiClient` base contract per family (metadata / torrent client / tracker) with shared retry, throttle, auth-renewal, structured logging, and a typed response model.
+- Provider-specific subclasses implement only the differential surface (endpoint paths, response parsing, auth flow).
+- Integration test fixtures shared across providers (golden response files, replay harness).
+
+**Activation via credentials**
+
+- Each provider declares its credential shape in config: API key, or login/password, depending on the provider.
+- A provider is **active** as soon as its credentials are supplied; absent credentials = provider disabled, no boolean toggle to maintain.
+
+**Torrent-client selection**
+
+- All active torrent clients (qBittorrent, Transmission) coexist in the codebase.
+- A dedicated config field designates the **single** client used by the pipeline — only one can be active in the download path at a time, even when multiple are credentialed.
+
+**Preference / priority system**
+
+- Lower number = higher priority across all priority configurations.
+- **Per-use-case provider priority**: priorities are defined per use case, not per family, so the same provider can rank differently depending on what is being fetched.
+  - Movie scraping
+  - Series scraping
+  - Episode scraping
+  - Recommendations
+  - Torrent retrieval from trackers
+- Preferences extracted from existing code into the new config layer (e.g. current series-scraping order: TVDB > TMDB → encoded as `series_scraping: { tvdb: 1, tmdb: 2 }`).
+- **Torrent-result priority** (separate, second-stage ranking): once trackers have returned candidates, a per-criterion priority list orders them by format, encoding type, torrent size, and any additional torrent attributes the user wants to weight.
+
+**Provider matrix**
+
+| Family                    | Existing                            | To add                                    |
+| ------------------------- | ----------------------------------- | ----------------------------------------- |
+| Metadata scraping         | TMDB, TVDB, IMDB                    | SensCritique (notations, in particular)   |
+| Recommendations           | —                                   | SensCritique + IMDB                       |
+| Torrent client            | qBittorrent (via `qbittorrent-api`) | Transmission (via `transmission-rpc`)     |
+| Tracker search + download | —                                   | LaCale, C411, torr9.net, digitalcore.club |
+
+**Workflow once unified**
+
+1. Recommender pulls cross-provider notations (SensCritique + IMDB) → priority list.
+2. Auto-Download System feeds priority list to the tracker layer; tracker abstraction queries every enabled tracker, ranks results, picks best match.
+3. Selected torrent is sent to the configured torrent-client provider (qBittorrent or Transmission).
+4. Existing pipeline picks up the completed download via the watcher service.
+
+**Depends on:** Auto-Download System (consumer of the tracker layer), Watcher Service (downstream trigger).
+
 ### Library Indexer
 
 Persistent index of the media library with cache or database backend.
