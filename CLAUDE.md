@@ -73,6 +73,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - **Inline comments** for non-trivial logic explaining the "why" (not the "what")
 - Docstring/comment language: **English**
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
+- **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC. Run `python3 scripts/check-module-size.py` (also wired into `make check`). Advisory in 0.9.0; promoted to hard block in 0.10.0.
 
 ### Implementation Workflow (feature-oriented)
 
