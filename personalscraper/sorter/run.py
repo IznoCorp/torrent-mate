@@ -70,6 +70,22 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
 
+    # After sort consumes files from the ingest dir, prune any
+    # ``dest_path`` recorded inside that dir from the ingest tracker.
+    # Without this, the tracker keeps a stale path forever and the
+    # state-validator agent would flag every successful sort as a
+    # phantom-tracker-entry false positive.
+    if not dry_run and report.success_count:
+        try:
+            from personalscraper.ingest.tracker import IngestTracker  # noqa: PLC0415
+
+            tracker = IngestTracker(config.paths.data_dir / "ingested_torrents.json")
+            pruned = tracker.prune_consumed_dest_paths(ingest_dir)
+            if pruned:
+                log.info("sort_tracker_pruned", removed=pruned)
+        except Exception as exc:  # noqa: BLE001 — tracker is best-effort
+            log.warning("sort_tracker_prune_failed", error=str(exc))
+
     log.info(
         "sort_complete",
         moved=report.success_count,

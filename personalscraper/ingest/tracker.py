@@ -179,3 +179,54 @@ class IngestTracker:
             self.save()
             log.info("tracker_cleaned", removed=len(stale))
         return len(stale)
+
+    def prune_consumed_dest_paths(self, ingest_dir: Path) -> int:
+        """Drop stale ``dest_path`` keys after sort consumes the ingest copy.
+
+        Removes ``dest_path`` keys whose recorded file inside the ingest
+        staging directory has been moved away by a downstream step.
+
+        After ``ingest`` writes a fresh copy under ``097-TEMP`` it records
+        ``dest_path = 097-TEMP/<file>`` so a future probe can detect a
+        silent dispatch failure (the file disappears without ending up on
+        a storage disk). Once ``sort`` actually consumes the file and
+        moves it into a category dir (``002-TVSHOWS/<show>/...``) the
+        recorded path no longer exists — but it stays in the JSON forever
+        unless we prune it. This method removes those stale dest_path
+        keys without touching the hash entry itself, so the tracker
+        keeps remembering the torrent was ingested while no longer
+        carrying a misleading recorded path.
+
+        Args:
+            ingest_dir: Absolute path of the ingest staging dir
+                (typically ``097-TEMP``). Only dest_paths inside this
+                root are considered for pruning — paths outside it
+                represent final-destination state we want to preserve.
+
+        Returns:
+            Number of entries whose ``dest_path`` field was removed.
+        """
+        try:
+            ingest_root = ingest_dir.resolve()
+        except OSError:
+            return 0
+        pruned = 0
+        for entry in self._data.values():
+            raw = entry.get("dest_path")
+            if not isinstance(raw, str) or not raw:
+                continue
+            dest = Path(raw)
+            if dest.exists():
+                continue
+            try:
+                dest.resolve().relative_to(ingest_root)
+            except (OSError, ValueError):
+                # Outside the staging dir — not consumed by sort, keep
+                # the orphan signal intact.
+                continue
+            del entry["dest_path"]
+            pruned += 1
+        if pruned:
+            self.save()
+            log.info("tracker_dest_path_pruned", removed=pruned)
+        return pruned
