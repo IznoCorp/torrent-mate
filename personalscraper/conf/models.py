@@ -1141,6 +1141,7 @@ class IndexerConfig(_StrictModel):
     db_path: Path = Field(
         default=Path(".personalscraper/library.db"),
         description="Path to the SQLite library database. Must not be on an external/macFUSE mount.",
+        validate_default=True,
     )
     scan: IndexerScanConfig = Field(default_factory=IndexerScanConfig)
     fingerprint: IndexerFingerprintConfig = Field(default_factory=IndexerFingerprintConfig)

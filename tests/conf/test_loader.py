@@ -434,13 +434,20 @@ class TestIndexerConfigRoundTrip:
             IndexerConfig.model_validate({"scan": {"nightly_mode": "turbo"}})
 
     def test_config_has_indexer_field(self, tmp_path: Path) -> None:
-        """Config model must expose an ``indexer`` field of type IndexerConfig."""
+        """Config model must expose an ``indexer`` field of type IndexerConfig.
+
+        The default db_path is ``.personalscraper/library.db`` but the
+        validator now resolves it to an absolute path at load-time so
+        every consumer sees the same file regardless of CWD. Assert on
+        the resolved shape rather than the raw default.
+        """
         cfg_path = tmp_path / "config.json5"
         _write_minimal_config(cfg_path, tmp_path)
         config = load_config(cfg_path)
         assert isinstance(config.indexer, IndexerConfig)
-        # Default db_path must be the relative sentinel value.
-        assert config.indexer.db_path == Path(".personalscraper/library.db")
+        assert config.indexer.db_path.is_absolute()
+        assert config.indexer.db_path.name == "library.db"
+        assert config.indexer.db_path.parent.name == ".personalscraper"
 
 
 # ---------------------------------------------------------------------------
@@ -475,10 +482,20 @@ class TestIndexerDbPathValidator:
         with pytest.raises(ValidationError, match="external or macFUSE mount"):
             IndexerConfig.model_validate({"db_path": "/Volumes/USB1/data/lib.db"})
 
-    def test_relative_path_accepted(self) -> None:
-        """A relative path (cannot start with /Volumes/) must be accepted as-is."""
+    def test_relative_path_resolved_to_absolute(self) -> None:
+        """A relative path is accepted and resolved against CWD at load-time.
+
+        The validator anchors db_path to an absolute path so every consumer
+        (sqlite3.connect, indexer outbox, dispatch) sees the same file
+        regardless of the calling process's CWD. Without this anchor the
+        same config string produced different DB files depending on the
+        entry point — an orphan DB at ``.data/library.db`` was created by
+        a tool launched from a different CWD before this fix.
+        """
         cfg = IndexerConfig.model_validate({"db_path": ".personalscraper/library.db"})
-        assert cfg.db_path == Path(".personalscraper/library.db")
+        assert cfg.db_path.is_absolute()
+        assert cfg.db_path.name == "library.db"
+        assert cfg.db_path.parent.name == ".personalscraper"
 
     def test_validator_in_isolation(self) -> None:
         """Calling the field_validator class method directly must work for /Volumes/ paths."""
@@ -521,7 +538,13 @@ class TestCategoryOrphanCheck:
     """Tests for the _check_category_orphans startup check."""
 
     def test_no_db_file_is_noop(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """When library.db does not exist the check must be silent."""
+        """When library.db does not exist the check must be silent.
+
+        ``load_config`` itself calls ``_check_category_orphans`` once during
+        construction with the configured (default-resolved) db_path. Those
+        load-time warnings are unrelated to this test, so we clear caplog
+        before exercising the explicit call we want to assert on.
+        """
         import logging
 
         cfg_path = tmp_path / "config.json5"
@@ -535,6 +558,7 @@ class TestCategoryOrphanCheck:
             tmp_path / "nonexistent" / "library.db",
         )
 
+        caplog.clear()
         with caplog.at_level(logging.WARNING):
             _check_category_orphans(config)
 
@@ -553,6 +577,7 @@ class TestCategoryOrphanCheck:
         _make_library_db(db_path, ["movies", "tv_shows"])
         object.__setattr__(config.indexer, "db_path", db_path)
 
+        caplog.clear()
         with caplog.at_level(logging.WARNING):
             _check_category_orphans(config)
 
