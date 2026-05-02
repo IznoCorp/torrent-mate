@@ -28,6 +28,7 @@ personalscraper library-index                                # Full indexer scan
 personalscraper library-index --mode quick                   # Quick: Merkle short-circuit + dir-mtime
 personalscraper library-index --mode incremental             # Changed-files-only
 personalscraper library-index --mode enrich                  # Mediainfo + NFO + artwork on un-enriched files
+personalscraper library-index --mode enrich --backfill-streams  # Fill only missing migration-004 columns (hdr_format / is_atmos / is_default / forced / format) on already-enriched rows
 personalscraper library-index --disk Disk1 --mode full       # Restrict to one disk
 personalscraper library-index --dry-run                      # Plan only, no DB writes
 personalscraper library-index --rebuild                      # Drop and rebuild from scratch

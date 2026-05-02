@@ -50,6 +50,7 @@ from personalscraper.indexer.scanner._db_writes import _upsert_path_row
 from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
 from personalscraper.indexer.scanner._modes import (
     _scan_disk_enrich,
+    _scan_disk_enrich_backfill,
     _scan_disk_full,
     _scan_disk_incremental,
     _scan_disk_quick,
@@ -342,6 +343,7 @@ def scan(
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
     quick_enrich: bool = False,
+    backfill_streams: bool = False,
     max_workers: int = 4,
     read_rate_mb_per_sec: float | None = None,
     staging_dir: str | None = None,
@@ -437,6 +439,12 @@ def scan(
             ``parse_speed=0.5`` to :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
             for a faster but less complete mediainfo parse.  Default ``False``
             (full parse, ``parse_speed=1.0``).
+        backfill_streams: When ``True`` and ``mode == ScanMode.enrich``, runs
+            the targeted backfill path that re-extracts streams only for files
+            whose ``media_stream`` rows are missing migration-004 columns
+            (``hdr_format`` / ``is_atmos`` / ``is_default`` / ``forced`` /
+            ``format``) and UPDATEs only those columns in place.  Skips NFO,
+            artwork, release linkage, and ``enriched_at`` writes.
         max_workers: Maximum number of concurrent per-disk worker threads.
             Capped at ``len(disks)`` and always ``1`` when a single-disk filter
             is active (DESIGN §11.8).  Ignored (sequential fallback) when
@@ -711,17 +719,32 @@ def scan(
                     merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
                 )
             elif mode == ScanMode.enrich:
-                # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
-                # budget-bounded, per-file commits.
-                _scan_disk_enrich(
-                    worker_conn,
-                    disk,
-                    budget_seconds,
-                    _started_at_monotonic,
-                    local_exhausted,
-                    scan_run_id,
-                    quick_enrich=quick_enrich,
-                )
+                if backfill_streams:
+                    # Backfill mode: re-extract streams only for already-
+                    # enriched files whose media_stream rows are missing
+                    # the migration-004 columns. UPDATE in place, no NFO /
+                    # artwork / linker work, no enriched_at write.
+                    _scan_disk_enrich_backfill(
+                        worker_conn,
+                        disk,
+                        budget_seconds,
+                        _started_at_monotonic,
+                        local_exhausted,
+                        scan_run_id,
+                        quick_enrich=quick_enrich,
+                    )
+                else:
+                    # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
+                    # budget-bounded, per-file commits.
+                    _scan_disk_enrich(
+                        worker_conn,
+                        disk,
+                        budget_seconds,
+                        _started_at_monotonic,
+                        local_exhausted,
+                        scan_run_id,
+                        quick_enrich=quick_enrich,
+                    )
             elif mode == ScanMode.verify:
                 # Verify mode: re-stat every indexed file and enqueue
                 # repair_queue rows for missing files / size+mtime drift.

@@ -291,6 +291,7 @@ def library_index_command(
     disk: str | None = None,
     budget_seconds: int | None = None,
     no_budget: bool = False,
+    backfill_streams: bool = False,
     dry_run: bool = False,
     wait_for_lock_seconds: int = 0,
     config_path: Path | None = None,
@@ -316,6 +317,11 @@ def library_index_command(
             default and run with no wall-clock cap.  Use for manual passes that
             must drain every pending file in one go (full enrich after a cold
             Stage A walk); the writer lock is held for the full duration.
+        backfill_streams: When ``True`` and ``mode == "enrich"``, runs the
+            targeted backfill that re-extracts streams only for files whose
+            ``media_stream`` rows are missing migration-004 columns and
+            UPDATEs only those columns in place. Rejected with exit code 1
+            when paired with any other mode.
         dry_run: When ``True``, all DB writes are wrapped in a SQLite savepoint
             that is always rolled back so no rows are persisted.
         wait_for_lock_seconds: Seconds to wait for the writer lock before
@@ -387,6 +393,12 @@ def library_index_command(
     except ValueError:
         valid_modes = ", ".join(m.value for m in ScanMode)
         typer.echo(f"Invalid mode '{mode}'. Valid: {valid_modes}", err=True)
+        return 1
+
+    # --backfill-streams only makes sense for enrich mode (it targets
+    # already-enriched files whose stream rows lack the new columns).
+    if backfill_streams and scan_mode != ScanMode.enrich:
+        typer.echo("--backfill-streams requires --mode enrich", err=True)
         return 1
 
     from contextlib import closing  # noqa: PLC0415
@@ -497,6 +509,7 @@ def library_index_command(
                         checkpoint_every_n_files=cfg.indexer.scan.checkpoint_every_n_files,
                         confirm_bulk_change=confirm_bulk_change,
                         merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
+                        backfill_streams=backfill_streams,
                         max_workers=cfg.indexer.scan.max_workers_total,
                         read_rate_mb_per_sec=cfg.indexer.scan.read_rate_mb_per_sec,
                         staging_dir=str(cfg.paths.staging_dir),

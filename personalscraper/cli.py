@@ -680,6 +680,16 @@ def library_index(
             "Use for manual full enrich passes that must drain every pending file."
         ),
     ),
+    backfill_streams: bool = typer.Option(
+        False,
+        "--backfill-streams",
+        help=(
+            "Enrich-only: target already-enriched files whose media_stream rows are "
+            "missing migration-004 columns (hdr_format / is_atmos / is_default / "
+            "forced / format) and UPDATE only those columns in place. Skips NFO / "
+            "artwork / linker work. Much faster than re-running the full enrich."
+        ),
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
     wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
@@ -720,6 +730,7 @@ def library_index(
         disk=disk,
         budget_seconds=budget,
         no_budget=no_budget,
+        backfill_streams=backfill_streams,
         dry_run=dry_run,
         wait_for_lock_seconds=wait_for_lock,
         config_path=effective_config,

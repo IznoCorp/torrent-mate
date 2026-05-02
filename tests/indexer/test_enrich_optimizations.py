@@ -4,6 +4,10 @@ Covers:
 - Extension-based skip: ``_scan_disk_enrich`` passes ``wrapper=None`` to
   ``_enrich_one_file`` for non-video files so libmediainfo is not invoked
   on the ~84 % of library files that are sidecars (jpg / nfo / srt / ...).
+- Backfill mode: ``_scan_disk_enrich_backfill`` targets only already-
+  enriched files whose ``media_stream`` rows are missing
+  migration-004 columns; UPDATEs in place; never touches NFO / artwork /
+  ``enriched_at`` / linker.
 """
 
 from __future__ import annotations
@@ -16,8 +20,11 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.scanner._modes import _scan_disk_enrich
-from personalscraper.indexer.schema import DiskRow
+from personalscraper.indexer.scanner._modes import (
+    _scan_disk_enrich,
+    _scan_disk_enrich_backfill,
+)
+from personalscraper.indexer.schema import DiskRow, MediaStreamRow
 
 MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
@@ -120,3 +127,160 @@ def test_enrich_skips_pymediainfo_for_non_video_extensions(conn: sqlite3.Connect
     assert captured_wrappers["Inception.nfo"] is None
     assert captured_wrappers["Inception-poster.jpg"] is None
     assert captured_wrappers["Inception.srt"] is None
+
+
+# ---------------------------------------------------------------------------
+# Backfill mode
+# ---------------------------------------------------------------------------
+
+
+def test_backfill_targets_only_files_with_null_columns(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """Files whose stream rows have every migration-004 column populated are skipped.
+
+    The query joins ``media_stream`` with a NULL-on-any-new-column
+    predicate; a fully populated row produces no match and the wrapper
+    is not called.
+    """
+    mount = str(tmp_path / "TestDisk")
+    Path(mount).mkdir()
+    Path(mount, "Already.mkv").write_bytes(b"X" * 200)
+
+    disk = _seed_disk(conn, mount)
+    file_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="Already.mkv", size=10_000_000)
+    # Mark enriched + insert a stream that has every new column populated:
+    # hdr_format='HDR10' (not NULL), is_default=1 (not NULL).
+    conn.execute("UPDATE media_file SET enriched_at = ? WHERE id = ?", (int(time.time()), file_id))
+    conn.execute(
+        "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+        " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+        "VALUES (?, 0, 'video', 'hevc', 'eng', NULL, 1920, 1080, NULL, NULL, 'HDR10', NULL, 1, NULL, NULL)",
+        (file_id,),
+    )
+
+    extract_calls: list[Path] = []
+
+    class _StubWrapper:
+        def extract_streams(self, path: Path) -> list[MediaStreamRow]:
+            extract_calls.append(path)
+            return []
+
+    with patch("personalscraper.indexer.scanner._modes.MediaInfoWrapper", return_value=_StubWrapper()):
+        budget_exhausted = [False]
+        _scan_disk_enrich_backfill(
+            conn,
+            disk,
+            budget_seconds=None,
+            started_at_monotonic=time.monotonic(),
+            budget_exhausted=budget_exhausted,
+            scan_run_id=0,
+        )
+
+    assert extract_calls == [], "Files with all migration-004 columns set must not be re-extracted"
+
+
+def test_backfill_updates_in_place_only_missing_columns(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """Backfill writes only ``COALESCE``-d new columns, never DELETEs / re-INSERTs."""
+    mount = str(tmp_path / "TestDisk")
+    Path(mount).mkdir()
+    Path(mount, "Movie.mkv").write_bytes(b"X" * 200)
+
+    disk = _seed_disk(conn, mount)
+    file_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="Movie.mkv", size=10_000_000)
+    conn.execute("UPDATE media_file SET enriched_at = ? WHERE id = ?", (int(time.time()), file_id))
+    # Stream row missing hdr_format and is_default; codec / dimensions already set.
+    conn.execute(
+        "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+        " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+        "VALUES (?, 0, 'video', 'hevc', 'eng', NULL, 3840, 2160, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+        (file_id,),
+    )
+    # Also a stale enriched_at so we can verify it does NOT change.
+    enriched_at_before = conn.execute("SELECT enriched_at FROM media_file WHERE id = ?", (file_id,)).fetchone()[0]
+
+    extracted_row = MediaStreamRow(
+        id=0,
+        file_id=0,
+        idx=0,
+        kind="video",
+        codec="OVERWRITE-IGNORED",  # backfill does not touch codec
+        lang=None,
+        channels=None,
+        width=None,
+        height=None,
+        duration_ms=None,
+        bitrate=None,
+        hdr_format="Dolby Vision",
+        is_atmos=None,
+        is_default=True,
+        forced=None,
+        format=None,
+    )
+
+    class _StubWrapper:
+        def extract_streams(self, path: Path) -> list[MediaStreamRow]:
+            return [extracted_row]
+
+    with patch("personalscraper.indexer.scanner._modes.MediaInfoWrapper", return_value=_StubWrapper()):
+        budget_exhausted = [False]
+        _scan_disk_enrich_backfill(
+            conn,
+            disk,
+            budget_seconds=None,
+            started_at_monotonic=time.monotonic(),
+            budget_exhausted=budget_exhausted,
+            scan_run_id=0,
+        )
+
+    row = conn.execute(
+        "SELECT codec, height, hdr_format, is_default FROM media_stream WHERE file_id = ? AND idx = 0",
+        (file_id,),
+    ).fetchone()
+    # codec untouched, height untouched, hdr_format + is_default backfilled.
+    assert row[0] == "hevc"
+    assert row[1] == 2160
+    assert row[2] == "Dolby Vision"
+    assert row[3] == 1
+
+    # enriched_at must not be rewritten — backfill is non-destructive.
+    enriched_at_after = conn.execute("SELECT enriched_at FROM media_file WHERE id = ?", (file_id,)).fetchone()[0]
+    assert enriched_at_after == enriched_at_before
+
+
+def test_backfill_skips_non_video_extensions(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """A ``.nfo`` file with NULL stream columns is silently skipped (sidecar)."""
+    mount = str(tmp_path / "TestDisk")
+    Path(mount).mkdir()
+    Path(mount, "junk.nfo").write_bytes(b"X" * 200)
+
+    disk = _seed_disk(conn, mount)
+    file_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="junk.nfo", size=200)
+    conn.execute("UPDATE media_file SET enriched_at = ? WHERE id = ?", (int(time.time()), file_id))
+    # An anomalous stream row (rare, but possible from a previous mediainfo
+    # parse on a junk file). Still must not trigger re-extraction since the
+    # extension is not a video container.
+    conn.execute(
+        "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+        " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+        "VALUES (?, 0, 'video', 'junk', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+        (file_id,),
+    )
+
+    extract_calls: list[Path] = []
+
+    class _StubWrapper:
+        def extract_streams(self, path: Path) -> list[MediaStreamRow]:
+            extract_calls.append(path)
+            return []
+
+    with patch("personalscraper.indexer.scanner._modes.MediaInfoWrapper", return_value=_StubWrapper()):
+        budget_exhausted = [False]
+        _scan_disk_enrich_backfill(
+            conn,
+            disk,
+            budget_seconds=None,
+            started_at_monotonic=time.monotonic(),
+            budget_exhausted=budget_exhausted,
+            scan_run_id=0,
+        )
+
+    assert extract_calls == [], "Sidecar .nfo files must never trigger pymediainfo in backfill"
