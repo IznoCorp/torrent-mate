@@ -1126,8 +1126,9 @@ class IndexerConfig(_StrictModel):
 
     Attributes:
         db_path: Path to the SQLite library database. Relative paths are
-            resolved against the project root. Must not reside on a macFUSE
-            or external mount.
+            resolved against the current working directory at load-time and
+            stored as absolute paths. Must not reside on a macFUSE or external
+            mount. Recommended: place the DB under ``paths.data_dir``.
         scan: Scan-engine tunables.
         fingerprint: Fingerprint strategy tunables.
         mediainfo: libmediainfo extraction tunables.
@@ -1152,40 +1153,40 @@ class IndexerConfig(_StrictModel):
     @field_validator("db_path", mode="after")
     @classmethod
     def _reject_external_mount(cls, v: Path) -> Path:
-        """Reject db_path that resolves to a macFUSE or external mount.
+        """Resolve ``db_path`` to an absolute path and reject macFUSE / external mounts.
 
-        SQLite WAL mode is unreliable on macFUSE-NTFS and network mounts.
-        The database must live on the internal APFS volume.
+        Two invariants enforced here:
 
-        Detection heuristic: the resolved path starts with ``/Volumes/`` (macOS
-        convention for all external and network mounts). Paths under the home
-        directory or project root are always accepted.
+        1. **Absolute path.** Relative ``db_path`` values are resolved against
+           the current working directory at load-time so every consumer sees
+           the same path regardless of where ``personalscraper`` is invoked
+           from. Without this, ``sqlite3.connect()`` would re-anchor the
+           relative path to whatever CWD the calling process happens to have,
+           producing different (orphan) DBs depending on the entry point.
+        2. **No external mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
+           and network mounts. The database must live on the internal APFS
+           volume. Detection heuristic: the resolved path starts with
+           ``/Volumes/`` (macOS convention for all external mounts).
 
         Args:
-            v: Resolved Path value for db_path.
+            v: Raw Path value for db_path (may be relative).
 
         Returns:
-            The validated Path if it is not on an external mount.
+            Absolute Path with ``~`` expanded.
 
         Raises:
-            ValueError: If the path resolves under ``/Volumes/``.
+            ValueError: If the resolved path is under ``/Volumes/``.
         """
-        # Expand user and normalise without requiring the file to exist.
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            # Relative paths are anchored at CWD; they cannot be /Volumes/.
-            return v
-        # The /Volumes/ tree on macOS is exclusively used for external, network,
-        # and removable mounts. The internal APFS system volume appears there
-        # too but is accessed as / (the mount is transparent). Any user-supplied
-        # path starting with /Volumes/ therefore targets a non-internal volume.
+            resolved = (Path.cwd() / resolved).resolve()
         if str(resolved).startswith("/Volumes/"):
             raise ValueError(
                 f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "
                 "SQLite WAL mode is unreliable on such filesystems. "
                 "Move the database to the internal APFS volume (e.g. ~/.personalscraper/library.db)."
             )
-        return v
+        return resolved
 
 
 # ---------------------------------------------------------------------------
