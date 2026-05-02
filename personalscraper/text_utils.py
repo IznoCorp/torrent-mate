@@ -25,9 +25,22 @@ from personalscraper.conf.models import FuzzyMatchConfig
 # Year suffix pattern for length ratio normalization
 _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
 
-# Characters illegal on NTFS/Windows; colon also displays as / in macOS Finder
-_FILENAME_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
+# Characters illegal on NTFS/Windows; colon also displays as / in macOS Finder.
+# The colon is handled separately because deleting it outright collapses
+# subtitles into the main title (e.g. "Peaky Blinders : L'Immortel" became
+# "Peaky Blinders L'Immortel" with a double space, then a single space —
+# losing the visual separation between the franchise and the subtitle).
+# We replace `:` (and the matching ` :` / `: ` variants) with ` - ` so the
+# title keeps a separator that survives the sanitization pass.
+_FILENAME_ILLEGAL = re.compile(r'[<>"/\\|?*]')
+_FILENAME_COLON = re.compile(r"\s*:\s*")
 _MULTI_SPACE = re.compile(r" {2,}")
+
+# Strict NTFS-illegal character set used for **post-sanitisation** validation.
+# Includes the colon: even though our sanitizer replaces ``:`` with `` - ``,
+# a downstream consumer scanning a directory for NTFS safety must still flag
+# files that slipped through with a raw ``:`` (e.g. files placed by hand).
+_NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 
 #: Junk filenames that show up next to media on macOS / Windows / Linux and
 #: should be skipped, removed, or ignored by every consumer that walks the
@@ -53,7 +66,11 @@ def sanitize_filename(name: str) -> str:
     """
     # Replace non-breaking space with regular space
     name = name.replace("\u00a0", " ")
-    # Remove illegal characters and collapse resulting double spaces
+    # Replace colon with " - " to preserve subtitle separation (the colon
+    # itself is illegal on NTFS but stripping it would collapse e.g.
+    # "Peaky Blinders : L'Immortel" into "Peaky Blinders L'Immortel").
+    name = _FILENAME_COLON.sub(" - ", name)
+    # Remove the remaining illegal characters and collapse double spaces
     name = _FILENAME_ILLEGAL.sub("", name)
     return _MULTI_SPACE.sub(" ", name).strip()
 

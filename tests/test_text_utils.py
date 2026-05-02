@@ -145,3 +145,49 @@ class TestFuzzyMatchScore:
         assert fuzzy_match_score("Shrinking (2023)", "Shrinking") is not None
         assert fuzzy_match_score("The Boys", "The Boys (2019)") is not None
         assert fuzzy_match_score("The Boys (2019)", "The Boys") is not None
+
+
+class TestSanitizeFilename:
+    """Tests for sanitize_filename — colon → ' - ' replacement and NTFS safety."""
+
+    def test_colon_replaced_with_dash_separator(self):
+        """Colon is replaced with ' - ' so subtitles stay legible."""
+        from personalscraper.text_utils import sanitize_filename
+
+        # Without this rule: "Peaky Blinders L'Immortel" (subtitle merged in).
+        # With the rule: "Peaky Blinders - L'Immortel" (separator preserved).
+        assert sanitize_filename("Peaky Blinders : L'Immortel") == "Peaky Blinders - L'Immortel"
+        assert sanitize_filename("Star Trek: TNG (1987)") == "Star Trek - TNG (1987)"
+        assert sanitize_filename("Title:NoSpace") == "Title - NoSpace"
+
+    def test_other_ntfs_illegal_chars_stripped(self):
+        r"""``<>"/\|?*`` are still removed outright (no useful replacement)."""
+        from personalscraper.text_utils import sanitize_filename
+
+        assert sanitize_filename('Title<bad>"end') == "Titlebadend"
+        assert sanitize_filename("a/b\\c|d?e*f") == "abcdef"
+
+    def test_non_breaking_space_normalised(self):
+        """U+00A0 NBSP is normalised to a regular space."""
+        from personalscraper.text_utils import sanitize_filename
+
+        assert sanitize_filename("Title (2024)") == "Title (2024)"
+
+    def test_double_spaces_collapsed(self):
+        """Resulting double spaces from substitutions collapse to one."""
+        from personalscraper.text_utils import sanitize_filename
+
+        assert sanitize_filename("Multi  Space") == "Multi Space"
+
+    def test_ntfs_illegal_regex_includes_colon(self):
+        """``_NTFS_ILLEGAL`` flags a raw colon for post-sanitisation checks.
+
+        Used by downstream consumers scanning the filesystem (e.g. the
+        dispatch pre-rsync NTFS guard) to detect any colon that slipped
+        through manual file placement, even though the sanitizer would
+        have replaced it on entry through the normal pipeline.
+        """
+        from personalscraper.text_utils import _NTFS_ILLEGAL
+
+        assert _NTFS_ILLEGAL.search("Title : Subtitle.mkv") is not None
+        assert _NTFS_ILLEGAL.search("clean_title.mkv") is None

@@ -27,7 +27,7 @@ from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_sta
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.logger import get_logger
-from personalscraper.text_utils import _FILENAME_ILLEGAL
+from personalscraper.text_utils import _NTFS_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
 log = get_logger("dispatcher")
@@ -1012,7 +1012,7 @@ class Dispatcher:
         Returns:
             True if any file has illegal characters.
         """
-        illegal = [f for f in directory.rglob("*") if f.is_file() and _FILENAME_ILLEGAL.search(f.name)]
+        illegal = [f for f in directory.rglob("*") if f.is_file() and _NTFS_ILLEGAL.search(f.name)]
         for f in illegal:
             log.warning("ntfs_illegal_filename", path=str(f))
         return len(illegal) > 0
