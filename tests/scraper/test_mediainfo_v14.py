@@ -64,6 +64,7 @@ class TestBitrateExtraction:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result is not None
         assert result["video"]["bitrate_kbps"] == 5000
@@ -83,6 +84,7 @@ class TestBitrateExtraction:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result is not None
         assert result["video"]["bitrate_kbps"] is None
@@ -101,6 +103,7 @@ class TestAtmosDetection:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result["audio"][0]["is_atmos"] is True
         # Codec is "atmos" for Kodi NFO, is_atmos preserves detection for analysis
@@ -116,6 +119,7 @@ class TestAtmosDetection:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result["audio"][0]["is_atmos"] is False
 
@@ -133,6 +137,7 @@ class TestSubtitleExtensions:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result["subtitle"][0]["format"] == "srt"
 
@@ -146,6 +151,7 @@ class TestSubtitleExtensions:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result["subtitle"][0]["format"] == "pgs"
 
@@ -159,6 +165,7 @@ class TestSubtitleExtensions:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result["subtitle"][0]["forced"] is True
 
@@ -172,6 +179,7 @@ class TestSubtitleExtensions:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = output
             result = extract_stream_info(video)
+            assert result is not None
 
         assert result["audio"][0]["is_default"] is True
         assert result["subtitle"][0]["is_default"] is False

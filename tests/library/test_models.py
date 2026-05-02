@@ -127,7 +127,7 @@ class TestLibraryScanItem:
             ],
             scanned_at="2026-04-15T12:00:00",
         )
-        assert len(item.seasons) == 1
+        assert item.seasons is not None and len(item.seasons) == 1
         assert ISSUE_ACTORS_DIR in item.issues
 
 

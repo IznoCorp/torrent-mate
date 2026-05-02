@@ -533,6 +533,7 @@ class TestTVDBClientDetails:
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             result = logged_in_client.get_episode_translation(349232, "fra")
 
+        assert result is not None
         assert result["name"] == "Épisode pilote"
         assert "/episodes/349232/translations/fra" in mock_get.call_args[0][0]
 
@@ -573,6 +574,7 @@ class TestTVDBClientDetails:
         with patch.object(logged_in_client._session, "get", return_value=mock_resp) as mock_get:
             result = logged_in_client.get_series_translation(368207, "fra")
 
+        assert result is not None
         assert result["name"] == "Épisode pilote"
         assert "/series/368207/translations/fra" in mock_get.call_args[0][0]
 

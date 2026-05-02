@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -183,7 +184,7 @@ class TestMissingStagingDirs:
         # patterns.json5 is empty (no staging_dirs key to split).
         import json5
 
-        patterns = json5.loads((target / "patterns.json5").read_text(encoding="utf-8"))
+        patterns: Any = json5.loads((target / "patterns.json5").read_text(encoding="utf-8"))
         assert "staging_dirs" not in patterns
 
 
@@ -219,7 +220,7 @@ class TestVersionAlreadyV2:
         migrate_v1_to_v2(legacy, target)
         import json5
 
-        new_master = json5.loads((target / "config.json5").read_text(encoding="utf-8"))
+        new_master: Any = json5.loads((target / "config.json5").read_text(encoding="utf-8"))
         assert "overlays" in new_master
 
 

@@ -15,9 +15,10 @@ def _default_registry_dir() -> Path:
     Returns:
         Path to the configured data directory.
     """
-    from personalscraper.config import get_settings
+    # ``data_dir`` migrated from ``Settings`` to ``Config.paths`` in P6.1.
+    from personalscraper.conf.loader import load_config, resolve_config_path
 
-    return get_settings().data_dir
+    return load_config(resolve_config_path()).paths.data_dir
 
 
 @dataclass

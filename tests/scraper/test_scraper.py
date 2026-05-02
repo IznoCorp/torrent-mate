@@ -1161,9 +1161,12 @@ class TestCircuitBreakerFallback:
             patch("personalscraper.scraper.scraper.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
-        # Replace mock circuits with real ones for testing
-        s._tmdb.circuit = CircuitBreaker(name="TMDB")
-        s._tvdb.circuit = CircuitBreaker(name="TVDB")
+        # Replace mock circuits with real ones for testing.
+        # ``circuit`` is a read-only property on the real clients; the
+        # MagicMock replacement still accepts assignment. Type ignores
+        # acknowledge the mock-vs-real shape divergence.
+        s._tmdb.circuit = CircuitBreaker(name="TMDB")  # type: ignore[misc]
+        s._tvdb.circuit = CircuitBreaker(name="TVDB")  # type: ignore[misc]
         return s
 
     def test_process_movies_skips_when_tmdb_circuit_open(

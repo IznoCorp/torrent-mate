@@ -168,7 +168,7 @@ class TestEncodingRules:
                 ),
             ]
         )
-        id_lookup = {items[0].path: ("1", "tt4154796")}
+        id_lookup: dict[str, tuple[str | None, str | None]] = {items[0].path: ("1", "tt4154796")}
         result = generate_recommendations(items, prefs, id_lookup=id_lookup)
         assert result.total_recommendations == 1
         assert result.items[0].target.resolution == "2160p"

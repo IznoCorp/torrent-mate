@@ -70,7 +70,7 @@ class TestCategoryConfig:
     def test_extra_fields_forbidden(self):
         """Unknown fields must raise ValidationError."""
         with pytest.raises(ValidationError, match="extra_forbidden"):
-            CategoryConfig(folder_name="Films", unknown_key="x")
+            CategoryConfig(folder_name="Films", unknown_key="x")  # type: ignore[call-arg]
 
     def test_folder_name_empty_rejected(self):
         """Empty folder_name must be rejected."""
@@ -159,11 +159,16 @@ class TestPathConfig:
     """Tests for PathConfig field validator."""
 
     def test_relative_path_resolved(self, tmp_path, monkeypatch):
-        """Relative paths must be resolved to absolute."""
+        """Relative paths must be resolved to absolute.
+
+        Pydantic accepts a ``str`` and coerces it to ``Path`` at runtime;
+        the type ignore acknowledges that we're testing the coercion path
+        explicitly.
+        """
         monkeypatch.chdir(tmp_path)
         cfg = PathConfig(
-            torrent_complete_dir="./complete",
-            staging_dir="./staging",
+            torrent_complete_dir="./complete",  # type: ignore[arg-type]
+            staging_dir="./staging",  # type: ignore[arg-type]
         )
         assert cfg.torrent_complete_dir.is_absolute()
         assert cfg.staging_dir.is_absolute()
@@ -371,7 +376,7 @@ class TestConfigCrossReferences:
                     staging_dir=tmp_path / "s",
                 ),
                 disks=[DiskConfig(id="disk_a", path=tmp_path / "a", categories=[CID.MOVIES])],
-                unknown_key="surprise",
+                unknown_key="surprise",  # type: ignore[call-arg]
                 staging_dirs=CANONICAL_STAGING_DIRS,
             )
 

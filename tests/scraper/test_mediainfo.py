@@ -171,6 +171,7 @@ class TestExtractStreamInfo:
         """Extracts video, audio, subtitle, and duration."""
         mock_run.return_value = _mock_run(_mock_ffprobe_output())
         info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
 
         assert info is not None
         assert info["duration_seconds"] == 7628  # round(7627.5)
@@ -190,6 +191,7 @@ class TestExtractStreamInfo:
         """Detects Dolby Atmos: codec='atmos' for NFO, is_atmos=True for analysis."""
         mock_run.return_value = _mock_run(_mock_ffprobe_output(audio_profile="Dolby Digital Plus + Dolby Atmos"))
         info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
         assert info["audio"][0]["codec"] == "atmos"
         assert info["audio"][0]["is_atmos"] is True
 
@@ -198,6 +200,7 @@ class TestExtractStreamInfo:
         """Detects HDR10 via color_transfer."""
         mock_run.return_value = _mock_run(_mock_ffprobe_output(color_transfer="smpte2084"))
         info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
         assert info["video"]["hdr"]["is_hdr"] is True
         assert info["video"]["hdr"]["hdr_type"] == "hdr10"
 
@@ -206,6 +209,7 @@ class TestExtractStreamInfo:
         """SDR content has no HDR info."""
         mock_run.return_value = _mock_run(_mock_ffprobe_output())
         info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
         assert info["video"]["hdr"]["is_hdr"] is False
 
     @patch("personalscraper.scraper.mediainfo.subprocess.run")
@@ -213,6 +217,7 @@ class TestExtractStreamInfo:
         """Interlaced content detected via field_order."""
         mock_run.return_value = _mock_run(_mock_ffprobe_output(field_order="tt"))
         info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
         assert info["video"]["scantype"] == "interlaced"
 
 

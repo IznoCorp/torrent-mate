@@ -48,6 +48,7 @@ def _seed_disk(c: sqlite3.Connection, mount: str) -> DiskRow:
         ("u-1", "TestDisk", mount, int(time.time())),
     )
     disk_id = cur.lastrowid
+    assert disk_id is not None
     return DiskRow(
         id=disk_id,
         uuid="u-1",
@@ -77,6 +78,7 @@ def _seed_file(c: sqlite3.Connection, *, disk_id: int, rel_path: str, filename: 
         "VALUES (NULL, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 1, ?, NULL, 0, NULL)",
         (path_id, filename, size, int(time.time()) * 1_000_000_000, int(time.time())),
     )
+    assert file_cur.lastrowid is not None
     return file_cur.lastrowid
 
 

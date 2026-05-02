@@ -47,7 +47,8 @@ def _seed_disk(conn: sqlite3.Connection, *, mount_path: str, label: str = "disk_
         "VALUES (?, ?, ?, ?, 1, 0)",
         (label, label, mount_path, int(time.time())),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 def _seed_path(conn: sqlite3.Connection, disk_id: int, rel_path: str) -> int:
@@ -56,7 +57,8 @@ def _seed_path(conn: sqlite3.Connection, disk_id: int, rel_path: str) -> int:
         "INSERT INTO path (disk_id, rel_path, dir_mtime_ns) VALUES (?, ?, 0)",
         (disk_id, rel_path),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 def _seed_item(
@@ -77,7 +79,8 @@ def _seed_item(
         """,
         (kind, title, title, category_id, now, now),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 def _seed_release(conn: sqlite3.Connection, item_id: int) -> int:
@@ -87,7 +90,8 @@ def _seed_release(conn: sqlite3.Connection, item_id: int) -> int:
         "VALUES (?, NULL, NULL, NULL, NULL)",
         (item_id,),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 def _seed_file(
@@ -111,7 +115,8 @@ def _seed_file(
         """,
         (release_id, path_id, filename, size_bytes, mtime_ns, mtime_ns, enriched_at, now),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 def _seed_season(
@@ -126,7 +131,8 @@ def _seed_season(
         "INSERT INTO season (item_id, number, episode_count, has_poster, episodes_with_nfo) VALUES (?, ?, ?, 0, 0)",
         (item_id, number, episode_count),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 def _seed_episode(conn: sqlite3.Connection, season_id: int, number: int) -> int:
@@ -135,7 +141,8 @@ def _seed_episode(conn: sqlite3.Connection, season_id: int, number: int) -> int:
         "INSERT INTO episode (season_id, number, title) VALUES (?, ?, NULL)",
         (season_id, number),
     )
-    return int(cursor.lastrowid)
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid
 
 
 # ---------------------------------------------------------------------------

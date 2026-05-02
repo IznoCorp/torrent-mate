@@ -867,6 +867,10 @@ class TestRunIngest:
             r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "ingest_unexpected_error"
         ]
         assert matching, "ingest event 'ingest_unexpected_error' was not emitted"
-        assert matching[0].msg.get("error_type") == "RuntimeError", (
-            f"expected error_type='RuntimeError', got {matching[0].msg.get('error_type')!r}"
+        # ``LogRecord.msg`` is typed as ``str | object`` so explicit narrowing
+        # is required before reading dict keys.
+        msg = matching[0].msg
+        assert isinstance(msg, dict)
+        assert msg.get("error_type") == "RuntimeError", (
+            f"expected error_type='RuntimeError', got {msg.get('error_type')!r}"
         )

@@ -235,6 +235,7 @@ class TestMovieNFOImages:
         root = ET.fromstring(xml.split("\n", 1)[1])
         posters = root.findall("thumb[@aspect='poster']")
         assert len(posters) >= 1
+        assert posters[0].text is not None
         assert "original" in posters[0].text
         assert "w342" in posters[0].get("preview", "")
 
@@ -246,6 +247,7 @@ class TestMovieNFOImages:
         assert fanart is not None
         thumbs = fanart.findall("thumb")
         assert len(thumbs) >= 1
+        assert thumbs[0].text is not None
         assert "original" in thumbs[0].text
         assert "w780" in thumbs[0].get("preview", "")
 
@@ -719,6 +721,7 @@ class TestTvshowNFOActorsImages:
         root = ET.fromstring(xml.split("\n", 1)[1])
         poster = root.find("thumb[@aspect='poster']")
         assert poster is not None
+        assert poster.text is not None
         assert "original" in poster.text
 
     def test_fanart(self, generator: NFOGenerator) -> None:

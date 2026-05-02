@@ -63,7 +63,7 @@ import re
 import sqlite3
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1477,7 +1477,7 @@ class TestEnrichMode:
 
         parse_call_count: list[int] = [0]
 
-        def _counting_parse(*args: object, **kwargs: object) -> object:
+        def _counting_parse(*args: Any, **kwargs: Any) -> Any:
             parse_call_count[0] += 1
             return MagicMock(tracks=[])
 
@@ -1816,7 +1816,7 @@ class TestParallelScan:
 
         original_scan_disk_full = scanner_module._scan_disk_full
 
-        def _raise_for_disk_fail(*args: object, **kwargs: object) -> object:
+        def _raise_for_disk_fail(*args: Any, **kwargs: Any) -> Any:
             disk = args[1]
             if isinstance(disk, DiskRow) and disk.label == "DiskFail":
                 raise RuntimeError("synthetic worker failure")
@@ -1861,7 +1861,7 @@ class TestParallelScan:
         original_finalize = scanner_module._finalize_disk_after_walk
         finalize_connection_ids: list[int] = []
 
-        def _record_finalize_conn(*args: object, **kwargs: object) -> object:
+        def _record_finalize_conn(*args: Any, **kwargs: Any) -> Any:
             finalize_connection_ids.append(id(args[0]))
             return original_finalize(*args, **kwargs)
 
@@ -1909,7 +1909,7 @@ class TestParallelScan:
         real_tpe = _TPE
 
         class _SpyTPE(real_tpe):  # type: ignore[misc]
-            def __init__(self, *args: object, max_workers: int | None = None, **kwargs: object) -> None:
+            def __init__(self, *args: Any, max_workers: int | None = None, **kwargs: Any) -> None:
                 captured_max_workers.append(max_workers if max_workers is not None else 1)
                 super().__init__(*args, max_workers=max_workers, **kwargs)
 
@@ -1978,7 +1978,7 @@ class TestParallelScan:
         real_tpe = _TPE
 
         class _SpyTPE(real_tpe):  # type: ignore[misc]
-            def __init__(self, *args: object, max_workers: int | None = None, **kwargs: object) -> None:
+            def __init__(self, *args: Any, max_workers: int | None = None, **kwargs: Any) -> None:
                 captured_max_workers.append(max_workers if max_workers is not None else 1)
                 super().__init__(*args, max_workers=max_workers, **kwargs)
 

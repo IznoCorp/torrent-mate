@@ -12,6 +12,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -35,7 +36,10 @@ def conn() -> sqlite3.Connection:
     return c
 
 
-def _make_scan_run(generation: int = 1, status: str = "running") -> ScanRunRow:
+def _make_scan_run(
+    generation: int = 1,
+    status: Literal["running", "ok", "failed", "aborted"] = "running",
+) -> ScanRunRow:
     """Return a minimal ScanRunRow ready for insertion.
 
     Args:

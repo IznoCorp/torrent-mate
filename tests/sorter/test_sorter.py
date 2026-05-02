@@ -226,6 +226,7 @@ class TestErrorHandling:
         sorter = Sorter(config=config, dry_run=False)
         result = sorter.sort_item(bad_file, staging)
         assert result.status == "error"
+        assert result.message is not None
         assert "denied" in result.message
 
     def test_errors_dont_stop_processing(self, staging, config, monkeypatch):

@@ -5,6 +5,7 @@ accented French titles) and match_movie() with mocked TMDB responses.
 """
 
 import logging
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -728,7 +729,7 @@ class TestBelowThresholdWarning:
         target_event = "scraper.match.below_threshold"
         warning_records = [r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == target_event]
         assert warning_records, "expected scraper.match.below_threshold warning in caplog"
-        payload = warning_records[0].msg
+        payload: dict[str, Any] = warning_records[0].msg  # type: ignore[assignment]
         assert payload["title"] == "The Butterfly Effect"
         assert payload["year"] == 2004
         assert payload["candidates_count"] == 2
@@ -754,7 +755,7 @@ class TestBelowThresholdWarning:
         below_event = "scraper.match.below_threshold"
         warning_records = [r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == below_event]
         assert warning_records, "expected scraper.match.below_threshold warning in caplog"
-        payload = warning_records[0].msg
+        payload: dict[str, Any] = warning_records[0].msg  # type: ignore[assignment]
         assert payload["title"] == "The Butterfly Effect"
         assert payload["candidates_count"] == 1
         assert payload["source"] == "tvdb"

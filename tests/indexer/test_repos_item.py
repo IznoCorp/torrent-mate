@@ -13,6 +13,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -36,7 +37,7 @@ def conn() -> sqlite3.Connection:
     return c
 
 
-def _make_item(tmdb_id: int | None = None, kind: str = "movie") -> MediaItemRow:
+def _make_item(tmdb_id: int | None = None, kind: Literal["movie", "show"] = "movie") -> MediaItemRow:
     """Return a minimal MediaItemRow.
 
     Args:
@@ -210,7 +211,7 @@ def _insert_release_and_file(conn: sqlite3.Connection, item_id: int, path_id: in
 
 
 def _make_item_with_nfo(
-    nfo_status: str | None = None,
+    nfo_status: Literal["valid", "invalid", "missing"] | None = None,
     date_metadata_refreshed: int | None = None,
     is_locked: int = 0,
 ) -> MediaItemRow:
@@ -309,7 +310,7 @@ class TestFindItemsNeedingRescrape:
         self,
         conn: sqlite3.Connection,
         disk_id: int,
-        nfo_status: str | None,
+        nfo_status: Literal["valid", "invalid", "missing"] | None,
         date_refreshed: int | None = None,
         is_locked: int = 0,
     ) -> int:

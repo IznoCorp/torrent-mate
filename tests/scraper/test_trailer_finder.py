@@ -4,6 +4,7 @@ All external dependencies (TMDBClient, YoutubeSearch, TrailersCache) are mocked.
 """
 
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +13,23 @@ from personalscraper.scraper.circuit_breaker import CircuitBreaker, CircuitOpenE
 from personalscraper.scraper.tmdb_client import Video
 from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.trailers_cache import TrailersCache
+
+
+def _mock_tmdb(finder: TrailerFinder) -> MagicMock:
+    """Type-narrow ``finder._tmdb_client`` to its real MagicMock at runtime.
+
+    The fixture installs a MagicMock under the typed ``TMDBClient`` slot so
+    individual tests can reach into ``return_value`` / ``side_effect`` /
+    ``call_count`` without Pyright complaining about attributes that don't
+    exist on the real class.
+    """
+    return cast(MagicMock, finder._tmdb_client)
+
+
+def _mock_yt(finder: TrailerFinder) -> MagicMock:
+    """Type-narrow ``finder._youtube_search`` to its real MagicMock at runtime."""
+    return cast(MagicMock, finder._youtube_search)
+
 
 _TRAILER_VIDEO = Video(
     id="abc",
@@ -53,29 +71,29 @@ class TestTrailerFinder:
 
     def test_returns_tmdb_trailer_url(self, finder: TrailerFinder) -> None:
         """find() returns YouTube URL for first Trailer type from TMDB."""
-        finder._tmdb_client._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
 
     def test_tmdb_teaser_used_when_no_trailer(self, finder: TrailerFinder) -> None:
         """find() falls back to Teaser if no Trailer type exists in TMDB results."""
-        finder._tmdb_client._fetch_videos_strict.return_value = [_TEASER_VIDEO]
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TEASER_VIDEO]
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == "https://www.youtube.com/watch?v=TEASER_KEY"
 
     def test_youtube_fallback_on_empty_tmdb(self, finder: TrailerFinder) -> None:
         """find() falls back to YouTube search when TMDB returns no videos."""
-        finder._tmdb_client._fetch_videos_strict.return_value = []
-        finder._youtube_search.search.return_value = _YT_URL
-        finder._youtube_search._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = []
+        _mock_yt(finder).search.return_value = _YT_URL
+        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
 
     def test_returns_none_when_both_fail(self, finder: TrailerFinder) -> None:
         """find() returns None when TMDB and YouTube both return nothing."""
-        finder._tmdb_client._fetch_videos_strict.return_value = []
-        finder._youtube_search.search.return_value = None
-        finder._youtube_search._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = []
+        _mock_yt(finder).search.return_value = None
+        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url is None
 
@@ -87,19 +105,19 @@ class TestTrailerFinder:
                 return [_TRAILER_VIDEO]
             return []
 
-        finder._tmdb_client._fetch_videos_strict.side_effect = fetch_side_effect
+        _mock_tmdb(finder)._fetch_videos_strict.side_effect = fetch_side_effect
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
         # Only one call (fr-FR) because it already found a result
-        assert finder._tmdb_client._fetch_videos_strict.call_count == 1
+        assert _mock_tmdb(finder)._fetch_videos_strict.call_count == 1
 
     def test_tv_show_uses_fetch_tv_videos(self, finder: TrailerFinder) -> None:
         """find() calls _fetch_videos_strict with the tv endpoint for media_type='tv'."""
-        finder._tmdb_client._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
         url = finder.find(1399, "tv", title="Game of Thrones", year=2011)
         assert url == _YT_URL
         # Verify it was called with the TV endpoint
-        call_args = finder._tmdb_client._fetch_videos_strict.call_args
+        call_args = _mock_tmdb(finder)._fetch_videos_strict.call_args
         assert "/tv/1399/videos" in call_args[0][0]
 
     def test_cache_hit_skips_network(self, finder: TrailerFinder) -> None:
@@ -108,7 +126,7 @@ class TestTrailerFinder:
         finder._cache.set_tmdb_videos(550, "movie", "fr-FR", [_TRAILER_VIDEO])
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         assert url == _YT_URL
-        finder._tmdb_client._fetch_videos_strict.assert_not_called()
+        _mock_tmdb(finder)._fetch_videos_strict.assert_not_called()
 
     def test_non_youtube_videos_filtered_out(self, finder: TrailerFinder) -> None:
         """find() ignores non-YouTube videos even when they are Trailers."""
@@ -121,20 +139,20 @@ class TestTrailerFinder:
             size=1080,
             iso_639_1="en",
         )
-        finder._tmdb_client._fetch_videos_strict.return_value = [vimeo_video]
-        finder._youtube_search.search.return_value = _YT_URL
-        finder._youtube_search._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = [vimeo_video]
+        _mock_yt(finder).search.return_value = _YT_URL
+        _mock_yt(finder)._breaker = CircuitBreaker(name="yt-test", failure_threshold=5)
         url = finder.find(550, "movie", title="Fight Club", year=1999)
         # Vimeo entry must be ignored; YouTube search fallback should be used.
         assert url == _YT_URL
-        finder._youtube_search.search.assert_called_once()
+        _mock_yt(finder).search.assert_called_once()
 
     def test_season_uses_fetch_tv_season_videos(self, finder: TrailerFinder) -> None:
         """find() calls _fetch_videos_strict with the season endpoint."""
-        finder._tmdb_client._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
+        _mock_tmdb(finder)._fetch_videos_strict.return_value = [_TRAILER_VIDEO]
         url = finder.find(1399, "tv", title="Game of Thrones", year=2011, season_number=1)
         assert url == _YT_URL
-        call_args = finder._tmdb_client._fetch_videos_strict.call_args
+        call_args = _mock_tmdb(finder)._fetch_videos_strict.call_args
         assert "/tv/1399/season/1/videos" in call_args[0][0]
 
 
@@ -184,7 +202,7 @@ class TestSeasonFallbackQuotaConfig:
         constructed_searchers: list[YoutubeSearch] = []
         _original_init = YoutubeSearch.__init__
 
-        def capturing_init(self_inner: YoutubeSearch, *args: object, **kwargs: object) -> None:
+        def capturing_init(self_inner: YoutubeSearch, *args: Any, **kwargs: Any) -> None:
             _original_init(self_inner, *args, **kwargs)
             constructed_searchers.append(self_inner)
 
@@ -477,7 +495,7 @@ class TestDownloadErrorRegression:
         """
         from unittest.mock import patch
 
-        import yt_dlp
+        from yt_dlp.utils import DownloadError as _YtDlpDownloadError
 
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
         from personalscraper.scraper.youtube_search import YoutubeSearch
@@ -508,7 +526,7 @@ class TestDownloadErrorRegression:
         with patch.object(
             real_searcher,
             "_fallback_search",
-            side_effect=yt_dlp.utils.DownloadError("simulated yt-dlp download error"),
+            side_effect=_YtDlpDownloadError("simulated yt-dlp download error"),
         ):
             result = finder.find(550, "movie", title="Fight Club", year=1999)
 
