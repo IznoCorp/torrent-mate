@@ -1904,7 +1904,17 @@ class Scraper:
                     # never consult TMDB for episodes, even when a tmdb_id
                     # cross-ref exists.
                     if match.source == "tvdb":
-                        # TVDB episodes + per-episode French translation.
+                        # TVDB episodes + per-episode translation.
+                        # The match source rule is strict: when TVDB matched the
+                        # show, episodes come from TVDB only — TMDB is NEVER
+                        # consulted as a per-episode cross-API fallback, even
+                        # when TVDB lacks the configured-language translation.
+                        # TMDB-for-TV is only allowed when TVDB had no match for
+                        # the show itself (the ``else`` branch below).
+                        # Translation cascade within TVDB:
+                        # 1. configured primary language (e.g. "fra")
+                        # 2. configured fallback language (e.g. "eng")
+                        # 3. raw TVDB ``name`` (whatever TVDB stored, usually EN)
                         tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
                         for ep in tvdb_eps:
                             e_num = ep.get("number", ep.get("episode_number", 0))
