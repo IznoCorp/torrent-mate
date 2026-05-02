@@ -134,18 +134,26 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
             continue
 
         # Strategy 1: dispatch_path exact match (fast, indexed).
+        # ``COLLATE NOCASE`` because macFUSE-NTFS may surface a folder
+        # with different casing than what was stored at dispatch time
+        # (the FS preserves the original case but lookups by SQL `=`
+        # are case-sensitive in SQLite by default).
         row = conn.execute(
             "SELECT mi.id, mi.kind FROM media_item mi "
             "JOIN item_attribute ia ON ia.item_id = mi.id "
-            "WHERE ia.key = ? AND ia.value = ?",
+            "WHERE ia.key = ? AND ia.value = ? COLLATE NOCASE",
             (_ATTR_DISPATCH_PATH, str(current)),
         ).fetchone()
         if row is not None:
             return int(row[0]), str(row[1]), season_num
 
         # Strategy 2: title equals the folder name (dispatch-style title).
+        # Case-insensitive: a re-scrape may have rewritten the canonical
+        # title with different casing (``Les Griffes de la Nuit`` vs
+        # ``Les Griffes de la nuit``) without us renaming the on-disk
+        # folder. Without NOCASE the linker leaves every file orphan.
         row = conn.execute(
-            "SELECT id, kind FROM media_item WHERE title = ? LIMIT 1",
+            "SELECT id, kind FROM media_item WHERE title = ? COLLATE NOCASE LIMIT 1",
             (current.name,),
         ).fetchone()
         if row is not None:
@@ -155,7 +163,7 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
         parsed_title, parsed_year = _parse_title_year(current.name)
         if parsed_year is not None:
             row = conn.execute(
-                "SELECT id, kind FROM media_item WHERE title = ? AND year = ? LIMIT 1",
+                "SELECT id, kind FROM media_item WHERE title = ? COLLATE NOCASE AND year = ? LIMIT 1",
                 (parsed_title, parsed_year),
             ).fetchone()
             if row is not None:
