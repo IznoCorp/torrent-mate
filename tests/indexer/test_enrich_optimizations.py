@@ -4,6 +4,8 @@ Covers:
 - Extension-based skip: ``_scan_disk_enrich`` passes ``wrapper=None`` to
   ``_enrich_one_file`` for non-video files so libmediainfo is not invoked
   on the ~84 % of library files that are sidecars (jpg / nfo / srt / ...).
+- Per-directory NFO + artwork cache: each parent dir is FS-scanned once
+  per pass even when it contains a video + many sidecars.
 - Backfill mode: ``_scan_disk_enrich_backfill`` targets only already-
   enriched files whose ``media_stream`` rows are missing
   migration-004 columns; UPDATEs in place; never touches NFO / artwork /
@@ -96,7 +98,7 @@ def test_enrich_skips_pymediainfo_for_non_video_extensions(conn: sqlite3.Connect
 
     captured_wrappers: dict[str, object] = {}
 
-    def _fake_enrich_one_file(conn_arg, file_id, file_path, item_id, wrapper):  # noqa: ANN001
+    def _fake_enrich_one_file(conn_arg, file_id, file_path, item_id, wrapper, nfo_artwork_cache=None):  # noqa: ANN001
         # Map back to filename for assertion clarity.
         for name, fid in file_ids.items():
             if fid == file_id:
@@ -127,6 +129,83 @@ def test_enrich_skips_pymediainfo_for_non_video_extensions(conn: sqlite3.Connect
     assert captured_wrappers["Inception.nfo"] is None
     assert captured_wrappers["Inception-poster.jpg"] is None
     assert captured_wrappers["Inception.srt"] is None
+
+
+# ---------------------------------------------------------------------------
+# Per-directory NFO + artwork cache
+# ---------------------------------------------------------------------------
+
+
+def test_enrich_caches_nfo_artwork_per_directory(conn: sqlite3.Connection, tmp_path: Path) -> None:
+    """All files sharing a parent directory share one NFO + artwork FS scan.
+
+    A typical media folder is one ``.mkv`` + several sidecars. Without the
+    cache, ``_check_nfo_status`` and ``_inventory_artwork`` are called once
+    per file; with the cache, exactly once per directory per pass.
+    """
+    mount = str(tmp_path / "TestDisk")
+    media_dir = Path(mount, "Inception (2010)")
+    media_dir.mkdir(parents=True)
+    for name in ("Inception.mkv", "Inception.nfo", "Inception-poster.jpg", "Inception-fanart.jpg"):
+        (media_dir / name).write_bytes(b"X" * 200)
+
+    disk = _seed_disk(conn, mount)
+    # Insert + link every file to a real release so item_id is non-None
+    # (the cache only kicks in when item_id is set).
+    cur = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+        " tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+        " date_metadata_refreshed, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', NULL, NULL, NULL, "
+        "        NULL, NULL, ?, ?, NULL, 0, 'fr')",
+        (int(time.time()), int(time.time())),
+    )
+    item_id = cur.lastrowid
+    rel_cur = conn.execute(
+        "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+        "VALUES (?, NULL, NULL, NULL, NULL)",
+        (item_id,),
+    )
+    release_id = rel_cur.lastrowid
+    file_ids: list[int] = []
+    for name in ("Inception.mkv", "Inception.nfo", "Inception-poster.jpg", "Inception-fanart.jpg"):
+        fid = _seed_file(conn, disk_id=disk.id, rel_path="Inception (2010)", filename=name)
+        conn.execute("UPDATE media_file SET release_id = ? WHERE id = ?", (release_id, fid))
+        file_ids.append(fid)
+
+    nfo_calls: list[str] = []
+    artwork_calls: list[str] = []
+
+    def _spy_nfo(parent_dir: str) -> str:
+        nfo_calls.append(parent_dir)
+        return "valid"
+
+    def _spy_artwork(parent_dir: str) -> object:
+        artwork_calls.append(parent_dir)
+        # Return a minimal object that responds to model_dump_json so the
+        # downstream UPDATE statement does not crash.
+        from personalscraper.indexer.schema import ArtworkInventory
+
+        return ArtworkInventory()
+
+    with (
+        patch("personalscraper.indexer.scanner._modes._check_nfo_status", side_effect=_spy_nfo),
+        patch("personalscraper.indexer.scanner._modes._inventory_artwork", side_effect=_spy_artwork),
+        patch("personalscraper.indexer.scanner._modes.MediaInfoWrapper", return_value=object()),
+    ):
+        budget_exhausted = [False]
+        _scan_disk_enrich(
+            conn,
+            disk,
+            budget_seconds=None,
+            started_at_monotonic=time.monotonic(),
+            budget_exhausted=budget_exhausted,
+            scan_run_id=0,
+        )
+
+    # Four files in the same directory → exactly one FS scan each.
+    assert len(nfo_calls) == 1, f"Expected 1 NFO scan (cached), got {len(nfo_calls)}"
+    assert len(artwork_calls) == 1, f"Expected 1 artwork scan (cached), got {len(artwork_calls)}"
 
 
 # ---------------------------------------------------------------------------

@@ -1048,6 +1048,7 @@ def _enrich_one_file(
     file_path: Path,
     item_id: int | None,
     wrapper: MediaInfoWrapper | None,
+    nfo_artwork_cache: dict[str, tuple[str | None, ArtworkInventory | None]] | None = None,
 ) -> None:
     """Enrich a single ``media_file`` row with streams, NFO status, and artwork.
 
@@ -1072,6 +1073,12 @@ def _enrich_one_file(
             has not been performed yet.
         wrapper: Configured :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
             instance, or ``None`` when pymediainfo is unavailable.
+        nfo_artwork_cache: Optional dict keyed by parent directory, with values
+            ``(nfo_status, artwork)``. Lets the caller share NFO + artwork
+            results across all files in the same directory — a typical media
+            folder holds 1 video + 3-10 sidecars and the FS scans for those
+            checks are identical for every file. ``None`` disables caching
+            (legacy behaviour, used by callers that do not see batches).
     """
     now_s = int(time.time())
     parent_dir = str(file_path.parent)
@@ -1122,8 +1129,13 @@ def _enrich_one_file(
 
     # --- Steps 2 + 3: NFO status and artwork (only when release linkage exists) ---
     if item_id is not None:
-        nfo_status = _check_nfo_status(parent_dir)
-        artwork = _inventory_artwork(parent_dir)
+        if nfo_artwork_cache is not None and parent_dir in nfo_artwork_cache:
+            nfo_status, artwork = nfo_artwork_cache[parent_dir]
+        else:
+            nfo_status = _check_nfo_status(parent_dir)
+            artwork = _inventory_artwork(parent_dir)
+            if nfo_artwork_cache is not None:
+                nfo_artwork_cache[parent_dir] = (nfo_status, artwork)
 
         # Skip column updates when either scan returned None — a transient OS error
         # occurred and the existing DB values must be preserved rather than overwritten
@@ -1247,6 +1259,17 @@ def _scan_disk_enrich(
     conn.row_factory = None
 
     files_enriched = 0
+    files_since_commit = 0
+    # NFO + artwork results are identical for every file in the same parent
+    # directory — cache them per pass so a folder with one video and ten
+    # sidecars pays the FS scan cost once instead of eleven times.
+    nfo_artwork_cache: dict[str, tuple[str | None, ArtworkInventory | None]] = {}
+    # Batch ``conn.commit()`` every N files: each commit triggers a fsync(),
+    # which is the dominant cost on the sidecar fast path now that
+    # pymediainfo and ``release_linker`` are off the per-file critical path.
+    # Crash safety: at most COMMIT_EVERY_N_FILES files of work are lost; the
+    # next pass picks them up via ``enriched_at IS NULL``.
+    _COMMIT_EVERY_N_FILES = 100
 
     for row in pending:
         # Budget check at each file boundary.
@@ -1264,6 +1287,8 @@ def _scan_disk_enrich(
                     "UPDATE scan_run SET stats_json = ? WHERE id = ?",
                     (json.dumps({"budget_exhausted": True, "files_enriched": files_enriched}), scan_run_id),
                 )
+                # Drain any pending batched per-file work before exiting so
+                # the budget cut-off does not silently lose the last <100 files.
                 conn.commit()
                 budget_exhausted[0] = True
                 return
@@ -1332,7 +1357,14 @@ def _scan_disk_enrich(
                     item_id = resolved[0] if resolved[0] is not None else resolved[1]
 
         try:
-            _enrich_one_file(conn, file_id, file_path, item_id, effective_wrapper)
+            _enrich_one_file(
+                conn,
+                file_id,
+                file_path,
+                item_id,
+                effective_wrapper,
+                nfo_artwork_cache=nfo_artwork_cache,
+            )
         except Exception:  # noqa: BLE001
             log.warning(
                 "indexer.enrich.file_error",
@@ -1341,15 +1373,21 @@ def _scan_disk_enrich(
             )
             continue
 
-        # Per-file commit: partial progress is saved on any interruption.
-        conn.commit()
         files_enriched += 1
+        files_since_commit += 1
+        if files_since_commit >= _COMMIT_EVERY_N_FILES:
+            conn.commit()
+            files_since_commit = 0
 
         log.debug(
             "indexer.enrich.file_done",
             file_id=file_id,
             path=str(file_path),
         )
+
+    # Drain the trailing batch so the very last files are persisted.
+    if files_since_commit > 0:
+        conn.commit()
 
     log.info(
         "indexer.enrich.disk_done",
