@@ -26,21 +26,20 @@ from personalscraper.conf.models import FuzzyMatchConfig
 _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")
 
 # Characters illegal on NTFS/Windows; colon also displays as / in macOS Finder.
-# The colon is handled separately because deleting it outright collapses
-# subtitles into the main title (e.g. "Peaky Blinders : L'Immortel" became
-# "Peaky Blinders L'Immortel" with a double space, then a single space —
-# losing the visual separation between the franchise and the subtitle).
-# We replace `:` (and the matching ` :` / `: ` variants) with ` - ` so the
-# title keeps a separator that survives the sanitization pass.
-_FILENAME_ILLEGAL = re.compile(r'[<>"/\\|?*]')
-_FILENAME_COLON = re.compile(r"\s*:\s*")
+# Stripped outright on purpose — the project's filename patterns use `-` as a
+# STRUCTURAL separator (``{Title}-poster.jpg``, ``S01E01 - {EpisodeTitle}``)
+# so any attempt to replace ``:`` with `` - `` would produce filenames with
+# two semantically different dashes and break the round-trip parsers in
+# ``naming_patterns.py``. The cosmetic loss (a subtitle's leading
+# whitespace collapses into the main title) is the lesser of two evils.
+_FILENAME_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 _MULTI_SPACE = re.compile(r" {2,}")
 
-# Strict NTFS-illegal character set used for **post-sanitisation** validation.
-# Includes the colon: even though our sanitizer replaces ``:`` with `` - ``,
-# a downstream consumer scanning a directory for NTFS safety must still flag
-# files that slipped through with a raw ``:`` (e.g. files placed by hand).
-_NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
+# Alias retained for callers that need to emphasise "this regex includes the
+# colon" — currently a strict synonym of ``_FILENAME_ILLEGAL``. Kept as a
+# named constant so post-sanitisation validators (e.g. dispatch's NTFS pre-
+# scan, verify's ntfs_safe_names check) read intent at the call site.
+_NTFS_ILLEGAL = _FILENAME_ILLEGAL
 
 #: Junk filenames that show up next to media on macOS / Windows / Linux and
 #: should be skipped, removed, or ignored by every consumer that walks the
@@ -66,11 +65,7 @@ def sanitize_filename(name: str) -> str:
     """
     # Replace non-breaking space with regular space
     name = name.replace("\u00a0", " ")
-    # Replace colon with " - " to preserve subtitle separation (the colon
-    # itself is illegal on NTFS but stripping it would collapse e.g.
-    # "Peaky Blinders : L'Immortel" into "Peaky Blinders L'Immortel").
-    name = _FILENAME_COLON.sub(" - ", name)
-    # Remove the remaining illegal characters and collapse double spaces
+    # Remove illegal characters and collapse resulting double spaces
     name = _FILENAME_ILLEGAL.sub("", name)
     return _MULTI_SPACE.sub(" ", name).strip()
 

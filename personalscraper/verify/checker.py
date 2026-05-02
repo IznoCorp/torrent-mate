@@ -21,7 +21,7 @@ from personalscraper.conf.models import Config
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
-from personalscraper.text_utils import _FILENAME_ILLEGAL
+from personalscraper.text_utils import _NTFS_ILLEGAL
 
 log = get_logger("verify.checker")
 
@@ -480,7 +480,7 @@ class MediaChecker:
         """
         illegal_files = []
         for f in media_dir.rglob("*"):
-            if f.is_file() and _FILENAME_ILLEGAL.search(f.name):
+            if f.is_file() and _NTFS_ILLEGAL.search(f.name):
                 illegal_files.append(f.name)
 
         if illegal_files:

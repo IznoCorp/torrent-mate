@@ -148,17 +148,27 @@ class TestFuzzyMatchScore:
 
 
 class TestSanitizeFilename:
-    """Tests for sanitize_filename — colon → ' - ' replacement and NTFS safety."""
+    """Tests for sanitize_filename — NTFS safety + space normalisation.
 
-    def test_colon_replaced_with_dash_separator(self):
-        """Colon is replaced with ' - ' so subtitles stay legible."""
+    The sanitizer strips every NTFS-illegal character outright (including
+    the colon). It does NOT introduce a separator like `` - `` in place of
+    the colon: the project's filename patterns use `-` as a structural
+    separator (``{Title}-poster.jpg``, ``S01E01 - {EpisodeTitle}``), so
+    injecting another dash inside the title would create filenames with
+    two semantically different dashes that the round-trip parsers in
+    ``naming_patterns.py`` cannot disambiguate.
+    """
+
+    def test_colon_stripped_keeps_pattern_consistency(self):
+        """Colon is stripped; the resulting double space collapses to one."""
         from personalscraper.text_utils import sanitize_filename
 
-        # Without this rule: "Peaky Blinders L'Immortel" (subtitle merged in).
-        # With the rule: "Peaky Blinders - L'Immortel" (separator preserved).
-        assert sanitize_filename("Peaky Blinders : L'Immortel") == "Peaky Blinders - L'Immortel"
-        assert sanitize_filename("Star Trek: TNG (1987)") == "Star Trek - TNG (1987)"
-        assert sanitize_filename("Title:NoSpace") == "Title - NoSpace"
+        # "Peaky Blinders : L'Immortel" → "Peaky Blinders L'Immortel"
+        # (colon stripped, double space collapsed). Subtitle separation is
+        # lost cosmetically but no extra dash is introduced — patterns
+        # that key on `-` keep their meaning.
+        assert sanitize_filename("Peaky Blinders : L'Immortel") == "Peaky Blinders L'Immortel"
+        assert sanitize_filename("Star Trek: TNG (1987)") == "Star Trek TNG (1987)"
 
     def test_other_ntfs_illegal_chars_stripped(self):
         r"""``<>"/\|?*`` are still removed outright (no useful replacement)."""
