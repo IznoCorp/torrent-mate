@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -939,8 +940,8 @@ def _walk_dir_incremental(
 # Artwork filename constants
 # ---------------------------------------------------------------------------
 
-# Canonical artwork filenames checked during enrich (case-insensitive on macOS
-# but we match lowercase to avoid double-hitting).
+# Canonical artwork filenames checked during enrich (Kodi convention).
+# Matched lowercase against entry.name.lower() to handle case-insensitive FS.
 _ARTWORK_FILENAMES: dict[str, str] = {
     "poster.jpg": "poster",
     "poster.png": "poster",
@@ -959,6 +960,86 @@ _ARTWORK_FILENAMES: dict[str, str] = {
     "characterart.png": "characterart",
     "characterart.jpg": "characterart",
 }
+
+# MediaElch / Plex local-artwork suffixes. Matched against the trailing portion
+# of the filename (e.g. "Movie Title (2020)-poster.jpg" → suffix "-poster.jpg").
+# This is the format produced by MediaElch (the project's manual scraper
+# fallback) and used by Plex local-art agents, both very common in real
+# libraries. Without these the canonical-only pattern misses the artwork even
+# though it sits next to the video file.
+_ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
+    ("-poster.jpg", "poster"),
+    ("-poster.png", "poster"),
+    ("-fanart.jpg", "fanart"),
+    ("-fanart.png", "fanart"),
+    ("-banner.jpg", "banner"),
+    ("-banner.png", "banner"),
+    ("-landscape.jpg", "landscape"),
+    ("-landscape.png", "landscape"),
+    ("-clearlogo.png", "clearlogo"),
+    ("-clearlogo.jpg", "clearlogo"),
+    ("-logo.png", "clearlogo"),  # MediaElch alternative
+    ("-logo.jpg", "clearlogo"),
+    ("-clearart.png", "clearart"),
+    ("-clearart.jpg", "clearart"),
+    ("-discart.png", "discart"),
+    ("-discart.jpg", "discart"),
+    ("-disc.png", "discart"),  # MediaElch alternative
+    ("-disc.jpg", "discart"),
+    ("-characterart.png", "characterart"),
+    ("-characterart.jpg", "characterart"),
+)
+
+
+# Subfolders whose contents must NEVER drive the parent item's NFO/artwork
+# state. ``.actors`` (Kodi actor thumbnails) and Plex extras folders contain
+# only sidecars; scanning them returns "missing" / empty-inventory and would
+# silently overwrite the correct values written by the actual release dir.
+_ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset({
+    ".actors",
+    "extras",
+    "behind the scenes",
+    "deleted scenes",
+    "featurettes",
+    "interviews",
+    "scenes",
+    "shorts",
+    "trailers",
+    "other",
+})
+
+# TV-show season folder names. When an episode file's parent matches this,
+# the show's tvshow.nfo and root artwork live one level up (the show dir),
+# not in the season dir.
+_TV_SEASON_DIR_RE = re.compile(
+    r"^(?:saison|season)\s*\d+$|^specials?$",
+    re.IGNORECASE,
+)
+
+
+def _resolve_item_root_dir(file_path: Path) -> Path | None:
+    """Return the directory whose NFO + artwork describe ``file_path``'s item.
+
+    Movies hold their NFO and artwork next to the video file (release dir).
+    TV shows hold the show-level NFO and artwork at the show root, NOT inside
+    each ``Saison NN/`` season folder. ``.actors/`` (Kodi) and Plex extras
+    sub-folders are sidecar-only and must never drive the item's status.
+
+    Args:
+        file_path: Absolute path of the media file being enriched.
+
+    Returns:
+        The directory to scan for NFO + artwork, or ``None`` to indicate the
+        caller must SKIP the NFO/artwork DB update entirely (sidecar folder
+        whose absence of NFO/artwork must not overwrite the correct values
+        written by other files of the same item).
+    """
+    parent = file_path.parent
+    if parent.name.lower() in _ITEM_ROOT_SKIP_DIRS:
+        return None
+    if _TV_SEASON_DIR_RE.match(parent.name):
+        return parent.parent
+    return parent
 
 
 def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
@@ -981,9 +1062,18 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     try:
         with os.scandir(parent_dir) as it:
             for entry in it:
-                key = _ARTWORK_FILENAMES.get(entry.name.lower())
+                lname = entry.name.lower()
+                key = _ARTWORK_FILENAMES.get(lname)
                 if key is not None:
                     found[key] = True
+                    continue
+                # Match MediaElch / Plex local-art suffixes (e.g.
+                # "Title (2020)-poster.jpg"). The longest suffix wins, but
+                # tuple ordering covers the alternatives explicitly.
+                for suffix, art_key in _ARTWORK_SUFFIXES:
+                    if lname.endswith(suffix) and len(lname) > len(suffix):
+                        found[art_key] = True
+                        break
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -1121,7 +1211,12 @@ def _enrich_one_file(
             (legacy behaviour, used by callers that do not see batches).
     """
     now_s = int(time.time())
-    parent_dir = str(file_path.parent)
+    # Resolve the directory whose NFO + artwork describe the owning item.
+    # This may differ from ``file_path.parent`` for TV episodes (whose
+    # show-level metadata lives one level up) and is ``None`` for sidecar
+    # folders (.actors/, Plex extras) — those must NOT update item state.
+    item_root = _resolve_item_root_dir(file_path)
+    parent_dir = str(item_root) if item_root is not None else None
 
     # --- Step 1: stream extraction ---
     if wrapper is not None:
@@ -1167,8 +1262,11 @@ def _enrich_one_file(
                 ],
             )
 
-    # --- Steps 2 + 3: NFO status and artwork (only when release linkage exists) ---
-    if item_id is not None:
+    # --- Steps 2 + 3: NFO status and artwork (only when release linkage exists
+    # AND the file lives in a directory that legitimately describes the item).
+    # Sidecar folders (.actors/, Extras/, etc.) are skipped: their absence of
+    # NFO/artwork must not overwrite the correct state set by sibling files. ---
+    if item_id is not None and parent_dir is not None:
         if nfo_artwork_cache is not None and parent_dir in nfo_artwork_cache:
             nfo_status, artwork = nfo_artwork_cache[parent_dir]
         else:
