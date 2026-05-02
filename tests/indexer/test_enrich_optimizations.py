@@ -23,6 +23,7 @@ import pytest
 
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner._modes import (
+    _purge_non_video_stream_rows,
     _scan_disk_enrich,
     _scan_disk_enrich_backfill,
 )
@@ -363,3 +364,42 @@ def test_backfill_skips_non_video_extensions(conn: sqlite3.Connection, tmp_path:
         )
 
     assert extract_calls == [], "Sidecar .nfo files must never trigger pymediainfo in backfill"
+
+
+# ---------------------------------------------------------------------------
+# Legacy stream cleanup
+# ---------------------------------------------------------------------------
+
+
+def test_purge_non_video_stream_rows_removes_only_sidecars(conn: sqlite3.Connection) -> None:
+    """Legacy stream rows on .jpg / .srt are dropped; .mkv stream rows survive."""
+    disk = _seed_disk(conn, "/Volumes/X")
+    mkv_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="Movie.mkv")
+    jpg_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="poster.jpg")
+    srt_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="subs.srt")
+    nfo_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="meta.nfo")
+    for fid in (mkv_id, jpg_id, srt_id, nfo_id):
+        conn.execute(
+            "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+            " duration_ms, bitrate) VALUES (?, 0, 'video', 'codec', NULL, NULL, NULL, NULL, NULL, NULL)",
+            (fid,),
+        )
+
+    purged = _purge_non_video_stream_rows(conn)
+    assert purged == 3, f"Expected 3 rows purged (jpg + srt + nfo), got {purged}"
+
+    survivors = conn.execute("SELECT file_id FROM media_stream").fetchall()
+    assert {r[0] for r in survivors} == {mkv_id}, "Only the .mkv stream row must survive"
+
+
+def test_purge_non_video_stream_rows_is_idempotent(conn: sqlite3.Connection) -> None:
+    """Running the purge twice returns 0 the second time."""
+    disk = _seed_disk(conn, "/Volumes/Y")
+    jpg_id = _seed_file(conn, disk_id=disk.id, rel_path=".", filename="poster.jpg")
+    conn.execute(
+        "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+        " duration_ms, bitrate) VALUES (?, 0, 'video', 'JPEG', NULL, NULL, NULL, NULL, NULL, NULL)",
+        (jpg_id,),
+    )
+    assert _purge_non_video_stream_rows(conn) == 1
+    assert _purge_non_video_stream_rows(conn) == 0

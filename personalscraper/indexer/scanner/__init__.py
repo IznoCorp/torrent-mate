@@ -49,6 +49,7 @@ from personalscraper.indexer.scanner._concurrency import (
 from personalscraper.indexer.scanner._db_writes import _upsert_path_row
 from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
 from personalscraper.indexer.scanner._modes import (
+    _purge_non_video_stream_rows,
     _scan_disk_enrich,
     _scan_disk_enrich_backfill,
     _scan_disk_full,
@@ -563,6 +564,14 @@ def scan(
     dir_mtime_reliable: bool = True
     if mode in (ScanMode.quick, ScanMode.incremental):
         dir_mtime_reliable = _verify_dir_mtime_reliable()
+
+    # Enrich-mode legacy cleanup: pre-extension-skip enrich runs inserted
+    # ``media_stream`` rows for sidecars (.jpg → "video/JPEG", .srt →
+    # "subtitle/SubRip"). These rows are useless and pollute the streams
+    # table. Idempotent UPDATE — no-op once the legacy data is purged.
+    if mode == ScanMode.enrich:
+        _purge_non_video_stream_rows(conn)
+        conn.commit()
 
     def _scan_one_disk(
         worker_conn: sqlite3.Connection,

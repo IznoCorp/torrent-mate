@@ -49,8 +49,12 @@ def conn() -> sqlite3.Connection:
     return c
 
 
-def _seed_movie(conn: sqlite3.Connection, *, title: str, dispatch_path: str) -> int:
-    """Insert a movie media_item with a dispatch_path attribute. Returns item_id."""
+def _seed_movie(conn: sqlite3.Connection, *, title: str, dispatch_path: str | None) -> int:
+    """Insert a movie media_item with a dispatch_path attribute. Returns item_id.
+
+    When ``dispatch_path`` is ``None``, the item is inserted without the
+    attribute — useful for testing fallback resolution paths.
+    """
     now = int(time.time())
     item_id = item_repo.insert(
         conn,
@@ -74,10 +78,11 @@ def _seed_movie(conn: sqlite3.Connection, *, title: str, dispatch_path: str) -> 
             preferred_lang="fr",
         ),
     )
-    item_repo.upsert_attr(
-        conn,
-        ItemAttributeRow(item_id=item_id, key=_ATTR_DISPATCH_PATH, value=dispatch_path),
-    )
+    if dispatch_path is not None:
+        item_repo.upsert_attr(
+            conn,
+            ItemAttributeRow(item_id=item_id, key=_ATTR_DISPATCH_PATH, value=dispatch_path),
+        )
     return item_id
 
 
@@ -236,6 +241,41 @@ def test_find_item_for_path_no_match(conn: sqlite3.Connection) -> None:
 
     result = find_item_for_path(conn, "/Volumes/E/random/dir")
     assert result is None
+
+
+def test_find_item_for_path_falls_back_to_title_match(conn: sqlite3.Connection) -> None:
+    """When dispatch_path is absent, the linker matches the folder name to media_item.title.
+
+    Catches dispatch-style items where ``title = "Folder (Year)"`` and the
+    dispatch_path attribute was never recorded (e.g. items inserted through
+    a path other than ``dispatch.MediaIndex``).
+    """
+    item_id = _seed_movie(conn, title="Inception (2010)", dispatch_path=None)
+
+    result = find_item_for_path(conn, "/Volumes/D/films/Inception (2010)")
+    assert result == (item_id, "movie", None)
+
+
+def test_find_item_for_path_falls_back_to_title_year_pair(conn: sqlite3.Connection) -> None:
+    """Library-scanner-style items (stripped title + separate year) are matched too.
+
+    When neither dispatch_path nor an exact title match the folder name,
+    the linker parses ``Title (Year)`` from the folder and matches against
+    ``media_item.(title, year)``.
+    """
+    now = int(time.time())
+    cur = conn.execute(
+        "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+        " tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+        " date_metadata_refreshed, is_locked, preferred_lang) "
+        "VALUES ('movie', 'Inception', 'Inception', NULL, 2010, 'movies', NULL, NULL, NULL, "
+        "        NULL, NULL, ?, ?, NULL, 0, 'fr')",
+        (now, now),
+    )
+    item_id = cur.lastrowid
+
+    result = find_item_for_path(conn, "/Volumes/D/films/Inception (2010)")
+    assert result == (item_id, "movie", None)
 
 
 # ---------------------------------------------------------------------------

@@ -74,12 +74,42 @@ def parse_episode_number(filename: str) -> int | None:
     return int(episode) if episode is not None else None
 
 
+_TITLE_YEAR_RE = re.compile(r"^(?P<title>.+?)\s*\((?P<year>\d{4})\)\s*$")
+
+
+def _parse_title_year(folder_name: str) -> tuple[str, int | None]:
+    """Split a ``Title (Year)`` folder name into its components.
+
+    Falls back to ``(folder_name, None)`` when no year suffix is present.
+
+    Args:
+        folder_name: Bare directory name (no parent path).
+
+    Returns:
+        ``(title, year)`` — year is ``None`` when the folder name does not
+        end with a 4-digit year in parentheses.
+    """
+    match = _TITLE_YEAR_RE.match(folder_name)
+    if match is None:
+        return folder_name, None
+    return match.group("title").strip(), int(match.group("year"))
+
+
 def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str, int | None] | None:
     """Locate the owning ``media_item`` for a file given its parent directory.
 
     Walks parents of ``abs_dir`` upward, peeling off any ``Saison NN``
-    segment along the way. Each parent is matched against
-    ``item_attribute.dispatch_path``; the first hit wins.
+    segment along the way. Three matching strategies are attempted at
+    each parent level, in order:
+
+    1. ``item_attribute.dispatch_path`` exact match — fastest and
+       primary; works for items registered via dispatch.
+    2. ``media_item.title`` exact match against the folder name —
+       catches items where dispatch indexed the folder as the title
+       (e.g. ``"Inception (2010)"``).
+    3. ``media_item.(title, year)`` match after parsing ``Title (Year)``
+       from the folder name — catches items registered via the
+       library scanner (``parse_title_year`` strips the year suffix).
 
     Args:
         conn: Open SQLite connection.
@@ -103,6 +133,7 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
             current = parent
             continue
 
+        # Strategy 1: dispatch_path exact match (fast, indexed).
         row = conn.execute(
             "SELECT mi.id, mi.kind FROM media_item mi "
             "JOIN item_attribute ia ON ia.item_id = mi.id "
@@ -111,6 +142,24 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
         ).fetchone()
         if row is not None:
             return int(row[0]), str(row[1]), season_num
+
+        # Strategy 2: title equals the folder name (dispatch-style title).
+        row = conn.execute(
+            "SELECT id, kind FROM media_item WHERE title = ? LIMIT 1",
+            (current.name,),
+        ).fetchone()
+        if row is not None:
+            return int(row[0]), str(row[1]), season_num
+
+        # Strategy 3: parsed (title, year) match (library-scanner style).
+        parsed_title, parsed_year = _parse_title_year(current.name)
+        if parsed_year is not None:
+            row = conn.execute(
+                "SELECT id, kind FROM media_item WHERE title = ? AND year = ? LIMIT 1",
+                (parsed_title, parsed_year),
+            ).fetchone()
+            if row is not None:
+                return int(row[0]), str(row[1]), season_num
 
         parent = current.parent
         if parent == current:

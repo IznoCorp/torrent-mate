@@ -1006,6 +1006,46 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     )
 
 
+def _purge_non_video_stream_rows(conn: sqlite3.Connection) -> int:
+    """Drop ``media_stream`` rows attached to non-video files.
+
+    pymediainfo on a ``.jpg`` reports a single ``video`` track of codec
+    ``JPEG``; on a ``.srt`` it reports a ``subtitle`` track of codec
+    ``SubRip``. Both are useless for the indexer (we never query them
+    and the linker / recommender ignore non-video extensions) and were
+    only ever inserted by the pre-extension-skip enrich code path.
+
+    The new producer never inserts these rows (the wrapper is replaced
+    by ``None`` for non-video extensions in ``_scan_disk_enrich``), so
+    the cleanup is a one-shot pass: deleting these rows is idempotent
+    and a no-op once the legacy data is gone. Called at the start of
+    every enrich pass to converge the DB without a separate command.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        Number of stream rows removed.
+    """
+    # Build the WHERE LIKE clause from VIDEO_EXTENSIONS so the cleanup
+    # tracks the actual extension whitelist used by the enrich loop.
+    placeholders = " OR ".join(["LOWER(mf.filename) LIKE ?"] * len(_VIDEO_EXTENSIONS))
+    params = [f"%.{ext}" for ext in _VIDEO_EXTENSIONS]
+    cursor = conn.execute(
+        f"""
+        DELETE FROM media_stream
+        WHERE file_id IN (
+            SELECT mf.id FROM media_file mf WHERE NOT ({placeholders})
+        )
+        """,  # noqa: S608 — placeholders comes from a hard-coded constant
+        params,
+    )
+    purged: int = cursor.rowcount
+    if purged > 0:
+        log.info("indexer.enrich.purged_non_video_streams", purged=purged)
+    return purged
+
+
 def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"] | None:
     """Check whether a ``.nfo`` file exists in *parent_dir* and return a status string.
 
