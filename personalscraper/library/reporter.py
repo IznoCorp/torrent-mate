@@ -503,10 +503,7 @@ def format_report_text(report: LibraryReport) -> str:
         actions.append(f"  3. Re-scraper {rescrape} items (NFO manquant ou XML invalide)")
         actions.append("     → personalscraper library-rescrape --dry-run")
     if report.poster_missing_count:
-        actions.append(
-            f"  3b. Récupérer l'artwork manquant pour {report.poster_missing_count} items "
-            "(poster absent)"
-        )
+        actions.append(f"  3b. Récupérer l'artwork manquant pour {report.poster_missing_count} items (poster absent)")
         actions.append("     → personalscraper library-rescrape --only artwork")
     if report.analysis_item_count and report.total_items and report.analysis_item_count < report.total_items:
         remaining = report.total_items - report.analysis_item_count

@@ -38,9 +38,20 @@ from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E
 # files do not count: a release with only an .mp3 or .srt is not a watchable
 # release. Audiobook items (.m4b) are intentionally excluded from this check
 # because the orphan mode targets video releases, not audiobook collections.
-_VIDEO_EXTENSIONS: frozenset[str] = frozenset({
-    ".mkv", ".mp4", ".avi", ".m4v", ".webm", ".mov", ".ts", ".m2ts", ".mpg", ".mpeg",
-})
+_VIDEO_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".m4v",
+        ".webm",
+        ".mov",
+        ".ts",
+        ".m2ts",
+        ".mpg",
+        ".mpeg",
+    }
+)
 
 # A "main" video must be at least this large. Trailers and shorts under this
 # threshold do not count, even if their filename does not match the trailer
@@ -469,9 +480,7 @@ def clean_library(
             # future non-video category have a different "main content"
             # definition and would otherwise be flagged as orphans because
             # their .m4b / .mp3 / etc. files are not in _VIDEO_EXTENSIONS.
-            skip_orphans_for_category = (
-                clean_orphans and category_id in _ORPHAN_NON_VIDEO_CATEGORIES
-            )
+            skip_orphans_for_category = clean_orphans and category_id in _ORPHAN_NON_VIDEO_CATEGORIES
 
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):

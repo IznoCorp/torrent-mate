@@ -717,9 +717,7 @@ class Dispatcher:
         # in the destination scan to a single set lookup.
         source_keys_by_season: dict[str, set[tuple[int, int]]] = {}
         for season, episode, season_dir_name in source_keys:
-            source_keys_by_season.setdefault(season_dir_name, set()).add(
-                (season, episode)
-            )
+            source_keys_by_season.setdefault(season_dir_name, set()).add((season, episode))
 
         for season_dir_name, keys in source_keys_by_season.items():
             dest_season = dest / season_dir_name

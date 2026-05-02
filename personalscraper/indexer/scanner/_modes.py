@@ -995,18 +995,20 @@ _ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
 # state. ``.actors`` (Kodi actor thumbnails) and Plex extras folders contain
 # only sidecars; scanning them returns "missing" / empty-inventory and would
 # silently overwrite the correct values written by the actual release dir.
-_ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset({
-    ".actors",
-    "extras",
-    "behind the scenes",
-    "deleted scenes",
-    "featurettes",
-    "interviews",
-    "scenes",
-    "shorts",
-    "trailers",
-    "other",
-})
+_ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        ".actors",
+        "extras",
+        "behind the scenes",
+        "deleted scenes",
+        "featurettes",
+        "interviews",
+        "scenes",
+        "shorts",
+        "trailers",
+        "other",
+    }
+)
 
 # TV-show season folder names. When an episode file's parent matches this,
 # the show's tvshow.nfo and root artwork live one level up (the show dir),

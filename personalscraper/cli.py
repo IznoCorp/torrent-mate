@@ -986,9 +986,7 @@ def library_clean(
                 for line in preview:
                     console.print(f"  {line}")
                 if len(result.details) > len(preview):
-                    console.print(
-                        f"  [dim]… and {len(result.details) - len(preview)} more[/dim]"
-                    )
+                    console.print(f"  [dim]… and {len(result.details) - len(preview)} more[/dim]")
         else:
             console.print(
                 f"[green]Deleted:[/green] {result.deleted_count} items "

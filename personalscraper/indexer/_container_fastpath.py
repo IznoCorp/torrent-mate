@@ -41,11 +41,11 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.fastpath")
 
 try:
-    from enzyme import MKV  # type: ignore[import-untyped]
+    from enzyme import MKV
 
     _ENZYME_AVAILABLE = True
 except ImportError:  # pragma: no cover — runtime guard
-    MKV = None  # type: ignore[assignment]
+    MKV = None
     _ENZYME_AVAILABLE = False
 
 

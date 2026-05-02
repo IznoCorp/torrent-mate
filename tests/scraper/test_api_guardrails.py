@@ -83,12 +83,8 @@ class TestTVShowIdPriority:
         xml = _gen().generate_tvshow_nfo(_TVSHOW_BOTH_IDS, category_id="anime")
         root = _root(xml)
 
-        tvdb = next(
-            u for u in root.findall("uniqueid") if u.get("type") == "tvdb"
-        )
-        tmdb = next(
-            u for u in root.findall("uniqueid") if u.get("type") == "tmdb"
-        )
+        tvdb = next(u for u in root.findall("uniqueid") if u.get("type") == "tvdb")
+        tmdb = next(u for u in root.findall("uniqueid") if u.get("type") == "tmdb")
 
         assert tvdb.get("default") == "true"
         assert tmdb.get("default") is None
@@ -112,9 +108,7 @@ class TestTVShowIdPriority:
         xml = _gen().generate_tvshow_nfo(_TVSHOW_TMDB_ONLY, category_id="anime")
         root = _root(xml)
 
-        tmdb = next(
-            u for u in root.findall("uniqueid") if u.get("type") == "tmdb"
-        )
+        tmdb = next(u for u in root.findall("uniqueid") if u.get("type") == "tmdb")
         assert tmdb.get("default") == "true"
         assert root.findtext("id") == "2190"
 
@@ -151,7 +145,9 @@ _MOVIE_DATA: dict = {
 
 
 class TestMovieIdPriority:
-    """Movies use IMDB as the canonical id (MediaElch convention) and TMDB as
+    """Movie NFO id-priority guardrails.
+
+    Movies use IMDB as the canonical id (MediaElch convention) and TMDB as
     the secondary uniqueid. TVDB has no business in a movie NFO.
     """
 
@@ -160,9 +156,7 @@ class TestMovieIdPriority:
         xml = _gen().generate_movie_nfo(_MOVIE_DATA, category_id="movies")
         root = _root(xml)
 
-        imdb = next(
-            u for u in root.findall("uniqueid") if u.get("type") == "imdb"
-        )
+        imdb = next(u for u in root.findall("uniqueid") if u.get("type") == "imdb")
         assert imdb.get("default") == "true"
         assert imdb.text == "tt0289879"
 
@@ -171,9 +165,7 @@ class TestMovieIdPriority:
         xml = _gen().generate_movie_nfo(_MOVIE_DATA, category_id="movies")
         root = _root(xml)
 
-        tmdb = next(
-            u for u in root.findall("uniqueid") if u.get("type") == "tmdb"
-        )
+        tmdb = next(u for u in root.findall("uniqueid") if u.get("type") == "tmdb")
         assert tmdb.get("default") is None
         assert tmdb.text == "1954"
 
