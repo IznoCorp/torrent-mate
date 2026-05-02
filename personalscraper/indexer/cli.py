@@ -168,6 +168,31 @@ def library_status_command(config_path: Path | None = None) -> int:
     db_path: Path = cfg.indexer.db_path
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
+    # --- DB drift guard ---
+    # Warn loudly if ``db_path`` is not absolute or is being created here.
+    # The resolver in IndexerConfig validates the default to absolute on
+    # load, but a third-party caller can still pass a relative override; an
+    # absolute-but-nonexistent path is also worth surfacing because that's
+    # exactly how the orphan ``.data/library.db`` was created at some point.
+    if not db_path.is_absolute():
+        typer.echo(
+            f"WARNING: indexer db_path is relative: {db_path}. "
+            "It will be resolved against the current working directory and "
+            "may produce divergent DB files depending on how the CLI is "
+            "invoked. Set an absolute path in indexer.json5.",
+            err=True,
+        )
+        log.warning("indexer.status.db_path_relative", db_path=str(db_path))
+    elif not db_path.exists():
+        typer.echo(
+            f"WARNING: indexer db_path does not exist yet: {db_path}. "
+            "A new empty database will be created on first write. If you "
+            "expected to read an existing library, double-check the "
+            "configured path.",
+            err=True,
+        )
+        log.warning("indexer.status.db_path_missing", db_path=str(db_path))
+
     # --- Open DB and apply pending migrations ---
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)

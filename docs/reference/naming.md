@@ -2,6 +2,31 @@
 
 Folder and file naming conventions for movies and TV shows.
 
+## TL;DR — Two Distinct Artwork Conventions
+
+The project uses **two artwork-naming conventions** and any tool / agent /
+script that walks the library MUST recognise both. Mixing them up is the
+single biggest source of false-positive "missing artwork" findings.
+
+| Type     | Layout           | Examples                                   |
+| -------- | ---------------- | ------------------------------------------ |
+| Movies   | MediaElch suffix | `<Title>-poster.jpg`, `<Title>-fanart.jpg` |
+| TV shows | Kodi canonical   | `poster.jpg`, `fanart.jpg`, `tvshow.nfo`   |
+
+The split is not arbitrary:
+
+- A movie folder holds **one** main video file plus its sidecars; suffixing
+  every artwork file with the basename is the only way to prevent
+  collisions when the folder eventually accumulates extras (`-trailer`,
+  `-deleted-scene`, etc.).
+- A TV show folder holds **N** episodes (under `Saison NN/`) plus
+  show-level artwork at the root; the canonical Kodi names (`poster.jpg`)
+  apply at the show root, and per-season variants are `seasonNN-poster.jpg`.
+
+The artwork-detection helper `_inventory_artwork`
+(`personalscraper/indexer/scanner/_modes.py`) accepts both layouts; new
+consumers must do the same.
+
 ## Movie Folders
 
 ```
