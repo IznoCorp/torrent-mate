@@ -4,6 +4,28 @@
 
 ## Future Ideas
 
+### Architectural Consolidation
+
+Internal-quality phase: shrink god modules, formalize pipeline interfaces, retire legacy compatibility paths, realign documentation. Triggered by static analysis showing several modules >1200 LOC and an implicit contract via the catch-all `StepReport`.
+
+- **God-module decomposition**: split `personalscraper/cli.py` (~1648 LOC), `personalscraper/scraper/scraper.py` (~2159 LOC), `personalscraper/indexer/scanner/_modes.py` (~1900 LOC), `personalscraper/indexer/cli.py` (~1389 LOC) into cohesive submodules; CLI becomes pure Typer wiring delegating to `commands/{pipeline,library,config,info,diagnose}.py`.
+- **Pipeline interface formalization**: introduce a `PipelineStep` Protocol (or Command object) so step orchestration no longer depends on concrete signatures; reduce reliance on `step_overrides` for testability.
+- **`StepReport` typing**: replace the catch-all model with `StepReport[TDetails]` (or a per-step report family) with documented contracts of which fields each step consumes/produces.
+- **Legacy cleanup**: decide the fate of `library-scan` vs `library-index`, drop the JSON `media_index.json` path, finish v1→v2 config migration, remove deprecated flags.
+- **Documentation realignment**: pipeline step count (8 vs 9), `trailers` step semantics, `verify --fix` status, current indexer usage — all surface mismatches in inline comments and `docs/reference/`.
+- **Complexity guardrail**: add a soft size/complexity rule (e.g., warn at 700 LOC, block at 1000 LOC) for new modules under `indexer/`, `scraper/`, `trailers/`.
+
+**Out of scope (this phase)**: any new pipeline feature, indexer mode, or scraper provider — pure consolidation.
+
+**Preparation** (not yet implemented):
+
+- Codename: `arch-cleanup`
+- Design: `docs/superpowers/roadmap/arch-cleanup/specs/DESIGN.md`
+- Plan: `docs/superpowers/roadmap/arch-cleanup/plan/INDEX.md`
+- Implementation draft: `docs/superpowers/roadmap/arch-cleanup/IMPLEMENTATION.md.draft`
+- Prepared on: 2026-05-02
+- Target version bump: 0.8.0 → 0.9.0 (minor)
+
 ### Web Management UI
 
 Web-based graphical interface to pilot and supervise the whole project from a browser.
