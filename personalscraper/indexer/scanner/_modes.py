@@ -44,6 +44,7 @@ from personalscraper.indexer.scanner._walker import (
 )
 from personalscraper.indexer.schema import ArtworkInventory, DiskRow, MediaStreamRow
 from personalscraper.logger import get_logger
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 
 log = get_logger("indexer.scan")
 
@@ -1279,6 +1280,17 @@ def _scan_disk_enrich(
         item_id: int | None = row["item_id"]
         release_id: int | None = row["release_id"]
 
+        # Skip pymediainfo for non-video extensions: ``libmediainfo`` is the
+        # parse bottleneck (~500 ms-1 s per call) and accounts for >80% of
+        # the wall clock on a typical library where the bulk of files are
+        # ``.jpg`` / ``.nfo`` / ``.srt`` sidecars. Pass a ``None`` wrapper to
+        # ``_enrich_one_file`` for these so it skips stream extraction but
+        # still runs the NFO presence check, artwork inventory, and
+        # ``enriched_at`` update — the sidecar still needs to be marked as
+        # processed so the next pass does not pick it up again.
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        effective_wrapper = wrapper if ext in _VIDEO_EXTENSIONS else None
+
         if not file_path.exists():
             # File no longer on disk — skip without updating enriched_at so the
             # scanner's miss-strikes logic handles it on the next full/incremental pass.
@@ -1320,7 +1332,7 @@ def _scan_disk_enrich(
                     item_id = resolved[0] if resolved[0] is not None else resolved[1]
 
         try:
-            _enrich_one_file(conn, file_id, file_path, item_id, wrapper)
+            _enrich_one_file(conn, file_id, file_path, item_id, effective_wrapper)
         except Exception:  # noqa: BLE001
             log.warning(
                 "indexer.enrich.file_error",

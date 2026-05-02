@@ -176,56 +176,62 @@ class MediaInfoWrapper:
         # is a no-op.
         _acquire_read_tokens(file_size)
 
+        # Hold the lock for the **entire** extraction, not just the parse call:
+        # libmediainfo (the C library) keeps internal state shared between the
+        # ``MediaInfo`` instance and lazily-resolved ``Track`` attributes.
+        # Letting another thread call ``parse()`` while we are still iterating
+        # ``mi.tracks`` and reading attributes corrupts that shared state and
+        # segfaults the interpreter.
         with _MEDIAINFO_PARSE_LOCK:
             mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
 
-        rows: list[MediaStreamRow] = []
-        video_idx = audio_idx = subtitle_idx = 0  # per-kind stream counters
+            rows: list[MediaStreamRow] = []
+            video_idx = audio_idx = subtitle_idx = 0  # per-kind stream counters
 
-        for track in mi.tracks:
-            kind = _TRACK_TYPE_MAP.get(track.track_type)
-            if kind is None:
-                # Skip General, Menu, Other, and any future unknown types.
-                continue
+            for track in mi.tracks:
+                kind = _TRACK_TYPE_MAP.get(track.track_type)
+                if kind is None:
+                    # Skip General, Menu, Other, and any future unknown types.
+                    continue
 
-            # Assign a 0-based index within the file using the track's own
-            # stream_identifier when available, falling back to a counter.
-            if track.stream_identifier is not None:
-                idx = int(track.stream_identifier)
-            else:
-                # Compute per-kind counter as a fallback.
-                if kind == "video":
-                    idx = video_idx
-                    video_idx += 1
-                elif kind == "audio":
-                    idx = audio_idx
-                    audio_idx += 1
+                # Assign a 0-based index within the file using the track's own
+                # stream_identifier when available, falling back to a counter.
+                if track.stream_identifier is not None:
+                    idx = int(track.stream_identifier)
                 else:
-                    idx = subtitle_idx
-                    subtitle_idx += 1
+                    # Compute per-kind counter as a fallback.
+                    if kind == "video":
+                        idx = video_idx
+                        video_idx += 1
+                    elif kind == "audio":
+                        idx = audio_idx
+                        audio_idx += 1
+                    else:
+                        idx = subtitle_idx
+                        subtitle_idx += 1
 
-            rows.append(
-                MediaStreamRow(
-                    # id=0 and file_id=0 are placeholder values; the repository
-                    # layer assigns real PKs on INSERT.
-                    id=0,
-                    file_id=0,
-                    idx=idx,
-                    kind=kind,
-                    codec=_str_or_none(track.codec_id or track.format),
-                    lang=_str_or_none(getattr(track, "language", None)),
-                    channels=_int_or_none(getattr(track, "channel_s", None)),
-                    width=_int_or_none(getattr(track, "width", None)),
-                    height=_int_or_none(getattr(track, "height", None)),
-                    duration_ms=_int_or_none(getattr(track, "duration", None)),
-                    bitrate=_int_or_none(getattr(track, "bit_rate", None)),
-                    hdr_format=_normalise_hdr_format(track) if kind == "video" else None,
-                    is_atmos=_detect_atmos(track) if kind == "audio" else None,
-                    is_default=_yesno_to_bool(getattr(track, "default", None)),
-                    forced=_yesno_to_bool(getattr(track, "forced", None)) if kind == "subtitle" else None,
-                    format=_normalise_subtitle_format(track) if kind == "subtitle" else None,
+                rows.append(
+                    MediaStreamRow(
+                        # id=0 and file_id=0 are placeholder values; the repository
+                        # layer assigns real PKs on INSERT.
+                        id=0,
+                        file_id=0,
+                        idx=idx,
+                        kind=kind,
+                        codec=_str_or_none(track.codec_id or track.format),
+                        lang=_str_or_none(getattr(track, "language", None)),
+                        channels=_int_or_none(getattr(track, "channel_s", None)),
+                        width=_int_or_none(getattr(track, "width", None)),
+                        height=_int_or_none(getattr(track, "height", None)),
+                        duration_ms=_int_or_none(getattr(track, "duration", None)),
+                        bitrate=_int_or_none(getattr(track, "bit_rate", None)),
+                        hdr_format=_normalise_hdr_format(track) if kind == "video" else None,
+                        is_atmos=_detect_atmos(track) if kind == "audio" else None,
+                        is_default=_yesno_to_bool(getattr(track, "default", None)),
+                        forced=_yesno_to_bool(getattr(track, "forced", None)) if kind == "subtitle" else None,
+                        format=_normalise_subtitle_format(track) if kind == "subtitle" else None,
+                    )
                 )
-            )
 
         return rows
 

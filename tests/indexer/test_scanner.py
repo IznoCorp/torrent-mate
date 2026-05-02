@@ -1946,22 +1946,24 @@ class TestParallelScan:
     # Test 4: enrich mode pins to 1 worker (libmediainfo not thread-safe)
     # ------------------------------------------------------------------
 
-    def test_enrich_mode_uses_one_worker(
+    def test_enrich_mode_honours_caller_max_workers(
         self,
         tmp_path: Path,
     ) -> None:
-        """``ScanMode.enrich`` always uses one worker, regardless of max_workers.
+        """Enrich mode is no longer artificially pinned to one worker.
 
-        ``libmediainfo`` (the C library backing pymediainfo) segfaults under
-        concurrent ``MediaInfo.parse()`` calls, so the scanner pins enrich
-        mode to a single worker even when the caller passes a higher value.
+        The libmediainfo segfault that motivated the previous pin is now
+        addressed by the wider ``_MEDIAINFO_PARSE_LOCK`` (covers parse +
+        track iteration + lazy attribute reads), so per-disk parallelism
+        can resume. Parse calls still serialise on the lock; everything
+        else (NFO inventory, artwork inventory, release linkage,
+        ``enriched_at`` updates) overlaps across disks.
         """
         from concurrent.futures import ThreadPoolExecutor as _TPE
 
         db_file = tmp_path / "indexer_enrich.db"
         conn = _make_conn_file(db_file)
 
-        # Two disks so the parallel path is otherwise eligible.
         mount_a = str(tmp_path / "DiskA")
         mount_b = str(tmp_path / "DiskB")
         Path(mount_a).mkdir()
@@ -1991,14 +1993,14 @@ class TestParallelScan:
                     generation=1,
                     conn=conn,
                     db_path=db_file,
-                    max_workers=4,  # caller wants 4; scanner must clamp to 1
+                    max_workers=4,
                 )
 
         assert result.status == "ok"
-        # Either sequential fallback (no executor) or executor with max_workers=1.
+        # Caller passed 4 workers, two disks → expect 2 (clamped to len(disks)).
         if captured_max_workers:
-            assert captured_max_workers[0] == 1, (
-                f"Expected max_workers=1 for enrich mode, got {captured_max_workers[0]}"
+            assert captured_max_workers[0] == 2, (
+                f"Expected max_workers=2 (clamped to len(disks)), got {captured_max_workers[0]}"
             )
 
 
