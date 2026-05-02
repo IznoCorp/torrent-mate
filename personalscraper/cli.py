@@ -914,7 +914,11 @@ def library_show(
 def library_clean(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
-    only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
+    only: str = typer.Option(
+        None,
+        "--only",
+        help="Only clean: actors, empty, junk, release, orphans",
+    ),
     disk: str = typer.Option(None, "--disk", help="Clean only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Clean only this category"),
 ) -> None:
@@ -924,10 +928,18 @@ def library_clean(
     Use --apply to actually execute deletions.
     Use --only to target specific cleanup types.
 
+    The ``orphans`` mode targets stale release directories that no longer
+    contain a main video file — typically ``.actors/`` + trailer + NFO + artwork
+    left behind after a manual video delete. It is opt-in (never part of the
+    default "all" run) because the deletion granularity is the entire release
+    directory.
+
     Examples:
         personalscraper library-clean
         personalscraper library-clean --apply
         personalscraper library-clean --apply --only actors
+        personalscraper library-clean --only orphans                # dry-run
+        personalscraper library-clean --only orphans --apply        # delete
         personalscraper library-clean --disk Disk1
     """
     from personalscraper.library.disk_cleaner import clean_library
@@ -937,7 +949,7 @@ def library_clean(
     config = ctx.obj.config
 
     # Validate --only parameter
-    valid_only = {"actors", "empty", "junk", "release"}
+    valid_only = {"actors", "empty", "junk", "release", "orphans"}
     if only and only not in valid_only:
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
@@ -965,6 +977,18 @@ def library_clean(
                 f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
             )
+            # Orphan deletes a whole release directory at once — high blast
+            # radius. List the first matches so the operator can sanity-check
+            # before re-running with --apply.
+            if only == "orphans" and result.details:
+                preview = result.details[:20]
+                console.print(f"[dim]Preview ({len(preview)} of {len(result.details)}):[/dim]")
+                for line in preview:
+                    console.print(f"  {line}")
+                if len(result.details) > len(preview):
+                    console.print(
+                        f"  [dim]… and {len(result.details) - len(preview)} more[/dim]"
+                    )
         else:
             console.print(
                 f"[green]Deleted:[/green] {result.deleted_count} items "
