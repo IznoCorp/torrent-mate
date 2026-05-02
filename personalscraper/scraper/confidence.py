@@ -351,38 +351,54 @@ def match_tvshow(
     year: int | None,
     local_seasons: set[int] | None = None,
 ) -> MatchResult | None:
-    """Match a TV show using TVDB (primary) with TMDB fallback.
+    """Match a TV show using TVDB. TMDB is consulted ONLY when TVDB is silent.
 
-    Tries TVDB first. If TVDB returns no results or low confidence,
-    falls back to TMDB search. Returns the best match from either.
+    Strict invariant (project rule): TVDB is the canonical source for TV
+    shows. TMDB-for-TV is permitted **only** when TVDB has no match for
+    the show — never as a "TVDB returned a low-confidence match, maybe
+    TMDB scores higher" override. Allowing TMDB to override TVDB even
+    occasionally is what produced the historical year mismatches (e.g.
+    South Park indexed as 1992 instead of 1997) that this guardrail now
+    forbids.
+
+    Behaviour:
+    1. Query TVDB. If TVDB returns *any* match (regardless of confidence),
+       return it. The caller is responsible for the confidence threshold;
+       a low-confidence TVDB match is still a TVDB match, and we'd rather
+       skip than silently retag the show against TMDB.
+    2. If TVDB returns ``None`` (no candidates) or raises, fall through to
+       TMDB. This keeps shows that are present on TMDB but missing from
+       TVDB scrapable.
 
     Args:
         tvdb_client: TVDBClient instance.
-        tmdb_client: TMDBClient instance (fallback).
+        tmdb_client: TMDBClient instance (used only when TVDB is silent).
         title: Show title from the local folder.
         year: First air date year (None if not detected).
         local_seasons: Seasons observed in the folder (content-aware
             disambiguation — see ``match_tvshow_tvdb``).
 
     Returns:
-        Best MatchResult (source="tvdb" or "tmdb"), or None.
+        TVDB MatchResult when TVDB found anything; otherwise the best TMDB
+        MatchResult; otherwise ``None``.
     """
-    # Try TVDB first (primary for TV shows)
-    # Any TVDB error (circuit open, 5xx, timeout) falls through to TMDB.
-    # TVDB is optional/advisory — TMDB is authoritative. Programming bugs in the TVDB adapter
-    # are masked here, but the circuit breaker prevents cascading adapter failures from
-    # impacting the pipeline; TMDB fallback ensures metadata is still populated.
+    # Query TVDB first. Any TVDB error (circuit open, 5xx, timeout) is
+    # treated as "TVDB is silent" and lets the TMDB fallback run.
     tvdb_match: MatchResult | None = None
     try:
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year, local_seasons=local_seasons)
-        if tvdb_match and tvdb_match.confidence >= HIGH_CONFIDENCE:
-            return tvdb_match
-    except Exception as e:  # noqa: BLE001 — see block comment above; narrowing requires lazy imports for TVDBError/CircuitOpenError/requests and still masks adapter bugs
+    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of TVDBError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
-    # Fallback to TMDB. Some French documentary releases are localized as
-    # "Les secrets de <subject>" while TMDB indexes the original title under
-    # the subject name, so try a narrow subject-only query as well.
+    if tvdb_match is not None:
+        # TVDB found something — return it. We never let TMDB override
+        # a TVDB match for TV shows, regardless of confidence delta.
+        return tvdb_match
+
+    # TVDB is silent → consult TMDB as the documented fallback. Some
+    # French documentary releases are localised as "Les secrets de
+    # <subject>" while TMDB indexes the original title under the subject
+    # name, so try a narrow subject-only query as well.
     tmdb_results: list[tuple[str, dict[str, Any]]] = []
     for query_title in _tv_fallback_title_variants(title):
         results = tmdb_client.search_tv(query_title, year)  # type: ignore[attr-defined]
@@ -415,12 +431,7 @@ def match_tvshow(
             confidence=round(tmdb_match.confidence, 2),
         )
 
-    # Return whichever is better (TVDB preferred at equal confidence)
-    if tvdb_match and tmdb_match:
-        if tvdb_match.confidence >= tmdb_match.confidence:
-            return tvdb_match
-        return tmdb_match
-    return tvdb_match or tmdb_match
+    return tmdb_match
 
 
 def get_episode_titles(
