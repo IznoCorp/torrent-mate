@@ -61,8 +61,13 @@ class TestCleanActors:
         assert result.dry_run is True
 
     def test_ntfs_error_continues(self, tmp_path: Path, monkeypatch) -> None:
-        """NTFS deletion failure should log error and continue."""
-        import shutil
+        """NTFS deletion failure should log error and continue.
+
+        Hooks the project's custom recursive remover (``_scandir_rmtree``)
+        because the cleaner switched away from ``shutil.rmtree`` to handle
+        NFC/NFD ghost dirents — see fix(library-clean) commit history.
+        """
+        from personalscraper.library import disk_cleaner as _dc
 
         disk = tmp_path / "medias"
         movie1 = disk / "films" / "Movie1 (2024)" / ".actors"
@@ -73,21 +78,21 @@ class TestCleanActors:
         (movie2 / "b.jpg").write_bytes(b"\x00")
 
         call_count = 0
-        original_rmtree = shutil.rmtree
+        original = _dc._scandir_rmtree
 
-        def flaky_rmtree(path, *args, **kwargs):
+        def flaky(path, *args, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 raise OSError("NTFS permission denied")
-            original_rmtree(path, *args, **kwargs)
+            original(path, *args, **kwargs)
 
-        monkeypatch.setattr(shutil, "rmtree", flaky_rmtree)
+        monkeypatch.setattr(_dc, "_scandir_rmtree", flaky)
 
         config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
         result = clean_library(config, apply=True, only="actors")
 
-        # First deletion failed, second succeeded
+        # First deletion failed, second succeeded.
         assert result.error_count == 1
         assert result.deleted_count == 1
 
