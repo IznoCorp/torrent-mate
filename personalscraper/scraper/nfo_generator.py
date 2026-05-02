@@ -271,9 +271,16 @@ class NFOGenerator:
         _sub(root, "showtitle", "")
         _sub(root, "originaltitle", original_title)
 
-        # --- IDs (TMDB default for TV shows, unlike movies) ---
-        # When TMDB resolves to 0/empty (show missing from TMDB), promote TVDB
-        # as default so Kodi/Jellyfin lookups don't hit an invalid id.
+        # --- IDs (TVDB is canonical for TV shows; TMDB is the secondary
+        # source). Kodi, Jellyfin, and most TV-aware libraries treat TVDB
+        # as the authoritative TV database — TMDB's TV branch is a
+        # secondary mirror with weaker localisation, less complete season
+        # / episode data, and frequent year mismatches. The previous code
+        # promoted TMDB as ``default`` because the show data was fetched
+        # via TMDB; that was an artefact of the fetch path, not a metadata
+        # decision. TVDB is now default whenever a TVDB id is available;
+        # TMDB stays as a non-default fallback for downstream tools that
+        # only know how to read TMDB.
         external_ids = show_data.get("external_ids") or {}
         imdb_id = external_ids.get("imdb_id") or ""
         raw_tmdb_id = show_data.get("id")
@@ -281,19 +288,22 @@ class NFOGenerator:
         tmdb_id = str(raw_tmdb_id) if raw_tmdb_id not in (None, 0, "0", "", "None") else ""
         tvdb_id = str(raw_tvdb_id) if raw_tvdb_id not in (None, 0, "0", "", "None") else ""
 
-        tmdb_is_default = bool(tmdb_id)
-        if tmdb_id:
-            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
-            uniqueid_tmdb.set("default", "true")
-            uniqueid_tmdb.set("type", "tmdb")
+        tvdb_is_default = bool(tvdb_id)
         if tvdb_id:
             uniqueid_tvdb = _sub(root, "uniqueid", tvdb_id)
-            if not tmdb_is_default:
-                uniqueid_tvdb.set("default", "true")
+            uniqueid_tvdb.set("default", "true")
             uniqueid_tvdb.set("type", "tvdb")
+        if tmdb_id:
+            uniqueid_tmdb = _sub(root, "uniqueid", tmdb_id)
+            if not tvdb_is_default:
+                uniqueid_tmdb.set("default", "true")
+            uniqueid_tmdb.set("type", "tmdb")
         uniqueid_imdb = _sub(root, "uniqueid", imdb_id)
         uniqueid_imdb.set("type", "imdb")
-        _sub(root, "id", tmdb_id)
+        # ``<id>`` mirrors the default uniqueid: TVDB when present, TMDB
+        # otherwise. Consumers that only read ``<id>`` (e.g. legacy Kodi
+        # add-ons) get the same id Kodi itself would resolve via uniqueid.
+        _sub(root, "id", tvdb_id or tmdb_id)
 
         # --- Ratings ---
         self._add_ratings(root, show_data)
@@ -326,8 +336,12 @@ class NFOGenerator:
 
         _sub(root, "trailer", "")
 
-        # --- Episode guide (TMDB ID for Kodi scraper) ---
-        _sub(root, "episodeguide", tmdb_id)
+        # --- Episode guide ---
+        # Mirrors the default uniqueid: TVDB when available (canonical for
+        # TV shows), TMDB otherwise. Kodi's TV scraper picks up the same
+        # source as <id>, so consistency between the two avoids the
+        # "scraper resolves an unknown id" failure mode.
+        _sub(root, "episodeguide", tvdb_id or tmdb_id)
 
         # --- Genres ---
         for genre in show_data.get("genres", []):
