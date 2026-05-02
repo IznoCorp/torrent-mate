@@ -137,7 +137,7 @@ class PipelineReport:
         Returns:
             HTML string suitable for Telegram's parse_mode="HTML".
         """
-        # Step name → emoji mapping for visual identification (8 steps)
+        # Step name → emoji mapping for visual identification (9 steps)
         step_icons = {
             "ingest": "\U0001f4e5",  # 📥
             "sort": "\U0001f4c2",  # 📂

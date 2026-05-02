@@ -490,7 +490,7 @@ def run(
 
         from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-        # Delegate to Pipeline orchestrator (8-step sequential flow)
+        # Delegate to Pipeline orchestrator (9-step sequential flow)
         pipeline = Pipeline(
             config,
             settings,
@@ -517,7 +517,7 @@ def run(
         dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
         _run_log.info("pipeline_finished", duration=dur_str)
 
-        # Final summary table (8 steps)
+        # Final summary table (9 steps)
         table = Table(show_header=True, header_style="bold")
         table.add_column("Step")
         table.add_column("OK", justify="right")
