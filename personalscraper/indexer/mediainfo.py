@@ -38,6 +38,12 @@ import os
 import threading
 from pathlib import Path
 
+from personalscraper.indexer._container_fastpath import (
+    extract_via_enzyme,
+    is_fastpath_supported,
+    merge_hdr_atmos,
+    needs_pymediainfo_fallback,
+)
 from personalscraper.indexer._macos_io import sequential_hint
 from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 from personalscraper.indexer.schema import MediaStreamRow, StreamKind
@@ -176,6 +182,35 @@ class MediaInfoWrapper:
         # is a no-op.
         _acquire_read_tokens(file_size)
 
+        # Container fast path (DESIGN §11.4): for Matroska / WebM files,
+        # use the pure-Python enzyme parser to read the EBML header in one
+        # pass — codec, language, channels, dimensions, default / forced.
+        # Falls back to pymediainfo only when the fast-path output is
+        # ambiguous on HDR / Atmos (4 K HEVC/AV1, TrueHD/E-AC-3 + 8ch).
+        # Bypasses the parse lock entirely for the common SD/HD case.
+        if is_fastpath_supported(path):
+            fastpath_rows = extract_via_enzyme(path)
+            if fastpath_rows is not None:
+                if not needs_pymediainfo_fallback(fastpath_rows):
+                    return fastpath_rows
+                # HDR/Atmos suspected: parse with pymediainfo and overlay
+                # the two flags onto the fast-path result.
+                pymediainfo_rows = self._extract_via_pymediainfo(path)
+                return merge_hdr_atmos(fastpath_rows, pymediainfo_rows)
+
+        return self._extract_via_pymediainfo(path)
+
+    def _extract_via_pymediainfo(self, path: Path) -> list[MediaStreamRow]:
+        """Extract per-stream metadata using libmediainfo (slow path).
+
+        Holds :data:`_MEDIAINFO_PARSE_LOCK` for the entire call.
+
+        Args:
+            path: Absolute filesystem path of the media file.
+
+        Returns:
+            List of stream rows.
+        """
         # Hold the lock for the **entire** extraction, not just the parse call:
         # libmediainfo (the C library) keeps internal state shared between the
         # ``MediaInfo`` instance and lazily-resolved ``Track`` attributes.
