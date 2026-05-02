@@ -17,8 +17,8 @@ successful — the indexer will reconcile the drift at the next scan.
 
 from __future__ import annotations
 
+import os
 import re
-import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -149,6 +149,71 @@ def _publish_deleted(path: Path, label: str, db_path: Path) -> None:
         )
 
 
+def _scandir_rmtree(path: Path, ghosts: list[str] | None = None) -> None:
+    """Recursive delete that survives NTFS-via-macFUSE NFC/NFD filename quirks.
+
+    ``shutil.rmtree`` walks the tree by re-listing each directory and then
+    re-stat'ing each entry by its decoded name. macFUSE-NTFS sometimes returns
+    a filename in one Unicode normalization form (NFD with combining accent)
+    while the kernel inode is reachable only via the other (NFC, single
+    codepoint), so the follow-up ``os.unlink(name)`` raises ``FileNotFoundError``
+    even though the file was just listed.
+
+    This walker:
+
+    * Uses the ``os.DirEntry`` objects from :func:`os.scandir` and their
+      ``.path`` attribute (no re-encoding round-trip).
+    * Tolerates **ghost dirents** — entries that ``scandir`` lists but the
+      kernel cannot ``stat`` / ``unlink``. These are recorded in *ghosts* and
+      skipped. They typically come from filesystem-level inconsistencies that
+      only an unmount + fsck can repair; we report them rather than abort the
+      whole rmtree, so the caller can free what is freeable.
+    * Bottom-up traversal so directories are emptied before they are removed.
+
+    Args:
+        path: Directory to remove (symlinks are unlinked, not descended).
+        ghosts: Mutable list that receives the path of every entry that
+            could not be removed because of a ghost-dirent inconsistency.
+            Pass ``None`` (default) to disable collection. The caller may
+            then decide whether the parent ``rmdir`` failure is fatal or
+            should be reported as a partial cleanup.
+
+    Raises:
+        OSError: If the final ``rmdir`` of *path* itself fails for a reason
+            other than ``ENOTEMPTY`` (i.e. caused by a ghost remnant). When
+            ``ENOTEMPTY`` is raised the function lets it propagate so the
+            caller can correlate with the ghost list.
+    """
+    if path.is_symlink() or not path.is_dir():
+        os.unlink(path)
+        return
+
+    with os.scandir(path) as it:
+        entries = list(it)
+    for entry in entries:
+        try:
+            is_subdir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            # Ghost dirent: even is_dir() round-trips through stat and may
+            # fail. Treat as a leaf-level ghost so we keep walking siblings.
+            if ghosts is not None:
+                ghosts.append(entry.path)
+            continue
+        try:
+            if is_subdir:
+                _scandir_rmtree(Path(entry.path), ghosts=ghosts)
+            else:
+                os.unlink(entry.path)
+        except FileNotFoundError:
+            # Classic NTFS-macFUSE NFC/NFD ghost: listed but unreachable.
+            if ghosts is not None:
+                ghosts.append(entry.path)
+            # Carry on with siblings; the parent rmdir at the bottom of
+            # the recursion will surface ENOTEMPTY if any ghost remains.
+            continue
+    os.rmdir(path)
+
+
 def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_path: Path) -> None:
     """Delete a directory, handling NTFS errors gracefully.
 
@@ -170,8 +235,9 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_p
         result.details.append(f"[DRY-RUN] Would delete {label}: {path} ({size} bytes)")
         return
 
+    ghosts: list[str] = []
     try:
-        shutil.rmtree(path)
+        _scandir_rmtree(path, ghosts=ghosts)
         result.deleted_count += 1
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path} ({size} bytes)")
@@ -179,9 +245,39 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_p
         # Write-through: notify the indexer that this subtree was removed.
         _publish_deleted(path, label, db_path)
     except OSError as exc:
-        result.error_count += 1
-        result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-        log.warning("library_clean_ntfs_error", label=label, path=str(path), exc_info=True, error=str(exc))
+        # Most common failure: ENOTEMPTY raised by os.rmdir(path) because at
+        # least one ghost dirent (NFC/NFD inconsistency) blocked the leaf
+        # walk. Surface that as a precise error message and list the ghost
+        # paths so the operator can decide on a manual fix (typically
+        # unmount + fsck of the NTFS volume).
+        if ghosts:
+            ghost_summary = ", ".join(g.rsplit("/", 1)[-1] for g in ghosts[:3])
+            extra = f" ({len(ghosts) - 3} more)" if len(ghosts) > 3 else ""
+            result.error_count += 1
+            result.errors.append(
+                f"Partial delete of {label}: {path} — "
+                f"{len(ghosts)} ghost dirent(s) blocking rmdir: "
+                f"{ghost_summary}{extra}. NTFS NFC/NFD inconsistency; "
+                "unmount + fsck required."
+            )
+            log.warning(
+                "library_clean_ghost_dirent",
+                label=label,
+                path=str(path),
+                ghost_count=len(ghosts),
+                ghost_sample=ghosts[:5],
+                error=str(exc),
+            )
+        else:
+            result.error_count += 1
+            result.errors.append(f"Failed to delete {label}: {path} — {exc}")
+            log.warning(
+                "library_clean_ntfs_error",
+                label=label,
+                path=str(path),
+                exc_info=True,
+                error=str(exc),
+            )
 
 
 def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str, db_path: Path) -> None:
