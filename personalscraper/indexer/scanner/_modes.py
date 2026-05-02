@@ -997,6 +997,7 @@ _ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
 # silently overwrite the correct values written by the actual release dir.
 _ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
     {
+        # Kodi / Plex sentinel sub-folders (English convention).
         ".actors",
         "extras",
         "behind the scenes",
@@ -1007,6 +1008,18 @@ _ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
         "shorts",
         "trailers",
         "other",
+        # French equivalents commonly used in this project's library.
+        # ``Bonus`` / ``Boni`` / ``Inédits`` hold show extras and must
+        # not drive the item's NFO/artwork state — the show-level NFO
+        # lives at the show root, not inside the bonus folder.
+        # ``Films`` is used to nest a movie sub-collection under a
+        # show root (e.g. Lucky Luke spin-off films inside the series
+        # directory) — same skip rationale.
+        "bonus",
+        "boni",
+        "inédits",
+        "inedits",
+        "films",
     }
 )
 
