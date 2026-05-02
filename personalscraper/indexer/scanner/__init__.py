@@ -799,6 +799,18 @@ def scan(
             # Merkle delta exceeded the freeze threshold — re-raise so the
             # caller (sequential loop or parallel wrapper) can surface it.
             raise
+        except PermissionError as perm_exc:
+            # Per-file EACCES: log a warning and return (no strike against the disk).
+            # PermissionError is a subclass of OSError so it MUST be matched
+            # first; otherwise the OSError clause below would always win and
+            # this branch would be unreachable.
+            log.warning(
+                "indexer.file.permission_denied",
+                disk_uuid=disk.uuid,
+                label=disk.label,
+                error=str(perm_exc),
+            )
+            return
         except OSError as io_exc:
             # I/O error on a disk walk (EIO, ENOENT, etc.).  Roll back any
             # partial writes for this disk, mark it unmounted, increment the
@@ -821,15 +833,6 @@ def scan(
                 return
             # Re-raise unexpected OS errors that are not disk-I/O related.
             raise
-        except PermissionError as perm_exc:
-            # Per-file EACCES: log a warning and return (no strike against the disk).
-            log.warning(
-                "indexer.file.permission_denied",
-                disk_uuid=disk.uuid,
-                label=disk.label,
-                error=str(perm_exc),
-            )
-            return
         else:
             # Walk completed without I/O error — record success to allow
             # HALF_OPEN → CLOSED transition if the circuit was recovering.

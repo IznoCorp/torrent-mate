@@ -150,6 +150,10 @@ def extract_via_enzyme(path: Path) -> list[MediaStreamRow] | None:
     if not is_fastpath_supported(path):
         return None
 
+    # The ``_ENZYME_AVAILABLE`` guard above guarantees MKV is bound to the
+    # imported class; the assertion narrows the type for static analysis,
+    # which cannot follow the module-level conditional import.
+    assert MKV is not None
     try:
         with path.open("rb") as fh:
             mkv = MKV(fh)

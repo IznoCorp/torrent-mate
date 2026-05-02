@@ -33,15 +33,30 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, TypedDict
+from typing import Literal, TypedDict, Union
 
 
-class _StackFrame(TypedDict, total=False):
-    """A single frame on the nesting stack during JSON5 parsing."""
+class _ObjectFrame(TypedDict):
+    """An object-scope frame on the JSON5 nesting stack."""
 
-    type: Literal["object", "array"]
+    type: Literal["object"]
     key: str
-    index: int  # only present for array frames
+
+
+class _ArrayFrame(TypedDict):
+    """An array-scope frame on the JSON5 nesting stack.
+
+    ``index`` is mutated as the parser walks each element of the array, so it
+    is always present for array frames (unlike the previous total=False
+    layout which made every field optional and broke type narrowing).
+    """
+
+    type: Literal["array"]
+    key: str
+    index: int
+
+
+_StackFrame = Union[_ObjectFrame, _ArrayFrame]
 
 
 @dataclass(frozen=True)
@@ -173,14 +188,14 @@ def parse_example(example_path: Path) -> list[Prompt]:
         """Build the dotted key_path prefix from the current stack."""
         parts: list[str] = []
         for frame in stack:
-            frame_type = frame["type"]
-            frame_key = frame["key"]
-            if frame_type == "array":
-                idx = frame["index"]
-                parts.append(f"{frame_key}[{idx}]")
-            else:
-                if frame_key:
-                    parts.append(str(frame_key))
+            # Narrowing on ``frame["type"]`` directly (rather than via a
+            # local alias) lets the type checker discriminate the union
+            # between ``_ObjectFrame`` and ``_ArrayFrame`` and recognise
+            # that ``index`` is only valid in the array branch.
+            if frame["type"] == "array":
+                parts.append(f"{frame['key']}[{frame['index']}]")
+            elif frame["key"]:
+                parts.append(str(frame["key"]))
         return ".".join(p for p in parts if p)
 
     def _reset_buffer() -> None:

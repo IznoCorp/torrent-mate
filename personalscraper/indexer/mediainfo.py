@@ -211,6 +211,11 @@ class MediaInfoWrapper:
         Returns:
             List of stream rows.
         """
+        # The constructor raises ``MediaInfoUnavailableError`` when the
+        # library is missing, so any reachable instance method has a real
+        # ``MediaInfo`` class bound here. The assert narrows the import-time
+        # ``MediaInfo | None`` union for static analysis.
+        assert MediaInfo is not None
         # Hold the lock for the **entire** extraction, not just the parse call:
         # libmediainfo (the C library) keeps internal state shared between the
         # ``MediaInfo`` instance and lazily-resolved ``Track`` attributes.

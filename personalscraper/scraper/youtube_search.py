@@ -275,6 +275,7 @@ class YoutubeSearch:
         # Import lazily so test environments without yt-dlp still import the module.
         try:
             import yt_dlp
+            from yt_dlp.utils import DownloadError as _YtDlpDownloadError
         except ImportError:
             log.error(
                 "youtube_fallback_missing_yt_dlp",
@@ -292,7 +293,7 @@ class YoutubeSearch:
         try:
             with yt_dlp.YoutubeDL(cast("Any", opts)) as ydl:
                 info: dict[str, Any] | None = cast("dict[str, Any]", ydl.extract_info(query, download=False))
-        except yt_dlp.utils.DownloadError as exc:
+        except _YtDlpDownloadError as exc:
             # Genuine transport / network failure reported by yt-dlp.  Push the
             # breaker so a sustained outage opens the circuit, then re-raise so
             # _youtube_fallback_strict can skip caching __no_result__.
