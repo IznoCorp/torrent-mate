@@ -12,7 +12,7 @@ import functools
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, TypedDict
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 
 import typer
 from pydantic import ValidationError
@@ -20,13 +20,18 @@ from rich.console import Console
 from rich.traceback import install as install_traceback
 
 from personalscraper import __version__
-from personalscraper.conf.models import Config
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import get_settings
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.lock import acquire_lock, release_lock
 from personalscraper.logger import configure_logging, get_logger
+
+# ``Config`` is referenced only as a type annotation; deferring the import
+# keeps the ``personalscraper --version`` path from paying the pydantic
+# config-model import cost (~80 ms) just to print a string.
+if TYPE_CHECKING:
+    from personalscraper.conf.models import Config
 
 log = get_logger("cli")
 
@@ -675,6 +680,16 @@ def library_index(
             "Use for manual full enrich passes that must drain every pending file."
         ),
     ),
+    backfill_streams: bool = typer.Option(
+        False,
+        "--backfill-streams",
+        help=(
+            "Enrich-only: target already-enriched files whose media_stream rows are "
+            "missing migration-004 columns (hdr_format / is_atmos / is_default / "
+            "forced / format) and UPDATE only those columns in place. Skips NFO / "
+            "artwork / linker work. Much faster than re-running the full enrich."
+        ),
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Simulate scan without persisting any DB rows"),
     wait_for_lock: int = typer.Option(0, "--wait-for-lock", help="Seconds to wait for the writer lock"),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
@@ -715,6 +730,7 @@ def library_index(
         disk=disk,
         budget_seconds=budget,
         no_budget=no_budget,
+        backfill_streams=backfill_streams,
         dry_run=dry_run,
         wait_for_lock_seconds=wait_for_lock,
         config_path=effective_config,
@@ -730,6 +746,11 @@ def library_index(
 def library_verify(
     ctx: typer.Context,
     disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
+    budget: Optional[int] = typer.Option(
+        None,
+        "--budget",
+        help="Wall-clock budget in seconds; partial verifies are safe to resume.",
+    ),
     config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
 ) -> None:
     """Re-stat every indexed file and mark mismatches for repair.
@@ -739,14 +760,24 @@ def library_verify(
     queue — they are NOT soft-deleted.  Use this command to identify drift
     before deciding whether to accept or revert changes.
 
+    With ``--budget`` the verify pass exits cleanly when the wall-clock limit
+    is reached; the next invocation continues from where it stopped (every
+    file commits ``last_verified_at`` individually so partial progress is
+    preserved across runs).
+
     Examples:
         personalscraper library-verify
         personalscraper library-verify --disk Disk2
+        personalscraper library-verify --budget 300
     """
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_verify_command(disk=disk, config_path=effective_config)
+    rc = library_verify_command(
+        disk=disk,
+        budget_seconds=float(budget) if budget is not None else None,
+        config_path=effective_config,
+    )
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -801,6 +832,226 @@ def library_repair(
         raise typer.Exit(rc)
 
 
+@app.command("library-reconcile")
+@handle_cli_errors
+def library_reconcile(
+    ctx: typer.Context,
+    scope: list[str] = typer.Option(
+        [],
+        "--scope",
+        help=(
+            "Restrict to a detector scope (repeatable). "
+            "Choices: merkle, dispatch_path, enrich, release, season, item. "
+            "Omit to run every detector."
+        ),
+    ),
+    enqueue_repairs: bool = typer.Option(
+        False,
+        "--enqueue-repairs",
+        help="Push every divergence into repair_queue for library-repair to drain.",
+    ),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Detect index ↔ filesystem divergences without a full rescan.
+
+    Runs DB-only checks (one ``Path.exists()`` for the dispatch_path
+    detector — every other detector is pure SQL) and prints a JSON
+    report of findings.  Optionally enqueues each finding into
+    ``repair_queue`` so ``library-repair`` can fix them within a
+    bounded budget.
+
+    Detector scopes:
+
+    - ``merkle`` — disk merkle drift between stored and computed roots.
+    - ``dispatch_path`` — items whose dispatch_path attribute is gone.
+    - ``enrich`` — files whose enriched_at is older than mtime.
+    - ``release`` — orphan media_release rows + null-release files.
+    - ``season`` — denormalised season.episode_count drift.
+    - ``item`` — media_item rows with no file evidence.
+
+    Examples:
+        personalscraper library-reconcile
+        personalscraper library-reconcile --scope enrich --scope release
+        personalscraper library-reconcile --enqueue-repairs
+    """
+    from personalscraper.indexer.cli import library_reconcile_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_reconcile_command(
+        scopes=scope if scope else None,
+        enqueue_repairs=enqueue_repairs,
+        config_path=effective_config,
+    )
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-ghost-audit")
+@handle_cli_errors
+def library_ghost_audit(
+    ctx: typer.Context,
+    disk: str = typer.Option(None, "--disk", help="Audit only this disk (id from config)"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Audit storage disks for NTFS-via-macFUSE ghost dirents.
+
+    Walks every directory on each storage disk and lists every entry
+    that ``os.scandir`` reports but ``os.stat`` cannot reach. These
+    "ghost" entries are produced by macFUSE-NTFS when the directory
+    listing returns a filename in one Unicode normalisation form (NFD)
+    while the kernel inode is keyed under the other (NFC). Once a ghost
+    exists, the directory cannot be emptied — neither ``rm -rf`` nor
+    the project's own ``_scandir_rmtree`` walker can remove it.
+
+    The audit is read-only: it only reports the paths. Recovery
+    requires unmounting the affected NTFS volume and either running
+    fsck on it or mounting it on a Windows host that can repair the
+    directory entry.
+
+    Output: per-disk count and a sample list of ghost paths.
+
+    Examples:
+        personalscraper library-ghost-audit
+        personalscraper library-ghost-audit --disk Disk1
+    """
+    import os as _os  # noqa: PLC0415
+
+    console = state["console"]
+    cfg = ctx.obj.config
+    assert cfg is not None
+
+    total_ghosts = 0
+    for d in cfg.disks:
+        if disk and d.id != disk:
+            continue
+        if not d.path.exists():
+            console.print(f"[yellow]{d.id}: not mounted, skipped[/yellow]")
+            continue
+        ghosts: list[str] = []
+        try:
+            for root, dirs, files in _os.walk(str(d.path)):
+                for entry_name in list(dirs) + list(files):
+                    full = _os.path.join(root, entry_name)
+                    try:
+                        _os.stat(full)
+                    except FileNotFoundError:
+                        ghosts.append(full)
+                    except OSError:
+                        # Permission denied / EIO are not ghosts; skip.
+                        continue
+        except OSError as exc:
+            console.print(f"[red]{d.id}: walk error: {exc}[/red]")
+            continue
+
+        total_ghosts += len(ghosts)
+        if ghosts:
+            console.print(f"[red]{d.id}: {len(ghosts)} ghost dirent(s)[/red]")
+            for g in ghosts[:10]:
+                console.print(f"  {g}")
+            if len(ghosts) > 10:
+                console.print(f"  … and {len(ghosts) - 10} more")
+        else:
+            console.print(f"[green]{d.id}: clean[/green]")
+
+    if total_ghosts == 0:
+        console.print("[bold green]All disks clean — no ghost dirents.[/bold green]")
+    else:
+        console.print(
+            f"[bold red]{total_ghosts} total ghost dirent(s) across all audited disks.[/bold red]\n"
+            "Recovery: unmount the affected NTFS volume and run fsck, or "
+            "remount on a Windows host to repair the directory entries."
+        )
+        raise typer.Exit(1)
+
+
+@app.command("library-relink")
+@handle_cli_errors
+def library_relink(
+    ctx: typer.Context,
+    apply: bool = typer.Option(False, "--apply", help="Persist link updates (default: dry-run)"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Relink ``media_file`` rows whose ``release_id`` is NULL.
+
+    Walks every ``media_file`` row with ``release_id IS NULL AND
+    deleted_at IS NULL`` and replays
+    :func:`~personalscraper.indexer.release_linker.link_file_to_release`
+    against the file's absolute path. The function resolves the owning
+    item via the same dispatch_path / title / title-year strategies the
+    enrich pass uses, so this is a self-healing recovery for files that
+    were inserted before their item was dispatched (cold Stage A) or
+    after a release_linker bug left the link behind.
+
+    Output is the count of (linked, unmatched, errored) files. Use
+    ``--apply`` to commit; the dry-run mode reports the same numbers
+    without touching the database.
+
+    Examples:
+        personalscraper library-relink
+        personalscraper library-relink --apply
+    """
+    import sqlite3 as _sqlite3  # noqa: PLC0415
+    from pathlib import Path as _Path  # noqa: PLC0415
+
+    from personalscraper.indexer.release_linker import link_file_to_release  # noqa: PLC0415
+
+    console = state["console"]
+    cfg = ctx.obj.config
+    assert cfg is not None
+    db_path = cfg.indexer.db_path
+
+    conn = _sqlite3.connect(str(db_path))
+    try:
+        disks = {did: _Path(mp) for did, mp in conn.execute("SELECT id, mount_path FROM disk WHERE is_mounted = 1")}
+        if not disks:
+            console.print("[yellow]No mounted disks — nothing to relink.[/yellow]")
+            raise typer.Exit(0)
+
+        rows = list(
+            conn.execute(
+                """
+                SELECT mf.id, mf.filename, p.disk_id, p.rel_path
+                FROM media_file mf
+                JOIN path p ON p.id = mf.path_id
+                WHERE mf.release_id IS NULL AND mf.deleted_at IS NULL
+                """,
+            )
+        )
+        if not rows:
+            console.print("[green]No orphan media_file rows. Library is fully linked.[/green]")
+            raise typer.Exit(0)
+
+        console.print(f"Found [bold]{len(rows)}[/bold] orphan media_file row(s).")
+        linked = unmatched = errors = 0
+        for mf_id, filename, disk_id, rel_path in rows:
+            mount = disks.get(disk_id)
+            if mount is None:
+                continue
+            abs_path = mount / rel_path / filename
+            try:
+                result = link_file_to_release(conn, mf_id, str(abs_path))
+                if result is not None:
+                    linked += 1
+                else:
+                    unmatched += 1
+            except Exception as exc:  # noqa: BLE001
+                errors += 1
+                log.warning("library_relink_failed", file_id=mf_id, path=str(abs_path), error=str(exc))
+
+        if apply:
+            conn.commit()
+            console.print(
+                f"[green]Applied:[/green] linked={linked}, unmatched={unmatched}, errors={errors}",
+            )
+        else:
+            conn.rollback()
+            console.print(
+                f"[yellow]DRY-RUN:[/yellow] would link={linked}, unmatched={unmatched}, errors={errors}",
+            )
+    finally:
+        conn.close()
+
+
 @app.command("library-show")
 @handle_cli_errors
 def library_show(
@@ -829,7 +1080,11 @@ def library_show(
 def library_clean(
     ctx: typer.Context,
     apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
-    only: str = typer.Option(None, "--only", help="Only clean: actors, empty, junk, release"),
+    only: str = typer.Option(
+        None,
+        "--only",
+        help="Only clean: actors, empty, junk, release, orphans",
+    ),
     disk: str = typer.Option(None, "--disk", help="Clean only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Clean only this category"),
 ) -> None:
@@ -839,10 +1094,18 @@ def library_clean(
     Use --apply to actually execute deletions.
     Use --only to target specific cleanup types.
 
+    The ``orphans`` mode targets stale release directories that no longer
+    contain a main video file — typically ``.actors/`` + trailer + NFO + artwork
+    left behind after a manual video delete. It is opt-in (never part of the
+    default "all" run) because the deletion granularity is the entire release
+    directory.
+
     Examples:
         personalscraper library-clean
         personalscraper library-clean --apply
         personalscraper library-clean --apply --only actors
+        personalscraper library-clean --only orphans                # dry-run
+        personalscraper library-clean --only orphans --apply        # delete
         personalscraper library-clean --disk Disk1
     """
     from personalscraper.library.disk_cleaner import clean_library
@@ -852,7 +1115,7 @@ def library_clean(
     config = ctx.obj.config
 
     # Validate --only parameter
-    valid_only = {"actors", "empty", "junk", "release"}
+    valid_only = {"actors", "empty", "junk", "release", "orphans"}
     if only and only not in valid_only:
         console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
         raise typer.Exit(1)
@@ -880,6 +1143,16 @@ def library_clean(
                 f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
                 f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
             )
+            # Orphan deletes a whole release directory at once — high blast
+            # radius. List the first matches so the operator can sanity-check
+            # before re-running with --apply.
+            if only == "orphans" and result.details:
+                preview = result.details[:20]
+                console.print(f"[dim]Preview ({len(preview)} of {len(result.details)}):[/dim]")
+                for line in preview:
+                    console.print(f"  {line}")
+                if len(result.details) > len(preview):
+                    console.print(f"  [dim]… and {len(result.details) - len(preview)} more[/dim]")
         else:
             console.print(
                 f"[green]Deleted:[/green] {result.deleted_count} items "
@@ -902,23 +1175,41 @@ def library_validate(
     category: str = typer.Option(None, "--category", help="Validate only this category"),
     fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
     apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read NFO + artwork status from the indexer DB instead of walking "
+            "the filesystem. Skips structural checks (empty dirs, NTFS chars, "
+            "dir naming) and does not support --fix. See validate_from_index "
+            "docstring for the full trade-off list."
+        ),
+    ),
 ) -> None:
     """Validate NFO, artwork, naming conformity of library items.
 
     Checks each media item on storage disks against quality rules.
     Use --fix --apply to attempt automatic corrections.
+    Use --from-index for a fast pre-screen that reads NFO + artwork status
+    from the indexer DB (NFO presence + poster/landscape only; no structural
+    checks; no --fix support).
 
     Examples:
         personalscraper library-validate
         personalscraper library-validate --disk Disk1
         personalscraper library-validate --fix --apply
+        personalscraper library-validate --from-index
     """
     from personalscraper.library.models import write_json
-    from personalscraper.library.validator import validate_library
+    from personalscraper.library.validator import validate_from_index, validate_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
+
+    if from_index and (fix or apply):
+        console.print("[red]--from-index does not support --fix / --apply[/red]")
+        raise typer.Exit(1)
 
     if apply and not fix:
         console.print("[red]--apply requires --fix[/red]")
@@ -930,14 +1221,34 @@ def library_validate(
             raise typer.Exit(1)
 
     try:
-        console.print("[bold]Validating library...[/bold]")
-        result = validate_library(
-            config,
-            disk_filter=disk,
-            category_filter=category_id,
-            fix=fix,
-            apply=apply,
-        )
+        if from_index:
+            console.print("[bold]Validating library (from index)...[/bold]")
+            import sqlite3  # noqa: PLC0415
+
+            from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+            from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+            db_path = config.indexer.db_path
+            migrations_dir = Path(_migrations_pkg.__file__).parent
+            conn: sqlite3.Connection = open_db(db_path)
+            apply_migrations(conn, migrations_dir)
+            try:
+                result = validate_from_index(
+                    conn,
+                    disk_filter=disk,
+                    category_filter=category_id,
+                )
+            finally:
+                conn.close()
+        else:
+            console.print("[bold]Validating library...[/bold]")
+            result = validate_library(
+                config,
+                disk_filter=disk,
+                category_filter=category_id,
+                fix=fix,
+                apply=apply,
+            )
 
         output_path = config.paths.data_dir / "library_validation.json"
         write_json(result, output_path)
@@ -965,56 +1276,87 @@ def library_analyze(
     ctx: typer.Context,
     disk: str = typer.Option(None, "--disk", help="Analyze only this disk"),
     category: str = typer.Option(None, "--category", help="Analyze only this category"),
-    incremental: bool = typer.Option(False, "--incremental", help="Skip already-analyzed files"),
     max_items: int = typer.Option(None, "--max-items", help="Limit number of items to analyze"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read codec / audio / subtitle data from the indexer DB instead of "
+            "running ffprobe per file. Requires a prior `library-index --mode enrich` "
+            "pass; HDR / Atmos detection is approximated (see analyze_from_index docstring)."
+        ),
+    ),
 ) -> None:
-    """Deep scan video files with ffprobe (codec, audio, subtitles).
+    """Deep scan video files with ffprobe (codec, audio, subtitles) and print a summary.
 
-    Most I/O-intensive command — schedule during off-peak hours.
-    Use --incremental to skip files that haven't changed since last analysis.
+    Most I/O-intensive command — schedule during off-peak hours. Use
+    ``--from-index`` to read enrich-populated streams from the DB instead
+    (orders of magnitude faster, with the documented HDR / Atmos caveats).
+
+    The result set is **not persisted to disk** (the legacy
+    ``library_analysis.json`` cache was removed when the indexer DB became
+    the single source of truth).  ``library-recommend`` runs this scan
+    inline before producing recommendations, so there is no need to call
+    ``library-analyze`` first as a side-effect setup step.
 
     Examples:
-        personalscraper library-analyze --incremental
+        personalscraper library-analyze
         personalscraper library-analyze --disk <disk_id> --category series
         personalscraper library-analyze --max-items 50
+        personalscraper library-analyze --from-index
     """
-    from personalscraper.library.analyzer import analyze_library
-    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.analyzer import analyze_from_index, analyze_library
 
     category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
 
-    # Load existing analysis for incremental mode (compare size_gb with tolerance)
-    existing: dict[str, float] = {}
-    analysis_path = config.paths.data_dir / "library_analysis.json"
-    if incremental and analysis_path.exists():
+    if from_index:
+        console.print("[bold]Analyzing library (from index)...[/bold]")
+        import sqlite3  # noqa: PLC0415
+
+        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+        from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+        db_path = config.indexer.db_path
+        migrations_dir = Path(_migrations_pkg.__file__).parent
+        conn: sqlite3.Connection = open_db(db_path)
+        apply_migrations(conn, migrations_dir)
         try:
-            data = read_json(analysis_path)
-            for item in data.get("items", []):
-                for f in item.get("files", []):
-                    path = f.get("path", "")
-                    existing[path] = f.get("size_gb", 0.0)
-        except (OSError, KeyError, ValueError, TypeError) as exc:
-            log.warning("incremental_analysis_load_failed", error=str(exc))
-            console.print(f"[yellow]Warning:[/yellow] Cannot read existing analysis ({exc}), re-analyzing all files.")
-            existing = {}
+            result = analyze_from_index(
+                conn,
+                disk_filter=disk,
+                category_filter=category_id,
+                max_items=max_items,
+            )
+        finally:
+            conn.close()
+    else:
+        console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+        result = analyze_library(
+            config,
+            disk_filter=disk,
+            category_filter=category_id,
+            max_items=max_items,
+        )
 
-    console.print("[bold]Analyzing library (ffprobe)...[/bold]")
-    result = analyze_library(
-        config,
-        disk_filter=disk,
-        category_filter=category_id,
-        incremental=incremental,
-        existing_sizes=existing if incremental else None,
-        max_items=max_items,
-    )
+    # Aggregate codec / audio profile distributions for the summary.
+    codec_counts: dict[str, int] = {}
+    audio_counts: dict[str, int] = {}
+    for item in result.items:
+        for media_file in item.files:
+            codec = media_file.video.codec or "unknown"
+            codec_counts[codec] = codec_counts.get(codec, 0) + 1
+            profile = media_file.audio_profile or "unknown"
+            audio_counts[profile] = audio_counts.get(profile, 0) + 1
 
-    write_json(result, analysis_path)
-
-    console.print(
-        f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files → {analysis_path}"
-    )
+    console.print(f"[green]Analysis complete:[/green] {result.item_count} items, {result.file_count} files")
+    if codec_counts:
+        codecs = ", ".join(f"{c}={n}" for c, n in sorted(codec_counts.items(), key=lambda kv: -kv[1]))
+        console.print(f"  Codecs: {codecs}")
+    if audio_counts:
+        audio = ", ".join(f"{p}={n}" for p, n in sorted(audio_counts.items(), key=lambda kv: -kv[1]))
+        console.print(f"  Audio profiles: {audio}")
 
 
 @app.command()
@@ -1025,25 +1367,38 @@ def library_recommend(
     export: str = typer.Option(None, "--export", help="Export format: csv"),
     disk: str = typer.Option(None, "--disk", help="Filter to this disk"),
     category: str = typer.Option(None, "--category", help="Filter to this category"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read codec / audio / subtitle data from the indexer DB instead of "
+            "running ffprobe per file. Requires a prior `library-index --mode enrich` "
+            "pass."
+        ),
+    ),
 ) -> None:
-    """Generate re-download recommendations from library analysis.
+    """Generate re-download recommendations from a fresh ffprobe analysis.
 
-    Requires library-analyze to have been run first.
-    Reads library_analysis.json; preferences come from config.library.
+    Runs the ffprobe analysis inline (no on-disk cache) and feeds the
+    in-memory result to the recommender.  Preferences come from
+    ``config.library``.  Output is written to ``library_recommendations.json``.
+    Pass ``--from-index`` to skip ffprobe and read streams from the indexer
+    DB instead (orders of magnitude faster on a populated index).
 
     Examples:
         personalscraper library-recommend
         personalscraper library-recommend --sort size
         personalscraper library-recommend --export csv
+        personalscraper library-recommend --from-index
     """
     import csv
 
-    from personalscraper.library.analyzer import _reconstruct_analysis_items
-    from personalscraper.library.models import read_json, write_json
+    from personalscraper.library.analyzer import analyze_from_index, analyze_library
+    from personalscraper.library.models import write_json
     from personalscraper.library.recommender import generate_recommendations
 
     # Resolve alias now so unknown --category values fail fast.
-    _resolve_category(ctx, category)
+    category_id = _resolve_category(ctx, category)
     console = state["console"]
     config = ctx.obj.config
 
@@ -1053,19 +1408,40 @@ def library_recommend(
         console.print(f"[red]Invalid --sort value '{sort}'. Valid: {', '.join(sorted(valid_sorts))}[/red]")
         raise typer.Exit(1)
 
-    # Load analysis
-    analysis_path = config.paths.data_dir / "library_analysis.json"
-    if not analysis_path.exists():
-        console.print("[red]No analysis found. Run library-analyze first.[/red]")
-        raise typer.Exit(1)
+    if from_index:
+        console.print("[bold]Analyzing library (from index)...[/bold]")
+        import sqlite3  # noqa: PLC0415
 
-    analysis_data = read_json(analysis_path)
+        from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+        from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+        db_path = config.indexer.db_path
+        migrations_dir = Path(_migrations_pkg.__file__).parent
+        conn: sqlite3.Connection = open_db(db_path)
+        apply_migrations(conn, migrations_dir)
+        try:
+            analysis = analyze_from_index(
+                conn,
+                disk_filter=disk,
+                category_filter=category_id,
+            )
+        finally:
+            conn.close()
+    else:
+        # Run analysis inline — no on-disk cache.  The legacy
+        # library_analysis.json was removed when the indexer DB became the
+        # single source of truth (DESIGN §10.2).
+        console.print("[bold]Analyzing library (ffprobe)...[/bold]")
+        analysis = analyze_library(
+            config,
+            disk_filter=disk,
+            category_filter=category_id,
+        )
 
     # Use preferences from config.library (no separate file).
     prefs = config.library
 
-    items = _reconstruct_analysis_items(analysis_data)
-    result = generate_recommendations(items, prefs)
+    result = generate_recommendations(analysis.items, prefs)
 
     # Sort
     sort_keys = {
@@ -1200,8 +1576,9 @@ def library_report(
 ) -> None:
     """Display library statistics and health report.
 
-    Aggregates data from scan, analysis, validation, and recommendations.
-    Run other library commands first to populate the data.
+    Aggregates data from the indexer DB (totals, NFO / artwork health, disk
+    distribution, per-item sizes) and supplementary JSON outputs from
+    ``library-validate``, ``library-recommend``, and ``library-rescrape``.
 
     Examples:
         personalscraper library-report
@@ -1216,7 +1593,9 @@ def library_report(
     config = ctx.obj.config
     console = state["console"]
 
-    # Load available supplementary JSON data (validation, recommendations, rescrape)
+    # Load supplementary JSON outputs (validation, recommendations, rescrape).
+    # The legacy library_scan.json / library_analysis.json files are no
+    # longer read — the indexer DB is the source of truth (DESIGN §10.2).
     def _load(name: str) -> dict[str, Any] | None:
         path = config.paths.data_dir / name
         if path.exists():
@@ -1228,13 +1607,11 @@ def library_report(
                 return None
         return None
 
-    scan_data = _load("library_scan.json")
     validation_data = _load("library_validation.json")
     recommendation_data = _load("library_recommendations.json")
     rescrape_data = _load("library_rescrape.json")
 
-    # Query the indexer DB for NFO / artwork health metrics.
-    # library_analysis.json is no longer read — AnalysisResult replaces it.
+    # Query the indexer DB for totals, NFO / artwork health, disk distribution.
     db_path = config.indexer.db_path
     analysis_result = None
     if db_path.exists():
@@ -1246,15 +1623,14 @@ def library_report(
             log.warning("report_indexer_query_failed", error=str(exc))
             console.print(f"[yellow]Warning: indexer DB query failed ({exc}), skipping analysis.[/yellow]")
 
-    if not any([scan_data, analysis_result, validation_data, recommendation_data, rescrape_data]):
-        console.print("[yellow]No library data found. Run library-scan or library-index first.[/yellow]")
+    if not any([analysis_result, validation_data, recommendation_data, rescrape_data]):
+        console.print("[yellow]No library data found. Run library-index first.[/yellow]")
         raise typer.Exit(1)
 
     # Get live disk free space
     disk_statuses = [get_disk_status(dc) for dc in config.disks]
 
     report = generate_report(
-        scan_data,
         analysis_result,
         validation_data,
         recommendation_data,

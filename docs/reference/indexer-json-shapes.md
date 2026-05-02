@@ -1,8 +1,17 @@
 # Indexer JSON Column Shapes
 
-Every JSON column in the indexer schema (DESIGN §6.5) is validated by a Pydantic
-model in `personalscraper/indexer/schema.py`. This document provides the
-canonical shape and a concrete example for each column.
+Every JSON column in the indexer schema (DESIGN §6.5) has a Pydantic
+shape model in `personalscraper/indexer/schema.py`. This document provides
+the canonical shape and a concrete example for each column.
+
+> **Validation status (2026-05):** `ArtworkInventory` is the only model
+> that is genuinely instantiated at write time (by `library/scanner.py`
+> and `indexer/scanner/_modes.py`). The other models — `OutboxPayload`,
+> `RepairPayload`, `ScanStats`, `ScanEventPayload`, `DeletedSnapshot`
+> — currently serve as **documentation only**: production writers do
+> `json.dumps` directly from a raw `dict` and readers parse with
+> `json.loads` + `payload.get(key)`. The shapes below remain the
+> contract; they are simply not enforced by the runtime today.
 
 ---
 
@@ -47,80 +56,105 @@ from this JSON via `json_extract()` and indexed for fast WHERE queries.
 
 ## `index_outbox.payload_json`
 
-**Pydantic model**: `OutboxPayload` (`personalscraper/indexer/schema.py`)
-
-Shape varies by the `op` column value. The model uses `extra="allow"` to
-accommodate per-op extensions. The common envelope fields are:
-
-| Field         | Type         | Present for                                              |
-| ------------- | ------------ | -------------------------------------------------------- |
-| `op`          | string       | All ops (must match parent `op`)                         |
-| `source_path` | string\|null | `move`, `nfo_write`, `artwork_write`, `trailer_download` |
-| `dest_path`   | string\|null | `move`                                                   |
-| `item_id`     | int\|null    | All ops that have an item context                        |
+**Pydantic shape model (documentation only)**: `OutboxPayload`
+(`personalscraper/indexer/schema.py`). The runtime apply functions in
+`personalscraper/indexer/outbox.py` parse the dict directly — they do
+not instantiate `OutboxPayload` — so the _real_ payload contract is
+the set of `payload[...]` accesses inside each `_apply_*` function, not
+the envelope fields on the Pydantic class. The shapes below mirror
+those accesses verbatim.
 
 ### `op: "move"`
 
+Apply function: `_apply_move` — UPSERTs a `media_file` row.
+
 ```json
 {
-  "op": "move",
-  "source_path": "/Volumes/Staging/001-MOVIES/Inception (2010)",
-  "dest_path": "/Volumes/Disk1/medias/films/Inception (2010)",
-  "item_id": 42
+  "disk_id": 1,
+  "dst_rel_path": "films/Inception (2010)",
+  "filename": "Inception (2010).mkv",
+  "size_bytes": 8589934592,
+  "mtime_ns": 1700000000000000000
 }
 ```
+
+`size_bytes` and `mtime_ns` may be omitted/null; in that case the row
+is left to be reconciled by the next dir-mtime walk (DESIGN §17.1) and
+the outbox row is still marked `'done'`.
 
 ### `op: "nfo_write"`
 
+Apply function: `_apply_nfo_write` — UPDATEs `media_item.nfo_status`,
+`tmdb_id`, `imdb_id`.
+
 ```json
 {
-  "op": "nfo_write",
-  "source_path": "/Volumes/Disk1/medias/films/Inception (2010)/Inception (2010).nfo",
-  "dest_path": null,
-  "item_id": 42
+  "disk_id": 1,
+  "rel_path": "films/Inception (2010)/Inception (2010).nfo",
+  "item_kind": "movie",
+  "tmdb_id": 27205,
+  "imdb_id": "tt1375666"
 }
 ```
+
+`rel_path` points at the `.nfo` file; the apply function resolves the
+owning directory via `Path(rel_path).parent`. `item_kind` is
+informational; `tmdb_id` / `imdb_id` are merged with `COALESCE`.
 
 ### `op: "artwork_write"`
 
+Apply function: `_apply_artwork_write` — flips a boolean in
+`media_item.artwork_json` via SQLite `json_set`.
+
 ```json
 {
-  "op": "artwork_write",
-  "source_path": "/Volumes/Disk1/medias/films/Inception (2010)/poster.jpg",
-  "dest_path": null,
-  "item_id": 42,
-  "artwork_type": "poster"
+  "disk_id": 1,
+  "rel_path": "films/Inception (2010)/poster.jpg",
+  "kind": "poster"
 }
 ```
+
+The `kind` field is whitelisted by `_ALLOWED_ARTWORK_KINDS` in
+`personalscraper/indexer/outbox.py` (DESIGN §9.6 defensive depth);
+unknown values raise `OutboxPayloadError` before any DB UPDATE.
 
 ### `op: "trailer_download"`
 
+Apply function: `_apply_trailer_download` — UPSERTs
+`item_attribute(key='trailer_found')`.
+
 ```json
 {
-  "op": "trailer_download",
-  "source_path": null,
-  "dest_path": "/Volumes/Disk1/medias/films/Inception (2010)/Trailers/Inception (2010)-trailer.mp4",
-  "item_id": 42,
-  "youtube_url": "https://www.youtube.com/watch?v=..."
+  "disk_id": 1,
+  "rel_path": "films/Inception (2010)/Trailers/Inception (2010)-trailer.mp4",
+  "trailer_path": "/Volumes/Disk1/medias/films/Inception (2010)/Trailers/Inception (2010)-trailer.mp4"
 }
 ```
+
+`rel_path` is the trailer FILE path; the apply function resolves the
+owning directory via `Path(rel_path).parent` because the `path` table
+stores directories, not individual files.
 
 ---
 
 ## `pending_op.payload_json`
 
-**Pydantic model**: `OutboxPayload` (same model as `index_outbox.payload_json`)
+**Shape model (documentation only)**: `OutboxPayload` — same shape model
+as `index_outbox.payload_json`, same caveat that the runtime parses the
+dict directly without instantiating the model.
 
-`pending_op` rows are created when a write-through event targets an **unmounted
-disk**. The payload is identical in shape to `index_outbox.payload_json` — it
-is replayed into the outbox when the disk remounts.
+`pending_op` rows are created when a write-through event targets an
+**unmounted disk**. The payload is identical in shape to
+`index_outbox.payload_json` (matching the apply-function dict accessors
+listed above) — it is replayed into the outbox when the disk remounts.
 
 ```json
 {
-  "op": "move",
-  "source_path": "/Volumes/Staging/001-MOVIES/Dune (2021)",
-  "dest_path": "/Volumes/Disk2/medias/films/Dune (2021)",
-  "item_id": 117
+  "disk_id": 2,
+  "dst_rel_path": "films/Dune (2021)",
+  "filename": "Dune (2021).mkv",
+  "size_bytes": 8589934592,
+  "mtime_ns": 1700000000000000000
 }
 ```
 
@@ -128,177 +162,154 @@ is replayed into the outbox when the disk remounts.
 
 ## `repair_queue.payload_json`
 
-**Pydantic model**: `RepairPayload` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `RepairPayload`
+(`personalscraper/indexer/schema.py`). Not instantiated by the
+runtime; each producer dumps its own dict (or `NULL`) into the
+column.
+
+The column is **per-producer free-form**: there is no shared
+`{context, discovered_at, evidence}` envelope. The trigger reason
+is in the sibling `reason` text column on the same `repair_queue`
+row; the discovery time is in the `enqueued_at` column.
+`payload_json` carries detector-specific evidence only.
+
+### Producer: `library-verify` (scanner `verify` mode)
+
+```python
+# indexer/scanner/_modes.py:1464 — file missing on disk
+payload_json=None
+```
 
 ```json
+// indexer/scanner/_modes.py:1504 — size or mtime drift detected
 {
-  "context": "tier2 drift: size_bytes mismatch on Disk1 media_file id=305",
-  "discovered_at": 1714300000,
-  "evidence": {
-    "expected_size": 4294967296,
-    "actual_size": 4294967100,
-    "file_path": "/Volumes/Disk1/medias/films/Inception (2010)/Inception (2010).mkv"
-  }
+  "expected_size": 4294967296,
+  "actual_size": 4294967100,
+  "expected_mtime_ns": 1714300000000000000,
+  "actual_mtime_ns": 1714399999000000000
 }
 ```
 
-| Field           | Type   | Required | Meaning                                        |
-| --------------- | ------ | -------- | ---------------------------------------------- |
-| `context`       | string | yes      | Human-readable description of the trigger.     |
-| `discovered_at` | int    | yes      | Unix epoch seconds when drift was detected.    |
-| `evidence`      | dict   | no       | Free-form key-value evidence from the scanner. |
+### Producer: `library-reconcile`
 
-Schema: `extra="forbid"` — unknown keys are rejected.
+```json
+// indexer/reconcile.py:499 — typical detector payload
+{
+  "detector": "merkle"
+}
+```
+
+The `DivergenceItem.payload` field accepts `dict[str, object]`;
+each detector chooses its own keys and is expected to keep them
+forward-compatible.
 
 ---
 
 ## `scan_run.stats_json`
 
-**Pydantic model**: `ScanStats` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `ScanStats`
+(`personalscraper/indexer/schema.py`). The runtime serialises a raw
+`dict[str, int]` directly via `json.dumps` in
+`personalscraper/indexer/scanner/__init__.py` (around the
+`UPDATE scan_run SET stats_json` writes); the `ScanStats` Pydantic
+class is documentation, not enforcement.
 
-Written at scan completion (or on budget-exhaustion checkpoint).
+Written at scan completion (or on budget-exhaustion checkpoint). The
+two write sites differ slightly in which counters are populated:
 
 ```json
 {
-  "items_added": 3,
-  "items_updated": 12,
-  "items_deleted": 0,
-  "files_walked": 8421,
-  "bytes_read": 536870912,
-  "budget_exhausted": false
+  "files_visited": 8421,
+  "dirs_visited": 312,
+  "disks_skipped": 0
 }
 ```
 
-| Field              | Type    | Default | Meaning                                             |
-| ------------------ | ------- | ------- | --------------------------------------------------- |
-| `items_added`      | int     | 0       | New `media_item` rows created.                      |
-| `items_updated`    | int     | 0       | Existing `media_item` rows updated.                 |
-| `items_deleted`    | int     | 0       | Items soft-deleted (`deleted_at` set).              |
-| `files_walked`     | int     | 0       | Total files visited by the walker.                  |
-| `bytes_read`       | int     | 0       | Total bytes read for fingerprinting.                |
-| `budget_exhausted` | boolean | false   | `true` when halted due to budget; resume on re-run. |
+| Field           | Type | Written by                                                   | Meaning                                                                                      |
+| --------------- | ---- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `files_visited` | int  | both branches (success + budget-exhausted)                   | Total files visited by the walker across all disks.                                          |
+| `dirs_visited`  | int  | both branches                                                | Total directories visited.                                                                   |
+| `disks_skipped` | int  | success branch only (omitted by the budget-exhausted branch) | Disks short-circuited by the Merkle root check (mode=quick) or unreachable-strikes guarding. |
 
-Schema: `extra="forbid"` — unknown keys are rejected.
+Notes:
+
+- The `ScanStats` Pydantic class declares richer fields
+  (`items_added`, `items_updated`, `items_deleted`, `bytes_read`,
+  `budget_exhausted`). Those are reserved for future runtime
+  bookkeeping; today's writers do not populate them. Reader code
+  treats missing keys as `0`/`False`.
+- The budget-exhausted path writes `files_visited` + `dirs_visited`
+  only (no `disks_skipped`); the post-mortem viewer should default
+  the missing key.
 
 ---
 
 ## `scan_event.payload_json`
 
-**Pydantic model**: `ScanEventPayload` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `ScanEventPayload`
+(`personalscraper/indexer/schema.py`). Permissive (`extra="allow"`),
+not instantiated by the runtime.
 
-Each event type carries different keys; the model is permissive (`extra="allow"`)
-to avoid tight coupling with the per-event documentation.
-
-### Common events
-
-**`indexer.scan.checkpoint`** — written every N files to enable crash-resume.
-
-```json
-{
-  "last_path": "001-MOVIES/Inception (2010)",
-  "files_walked": 3000,
-  "generation": 17
-}
-```
-
-**`indexer.drift.tier1`** — stat-only change detected.
+**Current writers:** the only `insert_scan_event` call site today is
+`personalscraper/indexer/scanner/__init__.py:187`, which writes one
+row per scanned disk with `event = "indexer.scan.disk_done"`.
 
 ```json
 {
-  "file_id": 305,
-  "old_mtime_ns": 1714300000000000000,
-  "new_mtime_ns": 1714399999000000000
+  "disk_id": 1,
+  "label": "Disk1",
+  "files_visited": 3140,
+  "dirs_visited": 122,
+  "disks_skipped": 0
 }
 ```
 
-**`indexer.drift.rename`** — file moved or renamed; OSHash match found.
-
-```json
-{
-  "file_id": 305,
-  "old_path": "001-MOVIES/Inception (2010)/Inception.mkv",
-  "new_path": "001-MOVIES/Inception (2010)/Inception (2010).mkv",
-  "oshash": "a3f2e1d0c9b8a7b6"
-}
-```
-
-**`indexer.drift.oshash_collision`** — two distinct files share the same OSHash;
-escalated to `xxh3_full`.
-
-```json
-{
-  "oshash": "deadbeefdeadbeef",
-  "file_id_a": 101,
-  "file_id_b": 202,
-  "resolved_by": "xxh3_full"
-}
-```
-
-**`indexer.fs.invalid_mtime`** — mtime clamped to valid range.
-
-```json
-{
-  "path": "/Volumes/Disk1/medias/films/Old Movie (1999)/Old Movie (1999).mkv",
-  "raw_mtime_ns": -1,
-  "clamped_to": 0
-}
-```
+**Reserved events** — the original DESIGN listed several other event
+types (`indexer.scan.checkpoint`, `indexer.drift.tier1`,
+`indexer.drift.rename`, `indexer.drift.oshash_collision`,
+`indexer.fs.invalid_mtime`) which are emitted to the **structured
+log** (structlog) but are _not_ persisted to the `scan_event` table.
+Future work may move them into `scan_event` for queryable audit; for
+now grep the log file for those event names if you need them
+post-mortem.
 
 ---
 
 ## `deleted_item.payload_json`
 
-**Pydantic model**: `DeletedSnapshot` (`personalscraper/indexer/schema.py`)
+**Shape model (documentation only)**: `DeletedSnapshot`
+(`personalscraper/indexer/schema.py`). Not instantiated by the
+runtime; the writer in `indexer/drift.py` (the n-strikes soft-delete
+path) builds a flat dict with `json.dumps` directly.
 
-A snapshot of the deleted row's columns at deletion time. The exact keys depend
-on `kind`.
+**Current writer:** the only `insert_deleted_item` call site today
+is the n-strikes file-level soft-delete in `indexer/drift.py:530`.
+`deleted_item` rows always have `kind = 'file'`; `kind = 'item'`
+and `kind = 'release'` are reserved for future tombstone writers
+(item-level soft delete is not implemented yet — see DESIGN §8.3).
 
-### `kind: "item"`
+### `kind: "file"` — only kind currently written
 
-```json
-{
-  "kind": "item",
-  "snapshot": {
-    "id": 42,
-    "title": "Inception",
-    "year": 2010,
-    "category_id": "movies",
-    "tmdb_id": 27205,
-    "nfo_status": "valid"
-  }
-}
-```
-
-### `kind: "file"`
+The payload is a **flat snapshot** (no `kind` wrapper, no `snapshot`
+sub-key — the columns of the deleted `media_file` row inlined):
 
 ```json
 {
-  "kind": "file",
-  "snapshot": {
-    "id": 305,
-    "filename": "Inception (2010).mkv",
-    "size_bytes": 4294967296,
-    "mtime_ns": 1714300000000000000,
-    "oshash": "a3f2e1d0c9b8a7b6",
-    "miss_strikes": 3
-  }
+  "id": 305,
+  "path_id": 47,
+  "filename": "Inception (2010).mkv",
+  "oshash": "a3f2e1d0c9b8a7b6",
+  "size_bytes": 4294967296,
+  "mtime_ns": 1714300000000000000
 }
 ```
 
-### `kind: "release"`
+The deletion `reason` and `deleted_at` epoch are stored on the
+`deleted_item` row itself (separate columns), not in `payload_json`.
 
-```json
-{
-  "kind": "release",
-  "snapshot": {
-    "id": 88,
-    "item_id": 42,
-    "quality": "1080p",
-    "edition": null,
-    "primary_lang": "fr"
-  }
-}
-```
+### `kind: "item"`, `kind: "release"` — reserved
 
-Schema: `extra="allow"` — additional snapshot fields are permitted to future-proof
-the tombstone format.
+Not currently written by any code path. When the item-level / release-
+level soft-delete worker lands the payload shape will be defined in a
+follow-up; do not rely on speculative shapes from earlier drafts of
+this document.

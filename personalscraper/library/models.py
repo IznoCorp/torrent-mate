@@ -130,25 +130,6 @@ class LibraryScanItem:
     scanned_at: str = ""
 
 
-@dataclass
-class LibraryScanResult:
-    """Top-level container for library_scan.json.
-
-    Attributes:
-        scanned_at: ISO 8601 timestamp of scan start.
-        disk_filter: Disk filter applied (None = all disks).
-        category_filter: Category filter applied (None = all).
-        item_count: Total items scanned.
-        items: List of scan results.
-    """
-
-    scanned_at: str
-    disk_filter: str | None
-    category_filter: str | None
-    item_count: int
-    items: list[LibraryScanItem] = field(default_factory=list)
-
-
 # --- Validation models ---
 
 _VALID_VALIDATION_STATUSES = {"valid", "fixed", "issues"}
@@ -342,7 +323,13 @@ class LibraryAnalysisItem:
 
 @dataclass
 class LibraryAnalysisResult:
-    """Top-level container for library_analysis.json."""
+    """In-memory container for ``analyze_library`` ffprobe results.
+
+    Returned by :func:`personalscraper.library.analyzer.analyze_library`
+    and consumed inline by ``library-recommend``.  No longer persisted to
+    disk — the legacy ``library_analysis.json`` cache was removed when the
+    indexer DB became the single source of truth (DESIGN §10.2).
+    """
 
     analyzed_at: str
     disk_filter: str | None

@@ -421,10 +421,16 @@ def _rescrape_episodes(
         if f.is_file() and f.suffix.lstrip(".").lower() in VIDEO_EXTENSIONS and not f.name.startswith("._")
     ]
 
-    season_dicts = [{"season_number": s, "episode_number": e} for s, e in all_episodes]
-    create_season_dirs(show_dir, season_dicts, patterns, dry_run)
+    # Only create season directories for seasons that actually receive
+    # a local file: matching the in-scraper rule, this avoids creating
+    # 16 empty Saison NN dirs for shows whose catalog spans seasons we
+    # do not own locally.
     matched = match_episode_files(video_files, all_episodes)
-    rename_episodes(matched, show_dir, patterns, dry_run)
+    if matched:
+        needed_seasons = sorted({info["season"] for info in matched.values()})
+        season_dicts = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
+        create_season_dirs(show_dir, season_dicts, patterns, dry_run)
+        rename_episodes(matched, show_dir, patterns, dry_run)
 
 
 def _collect_rescrape_candidates(

@@ -354,6 +354,17 @@ class MediaStreamRow:
         height: Video height in pixels; ``None`` for non-video streams.
         duration_ms: Stream duration in milliseconds; ``None`` if unknown.
         bitrate: Stream bitrate in bps; ``None`` if unknown.
+        hdr_format: HDR standard for video streams (``'HDR10'``, ``'HDR10+'``,
+            ``'Dolby Vision'``, ``'HLG'``); ``None`` for SDR or non-video.
+        is_atmos: ``True`` when the audio track is encoded with Dolby Atmos
+            (TrueHD-Atmos or E-AC-3 JOC); ``None`` for non-audio or
+            pre-migration rows.
+        is_default: Whether the track is flagged as the default track in its
+            container; ``None`` when unknown / pre-migration.
+        forced: Whether a subtitle track is flagged as forced; ``None`` for
+            non-subtitle or pre-migration rows.
+        format: Normalised subtitle format (``'srt'``, ``'pgs'``, ``'ass'``,
+            ``'dvd_subtitle'``, ...); ``None`` for non-subtitle or unknown.
     """
 
     id: int
@@ -367,6 +378,11 @@ class MediaStreamRow:
     height: int | None
     duration_ms: int | None
     bitrate: int | None
+    hdr_format: str | None = None
+    is_atmos: bool | None = None
+    is_default: bool | None = None
+    forced: bool | None = None
+    format: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -577,12 +593,20 @@ class ArtworkInventory(BaseModel):
 
 
 class OutboxPayload(BaseModel):
-    """Validates ``index_outbox.payload_json`` and ``pending_op.payload_json``.
+    """Documents the shape of ``index_outbox.payload_json`` / ``pending_op.payload_json``.
 
     Per DESIGN §9.3, the exact shape varies by ``op``; this model captures
     the common envelope fields and allows additional per-op fields via
-    ``extra="allow"`` relaxation.  Full per-op validation is done at the
-    outbox drainer level.
+    ``extra="allow"`` relaxation.
+
+    **Status:** This Pydantic class is currently used as documentation
+    only — no production code path instantiates it to validate a
+    payload_json value before the row is inserted or read.  Outbox
+    drainers parse the JSON dict directly with ``payload.get(key)``
+    accessors and rely on per-op shape checks inside the apply
+    functions.  Wiring true write-time validation through this model
+    is tracked as a follow-up; do not assume malformed payload_json
+    rows will be rejected at boundary today.
 
     Args:
         op: Operation type matching the parent row's ``op`` column.
@@ -602,7 +626,14 @@ class OutboxPayload(BaseModel):
 
 
 class RepairPayload(BaseModel):
-    """Validates ``repair_queue.payload_json``.
+    """Documents the shape of ``repair_queue.payload_json``.
+
+    **Status:** This Pydantic class is currently used as documentation
+    only — no production code path instantiates it to validate a
+    repair-queue payload before insert.  ``insert_repair_queue`` accepts
+    a raw dict that is ``json.dumps``-ed into the column; readers parse
+    it back with ``json.loads``.  Wiring true validation is tracked as
+    a follow-up.
 
     Args:
         context: Human-readable description of what triggered the repair.

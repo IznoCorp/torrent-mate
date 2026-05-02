@@ -16,11 +16,53 @@ from personalscraper.ingest.ingest import (
     _check_disk_space,
     _cleanup_orphan_temps,
     _get_dir_size,
+    _is_orphan_tracker_entry,
     _verify_transfer,
     run_ingest,
     transfer_torrent,
 )
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
+
+
+class TestIsOrphanTrackerEntry:
+    """Regression tests for the ingest_dir carve-out in _is_orphan_tracker_entry.
+
+    The function probes whether a tracker entry recorded by ingest is an
+    orphan (its dest_path no longer exists).  The carve-out for paths inside
+    ``ingest_dir`` exists because sort consumes ingest staging files into
+    category dirs without rewriting tracker entries; without the carve-out
+    the warning fires on every pipeline run after the first successful sort.
+    """
+
+    def test_no_dest_path_is_not_orphan(self) -> None:
+        """Legacy entries without dest_path return False (no opinion)."""
+        assert _is_orphan_tracker_entry({"hash": "abc"}) is False
+        assert _is_orphan_tracker_entry({"hash": "abc", "dest_path": ""}) is False
+
+    def test_existing_dest_path_is_not_orphan(self, tmp_path: Path) -> None:
+        """Existing dest_path returns False regardless of ingest_dir."""
+        existing = tmp_path / "movie"
+        existing.mkdir()
+        assert _is_orphan_tracker_entry({"dest_path": str(existing)}) is False
+
+    def test_missing_outside_ingest_dir_is_orphan(self, tmp_path: Path) -> None:
+        """A missing path outside ingest_dir is the real orphan signal."""
+        missing = tmp_path / "category" / "movie"
+        ingest_dir = tmp_path / "ingest_staging"
+        ingest_dir.mkdir()
+        # Without ingest_dir context: any missing path is orphan.
+        assert _is_orphan_tracker_entry({"dest_path": str(missing)}) is True
+        # With ingest_dir context: outside ingest_dir is still orphan.
+        assert _is_orphan_tracker_entry({"dest_path": str(missing)}, ingest_dir) is True
+
+    def test_missing_inside_ingest_dir_is_carved_out(self, tmp_path: Path) -> None:
+        """A missing path inside ingest_dir is treated as 'sort consumed it'."""
+        ingest_dir = tmp_path / "ingest_staging"
+        ingest_dir.mkdir()
+        consumed = ingest_dir / "freshly-sorted-movie"
+        # consumed never created — sort moved it out of ingest_staging
+        assert _is_orphan_tracker_entry({"dest_path": str(consumed)}, ingest_dir) is False
+
 
 # ---------------------------------------------------------------------------
 # Helper functions
@@ -825,6 +867,10 @@ class TestRunIngest:
             r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == "ingest_unexpected_error"
         ]
         assert matching, "ingest event 'ingest_unexpected_error' was not emitted"
-        assert matching[0].msg.get("error_type") == "RuntimeError", (
-            f"expected error_type='RuntimeError', got {matching[0].msg.get('error_type')!r}"
+        # ``LogRecord.msg`` is typed as ``str | object`` so explicit narrowing
+        # is required before reading dict keys.
+        msg = matching[0].msg
+        assert isinstance(msg, dict)
+        assert msg.get("error_type") == "RuntimeError", (
+            f"expected error_type='RuntimeError', got {msg.get('error_type')!r}"
         )

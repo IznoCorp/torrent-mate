@@ -14,7 +14,7 @@
 
 ## Scope
 
-Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, the drainer with retry/backoff/deferred semantics, hooks in the four pipeline mutation points (dispatcher, nfo_generator, artwork, trailers orchestrator), integration tests asserting outbox rows are produced and consumed correctly, and wiring the drainer into `personalscraper library index`. The no-op `outbox.drain_if_present()` stub from Phase 2 is replaced.
+Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, the drainer with retry/backoff/deferred semantics, hooks in the four pipeline mutation points (dispatcher, nfo_generator, artwork, trailers orchestrator), integration tests asserting outbox rows are produced and consumed correctly, and wiring the drainer into `personalscraper library-index`. The no-op `outbox.drain_if_present()` stub from Phase 2 is replaced.
 
 ---
 
@@ -125,7 +125,7 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 
 ---
 
-### 5.5 — Drainer wired into `personalscraper library index`
+### 5.5 — Drainer wired into `personalscraper library-index`
 
 **Files touched:**
 
@@ -134,7 +134,7 @@ Wire the best-effort write-through log: `index_outbox` and `pending_op` repos, t
 
 **Deliverable:**
 
-- `personalscraper library index` calls `outbox.drain_if_present(conn, config)` after the scan completes (synchronous, short).
+- `personalscraper library-index` calls `outbox.drain_if_present(conn, config)` after the scan completes (synchronous, short).
 - Full pipeline run (`ingest → sort → process → verify → dispatch`) on a fixture followed by `library index` leaves zero `status='pending'` rows in `index_outbox`.
 - E2E test `tests/e2e/test_pipeline_indexer.py` _(new)_: full pipeline run on a fabricated 50-item FS fixture; asserts indexer reflects final state; outbox empty at end.
 - CLI test: `library index --mode quick` on fixture with pre-seeded outbox rows → all rows drained after command exits.

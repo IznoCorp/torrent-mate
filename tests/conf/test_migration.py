@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -249,7 +250,7 @@ class TestUnknownKeys:
 
         import json5
 
-        local = json5.loads((target / "local.json5").read_text(encoding="utf-8"))
+        local: Any = json5.loads((target / "local.json5").read_text(encoding="utf-8"))
         assert "my_unknown_key" in local["_migration_unknown_keys"]
         assert local["_migration_unknown_keys"]["my_unknown_key"] == 42
 
@@ -293,7 +294,7 @@ class TestUnknownKeys:
 
         import json5
 
-        local = json5.loads((target / "local.json5").read_text(encoding="utf-8"))
+        local: Any = json5.loads((target / "local.json5").read_text(encoding="utf-8"))
         unknown = local["_migration_unknown_keys"]
         assert "alpha" in unknown
         assert "beta" in unknown

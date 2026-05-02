@@ -5,6 +5,7 @@ accented French titles) and match_movie() with mocked TMDB responses.
 """
 
 import logging
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -619,17 +620,23 @@ class TestMalformedResponses:
 class TestConfidenceConflict:
     """Tests for TMDB/TVDB conflict resolution."""
 
-    def test_tmdb_tvdb_conflict_prefer_higher_confidence(self) -> None:
-        """When TMDB and TVDB differ, prefer the higher confidence match."""
+    def test_tvdb_match_never_overridden_by_tmdb(self) -> None:
+        """TVDB-found is final. TMDB never overrides a TVDB match for TV shows.
+
+        Project rule: TMDB-for-TV is permitted **only** when TVDB has no
+        match for the show. Even when TVDB returned a wrong / low-confidence
+        match and TMDB has a strictly better one, the result must be the
+        TVDB match. The caller decides whether to skip on low confidence;
+        we never silently retag a show against TMDB. This guards against
+        the "South Park indexed as 1992 instead of 1997" class of bug
+        where TMDB's TV branch overrides TVDB's authoritative entry.
+        """
         tvdb = MagicMock()
         tmdb = MagicMock()
 
-        # TVDB returns a low-confidence match
         tvdb.search_series.return_value = [
             {"tvdb_id": "111", "name": "Wrong Show", "year": "2024"},
         ]
-
-        # TMDB returns a high-confidence match
         tmdb.search_tv.return_value = [
             {"id": 222, "name": "Correct Show", "first_air_date": "2024-01-01"},
         ]
@@ -637,8 +644,10 @@ class TestConfidenceConflict:
         result = match_tvshow(tvdb, tmdb, "Correct Show", 2024)
 
         assert result is not None
-        assert result.api_title == "Correct Show"
-        assert result.source == "tmdb"
+        assert result.source == "tvdb"
+        # TMDB must not have been queried — TVDB returned a match,
+        # the function must short-circuit before any TMDB call.
+        tmdb.search_tv.assert_not_called()
 
     def test_tvdb_high_confidence_no_tmdb_fallback(self) -> None:
         """TVDB with HIGH_CONFIDENCE should not trigger TMDB fallback."""
@@ -720,7 +729,7 @@ class TestBelowThresholdWarning:
         target_event = "scraper.match.below_threshold"
         warning_records = [r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == target_event]
         assert warning_records, "expected scraper.match.below_threshold warning in caplog"
-        payload = warning_records[0].msg
+        payload: dict[str, Any] = warning_records[0].msg  # type: ignore[assignment]
         assert payload["title"] == "The Butterfly Effect"
         assert payload["year"] == 2004
         assert payload["candidates_count"] == 2
@@ -746,7 +755,7 @@ class TestBelowThresholdWarning:
         below_event = "scraper.match.below_threshold"
         warning_records = [r for r in caplog.records if isinstance(r.msg, dict) and r.msg.get("event") == below_event]
         assert warning_records, "expected scraper.match.below_threshold warning in caplog"
-        payload = warning_records[0].msg
+        payload: dict[str, Any] = warning_records[0].msg  # type: ignore[assignment]
         assert payload["title"] == "The Butterfly Effect"
         assert payload["candidates_count"] == 1
         assert payload["source"] == "tvdb"

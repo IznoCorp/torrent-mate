@@ -10,6 +10,7 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
+from typing import Literal
 
 import pytest
 
@@ -33,7 +34,7 @@ def conn() -> sqlite3.Connection:
     return c
 
 
-def _insert_item(c: sqlite3.Connection, kind: str) -> int:
+def _insert_item(c: sqlite3.Connection, kind: Literal["movie", "show"]) -> int:
     """Insert a media_item with the given kind and return its id.
 
     Args:

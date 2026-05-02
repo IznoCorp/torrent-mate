@@ -39,6 +39,7 @@ from personalscraper.indexer.merkle import (
     guard_disk_mounted,
     verify_disk_mounted,
 )
+from personalscraper.indexer.release_linker import recompute_season_episode_counts
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner._checkpoint import _check_crash_resume
 from personalscraper.indexer.scanner._concurrency import (
@@ -48,10 +49,13 @@ from personalscraper.indexer.scanner._concurrency import (
 from personalscraper.indexer.scanner._db_writes import _upsert_path_row
 from personalscraper.indexer.scanner._exclusions import EXCLUDED_NAMES, _should_exclude
 from personalscraper.indexer.scanner._modes import (
+    _purge_non_video_stream_rows,
     _scan_disk_enrich,
+    _scan_disk_enrich_backfill,
     _scan_disk_full,
     _scan_disk_incremental,
     _scan_disk_quick,
+    _scan_disk_verify,
 )
 from personalscraper.indexer.scanner._shutdown import install_sigterm_handler, reset_shutdown
 from personalscraper.indexer.scanner._spotlight import SpotlightChangeDetector, probe_spotlight
@@ -340,6 +344,7 @@ def scan(
     confirm_bulk_change: bool = False,
     merkle_delta_freeze_threshold: float = 0.50,
     quick_enrich: bool = False,
+    backfill_streams: bool = False,
     max_workers: int = 4,
     read_rate_mb_per_sec: float | None = None,
     staging_dir: str | None = None,
@@ -435,6 +440,12 @@ def scan(
             ``parse_speed=0.5`` to :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
             for a faster but less complete mediainfo parse.  Default ``False``
             (full parse, ``parse_speed=1.0``).
+        backfill_streams: When ``True`` and ``mode == ScanMode.enrich``, runs
+            the targeted backfill path that re-extracts streams only for files
+            whose ``media_stream`` rows are missing migration-004 columns
+            (``hdr_format`` / ``is_atmos`` / ``is_default`` / ``forced`` /
+            ``format``) and UPDATEs only those columns in place.  Skips NFO,
+            artwork, release linkage, and ``enriched_at`` writes.
         max_workers: Maximum number of concurrent per-disk worker threads.
             Capped at ``len(disks)`` and always ``1`` when a single-disk filter
             is active (DESIGN §11.8).  Ignored (sequential fallback) when
@@ -553,6 +564,14 @@ def scan(
     dir_mtime_reliable: bool = True
     if mode in (ScanMode.quick, ScanMode.incremental):
         dir_mtime_reliable = _verify_dir_mtime_reliable()
+
+    # Enrich-mode legacy cleanup: pre-extension-skip enrich runs inserted
+    # ``media_stream`` rows for sidecars (.jpg → "video/JPEG", .srt →
+    # "subtitle/SubRip"). These rows are useless and pollute the streams
+    # table. Idempotent UPDATE — no-op once the legacy data is purged.
+    if mode == ScanMode.enrich:
+        _purge_non_video_stream_rows(conn)
+        conn.commit()
 
     def _scan_one_disk(
         worker_conn: sqlite3.Connection,
@@ -709,16 +728,46 @@ def scan(
                     merkle_delta_freeze_threshold=merkle_delta_freeze_threshold,
                 )
             elif mode == ScanMode.enrich:
-                # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
-                # budget-bounded, per-file commits.
-                _scan_disk_enrich(
+                if backfill_streams:
+                    # Backfill mode: re-extract streams only for already-
+                    # enriched files whose media_stream rows are missing
+                    # the migration-004 columns. UPDATE in place, no NFO /
+                    # artwork / linker work, no enriched_at write.
+                    _scan_disk_enrich_backfill(
+                        worker_conn,
+                        disk,
+                        budget_seconds,
+                        _started_at_monotonic,
+                        local_exhausted,
+                        scan_run_id,
+                        quick_enrich=quick_enrich,
+                    )
+                else:
+                    # Enrich mode: pymediainfo + NFO + artwork on un-enriched rows,
+                    # budget-bounded, per-file commits.
+                    _scan_disk_enrich(
+                        worker_conn,
+                        disk,
+                        budget_seconds,
+                        _started_at_monotonic,
+                        local_exhausted,
+                        scan_run_id,
+                        quick_enrich=quick_enrich,
+                    )
+            elif mode == ScanMode.verify:
+                # Verify mode: re-stat every indexed file and enqueue
+                # repair_queue rows for missing files / size+mtime drift.
+                # Non-destructive: never soft-deletes, never recomputes
+                # fingerprints, only bumps last_verified_at on clean rows.
+                _scan_disk_verify(
                     worker_conn,
                     disk,
+                    local_files,
+                    generation,
                     budget_seconds,
                     _started_at_monotonic,
                     local_exhausted,
                     scan_run_id,
-                    quick_enrich=quick_enrich,
                 )
             else:
                 # Skeleton walk for any future modes not yet implemented.
@@ -750,6 +799,18 @@ def scan(
             # Merkle delta exceeded the freeze threshold — re-raise so the
             # caller (sequential loop or parallel wrapper) can surface it.
             raise
+        except PermissionError as perm_exc:
+            # Per-file EACCES: log a warning and return (no strike against the disk).
+            # PermissionError is a subclass of OSError so it MUST be matched
+            # first; otherwise the OSError clause below would always win and
+            # this branch would be unreachable.
+            log.warning(
+                "indexer.file.permission_denied",
+                disk_uuid=disk.uuid,
+                label=disk.label,
+                error=str(perm_exc),
+            )
+            return
         except OSError as io_exc:
             # I/O error on a disk walk (EIO, ENOENT, etc.).  Roll back any
             # partial writes for this disk, mark it unmounted, increment the
@@ -772,15 +833,6 @@ def scan(
                 return
             # Re-raise unexpected OS errors that are not disk-I/O related.
             raise
-        except PermissionError as perm_exc:
-            # Per-file EACCES: log a warning and return (no strike against the disk).
-            log.warning(
-                "indexer.file.permission_denied",
-                disk_uuid=disk.uuid,
-                label=disk.label,
-                error=str(perm_exc),
-            )
-            return
         else:
             # Walk completed without I/O error — record success to allow
             # HALF_OPEN → CLOSED transition if the circuit was recovering.
@@ -817,6 +869,14 @@ def scan(
     if disk_filter is not None:
         # Single-disk targeted run — degrade to one worker per DESIGN §11.8.
         _effective_workers = 1
+    # Note: enrich mode used to be pinned to one worker because of a
+    # libmediainfo segfault under concurrent parse + lazy track attribute
+    # resolution. ``mediainfo._MEDIAINFO_PARSE_LOCK`` now spans the entire
+    # ``extract_streams`` call (parse + iteration + getattr), so the
+    # concurrent path is safe and per-disk workers can run in parallel
+    # again. Parse calls still serialise on the lock, but the per-disk
+    # non-parse work (filename filtering, NFO inventory, artwork inventory,
+    # release linkage, ``enriched_at`` updates) overlaps freely.
 
     try:
         if db_path is not None and _effective_workers > 1:
@@ -881,6 +941,8 @@ def scan(
 
         # Budget exhausted — commit current state and return early.
         if _budget_exhausted[0]:
+            if mode == ScanMode.enrich:
+                recompute_season_episode_counts(conn)
             finished_at = int(time.time())
             stats: dict[str, int] = {
                 "files_visited": files_visited[0],
@@ -907,6 +969,8 @@ def scan(
             )
 
         # All disks processed — mark scan_run ok.
+        if mode == ScanMode.enrich:
+            recompute_season_episode_counts(conn)
         finished_at = int(time.time())
         # Persist final stats so post-mortem queries can recover counts without
         # replaying the log file.  Mirrors the budget-exhausted branch above

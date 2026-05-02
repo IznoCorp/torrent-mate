@@ -421,6 +421,43 @@ class TestAnalyze:
         dt = datetime.fromisoformat(result.analyzed_at)
         assert dt.tzinfo is not None
 
+    def test_scan_issues_aggregated_from_item_issue(self) -> None:
+        """``analyze()`` reports per-type counts sourced from the item_issue table."""
+        conn = _make_conn()
+        item_a = _seed_media_item(conn, kind="movie", title="A")
+        item_b = _seed_media_item(conn, kind="movie", title="B")
+        item_c = _seed_media_item(conn, kind="movie", title="C")
+        # Two .actors offenders, one junk_files offender, plus an
+        # additional issue type that should also surface in the dict.
+        rows = [
+            (item_a, "actors_dir_present", 1),
+            (item_b, "actors_dir_present", 1),
+            (item_c, "junk_files", 1),
+            (item_a, "bad_dir_naming", 1),
+        ]
+        for item_id, issue_type, ts in rows:
+            conn.execute(
+                "INSERT INTO item_issue (item_id, type, detail, detected_at) VALUES (?, ?, NULL, ?)",
+                (item_id, issue_type, ts),
+            )
+        result = analyze(conn)
+
+        assert result.scan_issues == {
+            "actors_dir_present": 2,
+            "junk_files": 1,
+            "bad_dir_naming": 1,
+        }
+        assert result.actors_dir_count == 2
+
+    def test_scan_issues_empty_when_table_clean(self) -> None:
+        """Without any item_issue rows the report fields stay empty/zero."""
+        conn = _make_conn()
+        _seed_media_item(conn, kind="movie", title="Clean")
+        result = analyze(conn)
+
+        assert result.scan_issues == {}
+        assert result.actors_dir_count == 0
+
 
 # ---------------------------------------------------------------------------
 # Suite 3 — analyze_library (ffprobe) tests (kept for regression coverage)

@@ -48,10 +48,14 @@ def e2e_registry(e2e_session_id):
     Yields:
         A TestRegistry instance. Cleaned up after all tests complete.
     """
-    # Store registry in the configured data directory
-    from personalscraper.config import get_settings
+    # Store registry in the configured data directory.
+    # ``data_dir`` was migrated from ``Settings`` to ``Config.paths`` in
+    # P6.1; the E2E registry still keys off the same on-disk root, but the
+    # accessor must read it from the loaded config now.
+    from personalscraper.conf.loader import load_config, resolve_config_path
 
-    reg = TestRegistry(session_id=e2e_session_id, base_dir=get_settings().data_dir.parent)
+    cfg = load_config(resolve_config_path())
+    reg = TestRegistry(session_id=e2e_session_id, base_dir=cfg.paths.data_dir.parent)
     yield reg
     # Registry file cleanup happens in the E2E cleanup phase, not here
 

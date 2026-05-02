@@ -1,12 +1,11 @@
-"""Tests for personalscraper.library.reporter — modified for sub-phase 7.3.
+"""Tests for personalscraper.library.reporter — DB-backed report generation.
 
-Changes from the pre-7.3 version:
-- ``generate_report`` no longer accepts ``analysis_data: dict`` (library_analysis.json).
-- It now accepts ``analysis_result: AnalysisResult | None`` produced by
-  :func:`~personalscraper.library.analyzer.analyze`.
-- Tests that previously passed an ``analysis_data`` dict now seed the indexer DB,
-  call ``analyze(conn)`` to obtain an :class:`AnalysisResult`, and pass that.
-- Tests verify that no ``library_analysis.json`` is consulted.
+After the legacy JSON migration, ``generate_report`` no longer accepts
+``scan_data`` (parsed ``library_scan.json``).  All totals, distribution and
+top-largest data come from :class:`AnalysisResult` produced by
+:func:`~personalscraper.library.analyzer.analyze` against the indexer DB.
+Validation, recommendations, and rescrape data remain regular per-command
+JSON outputs and are still consumed by the report.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "inde
 
 
 # ---------------------------------------------------------------------------
-# DB helpers (replicated from test_analyzer.py — no cross-test imports)
+# DB helpers
 # ---------------------------------------------------------------------------
 
 
@@ -100,6 +99,7 @@ def _seed_item(
 
 def _make_analysis_result(
     total_items: int = 0,
+    total_size_gb: float = 0.0,
     nfo_valid: int = 0,
     nfo_invalid: int = 0,
     nfo_missing: int = 0,
@@ -107,11 +107,16 @@ def _make_analysis_result(
     poster_missing: int = 0,
     seasons_missing_poster: int = 0,
     items_needing_rescrape: int = 0,
+    items_per_disk: dict[str, int] | None = None,
+    items_per_category: dict[str, int] | None = None,
+    size_per_disk_gb: dict[str, float] | None = None,
+    top_largest: list[tuple[str, float]] | None = None,
 ) -> AnalysisResult:
     """Construct an :class:`AnalysisResult` with explicit counts.
 
     Args:
         total_items: Total media item count.
+        total_size_gb: Total size across all media files.
         nfo_valid: Items with valid NFO.
         nfo_invalid: Items with invalid NFO.
         nfo_missing: Items with missing NFO.
@@ -119,6 +124,10 @@ def _make_analysis_result(
         poster_missing: Items without a poster.
         seasons_missing_poster: Season rows without a poster.
         items_needing_rescrape: Rescrape candidate count.
+        items_per_disk: Distribution of items across disks.
+        items_per_category: Distribution of items across categories.
+        size_per_disk_gb: Total size per disk in GB.
+        top_largest: Top-largest item list as (title, size_gb) tuples.
 
     Returns:
         :class:`AnalysisResult` populated with the given counts.
@@ -126,10 +135,15 @@ def _make_analysis_result(
     return AnalysisResult(
         analyzed_at="2026-04-29T00:00:00+00:00",
         total_items=total_items,
+        total_size_gb=total_size_gb,
         nfo=NfoStatusCounts(valid=nfo_valid, invalid=nfo_invalid, missing=nfo_missing),
         artwork=ArtworkCounts(poster_present=poster_present, poster_missing=poster_missing),
         seasons_missing_poster=seasons_missing_poster,
         items_needing_rescrape=items_needing_rescrape,
+        items_per_disk=items_per_disk or {},
+        items_per_category=items_per_category or {},
+        size_per_disk_gb=size_per_disk_gb or {},
+        top_largest=top_largest or [],
     )
 
 
@@ -139,56 +153,32 @@ def _make_analysis_result(
 
 
 class TestGenerateReport:
-    """Tests for report generation — AnalysisResult replaces analysis_data JSON."""
+    """Tests for report generation — AnalysisResult is the SSOT."""
 
     def test_empty_report(self) -> None:
         """Report with no data should have zero counts."""
-        report = generate_report(scan_data=None, analysis_result=None, validation_data=None, recommendation_data=None)
+        report = generate_report(analysis_result=None, validation_data=None, recommendation_data=None)
         assert report.total_items == 0
         assert report.total_size_gb == 0.0
 
-    def test_report_from_scan(self) -> None:
-        """Report should aggregate scan data with issue breakdown."""
-        scan_data = {
-            "scanned_at": "2026-04-15T12:00:00",
-            "item_count": 3,
-            "items": [
-                {
-                    "disk": "Disk1",
-                    "category": "films",
-                    "media_type": "movie",
-                    "folder_size_gb": 2.0,
-                    "actors_dir": True,
-                    "issues": ["actors_dir_present", "junk_files"],
-                },
-                {
-                    "disk": "Disk1",
-                    "category": "films",
-                    "media_type": "movie",
-                    "folder_size_gb": 3.5,
-                    "actors_dir": False,
-                    "issues": [],
-                },
-                {
-                    "disk": "Disk2",
-                    "category": "series",
-                    "media_type": "tvshow",
-                    "folder_size_gb": 15.0,
-                    "actors_dir": True,
-                    "issues": ["actors_dir_present"],
-                },
-            ],
-        }
-        report = generate_report(scan_data=scan_data)
+    def test_report_distribution_from_analysis_result(self) -> None:
+        """Report aggregates disk / category distribution and sizes from AnalysisResult."""
+        ar = _make_analysis_result(
+            total_items=3,
+            total_size_gb=20.5,
+            items_per_disk={"Disk1": 2, "Disk2": 1},
+            items_per_category={"films": 2, "series": 1},
+            size_per_disk_gb={"Disk1": 5.5, "Disk2": 15.0},
+            top_largest=[("Big TV Show", 15.0), ("Movie B", 3.5), ("Movie A", 2.0)],
+        )
+        report = generate_report(analysis_result=ar)
         assert report.total_items == 3
         assert report.total_size_gb == 20.5
         assert report.items_per_disk["Disk1"] == 2
         assert report.items_per_disk["Disk2"] == 1
         assert report.items_per_category["films"] == 2
-        assert report.actors_dir_count == 2
-        # Issue breakdown
-        assert report.scan_issues["actors_dir_present"] == 2
-        assert report.scan_issues["junk_files"] == 1
+        assert report.size_per_disk_gb["Disk1"] == 5.5
+        assert report.top_largest[0][0] == "Big TV Show"
 
     def test_report_from_analysis_result_seeded_db(self) -> None:
         """Report should populate NFO and poster counts from an AnalysisResult seeded via DB."""
@@ -205,24 +195,11 @@ class TestGenerateReport:
         assert report.nfo_invalid_count == 2
         assert report.poster_missing_count == 2
 
-    def test_report_analysis_result_populates_total_items_when_no_scan(self) -> None:
-        """total_items should come from AnalysisResult when scan_data is absent."""
+    def test_report_total_items_from_analysis_result(self) -> None:
+        """total_items should come from AnalysisResult."""
         ar = _make_analysis_result(total_items=7)
         report = generate_report(analysis_result=ar)
         assert report.total_items == 7
-
-    def test_report_scan_data_total_takes_precedence_over_analysis_result(self) -> None:
-        """scan_data item count should take precedence over AnalysisResult.total_items."""
-        scan_data = {
-            "items": [
-                {"disk": "D1", "category": "films", "folder_size_gb": 1.0, "actors_dir": False, "issues": []},
-                {"disk": "D1", "category": "films", "folder_size_gb": 2.0, "actors_dir": False, "issues": []},
-            ]
-        }
-        ar = _make_analysis_result(total_items=99)
-        report = generate_report(scan_data=scan_data, analysis_result=ar)
-        # scan_data total_items = 2 (len of items list), not 99 from AnalysisResult
-        assert report.total_items == 2
 
     def test_report_nfo_counts_from_analysis_result(self) -> None:
         """nfo_valid_count and nfo_invalid_count are derived from AnalysisResult."""
@@ -238,11 +215,12 @@ class TestGenerateReport:
         report = generate_report(analysis_result=ar)
         assert report.poster_missing_count == 8
 
-    def test_report_no_library_analysis_json_read(self, tmp_path: Path) -> None:
-        """generate_report must not read library_analysis.json — it uses AnalysisResult."""
-        # Write a library_analysis.json that would inflate counts if read
-        fake_json = tmp_path / "library_analysis.json"
-        fake_json.write_text('{"item_count": 999, "file_count": 888, "items": []}')
+    def test_report_no_legacy_json_read(self, tmp_path: Path) -> None:
+        """generate_report must not read library_scan.json or library_analysis.json."""
+        # Both legacy files exist next to tmp_path with bogus high counts —
+        # if generate_report reads them, totals would be wildly wrong.
+        (tmp_path / "library_analysis.json").write_text('{"item_count": 999, "items": []}')
+        (tmp_path / "library_scan.json").write_text('{"item_count": 999, "items": []}')
 
         conn = _make_conn()
         _seed_item(conn, title="Movie A", nfo_status="valid", artwork_json=_ARTWORK_POSTER)
@@ -250,7 +228,6 @@ class TestGenerateReport:
 
         report = generate_report(analysis_result=ar)
 
-        # If library_analysis.json had been read, item count would be 999
         assert report.total_items != 999
         assert report.nfo_valid_count == 1
 
@@ -318,22 +295,19 @@ class TestFormatReportText:
     """Tests for report text formatting."""
 
     def test_format_includes_sections(self) -> None:
-        """Formatted report should include key sections."""
+        """Formatted report should include key sections when relevant data is present."""
         report = LibraryReport(
             generated_at="2026-04-17T12:00:00",
             total_items=100,
             total_size_gb=500.0,
-            scan_issues={"actors_dir_present": 50, "junk_files": 20},
             validation_valid=80,
             validation_issues=20,
             validation_errors={"nfo_present": 10, "nfo_valid": 10},
         )
         text = format_report_text(report)
         assert "RAPPORT DE SANTÉ" in text
-        assert "SCAN" in text
         assert "VALIDATION" in text
         assert "ACTIONS SUGGÉRÉES" in text
-        assert "library-clean" in text
         assert "re-scrape" in text.lower()
 
     def test_format_empty_report(self) -> None:

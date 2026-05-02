@@ -25,6 +25,12 @@ EXCLUDED_NAMES: frozenset[str] = frozenset(
         ".Trashes",
         "System Volume Information",
         ".DS_Store",
+        # Indexer-owned sentinel placed at every disk root by the drift
+        # detector; it is not media content and must never be inserted as
+        # a ``media_file`` row (otherwise it shows up forever as an
+        # orphan with ``release_id IS NULL`` because no media_item owns
+        # the disk root).
+        ".personalscraper-disk-id",
     }
 )
 

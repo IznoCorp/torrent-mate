@@ -1004,3 +1004,100 @@ class TestNtfsPreScan:
         result = Dispatcher._has_ntfs_illegal_names(movie_dir)
 
         assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Episode-conflict purge (SxxExx-keyed merge dedup)
+# ---------------------------------------------------------------------------
+
+
+class TestPurgeEpisodeConflicts:
+    """Tests for ``_purge_episode_conflicts``.
+
+    The unique key for a TV episode file is the (season, episode) tuple
+    parsed from the filename, NOT the full filename. A re-scrape that
+    swaps the title segment (English original ↔ French localised) must
+    NOT leave both copies on disk. The pre-rsync purge moves any dest
+    file whose key matches a source file under a different filename
+    into the merge backup directory.
+    """
+
+    @staticmethod
+    def _purge(source: Path, dest: Path, backup_dir: Path) -> None:
+        """Invoke the unbound method directly — no Dispatcher state required."""
+        from personalscraper.dispatch.dispatcher import Dispatcher
+
+        Dispatcher._purge_episode_conflicts(None, source, dest, backup_dir)  # type: ignore[arg-type]
+
+    def test_renamed_episode_purged_to_backup(self, tmp_path: Path) -> None:
+        """Same SxxExx, different filename → dest copy goes to backup."""
+        src = tmp_path / "src" / "Show (2021)" / "Saison 04"
+        dst = tmp_path / "dst" / "Show (2021)" / "Saison 04"
+        src.mkdir(parents=True)
+        dst.mkdir(parents=True)
+        (src / "S04E06 - YOU LOOK HORRIBLE.mkv").write_bytes(b"new")
+        (src / "S04E06 - YOU LOOK HORRIBLE.nfo").write_bytes(b"new")
+        (dst / "S04E06 - T'AS UNE SALE GUEULE.mkv").write_bytes(b"old_fr")
+        (dst / "S04E06 - T'AS UNE SALE GUEULE.nfo").write_bytes(b"old_fr")
+        backup = dst.parent / ".merge_backup"
+
+        self._purge(src.parent, dst.parent, backup)
+
+        assert not (dst / "S04E06 - T'AS UNE SALE GUEULE.mkv").exists()
+        assert not (dst / "S04E06 - T'AS UNE SALE GUEULE.nfo").exists()
+        backed = list(backup.rglob("S04E06*"))
+        assert len(backed) == 2, f"Expected mkv+nfo in backup, got: {backed}"
+
+    def test_same_filename_left_alone(self, tmp_path: Path) -> None:
+        """Same SxxExx AND same filename → leave for rsync to overwrite."""
+        src = tmp_path / "src" / "Show (2021)" / "Saison 04"
+        dst = tmp_path / "dst" / "Show (2021)" / "Saison 04"
+        src.mkdir(parents=True)
+        dst.mkdir(parents=True)
+        (src / "S04E06 - SAME TITLE.mkv").write_bytes(b"new")
+        (dst / "S04E06 - SAME TITLE.mkv").write_bytes(b"old")
+        backup = dst.parent / ".merge_backup"
+
+        self._purge(src.parent, dst.parent, backup)
+
+        # File still on dst; rsync handles the overwrite normally.
+        assert (dst / "S04E06 - SAME TITLE.mkv").exists()
+        assert not backup.exists() or not list(backup.rglob("*.mkv"))
+
+    def test_unrelated_episode_left_alone(self, tmp_path: Path) -> None:
+        """Dest episode with no source counterpart must NOT be purged."""
+        src = tmp_path / "src" / "Show (2021)" / "Saison 04"
+        dst = tmp_path / "dst" / "Show (2021)" / "Saison 04"
+        src.mkdir(parents=True)
+        dst.mkdir(parents=True)
+        (src / "S04E08 - NEW.mkv").write_bytes(b"new")
+        (dst / "S04E07 - EXISTING.mkv").write_bytes(b"keep_me")
+        backup = dst.parent / ".merge_backup"
+
+        self._purge(src.parent, dst.parent, backup)
+
+        # E07 is unrelated to source's E08 — must stay put.
+        assert (dst / "S04E07 - EXISTING.mkv").exists()
+
+    def test_no_dest_dir_is_noop(self, tmp_path: Path) -> None:
+        """Missing dest directory → noop, no exception."""
+        src = tmp_path / "src" / "Show (2021)" / "Saison 04"
+        src.mkdir(parents=True)
+        (src / "S04E01 - TITLE.mkv").write_bytes(b"new")
+
+        # Should not raise.
+        self._purge(src.parent, tmp_path / "nope", tmp_path / "backup")
+
+    def test_files_without_se_pattern_ignored(self, tmp_path: Path) -> None:
+        """Files that do not parse as SxxExx are not considered for purge."""
+        src = tmp_path / "src" / "Show (2021)" / "Saison 04"
+        dst = tmp_path / "dst" / "Show (2021)" / "Saison 04"
+        src.mkdir(parents=True)
+        dst.mkdir(parents=True)
+        (src / "trailer.mkv").write_bytes(b"new")
+        (dst / "fanart.jpg").write_bytes(b"keep")
+        backup = dst.parent / ".merge_backup"
+
+        self._purge(src.parent, dst.parent, backup)
+
+        assert (dst / "fanart.jpg").exists()

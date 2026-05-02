@@ -27,8 +27,7 @@
     <array>
         <!-- Replace /usr/local/bin with the output of: which personalscraper -->
         <string>/usr/local/bin/personalscraper</string>
-        <string>library</string>
-        <string>index</string>
+        <string>library-index</string>
         <string>--mode</string>
         <string>quick</string>
         <string>--wait-for-lock</string>

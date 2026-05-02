@@ -168,6 +168,31 @@ def library_status_command(config_path: Path | None = None) -> int:
     db_path: Path = cfg.indexer.db_path
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
+    # --- DB drift guard ---
+    # Warn loudly if ``db_path`` is not absolute or is being created here.
+    # The resolver in IndexerConfig validates the default to absolute on
+    # load, but a third-party caller can still pass a relative override; an
+    # absolute-but-nonexistent path is also worth surfacing because that's
+    # exactly how the orphan ``.data/library.db`` was created at some point.
+    if not db_path.is_absolute():
+        typer.echo(
+            f"WARNING: indexer db_path is relative: {db_path}. "
+            "It will be resolved against the current working directory and "
+            "may produce divergent DB files depending on how the CLI is "
+            "invoked. Set an absolute path in indexer.json5.",
+            err=True,
+        )
+        log.warning("indexer.status.db_path_relative", db_path=str(db_path))
+    elif not db_path.exists():
+        typer.echo(
+            f"WARNING: indexer db_path does not exist yet: {db_path}. "
+            "A new empty database will be created on first write. If you "
+            "expected to read an existing library, double-check the "
+            "configured path.",
+            err=True,
+        )
+        log.warning("indexer.status.db_path_missing", db_path=str(db_path))
+
     # --- Open DB and apply pending migrations ---
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -228,10 +253,11 @@ def library_status_command(config_path: Path | None = None) -> int:
         from personalscraper.indexer import repair  # noqa: PLC0415
 
         oldest_pending_age_seconds, pending_depth = repair.get_queue_health(conn)
-        typer.echo(
-            f"repair queue: depth={pending_depth}, "
-            f"oldest={'never' if oldest_pending_age_seconds is None else oldest_pending_age_seconds // 3600}h"
-        )
+        if oldest_pending_age_seconds is None:
+            oldest_label = "never"
+        else:
+            oldest_label = f"{oldest_pending_age_seconds // 3600}h"
+        typer.echo(f"repair queue: depth={pending_depth}, oldest={oldest_label}")
 
         # --- Outbox pending depth ---
         outbox_depth = conn.execute("SELECT COUNT(*) FROM index_outbox WHERE status = 'pending'").fetchone()[0]
@@ -260,7 +286,7 @@ def library_status_command(config_path: Path | None = None) -> int:
 
         # --- Health warnings ---
         unhealthy = False
-        if oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400 or pending_depth > 1000:
+        if (oldest_pending_age_seconds is not None and oldest_pending_age_seconds > 7 * 86400) or pending_depth > 1000:
             typer.echo(
                 f"WARNING: repair queue: depth={pending_depth},"
                 f" oldest pending {(oldest_pending_age_seconds or 0) // 86400} days",
@@ -290,6 +316,7 @@ def library_index_command(
     disk: str | None = None,
     budget_seconds: int | None = None,
     no_budget: bool = False,
+    backfill_streams: bool = False,
     dry_run: bool = False,
     wait_for_lock_seconds: int = 0,
     config_path: Path | None = None,
@@ -315,6 +342,11 @@ def library_index_command(
             default and run with no wall-clock cap.  Use for manual passes that
             must drain every pending file in one go (full enrich after a cold
             Stage A walk); the writer lock is held for the full duration.
+        backfill_streams: When ``True`` and ``mode == "enrich"``, runs the
+            targeted backfill that re-extracts streams only for files whose
+            ``media_stream`` rows are missing migration-004 columns and
+            UPDATEs only those columns in place. Rejected with exit code 1
+            when paired with any other mode.
         dry_run: When ``True``, all DB writes are wrapped in a SQLite savepoint
             that is always rolled back so no rows are persisted.
         wait_for_lock_seconds: Seconds to wait for the writer lock before
@@ -386,6 +418,12 @@ def library_index_command(
     except ValueError:
         valid_modes = ", ".join(m.value for m in ScanMode)
         typer.echo(f"Invalid mode '{mode}'. Valid: {valid_modes}", err=True)
+        return 1
+
+    # --backfill-streams only makes sense for enrich mode (it targets
+    # already-enriched files whose stream rows lack the new columns).
+    if backfill_streams and scan_mode != ScanMode.enrich:
+        typer.echo("--backfill-streams requires --mode enrich", err=True)
         return 1
 
     from contextlib import closing  # noqa: PLC0415
@@ -496,6 +534,7 @@ def library_index_command(
                         checkpoint_every_n_files=cfg.indexer.scan.checkpoint_every_n_files,
                         confirm_bulk_change=confirm_bulk_change,
                         merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
+                        backfill_streams=backfill_streams,
                         max_workers=cfg.indexer.scan.max_workers_total,
                         read_rate_mb_per_sec=cfg.indexer.scan.read_rate_mb_per_sec,
                         staging_dir=str(cfg.paths.staging_dir),
@@ -528,6 +567,31 @@ def library_index_command(
                         except Exception:  # noqa: BLE001 — best-effort rollback
                             pass
 
+                # --- Apply soft-deletes (per disk, post-walk) ---
+                # Files that exceeded the miss-strike threshold during the
+                # walk are now finalised: deleted_at is set, a deleted_item
+                # tombstone is inserted (atomic via SAVEPOINT in
+                # drift.apply_soft_deletes).  Skipped on dry_run, on
+                # verify mode (which by contract does NOT soft-delete),
+                # and on quick mode (no strikes accumulated this walk).
+                soft_deleted = 0
+                if not dry_run and scan_mode in (ScanMode.full, ScanMode.incremental):
+                    from personalscraper.indexer.drift import apply_soft_deletes  # noqa: PLC0415
+
+                    n_strikes = int(cfg.indexer.scan.n_strikes_for_softdelete)
+                    for d in filtered_disks:
+                        try:
+                            soft_deleted += apply_soft_deletes(conn, d.id, n_strikes)
+                        except sqlite3.Error as soft_exc:
+                            log.warning(
+                                "indexer.cli.index.soft_delete_failed",
+                                disk_id=d.id,
+                                error=str(soft_exc),
+                                error_type=type(soft_exc).__name__,
+                            )
+                    if soft_deleted:
+                        conn.commit()
+
                 # --- Drain outbox ---
                 drained = drain_if_present(conn, cfg.indexer)
                 log.debug("indexer.cli.index.outbox_drained", count=drained)
@@ -542,6 +606,7 @@ def library_index_command(
                     "scan_run_id": result.scan_run_id,
                     "status": result.status,
                     "budget_exhausted": False,
+                    "soft_deleted": soft_deleted,
                     "dry_run": dry_run,
                     "rebuild": rebuild,
                 }
@@ -561,6 +626,7 @@ def library_index_command(
 def library_verify_command(
     *,
     disk: str | None = None,
+    budget_seconds: float | None = None,
     config_path: Path | None = None,
 ) -> int:
     """Re-stat every indexed file and escalate mismatches to the repair queue.
@@ -571,6 +637,10 @@ def library_verify_command(
 
     Args:
         disk: Optional disk label to restrict verification to a single disk.
+        budget_seconds: Maximum wall-clock seconds for the verify pass. ``None``
+            means unlimited.  Per-file commit guarantees partial progress is
+            preserved when the budget is exhausted; the next invocation
+            resumes from rows whose ``last_verified_at`` is older than this run.
         config_path: Optional explicit path to config.json5 or config directory.
 
     Returns:
@@ -679,6 +749,7 @@ def library_verify_command(
                     generation=next_gen,
                     conn=conn,
                     disk_filter=disk,
+                    budget_seconds=budget_seconds,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
                 )
@@ -807,6 +878,130 @@ def library_search_command(
 
 
 # ---------------------------------------------------------------------------
+# library-reconcile
+# ---------------------------------------------------------------------------
+
+
+def library_reconcile_command(
+    *,
+    scopes: Sequence[str] | None = None,
+    enqueue_repairs: bool = False,
+    config_path: Path | None = None,
+) -> int:
+    """Detect index ↔ filesystem divergences without a full rescan.
+
+    Runs the DB-only checks in :mod:`personalscraper.indexer.reconcile`
+    and prints a JSON summary of findings.  When ``enqueue_repairs`` is
+    True, every divergence is also pushed into ``repair_queue`` so that
+    ``library-repair`` can drain them with a wall-clock budget.  The
+    partial UNIQUE INDEX from migration 003 deduplicates findings the
+    last reconcile already enqueued, so re-running is safe.
+
+    Args:
+        scopes: Subset of detector scopes to run.  ``None`` runs all six
+            (``merkle``, ``dispatch_path``, ``enrich``, ``release``,
+            ``season``, ``item``).
+        enqueue_repairs: When True, push findings into ``repair_queue``.
+        config_path: Optional explicit path to config.json5 or config dir.
+
+    Returns:
+        ``0`` on success, ``1`` on infrastructure error.
+    """
+    import json  # noqa: PLC0415
+    from typing import cast  # noqa: PLC0415
+
+    from personalscraper.conf.loader import (  # noqa: PLC0415
+        ConfigNotFoundError,
+        ConfigValidationError,
+        load_config,
+        resolve_config_path,
+    )
+    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+    from personalscraper.indexer.db import (  # noqa: PLC0415
+        IndexerCorruptError,
+        IndexerDiskFullError,
+        IndexerInvalidPathError,
+        IndexerLockError,
+        IndexerMigrationError,
+        apply_migrations,
+        open_db,
+    )
+    from personalscraper.indexer.reconcile import (  # noqa: PLC0415
+        ReconcileScope,
+        reconcile,
+    )
+
+    log.info("indexer.cli.reconcile", scopes=list(scopes) if scopes else None, enqueue=enqueue_repairs)
+
+    try:
+        cfg = load_config(resolve_config_path(config_path))
+    except (ConfigNotFoundError, ConfigValidationError) as exc:
+        typer.echo(f"Config error: {exc}", err=True)
+        return 1
+
+    db_path: Path = cfg.indexer.db_path
+    migrations_dir = Path(_migrations_pkg.__file__).parent
+
+    from contextlib import closing  # noqa: PLC0415
+
+    try:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = open_db(db_path)
+    except (
+        IndexerLockError,
+        IndexerCorruptError,
+        IndexerDiskFullError,
+        IndexerInvalidPathError,
+        IndexerMigrationError,
+    ) as exc:
+        typer.echo(str(exc), err=True)
+        return 1
+
+    with closing(conn):
+        try:
+            apply_migrations(conn, migrations_dir)
+        except (
+            IndexerLockError,
+            IndexerCorruptError,
+            IndexerDiskFullError,
+            IndexerInvalidPathError,
+            IndexerMigrationError,
+        ) as exc:
+            typer.echo(str(exc), err=True)
+            return 1
+
+        # Type cast: typer hands us Sequence[str], reconcile() requires the
+        # narrower Literal-typed list.  The detector itself silently ignores
+        # unknown scope strings so the cast is safe at runtime — invalid
+        # values surface as "no detector ran" rather than a TypeError.
+        report = reconcile(
+            conn,
+            scopes=cast("list[ReconcileScope]", list(scopes)) if scopes else None,
+            enqueue_repairs=enqueue_repairs,
+        )
+        if enqueue_repairs:
+            conn.commit()
+
+        summary = {
+            "merkle_drift": report.merkle_drift,
+            "dispatch_path_missing_count": len(report.dispatch_path_missing),
+            "dispatch_path_missing_sample": report.dispatch_path_missing[:10],
+            "enrich_stale": report.enrich_stale,
+            "release_orphans_count": len(report.release_orphans),
+            "release_orphans_sample": report.release_orphans[:10],
+            "files_without_release": report.files_without_release,
+            "season_count_drift_count": len(report.season_count_drift),
+            "season_count_drift_sample": report.season_count_drift[:10],
+            "items_without_files_count": len(report.items_without_files),
+            "items_without_files_sample": report.items_without_files[:10],
+            "total_findings": report.total_findings,
+            "enqueued_repairs": report.enqueued_repairs,
+        }
+        typer.echo(json.dumps(summary, indent=2))
+        return 0
+
+
+# ---------------------------------------------------------------------------
 # library-repair
 # ---------------------------------------------------------------------------
 
@@ -890,12 +1085,36 @@ def library_repair_command(
             return 1
 
         stats = drain(conn, budget_seconds=budget_seconds)
+
+        # Tombstone retention: purge deleted_item rows older than the
+        # configured retention window (DESIGN §8.x).  library-repair is
+        # the natural maintenance home for this — drift writes new rows
+        # whenever a soft-delete is finalised; without periodic purge
+        # the tombstone table grows monotonically.
+        from personalscraper.indexer.drift import purge_old_tombstones  # noqa: PLC0415
+
+        retention_days = int(cfg.indexer.log.deleted_item_retention_days)
+        try:
+            tombstones_purged = purge_old_tombstones(conn, retention_days=retention_days)
+            conn.commit()
+        except sqlite3.Error as exc:
+            log.warning(
+                "indexer.repair.tombstone_purge_failed",
+                error=str(exc),
+                error_type=type(exc).__name__,
+                retention_days=retention_days,
+                exc_info=True,
+            )
+            tombstones_purged = 0
+
         summary = {
             "processed": stats.processed,
             "succeeded": stats.succeeded,
             "failed": stats.failed,
             "budget_exhausted": stats.budget_exhausted,
             "pending_depth": stats.pending_depth,
+            "tombstones_purged": tombstones_purged,
+            "retention_days": retention_days,
         }
         typer.echo(json.dumps(summary))
         return 0

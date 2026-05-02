@@ -27,7 +27,7 @@ from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_sta
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.indexer.outbox import disk_id_for_path, publish_event
 from personalscraper.logger import get_logger
-from personalscraper.text_utils import _FILENAME_ILLEGAL
+from personalscraper.text_utils import _NTFS_ILLEGAL
 from personalscraper.verify.verifier import VerifyResult
 
 log = get_logger("dispatcher")
@@ -147,11 +147,17 @@ class Dispatcher:
     def _cleanup_orphan_temps(self) -> int:
         """Clean up orphan temporary directories from previous failed runs.
 
-        Scans all storage disks for _tmp_dispatch_* and .merge_backup/
+        Scans all storage disks for ``_tmp_dispatch_*`` and ``.merge_backup/``
         directories that were left behind by interrupted dispatch operations.
 
+        Honors :attr:`dry_run`: when True, every orphan is reported via
+        ``orphan_*_found_dry_run`` log events but no destructive action is
+        taken.  This guarantees ``personalscraper dispatch --dry-run`` is
+        actually side-effect-free.
+
         Returns:
-            Number of orphan directories cleaned up.
+            Number of orphan directories cleaned up (or, in dry-run mode,
+            the number that *would have been* cleaned).
         """
         cleaned = 0
         for config in self._disk_configs:
@@ -175,23 +181,31 @@ class Dispatcher:
                         continue
                     # Clean _tmp_dispatch_* orphans
                     if item.name.startswith("_tmp_dispatch_"):
-                        log.warning("orphan_tmp_found", path=str(item))
-                        try:
-                            _force_rmtree(item)
+                        if self.dry_run:
+                            log.warning("orphan_tmp_found_dry_run", path=str(item))
                             cleaned += 1
-                        except OSError as e:
-                            log.error("orphan_tmp_cleanup_failed", path=str(item), error=str(e))
+                        else:
+                            log.warning("orphan_tmp_found", path=str(item))
+                            try:
+                                _force_rmtree(item)
+                                cleaned += 1
+                            except OSError as e:
+                                log.error("orphan_tmp_cleanup_failed", path=str(item), error=str(e))
                     # Clean .merge_backup/ orphans inside media dirs
                     backup = item / ".merge_backup"
                     if backup.exists():
-                        log.warning("orphan_backup_found", path=str(backup))
-                        try:
-                            _force_rmtree(backup)
+                        if self.dry_run:
+                            log.warning("orphan_backup_found_dry_run", path=str(backup))
                             cleaned += 1
-                        except OSError as e:
-                            log.error("orphan_backup_cleanup_failed", path=str(backup), error=str(e))
+                        else:
+                            log.warning("orphan_backup_found", path=str(backup))
+                            try:
+                                _force_rmtree(backup)
+                                cleaned += 1
+                            except OSError as e:
+                                log.error("orphan_backup_cleanup_failed", path=str(backup), error=str(e))
         if cleaned:
-            log.info("orphans_cleaned", count=cleaned)
+            log.info("orphans_cleaned", count=cleaned, dry_run=self.dry_run)
         return cleaned
 
     def process(
@@ -594,6 +608,17 @@ class Dispatcher:
         .merge_backup/ within the destination. On failure, originals
         are restored from the backup directory.
 
+        Pre-step: episode-conflict resolution. The unique key for a TV
+        episode file is the (season, episode) tuple, NOT the full
+        filename. A re-scrape can change the title segment (e.g. EN
+        ``S04E06 - YOU LOOK HORRIBLE.mkv`` vs FR ``S04E06 - T'AS UNE
+        SALE GUEULE.mkv`` — same episode, different title). Plain rsync
+        treats those as different files and would leave the destination
+        with two copies of E06. We prune the destination of any episode
+        whose (season, episode) key matches a source episode under a
+        different filename, so the rsync that follows produces exactly
+        one file per (season, episode) — the source version.
+
         Args:
             source: Source TV show directory.
             dest: Existing destination directory.
@@ -604,6 +629,11 @@ class Dispatcher:
         backup_dir = dest / ".merge_backup"
 
         try:
+            # Resolve filename conflicts on (season, episode) key BEFORE
+            # the rsync. Files moved to backup_dir here are restored on
+            # rsync failure by _restore_merge_backup, same as overwrites.
+            self._purge_episode_conflicts(source, dest, backup_dir)
+
             # rsync with backup for overwritten files
             if not self._rsync_merge(source, dest, backup_dir):
                 self._restore_merge_backup(dest, backup_dir)
@@ -621,9 +651,119 @@ class Dispatcher:
             self._restore_merge_backup(dest, backup_dir)
             return False
         except OSError as e:
-            log.error("merge_failed", error=str(e))
+            log.error("merge_failed", error=str(e), exc_info=True)
             self._restore_merge_backup(dest, backup_dir)
             return False
+
+    def _purge_episode_conflicts(
+        self,
+        source: Path,
+        dest: Path,
+        backup_dir: Path,
+    ) -> None:
+        """Move dest files that conflict with source on (season, episode) key.
+
+        The unique key for a TV episode file is the (season, episode)
+        tuple parsed from the filename (``S04E06`` etc.), not the full
+        filename. A re-scrape that swaps the title segment (English
+        original vs French localised) would otherwise leave both copies
+        on disk after a plain rsync merge.
+
+        For every source episode file we move any destination file that
+        shares the same (season, episode) key but has a different
+        filename into ``backup_dir``. The companion sidecars (.nfo and
+        ``-thumb.jpg``) are matched the same way. The rsync that runs
+        immediately after sees a clean destination for these episodes
+        and writes exactly one file per (season, episode) — the source
+        version — so duplicates cannot survive.
+
+        On rsync failure ``_restore_merge_backup`` puts the moved files
+        back, restoring the previous state.
+
+        Args:
+            source: Staging show directory (the new version).
+            dest: On-disk show directory (the existing version).
+            backup_dir: Directory where conflicting dest files are
+                relocated to. Created on demand.
+        """
+        # Lazy-import to avoid circular module load between dispatcher
+        # and scraper at package init.
+        from personalscraper.scraper.episode_manager import _extract_season_episode  # noqa: PLC0415
+
+        if not dest.is_dir():
+            return
+
+        # Collect (season, episode) → list of relative paths under source
+        # so we know which keys to clean on the destination side. We only
+        # care about top-level video / sidecar files in season subdirs;
+        # rsync handles other tree shapes naturally.
+        source_keys: set[tuple[int, int, str]] = set()
+        for season_dir in source.iterdir():
+            if not season_dir.is_dir():
+                continue
+            for f in season_dir.iterdir():
+                if not f.is_file():
+                    continue
+                season, episode = _extract_season_episode(f.name)
+                if season is None or episode is None:
+                    continue
+                source_keys.add((season, episode, season_dir.name))
+
+        if not source_keys:
+            return
+
+        # Build the inverse lookup: for each season, which (season,
+        # episode) keys does the source provide? Reduces per-file work
+        # in the destination scan to a single set lookup.
+        source_keys_by_season: dict[str, set[tuple[int, int]]] = {}
+        for season, episode, season_dir_name in source_keys:
+            source_keys_by_season.setdefault(season_dir_name, set()).add((season, episode))
+
+        for season_dir_name, keys in source_keys_by_season.items():
+            dest_season = dest / season_dir_name
+            if not dest_season.is_dir():
+                continue
+            # Collect the source filenames so we can tell "same key,
+            # same filename" (rsync will overwrite — leave alone) from
+            # "same key, different filename" (must purge).
+            src_filenames_for_keys: dict[tuple[int, int], set[str]] = {}
+            src_season = source / season_dir_name
+            for f in src_season.iterdir():
+                if not f.is_file():
+                    continue
+                s, e = _extract_season_episode(f.name)
+                if s is None or e is None:
+                    continue
+                if (s, e) in keys:
+                    src_filenames_for_keys.setdefault((s, e), set()).add(f.name)
+
+            for f in dest_season.iterdir():
+                if not f.is_file():
+                    continue
+                s, e = _extract_season_episode(f.name)
+                if s is None or e is None:
+                    continue
+                if (s, e) not in keys:
+                    continue
+                if f.name in src_filenames_for_keys.get((s, e), set()):
+                    # Same filename → rsync will overwrite normally.
+                    continue
+                # Same (season, episode) under a different filename:
+                # move it to backup_dir mirroring its relative path so
+                # _restore_merge_backup can roll it back unchanged on
+                # rsync failure.
+                rel = f.relative_to(dest)
+                target = backup_dir / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                f.rename(target)
+                log.info(
+                    "merge_episode_conflict_purged",
+                    show=dest.name,
+                    season=season_dir_name,
+                    episode=f"S{s:02d}E{e:02d}",
+                    removed=f.name,
+                    replacements=sorted(src_filenames_for_keys.get((s, e), set())),
+                )
 
     def _rsync_merge(
         self,
@@ -773,7 +913,7 @@ class Dispatcher:
                 log.warning("failed_dest_cleanup_failed", dest=str(dest), error=str(cleanup_err))
             return False
         except OSError as e:
-            log.error("move_failed", error=str(e))
+            log.error("move_failed", error=str(e), exc_info=True)
             # Clean up temp or dest on any failure
             for path in (tmp_dir, dest):
                 try:
@@ -872,7 +1012,7 @@ class Dispatcher:
         Returns:
             True if any file has illegal characters.
         """
-        illegal = [f for f in directory.rglob("*") if f.is_file() and _FILENAME_ILLEGAL.search(f.name)]
+        illegal = [f for f in directory.rglob("*") if f.is_file() and _NTFS_ILLEGAL.search(f.name)]
         for f in illegal:
             log.warning("ntfs_illegal_filename", path=str(f))
         return len(illegal) > 0

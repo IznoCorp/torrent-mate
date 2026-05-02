@@ -75,6 +75,18 @@ _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 # the show was scraped before the title-less fallback was upgraded.
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
 
+# Synthetic title pattern emitted by ``match_episode_files`` when TMDB has
+# no record for the episode (the scraper falls back to ``"Episode {N}"``).
+# These files are intentionally NFO-less — ``_generate_episode_nfos`` refuses
+# to fabricate metadata for them — so the drift detector treats their
+# missing sibling NFO as expected rather than a divergence to repair.
+# The episode-side number is emitted without leading zeros (``Episode 9``
+# not ``Episode 09``), so the regex matches either zero-padded or bare.
+_EPISODE_FALLBACK_RE = re.compile(
+    r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$",
+    re.IGNORECASE,
+)
+
 
 def _merge_dirs(source: Path, target: Path) -> tuple[int, int]:
     """Merge contents of source directory into target, then remove source.
@@ -469,8 +481,14 @@ def verify_tvshow_scrape_drift(
             # legacy fallback name that must be upgraded.
             if not _EPISODE_STRICT_RE.match(ep_file.name):
                 return False, f"episode_naming_drift:{ep_file.name}"
+            # Synthetic-title fallbacks (e.g. "S17E09 - Episode 9.mkv") are
+            # NFO-less by design (TMDB had no record at scrape time and the
+            # scraper refuses to fabricate metadata).  Treat the missing
+            # sibling NFO as expected so we don't trigger an endless
+            # rescrape-drift loop on every dry-run.  A subsequent real
+            # scrape will pick up the new TMDB data and rename the file.
             sibling_nfo = ep_file.with_suffix(".nfo")
-            if not sibling_nfo.exists():
+            if not sibling_nfo.exists() and not _EPISODE_FALLBACK_RE.match(ep_file.name):
                 return False, f"episode_nfo_missing:{sibling_nfo.name}"
 
     return True, "ok"
@@ -1282,18 +1300,27 @@ class Scraper:
                             log.warning("repair_season_fetch_failed", exc_info=True, season=s_num, error=str(e))
 
                     if api_episodes:
-                        ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
-                        create_season_dirs(
-                            show_dir,
-                            ep_list,
-                            self.patterns,
-                            self.dry_run,
-                        )
+                        # Match local files to TMDB episodes BEFORE creating
+                        # season directories so we only mkdir the seasons
+                        # that actually receive a file.  Without this guard
+                        # the scraper used to create every Saison NN that
+                        # TMDB knew about (e.g. 16 dirs for Top Chef) only
+                        # for the cleanup step to delete them all back
+                        # immediately — wasted I/O + log noise on every
+                        # incremental ingest of a long-running show.
                         matched = match_episode_files(
                             unorganized,
                             api_episodes,
                         )
                         if matched:
+                            needed_seasons = sorted({info["season"] for info in matched.values()})
+                            ep_list = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
+                            create_season_dirs(
+                                show_dir,
+                                ep_list,
+                                self.patterns,
+                                self.dry_run,
+                            )
                             count = rename_episodes(
                                 matched,
                                 show_dir,
@@ -1366,22 +1393,30 @@ class Scraper:
             log.info("nfo_valid", action=result.action, directory=movie_dir.name)
             return result
 
-        # Corrupt NFO: delete before re-scrape
+        # Corrupt NFO: delete before re-scrape.  Honor dry_run — without
+        # this guard a dry-run pass that detected drift would still
+        # unlink the file, leaving the next real run thinking the NFO is
+        # missing from the start (and downstream verify reports it as
+        # blocked).  In dry_run mode we log the would-be deletion and
+        # leave the file in place so the staging area is unchanged.
         if nfo_path.exists():
-            log.warning("nfo_corrupt_rescrape", filename=nfo_path.name)
-            try:
-                nfo_path.unlink()
-            except OSError as exc:
-                result.error = f"Cannot delete corrupt NFO: {exc}"
-                log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
-                return result
+            if self.dry_run:
+                log.info("nfo_corrupt_rescrape_would_delete", filename=nfo_path.name)
+            else:
+                log.warning("nfo_corrupt_rescrape", filename=nfo_path.name)
+                try:
+                    nfo_path.unlink()
+                except OSError as exc:
+                    result.error = f"Cannot delete corrupt NFO: {exc}"
+                    log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
+                    return result
 
         # Match against TMDB
         try:
             match = match_movie(self._tmdb, title, year)
         except Exception as e:
             result.error = f"Match failed: {e}"
-            log.error("movie_match_failed", title=title, error=str(e))
+            log.error("movie_match_failed", title=title, error=str(e), exc_info=True)
             return result
 
         if match is None or match.confidence < LOW_CONFIDENCE:
@@ -1408,7 +1443,7 @@ class Scraper:
             movie_data = self._tmdb.get_movie(match.api_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
-            log.error("movie_details_failed", api_title=match.api_title, error=str(e))
+            log.error("movie_details_failed", api_title=match.api_title, error=str(e), exc_info=True)
             return result
 
         # Resolve title: use local FR title if preferred and available
@@ -1516,7 +1551,7 @@ class Scraper:
                 log.info("nfo_would_write", filename=nfo_path.name)
         except Exception as e:
             result.error = f"NFO generation failed: {e}"
-            log.error("nfo_generation_failed", title=title, error=str(e))
+            log.error("nfo_generation_failed", title=title, error=str(e), exc_info=True)
             return result
 
         # Download artwork
@@ -1589,7 +1624,7 @@ class Scraper:
                     )
                 )
             except Exception as e:
-                log.error("movies_unexpected_error", directory=movie_dir.name, error=str(e))
+                log.error("movies_unexpected_error", directory=movie_dir.name, error=str(e), exc_info=True)
                 results.append(
                     ScrapeResult(
                         media_path=movie_dir,
@@ -1658,15 +1693,20 @@ class Scraper:
                 log.info("nfo_valid", action=result.action, directory=show_dir.name)
                 return result
 
-        # Corrupt NFO: delete before re-scrape
+        # Corrupt NFO: delete before re-scrape.  Same dry_run guard as
+        # the movie branch above — a dry-run pass should not mutate
+        # staging.
         if nfo_path.exists():
-            log.warning("nfo_corrupt_rescrape", filename=nfo_path.name)
-            try:
-                nfo_path.unlink()
-            except OSError as exc:
-                result.error = f"Cannot delete corrupt NFO: {exc}"
-                log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
-                return result
+            if self.dry_run:
+                log.info("nfo_corrupt_rescrape_would_delete", filename=nfo_path.name)
+            else:
+                log.warning("nfo_corrupt_rescrape", filename=nfo_path.name)
+                try:
+                    nfo_path.unlink()
+                except OSError as exc:
+                    result.error = f"Cannot delete corrupt NFO: {exc}"
+                    log.error("nfo_corrupt_delete_failed", path=str(nfo_path), error=str(exc))
+                    return result
 
         # Collect seasons present in the folder's video files — feeds
         # content-aware candidate disambiguation in match_tvshow_tvdb.
@@ -1683,7 +1723,7 @@ class Scraper:
             )
         except Exception as e:
             result.error = f"Match failed: {e}"
-            log.error("show_match_failed", title=title, error=str(e))
+            log.error("show_match_failed", title=title, error=str(e), exc_info=True)
             return result
 
         if match is None or match.confidence < LOW_CONFIDENCE:
@@ -1738,7 +1778,7 @@ class Scraper:
                 show_data = self._tmdb.get_tv(tmdb_id)
         except Exception as e:
             result.error = f"Get details failed: {e}"
-            log.error("show_details_failed", error=str(e))
+            log.error("show_details_failed", error=str(e), exc_info=True)
             return result
 
         # Resolve title: use local FR title if preferred and available
@@ -1864,7 +1904,17 @@ class Scraper:
                     # never consult TMDB for episodes, even when a tmdb_id
                     # cross-ref exists.
                     if match.source == "tvdb":
-                        # TVDB episodes + per-episode French translation.
+                        # TVDB episodes + per-episode translation.
+                        # The match source rule is strict: when TVDB matched the
+                        # show, episodes come from TVDB only — TMDB is NEVER
+                        # consulted as a per-episode cross-API fallback, even
+                        # when TVDB lacks the configured-language translation.
+                        # TMDB-for-TV is only allowed when TVDB had no match for
+                        # the show itself (the ``else`` branch below).
+                        # Translation cascade within TVDB:
+                        # 1. configured primary language (e.g. "fra")
+                        # 2. configured fallback language (e.g. "eng")
+                        # 3. raw TVDB ``name`` (whatever TVDB stored, usually EN)
                         tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
                         for ep in tvdb_eps:
                             e_num = ep.get("number", ep.get("episode_number", 0))
@@ -1897,14 +1947,18 @@ class Scraper:
                     log.warning("show_season_fetch_failed", season=s_num, exc_info=True, error=str(e))
 
             if api_episodes:
-                ep_list = [{"season_number": s, "episode_number": e} for s, e in api_episodes]
-                create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
+                # Match files first so we only create season dirs that
+                # will actually receive an episode (see the same pattern
+                # in the repair-organize branch above).
                 matched = match_episode_files(
                     video_files,
                     api_episodes,
                     episode_default_name=episode_default_name,
                 )
                 if matched:
+                    needed_seasons = sorted({info["season"] for info in matched.values()})
+                    ep_list = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
+                    create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
                     total_renamed = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
                     self._generate_episode_nfos(matched, show_dir, show_data)
 
@@ -2086,7 +2140,7 @@ class Scraper:
                     )
                 )
             except Exception as e:
-                log.error("tvshows_unexpected_error", directory=show_dir.name, error=str(e))
+                log.error("tvshows_unexpected_error", directory=show_dir.name, error=str(e), exc_info=True)
                 results.append(
                     ScrapeResult(
                         media_path=show_dir,

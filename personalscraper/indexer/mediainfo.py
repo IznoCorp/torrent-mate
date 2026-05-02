@@ -35,11 +35,26 @@ Usage example::
 from __future__ import annotations
 
 import os
+import threading
 from pathlib import Path
 
+from personalscraper.indexer._container_fastpath import (
+    extract_via_enzyme,
+    is_fastpath_supported,
+    merge_hdr_atmos,
+    needs_pymediainfo_fallback,
+)
 from personalscraper.indexer._macos_io import sequential_hint
 from personalscraper.indexer._throttle import acquire as _acquire_read_tokens
 from personalscraper.indexer.schema import MediaStreamRow, StreamKind
+
+# libmediainfo (the C library behind pymediainfo) is not safe under concurrent
+# parse() calls — Python segfaults reproducibly when four ThreadPoolExecutor
+# workers parse files in parallel. Serialise every MediaInfo.parse() call
+# behind this module-level lock. Per-call parse cost dominates I/O, so the
+# scan is still I/O-bound; we just lose any (illusory) parse-level
+# parallelism the previous code pretended to offer.
+_MEDIAINFO_PARSE_LOCK = threading.Lock()
 
 # ---------------------------------------------------------------------------
 # Availability guard — try to import pymediainfo at module load time
@@ -167,50 +182,96 @@ class MediaInfoWrapper:
         # is a no-op.
         _acquire_read_tokens(file_size)
 
-        mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
+        # Container fast path (DESIGN §11.4): for Matroska / WebM files,
+        # use the pure-Python enzyme parser to read the EBML header in one
+        # pass — codec, language, channels, dimensions, default / forced.
+        # Falls back to pymediainfo only when the fast-path output is
+        # ambiguous on HDR / Atmos (4 K HEVC/AV1, TrueHD/E-AC-3 + 8ch).
+        # Bypasses the parse lock entirely for the common SD/HD case.
+        if is_fastpath_supported(path):
+            fastpath_rows = extract_via_enzyme(path)
+            if fastpath_rows is not None:
+                if not needs_pymediainfo_fallback(fastpath_rows):
+                    return fastpath_rows
+                # HDR/Atmos suspected: parse with pymediainfo and overlay
+                # the two flags onto the fast-path result.
+                pymediainfo_rows = self._extract_via_pymediainfo(path)
+                return merge_hdr_atmos(fastpath_rows, pymediainfo_rows)
 
-        rows: list[MediaStreamRow] = []
-        video_idx = audio_idx = subtitle_idx = 0  # per-kind stream counters
+        return self._extract_via_pymediainfo(path)
 
-        for track in mi.tracks:
-            kind = _TRACK_TYPE_MAP.get(track.track_type)
-            if kind is None:
-                # Skip General, Menu, Other, and any future unknown types.
-                continue
+    def _extract_via_pymediainfo(self, path: Path) -> list[MediaStreamRow]:
+        """Extract per-stream metadata using libmediainfo (slow path).
 
-            # Assign a 0-based index within the file using the track's own
-            # stream_identifier when available, falling back to a counter.
-            if track.stream_identifier is not None:
-                idx = int(track.stream_identifier)
-            else:
-                # Compute per-kind counter as a fallback.
-                if kind == "video":
-                    idx = video_idx
-                    video_idx += 1
-                elif kind == "audio":
-                    idx = audio_idx
-                    audio_idx += 1
+        Holds :data:`_MEDIAINFO_PARSE_LOCK` for the entire call.
+
+        Args:
+            path: Absolute filesystem path of the media file.
+
+        Returns:
+            List of stream rows.
+        """
+        # The constructor raises ``MediaInfoUnavailableError`` when the
+        # library is missing, so any reachable instance method has a real
+        # ``MediaInfo`` class bound here. The assert narrows the import-time
+        # ``MediaInfo | None`` union for static analysis.
+        assert MediaInfo is not None
+        # Hold the lock for the **entire** extraction, not just the parse call:
+        # libmediainfo (the C library) keeps internal state shared between the
+        # ``MediaInfo`` instance and lazily-resolved ``Track`` attributes.
+        # Letting another thread call ``parse()`` while we are still iterating
+        # ``mi.tracks`` and reading attributes corrupts that shared state and
+        # segfaults the interpreter.
+        with _MEDIAINFO_PARSE_LOCK:
+            mi = MediaInfo.parse(str(path), parse_speed=self._parse_speed)
+
+            rows: list[MediaStreamRow] = []
+            video_idx = audio_idx = subtitle_idx = 0  # per-kind stream counters
+
+            for track in mi.tracks:
+                kind = _TRACK_TYPE_MAP.get(track.track_type)
+                if kind is None:
+                    # Skip General, Menu, Other, and any future unknown types.
+                    continue
+
+                # Assign a 0-based index within the file using the track's own
+                # stream_identifier when available, falling back to a counter.
+                if track.stream_identifier is not None:
+                    idx = int(track.stream_identifier)
                 else:
-                    idx = subtitle_idx
-                    subtitle_idx += 1
+                    # Compute per-kind counter as a fallback.
+                    if kind == "video":
+                        idx = video_idx
+                        video_idx += 1
+                    elif kind == "audio":
+                        idx = audio_idx
+                        audio_idx += 1
+                    else:
+                        idx = subtitle_idx
+                        subtitle_idx += 1
 
-            rows.append(
-                MediaStreamRow(
-                    # id=0 and file_id=0 are placeholder values; the repository
-                    # layer assigns real PKs on INSERT.
-                    id=0,
-                    file_id=0,
-                    idx=idx,
-                    kind=kind,
-                    codec=_str_or_none(track.codec_id or track.format),
-                    lang=_str_or_none(getattr(track, "language", None)),
-                    channels=_int_or_none(getattr(track, "channel_s", None)),
-                    width=_int_or_none(getattr(track, "width", None)),
-                    height=_int_or_none(getattr(track, "height", None)),
-                    duration_ms=_int_or_none(getattr(track, "duration", None)),
-                    bitrate=_int_or_none(getattr(track, "bit_rate", None)),
+                rows.append(
+                    MediaStreamRow(
+                        # id=0 and file_id=0 are placeholder values; the repository
+                        # layer assigns real PKs on INSERT.
+                        id=0,
+                        file_id=0,
+                        idx=idx,
+                        kind=kind,
+                        codec=_str_or_none(track.codec_id or track.format),
+                        lang=_str_or_none(getattr(track, "language", None)),
+                        channels=_int_or_none(getattr(track, "channel_s", None)),
+                        width=_int_or_none(getattr(track, "width", None)),
+                        height=_int_or_none(getattr(track, "height", None)),
+                        duration_ms=_int_or_none(getattr(track, "duration", None)),
+                        bitrate=_int_or_none(getattr(track, "bit_rate", None)),
+                        hdr_format=_normalise_hdr_format(track) if kind == "video" else None,
+                        is_atmos=_detect_atmos(track) if kind == "audio" else None,
+                        is_default=_yesno_to_bool(getattr(track, "default", None)),
+                        forced=_yesno_to_bool(getattr(track, "forced", None)) if kind == "subtitle" else None,
+                        format=_normalise_subtitle_format(track) if kind == "subtitle" else None,
+                    )
                 )
-            )
 
         return rows
 
@@ -230,6 +291,130 @@ def _str_or_none(value: object) -> str | None:
         ``str(value)`` when *value* is truthy, else ``None``.
     """
     return str(value) if value else None
+
+
+def _yesno_to_bool(value: object) -> bool | None:
+    """Map pymediainfo's ``"Yes"`` / ``"No"`` (or ``True`` / ``False``) to bool.
+
+    pymediainfo exposes track flags as either ``"Yes"`` / ``"No"`` strings
+    (legacy MediaInfo XML) or native booleans depending on the version. We
+    accept both and return ``None`` when the attribute is absent so that
+    callers can store NULL in the DB rather than fabricate a default.
+
+    Args:
+        value: Raw attribute value pulled from a pymediainfo track.
+
+    Returns:
+        ``True`` for truthy "Yes" / 1 / True; ``False`` for "No" / 0 /
+        False; ``None`` when the value is ``None`` or unrecognised.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"yes", "true", "1"}:
+        return True
+    if text in {"no", "false", "0"}:
+        return False
+    return None
+
+
+def _normalise_hdr_format(track: object) -> str | None:
+    """Derive a normalised HDR label from a pymediainfo video track.
+
+    pymediainfo exposes HDR information through several adjacent fields:
+    ``hdr_format``, ``hdr_format_compatibility``, ``transfer_characteristics``,
+    and ``color_primaries``. We collapse those into one of the four labels
+    the rest of the codebase uses: ``"HDR10"``, ``"HDR10+"``, ``"Dolby Vision"``,
+    ``"HLG"``. Returns ``None`` for SDR or undetectable cases.
+
+    Args:
+        track: Video track from ``pymediainfo.MediaInfo.parse``.
+
+    Returns:
+        Normalised HDR label or ``None``.
+    """
+    raw_hdr = getattr(track, "hdr_format", None) or getattr(track, "hdr_format_commercial", None)
+    raw_transfer = getattr(track, "transfer_characteristics", None)
+
+    blob = " ".join(str(v) for v in (raw_hdr, raw_transfer) if v).lower()
+
+    if not blob:
+        return None
+    if "dolby vision" in blob:
+        return "Dolby Vision"
+    if "hdr10+" in blob or "hdr10 plus" in blob:
+        return "HDR10+"
+    if "hdr10" in blob or "smpte st 2084" in blob or "pq" == blob.strip():
+        return "HDR10"
+    if "hlg" in blob or "arib std-b67" in blob:
+        return "HLG"
+    if "hdr" in blob:
+        return "HDR10"
+    return None
+
+
+def _detect_atmos(track: object) -> bool | None:
+    """Detect Dolby Atmos on a pymediainfo audio track.
+
+    Atmos surfaces in pymediainfo via ``commercial_name`` / ``format_commercial``
+    (e.g. ``"Dolby Atmos"``, ``"Dolby TrueHD with Dolby Atmos"``) and
+    occasionally via ``additionalfeatures`` (``"JOC"`` for E-AC-3+JOC). We
+    union those signals.
+
+    Args:
+        track: Audio track from ``pymediainfo.MediaInfo.parse``.
+
+    Returns:
+        ``True`` when any Atmos signal is found, ``False`` otherwise. Never
+        returns ``None`` for an audio track — the negative answer is itself
+        information.
+    """
+    candidates: list[str] = []
+    for attr in ("commercial_name", "format_commercial", "format_commercial_if_any", "additionalfeatures"):
+        v = getattr(track, attr, None)
+        if v:
+            candidates.append(str(v).lower())
+    blob = " ".join(candidates)
+    if not blob:
+        return False
+    return ("atmos" in blob) or ("joc" in blob)
+
+
+def _normalise_subtitle_format(track: object) -> str | None:
+    """Map a pymediainfo subtitle track's codec / format string to a normalised label.
+
+    Returns one of ``"srt"``, ``"pgs"``, ``"ass"``, ``"dvd_subtitle"``,
+    ``"vobsub"``, ``"webvtt"``, or the lower-cased raw string when no
+    match is found.
+
+    Args:
+        track: Subtitle ("Text") track from pymediainfo.
+
+    Returns:
+        Normalised subtitle format string, or ``None`` when no codec / format
+        is exposed by the track.
+    """
+    raw = getattr(track, "codec_id", None) or getattr(track, "format", None)
+    if raw is None:
+        return None
+    text = str(raw).strip().lower()
+    if not text:
+        return None
+    if "subrip" in text or text in {"s_text/utf8", "srt"}:
+        return "srt"
+    if "pgs" in text or text == "s_hdmv/pgs":
+        return "pgs"
+    if "ass" in text or "ssa" in text:
+        return "ass"
+    if "dvd" in text or text == "s_vobsub":
+        return "vobsub" if "vobsub" in text else "dvd_subtitle"
+    if "webvtt" in text or text == "s_text/webvtt":
+        return "webvtt"
+    return text
 
 
 def _int_or_none(value: object) -> int | None:

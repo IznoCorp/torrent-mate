@@ -52,12 +52,22 @@ def _open_worker_conn(db_path: Path) -> sqlite3.Connection:
     Returns:
         Open :class:`sqlite3.Connection` with WAL journal mode, normal synchronous
         level, and foreign keys enabled.
+
+    Notes:
+        ``busy_timeout=30000`` (30 s) is the retry window applied when a
+        write collides with another worker or the orchestrator's own
+        connection.  The previous 5 s was tight enough to flake on
+        loaded CI runners (``test_split_cold_scan_invariant`` fired
+        intermittently on every Python version).  30 s comfortably
+        covers any realistic per-statement hold time on the indexer
+        DB; SQLite returns immediately as soon as the write lock is
+        free, so the higher cap costs nothing in the happy path.
     """
     conn = sqlite3.connect(str(db_path), isolation_level=None, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 

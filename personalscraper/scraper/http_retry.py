@@ -7,12 +7,107 @@ Used by tmdb_client, tvdb_client, and artwork modules.
 """
 
 from collections.abc import Callable
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 import requests.exceptions
 from structlog.stdlib import BoundLogger
 from tenacity import RetryCallState
+from tenacity.wait import wait_base
 
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+def _parse_retry_after(header_value: str | None) -> float | None:
+    """Parse the value of an HTTP ``Retry-After`` header.
+
+    Accepts both forms permitted by RFC 7231:
+
+    - integer seconds (``"42"``)
+    - HTTP-date (``"Wed, 21 Oct 2026 07:28:00 GMT"``)
+
+    Args:
+        header_value: Raw ``Retry-After`` header value or ``None``.
+
+    Returns:
+        Number of seconds to wait, or ``None`` if the header is absent or
+        malformed.
+    """
+    if header_value is None:
+        return None
+    header_value = header_value.strip()
+    if not header_value:
+        return None
+    try:
+        return max(0.0, float(header_value))
+    except ValueError:
+        pass
+    try:
+        when = parsedate_to_datetime(header_value)
+    except (TypeError, ValueError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    delta = (when - datetime.now(tz=timezone.utc)).total_seconds()
+    return max(0.0, delta)
+
+
+def _retry_after_from_exception(exc: BaseException | None) -> float | None:
+    """Pull a ``Retry-After`` seconds value from a retryable exception.
+
+    Looks up the header on:
+    - ``exc.response`` (requests.HTTPError carrying a Response).
+    - ``exc.headers`` (provider-specific error type that surfaces headers
+      directly, e.g. TMDBError / TVDBError).
+
+    Returns ``None`` for exceptions that do not carry header information.
+    """
+    if exc is None:
+        return None
+    response = getattr(exc, "response", None)
+    if response is not None and getattr(response, "headers", None) is not None:
+        value = _parse_retry_after(response.headers.get("Retry-After"))
+        if value is not None:
+            return value
+    headers = getattr(exc, "headers", None)
+    if headers is not None:
+        return _parse_retry_after(headers.get("Retry-After"))
+    return None
+
+
+class wait_with_retry_after(wait_base):
+    """Tenacity wait strategy that honors ``Retry-After`` on 429 responses.
+
+    Wraps a fallback wait strategy (typically ``wait_exponential_jitter`` or
+    ``wait_exponential``).  When the last failure carries a ``Retry-After``
+    header (parseable as either integer seconds or an HTTP-date), the parsed
+    value is used as-is — clamped against an optional ``max_wait`` ceiling so
+    pathological server responses (``Retry-After: 86400``) cannot stall the
+    pipeline indefinitely.  Otherwise the fallback strategy decides.
+
+    Args:
+        fallback: Underlying wait strategy used when no Retry-After is
+            present (or the parse fails).
+        max_wait: Upper bound (seconds) applied to honored Retry-After
+            values.  Defaults to 60s — well above typical TMDB/TVDB rate
+            limits but low enough that a misbehaving server cannot freeze
+            a scrape.
+    """
+
+    def __init__(self, fallback: wait_base, max_wait: float = 60.0) -> None:
+        """Store the fallback strategy and ceiling."""
+        self._fallback = fallback
+        self._max_wait = max_wait
+
+    def __call__(self, retry_state: RetryCallState) -> float:
+        """Return the seconds to wait for ``retry_state``."""
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        retry_after = _retry_after_from_exception(exc)
+        if retry_after is not None:
+            return min(retry_after, self._max_wait)
+        return float(self._fallback(retry_state))
 
 
 def build_retry_logger(log: BoundLogger, event: str) -> Callable[[RetryCallState], None]:

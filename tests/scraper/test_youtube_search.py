@@ -6,6 +6,7 @@ yt-dlp is also mocked to prevent real network calls from the fallback path.
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -59,7 +60,7 @@ def _patch_yt_dlp_no_result():
     real_import = builtins.__import__
     fake_yt_dlp = _no_result_ydl()
 
-    def _mock_import(name: str, *args: object, **kwargs: object) -> object:
+    def _mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "yt_dlp":
             return fake_yt_dlp
         return real_import(name, *args, **kwargs)
@@ -265,7 +266,7 @@ class TestYoutubeSearch:
 
         real_import = builtins.__import__
 
-        def mock_import(name: str, *args: object, **kwargs: object) -> object:
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
             if name == "yt_dlp":
                 return fake_yt_dlp
             return real_import(name, *args, **kwargs)
@@ -292,7 +293,7 @@ class TestYoutubeSearch:
         real_import = builtins.__import__
         fake_yt_dlp = _no_result_ydl()
 
-        def mock_import(name: str, *args: object, **kwargs: object) -> object:
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
             if name == "yt_dlp":
                 return fake_yt_dlp
             return real_import(name, *args, **kwargs)
@@ -374,7 +375,7 @@ class TestFallbackExceptionSplit:
 
         fake_yt_dlp = _make_ydl_raising_keyerror()
 
-        def mock_import(name: str, *args: object, **kwargs: object) -> object:
+        def mock_import(name: str, *args: Any, **kwargs: Any) -> Any:
             if name == "yt_dlp":
                 return fake_yt_dlp
             return real_import(name, *args, **kwargs)

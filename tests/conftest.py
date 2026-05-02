@@ -28,7 +28,9 @@ def make_cli_runner() -> _RawCliRunner:
     it is still accepted.
     """
     if "mix_stderr" in inspect.signature(_RawCliRunner.__init__).parameters:
-        return _RawCliRunner(mix_stderr=False)
+        # Older Click signatures still accept mix_stderr; the runtime check
+        # above guards against newer versions where it has been removed.
+        return _RawCliRunner(mix_stderr=False)  # type: ignore[call-arg]
     return _RawCliRunner()
 
 
@@ -235,7 +237,7 @@ def mock_settings(tmp_path, monkeypatch):
     Returns:
         A Settings instance with neutral test values.
     """
-    return Settings(_env_file=None)
+    return Settings(_env_file=None)  # type: ignore[call-arg]
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

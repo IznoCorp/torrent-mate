@@ -4,7 +4,7 @@
 
 **Prerequisite (Phase 1 exit gate):**
 
-> `personalscraper library status` runs on a fresh DB and prints "no scans yet".
+> `personalscraper library-status` runs on a fresh DB and prints "no scans yet".
 
 **This phase's exit gate (verbatim from DESIGN §16):**
 
@@ -14,7 +14,7 @@
 
 ## Scope
 
-Build the scanner engine for the two foundational scan modes (`full` Stage A and `quick`). This includes fingerprinting (OSHash + xxh3_partial + tier-1 helpers), the mediainfo wrapper stub (wired in Phase 4), per-disk Merkle root with mountpoint sentinel guard, the core directory walk, and the `personalscraper library index` CLI entry point. No drift reconciliation (Phase 3), no incremental/enrich modes (Phase 4), no outbox (Phase 5).
+Build the scanner engine for the two foundational scan modes (`full` Stage A and `quick`). This includes fingerprinting (OSHash + xxh3_partial + tier-1 helpers), the mediainfo wrapper stub (wired in Phase 4), per-disk Merkle root with mountpoint sentinel guard, the core directory walk, and the `personalscraper library-index` CLI entry point. No drift reconciliation (Phase 3), no incremental/enrich modes (Phase 4), no outbox (Phase 5).
 
 ---
 
@@ -151,7 +151,7 @@ Build the scanner engine for the two foundational scan modes (`full` Stage A and
 
 ---
 
-### 2.7 — `personalscraper library index` CLI entry point
+### 2.7 — `personalscraper library-index` CLI entry point
 
 **Files touched:**
 
@@ -161,14 +161,14 @@ Build the scanner engine for the two foundational scan modes (`full` Stage A and
 
 **Deliverable:**
 
-- `personalscraper library index [--mode {full|quick}] [--disk DISK] [--budget SECONDS] [--dry-run]` — acquires writer lock, calls `scan()`, calls `outbox.drain_if_present()` (no-op stub until Phase 5), prints JSON summary `{"mode": ..., "items_added": ..., "items_updated": ..., "files_walked": ..., "budget_exhausted": false}`.
+- `personalscraper library-index [--mode {full|quick}] [--disk DISK] [--budget SECONDS] [--dry-run]` — acquires writer lock, calls `scan()`, calls `outbox.drain_if_present()` (no-op stub until Phase 5), prints JSON summary `{"mode": ..., "items_added": ..., "items_updated": ..., "files_walked": ..., "budget_exhausted": false}`.
 - `--dry-run`: suppresses all `INSERT`/`UPDATE` on `media_*` tables; writes a synthetic `scan_run(status='dry-run')`; `scan_event` rows still written.
 - `--wait-for-lock SECONDS` flag (default 0): passes timeout to `indexer_lock()`.
 - CLI tests: `library index --mode quick` exits 0; `library index --mode full --disk UnknownDisk` exits 2 with stderr `"no disk with label 'UnknownDisk'"`.
 
 **Tests added:** `tests/indexer/test_cli.py` (partial)
 
-**Commit:** `feat(media-indexer): 2.7 personalscraper library index CLI full and quick modes`
+**Commit:** `feat(media-indexer): 2.7 personalscraper library-index CLI full and quick modes`
 
 ---
 
@@ -180,7 +180,7 @@ Build the scanner engine for the two foundational scan modes (`full` Stage A and
 - [ ] Subsequent `--mode quick` on unchanged fixture: zero `os.scandir` calls on FS (Merkle hit path confirmed).
 - [ ] `oshash` on the OpenSubtitles reference vector returns `8e245d9679d31e12`.
 - [ ] `bootstrap_disk_identity` raises `BootstrapError` when `diskutil` is unavailable (mocked).
-- [ ] `personalscraper library index --mode full --disk UnknownDisk` exits 2 with correct error.
+- [ ] `personalscraper library-index --mode full --disk UnknownDisk` exits 2 with correct error.
 - [ ] Symlinks in fixture appear in `media_file` with `oshash=NULL`.
 - [ ] Hidden/system files (`.DS_Store`, `$Recycle.Bin`, `._foo`) not present in `media_file`.
 - [ ] `scan_run.status='ok'` after successful scan; `'failed'` if disk mount check fails.

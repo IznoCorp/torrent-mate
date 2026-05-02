@@ -71,3 +71,79 @@ def test_atomic_save(tmp_path):
     assert data["h1"]["name"] == "Name1"
     assert data["h2"]["action"] == "moved"
     assert "date" in data["h1"]
+
+
+def test_prune_consumed_dest_paths_removes_stale_within_ingest(tmp_path):
+    """Drop stale dest_path keys whose recorded file is gone.
+
+    ``prune_consumed_dest_paths`` clears dest_path keys whose recorded
+    file inside the ingest staging dir has already been moved by sort.
+    """
+    from personalscraper.ingest.tracker import IngestTracker
+
+    ingest_dir = tmp_path / "097-TEMP"
+    ingest_dir.mkdir()
+    consumed_path = ingest_dir / "Show.S01E01.mkv"
+    # Note: the file is INTENTIONALLY NOT created — sort already consumed it.
+
+    tracker_path = tmp_path / "ingested.json"
+    tracker = IngestTracker(tracker_path)
+    tracker.mark_ingested("h1", "Show.S01E01", "copied", dest_path=str(consumed_path))
+
+    pruned = tracker.prune_consumed_dest_paths(ingest_dir)
+
+    assert pruned == 1
+    entry = tracker.get_entry("h1")
+    assert entry is not None
+    assert "dest_path" not in entry
+    # Hash-level memory of the torrent stays — only the path field is cleared.
+    assert tracker.is_ingested("h1")
+
+
+def test_prune_consumed_dest_paths_keeps_outside_ingest(tmp_path):
+    """Preserve final-destination orphan signal outside ingest dir.
+
+    A dest_path OUTSIDE the ingest dir means the file was placed on a
+    storage disk; if that path disappears, it's a real orphan signal —
+    pruning would silence it. Must NOT prune.
+    """
+    from personalscraper.ingest.tracker import IngestTracker
+
+    ingest_dir = tmp_path / "097-TEMP"
+    ingest_dir.mkdir()
+    final_dest = tmp_path / "Disk1" / "movies" / "Movie (2024)" / "Movie.mkv"
+    # Final dest is missing — orphan signal we want to preserve.
+
+    tracker = IngestTracker(tmp_path / "ingested.json")
+    tracker.mark_ingested("h1", "Movie", "moved", dest_path=str(final_dest))
+
+    pruned = tracker.prune_consumed_dest_paths(ingest_dir)
+
+    assert pruned == 0
+    entry = tracker.get_entry("h1")
+    assert entry is not None
+    assert entry.get("dest_path") == str(final_dest)
+
+
+def test_prune_consumed_dest_paths_keeps_existing_files(tmp_path):
+    """Keep dest_path entries whose file still exists.
+
+    A dest_path that still exists (sort has not yet run) must not be
+    pruned — the path is still meaningful for orphan detection.
+    """
+    from personalscraper.ingest.tracker import IngestTracker
+
+    ingest_dir = tmp_path / "097-TEMP"
+    ingest_dir.mkdir()
+    fresh = ingest_dir / "Fresh.mkv"
+    fresh.write_bytes(b"x")
+
+    tracker = IngestTracker(tmp_path / "ingested.json")
+    tracker.mark_ingested("h1", "Fresh", "copied", dest_path=str(fresh))
+
+    pruned = tracker.prune_consumed_dest_paths(ingest_dir)
+
+    assert pruned == 0
+    entry = tracker.get_entry("h1")
+    assert entry is not None
+    assert entry.get("dest_path") == str(fresh)

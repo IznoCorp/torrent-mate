@@ -17,7 +17,8 @@ successful — the indexer will reconcile the drift at the next scan.
 
 from __future__ import annotations
 
-import shutil
+import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -29,7 +30,52 @@ from personalscraper.logger import get_logger
 
 log = get_logger("library.disk_cleaner")
 
-_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
+
+# --- Orphan-detection constants -------------------------------------------
+
+# Video extensions considered for "main video" presence. Subtitle/audio-only
+# files do not count: a release with only an .mp3 or .srt is not a watchable
+# release. Audiobook items (.m4b) are intentionally excluded from this check
+# because the orphan mode targets video releases, not audiobook collections.
+_VIDEO_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".mkv",
+        ".mp4",
+        ".avi",
+        ".m4v",
+        ".webm",
+        ".mov",
+        ".ts",
+        ".m2ts",
+        ".mpg",
+        ".mpeg",
+    }
+)
+
+# A "main" video must be at least this large. Trailers and shorts under this
+# threshold do not count, even if their filename does not match the trailer
+# pattern. 50 MB filters out lyric clips while still accepting low-bitrate
+# 30-min episodes (~30 MB / min × 30 ≈ a comfortable margin).
+_MAIN_VIDEO_MIN_BYTES: int = 50 * 1024 * 1024
+
+# Filename markers that demote a video file to "trailer / extra" status —
+# matched case-insensitively against the basename.
+_TRAILER_MARKERS: tuple[str, ...] = ("trailer", "teaser", "sample", "extra")
+
+# TV-show season folder names (re-using the same regex as the indexer).
+_TV_SEASON_DIR_RE = re.compile(
+    r"^(?:saison|season)\s*\d+$|^specials?$",
+    re.IGNORECASE,
+)
+
+# Categories whose "main content" is not a video file. ``orphans`` mode
+# always skips these because its definition of orphan ("no main video") is
+# meaningless for them. An audiobook with only the cover image left is also
+# an orphan, but identifying that requires inspecting .m4b / .mp3 presence,
+# which is out of scope for this video-centric mode. Use --category-specific
+# tooling for those instead.
+_ORPHAN_NON_VIDEO_CATEGORIES: frozenset[str] = frozenset({"audiobooks"})
 
 
 @dataclass
@@ -114,6 +160,71 @@ def _publish_deleted(path: Path, label: str, db_path: Path) -> None:
         )
 
 
+def _scandir_rmtree(path: Path, ghosts: list[str] | None = None) -> None:
+    """Recursive delete that survives NTFS-via-macFUSE NFC/NFD filename quirks.
+
+    ``shutil.rmtree`` walks the tree by re-listing each directory and then
+    re-stat'ing each entry by its decoded name. macFUSE-NTFS sometimes returns
+    a filename in one Unicode normalization form (NFD with combining accent)
+    while the kernel inode is reachable only via the other (NFC, single
+    codepoint), so the follow-up ``os.unlink(name)`` raises ``FileNotFoundError``
+    even though the file was just listed.
+
+    This walker:
+
+    * Uses the ``os.DirEntry`` objects from :func:`os.scandir` and their
+      ``.path`` attribute (no re-encoding round-trip).
+    * Tolerates **ghost dirents** — entries that ``scandir`` lists but the
+      kernel cannot ``stat`` / ``unlink``. These are recorded in *ghosts* and
+      skipped. They typically come from filesystem-level inconsistencies that
+      only an unmount + fsck can repair; we report them rather than abort the
+      whole rmtree, so the caller can free what is freeable.
+    * Bottom-up traversal so directories are emptied before they are removed.
+
+    Args:
+        path: Directory to remove (symlinks are unlinked, not descended).
+        ghosts: Mutable list that receives the path of every entry that
+            could not be removed because of a ghost-dirent inconsistency.
+            Pass ``None`` (default) to disable collection. The caller may
+            then decide whether the parent ``rmdir`` failure is fatal or
+            should be reported as a partial cleanup.
+
+    Raises:
+        OSError: If the final ``rmdir`` of *path* itself fails for a reason
+            other than ``ENOTEMPTY`` (i.e. caused by a ghost remnant). When
+            ``ENOTEMPTY`` is raised the function lets it propagate so the
+            caller can correlate with the ghost list.
+    """
+    if path.is_symlink() or not path.is_dir():
+        os.unlink(path)
+        return
+
+    with os.scandir(path) as it:
+        entries = list(it)
+    for entry in entries:
+        try:
+            is_subdir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            # Ghost dirent: even is_dir() round-trips through stat and may
+            # fail. Treat as a leaf-level ghost so we keep walking siblings.
+            if ghosts is not None:
+                ghosts.append(entry.path)
+            continue
+        try:
+            if is_subdir:
+                _scandir_rmtree(Path(entry.path), ghosts=ghosts)
+            else:
+                os.unlink(entry.path)
+        except FileNotFoundError:
+            # Classic NTFS-macFUSE NFC/NFD ghost: listed but unreachable.
+            if ghosts is not None:
+                ghosts.append(entry.path)
+            # Carry on with siblings; the parent rmdir at the bottom of
+            # the recursion will surface ENOTEMPTY if any ghost remains.
+            continue
+    os.rmdir(path)
+
+
 def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_path: Path) -> None:
     """Delete a directory, handling NTFS errors gracefully.
 
@@ -135,8 +246,9 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_p
         result.details.append(f"[DRY-RUN] Would delete {label}: {path} ({size} bytes)")
         return
 
+    ghosts: list[str] = []
     try:
-        shutil.rmtree(path)
+        _scandir_rmtree(path, ghosts=ghosts)
         result.deleted_count += 1
         result.freed_bytes += size
         result.details.append(f"Deleted {label}: {path} ({size} bytes)")
@@ -144,9 +256,39 @@ def _delete_dir(path: Path, result: CleanResult, dry_run: bool, label: str, db_p
         # Write-through: notify the indexer that this subtree was removed.
         _publish_deleted(path, label, db_path)
     except OSError as exc:
-        result.error_count += 1
-        result.errors.append(f"Failed to delete {label}: {path} — {exc}")
-        log.warning("library_clean_ntfs_error", label=label, path=str(path), exc_info=True, error=str(exc))
+        # Most common failure: ENOTEMPTY raised by os.rmdir(path) because at
+        # least one ghost dirent (NFC/NFD inconsistency) blocked the leaf
+        # walk. Surface that as a precise error message and list the ghost
+        # paths so the operator can decide on a manual fix (typically
+        # unmount + fsck of the NTFS volume).
+        if ghosts:
+            ghost_summary = ", ".join(g.rsplit("/", 1)[-1] for g in ghosts[:3])
+            extra = f" ({len(ghosts) - 3} more)" if len(ghosts) > 3 else ""
+            result.error_count += 1
+            result.errors.append(
+                f"Partial delete of {label}: {path} — "
+                f"{len(ghosts)} ghost dirent(s) blocking rmdir: "
+                f"{ghost_summary}{extra}. NTFS NFC/NFD inconsistency; "
+                "unmount + fsck required."
+            )
+            log.warning(
+                "library_clean_ghost_dirent",
+                label=label,
+                path=str(path),
+                ghost_count=len(ghosts),
+                ghost_sample=ghosts[:5],
+                error=str(exc),
+            )
+        else:
+            result.error_count += 1
+            result.errors.append(f"Failed to delete {label}: {path} — {exc}")
+            log.warning(
+                "library_clean_ntfs_error",
+                label=label,
+                path=str(path),
+                exc_info=True,
+                error=str(exc),
+            )
 
 
 def _delete_file(path: Path, result: CleanResult, dry_run: bool, label: str, db_path: Path) -> None:
@@ -198,6 +340,82 @@ def _is_effectively_empty(directory: Path) -> bool:
         return False
 
 
+def _has_main_video(directory: Path) -> bool:
+    """Return True if *directory* contains at least one main video file.
+
+    A "main" video is any file whose extension is in :data:`_VIDEO_EXTENSIONS`,
+    whose size is at least :data:`_MAIN_VIDEO_MIN_BYTES`, and whose basename
+    does not contain a trailer / extra marker (``trailer``, ``teaser``,
+    ``sample``, ``extra``). For TV shows, ``Saison NN/`` and ``Season NN/``
+    sub-folders are descended into one level — the orphan check must consider
+    episodes, not just files at the show root.
+
+    The function returns on the first match (short-circuit). On any OSError
+    listing the directory it conservatively returns True, because we never
+    want to delete a directory we cannot inspect.
+
+    Args:
+        directory: Absolute path to the release / show root to inspect.
+
+    Returns:
+        True if a main video is present (or the directory is unreadable),
+        False otherwise.
+    """
+    try:
+        entries = list(directory.iterdir())
+    except OSError:
+        return True
+
+    for entry in entries:
+        if entry.is_file() and _looks_like_main_video(entry):
+            return True
+        if entry.is_dir() and _TV_SEASON_DIR_RE.match(entry.name):
+            try:
+                for sub in entry.iterdir():
+                    if sub.is_file() and _looks_like_main_video(sub):
+                        return True
+            except OSError:
+                return True
+    return False
+
+
+def _looks_like_main_video(path: Path) -> bool:
+    """Return True if *path* is a substantial video file (not a trailer/sample)."""
+    if path.suffix.lower() not in _VIDEO_EXTENSIONS:
+        return False
+    stem_lower = path.stem.lower()
+    if any(marker in stem_lower for marker in _TRAILER_MARKERS):
+        return False
+    try:
+        return path.stat().st_size >= _MAIN_VIDEO_MIN_BYTES
+    except OSError:
+        return False
+
+
+def _is_orphan_release_dir(media_dir: Path) -> bool:
+    """Return True if *media_dir* looks like a stale release with no main video.
+
+    A release directory is considered an orphan when it has no main video
+    file at the root and no episode in any season sub-folder. Such directories
+    typically result from a manual delete of the video file that left behind
+    the ``.actors/`` thumbnails, the ``-trailer.mp4`` extra, the ``.nfo``,
+    and the artwork — a real-world residue pattern observed across this
+    project's library after partial migrations.
+
+    The directory must contain something (an empty dir is handled by the
+    existing ``--only empty`` mode, not this one).
+
+    Args:
+        media_dir: Absolute path to the candidate release directory.
+
+    Returns:
+        True if the directory is non-empty AND contains no main video.
+    """
+    if _is_effectively_empty(media_dir):
+        return False
+    return not _has_main_video(media_dir)
+
+
 def clean_library(
     config: Config,
     apply: bool = False,
@@ -218,7 +436,12 @@ def clean_library(
     Args:
         config: Config with disk and category definitions.
         apply: If True, actually delete files. If False, only report.
-        only: Filter cleanup type: "actors", "empty", "junk", "release", or None (all).
+        only: Filter cleanup type: "actors", "empty", "junk", "release",
+            "orphans", or None (all). ``orphans`` removes release dirs that
+            have no main video file (typical residue: ``.actors/`` + trailer
+            + NFO left behind after a manual video delete) and is opt-in:
+            it is NEVER part of the default "all" run because deletion is
+            irreversible at the release-dir granularity.
         disk_filter: Only clean this disk (by disk.id). None = all.
         category_filter: Only clean this category_id. None = all.
 
@@ -227,10 +450,13 @@ def clean_library(
     """
     result = CleanResult(dry_run=not apply)
 
+    # Orphans is opt-in: only triggered when the user passes --only orphans.
+    # All other modes keep their default "include in all" behaviour.
     clean_actors = only in (None, "actors")
     clean_empty = only in (None, "empty")
     clean_junk = only in (None, "junk")
     clean_release = only in (None, "release")
+    clean_orphans = only == "orphans"
 
     for disk in config.disks:
         if disk_filter and disk.id != disk_filter:
@@ -250,8 +476,26 @@ def clean_library(
                 log.debug("library_category_not_found", category_dir=str(category_dir), disk=disk.id)
                 continue
 
+            # Orphan mode targets video releases only — audiobooks and any
+            # future non-video category have a different "main content"
+            # definition and would otherwise be flagged as orphans because
+            # their .m4b / .mp3 / etc. files are not in _VIDEO_EXTENSIONS.
+            skip_orphans_for_category = clean_orphans and category_id in _ORPHAN_NON_VIDEO_CATEGORIES
+
             for media_dir in sorted(category_dir.iterdir()):
                 if not media_dir.is_dir() or media_dir.name.startswith("."):
+                    continue
+                if clean_orphans:
+                    if skip_orphans_for_category:
+                        continue
+                    if _is_orphan_release_dir(media_dir):
+                        _delete_dir(
+                            media_dir,
+                            result,
+                            not apply,
+                            "orphan release",
+                            config.indexer.db_path,
+                        )
                     continue
                 _clean_media_dir(
                     media_dir,

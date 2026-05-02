@@ -55,14 +55,14 @@ DOW="${DOW:-$(date +%u)}"
 if [[ -v DISK_MAP[$DOW] ]]; then
     DISK_LABEL="${DISK_MAP[$DOW]}"
     echo "[index-rotate] weekday=${DOW} → full scan on disk '${DISK_LABEL}'"
-    exec "${PERSONALSCRAPER}" library index \
+    exec "${PERSONALSCRAPER}" library-index \
         --mode full \
         --disk "${DISK_LABEL}" \
         --wait-for-lock "${WAIT_FOR_LOCK}"
 else
     # Friday, Saturday, Sunday — fall back to a cheap quick scan.
     echo "[index-rotate] weekday=${DOW} → quick scan (no disk filter)"
-    exec "${PERSONALSCRAPER}" library index \
+    exec "${PERSONALSCRAPER}" library-index \
         --mode quick \
         --wait-for-lock "${WAIT_FOR_LOCK}"
 fi

@@ -1,0 +1,79 @@
+# Implementation Progress — arch-cleanup
+
+> **DRAFT** — not yet active. This file is a pre-staged template for the future feature.
+> When `/implement:feature` is run for `arch-cleanup`, `/implement:create-branch` will:
+> 1. Move this file to the project root as `IMPLEMENTATION.md` (replacing the current one,
+>    which will have been archived to `docs/archive/features/<prev-codename>/`).
+> 2. Move `specs/DESIGN.md` to `docs/features/arch-cleanup/DESIGN.md`.
+> 3. Move `plan/` to `docs/features/arch-cleanup/plan/`.
+> 4. Create branch `feat/arch-cleanup`. The VERSION bump is intentionally deferred to phase 8 so intermediate refactor commits do not advertise 0.9.0 before the feature is complete.
+>
+> The structure below mirrors what `/implement:create-branch` produces and what
+> `/implement:phase` updates after each sub-phase. Pre-filling reduces friction at
+> kickoff but the file will be regenerated — treat any value below as preliminary.
+
+**Codename**: `arch-cleanup`
+**Feature title**: Architectural Consolidation
+**Type**: refactor (minor SemVer bump)
+**Bump**: 0.8.0 → 0.9.0
+**Branch**: feat/arch-cleanup
+**Master plan**: docs/features/arch-cleanup/plan/INDEX.md
+**PR**: _(created after last phase)_
+**Merge strategy**: _(set during /implement:feature — manual or auto)_
+
+## Phases
+
+| # | Phase | Plan | Status | Commits | Notes |
+|---|---|---|---|---|---|
+| 1 | Foundation | docs/features/arch-cleanup/plan/phase-01-foundation.md | [ ] | _(filled by /implement:phase)_ | complexity script + make check + doc audit + stubs |
+| 2 | CLI decomposition | docs/features/arch-cleanup/plan/phase-02-cli-decompose.md | [ ] | | cli.py 1648 → ≤ 400 LOC |
+| 3 | Indexer CLI decomposition | docs/features/arch-cleanup/plan/phase-03-indexer-cli-decompose.md | [ ] | | indexer/cli.py 1389 → ≤ 400 LOC |
+| 4 | Indexer scanner modes split | docs/features/arch-cleanup/plan/phase-04-indexer-scanner-modes-split.md | [ ] | | _modes.py 1900 → _modes/ package |
+| 5 | Scraper decomposition | docs/features/arch-cleanup/plan/phase-05-scraper-decompose.md | [ ] | | scraper.py 2159 → orchestrator + 5 services |
+| 6 | PipelineStep Protocol + StepContext | docs/features/arch-cleanup/plan/phase-06-pipeline-step-protocol.md | [ ] | | formal step interface + step_overrides shim |
+| 7 | StepReport Tier A typed details | docs/features/arch-cleanup/plan/phase-07-stepreport-tier-a.md | [ ] | | per-step *Details payloads + registry |
+| 8 | Legacy deprecation + doc realignment + bump | docs/features/arch-cleanup/plan/phase-08-legacy-deprecation-and-bump.md | [ ] | | library-scan deprecation + VERSION 0.9.0 |
+
+## Quality gate (every commit)
+
+```bash
+make check
+python3 scripts/check-module-size.py
+```
+
+A commit is acceptable when `make lint test` exits 0, the size script exits 0 (advisory in 0.9.0), no new file > 1000 LOC, and coverage delta ≥ 0.
+
+## Conventional Commits scope
+
+All commits use scope `arch-cleanup`:
+- `feat(arch-cleanup): ...`
+- `refactor(arch-cleanup): ...`
+- `docs(arch-cleanup): ...`
+- `test(arch-cleanup): ...`
+- `chore(arch-cleanup): ...`
+
+Phase milestone commits (created by `/implement:phase` at each phase end):
+- `chore(arch-cleanup): phase N gate — <phase summary>`
+
+## Sub-phase → SHA mapping
+
+_(populated by `/implement:phase` after each sub-phase commit; one row per sub-phase)_
+
+| Phase | Sub-phase | Sub-phase title | SHA | Date |
+|---|---|---|---|---|
+|   |   |   |   |   |
+
+## Open issues / deferrals
+
+_(populated during execution if any sub-phase surfaces an unexpected issue worth tracking)_
+
+## References
+
+- DESIGN.md: docs/features/arch-cleanup/DESIGN.md
+- ROADMAP entry: ROADMAP.md → "Architectural Consolidation"
+- Triggering analysis: user static analysis (preserved in DESIGN Section 1.1 trigger line + per-axis context)
+- Previous feature archive: docs/archive/features/_(set during /implement:create-branch)_/
+
+---
+
+> **At kickoff**: `/implement:create-branch` overwrites the **Branch**, **Merge strategy**, dates, and SHA columns. Header values above are best-effort placeholders.

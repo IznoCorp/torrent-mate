@@ -241,7 +241,7 @@ def load_config(path: Path | None = None) -> Config:
     # Emit a DeprecationWarning so users see the migration instruction at call site.
     warnings.warn(
         "v1 single-file config is deprecated; run "
-        "`personalscraper config migrate-to-v2 --legacy <path> --target-dir <new>` to migrate",
+        "`personalscraper config migrate-to-v2 <legacy-path> <target-dir>` to migrate",
         DeprecationWarning,
         stacklevel=2,
     )

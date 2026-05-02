@@ -39,6 +39,7 @@ dependencies = [
     "json5>=0.9.14",
     "yt-dlp>=2026.1.1,<2027",
     "pymediainfo>=6.1.0",
+    "enzyme>=0.5.2",
     "xxhash>=3.4.0",
     "filelock>=3.13.0",
 ]
@@ -98,8 +99,28 @@ files = ["personalscraper"]
 exclude = ["tests/"]
 
 [[tool.mypy.overrides]]
-module = ["guessit.*", "qbittorrent_api.*", "rapidfuzz.*", "yt_dlp.*"]
+module = ["enzyme.*", "guessit.*", "qbittorrent_api.*", "rapidfuzz.*", "yt_dlp.*"]
 ignore_missing_imports = true
+
+[tool.pyright]
+include = ["personalscraper", "tests", "scripts"]
+exclude = [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    ".data",
+    ".personalscraper",
+]
+# Pyright resolves imports against pythonPath / venv. Without extraPaths,
+# the LSP (which often runs from a venv that does not have personalscraper
+# installed editable) cannot find ``personalscraper.*`` and emits hundreds of
+# "could not be resolved" warnings. Anchoring at the repo root makes the
+# package importable regardless of the active interpreter.
+extraPaths = ["."]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
+reportMissingImports = "error"
+reportMissingTypeStubs = "none"
 
 [tool.coverage.run]
 source = ["personalscraper"]

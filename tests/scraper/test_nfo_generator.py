@@ -235,6 +235,7 @@ class TestMovieNFOImages:
         root = ET.fromstring(xml.split("\n", 1)[1])
         posters = root.findall("thumb[@aspect='poster']")
         assert len(posters) >= 1
+        assert posters[0].text is not None
         assert "original" in posters[0].text
         assert "w342" in posters[0].get("preview", "")
 
@@ -246,6 +247,7 @@ class TestMovieNFOImages:
         assert fanart is not None
         thumbs = fanart.findall("thumb")
         assert len(thumbs) >= 1
+        assert thumbs[0].text is not None
         assert "original" in thumbs[0].text
         assert "w780" in thumbs[0].get("preview", "")
 
@@ -582,24 +584,30 @@ class TestTvshowNFOBase:
 
 
 class TestTvshowNFOIds:
-    """Tests for uniqueids in tvshow NFO (TMDB is default)."""
+    """Tests for uniqueids in tvshow NFO (TVDB is the canonical id).
 
-    def test_uniqueid_tmdb_default(self, generator: NFOGenerator) -> None:
-        """TMDB uniqueid should be default for TV shows."""
-        xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA)
-        root = ET.fromstring(xml.split("\n", 1)[1])
-        tmdb_id = root.find("uniqueid[@type='tmdb']")
-        assert tmdb_id is not None
-        assert tmdb_id.text == "106379"
-        assert tmdb_id.get("default") == "true"
+    Project rule: TV shows use TVDB as the default uniqueid; TMDB is
+    secondary; IMDB is informational (never default for TV). ``<id>``
+    and ``<episodeguide>`` mirror TVDB.
+    """
 
-    def test_uniqueid_tvdb(self, generator: NFOGenerator) -> None:
-        """TVDB uniqueid should be present."""
+    def test_uniqueid_tvdb_default(self, generator: NFOGenerator) -> None:
+        """TVDB uniqueid is the default for TV shows."""
         xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA)
         root = ET.fromstring(xml.split("\n", 1)[1])
         tvdb_id = root.find("uniqueid[@type='tvdb']")
         assert tvdb_id is not None
         assert tvdb_id.text == "416744"
+        assert tvdb_id.get("default") == "true"
+
+    def test_uniqueid_tmdb_secondary(self, generator: NFOGenerator) -> None:
+        """TMDB uniqueid is present but not default."""
+        xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA)
+        root = ET.fromstring(xml.split("\n", 1)[1])
+        tmdb_id = root.find("uniqueid[@type='tmdb']")
+        assert tmdb_id is not None
+        assert tmdb_id.text == "106379"
+        assert tmdb_id.get("default") is None
 
     def test_uniqueid_imdb(self, generator: NFOGenerator) -> None:
         """IMDB uniqueid should be present (not default)."""
@@ -610,17 +618,17 @@ class TestTvshowNFOIds:
         assert imdb_id.text == "tt12637874"
         assert imdb_id.get("default") is None
 
-    def test_id_is_tmdb(self, generator: NFOGenerator) -> None:
-        """<id> should contain TMDB ID for TV shows."""
+    def test_id_is_tvdb(self, generator: NFOGenerator) -> None:
+        """<id> mirrors the default uniqueid (TVDB)."""
         xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA)
         root = ET.fromstring(xml.split("\n", 1)[1])
-        assert root.findtext("id") == "106379"
+        assert root.findtext("id") == "416744"
 
     def test_episodeguide(self, generator: NFOGenerator) -> None:
-        """Episodeguide should contain TMDB ID."""
+        """Episodeguide mirrors <id> (TVDB for TV shows)."""
         xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA)
         root = ET.fromstring(xml.split("\n", 1)[1])
-        assert root.findtext("episodeguide") == "106379"
+        assert root.findtext("episodeguide") == "416744"
 
 
 # ---------------------------------------------------------------------------
@@ -713,6 +721,7 @@ class TestTvshowNFOActorsImages:
         root = ET.fromstring(xml.split("\n", 1)[1])
         poster = root.find("thumb[@aspect='poster']")
         assert poster is not None
+        assert poster.text is not None
         assert "original" in poster.text
 
     def test_fanart(self, generator: NFOGenerator) -> None:
@@ -805,16 +814,16 @@ class TestTvshowMediaElchConformity:
         assert not missing, f"Missing MediaElch tags: {missing}"
 
     def test_uniqueid_types_match(self, generator: NFOGenerator) -> None:
-        """Uniqueid types should match MediaElch: tmdb (default), tvdb, imdb."""
+        """Uniqueid types: tvdb (default), tmdb, imdb."""
         xml = generator.generate_tvshow_nfo(SAMPLE_TVSHOW_DATA)
         root = ET.fromstring(xml.split("\n", 1)[1])
         uids = root.findall("uniqueid")
         types = {u.get("type") for u in uids}
         assert types == {"tmdb", "tvdb", "imdb"}
-        # TMDB should be default for TV shows
+        # TVDB is canonical for TV shows.
         default_uid = [u for u in uids if u.get("default") == "true"]
         assert len(default_uid) == 1
-        assert default_uid[0].get("type") == "tmdb"
+        assert default_uid[0].get("type") == "tvdb"
 
 
 # ---------------------------------------------------------------------------

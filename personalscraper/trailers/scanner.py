@@ -183,18 +183,16 @@ class Scanner:
 
         Queries the indexer database for media items that have no
         ``item_attribute(key='trailer_found')`` row.  The filesystem path for
-        each item is recovered from the ``dispatch_path`` attribute stored by
-        the dispatch layer when the item was first moved to permanent storage.
+        each item is recovered from the ``dispatch_path`` flex attribute,
+        which is written both by the dispatch layer (on move into permanent
+        storage) and by ``library/scanner.scan_library`` (on direct disk
+        indexing).  Items reach the indexer through either entry point and
+        are therefore visible regardless of how they were first registered.
 
         Items whose ``dispatch_path`` attribute is absent or whose path does
         not exist on disk are skipped with a debug-level log — they may belong
-        to an unmounted disk.
-
-        The TTL-based in-memory cache (``_last_scan_time`` / ``_is_scan_fresh``)
-        and the ``library_scan_max_age_hours`` config knob used in earlier
-        versions of this method have been removed.  Every call performs a fresh
-        DB query; callers that previously relied on ``force_refresh=True`` to
-        bypass the cache can now simply call this method unconditionally.
+        to an unmounted disk or to a stale row that has not yet been
+        reconciled.
 
         Args:
             conn: Open, readable SQLite connection to the indexer database.

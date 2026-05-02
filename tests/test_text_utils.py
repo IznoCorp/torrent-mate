@@ -145,3 +145,59 @@ class TestFuzzyMatchScore:
         assert fuzzy_match_score("Shrinking (2023)", "Shrinking") is not None
         assert fuzzy_match_score("The Boys", "The Boys (2019)") is not None
         assert fuzzy_match_score("The Boys (2019)", "The Boys") is not None
+
+
+class TestSanitizeFilename:
+    """Tests for sanitize_filename — NTFS safety + space normalisation.
+
+    The sanitizer strips every NTFS-illegal character outright (including
+    the colon). It does NOT introduce a separator like `` - `` in place of
+    the colon: the project's filename patterns use `-` as a structural
+    separator (``{Title}-poster.jpg``, ``S01E01 - {EpisodeTitle}``), so
+    injecting another dash inside the title would create filenames with
+    two semantically different dashes that the round-trip parsers in
+    ``naming_patterns.py`` cannot disambiguate.
+    """
+
+    def test_colon_stripped_keeps_pattern_consistency(self):
+        """Colon is stripped; the resulting double space collapses to one."""
+        from personalscraper.text_utils import sanitize_filename
+
+        # "Peaky Blinders : L'Immortel" → "Peaky Blinders L'Immortel"
+        # (colon stripped, double space collapsed). Subtitle separation is
+        # lost cosmetically but no extra dash is introduced — patterns
+        # that key on `-` keep their meaning.
+        assert sanitize_filename("Peaky Blinders : L'Immortel") == "Peaky Blinders L'Immortel"
+        assert sanitize_filename("Star Trek: TNG (1987)") == "Star Trek TNG (1987)"
+
+    def test_other_ntfs_illegal_chars_stripped(self):
+        r"""``<>"/\|?*`` are still removed outright (no useful replacement)."""
+        from personalscraper.text_utils import sanitize_filename
+
+        assert sanitize_filename('Title<bad>"end') == "Titlebadend"
+        assert sanitize_filename("a/b\\c|d?e*f") == "abcdef"
+
+    def test_non_breaking_space_normalised(self):
+        """U+00A0 NBSP is normalised to a regular space."""
+        from personalscraper.text_utils import sanitize_filename
+
+        assert sanitize_filename("Title (2024)") == "Title (2024)"
+
+    def test_double_spaces_collapsed(self):
+        """Resulting double spaces from substitutions collapse to one."""
+        from personalscraper.text_utils import sanitize_filename
+
+        assert sanitize_filename("Multi  Space") == "Multi Space"
+
+    def test_ntfs_illegal_regex_includes_colon(self):
+        """``_NTFS_ILLEGAL`` flags a raw colon for post-sanitisation checks.
+
+        Used by downstream consumers scanning the filesystem (e.g. the
+        dispatch pre-rsync NTFS guard) to detect any colon that slipped
+        through manual file placement, even though the sanitizer would
+        have replaced it on entry through the normal pipeline.
+        """
+        from personalscraper.text_utils import _NTFS_ILLEGAL
+
+        assert _NTFS_ILLEGAL.search("Title : Subtitle.mkv") is not None
+        assert _NTFS_ILLEGAL.search("clean_title.mkv") is None

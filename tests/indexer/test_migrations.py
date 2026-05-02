@@ -104,15 +104,15 @@ def _user_version(conn: sqlite3.Connection) -> int:
 class TestApplyMigrations001:
     """apply_migrations applies all migrations to a fresh database correctly.
 
-    With migration 002 present, the final schema version is 2.
+    With migrations 001-004 present, the final schema version is 4.
     """
 
-    def test_user_version_is_2(self, tmp_path: Path) -> None:
-        """After applying 001+002, PRAGMA user_version equals 2."""
+    def test_user_version_matches_latest(self, tmp_path: Path) -> None:
+        """After applying every migration, PRAGMA user_version equals the latest version (4)."""
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path)
         apply_migrations(conn, MIGRATIONS_DIR)
-        assert _user_version(conn) == 2
+        assert _user_version(conn) == 4
 
     def test_all_17_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all 17 expected tables exist."""
@@ -122,15 +122,23 @@ class TestApplyMigrations001:
         assert _table_names(conn) == _EXPECTED_TABLES_V1
 
     def test_schema_version_row_exists(self, tmp_path: Path) -> None:
-        """After applying all migrations, schema_version contains the latest version."""
+        """After applying all migrations, schema_version contains every version 1..N.
+
+        Specifically, every migration script must record its version in the
+        ``schema_version`` audit table — this is the contract that lets
+        ``library-status`` and downgrade tooling reason about the migration
+        chain. A migration that bumps ``PRAGMA user_version`` without
+        inserting into ``schema_version`` is a bug (see fc7d16c).
+        """
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path)
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
         assert rows is not None
         versions = [r[0] for r in rows]
-        assert 1 in versions
-        assert 2 in versions
+        # Every migration in the chain must register its version.
+        for v in (1, 2, 3, 4):
+            assert v in versions, f"migration {v} did not insert into schema_version"
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +155,7 @@ class TestApplyMigrationsIdempotence:
         conn = open_db(db_path)
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
-        assert version_after_first == 2
+        assert version_after_first == 4
         # Second call must be a no-op.
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == version_after_first
@@ -160,6 +168,117 @@ class TestApplyMigrationsIdempotence:
         tables_after_first = _table_names(conn)
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _table_names(conn) == tables_after_first
+
+
+class TestMigration003RepairQueueDedup:
+    """Migration 003 collapses duplicate pending repair rows + adds UNIQUE index.
+
+    Validates the data-mutation path of the migration on a DB that already
+    contains duplicates — guards against future edits that accidentally
+    drop the collapse step or the DELETE filter.
+    """
+
+    def _apply_through_002(self, conn: sqlite3.Connection) -> None:
+        """Run migrations 001 + 002 only (skip 003) so we can seed duplicates."""
+        for name in ("001_init.sql", "002_nullable_release_id_oshash.sql"):
+            sql = (MIGRATIONS_DIR / name).read_text(encoding="utf-8")
+            conn.executescript(sql)
+
+    def _apply_003(self, conn: sqlite3.Connection) -> None:
+        """Run migration 003 (the dedup migration under test)."""
+        sql = (MIGRATIONS_DIR / "003_repair_queue_pending_dedup.sql").read_text(encoding="utf-8")
+        conn.executescript(sql)
+
+    def test_collapses_duplicates_keeps_oldest(self, tmp_path: Path) -> None:
+        """Two pending rows for the same (scope, scope_id) collapse to the oldest."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        self._apply_through_002(conn)
+
+        # Seed three pending duplicates (same scope+scope_id, different enqueued_at)
+        # plus one terminal 'done' row that should survive untouched.
+        conn.executemany(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) VALUES (?, ?, ?, ?, ?)",
+            [
+                ("file", 42, "drift_run_1", 100, "pending"),
+                ("file", 42, "drift_run_2", 200, "pending"),
+                ("file", 42, "drift_run_3", 300, "pending"),
+                ("file", 42, "old_completed", 50, "done"),
+            ],
+        )
+        conn.commit()
+
+        self._apply_003(conn)
+
+        # One pending row survives — the oldest.
+        rows = conn.execute(
+            "SELECT id, reason, enqueued_at FROM repair_queue WHERE scope='file' AND scope_id=42 AND status='pending'"
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0][1] == "drift_run_1"
+        assert rows[0][2] == 100
+
+        # The terminal 'done' row is untouched.
+        done_rows = conn.execute(
+            "SELECT id FROM repair_queue WHERE scope='file' AND scope_id=42 AND status='done'"
+        ).fetchall()
+        assert len(done_rows) == 1
+
+    def test_subsequent_insert_or_ignore_dedups(self, tmp_path: Path) -> None:
+        """After 003, ``INSERT OR IGNORE`` skips a duplicate pending row."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('item', 7, 'first', 100, 'pending')"
+        )
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('item', 7, 'second', 200, 'pending')"
+        )
+        # Second INSERT must be a no-op.
+        assert cursor.rowcount == 0
+
+        rows = conn.execute("SELECT reason FROM repair_queue WHERE scope='item' AND scope_id=7").fetchall()
+        assert len(rows) == 1
+        assert rows[0][0] == "first"
+
+    def test_terminal_row_does_not_block_new_pending(self, tmp_path: Path) -> None:
+        """A 'done'/'failed' row does NOT block a fresh pending row for the same target."""
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        apply_migrations(conn, MIGRATIONS_DIR)
+
+        conn.execute(
+            "INSERT INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('file', 9, 'first_run', 100, 'done')"
+        )
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO repair_queue (scope, scope_id, reason, enqueued_at, status) "
+            "VALUES ('file', 9, 'second_run', 200, 'pending')"
+        )
+        # Insert succeeds — partial UNIQUE INDEX is keyed only on pending rows.
+        assert cursor.rowcount == 1
+
+    def test_idempotent_re_apply_via_apply_migrations(self, tmp_path: Path) -> None:
+        """Running apply_migrations twice is a no-op for migration 003 specifically.
+
+        The migration uses ``CREATE UNIQUE INDEX IF NOT EXISTS`` so even if an
+        outer caller bypassed the user_version skip-if-applied logic, the
+        script itself would not raise on re-execution.
+        """
+        db_path = tmp_path / "lib.db"
+        conn = open_db(db_path)
+        apply_migrations(conn, MIGRATIONS_DIR)
+        # Manually re-execute 003 — must not raise even though the index exists.
+        self._apply_003(conn)
+        # Verify the index still exists exactly once.
+        rows = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_repair_pending_dedup'"
+        ).fetchall()
+        assert len(rows) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -176,14 +295,13 @@ class TestChainReplayEquivalence:
     """
 
     def test_chain_replay_matches_v1_plus_002_fixture(self, tmp_path: Path) -> None:
-        """Path A (v1.sql + 002.sql via executescript) and Path B (apply_migrations) yield identical schemas.
+        """Path A (v1.sql + 002.sql + 003.sql via executescript) and Path B (apply_migrations) yield identical schemas.
 
-        Path A: load ``v1.sql`` then ``002_nullable_release_id_oshash.sql`` directly
-        into an in-memory DB via ``executescript``.
+        Path A: load ``v1.sql`` then every published migration script after
+        the v1 fixture directly into an in-memory DB via ``executescript``.
 
         Path B: open a fresh file-based DB, call ``apply_migrations`` to run
-        ``001_init.sql`` + ``002_nullable_release_id_oshash.sql`` through the
-        normal migration path.
+        every script in ``MIGRATIONS_DIR`` through the normal migration path.
 
         The resulting ``dump_schema()`` strings must be equal.  This guards
         against the case where someone edits a migration script without the other
@@ -191,12 +309,19 @@ class TestChainReplayEquivalence:
         corrupt the schema.
         """
         v1_sql = (FIXTURES_DIR / "v1.sql").read_text(encoding="utf-8")
-        v2_sql = (MIGRATIONS_DIR / "002_nullable_release_id_oshash.sql").read_text(encoding="utf-8")
+        # Apply every migration with version >= 2 in numeric order so the
+        # fixture-replay path mirrors the apply_migrations chain.  v1.sql is
+        # the canonical version-1 schema and stands in for 001_init.sql.
+        post_v1_scripts = sorted(
+            (p for p in MIGRATIONS_DIR.glob("*.sql") if p.name != "001_init.sql"),
+            key=lambda p: int(p.name.split("_", 1)[0]),
+        )
 
-        # Path A: direct executescript on in-memory DB (v1 fixture + 002 migration script).
+        # Path A: direct executescript on in-memory DB (v1 fixture + every later migration).
         db_a = sqlite3.connect(":memory:")
         db_a.executescript(v1_sql)
-        db_a.executescript(v2_sql)
+        for script in post_v1_scripts:
+            db_a.executescript(script.read_text(encoding="utf-8"))
 
         # Path B: apply_migrations on a fresh file-based DB.
         db_path_b = tmp_path / "b.db"
@@ -207,8 +332,8 @@ class TestChainReplayEquivalence:
         schema_b = dump_schema(db_b)
 
         assert schema_a == schema_b, (
-            "Schema mismatch between v1.sql+002.sql fixture and apply_migrations output.\n"
-            f"--- v1.sql+002.sql (Path A) ---\n{schema_a}\n"
+            "Schema mismatch between v1 fixture + post-v1 scripts and apply_migrations output.\n"
+            f"--- fixture-replay (Path A) ---\n{schema_a}\n"
             f"--- apply_migrations (Path B) ---\n{schema_b}"
         )
 
@@ -231,24 +356,25 @@ class TestApplyMigrationsFailureRollback:
     """
 
     def _setup_db_and_mig_dir(self, tmp_path: Path) -> tuple[Path, sqlite3.Connection, Path]:
-        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 003_noop + 999_bad.
+        """Create a seeded DB at latest version (via MIGRATIONS_DIR) and a mig_dir with 005_noop + 999_bad.
 
-        After applying MIGRATIONS_DIR the DB is at version 2 (migrations 001+002).
-        The custom mig_dir uses version 003 for the noop migration so it runs after 002.
+        After applying MIGRATIONS_DIR the DB is at the latest committed version
+        (migrations 001-004). The custom mig_dir uses version 005 for the noop
+        migration so it runs after the real chain.
 
         Args:
             tmp_path: Pytest-provided temporary directory.
 
         Returns:
             A tuple of ``(db_path, conn, mig_dir)`` ready for the rollback scenario.
-            ``conn`` is the open connection after applying 001+002.
-            ``mig_dir`` contains both ``003_noop.sql`` and ``999_bad.sql``.
+            ``conn`` is the open connection after applying the full chain.
+            ``mig_dir`` contains both ``005_noop.sql`` and ``999_bad.sql``.
         """
         mig_dir = tmp_path / "migrations"
         mig_dir.mkdir()
-        # Valid migration: creates `noop` table at version 3.
-        (mig_dir / "003_noop.sql").write_text(
-            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 3;\n",
+        # Valid migration: creates `noop` table at version 5.
+        (mig_dir / "005_noop.sql").write_text(
+            "CREATE TABLE noop (id INTEGER PRIMARY KEY);\nPRAGMA user_version = 5;\n",
             encoding="utf-8",
         )
         # Malformed migration: intentionally broken SQL at version 999.
@@ -258,7 +384,7 @@ class TestApplyMigrationsFailureRollback:
         )
         db_path = tmp_path / "lib.db"
         conn = open_db(db_path)
-        apply_migrations(conn, MIGRATIONS_DIR)  # applies 001+002; user_version=2
+        apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest
         return db_path, conn, mig_dir
 
     def test_bad_migration_raises_indexer_migration_error(self, tmp_path: Path) -> None:
@@ -290,7 +416,7 @@ class TestApplyMigrationsFailureRollback:
     def test_db_restored_no_foo_table_after_rollback(self, tmp_path: Path) -> None:
         """After rollback, the ``foo`` table from the malformed migration does not exist.
 
-        The snapshot for version 999 is taken after version 3 has been applied (``noop``
+        The snapshot for version 999 is taken after version 5 has been applied (``noop``
         table exists).  After rollback, the DB is at the snapshot state: ``noop`` present,
         ``foo`` absent.
         """
@@ -303,6 +429,6 @@ class TestApplyMigrationsFailureRollback:
         conn2 = open_db(db_path)
         tables = _table_names(conn2)
         assert "foo" not in tables, "foo table should not exist after rollback"
-        # noop was added by the successful 003 migration and should still be present
+        # noop was added by the successful 005 migration and should still be present
         # in the restored snapshot (which was taken just before 999).
-        assert "noop" in tables, "noop table from migration 003 should be preserved in snapshot"
+        assert "noop" in tables, "noop table from migration 005 should be preserved in snapshot"

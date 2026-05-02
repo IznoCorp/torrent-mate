@@ -11,7 +11,8 @@ Cross-references: DESIGN §6, §8, §11, §12, §13, §14, §17.
 
 ## Schema Overview
 
-The database lives at `.data/library.db` (WAL mode, internal disk).
+The database lives at `.personalscraper/library.db` by default (configurable
+via `indexer.db_path`; WAL mode; must reside on the internal APFS disk).
 Full DDL is in `personalscraper/indexer/migrations/001_init.sql`; the table list
 below gives a one-line description of each table's role.
 
@@ -76,7 +77,7 @@ distinct `media_file` rows; the collision is logged as
 ### N-strikes soft-delete policy
 
 A file that is not found on disk across **N consecutive scan generations** (N is
-configurable via `indexer.json5: drift.miss_strikes_threshold`, default 3)
+configurable via `indexer.json5: scan.n_strikes_for_softdelete`, default 3)
 receives a soft-delete tombstone (`deleted_at` set, `deleted_item` row inserted).
 The `media_item` and `media_release` rows are **never automatically deleted**;
 only `media_file` rows are soft-deleted. A human-readable `reason` is stored in
@@ -117,7 +118,7 @@ checkpoint and exits cleanly. The next invocation resumes from the checkpoint.
 
 ## Query Language
 
-`personalscraper library search QUERY` delegates to `indexer/query.py: execute()`.
+`personalscraper library-search QUERY` delegates to `indexer/query.py: execute()`.
 
 ### Token syntax
 
@@ -154,19 +155,19 @@ Multiple tokens are combined with `AND`.
 
 ```bash
 # TV shows on Disk2 without a valid NFO
-personalscraper library search "kind:show disk:Disk2 -nfo:valid"
+personalscraper library-search "kind:show disk:Disk2 -nfo:valid"
 
 # Movies from 2024 missing a trailer
-personalscraper library search "kind:movie year:2024 -trailer_found"
+personalscraper library-search "kind:movie year:2024 -trailer_found"
 
 # All HEVC files
-personalscraper library search "codec:hevc"
+personalscraper library-search "codec:hevc"
 
 # Title fragment (case-insensitive)
-personalscraper library search "Lost Highway"
+personalscraper library-search "Lost Highway"
 
 # Unknown field → treated as flex attr
-personalscraper library search "plex_watched:true"
+personalscraper library-search "plex_watched:true"
 ```
 
 `QueryError` is raised (exit 2) for unknown _native_ fields used with comparison
@@ -184,13 +185,13 @@ after an unclean unmount that left the index inconsistent.
 
 ```bash
 # 1. Quarantine the corrupt database (if any)
-mv .data/library.db .data/library.db.bak
+mv .personalscraper/library.db .personalscraper/library.db.bak
 
 # 2. Run a full scan — rebuilds from scratch
-personalscraper library index --mode full
+personalscraper library-index --mode full
 
 # 3. Verify the result
-personalscraper library status
+personalscraper library-status
 ```
 
 ### Single-disk rebuild (--rebuild flag)
@@ -199,7 +200,7 @@ The `--rebuild` flag quarantines the existing database and runs a full Stage-A
 rescan from scratch without requiring manual `mv`:
 
 ```bash
-personalscraper library index --rebuild
+personalscraper library-index --rebuild
 ```
 
 This is the recommended path after DB corruption detected by `library status`
@@ -210,8 +211,8 @@ This is the recommended path after DB corruption detected by `library status`
 When only one disk needs rebuilding, scope the scan:
 
 ```bash
-personalscraper library index --mode full --disk Disk3
-personalscraper library status --disk Disk3
+personalscraper library-index --mode full --disk Disk3
+personalscraper library-status --disk Disk3
 ```
 
 See `docs/reference/storage.md` §24 TB Operations Guide for estimated durations
@@ -275,11 +276,12 @@ in stderr (`SQLITE_CORRUPT` or integrity-check failure).
 Recovery:
 
 ```bash
-personalscraper library index --rebuild
+personalscraper library-index --rebuild
 ```
 
-The `--rebuild` flag quarantines `.data/library.db` to
-`.data/library.db.quarantine.<timestamp>` and runs a full Stage-A rescan.
+The `--rebuild` flag renames the existing DB to
+`<db_path>.corrupt-<unix_ts>` (default `.personalscraper/library.db.corrupt-<unix_ts>`)
+and runs a full Stage-A rescan from scratch.
 
 ### Stale lock
 
@@ -290,11 +292,12 @@ Recovery:
 
 ```bash
 # Manually remove the stale lock file
-rm .data/library.lock
-personalscraper library index
+rm .personalscraper/library.db.lock
+personalscraper library-index
 ```
 
-The lock file path is `indexer.json5: lock_path` (default `.data/library.lock`).
+The lock file path is derived from the database path as `<indexer.db_path>.lock`
+(default `.personalscraper/library.db.lock`); it is not separately configurable.
 
 ### Partial migration recovery
 
@@ -305,7 +308,7 @@ Recovery:
 
 ```bash
 # Re-run migrations (idempotent — already-applied migrations are skipped)
-personalscraper library index --mode quick
+personalscraper library-index --mode quick
 ```
 
 If the schema is corrupt beyond migration recovery, use `--rebuild`.
@@ -317,7 +320,7 @@ the scanner freezes drift processing to prevent mass false-deletes. Bypass for a
 single invocation:
 
 ```bash
-personalscraper library index --mode full --disk Disk2 --confirm-bulk-change
+personalscraper library-index --mode full --disk Disk2 --confirm-bulk-change
 ```
 
 ---

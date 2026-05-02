@@ -63,7 +63,7 @@ import re
 import sqlite3
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1477,7 +1477,7 @@ class TestEnrichMode:
 
         parse_call_count: list[int] = [0]
 
-        def _counting_parse(*args: object, **kwargs: object) -> object:
+        def _counting_parse(*args: Any, **kwargs: Any) -> Any:
             parse_call_count[0] += 1
             return MagicMock(tracks=[])
 
@@ -1816,7 +1816,7 @@ class TestParallelScan:
 
         original_scan_disk_full = scanner_module._scan_disk_full
 
-        def _raise_for_disk_fail(*args: object, **kwargs: object) -> object:
+        def _raise_for_disk_fail(*args: Any, **kwargs: Any) -> Any:
             disk = args[1]
             if isinstance(disk, DiskRow) and disk.label == "DiskFail":
                 raise RuntimeError("synthetic worker failure")
@@ -1861,7 +1861,7 @@ class TestParallelScan:
         original_finalize = scanner_module._finalize_disk_after_walk
         finalize_connection_ids: list[int] = []
 
-        def _record_finalize_conn(*args: object, **kwargs: object) -> object:
+        def _record_finalize_conn(*args: Any, **kwargs: Any) -> Any:
             finalize_connection_ids.append(id(args[0]))
             return original_finalize(*args, **kwargs)
 
@@ -1909,7 +1909,7 @@ class TestParallelScan:
         real_tpe = _TPE
 
         class _SpyTPE(real_tpe):  # type: ignore[misc]
-            def __init__(self, *args: object, max_workers: int | None = None, **kwargs: object) -> None:
+            def __init__(self, *args: Any, max_workers: int | None = None, **kwargs: Any) -> None:
                 captured_max_workers.append(max_workers if max_workers is not None else 1)
                 super().__init__(*args, max_workers=max_workers, **kwargs)
 
@@ -1941,6 +1941,67 @@ class TestParallelScan:
                 f"Expected max_workers=1 for single-disk filter, got {captured_max_workers[0]}"
             )
         # If no executor was created, the sequential path was used — also correct.
+
+    # ------------------------------------------------------------------
+    # Test 4: enrich mode pins to 1 worker (libmediainfo not thread-safe)
+    # ------------------------------------------------------------------
+
+    def test_enrich_mode_honours_caller_max_workers(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Enrich mode is no longer artificially pinned to one worker.
+
+        The libmediainfo segfault that motivated the previous pin is now
+        addressed by the wider ``_MEDIAINFO_PARSE_LOCK`` (covers parse +
+        track iteration + lazy attribute reads), so per-disk parallelism
+        can resume. Parse calls still serialise on the lock; everything
+        else (NFO inventory, artwork inventory, release linkage,
+        ``enriched_at`` updates) overlaps across disks.
+        """
+        from concurrent.futures import ThreadPoolExecutor as _TPE
+
+        db_file = tmp_path / "indexer_enrich.db"
+        conn = _make_conn_file(db_file)
+
+        mount_a = str(tmp_path / "DiskA")
+        mount_b = str(tmp_path / "DiskB")
+        Path(mount_a).mkdir()
+        Path(mount_b).mkdir()
+        Path(f"{mount_a}/movie.mkv").write_bytes(b"M" * 200)
+        Path(f"{mount_b}/movie.mkv").write_bytes(b"M" * 200)
+
+        disk_a = _insert_disk_on_conn(conn, mount_a)
+        disk_b = _insert_disk_on_conn(conn, mount_b)
+
+        captured_max_workers: list[int] = []
+        real_tpe = _TPE
+
+        class _SpyTPE(real_tpe):  # type: ignore[misc]
+            def __init__(self, *args: Any, max_workers: int | None = None, **kwargs: Any) -> None:
+                captured_max_workers.append(max_workers if max_workers is not None else 1)
+                super().__init__(*args, max_workers=max_workers, **kwargs)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            with patch(
+                "personalscraper.indexer.scanner._concurrency.ThreadPoolExecutor",
+                _SpyTPE,
+            ):
+                result = scan(
+                    [disk_a, disk_b],
+                    ScanMode.enrich,
+                    generation=1,
+                    conn=conn,
+                    db_path=db_file,
+                    max_workers=4,
+                )
+
+        assert result.status == "ok"
+        # Caller passed 4 workers, two disks → expect 2 (clamped to len(disks)).
+        if captured_max_workers:
+            assert captured_max_workers[0] == 2, (
+                f"Expected max_workers=2 (clamped to len(disks)), got {captured_max_workers[0]}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -2651,3 +2712,106 @@ class TestScanUnexpectedExceptionReraise:
         assert rows[0]["status"] == "failed", (
             f"Expected scan_run.status='failed' after unexpected exception, got {rows[0]['status']!r}"
         )
+
+
+class TestVerifyMode:
+    """Verify mode: re-stat existing media_file rows and enqueue repair on drift."""
+
+    def test_verify_clean_files_bump_last_verified_at(self, fs: "FakeFilesystem") -> None:
+        """Files whose on-disk size + mtime match the DB get last_verified_at updated."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyCleanDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        Path(f"{mount}/movie.mkv").write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        before = conn.execute("SELECT id, last_verified_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
+        assert before is not None
+        baseline_verified = before["last_verified_at"]
+
+        # Sleep a beat so last_verified_at strictly advances.
+        time.sleep(1)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn)
+
+        after = conn.execute(
+            "SELECT last_verified_at, scan_generation FROM media_file WHERE id = ?",
+            (before["id"],),
+        ).fetchone()
+        assert after is not None
+        assert after["last_verified_at"] >= baseline_verified
+        assert after["scan_generation"] == 2
+
+        # No repair_queue rows should be enqueued.
+        repair_count = conn.execute("SELECT COUNT(*) FROM repair_queue").fetchone()[0]
+        assert repair_count == 0
+
+    def test_verify_size_mismatch_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+        """A file whose size has changed since last scan is escalated to repair_queue."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyDriftDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        movie = Path(f"{mount}/movie.mkv")
+        movie.write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        # Mutate the file size on disk.
+        movie.write_bytes(b"V" * 600)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT scope, scope_id, reason, payload_json FROM repair_queue").fetchall()
+        assert len(rows) == 1
+        assert rows[0]["scope"] == "file"
+        assert "drift" in rows[0]["reason"]
+        assert "expected_size" in rows[0]["payload_json"]
+
+    def test_verify_missing_file_enqueues_repair(self, fs: "FakeFilesystem") -> None:
+        """A file deleted from disk is enqueued for repair (no soft-delete)."""
+        fs.pause()
+        conn = _make_conn_real()
+        fs.resume()
+
+        mount = "/mnt/VerifyMissingDisk"
+        Path(mount).mkdir(parents=True, exist_ok=True)
+        movie = Path(f"{mount}/movie.mkv")
+        movie.write_bytes(b"V" * 300)
+
+        disk = _insert_disk(conn, mount)
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.full, generation=1, conn=conn)
+
+        movie.unlink()
+
+        with patch(_GUARD_PATCH, return_value=None):
+            scan([disk], ScanMode.verify, generation=2, conn=conn)
+
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT scope, reason FROM repair_queue").fetchall()
+        assert len(rows) == 1
+        assert rows[0]["scope"] == "file"
+        assert "missing" in rows[0]["reason"]
+
+        # The media_file row must NOT have been soft-deleted (verify is non-destructive).
+        deleted_at = conn.execute("SELECT deleted_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
+        assert deleted_at is not None
+        assert deleted_at[0] is None

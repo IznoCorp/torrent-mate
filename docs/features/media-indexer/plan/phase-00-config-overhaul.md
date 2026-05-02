@@ -155,7 +155,7 @@ Split the monolithic `.personalscraper/config.json5` into one file per concern u
 
 - This sub-phase MUST run before any consumer migration starts (Phases 6+) — Phase 6 will strip `media_index.json` and Phase 7 will rewrite `library/scanner.py`, after which it becomes impossible to regenerate v0.7 outputs.
 - `build_v07_fs.py`: Python script using `pathlib` + `os.makedirs` to fabricate ~30 items spanning movies, TV shows w/ seasons, audiobooks. Pinned random seed; deterministic. Files are zero-byte (size faked via xattr or sparse `truncate(2)`); NFOs and artwork are real small files. Output directory is gitignored; the _script_ is committed.
-- `v0.7-library_scan.json`: produced by checking out main at the trailer-merge SHA (`0840131`), running `personalscraper library scan` against the fixture FS, copying the resulting JSON to this path. Manual one-shot operation, documented in this sub-phase's commit message.
+- `v0.7-library_scan.json`: produced by checking out main at the trailer-merge SHA (`0840131`), running `personalscraper library-scan` against the fixture FS, copying the resulting JSON to this path. Manual one-shot operation, documented in this sub-phase's commit message.
 - `v0.7-media_index.json`: same procedure with `MediaIndex.rebuild()` invoked manually on the fixture.
 - These snapshots become the immutable parity baseline used by `tests/integration/test_consumer_parity.py` (created in Phase 7.6).
 

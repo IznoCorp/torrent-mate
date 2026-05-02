@@ -48,6 +48,12 @@ def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> St
                 f"[sanitize:{sanitize_result.action}] {sanitize_result.old_name}"
                 + (f" → {sanitize_result.new_name}" if sanitize_result.new_name else "")
             )
+            log.info(
+                "enforce_sanitize_action",
+                action=sanitize_result.action,
+                old_name=sanitize_result.old_name,
+                new_name=sanitize_result.new_name,
+            )
 
     # Structure fixes
     for structure_result in structure_results:
@@ -55,13 +61,28 @@ def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> St
             success += 1
             for fix in structure_result.fixes:
                 details.append(f"[structure:fix] {structure_result.path.name}: {fix}")
+                log.info(
+                    "enforce_structure_fix",
+                    item=structure_result.path.name,
+                    fix=fix,
+                )
         for w in structure_result.warnings:
             warnings_list.append(f"{structure_result.path.name}: {w}")
+            log.warning(
+                "enforce_structure_warning",
+                item=structure_result.path.name,
+                warning=w,
+            )
 
     # Coherence warnings
     for coherence_result in coherence_results:
         for w in coherence_result.warnings:
             warnings_list.append(f"[coherence] {coherence_result.path.name}: {w}")
+            log.warning(
+                "enforce_coherence_warning",
+                item=coherence_result.path.name,
+                warning=w,
+            )
 
     skip_count = sum(1 for sr in sanitize_results if sr.action == "skipped") + sum(
         1 for sr in structure_results if sr.action == "validated"

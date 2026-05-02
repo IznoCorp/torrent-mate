@@ -93,14 +93,24 @@ def _write_baseline(rows_by_mode: dict[str, dict[str, Any]]) -> None:
 def _open_db(path: Path) -> sqlite3.Connection:
     """Open a file-backed SQLite connection with the full indexer schema applied.
 
+    Sets ``journal_mode=WAL`` and ``busy_timeout=30000`` upfront so the
+    test connection plays well with the scanner's per-worker connections
+    (which open with the same PRAGMAs).  Without this the DB would start
+    in rollback-journal mode; the first worker that runs ``PRAGMA
+    journal_mode=WAL`` then needs an exclusive lock to switch journal
+    modes, contending with the test's own connection and producing
+    transient ``database is locked`` failures on loaded CI runners.
+
     Args:
         path: On-disk database path (created if absent).
 
     Returns:
-        Open :class:`sqlite3.Connection` with FK enforcement and all migrations
-        applied.
+        Open :class:`sqlite3.Connection` with FK enforcement, WAL mode,
+        a 30 s busy timeout, and all migrations applied.
     """
     conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     conn.execute("PRAGMA foreign_keys=ON")
     apply_migrations(conn, _MIGRATIONS_DIR)
     return conn

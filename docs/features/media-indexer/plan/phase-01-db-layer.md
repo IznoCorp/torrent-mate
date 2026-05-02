@@ -8,13 +8,13 @@
 
 **This phase's exit gate (verbatim from DESIGN §16):**
 
-> `personalscraper library status` runs on a fresh DB and prints "no scans yet".
+> `personalscraper library-status` runs on a fresh DB and prints "no scans yet".
 
 ---
 
 ## Scope
 
-Stand up the SQLite database layer: connection + PRAGMAs, the full `001_init.sql` schema, the migration applier, dataclass row types, and per-table Repository skeletons. No scanner, no fingerprinter — just the persistent store and its typed access layer. The `personalscraper library status` command gets a minimal stub sufficient to open the DB and confirm it is empty.
+Stand up the SQLite database layer: connection + PRAGMAs, the full `001_init.sql` schema, the migration applier, dataclass row types, and per-table Repository skeletons. No scanner, no fingerprinter — just the persistent store and its typed access layer. The `personalscraper library-status` command gets a minimal stub sufficient to open the DB and confirm it is empty.
 
 ---
 
@@ -142,7 +142,7 @@ Stand up the SQLite database layer: connection + PRAGMAs, the full `001_init.sql
   - `file_repo`: insert file, lookup by `(path_id, filename)`, soft-delete (`deleted_at`), miss-strike increment.
   - `tv_repo`: insert season + episode, trigger `trg_season_requires_show` rejects `kind='movie'`.
   - `log_repo`: insert `scan_run`, update `status`, insert `scan_event`, insert `deleted_item`.
-- `indexer/cli.py`: `personalscraper library status` — opens DB (creates if absent via `apply_migrations`), queries `scan_run` for the most recent completed run. If none, prints "no scans yet". Gate check passes when this runs on a fresh DB.
+- `indexer/cli.py`: `personalscraper library-status` — opens DB (creates if absent via `apply_migrations`), queries `scan_run` for the most recent completed run. If none, prints "no scans yet". Gate check passes when this runs on a fresh DB.
 
 **Tests added:** `tests/indexer/test_repos_disk.py`, `tests/indexer/test_repos_item.py`, `tests/indexer/test_repos_file.py`, `tests/indexer/test_repos_tv.py`, `tests/indexer/test_repos_log.py`
 
@@ -154,7 +154,7 @@ Stand up the SQLite database layer: connection + PRAGMAs, the full `001_init.sql
 
 - [ ] `pytest tests/indexer/` passes (all new tests green).
 - [ ] `pytest` (full suite) passes — no Phase 0 test regression.
-- [ ] `personalscraper library status` on a fresh (non-existent) `library.db` prints "no scans yet" and exits 0.
+- [ ] `personalscraper library-status` on a fresh (non-existent) `library.db` prints "no scans yet" and exits 0.
 - [ ] `open_db()` on a malformed `.db` file quarantines it to `*.corrupt-<ts>` and raises `IndexerCorruptError`.
 - [ ] `open_db()` on a path on a macFUSE-NTFS volume raises `IndexerConfigError` with message explaining WAL unreliability.
 - [ ] `apply_migrations` on an already-current DB is a no-op (idempotent).
@@ -177,6 +177,6 @@ Implements: §6.1 (connection + PRAGMAs), §6.2 (schema), §6.3 (migrations + ap
 - Scanner, fingerprinter, drift engine — Phase 2+.
 - `outbox_repo` full implementation (schema exists; write-through logic lands in Phase 5).
 - `repair_queue` drain worker — Phase 3.
-- `personalscraper library index` (beyond the no-op status stub) — Phase 2.
+- `personalscraper library-index` (beyond the no-op status stub) — Phase 2.
 - Consumer migration of `dispatch/media_index.py` — Phase 6.
 - Property-based tests (hypothesis) — Phase 3.

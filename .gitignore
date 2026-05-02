@@ -126,7 +126,7 @@ docs/pipeline-runs/
 # V15 runtime state (library index, tracker, lock, analysis results, .v14.bak backups)
 .data/
 # Legacy dispatch index — superseded by library.db; safe to delete after
-# running `personalscraper library index --mode full`.
+# running `personalscraper library-index --mode full`.
 .data/media_index.json
 
 # V15: personal config (paths + preferences, no secrets but gitignored for privacy)

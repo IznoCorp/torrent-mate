@@ -76,7 +76,7 @@ Replace `dispatch/media_index.py`'s JSON-file backend with a thin wrapper over t
 **Deliverable:**
 
 - `MediaIndex.__init__`: if `library.db` does not exist OR `SELECT COUNT(*) FROM media_item` = 0, log `indexer.config.no_index` and trigger `rebuild(disk_configs)` automatically (disk_configs sourced from global `Config`).
-- If `media_index.json` is found on disk (legacy), log a one-time deprecation warning: "media_index.json found; it is no longer used — run `personalscraper library index --mode full` to populate the indexer." Do not read the JSON.
+- If `media_index.json` is found on disk (legacy), log a one-time deprecation warning: "media_index.json found; it is no longer used — run `personalscraper library-index --mode full` to populate the indexer." Do not read the JSON.
 - First-run rebuild only runs once: once `media_item` rows exist, subsequent `__init__` calls skip it.
 - Test: initialise `MediaIndex` with empty `library.db` → `rebuild` called automatically → `media_item` rows exist after init.
 

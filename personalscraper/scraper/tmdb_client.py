@@ -26,7 +26,11 @@ from tenacity import (
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
+from personalscraper.scraper.http_retry import (
+    build_retry_logger,
+    make_retryable_predicate,
+    wait_with_retry_after,
+)
 
 if TYPE_CHECKING:
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
@@ -221,7 +225,7 @@ class TMDBClient:
 
     @retry(
         retry=retry_if_exception(_is_retryable),
-        wait=wait_exponential_jitter(initial=0.5, max=10, jitter=0.5),
+        wait=wait_with_retry_after(wait_exponential_jitter(initial=0.5, max=10, jitter=0.5)),
         stop=stop_after_attempt(4),
         before_sleep=build_retry_logger(log, "tmdb_retry"),
         reraise=True,
@@ -374,7 +378,50 @@ class TMDBClient:
 
     # -- Type-specific methods --
 
-    def search_movie(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
+    def _search_paginated(
+        self,
+        endpoint: str,
+        base_params: dict[str, Any],
+        max_pages: int,
+    ) -> list[dict[str, Any]]:
+        """Fetch paginated TMDB ``/search`` results up to ``max_pages``.
+
+        TMDB returns 20 results per page; ambiguous titles (e.g. franchise
+        entries with many spinoffs) routinely exceed the first page.
+        Stops when the response carries fewer pages than the request, when
+        ``max_pages`` is reached, or when an empty page is returned.
+
+        Args:
+            endpoint: Search endpoint, e.g. ``"/search/movie"``.
+            base_params: Per-call params (``query``, ``year``, etc.) merged
+                with each ``page=N``.
+            max_pages: Hard upper bound on pages fetched.  Capped at 5 to
+                bound API quota usage even when callers ask for more.
+
+        Returns:
+            Flattened list of result dicts across all consumed pages.
+        """
+        max_pages = max(1, min(max_pages, 5))
+        results: list[dict[str, Any]] = []
+        for page in range(1, max_pages + 1):
+            params = dict(base_params)
+            params["page"] = page
+            data = self._get(endpoint, params)
+            page_results = cast(list[dict[str, Any]], data.get("results", []))
+            results.extend(page_results)
+            if not page_results:
+                break
+            total_pages = int(data.get("total_pages", 1))
+            if page >= total_pages:
+                break
+        return results
+
+    def search_movie(
+        self,
+        title: str,
+        year: int | None = None,
+        max_pages: int = 3,
+    ) -> list[dict[str, Any]]:
         """Search for movies by title.
 
         The year parameter boosts relevance but does NOT exclude other years.
@@ -384,6 +431,9 @@ class TMDBClient:
         Args:
             title: Movie title to search for.
             year: Optional release year to boost relevance.
+            max_pages: Maximum pages to fetch (TMDB serves 20 results / page).
+                Default ``3`` (60 candidates) is enough for most ambiguous
+                franchise titles without exhausting API quota.
 
         Returns:
             List of movie result dicts from the API.
@@ -391,10 +441,14 @@ class TMDBClient:
         params: dict[str, Any] = {"query": title}
         if year is not None:
             params["year"] = year
-        data = self._get("/search/movie", params)
-        return cast(list[dict[str, Any]], data.get("results", []))
+        return self._search_paginated("/search/movie", params, max_pages)
 
-    def search_tv(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
+    def search_tv(
+        self,
+        title: str,
+        year: int | None = None,
+        max_pages: int = 3,
+    ) -> list[dict[str, Any]]:
         """Search for TV shows by title.
 
         Uses first_air_date_year (not year) for TV show searches.
@@ -402,6 +456,7 @@ class TMDBClient:
         Args:
             title: TV show title to search for.
             year: Optional first air date year to boost relevance.
+            max_pages: Maximum pages to fetch (see :meth:`search_movie`).
 
         Returns:
             List of TV show result dicts from the API.
@@ -410,8 +465,7 @@ class TMDBClient:
         if year is not None:
             # TMDB uses first_air_date_year for TV, not year
             params["first_air_date_year"] = year
-        data = self._get("/search/tv", params)
-        return cast(list[dict[str, Any]], data.get("results", []))
+        return self._search_paginated("/search/tv", params, max_pages)
 
     def get_movie(self, movie_id: int) -> dict[str, Any]:
         """Get full movie details with credits, images, IDs, and certifications.

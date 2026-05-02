@@ -54,9 +54,12 @@ class DiskConfig(_StrictModel):
         id: Free-form disk identifier (must match ``^[a-z][a-z0-9_]*$``).
         path: Absolute mounted path.
         categories: Category IDs accepted on this disk.
-        spotlight_enabled: Whether Spotlight indexing is enabled on this disk.
-            Defaults to False. User must opt in after running ``mdutil -i on``
-            on the volume; macFUSE-NTFS volumes are never Spotlight-indexable.
+        spotlight_enabled: **Reserved.** Documented as a per-disk
+            Spotlight opt-in, but ``indexer/scanner/__init__.py:517``
+            passes the *global* ``cfg.indexer.spotlight.use_when_available``
+            flag to ``try_attach`` for every disk — the per-disk field
+            is never read. Use ``indexer.spotlight.use_when_available``
+            globally; setting this per-disk has no effect today.
     """
 
     id: str = Field(
@@ -69,10 +72,7 @@ class DiskConfig(_StrictModel):
     categories: Annotated[list[str], Field(min_length=1)] = Field(..., description="IDs acceptés sur ce disque.")
     spotlight_enabled: bool = Field(
         default=False,
-        description=(
-            "Whether Spotlight indexing is enabled on this disk. "
-            "Opt in after `mdutil -i on`. macFUSE-NTFS volumes are never Spotlight-indexable."
-        ),
+        description="Reserved (global indexer.spotlight.use_when_available used per-disk today).",
     )
 
 
@@ -361,14 +361,17 @@ class AudioPrefs(_StrictModel):
     """Préférences audio (reprend les champs de l'ancien AudioPreferences).
 
     Attributes:
-        profile_priority: Ordered preference for audio profiles.
-        min_channels: Minimum channel count (flags mono as suspect).
-        preferred_codec: Preferred audio codec (None = no preference).
+        profile_priority: Ordered preference for audio profiles. **Consumed**
+            by ``library/recommender.py`` to rank candidates.
+        min_channels: **Reserved.** Declared as "minimum channel count
+            (flags mono as suspect)" but no code path reads it today.
+        preferred_codec: **Reserved.** Declared but no code path reads it;
+            audio codec is not currently part of the recommender's scoring.
     """
 
     profile_priority: list[str] = Field(default_factory=lambda: ["multi", "vf", "vostfr", "vo"])
-    min_channels: int = Field(default=2, ge=1)
-    preferred_codec: str | None = Field(default=None)
+    min_channels: int = Field(default=2, ge=1, description="Reserved (not currently consumed).")
+    preferred_codec: str | None = Field(default=None, description="Reserved (not currently consumed).")
 
 
 class SubtitlePrefs(_StrictModel):
@@ -377,14 +380,22 @@ class SubtitlePrefs(_StrictModel):
     Language codes use ISO 639-2/T (fra, eng, jpn — NOT fre).
 
     Attributes:
-        required_languages: Languages that must be present (ERROR if missing).
-        preferred_languages: Languages that should be present (WARNING if missing).
-        warn_if_missing: Whether missing subtitles produce warnings.
+        required_languages: Languages that must be present.  **Consumed** by
+            ``library/recommender.py:124`` (flags missing required langs as
+            a recommendation reason).
+        preferred_languages: **Reserved.** The
+            ``preferred_languages_supersets_required`` validator rejects
+            configs where ``required`` ⊄ ``preferred``, but no runtime code
+            reads this field — preferred-language warnings are not emitted.
+        warn_if_missing: **Reserved.** Declared but no code path reads it.
     """
 
     required_languages: list[str] = Field(default_factory=lambda: ["fra"])
-    preferred_languages: list[str] = Field(default_factory=lambda: ["fra", "eng"])
-    warn_if_missing: bool = Field(default=True)
+    preferred_languages: list[str] = Field(
+        default_factory=lambda: ["fra", "eng"],
+        description="Reserved (validated as superset of required, but not consumed at runtime).",
+    )
+    warn_if_missing: bool = Field(default=True, description="Reserved (not currently consumed).")
 
     @model_validator(mode="after")
     def _required_subset_of_preferred(self) -> "SubtitlePrefs":
@@ -602,14 +613,23 @@ class TrailersYoutubeApiConfig(_StrictModel):
     """YouTube Data API v3 quota accounting defaults.
 
     Attributes:
-        daily_quota_units: Total daily quota units allocated by Google. Default 10 000.
-        search_list_cost_units: Quota cost per search.list call. Default 100.
-        cache_ttl_days: TTL for cached YouTube search results in days.
+        daily_quota_units: Total daily quota units allocated by Google.
+            **Consumed** by ``trailers/orchestrator.py:659``.
+        search_list_cost_units: Quota cost per search.list call.
+            **Consumed** by ``trailers/orchestrator.py:660``.
+        cache_ttl_days: **Reserved.** Documented as TTL for cached YouTube
+            search results, but the runtime uses the hardcoded constant
+            ``_YOUTUBE_TTL_SECONDS = 7 * 24 * 3600`` in
+            ``personalscraper/scraper/trailers_cache.py``.  Customising
+            this config field has no runtime effect; the comment in
+            ``trailers_cache.py`` even says ``# 7 days matches DESIGN §9
+            (youtube_api.cache_ttl_days: 7)`` — i.e. the constant was
+            meant to mirror the config but the wiring was never done.
     """
 
     daily_quota_units: int = Field(default=10_000, gt=0)
     search_list_cost_units: int = Field(default=100, gt=0)
-    cache_ttl_days: int = Field(default=7, ge=1)
+    cache_ttl_days: int = Field(default=7, ge=1, description="Reserved (not currently consumed).")
 
 
 class TrailersYtdlpConfig(_StrictModel):
@@ -617,26 +637,47 @@ class TrailersYtdlpConfig(_StrictModel):
 
     Attributes:
         format: yt-dlp format selector string. Capped at 1080p.
-        socket_timeout_sec: Socket timeout in seconds.
+            **Consumed.**
+        socket_timeout_sec: Socket timeout in seconds.  **Consumed.**
         retries: Number of download retries on transient error.
-        default_search: yt-dlp search prefix used when YOUTUBE_API_KEY is absent or quota is exhausted.
+            **Consumed.**
+        default_search: **Reserved.** Documented as the yt-dlp search
+            prefix used when YOUTUBE_API_KEY is absent or quota is
+            exhausted, but ``personalscraper/scraper/youtube_search.py``
+            hardcodes ``"default_search": "ytsearch1"`` in the opts dict
+            — this config field is never read.
     """
 
     format: str = Field(default="bestvideo[height<=1080]+bestaudio/best[height<=1080]", min_length=1)
     socket_timeout_sec: int = Field(default=30, gt=0)
     retries: int = Field(default=3, ge=0)
-    default_search: str = Field(default="ytsearch1", min_length=1)
+    default_search: str = Field(
+        default="ytsearch1",
+        min_length=1,
+        description="Reserved (youtube_search.py hardcodes 'ytsearch1').",
+    )
 
 
 class TrailersPlacementConfig(_StrictModel):
     """Output path patterns for trailer files.
 
-    Both patterns use the flat convention compatible with Plex, Kodi, and Jellyfin.
-    Each pattern must reference ``{folder}``, ``{name}`` and ``{ext}`` placeholders.
+    **Both fields are currently reserved.** The actual placement is
+    hardcoded in :func:`personalscraper.trailers.placement.trailer_path_for`:
+
+    - movies: ``{media_dir}/{media_name}-trailer.{ext}`` (Plex Local Media
+      Assets flat convention).
+    - TV shows: ``{media_dir}/Trailers/{media_name}.{ext}`` (the only
+      convention recognised by Plex's TV Series agent for show-level
+      extras).
+
+    Customising ``movie_pattern`` or ``tvshow_pattern`` has no runtime
+    effect; the validator below still rejects placeholder typos so
+    config files at least fail loudly rather than appearing to silently
+    take effect.
 
     Attributes:
-        movie_pattern: Pattern template for movie trailers.
-        tvshow_pattern: Pattern template for TV show trailers.
+        movie_pattern: Reserved pattern template for movie trailers.
+        tvshow_pattern: Reserved pattern template for TV show trailers.
     """
 
     movie_pattern: str = "{folder}/{name}-trailer.{ext}"
@@ -673,14 +714,30 @@ class TrailersSeasonsConfig(_StrictModel):
     Default off: most shows lack TMDB season-level trailers.
 
     Attributes:
-        enabled: Master switch. Default False.
-        language_fallback: Override language order for TMDB season videos. None reuses TrailersConfig.languages.
-        search_query_format: YouTube fallback query template. Placeholders: {title}, {year}, {season}.
+        enabled: Master switch. **Consumed** by ``trailers/cli.py`` and
+            ``trailers/orchestrator.py:141``.
+        language_fallback: **Reserved.** Documented as a per-season
+            override of the TMDB language list, but no production code
+            path reads it — tests set it on a Config instance for
+            forward-compat, never check it back. Setting a value has no
+            runtime effect today.
+        search_query_format: **Reserved.** Documented as the YouTube
+            fallback query template for season-level trailers, but no
+            production code path reads it. The actual query format used
+            by ``YoutubeSearch`` comes from ``config.trailers.search_query_format``
+            (the show-level field), not this season-specific override.
     """
 
     enabled: bool = False
-    language_fallback: list[str] | None = None
-    search_query_format: str = Field(default="{title} {year} saison {season} bande annonce", min_length=1)
+    language_fallback: list[str] | None = Field(
+        default=None,
+        description="Reserved (no production code path reads this field).",
+    )
+    search_query_format: str = Field(
+        default="{title} {year} saison {season} bande annonce",
+        min_length=1,
+        description="Reserved (no production code path reads this field).",
+    )
 
 
 class TrailersStepConfig(_StrictModel):
@@ -750,7 +807,11 @@ class TrailersConfig(_StrictModel):
         list[Annotated[int, Field(ge=0)]],
         Field(min_length=1),
     ] = Field(default_factory=lambda: [1, 7, 30])
-    bot_detected_max_consecutive_attempts: int = Field(default=5, ge=1)
+    bot_detected_max_consecutive_attempts: int = Field(
+        default=5,
+        ge=1,
+        description="Reserved (no production code path reads this field today).",
+    )
     # library_scan_max_age_hours removed in sub-phase 7.6 — trailers/scanner.py
     # now queries the indexer DB directly instead of relying on a TTL-cached JSON scan.
     circuit_breakers: TrailersCircuitBreakersConfig = Field(default_factory=TrailersCircuitBreakersConfig)
@@ -768,41 +829,43 @@ class IndexerScanConfig(_StrictModel):
     """Scan-engine tunables for the media indexer.
 
     Attributes:
-        nightly_mode: Default scan mode for scheduled nightlies.
-            One of ``"quick"`` | ``"incremental"`` | ``"enrich"`` | ``"full"``.
+        nightly_mode: **Reserved.** Documented as the default scan mode for
+            scheduled nightlies, but no scheduler / cron entry-point reads
+            this field — the launchd plists call ``library-index --mode
+            quick`` directly, with the mode hardcoded.  Kept in the schema
+            so a future scheduler refactor can pick it up without a config
+            format change.
         budget_seconds: Hard time cap per scan run in seconds. Crash-resume
-            picks up where the scan left off.
+            picks up where the scan left off.  **Consumed.**
         checkpoint_every_n_files: Write a checkpoint row every N files so a
-            crashed scan resumes from a known-good point.
+            crashed scan resumes from a known-good point.  **Consumed.**
         max_workers_total: Maximum parallel scan workers, capped at the number
-            of currently mounted disks.
-        racy_window_seconds: git-style mtime-collision window. Files whose
-            mtime changed within this many seconds of the scan start are
-            re-fingerprinted on the next run (avoids false-positive deltas
-            caused by in-progress writes).
+            of currently mounted disks.  **Consumed.**
+        racy_window_seconds: **Reserved.** git-style mtime-collision window.
+            Documented to control re-fingerprinting of files written near
+            scan start, but the only caller of ``drift.reconcile_file``
+            (which would consume it) lives in tests; production scan
+            modes do not currently invoke that path, so the field has no
+            runtime effect today.
         n_strikes_for_softdelete: Number of consecutive missed scans before a
-            file is soft-deleted (``deleted_at`` set). Prevents a single
-            unmounted disk from wiping its entries.
+            file is soft-deleted (``deleted_at`` set). **Consumed** by
+            ``library-index`` post-walk soft-delete pass.
         read_rate_mb_per_sec: IO throttle in MB/s. ``None`` = unlimited.
-            Set to e.g. 80 on spinning rust to avoid starving other processes.
-        sequential_read_hint: Hint the OS buffer cache that the file will be
-            read sequentially. On macOS this is implemented via
-            ``mmap + madvise(MADV_SEQUENTIAL)`` (the historical ``fcntl``
-            ``F_RDADVISE`` path is unusable from pure Python — see
-            :mod:`personalscraper.indexer._macos_io`). No-op on other
-            platforms.
+            **Consumed.**
+        sequential_read_hint: **Reserved.** Documented to enable an
+            ``mmap+madvise(MADV_SEQUENTIAL)`` hint, but no scanner code
+            path reads this flag — the hint is unconditional today on
+            platforms that support it.
         drop_indexes_during_full_scan: Drop non-PK indexes during a full
             cold scan and rebuild them on finish — faster bulk inserts.
+            **Consumed.**
         paranoia_window_seconds: Look-back window in seconds for the
-            quick-mode paranoia branch (DESIGN §17.1).  ``scan_event`` rows
-            with ``event LIKE 'outbox.%'`` within this window are re-checked
-            against on-disk state regardless of dir-mtime status.  Set to
-            ``0`` to disable the branch entirely.
+            quick-mode paranoia branch (DESIGN §17.1).  **Consumed.**
     """
 
     nightly_mode: Literal["quick", "incremental", "enrich", "full"] = Field(
         default="quick",
-        description="Default scan mode for scheduled nightlies.",
+        description="Reserved (launchd / cron entry-points hardcode the mode today).",
     )
     budget_seconds: int = Field(default=1800, gt=0, description="Hard time cap per scan run in seconds.")
     checkpoint_every_n_files: int = Field(default=100, gt=0, description="Write checkpoint every N files.")
@@ -810,7 +873,7 @@ class IndexerScanConfig(_StrictModel):
     racy_window_seconds: float = Field(
         default=2.0,
         ge=0.0,
-        description="git-style mtime-collision window in seconds.",
+        description="Reserved (drift.reconcile_file is currently test-only; not called from production scanner).",
     )
     n_strikes_for_softdelete: int = Field(default=3, gt=0, description="Missed scans before soft-delete.")
     read_rate_mb_per_sec: float | None = Field(
@@ -820,7 +883,7 @@ class IndexerScanConfig(_StrictModel):
     )
     sequential_read_hint: bool = Field(
         default=True,
-        description="Hint sequential reads via mmap+madvise on macOS; no-op elsewhere.",
+        description="Reserved (mmap+madvise hint is unconditional today on supporting platforms).",
     )
     drop_indexes_during_full_scan: bool = Field(
         default=True,
@@ -841,55 +904,84 @@ class IndexerScanConfig(_StrictModel):
 class IndexerFingerprintConfig(_StrictModel):
     """Fingerprint strategy tunables for the media indexer.
 
+    Every field in this class is currently **reserved**: the indexer
+    always computes both OSHash and xxh3 with hardcoded defaults.  The
+    schema is kept so the future wiring can land without a config-format
+    change, but customising any of these fields today has no effect.
+
     Attributes:
-        oshash: Store OpenSubtitles OSHash on every file. Survives renames.
-        xxh3_partial_bytes: Number of bytes read from head + tail for the
-            xxh3_64 partial fingerprint (default 1 048 576 = 1 MB).
-        compute_xxh3_on_racy: Compute xxh3 on racy-window files to confirm
-            whether a detected change is a real content change.
+        oshash: **Reserved.** OSHash is always computed and stored
+            (``indexer/scanner/_db_writes.py``).  Setting False does not
+            currently disable it.
+        xxh3_partial_bytes: **Reserved.** ``xxh3_partial`` callers in
+            ``indexer/drift.py:235`` invoke the function without the
+            ``partial_bytes`` argument, so the function's default
+            (``1_048_576``) is always used regardless of this config
+            value.
+        compute_xxh3_on_racy: **Reserved.** No code path currently checks
+            this flag.  Racy-window xxh3 computation is unconditional.
     """
 
-    oshash: bool = Field(default=True, description="Store OSHash on every file.")
+    oshash: bool = Field(default=True, description="Reserved (OSHash always computed today).")
     xxh3_partial_bytes: int = Field(
         default=1_048_576,
         gt=0,
-        description="Bytes from head + tail for the xxh3_64 partial fingerprint.",
+        description="Reserved (default 1 MB used at every call site today).",
     )
     compute_xxh3_on_racy: bool = Field(
         default=True,
-        description="Compute xxh3 on racy-window files to confirm real changes.",
+        description="Reserved (racy-window xxh3 is unconditional today).",
     )
 
 
 class IndexerMediainfoConfig(_StrictModel):
     """libmediainfo extraction tunables for the media indexer.
 
+    Every field in this class is currently **reserved**: the runtime
+    instantiates :class:`MediaInfoWrapper` with hardcoded values
+    (``min_size_mb=0`` and ``parse_speed=0.5/1.0`` chosen from
+    ``quick_enrich``) — none of these config fields are read.
+
     Attributes:
-        library_path: Absolute path to libmediainfo.dylib/so. ``None`` = auto-detect
-            via Homebrew prefix.
-        extract_streams: Extract per-stream codec/audio/subtitle metadata.
-        min_size_mb: Skip mediainfo on files smaller than this threshold (MB).
-            Avoids slow FFI calls on tiny sidecar files.
-        parse_speed: libmediainfo parse speed flag. 0.5 = fast, 1.0 = full.
-        defer_to_enrich: Skip mediainfo entirely during cold/quick/incremental
-            scans; only run during the ``enrich`` pass.
+        library_path: **Reserved.** ``MediaInfoWrapper`` relies on
+            pymediainfo's auto-detection; setting a custom path has no
+            effect.
+        extract_streams: **Reserved.** ``MediaInfoWrapper.extract_streams``
+            is called unconditionally during enrich; toggling this field
+            does not skip the per-stream extraction.
+        min_size_mb: **Reserved.** The runtime instantiates
+            ``MediaInfoWrapper(min_size_mb=0, …)`` so every file is
+            parsed regardless of this config value.
+        parse_speed: **Reserved.** The actual ``parse_speed`` is
+            ``0.5`` for quick-enrich and ``1.0`` otherwise — derived
+            from runtime mode, not from this field.
+        defer_to_enrich: **Reserved.** Mediainfo always runs in the
+            ``enrich`` pass and never in cold/quick/incremental scans;
+            this is hardcoded at the call site, not gated by config.
     """
 
     library_path: str | None = Field(
         default=None,
-        description="Absolute path to libmediainfo. None = auto-detect via brew.",
+        description="Reserved (pymediainfo auto-detection always used today).",
     )
-    extract_streams: bool = Field(default=True, description="Extract per-stream codec/audio/subtitle metadata.")
-    min_size_mb: int = Field(default=50, ge=0, description="Skip mediainfo on files smaller than this MB threshold.")
+    extract_streams: bool = Field(
+        default=True,
+        description="Reserved (per-stream extraction is unconditional).",
+    )
+    min_size_mb: int = Field(
+        default=50,
+        ge=0,
+        description="Reserved (runtime hardcodes min_size_mb=0).",
+    )
     parse_speed: float = Field(
         default=1.0,
         gt=0.0,
         le=1.0,
-        description="libmediainfo parse speed (0.5=fast, 1.0=full).",
+        description="Reserved (runtime derives 0.5/1.0 from quick-enrich mode).",
     )
     defer_to_enrich: bool = Field(
         default=True,
-        description="Skip mediainfo during cold/quick/incremental scans; run only on enrich pass.",
+        description="Reserved (defer-to-enrich is the unconditional behaviour today).",
     )
 
 
@@ -897,26 +989,42 @@ class IndexerDriftConfig(_StrictModel):
     """Drift detection tunables for the media indexer.
 
     Attributes:
-        merkle_per_disk: Maintain a per-disk Merkle root (xxh3_64 over sorted
-            file rows) to fast-skip entirely unchanged disks.
-        verify_disks_each_scan: Run mountpoint and sentinel checks on every
-            scan to catch unmounted or swapped volumes.
-        sentinel_filename: Name of the hidden sentinel file written to each
-            disk's root to confirm UUID identity at mount time.
+        merkle_per_disk: **Reserved.** Currently the indexer always maintains
+            a per-disk Merkle root; this knob is kept in the schema for
+            forward compatibility but is not consumed by any code path —
+            setting it to False has no effect. Tracked for follow-up work.
+        verify_disks_each_scan: **Reserved.** Same status as
+            ``merkle_per_disk``: declared, validated, but unused — mountpoint
+            and sentinel checks always run today.
+        sentinel_filename: **Reserved.** The actual sentinel filename used
+            by ``personalscraper/indexer/merkle.py`` is the module-level
+            constant ``SENTINEL_FILENAME = ".personalscraper-disk-id"``;
+            customising this config field has no runtime effect. Kept
+            because removing the field would break configs that include it
+            (the model is ``extra='forbid'``).
+        merkle_delta_freeze_threshold: Halt the scan if the Merkle delta
+            exceeds this fraction (suggests a bulk restore). Set to 1.0 to
+            disable the freeze entirely. **This field IS consumed** — see
+            ``personalscraper/indexer/cli.py`` and
+            ``personalscraper/indexer/scanner/_modes.py``.
     """
 
     merkle_per_disk: bool = Field(
         default=True,
-        description="Maintain a per-disk Merkle root to fast-skip unchanged disks.",
+        description="Reserved (not currently consumed by any code path).",
     )
     verify_disks_each_scan: bool = Field(
         default=True,
-        description="Run mountpoint + sentinel checks on every scan.",
+        description="Reserved (not currently consumed by any code path).",
     )
     sentinel_filename: str = Field(
         default=".personalscraper-disk-id",
         min_length=1,
-        description="Hidden sentinel file name written to each disk root for UUID identity check.",
+        description=(
+            "Reserved: the runtime sentinel name is the module constant "
+            "``personalscraper.indexer.merkle.SENTINEL_FILENAME``; this "
+            "config field is not consumed."
+        ),
     )
     merkle_delta_freeze_threshold: float = Field(
         default=0.50,
@@ -936,16 +1044,20 @@ class IndexerSpotlightConfig(_StrictModel):
     apply only to APFS volumes where Spotlight is available.
 
     Attributes:
-        probe_at_startup: Run ``mdutil -s`` on each disk at scanner startup to
-            record whether Spotlight is available.
-        use_when_available: Delegate change detection to Spotlight
-            (``mdfind -onlyin … kMDItemFSContentChangeDate > …``) when the
-            probe confirms it is available. Falls back to full walk otherwise.
+        probe_at_startup: **Reserved.** The Spotlight probe always runs at
+            scan start (see ``indexer/scanner/__init__.py`` — the docstring
+            states "the Spotlight probe still runs to log availability"
+            even when the detector is disabled).  Setting this to False
+            does not currently skip the probe.
+        use_when_available: **Consumed** by ``indexer/cli.py:503`` —
+            delegates change detection to Spotlight (``mdfind``) when the
+            probe confirms it is available.  Falls back to full walk
+            otherwise.
     """
 
     probe_at_startup: bool = Field(
         default=True,
-        description="Run mdutil -s on each disk at scanner startup.",
+        description="Reserved (Spotlight probe currently always runs at scan start).",
     )
     use_when_available: bool = Field(
         default=True,
@@ -957,20 +1069,25 @@ class IndexerRepairConfig(_StrictModel):
     """Auto-repair queue tunables for the media indexer.
 
     Attributes:
-        queue_drain_on_scan_finish: Drain the repair queue at the end of each
-            scan run (before the budget runs out).
-        max_repair_seconds_per_drain: Maximum seconds spent draining the repair
-            queue in a single scan run.
+        queue_drain_on_scan_finish: **Reserved.** Documented as "drain repair
+            queue at the end of each scan", but no scanner code path reads
+            this field — repair drain is invoked manually via
+            ``library-repair``.  Setting False does not currently disable
+            anything (no automatic post-scan drain happens regardless).
+        max_repair_seconds_per_drain: **Reserved.** Documented as the
+            per-scan-run repair budget, but the runtime budget comes from
+            the ``library-repair --budget`` CLI flag, not from this field.
+            Customising the value has no effect on automatic-drain timing.
     """
 
     queue_drain_on_scan_finish: bool = Field(
         default=True,
-        description="Drain repair queue at the end of each scan.",
+        description="Reserved (no automatic post-scan drain currently runs).",
     )
     max_repair_seconds_per_drain: int = Field(
         default=300,
         gt=0,
-        description="Max seconds spent draining the repair queue per scan run.",
+        description="Reserved (runtime budget comes from --budget CLI flag).",
     )
 
 
@@ -978,21 +1095,25 @@ class IndexerLogConfig(_StrictModel):
     """Retention policy for indexer audit tables.
 
     Attributes:
-        scan_event_retention_days: How many days to keep rows in the
-            ``scan_event`` table before pruning.
-        deleted_item_retention_days: How many days to keep soft-deleted
-            ``media_item`` rows (``deleted_at IS NOT NULL``) before hard-purge.
+        scan_event_retention_days: **Reserved.** No code path currently
+            prunes the ``scan_event`` table — this knob is declared for
+            forward compatibility but has no runtime effect today. The
+            ``scan_event`` table grows monotonically; manual ``DELETE``
+            is the only available cleanup until the prune worker lands.
+        deleted_item_retention_days: How many days to keep ``deleted_item``
+            tombstone rows before hard-purge by ``purge_old_tombstones``.
+            **This field IS consumed** by ``library-repair``.
     """
 
     scan_event_retention_days: int = Field(
         default=90,
         gt=0,
-        description="Days to retain scan_event rows.",
+        description="Reserved (no scan_event prune worker exists yet).",
     )
     deleted_item_retention_days: int = Field(
         default=365,
         gt=0,
-        description="Days to retain soft-deleted media_item rows before hard-purge.",
+        description="Days to retain deleted_item tombstone rows before hard-purge.",
     )
 
 
@@ -1005,8 +1126,9 @@ class IndexerConfig(_StrictModel):
 
     Attributes:
         db_path: Path to the SQLite library database. Relative paths are
-            resolved against the project root. Must not reside on a macFUSE
-            or external mount.
+            resolved against the current working directory at load-time and
+            stored as absolute paths. Must not reside on a macFUSE or external
+            mount. Recommended: place the DB under ``paths.data_dir``.
         scan: Scan-engine tunables.
         fingerprint: Fingerprint strategy tunables.
         mediainfo: libmediainfo extraction tunables.
@@ -1019,6 +1141,7 @@ class IndexerConfig(_StrictModel):
     db_path: Path = Field(
         default=Path(".personalscraper/library.db"),
         description="Path to the SQLite library database. Must not be on an external/macFUSE mount.",
+        validate_default=True,
     )
     scan: IndexerScanConfig = Field(default_factory=IndexerScanConfig)
     fingerprint: IndexerFingerprintConfig = Field(default_factory=IndexerFingerprintConfig)
@@ -1031,40 +1154,40 @@ class IndexerConfig(_StrictModel):
     @field_validator("db_path", mode="after")
     @classmethod
     def _reject_external_mount(cls, v: Path) -> Path:
-        """Reject db_path that resolves to a macFUSE or external mount.
+        """Resolve ``db_path`` to an absolute path and reject macFUSE / external mounts.
 
-        SQLite WAL mode is unreliable on macFUSE-NTFS and network mounts.
-        The database must live on the internal APFS volume.
+        Two invariants enforced here:
 
-        Detection heuristic: the resolved path starts with ``/Volumes/`` (macOS
-        convention for all external and network mounts). Paths under the home
-        directory or project root are always accepted.
+        1. **Absolute path.** Relative ``db_path`` values are resolved against
+           the current working directory at load-time so every consumer sees
+           the same path regardless of where ``personalscraper`` is invoked
+           from. Without this, ``sqlite3.connect()`` would re-anchor the
+           relative path to whatever CWD the calling process happens to have,
+           producing different (orphan) DBs depending on the entry point.
+        2. **No external mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
+           and network mounts. The database must live on the internal APFS
+           volume. Detection heuristic: the resolved path starts with
+           ``/Volumes/`` (macOS convention for all external mounts).
 
         Args:
-            v: Resolved Path value for db_path.
+            v: Raw Path value for db_path (may be relative).
 
         Returns:
-            The validated Path if it is not on an external mount.
+            Absolute Path with ``~`` expanded.
 
         Raises:
-            ValueError: If the path resolves under ``/Volumes/``.
+            ValueError: If the resolved path is under ``/Volumes/``.
         """
-        # Expand user and normalise without requiring the file to exist.
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            # Relative paths are anchored at CWD; they cannot be /Volumes/.
-            return v
-        # The /Volumes/ tree on macOS is exclusively used for external, network,
-        # and removable mounts. The internal APFS system volume appears there
-        # too but is accessed as / (the mount is transparent). Any user-supplied
-        # path starting with /Volumes/ therefore targets a non-internal volume.
+            resolved = (Path.cwd() / resolved).resolve()
         if str(resolved).startswith("/Volumes/"):
             raise ValueError(
                 f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "
                 "SQLite WAL mode is unreliable on such filesystems. "
                 "Move the database to the internal APFS volume (e.g. ~/.personalscraper/library.db)."
             )
-        return v
+        return resolved
 
 
 # ---------------------------------------------------------------------------

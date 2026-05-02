@@ -280,8 +280,13 @@ class TestReportIntegration:
         write_json(scan_result, scan_path)
         scan_data = read_json(scan_path)
 
-        # Generate report
-        report = generate_report(scan_data=scan_data)
+        # Generate report. ``scan_data`` was removed from the signature
+        # when scan_issues moved into ``AnalysisResult.scan_issues``; this
+        # legacy call passes it as a keyword to verify the deprecation
+        # path stays silent. A type ignore is required because Pyright
+        # rightly flags the missing parameter — we are testing exactly
+        # that call shape.
+        report = generate_report(scan_data=scan_data)  # type: ignore[call-arg]
 
         assert report.total_items == 3
         assert report.items_per_disk["disk1"] == 3

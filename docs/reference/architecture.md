@@ -145,10 +145,16 @@ Notes:
 
 ## trailers/ Subsystem Notes
 
-- `trailers/` is a first-class consumer of `library.scanner` -- the orchestrator calls
-  `library.scanner.scan_library()` once per run to detect trailers already present on storage disks
-  (library-aware idempotence, DESIGN section 8). This prevents re-downloading trailers for shows
-  that already exist in the permanent library.
+- `trailers/` is a first-class consumer of the indexer DB. The orchestrator calls
+  `trailers.scanner.Scanner.scan_library(conn)` once per run, which queries
+  `indexer.query.find_items_without_trailer(conn)` to detect items missing a
+  `trailer_found` attribute. The on-disk media directory for each candidate
+  is recovered from the `dispatch_path` flex attribute (written by both the
+  dispatch layer and `library.scanner.scan_library`). This avoids
+  re-downloading trailers for shows already present in the permanent library
+  (library-aware idempotence, DESIGN section 8 / §10.3). The previous TTL-cached
+  walk via `library.scanner.scan_library()` was removed in the media-indexer
+  feature.
 - The new scraper modules (`json_ttl_cache`, `youtube_search`, `trailer_finder`,
   `ytdlp_downloader`, `trailers_cache`) are independent of the existing TMDB/TVDB scraper.
 

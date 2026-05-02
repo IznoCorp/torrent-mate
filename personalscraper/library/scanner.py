@@ -1,16 +1,16 @@
 """Lightweight library scanner — structure, NFO, artwork inventory.
 
-Scans storage disks without ffprobe. Produces LibraryScanItem for each
-media directory found. Uses existing utilities: is_nfo_complete()
-and SEASON_DIR_RE.
+Scans storage disks without ffprobe. Produces ``LibraryScanItem`` for each
+media directory found and writes the result to the indexer DB. Uses existing
+utilities: ``is_nfo_complete()`` and ``SEASON_DIR_RE``.
 
 ``scan_library`` accepts a ``Config`` object and a SQLite connection and
 populates the indexer DB (``media_item``, ``season``, ``episode`` tables via
-repos; ``media_file`` / ``path`` via :func:`personalscraper.indexer.scanner.scan`).
+repos; ``media_file`` / ``path`` via :func:`personalscraper.indexer.scanner.scan`;
+``dispatch_path`` / ``dispatch_disk`` flex attributes via
+:func:`personalscraper.indexer.repos.item_repo.upsert_attr`).
 
-Deprecated: ``LibraryScanResult`` is kept as a transitional stub in
-``personalscraper.library.models`` until sub-phases 7.2–7.4 migrate all
-consumers.  The helper functions ``scan_movie_dir``, ``scan_tvshow_dir``,
+The helper functions ``scan_movie_dir``, ``scan_tvshow_dir``,
 ``parse_title_year``, and ``extract_nfo_ids`` remain public for callers that
 still use them directly (e.g. ``library/rescraper.py``,
 ``trailers/scanner.py``).
@@ -37,7 +37,6 @@ from personalscraper.indexer.scanner import scan as _indexer_scan
 from personalscraper.indexer.schema import (
     ArtworkInventory,
     DiskRow,
-    EpisodeRow,
     MediaItemKind,
     MediaItemRow,
     SeasonRow,
@@ -69,32 +68,13 @@ _TITLE_YEAR_RE = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 # NTFS-illegal characters
 _NTFS_ILLEGAL = re.compile(r'[<>:"/\\|?*]')
 
-# Junk files (same set as process/cleanup.py)
-# Includes .DS_Store, Thumbs.db, desktop.ini + macOS resource fork prefix "._"
-_JUNK_FILES = frozenset({".DS_Store", "Thumbs.db", "desktop.ini"})
-
-# Video extensions (same set as sorter/file_type.py)
-_VIDEO_EXTENSIONS = frozenset(
-    {
-        "mp4",
-        "mkv",
-        "avi",
-        "mov",
-        "wmv",
-        "flv",
-        "mpg",
-        "mpeg",
-        "m4v",
-        "webm",
-        "ts",
-        "m2ts",
-        "mts",
-        "3gp",
-        "vob",
-        "ogv",
-        "rmvb",
-    }
-)
+# Junk files: shared SSOT in text_utils.JUNK_FILE_NAMES.  macOS resource
+# fork prefix "._" is matched separately at every call site.
+# Video extensions: re-exported from sorter.file_type so the library
+# scanner and the sorter share the single source of truth for what counts
+# as a video file across the pipeline.
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS  # noqa: E402
+from personalscraper.text_utils import JUNK_FILE_NAMES as _JUNK_FILES  # noqa: E402
 
 
 def parse_title_year(dirname: str) -> tuple[str, int | None]:
@@ -451,7 +431,14 @@ def _upsert_media_item(
     """Upsert a ``media_item`` row from a library scan result.
 
     Converts a :class:`LibraryScanItem` into a :class:`MediaItemRow` and calls
-    :func:`personalscraper.indexer.repos.item_repo.upsert`.
+    :func:`personalscraper.indexer.repos.item_repo.upsert`.  Also writes the
+    ``dispatch_path`` and ``dispatch_disk`` flex attributes so consumers that
+    rely on them (``trailers/scanner.py``, ``indexer/release_linker.py``) can
+    locate the on-disk media directory regardless of whether the item was
+    discovered by the dispatch layer or by this library scanner.  The
+    attribute key prefix is historical (originally introduced by dispatch);
+    the values stored here are the same shape — absolute media-dir path and
+    config-level disk ID.
 
     Args:
         conn: Open SQLite connection.
@@ -462,6 +449,15 @@ def _upsert_media_item(
     Returns:
         PK of the inserted or updated ``media_item`` row.
     """
+    import unicodedata  # noqa: PLC0415
+
+    from personalscraper.indexer.repos.item_repo import (  # noqa: PLC0415
+        _ATTR_DISPATCH_DISK,
+        _ATTR_DISPATCH_NORM_TITLE,
+        _ATTR_DISPATCH_PATH,
+    )
+    from personalscraper.indexer.schema import ItemAttributeRow  # noqa: PLC0415
+
     kind: MediaItemKind = "show" if scan_item.media_type == "tvshow" else "movie"
     nfo_status = _nfo_status_string(scan_item.nfo)
     artwork_json = _artwork_inventory(scan_item.artwork).model_dump_json()
@@ -491,7 +487,39 @@ def _upsert_media_item(
         is_locked=0,
         preferred_lang="fr",
     )
-    return _item_repo.upsert(conn, row)
+    item_id = _item_repo.upsert(conn, row)
+
+    # Persist dispatch flex attributes so trailers, release_linker, and the
+    # dispatch index rebuild can locate the media directory and look it up by
+    # normalized title.  Without ``dispatch_normalized_title`` items inserted
+    # by this scanner are invisible to ``find_by_normalized_name`` /
+    # ``list_all_dispatch_items`` (both INNER JOIN on that key), which would
+    # silently break the trailers cross-disk index after a clean DB rebuild.
+    # Normalization mirrors ``dispatch.media_index._normalize_key``: NFC,
+    # lowercase, stripped — APFS / macFUSE-NTFS may otherwise differ on
+    # decomposed accents.
+    norm_title = unicodedata.normalize("NFC", scan_item.title).lower().strip()
+    for key, value in (
+        (_ATTR_DISPATCH_PATH, scan_item.path),
+        (_ATTR_DISPATCH_DISK, scan_item.disk),
+        (_ATTR_DISPATCH_NORM_TITLE, norm_title),
+    ):
+        _item_repo.upsert_attr(conn, ItemAttributeRow(item_id=item_id, key=key, value=value))
+
+    # Persist the directory-hygiene issue tags into ``item_issue`` so the
+    # report layer (and any downstream maintenance UI) can surface them
+    # without re-walking the disks.  We replace the row's whole issue set
+    # on every scan: a previously-flagged issue that has since been
+    # cleaned up (e.g. .actors/ removed by ``library-clean``) must drop
+    # off the report on the next scan.
+    conn.execute("DELETE FROM item_issue WHERE item_id = ?", (item_id,))
+    if scan_item.issues:
+        conn.executemany(
+            "INSERT OR IGNORE INTO item_issue (item_id, type, detail, detected_at) VALUES (?, ?, NULL, ?)",
+            [(item_id, issue, now_s) for issue in scan_item.issues],
+        )
+
+    return item_id
 
 
 def _upsert_seasons_and_episodes(
@@ -510,40 +538,38 @@ def _upsert_seasons_and_episodes(
         seasons: Season list from :func:`scan_tvshow_dir`.
     """
     for season_info in seasons:
-        # Check for an existing season row to keep the function idempotent.
-        existing = conn.execute(
+        # Idempotent insert: rely on UNIQUE(item_id, number) at the schema
+        # level and follow up with one SELECT to recover the id (works
+        # whether we just inserted or matched an existing row).  Replaces
+        # the previous SELECT-then-INSERT round-trip pair with one INSERT
+        # OR IGNORE + one SELECT — same row count, half the trips on the
+        # already-indexed insert path.
+        season_row = SeasonRow(
+            id=0,
+            item_id=item_id,
+            number=season_info.number,
+            episode_count=season_info.episode_count,
+            has_poster=int(season_info.has_poster),
+            episodes_with_nfo=season_info.episodes_with_nfo,
+        )
+        tv_repo.insert_season(conn, season_row, ignore_conflict=True)
+        season_id_row = conn.execute(
             "SELECT id FROM season WHERE item_id = ? AND number = ?",
             (item_id, season_info.number),
         ).fetchone()
-        if existing is not None:
-            season_id: int = existing[0]
-        else:
-            season_row = SeasonRow(
-                id=0,
-                item_id=item_id,
-                number=season_info.number,
-                episode_count=season_info.episode_count,
-                has_poster=int(season_info.has_poster),
-                episodes_with_nfo=season_info.episodes_with_nfo,
-            )
-            season_id = tv_repo.insert_season(conn, season_row)
+        if season_id_row is None:
+            # Should not happen — INSERT OR IGNORE + UNIQUE guarantees this row exists.
+            continue
+        season_id: int = season_id_row[0]
 
-        # Insert episode stubs — one row per video file found in the season dir.
-        # Episode numbers are 1-based; we use ordinal position since filenames
-        # are not parsed at this stage (scraper phase 7.2+ handles titles/numbers).
-        for ep_num in range(1, season_info.episode_count + 1):
-            existing_ep = conn.execute(
-                "SELECT id FROM episode WHERE season_id = ? AND number = ?",
-                (season_id, ep_num),
-            ).fetchone()
-            if existing_ep is None:
-                ep_row = EpisodeRow(
-                    id=0,
-                    season_id=season_id,
-                    number=ep_num,
-                    title=None,
-                )
-                tv_repo.insert_episode(conn, ep_row)
+        # Insert episode stubs in a single batched executemany; UNIQUE
+        # (season_id, number) makes INSERT OR IGNORE idempotent across
+        # repeated scans without per-episode SELECTs.
+        if season_info.episode_count > 0:
+            conn.executemany(
+                "INSERT OR IGNORE INTO episode (season_id, number, title) VALUES (?, ?, NULL)",
+                [(season_id, ep_num) for ep_num in range(1, season_info.episode_count + 1)],
+            )
 
 
 def _build_disk_row(disk_cfg: DiskConfig, now_s: int) -> DiskRow:
@@ -607,14 +633,16 @@ def _ensure_disk_row(conn: sqlite3.Connection, disk_cfg: DiskConfig, now_s: int)
 def scan_library(config: Config, conn: sqlite3.Connection) -> None:
     """Populate the indexer DB from a full walk of all mounted storage disks.
 
-    Replaces the legacy ``LibraryScanResult``-returning implementation.  For
-    each media directory found on disk the function writes:
+    For each media directory found on disk the function writes:
 
     * ``media_item`` — one row per movie / TV show directory.
     * ``season`` — one row per season directory found inside a TV show.
     * ``episode`` — one stub row per video file found in each season.
     * ``media_file`` / ``path`` — populated by delegating to
       :func:`personalscraper.indexer.scanner.scan` (full mode).
+    * ``item_attribute`` — ``dispatch_path`` and ``dispatch_disk`` so that
+      consumers (``trailers/scanner.py``, ``indexer/release_linker.py``) can
+      locate the on-disk media directory for any indexed item.
 
     Disks that are not mounted (``disk_cfg.path`` does not exist) are skipped
     with a warning log.
@@ -641,10 +669,17 @@ def scan_library(config: Config, conn: sqlite3.Connection) -> None:
             cat_cfg = config.category(category_id)
             category_dir = disk_cfg.path / cat_cfg.folder_name
             if not category_dir.is_dir():
-                log.debug(
+                # Bumped from DEBUG to WARNING (2026-04-30): when a user
+                # misconfigures categories[id].folder_name, every category
+                # silently produces zero rows.  WARNING surfaces the
+                # misconfig without flooding noisy logs in the common case
+                # (the warning fires at most once per missing dir per scan).
+                log.warning(
                     "library_scan_category_not_found",
                     category_dir=str(category_dir),
                     disk=disk_cfg.id,
+                    category_id=category_id,
+                    folder_name=cat_cfg.folder_name,
                 )
                 continue
 

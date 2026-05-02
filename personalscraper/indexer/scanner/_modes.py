@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import time
 from pathlib import Path
@@ -44,6 +45,7 @@ from personalscraper.indexer.scanner._walker import (
 )
 from personalscraper.indexer.schema import ArtworkInventory, DiskRow, MediaStreamRow
 from personalscraper.logger import get_logger
+from personalscraper.sorter.file_type import VIDEO_EXTENSIONS as _VIDEO_EXTENSIONS
 
 log = get_logger("indexer.scan")
 
@@ -938,8 +940,8 @@ def _walk_dir_incremental(
 # Artwork filename constants
 # ---------------------------------------------------------------------------
 
-# Canonical artwork filenames checked during enrich (case-insensitive on macOS
-# but we match lowercase to avoid double-hitting).
+# Canonical artwork filenames checked during enrich (Kodi convention).
+# Matched lowercase against entry.name.lower() to handle case-insensitive FS.
 _ARTWORK_FILENAMES: dict[str, str] = {
     "poster.jpg": "poster",
     "poster.png": "poster",
@@ -958,6 +960,108 @@ _ARTWORK_FILENAMES: dict[str, str] = {
     "characterart.png": "characterart",
     "characterart.jpg": "characterart",
 }
+
+# MediaElch / Plex local-artwork suffixes. Matched against the trailing portion
+# of the filename (e.g. "Movie Title (2020)-poster.jpg" → suffix "-poster.jpg").
+# This is the format produced by MediaElch (the project's manual scraper
+# fallback) and used by Plex local-art agents, both very common in real
+# libraries. Without these the canonical-only pattern misses the artwork even
+# though it sits next to the video file.
+_ARTWORK_SUFFIXES: tuple[tuple[str, str], ...] = (
+    ("-poster.jpg", "poster"),
+    ("-poster.png", "poster"),
+    ("-fanart.jpg", "fanart"),
+    ("-fanart.png", "fanart"),
+    ("-banner.jpg", "banner"),
+    ("-banner.png", "banner"),
+    ("-landscape.jpg", "landscape"),
+    ("-landscape.png", "landscape"),
+    ("-clearlogo.png", "clearlogo"),
+    ("-clearlogo.jpg", "clearlogo"),
+    ("-logo.png", "clearlogo"),  # MediaElch alternative
+    ("-logo.jpg", "clearlogo"),
+    ("-clearart.png", "clearart"),
+    ("-clearart.jpg", "clearart"),
+    ("-discart.png", "discart"),
+    ("-discart.jpg", "discart"),
+    ("-disc.png", "discart"),  # MediaElch alternative
+    ("-disc.jpg", "discart"),
+    ("-characterart.png", "characterart"),
+    ("-characterart.jpg", "characterart"),
+)
+
+
+# Subfolders whose contents must NEVER drive the parent item's NFO/artwork
+# state. ``.actors`` (Kodi actor thumbnails) and Plex extras folders contain
+# only sidecars; scanning them returns "missing" / empty-inventory and would
+# silently overwrite the correct values written by the actual release dir.
+_ITEM_ROOT_SKIP_DIRS: frozenset[str] = frozenset(
+    {
+        # Kodi / Plex sentinel sub-folders (English convention).
+        ".actors",
+        "extras",
+        "behind the scenes",
+        "deleted scenes",
+        "featurettes",
+        "interviews",
+        "scenes",
+        "shorts",
+        "trailers",
+        "other",
+        # French equivalents commonly used in this project's library.
+        # ``Bonus`` / ``Boni`` / ``Inédits`` hold show extras and must
+        # not drive the item's NFO/artwork state — the show-level NFO
+        # lives at the show root, not inside the bonus folder.
+        # ``Films`` is used to nest a movie sub-collection under a
+        # show root (e.g. Lucky Luke spin-off films inside the series
+        # directory) — same skip rationale.
+        "bonus",
+        "boni",
+        "inédits",
+        "inedits",
+        "films",
+    }
+)
+
+# TV-show season folder names. When an episode file's parent matches this,
+# the show's tvshow.nfo and root artwork live one level up (the show dir),
+# not in the season dir.
+_TV_SEASON_DIR_RE = re.compile(
+    r"^(?:saison|season)\s*\d+$|^specials?$",
+    re.IGNORECASE,
+)
+
+# Categories that do not follow the Kodi NFO convention. For these,
+# ``nfo_status='missing'`` is a structural false-positive — there is no
+# ``movie.nfo`` / ``tvshow.nfo`` to find because the format does not
+# specify one. Setting nfo_status to NULL ("not applicable") is more
+# faithful than reporting them as broken in library-report.
+_NFO_NA_CATEGORIES: frozenset[str] = frozenset({"audiobooks"})
+
+
+def _resolve_item_root_dir(file_path: Path) -> Path | None:
+    """Return the directory whose NFO + artwork describe ``file_path``'s item.
+
+    Movies hold their NFO and artwork next to the video file (release dir).
+    TV shows hold the show-level NFO and artwork at the show root, NOT inside
+    each ``Saison NN/`` season folder. ``.actors/`` (Kodi) and Plex extras
+    sub-folders are sidecar-only and must never drive the item's status.
+
+    Args:
+        file_path: Absolute path of the media file being enriched.
+
+    Returns:
+        The directory to scan for NFO + artwork, or ``None`` to indicate the
+        caller must SKIP the NFO/artwork DB update entirely (sidecar folder
+        whose absence of NFO/artwork must not overwrite the correct values
+        written by other files of the same item).
+    """
+    parent = file_path.parent
+    if parent.name.lower() in _ITEM_ROOT_SKIP_DIRS:
+        return None
+    if _TV_SEASON_DIR_RE.match(parent.name):
+        return parent.parent
+    return parent
 
 
 def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
@@ -980,9 +1084,18 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
     try:
         with os.scandir(parent_dir) as it:
             for entry in it:
-                key = _ARTWORK_FILENAMES.get(entry.name.lower())
+                lname = entry.name.lower()
+                key = _ARTWORK_FILENAMES.get(lname)
                 if key is not None:
                     found[key] = True
+                    continue
+                # Match MediaElch / Plex local-art suffixes (e.g.
+                # "Title (2020)-poster.jpg"). The longest suffix wins, but
+                # tuple ordering covers the alternatives explicitly.
+                for suffix, art_key in _ARTWORK_SUFFIXES:
+                    if lname.endswith(suffix) and len(lname) > len(suffix):
+                        found[art_key] = True
+                        break
     except OSError as exc:
         # Directory temporarily unreadable — preserve the existing DB value.
         log.warning(
@@ -1003,6 +1116,46 @@ def _inventory_artwork(parent_dir: str) -> ArtworkInventory | None:
         discart=found.get("discart", False),
         characterart=found.get("characterart", False),
     )
+
+
+def _purge_non_video_stream_rows(conn: sqlite3.Connection) -> int:
+    """Drop ``media_stream`` rows attached to non-video files.
+
+    pymediainfo on a ``.jpg`` reports a single ``video`` track of codec
+    ``JPEG``; on a ``.srt`` it reports a ``subtitle`` track of codec
+    ``SubRip``. Both are useless for the indexer (we never query them
+    and the linker / recommender ignore non-video extensions) and were
+    only ever inserted by the pre-extension-skip enrich code path.
+
+    The new producer never inserts these rows (the wrapper is replaced
+    by ``None`` for non-video extensions in ``_scan_disk_enrich``), so
+    the cleanup is a one-shot pass: deleting these rows is idempotent
+    and a no-op once the legacy data is gone. Called at the start of
+    every enrich pass to converge the DB without a separate command.
+
+    Args:
+        conn: Open SQLite connection.
+
+    Returns:
+        Number of stream rows removed.
+    """
+    # Build the WHERE LIKE clause from VIDEO_EXTENSIONS so the cleanup
+    # tracks the actual extension whitelist used by the enrich loop.
+    placeholders = " OR ".join(["LOWER(mf.filename) LIKE ?"] * len(_VIDEO_EXTENSIONS))
+    params = [f"%.{ext}" for ext in _VIDEO_EXTENSIONS]
+    cursor = conn.execute(
+        f"""
+        DELETE FROM media_stream
+        WHERE file_id IN (
+            SELECT mf.id FROM media_file mf WHERE NOT ({placeholders})
+        )
+        """,  # noqa: S608 — placeholders comes from a hard-coded constant
+        params,
+    )
+    purged: int = cursor.rowcount
+    if purged > 0:
+        log.info("indexer.enrich.purged_non_video_streams", purged=purged)
+    return purged
 
 
 def _check_nfo_status(parent_dir: str) -> Literal["missing", "invalid", "valid"] | None:
@@ -1047,6 +1200,7 @@ def _enrich_one_file(
     file_path: Path,
     item_id: int | None,
     wrapper: MediaInfoWrapper | None,
+    nfo_artwork_cache: dict[str, tuple[str | None, ArtworkInventory | None]] | None = None,
 ) -> None:
     """Enrich a single ``media_file`` row with streams, NFO status, and artwork.
 
@@ -1071,9 +1225,20 @@ def _enrich_one_file(
             has not been performed yet.
         wrapper: Configured :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper`
             instance, or ``None`` when pymediainfo is unavailable.
+        nfo_artwork_cache: Optional dict keyed by parent directory, with values
+            ``(nfo_status, artwork)``. Lets the caller share NFO + artwork
+            results across all files in the same directory — a typical media
+            folder holds 1 video + 3-10 sidecars and the FS scans for those
+            checks are identical for every file. ``None`` disables caching
+            (legacy behaviour, used by callers that do not see batches).
     """
     now_s = int(time.time())
-    parent_dir = str(file_path.parent)
+    # Resolve the directory whose NFO + artwork describe the owning item.
+    # This may differ from ``file_path.parent`` for TV episodes (whose
+    # show-level metadata lives one level up) and is ``None`` for sidecar
+    # folders (.actors/, Plex extras) — those must NOT update item state.
+    item_root = _resolve_item_root_dir(file_path)
+    parent_dir = str(item_root) if item_root is not None else None
 
     # --- Step 1: stream extraction ---
     if wrapper is not None:
@@ -1093,8 +1258,9 @@ def _enrich_one_file(
             conn.executemany(
                 """
                 INSERT INTO media_stream (file_id, idx, kind, codec, lang,
-                    channels, width, height, duration_ms, bitrate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    channels, width, height, duration_ms, bitrate,
+                    hdr_format, is_atmos, is_default, forced, format)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -1108,15 +1274,40 @@ def _enrich_one_file(
                         row.height,
                         row.duration_ms,
                         row.bitrate,
+                        row.hdr_format,
+                        None if row.is_atmos is None else int(row.is_atmos),
+                        None if row.is_default is None else int(row.is_default),
+                        None if row.forced is None else int(row.forced),
+                        row.format,
                     )
                     for global_idx, row in enumerate(stream_rows)
                 ],
             )
 
-    # --- Steps 2 + 3: NFO status and artwork (only when release linkage exists) ---
-    if item_id is not None:
-        nfo_status = _check_nfo_status(parent_dir)
-        artwork = _inventory_artwork(parent_dir)
+    # --- Steps 2 + 3: NFO status and artwork (only when release linkage exists
+    # AND the file lives in a directory that legitimately describes the item).
+    # Sidecar folders (.actors/, Extras/, etc.) are skipped: their absence of
+    # NFO/artwork must not overwrite the correct state set by sibling files. ---
+    if item_id is not None and parent_dir is not None:
+        if nfo_artwork_cache is not None and parent_dir in nfo_artwork_cache:
+            nfo_status, artwork = nfo_artwork_cache[parent_dir]
+        else:
+            nfo_status = _check_nfo_status(parent_dir)
+            artwork = _inventory_artwork(parent_dir)
+            if nfo_artwork_cache is not None:
+                nfo_artwork_cache[parent_dir] = (nfo_status, artwork)
+
+        # Categories that do not use the Kodi NFO convention (audiobooks
+        # have no ``movie.nfo`` / ``tvshow.nfo`` equivalent) must not be
+        # flagged as ``missing`` just because no .nfo file is present.
+        # Suppress the NFO update in that case so ``nfo_status`` stays
+        # NULL — interpreted as "not applicable" by readers.
+        cat_row = conn.execute(
+            "SELECT category_id FROM media_item WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if cat_row is not None and cat_row[0] in _NFO_NA_CATEGORIES:
+            nfo_status = None
 
         # Skip column updates when either scan returned None — a transient OS error
         # occurred and the existing DB values must be preserved rather than overwritten
@@ -1240,6 +1431,17 @@ def _scan_disk_enrich(
     conn.row_factory = None
 
     files_enriched = 0
+    files_since_commit = 0
+    # NFO + artwork results are identical for every file in the same parent
+    # directory — cache them per pass so a folder with one video and ten
+    # sidecars pays the FS scan cost once instead of eleven times.
+    nfo_artwork_cache: dict[str, tuple[str | None, ArtworkInventory | None]] = {}
+    # Batch ``conn.commit()`` every N files: each commit triggers a fsync(),
+    # which is the dominant cost on the sidecar fast path now that
+    # pymediainfo and ``release_linker`` are off the per-file critical path.
+    # Crash safety: at most COMMIT_EVERY_N_FILES files of work are lost; the
+    # next pass picks them up via ``enriched_at IS NULL``.
+    _COMMIT_EVERY_N_FILES = 100
 
     for row in pending:
         # Budget check at each file boundary.
@@ -1257,6 +1459,8 @@ def _scan_disk_enrich(
                     "UPDATE scan_run SET stats_json = ? WHERE id = ?",
                     (json.dumps({"budget_exhausted": True, "files_enriched": files_enriched}), scan_run_id),
                 )
+                # Drain any pending batched per-file work before exiting so
+                # the budget cut-off does not silently lose the last <100 files.
                 conn.commit()
                 budget_exhausted[0] = True
                 return
@@ -1272,6 +1476,17 @@ def _scan_disk_enrich(
         file_id: int = row["file_id"]
         item_id: int | None = row["item_id"]
         release_id: int | None = row["release_id"]
+
+        # Skip pymediainfo for non-video extensions: ``libmediainfo`` is the
+        # parse bottleneck (~500 ms-1 s per call) and accounts for >80% of
+        # the wall clock on a typical library where the bulk of files are
+        # ``.jpg`` / ``.nfo`` / ``.srt`` sidecars. Pass a ``None`` wrapper to
+        # ``_enrich_one_file`` for these so it skips stream extraction but
+        # still runs the NFO presence check, artwork inventory, and
+        # ``enriched_at`` update — the sidecar still needs to be marked as
+        # processed so the next pass does not pick it up again.
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        effective_wrapper = wrapper if ext in _VIDEO_EXTENSIONS else None
 
         if not file_path.exists():
             # File no longer on disk — skip without updating enriched_at so the
@@ -1314,7 +1529,14 @@ def _scan_disk_enrich(
                     item_id = resolved[0] if resolved[0] is not None else resolved[1]
 
         try:
-            _enrich_one_file(conn, file_id, file_path, item_id, wrapper)
+            _enrich_one_file(
+                conn,
+                file_id,
+                file_path,
+                item_id,
+                effective_wrapper,
+                nfo_artwork_cache=nfo_artwork_cache,
+            )
         except Exception:  # noqa: BLE001
             log.warning(
                 "indexer.enrich.file_error",
@@ -1323,9 +1545,11 @@ def _scan_disk_enrich(
             )
             continue
 
-        # Per-file commit: partial progress is saved on any interruption.
-        conn.commit()
         files_enriched += 1
+        files_since_commit += 1
+        if files_since_commit >= _COMMIT_EVERY_N_FILES:
+            conn.commit()
+            files_since_commit = 0
 
         log.debug(
             "indexer.enrich.file_done",
@@ -1333,9 +1557,378 @@ def _scan_disk_enrich(
             path=str(file_path),
         )
 
+    # Drain the trailing batch so the very last files are persisted.
+    if files_since_commit > 0:
+        conn.commit()
+
     log.info(
         "indexer.enrich.disk_done",
         disk_id=disk.id,
         label=disk.label,
         files_enriched=files_enriched,
+    )
+
+
+def _scan_disk_enrich_backfill(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    budget_seconds: float | None,
+    started_at_monotonic: float,
+    budget_exhausted: list[bool],
+    scan_run_id: int,
+    quick_enrich: bool = False,
+) -> None:
+    """Backfill missing migration-004 columns on already-enriched files.
+
+    Targets ``media_file`` rows whose ``media_stream`` rows still carry
+    ``NULL`` in the columns added by migration 004 (``hdr_format``,
+    ``is_atmos``, ``is_default``, ``forced``, ``format``). Re-extracts
+    streams via the wrapper and **UPDATEs the existing ``media_stream``
+    rows in place** by ``(file_id, idx)`` — no DELETE / re-INSERT, no
+    NFO / artwork / linker work, no ``enriched_at`` write. Significantly
+    cheaper than a full re-enrich because:
+
+    * The query filter eliminates files that are already complete.
+    * UPDATE in place avoids the DELETE-then-INSERT churn on
+      ``media_stream`` (and the cascade on ``idx_stream_*`` indexes).
+    * The NFO presence check, artwork inventory, and release linkage
+      were already performed during the original enrich; running them
+      again would re-touch ``media_item`` rows for no gain.
+
+    Files whose container is fast-path supported (Matroska / WebM)
+    benefit from the enzyme reader; the rest hit the pymediainfo slow
+    path under ``_MEDIAINFO_PARSE_LOCK``.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` to scan.
+        budget_seconds: Maximum wall-clock seconds for the pass; ``None``
+            means unlimited.
+        started_at_monotonic: :func:`time.monotonic` value captured at
+            scan start, used to test the budget.
+        budget_exhausted: Single-element flag set to ``True`` when the
+            budget is reached.
+        scan_run_id: PK of the active ``scan_run`` row, written into the
+            stats payload on budget exhaustion.
+        quick_enrich: When ``True``, uses ``parse_speed=0.5``.
+    """
+    if disk.mount_path is None:
+        log.warning("indexer.enrich.disk_no_mount", disk_id=disk.id, label=disk.label)
+        return
+
+    parse_speed: float = 0.5 if quick_enrich else 1.0
+
+    wrapper: MediaInfoWrapper | None
+    try:
+        wrapper = MediaInfoWrapper(min_size_mb=0, parse_speed=parse_speed)
+    except MediaInfoUnavailableError:
+        log.warning("indexer.enrich.mediainfo_unavailable", disk_id=disk.id, label=disk.label)
+        wrapper = None
+
+    if wrapper is None:
+        # Without pymediainfo / enzyme we cannot fill any column — bail
+        # cleanly so the caller's outer loop continues to the next disk.
+        return
+
+    conn.row_factory = sqlite3.Row
+    pending = conn.execute(
+        """
+        SELECT DISTINCT mf.id        AS file_id,
+                        mf.filename  AS filename,
+                        p.rel_path   AS rel_path
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+          JOIN media_stream s ON s.file_id = mf.id
+         WHERE p.disk_id = ?
+           AND mf.deleted_at IS NULL
+           AND mf.enriched_at IS NOT NULL
+           AND (
+                  (s.kind = 'video' AND s.hdr_format IS NULL)
+               OR (s.kind = 'audio' AND s.is_atmos IS NULL)
+               OR (s.kind = 'subtitle' AND s.format IS NULL)
+               OR s.is_default IS NULL
+           )
+         ORDER BY mf.id
+        """,
+        (disk.id,),
+    ).fetchall()
+    conn.row_factory = None
+
+    files_backfilled = 0
+
+    for row in pending:
+        if budget_seconds is not None:
+            elapsed = time.monotonic() - started_at_monotonic
+            if elapsed >= budget_seconds:
+                log.info(
+                    "indexer.enrich.backfill_budget_exhausted",
+                    disk_id=disk.id,
+                    label=disk.label,
+                    files_backfilled=files_backfilled,
+                    elapsed=elapsed,
+                )
+                conn.execute(
+                    "UPDATE scan_run SET stats_json = ? WHERE id = ?",
+                    (json.dumps({"budget_exhausted": True, "files_backfilled": files_backfilled}), scan_run_id),
+                )
+                conn.commit()
+                budget_exhausted[0] = True
+                return
+
+        rel_path: str = row["rel_path"]
+        filename: str = row["filename"]
+        file_id: int = row["file_id"]
+
+        # Skip non-video extensions outright — they have media_stream rows
+        # only when pymediainfo previously hallucinated tracks for sidecars,
+        # which is rare and not worth re-checking.
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in _VIDEO_EXTENSIONS:
+            continue
+
+        if rel_path == ".":
+            file_path = Path(disk.mount_path) / filename
+        else:
+            file_path = Path(disk.mount_path) / rel_path / filename
+
+        if not file_path.exists():
+            log.debug("indexer.enrich.backfill_file_missing", file_id=file_id, path=str(file_path))
+            continue
+
+        try:
+            stream_rows = wrapper.extract_streams(file_path)
+        except Exception:  # noqa: BLE001 — pymediainfo / enzyme can raise broadly
+            log.warning("indexer.enrich.backfill_extract_failed", file_id=file_id, path=str(file_path))
+            continue
+
+        if not stream_rows:
+            continue
+
+        for global_idx, sr in enumerate(stream_rows):
+            conn.execute(
+                """
+                UPDATE media_stream
+                   SET hdr_format = COALESCE(media_stream.hdr_format, ?),
+                       is_atmos   = COALESCE(media_stream.is_atmos,   ?),
+                       is_default = COALESCE(media_stream.is_default, ?),
+                       forced     = COALESCE(media_stream.forced,     ?),
+                       format     = COALESCE(media_stream.format,     ?)
+                 WHERE file_id = ? AND idx = ?
+                """,
+                (
+                    sr.hdr_format,
+                    None if sr.is_atmos is None else int(sr.is_atmos),
+                    None if sr.is_default is None else int(sr.is_default),
+                    None if sr.forced is None else int(sr.forced),
+                    sr.format,
+                    file_id,
+                    global_idx,
+                ),
+            )
+
+        conn.commit()
+        files_backfilled += 1
+        log.debug("indexer.enrich.backfill_file_done", file_id=file_id, path=str(file_path))
+
+    log.info(
+        "indexer.enrich.backfill_disk_done",
+        disk_id=disk.id,
+        label=disk.label,
+        files_backfilled=files_backfilled,
+    )
+
+
+def _scan_disk_verify(
+    conn: sqlite3.Connection,
+    disk: DiskRow,
+    files_visited: list[int],
+    generation: int,
+    budget_seconds: float | None,
+    started_at_monotonic: float,
+    budget_exhausted: list[bool],
+    scan_run_id: int,
+) -> None:
+    """Re-stat every indexed file on a disk and enqueue repair on mismatch.
+
+    Drift (size or mtime) and absence both produce a ``repair_queue`` row.
+    Verify mode is non-destructive: it never soft-deletes, never recomputes
+    fingerprints, and never updates ``size_bytes`` or ``mtime_ns`` on the
+    DB row.  When a file's on-disk state matches the row, only
+    ``last_verified_at`` and ``scan_generation`` are bumped to record that
+    verification ran cleanly.  Mismatches are escalated to ``repair_queue``
+    with ``scope='file'`` so an operator (or the repair worker) can
+    investigate before any destructive action is taken.
+
+    Per-file commit: partial progress survives interruption.
+
+    Args:
+        conn: Open SQLite connection.
+        disk: :class:`~personalscraper.indexer.schema.DiskRow` to verify.
+        files_visited: Single-element counter mutated in place (mirrors the
+            convention of the other ``_scan_disk_*`` drivers).
+        generation: Current scan generation; written to ``media_file.scan_generation``
+            on every visited row so callers can detect orphaned rows from
+            previous generations.
+        budget_seconds: Maximum wall-clock seconds for the entire verify pass.
+            ``None`` = unlimited.
+        started_at_monotonic: :func:`time.monotonic` timestamp captured at scan start.
+        budget_exhausted: Single-element flag set to ``True`` when the budget
+            is reached.
+        scan_run_id: PK of the active ``scan_run`` row for stats updates on
+            budget exhaustion.
+    """
+    if disk.mount_path is None:
+        log.warning("indexer.verify.disk_no_mount", disk_id=disk.id, label=disk.label)
+        return
+
+    # Lazy imports keep the module-level import surface small and avoid a
+    # circular dependency with outbox_repo (which transitively imports schema).
+    from personalscraper.indexer.repos import outbox_repo as _outbox_repo  # noqa: PLC0415
+    from personalscraper.indexer.schema import RepairQueueRow  # noqa: PLC0415
+
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        """
+        SELECT mf.id        AS file_id,
+               mf.filename  AS filename,
+               mf.size_bytes AS size_bytes,
+               mf.mtime_ns  AS mtime_ns,
+               p.rel_path   AS rel_path
+          FROM media_file mf
+          JOIN path p ON p.id = mf.path_id
+         WHERE p.disk_id = ?
+           AND mf.deleted_at IS NULL
+         ORDER BY mf.id
+        """,
+        (disk.id,),
+    ).fetchall()
+    conn.row_factory = None
+
+    files_verified = 0
+    mismatches = 0
+    missing = 0
+
+    for row in rows:
+        if budget_seconds is not None:
+            elapsed = time.monotonic() - started_at_monotonic
+            if elapsed >= budget_seconds:
+                log.info(
+                    "indexer.verify.budget_exhausted",
+                    disk_id=disk.id,
+                    label=disk.label,
+                    files_verified=files_verified,
+                    mismatches=mismatches,
+                    missing=missing,
+                    elapsed=elapsed,
+                )
+                conn.execute(
+                    "UPDATE scan_run SET stats_json = ? WHERE id = ?",
+                    (
+                        json.dumps(
+                            {
+                                "budget_exhausted": True,
+                                "files_verified": files_verified,
+                                "mismatches": mismatches,
+                                "missing": missing,
+                            }
+                        ),
+                        scan_run_id,
+                    ),
+                )
+                conn.commit()
+                budget_exhausted[0] = True
+                return
+
+        rel_path: str = row["rel_path"]
+        filename: str = row["filename"]
+        if rel_path == ".":
+            file_path = Path(disk.mount_path) / filename
+        else:
+            file_path = Path(disk.mount_path) / rel_path / filename
+
+        file_id: int = row["file_id"]
+        now_s: int = int(time.time())
+
+        try:
+            st = os.stat(file_path, follow_symlinks=False)
+        except FileNotFoundError:
+            _outbox_repo.insert_repair_queue(
+                conn,
+                RepairQueueRow(
+                    id=0,
+                    scope="file",
+                    scope_id=file_id,
+                    reason="verify: file missing on disk",
+                    payload_json=None,
+                    enqueued_at=now_s,
+                    status="pending",
+                    attempted_at=None,
+                    attempts=0,
+                ),
+            )
+            missing += 1
+            files_visited[0] += 1
+            files_verified += 1
+            conn.commit()
+            continue
+        except OSError as exc:
+            log.warning(
+                "indexer.verify.stat_failed",
+                file_id=file_id,
+                path=str(file_path),
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
+            files_visited[0] += 1
+            continue
+
+        size_match = st.st_size == row["size_bytes"]
+        mtime_match = st.st_mtime_ns == row["mtime_ns"]
+
+        if size_match and mtime_match:
+            # Clean verification — bump last_verified_at and scan_generation.
+            conn.execute(
+                "UPDATE media_file SET last_verified_at = ?, scan_generation = ? WHERE id = ?",
+                (now_s, generation, file_id),
+            )
+        else:
+            _outbox_repo.insert_repair_queue(
+                conn,
+                RepairQueueRow(
+                    id=0,
+                    scope="file",
+                    scope_id=file_id,
+                    reason=(f"verify: drift detected (size_match={size_match}, mtime_match={mtime_match})"),
+                    payload_json=json.dumps(
+                        {
+                            "expected_size": row["size_bytes"],
+                            "actual_size": st.st_size,
+                            "expected_mtime_ns": row["mtime_ns"],
+                            "actual_mtime_ns": st.st_mtime_ns,
+                        }
+                    ),
+                    enqueued_at=now_s,
+                    status="pending",
+                    attempted_at=None,
+                    attempts=0,
+                ),
+            )
+            mismatches += 1
+            # Still bump scan_generation so the row is reachable in this run.
+            conn.execute(
+                "UPDATE media_file SET scan_generation = ? WHERE id = ?",
+                (generation, file_id),
+            )
+
+        files_visited[0] += 1
+        files_verified += 1
+        conn.commit()
+
+    log.info(
+        "indexer.verify.disk_done",
+        disk_id=disk.id,
+        label=disk.label,
+        files_verified=files_verified,
+        mismatches=mismatches,
+        missing=missing,
     )

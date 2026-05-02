@@ -723,6 +723,39 @@ class TestScrapeTvshow:
         assert not is_valid
         assert reason.startswith("episode_nfo_missing")
 
+    def test_verify_accepts_synthetic_fallback_episode_without_nfo(
+        self,
+        scraper: Scraper,
+        tmp_path: Path,
+    ) -> None:
+        """Synthetic-fallback episode names (``SxxExx - Episode N``) without NFO are not drift.
+
+        When the scraper finds no TMDB record for an episode it falls back to
+        ``S01E08 - Episode 8.mkv`` and intentionally writes no sibling NFO
+        (refuses to fabricate metadata). Without this carve-out the verify
+        step would flag it as drift on every dry-run, triggering an endless
+        rescrape loop. Regression test for the fix in 372d522.
+        """
+        show_dir = self._build_coherent_show_dir(
+            tmp_path,
+            episode_name="S01E09 - Episode 9",
+            with_episode_nfo=False,
+        )
+        is_valid, reason = scraper._verify_existing_scrape(show_dir, show_dir / "tvshow.nfo")
+        assert is_valid, f"synthetic fallback should pass, got reason={reason!r}"
+        assert reason == "ok"
+
+        # Zero-padded variant ("Episode 09") must also be accepted.
+        padded_root = tmp_path / "padded"
+        padded_root.mkdir()
+        show_dir2 = self._build_coherent_show_dir(
+            padded_root,
+            episode_name="S01E09 - Episode 09",
+            with_episode_nfo=False,
+        )
+        is_valid2, reason2 = scraper._verify_existing_scrape(show_dir2, show_dir2 / "tvshow.nfo")
+        assert is_valid2, f"zero-padded synthetic fallback should pass, got reason={reason2!r}"
+
     def test_verify_rejects_missing_poster(
         self,
         scraper: Scraper,
@@ -1128,9 +1161,12 @@ class TestCircuitBreakerFallback:
             patch("personalscraper.scraper.scraper.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
-        # Replace mock circuits with real ones for testing
-        s._tmdb.circuit = CircuitBreaker(name="TMDB")
-        s._tvdb.circuit = CircuitBreaker(name="TVDB")
+        # Replace mock circuits with real ones for testing.
+        # ``circuit`` is a read-only property on the real clients; the
+        # MagicMock replacement still accepts assignment. Type ignores
+        # acknowledge the mock-vs-real shape divergence.
+        s._tmdb.circuit = CircuitBreaker(name="TMDB")  # type: ignore[misc]
+        s._tvdb.circuit = CircuitBreaker(name="TVDB")  # type: ignore[misc]
         return s
 
     def test_process_movies_skips_when_tmdb_circuit_open(
