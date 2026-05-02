@@ -1018,6 +1018,13 @@ _TV_SEASON_DIR_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Categories that do not follow the Kodi NFO convention. For these,
+# ``nfo_status='missing'`` is a structural false-positive — there is no
+# ``movie.nfo`` / ``tvshow.nfo`` to find because the format does not
+# specify one. Setting nfo_status to NULL ("not applicable") is more
+# faithful than reporting them as broken in library-report.
+_NFO_NA_CATEGORIES: frozenset[str] = frozenset({"audiobooks"})
+
 
 def _resolve_item_root_dir(file_path: Path) -> Path | None:
     """Return the directory whose NFO + artwork describe ``file_path``'s item.
@@ -1276,6 +1283,18 @@ def _enrich_one_file(
             artwork = _inventory_artwork(parent_dir)
             if nfo_artwork_cache is not None:
                 nfo_artwork_cache[parent_dir] = (nfo_status, artwork)
+
+        # Categories that do not use the Kodi NFO convention (audiobooks
+        # have no ``movie.nfo`` / ``tvshow.nfo`` equivalent) must not be
+        # flagged as ``missing`` just because no .nfo file is present.
+        # Suppress the NFO update in that case so ``nfo_status`` stays
+        # NULL — interpreted as "not applicable" by readers.
+        cat_row = conn.execute(
+            "SELECT category_id FROM media_item WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+        if cat_row is not None and cat_row[0] in _NFO_NA_CATEGORIES:
+            nfo_status = None
 
         # Skip column updates when either scan returned None — a transient OS error
         # occurred and the existing DB values must be preserved rather than overwritten
