@@ -57,6 +57,17 @@ Config is now a directory of JSON5 files with overlay merge.
 - Optional `local.json5` for machine-specific overrides with last-wins semantics
 - All paths, staging layout, thresholds, and preferences live in `config/` — `.env` is credentials only
 
+### Reverse Episode Lookup (standalone)
+
+Find SXXEXX for episodes missing season/episode numbers via reverse scraping on TVDB (TMDB/other fallback). Standalone command invoked manually when needed.
+
+- **Input**: a video file named without SXXEXX (e.g. `The Return of the King.mkv`)
+- **Reverse lookup**: clean the filename → search the episode name in TVDB (within the already-identified series) → retrieve `airedSeason` and `airedEpisodeNumber`
+- **Cascading fallback**: TVDB in scraping language → TVDB in fallback language → TMDB → other scrapers
+- **Output**: rename the file to `SXXEXX - Episode Name.ext` so it flows through the standard pipeline
+- **CLI**: `personalscraper resolve-episodes <path>` — standalone, not integrated into the automated pipeline
+- **Codebase**: inspired by the `TVDBNameToNum.py.bak` script (interactive TVDB v3 interface, name cleaning/normalization, fuzzy matching)
+
 ### Third-Party API Consumer Unification
 
 Unify all external API integrations behind a single client abstraction so new providers plug in without touching the rest of the codebase. Today each provider is wired ad hoc (`scraper/tmdb_client.py`, `scraper/tvdb_client.py`, `ingest/qbit_client.py`) and shares no contract — adding a new tracker means re-inventing retry, auth, rate-limiting, and result normalisation each time.
