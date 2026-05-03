@@ -33,6 +33,8 @@ config.example/               ← tracked, canonical template for new installs
   encoding.json5
   scraper.json5
   trailers.json5
+  indexer.json5
+  thresholds.json5
 ```
 
 The `config.example/` directory at repo root is the tracked template for new installs.
@@ -58,3 +60,5 @@ Run `personalscraper init-config` to copy it to `./config/`.
 | `library`                                                                          | `encoding.json5`   |
 | `scraper`, `ingest`, `fuzzy_match`                                                 | `scraper.json5`    |
 | `trailers`                                                                         | `trailers.json5`   |
+| `indexer`                                                                          | `indexer.json5`    |
+| `thresholds`                                                                       | `thresholds.json5` |
