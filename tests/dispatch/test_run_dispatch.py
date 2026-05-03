@@ -4,8 +4,8 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.conf.models import DiskConfig
-from personalscraper.dispatch.dispatcher import DispatchResult
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.run import _to_step_report, run_dispatch
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
@@ -63,7 +63,8 @@ class TestRunDispatch:
 
         assert report.name == "dispatch"
         MockIdx.assert_called_once_with(config.indexer.db_path, config=config, auto_rebuild=False)
-        mock_idx.load.assert_called_once()
+        mock_idx.begin_preview.assert_called_once()
+        mock_idx.rebuild.assert_not_called()  # count=5 > 0 skips rebuild
 
     def test_dry_run_empty_index_rebuild_is_rolled_back(self, tmp_path: Path) -> None:
         """Dry-run can preview with a rebuilt index without persisting cache rows."""

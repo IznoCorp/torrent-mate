@@ -2,12 +2,10 @@
 
 from personalscraper.conf import ids as CID
 from personalscraper.conf.loader import collect_warnings
-from personalscraper.conf.models import (
-    CategoryConfig,
-    Config,
-    DiskConfig,
-    PathConfig,
-)
+from personalscraper.conf.models.categories import CategoryConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------
@@ -151,10 +149,11 @@ class TestDiskUnmountedWarning:
         """load_config must emit warnings via logger for each warning found."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
+        cfg_dir = tmp_path / "config"
+        cfg_dir.mkdir()
         # Write config with unmounted disk path
         disk_path = tmp_path / "nonexistent_disk"
-        cfg_path.write_text(
+        (cfg_dir / "config.json5").write_text(
             f"""{{
                 paths: {{
                     torrent_complete_dir: "{tmp_path / "complete"}",
@@ -195,6 +194,6 @@ class TestDiskUnmountedWarning:
         from personalscraper.conf.loader import load_config
 
         with caplog.at_level(logging.WARNING, logger="personalscraper.conf.loader"):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
         assert any("not mounted/present" in r.message for r in caplog.records)
