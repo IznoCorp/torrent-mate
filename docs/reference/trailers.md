@@ -12,7 +12,7 @@ two-tier search: TMDB /videos -> YouTube API v3 -> yt-dlp fallback.
 
 ## Configuration
 
-All keys under the trailers block in config.json5.
+All keys under the trailers block in config/trailers.json5. Most keys have sensible Pydantic defaults and are optional; `config.example/trailers.json5` shows only the minimal required subset.
 
 ### Top-level keys
 
@@ -52,10 +52,10 @@ All keys under the trailers block in config.json5.
 
 Two independent circuit breakers.
 
-| Service | errors_threshold | cooldown_sec  |
-| ------- | ---------------- | ------------- |
-| tmdb    | 5                | 1800 (30 min) |
-| youtube | 5                | 3600 (60 min) |
+| Service     | errors_threshold | cooldown_sec  |
+| ----------- | ---------------- | ------------- |
+| tmdb_videos | 5                | 1800 (30 min) |
+| youtube     | 5                | 3600 (60 min) |
 
 ### trailers.youtube_api
 
@@ -99,12 +99,12 @@ Per-type library-aware idempotence toggles.
 | YOUTUBE_COOKIES_FILE         | Optional | Netscape cookies file path (mode 600 on APFS).                  |
 | YOUTUBE_COOKIES_FROM_BROWSER | Optional | Browser name for --cookies-from-browser (e.g. chrome).          |
 
-Never put API keys in config.json5 -- use .env (gitignored).
+Never put API keys in config files -- use .env (gitignored).
 
 ## Pipeline Step
 
 Step **8** of 9, between verify and dispatch.
-Non-blocking by default.
+Blocking by default (trailer errors abort dispatch unless `--continue-on-trailer-error` is passed).
 
 - --skip-trailers : skip for this run.
 - --continue-on-trailer-error : continue to dispatch on errors.
