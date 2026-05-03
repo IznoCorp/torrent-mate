@@ -159,7 +159,7 @@ def find_item_for_path(conn: sqlite3.Connection, abs_dir: str) -> tuple[int, str
         if row is not None:
             return int(row[0]), str(row[1]), season_num
 
-        # Strategy 3: parsed (title, year) match (library-scanner style).
+        # Strategy 3: parsed (title, year) match.
         parsed_title, parsed_year = _parse_title_year(current.name)
         if parsed_year is not None:
             row = conn.execute(

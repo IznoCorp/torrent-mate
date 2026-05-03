@@ -103,16 +103,14 @@ def mini_library(tmp_path: Path):
         staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
-    # Build V14-style mock DiskConfig for disk_cleaner / disk_scanner calls
-    # (will be migrated in P8.5)
-    legacy_config = MagicMock()
-    legacy_config.path = disk
-    legacy_config.name = "Disk1"
-    legacy_config.categories = ["films", "series"]
+    disk_status_config = MagicMock()
+    disk_status_config.path = disk
+    disk_status_config.name = "Disk1"
+    disk_status_config.categories = ["films", "series"]
 
     return {
         "disk": disk,
-        "config": legacy_config,
+        "config": disk_status_config,
         "v15_config": v15_config,
         "disk_cfg": disk_cfg,
         "matrix": matrix,
@@ -122,7 +120,7 @@ def mini_library(tmp_path: Path):
 
 
 class TestScanIntegration:
-    """Integration test for library-scan."""
+    """Integration test for library scanning."""
 
     @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
     def test_scan_finds_all_items(self, mini_library) -> None:

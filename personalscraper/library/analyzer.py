@@ -109,7 +109,7 @@ class AnalysisResult:
         scan_issues: Count of items per directory-hygiene issue type
             (``actors_dir_present``, ``junk_files``, ``bad_dir_naming``,
             ``release_group_artifact``, ``empty_subdir``, ``ntfs_unsafe_name``).
-            Populated by ``library-scan`` via the ``item_issue`` table.
+            Populated by the indexer via the ``item_issue`` table.
         actors_dir_count: Convenience accessor — items with at least one
             ``.actors/`` directory.  Equivalent to
             ``scan_issues.get('actors_dir_present', 0)``.
@@ -217,8 +217,8 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
 
     # --- Per-disk distribution -----------------------------------------------
     # Source items_per_disk from item_attribute(dispatch_disk) so the count is
-    # populated by every library-scanned item, regardless of whether enrich
-    # has linked its files to a media_release.
+    # populated by every indexed item, regardless of whether enrich has linked
+    # its files to a media_release.
     rows = conn.execute(
         "SELECT ia.value AS disk_label, COUNT(DISTINCT ia.item_id) AS items "
         "FROM item_attribute ia "
@@ -249,7 +249,7 @@ def analyze(conn: sqlite3.Connection) -> AnalysisResult:
     # release linkage is present (post-enrich), the join is exact.  Otherwise
     # we fall back to matching media_file paths by their on-disk parent
     # against item_attribute(dispatch_path), which is written for every
-    # library-scanned item.  No release linkage and no dispatch_path → the
+    # indexed item.  No release linkage and no dispatch_path → the
     # item is skipped from top_largest only (still counted everywhere else).
     rows = conn.execute(
         "SELECT m.title AS title, SUM(mf.size_bytes) AS bytes "

@@ -651,8 +651,8 @@ class TestCategoryOrphanCheck:
 class TestLoadConfigWarnings:
     """Tests that load_config_dir does not emit unrelated warnings."""
 
-    def test_load_config_dir_does_not_emit_deprecation_warning(self, tmp_path: Path) -> None:
-        """load_config_dir must NOT emit a DeprecationWarning."""
+    def test_load_config_dir_does_not_emit_python_warnings(self, tmp_path: Path) -> None:
+        """load_config_dir must not emit Python warnings."""
         cfg_dir = tmp_path / "cfg"
         cfg_dir.mkdir()
         (cfg_dir / "config.json5").write_text(
@@ -660,14 +660,10 @@ class TestLoadConfigWarnings:
             encoding="utf-8",
         )
 
-        # recwarn collects all warnings; we assert none are DeprecationWarning.
         import warnings as _warnings
 
         with _warnings.catch_warnings(record=True) as caught:
             _warnings.simplefilter("always")
             load_config_dir(cfg_dir)
 
-        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-        assert deprecation_warnings == [], (
-            f"load_config_dir must not emit DeprecationWarning, but got: {deprecation_warnings}"
-        )
+        assert caught == []

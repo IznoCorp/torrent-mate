@@ -63,7 +63,7 @@ def _force_rmtree(path: Path) -> None:
         except OSError as e:
             errors.append((fpath, e))
 
-    # Python 3.12 deprecated onerror in favor of onexc
+    # Python 3.12 uses onexc; earlier versions use onerror.
     if sys.version_info >= (3, 12):
         shutil.rmtree(path, onexc=_on_error)
     else:
@@ -109,8 +109,7 @@ class Dispatcher:
     using rsync for cross-filesystem transfers.
 
     Accepts ``Config`` as first argument; routing uses
-    ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for``
-    instead of the removed ``choose_disk()`` + DISK_CATEGORIES.
+    ``conf.resolver.pick_disk_for`` and ``conf.resolver.folder_for``.
 
     Attributes:
         dry_run: If True, preview operations without transferring.
@@ -260,8 +259,8 @@ class Dispatcher:
         3. If not → scan every configured disk for a directory named exactly
            ``name`` (under any category folder). If found, return a synthetic
            IndexEntry pointing at the real location (disk_id + path resolved
-           from filesystem). The in-memory index is NOT mutated — persistence
-           is library-scan's job, not dispatch's.
+           from filesystem). Index maintenance is handled by the write-through
+           and indexer scan paths.
         4. If nowhere on any disk → return ``None`` (truly new).
 
         Args:

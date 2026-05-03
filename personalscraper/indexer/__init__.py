@@ -1,7 +1,7 @@
 """Media indexer sub-package.
 
-Provides the SQLite-backed library index that replaces the legacy JSON files
-(``media_index.json``, ``library_scan.json``, ``library_analysis.json``).
+Provides the SQLite-backed library index used by dispatch, library health
+commands, trailers, and repair tooling.
 
 Layout:
 

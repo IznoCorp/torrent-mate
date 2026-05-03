@@ -48,7 +48,7 @@
     requires_origin_country: ["JP"],
     // Result category_id
     maps_to: "anime",
-    // Media types to apply the rule to: "movies", "tv", "both"
+    // Media types to apply the rule to: "movie", "tv", "both"
     applies_to: "tv",
   },
 

@@ -206,22 +206,6 @@ Accepted extensions: .mp4, .mkv, .webm (priority order).
 
 NFO <trailer> tag: populated with YouTube URL for Plex/Kodi remote-trailer fallback.
 
-### Legacy TV-show flat paths
-
-Prior to the 2026-04-25 pipeline fix, TV show trailers were placed using the same
-flat `{show}-trailer.{ext}` convention as movies. This produces unrecognised orphan
-videos in Plex's TV Series agent. The correct convention is the subfolder path
-`Trailers/{show}.{ext}` (or `Saison NN/Trailers/{show} - Saison NN.{ext}` for
-season-level).
-
-`find_existing_trailer()` probes the legacy flat path as a fallback so existing
-files are detected as already-present rather than silently re-downloaded alongside
-the correct new path. A `placement.legacy_tvshow_trailer_found` WARNING is emitted
-when a legacy file is found.
-
-Legacy flat-path trailer files are reported as WARNING on each pipeline run.
-A future purge enhancement will handle automatic migration.
-
 ### Library-aware idempotence (DESIGN section 8)
 
 When trailers.library_check.tv_shows = true (default), the orchestrator
@@ -229,9 +213,7 @@ queries the indexer DB (via `trailers.scanner.Scanner.scan_library`, which
 calls `indexer.query.find_items_without_trailer`) once before processing TV
 show items. If the show is already indexed and has a valid trailer file on
 a storage disk, the entry is marked `already_present_on_disk` and no
-network call is made. The previous TTL-cached library walk and the
-`library_scan_max_age_hours` config knob were removed when the indexer DB
-became the single source of truth (DESIGN §10.3).
+network call is made.
 
 - movies = false (films rarely re-ingested)
 - tv_shows = true (new episodes arrive frequently)

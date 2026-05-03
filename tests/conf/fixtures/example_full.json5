@@ -76,7 +76,7 @@
     requires_origin_country: ["JP"],
     // category_id résultat
     maps_to: "anime",
-    // Sur quels types de média: "movies", "tv", "both"
+    // Sur quels types de média: "movie", "tv", "both"
     applies_to: "tv",
   },
 
