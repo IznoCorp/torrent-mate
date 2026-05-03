@@ -11,7 +11,7 @@ by default), get renamed, cleaned of junk files/folders, scraped for metadata
 permanent storage on one of the configured disks.
 
 The staging subdirectory layout (`001-MOVIES/`, `002-TVSHOWS/`, etc.) is configured
-via the `staging_dirs` section of `config/paths.json5` — not hardcoded or tracked by git.
+via the `staging_dirs` section of `config/patterns.json5` — not hardcoded or tracked by git.
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 See `docs/reference/architecture.md` for the module map and package layout.

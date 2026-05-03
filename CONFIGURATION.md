@@ -34,7 +34,7 @@ Variables de connexion à l'interface Web de qBittorrent (Ingest).
 | --------------- | ----------- | ------------------------------------- |
 | `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent |
 | `QBIT_PORT`     | `8081`      | Port de l'interface Web API           |
-| `QBIT_USERNAME` | `admin`     | Nom d'utilisateur Web UI              |
+| `QBIT_USERNAME` | `""`        | Nom d'utilisateur Web UI              |
 | `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                   |
 
 ### Comment configurer
