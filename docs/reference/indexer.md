@@ -5,6 +5,10 @@ replaces the three legacy JSON sources of truth (`media_index.json`,
 `library_scan.json`, `library_analysis.json`) with a single queryable mirror of
 the four storage disks.
 
+`media_index.json` is no longer read or written. The compatibility shim logs a
+warning if a legacy file is still present next to the SQLite DB; the shim is
+kept through 0.9.x and scheduled for removal in 0.10.0.
+
 Cross-references: DESIGN §6, §8, §11, §12, §13, §14, §17.
 
 ---

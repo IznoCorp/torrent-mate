@@ -43,7 +43,14 @@ staging/
 ├── personalscraper/     # Python package
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
+│   ├── commands/        # Typer command groups (pipeline, library, config, info, diagnose)
 │   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
+│   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
+│   │   ├── movie_service.py     # movie scrape flow
+│   │   ├── tv_service.py        # TV show/episode scrape flow
+│   │   ├── rename_service.py    # rename helpers
+│   │   ├── existing_validator.py # existing NFO/artwork validation
+│   │   ├── classifier.py        # media item classification adapter
 │   │   ├── json_ttl_cache.py    # JSON-backed TTL cache for YouTube search results
 │   │   ├── youtube_search.py    # YouTube Data API v3 quota-aware search
 │   │   ├── trailer_finder.py    # Two-tier TMDB/YouTube trailer URL discovery
@@ -57,7 +64,7 @@ staging/
 │   │   ├── schema.py            # frozen dataclass row types + Pydantic JSON-column models
 │   │   ├── scanner/             # scan engine (os.scandir + ThreadPool, modes, checkpoint)
 │   │   │   ├── _core.py         # scan() entry point + filter_disks()
-│   │   │   ├── _modes.py        # ScanMode enum and per-mode logic
+│   │   │   ├── _modes/          # ScanMode enum + full/quick/incremental/enrich/verify/backfill handlers
 │   │   │   ├── _walker.py       # recursive dir walker + dir-mtime skip
 │   │   │   ├── _db_writes.py    # batch upserts into media_file + path tables
 │   │   │   ├── _checkpoint.py   # crash-resume checkpoint read/write
@@ -75,7 +82,8 @@ staging/
 │   │   ├── repair.py            # repair queue worker + budget drain
 │   │   ├── outbox.py            # outbox drainer + write-through helpers
 │   │   ├── query.py             # flex-attr query parser (FIELD_REGISTRY, execute())
-│   │   ├── cli.py               # library {index|status|verify|search|repair|show} commands
+│   │   ├── cli.py               # compatibility registration for library commands
+│   │   ├── commands/            # indexer CLI command implementations
 │   │   ├── config.py            # IndexerConfig pydantic submodel
 │   │   ├── breaker.py           # per-disk circuit breaker
 │   │   ├── _macos_io.py         # macOS-specific I/O helpers (diskutil, volume UUID)
@@ -94,6 +102,9 @@ staging/
 │   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks
 │   ├── dispatch/        # disk scanner, media index, rsync transfer + rollback/fallback
 │   ├── pipeline.py      # sequential 9-step pipeline orchestrator
+│   ├── pipeline_protocol.py # PipelineStep protocol + StepContext
+│   ├── pipeline_steps.py # default step registry + legacy override shim
+│   ├── reports/         # typed StepReport.details_payload contracts
 │   ├── cli.py           # Typer CLI entry point
 │   ├── config.py        # pydantic-settings
 │   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
@@ -140,7 +151,7 @@ Notes:
 - `classify()` — lives in `personalscraper/conf/classifier.py`; imported by verify and dispatch for genre/rule → category mapping (replaces the removed `genre_mapper` module).
 - `media_processor()` — lives in `personalscraper/text_utils.py`; imported by sorter, scraper, and `personalscraper/dispatch/media_index.py`. NFD accent stripping for French titles.
 - `sanitize_filename()` — lives in `personalscraper/text_utils.py`; strips `<>:"/\|?*` and normalizes U+00A0→space. Applied in `NamingPatterns.format()` (all artwork/NFO filenames) and in scraper `clean_name` (folder renames). TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography before `:`).
-- `SortResult`, `StepReport`, `PipelineReport` — defined in `personalscraper/models.py`. Each `run_*()` converts internal results to `StepReport` before returning.
+- `SortResult`, `StepReport`, `PipelineReport` — defined in `personalscraper/models.py`. Each `run_*()` converts internal results to `StepReport` before returning; `personalscraper/reports/` defines typed `details_payload` contracts for each pipeline step.
 - TV show folders: sorter creates `Show Name/` (no year), scraper renames to `Show Name (Year)/` after API matching (idempotent rename).
 
 ## trailers/ Subsystem Notes

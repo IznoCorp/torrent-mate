@@ -1,6 +1,7 @@
 """Tests for personalscraper.cli — CLI commands and global options."""
 
 import re
+import warnings
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -94,6 +95,21 @@ def test_help():
     assert "dispatch" in result.output
     assert "process" in result.output
     assert "run" in result.output
+
+
+@patch("personalscraper.library.scanner.scan_library", return_value=None)
+def test_library_scan_emits_deprecation_warning(mock_scan):
+    """library-scan warns before delegating to the DB-backed scan."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = runner.invoke(app, ["library-scan"])
+
+    assert result.exit_code == 0
+    assert "library-scan is deprecated" in result.output
+    assert "0.10.0" in result.output
+    assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+    assert any("0.10.0" in str(w.message) for w in caught)
+    mock_scan.assert_called_once()
 
 
 @patch(_PATCH_CLI_RUN_INGEST, return_value=_mock_report)

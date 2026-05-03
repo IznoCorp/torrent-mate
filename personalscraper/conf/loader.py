@@ -240,11 +240,12 @@ def load_config(path: Path | None = None) -> Config:
     # v1 single-file config is deprecated in favour of the v2 split-directory layout.
     # Emit a DeprecationWarning so users see the migration instruction at call site.
     warnings.warn(
-        "v1 single-file config is deprecated; run "
+        "v1 single-file config is deprecated and will be removed in 0.10.0; run "
         "`personalscraper config migrate-to-v2 <legacy-path> <target-dir>` to migrate",
         DeprecationWarning,
         stacklevel=2,
     )
+    log.warning("config_v1_deprecated", path=str(resolved), removal_version="0.10.0")
 
     with resolved.open("r", encoding="utf-8") as f:
         try:

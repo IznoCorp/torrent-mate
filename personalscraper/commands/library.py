@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any, Optional
 
@@ -23,7 +24,7 @@ def library_scan(
     disk: str = typer.Option(None, "--disk", help="Scan only this disk (id from config)"),
     category: str = typer.Option(None, "--category", help="Scan only this category"),
 ) -> None:
-    """Scan library structure and populate the indexer database.
+    """[DEPRECATED, removal in 0.10.0] Scan library structure.
 
     Walks all configured storage disks and records every media file in the
     indexer database.  The ``--disk`` and ``--category`` filters are no longer
@@ -35,6 +36,12 @@ def library_scan(
     Examples:
         personalscraper library-scan
     """
+    warnings.warn(
+        "library-scan is deprecated and will be removed in 0.10.0. "
+        "Use library-index instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     import sqlite3  # noqa: PLC0415
 
     from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
@@ -43,17 +50,21 @@ def library_scan(
 
     console = state["console"]
     config = ctx.obj.config
+    console.print(
+        "[yellow]library-scan is deprecated and will be removed in 0.10.0. "
+        "Use library-index instead.[/yellow]"
+    )
 
     # --disk and --category are no longer forwarded to scan_library; warn once.
     if disk is not None:
         console.print(
             "[yellow]Warning:[/yellow] --disk is deprecated for library-scan "
-            "and is ignored. Use library-index --disk instead."
+            "and will be removed in 0.10.0. It is ignored. Use library-index --disk instead."
         )
     if category is not None:
         console.print(
             "[yellow]Warning:[/yellow] --category is deprecated for library-scan "
-            "and is ignored. Use library-index instead."
+            "and will be removed in 0.10.0. It is ignored. Use library-index instead."
         )
 
     db_path = config.indexer.db_path

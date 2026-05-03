@@ -139,7 +139,8 @@ def verify(
         settings = cli_compat.get_settings()
         if fix is not None:
             console.print(
-                "[yellow]Warning: --fix is deprecated. Use 'personalscraper enforce' before verify instead.[/yellow]"
+                "[yellow]Warning: --fix is deprecated and will be removed in 0.10.0. "
+                "Use 'personalscraper enforce' before verify instead.[/yellow]"
             )
         effective_fix = bool(fix) if fix is not None else False
         report, dispatchable = run_verify(

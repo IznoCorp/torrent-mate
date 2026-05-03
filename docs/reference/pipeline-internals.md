@@ -9,9 +9,21 @@ Circuit breaker, fast-skip behavior, dispatch/verify internals, idempotence.
 - Only counts 5xx / timeout / connection — **NOT** 429 (tenacity handles) or 4xx (client errors).
 - `guard()` method centralizes check-then-raise: clients call `self._circuit.guard()` instead of manually checking `can_proceed()` + constructing `CircuitOpenError`.
 
+## Step Contracts
+
+The orchestrator executes `PipelineStep` objects through
+`personalscraper.pipeline_protocol.StepContext`. Production steps are registered
+in `personalscraper.pipeline_steps.DEFAULT_STEPS`; tests can still pass legacy
+callables through `step_overrides`, which are adapted by the compatibility shim.
+
+Each executed step returns a `StepReport`. The legacy `details: list[str]`
+field remains for CLI and HTML rendering; `details_payload` is the additive
+typed payload. The registry in `personalscraper.reports.STEP_REPORT_CONTRACT`
+maps the nine public step names to their `*Details` dataclass.
+
 ## Fast-Skip (idempotence)
 
-All 8 pipeline steps are idempotent — re-running produces no changes if everything is already processed.
+All 9 pipeline steps are idempotent — re-running produces no changes if everything is already processed.
 
 ### Scrape fast-skip
 

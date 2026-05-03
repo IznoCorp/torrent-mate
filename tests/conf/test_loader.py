@@ -660,7 +660,7 @@ class TestCategoryOrphanCheck:
 class TestLoadConfigDeprecationWarning:
     """Tests that load_config emits a DeprecationWarning and load_config_dir does not."""
 
-    def test_load_config_emits_deprecation_warning(self, tmp_path: Path) -> None:
+    def test_load_config_emits_deprecation_warning(self, tmp_path: Path, caplog) -> None:
         """load_config must emit exactly one DeprecationWarning directing users to migrate."""
         cfg_path = tmp_path / "config.json5"
         _write_minimal_config(cfg_path, tmp_path)
@@ -672,6 +672,8 @@ class TestLoadConfigDeprecationWarning:
         deprecation_warnings = [w for w in warning_list if issubclass(w.category, DeprecationWarning)]
         assert len(deprecation_warnings) == 1
         assert "v1 single-file config is deprecated" in str(deprecation_warnings[0].message)
+        assert "0.10.0" in str(deprecation_warnings[0].message)
+        assert "config_v1_deprecated" in caplog.text
 
     def test_load_config_dir_does_not_emit_deprecation_warning(self, tmp_path: Path) -> None:
         """load_config_dir (v2 path) must NOT emit a DeprecationWarning."""
