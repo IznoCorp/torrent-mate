@@ -1,29 +1,33 @@
-"""Pipeline secrets and numeric thresholds via pydantic-settings.
+"""Pipeline credentials via pydantic-settings.
 
-Loads settings from environment variables and .env file.
+Loads secrets and credentials from environment variables and .env file.
 
-Config split: paths and disk structure live in config.json5 (see
-``conf/models.py::Config``). This module retains only secrets
-(API keys, credentials) and numeric thresholds that cannot go into a
-version-controlled config file.
+Config split: all paths, thresholds, scraper settings, and disk structure
+live in config.json5 (see ``conf/models.py::Config``). This module retains
+only secrets (API keys, passwords, tokens).
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, ClassVar
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Resolve .env relative to the package root (parent of this config module),
+# not CWD.  pydantic-settings treats a relative env_file as CWD-relative,
+# which breaks when the pipeline is launched from the staging directory
+# (config.json5 + .env live at the project root, not inside staging).
+_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+
 
 class Settings(BaseSettings):
-    """Pipeline secrets and thresholds loaded from .env and environment variables.
+    """Pipeline credentials loaded from .env and environment variables.
 
-    Note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
-    data_dir_name, and all *_dir_name fields have been removed — staging layout
-    now lives in ``Config.staging_dirs`` (conf/models.py + conf/staging.py).
-    Only secrets and numeric thresholds remain here.
+    Only secrets, API keys, and credentials belong here. All paths,
+    thresholds, and scraper tunables live in config.json5.
 
     Attributes:
         qbit_host: qBittorrent Web API hostname.
@@ -32,23 +36,15 @@ class Settings(BaseSettings):
         qbit_password: qBittorrent login password.
         tmdb_api_key: The Movie Database API key (Bearer token).
         tvdb_api_key: TheTVDB API key (Negotiated Contract).
-        youtube_api_key: YouTube Data API v3 key for trailer discovery (empty = yt-dlp fallback only).
-        youtube_cookies_file: Path to a Netscape-format cookies.txt for yt-dlp (optional).
-        youtube_cookies_from_browser: Browser profile name for live cookie extraction (optional).
-        scraper_language: Primary language for API queries (TMDB format: "fr-FR").
-        scraper_fallback_language: Fallback language when primary unavailable.
-        scraper_prefer_local_title: Use local (FR) title for folder renaming.
-        telegram_bot_token: Telegram bot token for notifications (empty = disabled).
-        telegram_chat_id: Telegram chat/user ID for notifications (empty = disabled).
-        healthcheck_url: Healthchecks.io ping URL for scheduling monitoring (empty = disabled).
-        min_free_space_staging_gb: Minimum free space on SSD before ingest (GB).
-        min_free_space_disk_gb: Minimum free space on storage disks before dispatch (GB).
-        library_preferences_file: Library preferences filename (legacy, kept for backward compat).
-        circuit_breaker_threshold: Consecutive errors before opening circuit.
-        circuit_breaker_cooldown: Seconds to wait before retrying after circuit opens.
+        youtube_api_key: YouTube Data API v3 key for trailer discovery.
+        youtube_cookies_file: Path to a Netscape-format cookies.txt for yt-dlp.
+        youtube_cookies_from_browser: Browser profile name for live cookie extraction.
+        telegram_bot_token: Telegram bot token for notifications.
+        telegram_chat_id: Telegram chat/user ID for notifications.
+        healthcheck_url: Healthchecks.io ping URL for scheduling monitoring.
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_ENV_PATH), extra="ignore")
 
     # qBittorrent
     qbit_host: str = "localhost"
@@ -67,29 +63,12 @@ class Settings(BaseSettings):
     youtube_cookies_file: str = ""
     youtube_cookies_from_browser: str = ""
 
-    # Scraper
-    scraper_language: str = "fr-FR"
-    scraper_fallback_language: str = "en-US"
-    scraper_prefer_local_title: bool = True
-    artwork_language: str = "en"
-
     # Telegram (optional)
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
     # Monitoring (optional)
     healthcheck_url: str = ""
-
-    # Thresholds
-    min_free_space_staging_gb: int = 20
-    min_free_space_disk_gb: float = 100
-
-    # Library maintenance preferences
-    library_preferences_file: str = "library_preferences.json"
-
-    # Circuit breaker — API outage detection
-    circuit_breaker_threshold: int = 5
-    circuit_breaker_cooldown: int = 300
 
     # Fields whose values must never appear in repr/str output (tracebacks, logs, etc.).
     _SECRET_FIELDS: ClassVar[frozenset[str]] = frozenset(

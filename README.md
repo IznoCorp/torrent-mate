@@ -51,15 +51,15 @@ staging/
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation
-├── config.json5         # Configuration principale — chemins, disques, catégories, règles (gitignored)
-├── config.example.json5 # Exemple de config.json5
+├── config.example/      # Template de configuration (v2 split)
+├── config/              # Configuration utilisateur — chemins, disques, catégories, règles (gitignored)
 ├── .env                 # Secrets API uniquement — TMDB/TVDB keys, qBit credentials (gitignored)
-├── .env.example         # Exemple de .env
+├── .env.example         # Template .env
 └── Makefile             # make test/lint/format/install-dev
 ```
 
 Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
-défini par `paths.staging_dir` dans `config.json5` — en dehors du dépôt par défaut.
+défini par `paths.staging_dir` dans `config/paths.json5` — en dehors du dépôt par défaut.
 Ils ne sont pas suivis par git.
 
 ## Commandes utiles

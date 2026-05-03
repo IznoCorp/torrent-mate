@@ -213,7 +213,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
         _insert_mounted_disk(conn, mount_path=str(disk_path), label=f"Disk{i}")
 
     # --- Override indexer.db_path in the config so dispatch_movie lands events
-    # in the test DB rather than the default .personalscraper/library.db ---
+    # in the test DB rather than the default .data/library.db ---
     new_indexer = integration_config.indexer.model_copy(update={"db_path": db_path})
     test_config = integration_config.model_copy(update={"indexer": new_indexer})
 

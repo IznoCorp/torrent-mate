@@ -516,11 +516,11 @@ class TestTrailersConfig:
         assert cfg.retry_after_days == [1, 7, 30]
 
     def test_trailers_config_state_file_default(self):
-        """TrailersConfig.state_file defaults to '.data/trailers_state.json'."""
+        """TrailersConfig.state_file defaults to None (resolved at Config level)."""
         from personalscraper.conf.models import TrailersConfig
 
         cfg = TrailersConfig()
-        assert cfg.state_file == ".data/trailers_state.json"
+        assert cfg.state_file is None
 
     def test_trailers_placement_defaults(self):
         """TrailersPlacementConfig uses the flat convention for movies AND TV."""

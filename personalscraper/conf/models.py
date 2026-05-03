@@ -180,7 +180,7 @@ class GenreMapping(_StrictModel):
     """Mapping genre ID → category_id par provider API.
 
     Les IDs genre sont stables (TMDB/TVDB ne les changent pas). Les noms entre
-    ``//`` comments dans ``config.example.json5`` servent juste d'aide.
+    ``//`` comments dans ``config.example/`` servent juste d'aide.
 
     Attributes:
         tmdb_movies: TMDB Movies genre_id → category_id.
@@ -533,12 +533,14 @@ class ScraperConfig(_StrictModel):
             the provider lacks the episode and no phantom-season remap was
             found (``"{episode_default_name} {N}"``). Default ``"Episode"``
             gives ``"Episode 8"`` for an E08 fallback.
+        artwork_language: Preferred language for artwork selection (ISO 639-1).
     """
 
     language: str = Field(default="fr-FR", min_length=2)
     fallback_language: str = Field(default="en-US", min_length=2)
     prefer_local_title: bool = Field(default=True)
     episode_default_name: str = Field(default="Episode", min_length=1)
+    artwork_language: str = Field(default="en", min_length=2)
 
 
 class IngestConfig(_StrictModel):
@@ -557,6 +559,26 @@ class IngestConfig(_StrictModel):
         ge=0.0,
         description=("Minimum seeding ratio for ingest eligibility. 0.0 (default) disables the guard."),
     )
+
+
+class ThresholdsConfig(_StrictModel):
+    """Operational thresholds for the pipeline.
+
+    Attributes:
+        min_free_space_staging_gb: Minimum free space on staging drive (GB)
+            before ingest.
+        min_free_space_disk_gb: Minimum free space on storage disks (GB)
+            before dispatch.
+        circuit_breaker_threshold: Consecutive errors before opening circuit
+            breaker for API clients.
+        circuit_breaker_cooldown: Seconds to wait before retrying after
+            circuit breaker opens.
+    """
+
+    min_free_space_staging_gb: int = Field(default=20, ge=0)
+    min_free_space_disk_gb: float = Field(default=100, ge=0)
+    circuit_breaker_threshold: int = Field(default=5, ge=1)
+    circuit_breaker_cooldown: int = Field(default=300, ge=0)
 
 
 class TrailersCircuitBreakerConfig(_StrictModel):
@@ -800,7 +822,10 @@ class TrailersConfig(_StrictModel):
     search_query_format: str = Field(default="{title} {year} bande annonce", min_length=1)
     placement: TrailersPlacementConfig = Field(default_factory=TrailersPlacementConfig)
     filters: TrailersFiltersConfig = Field(default_factory=TrailersFiltersConfig)
-    state_file: str = Field(default=".data/trailers_state.json", min_length=1)
+    state_file: str | None = Field(
+        default=None,
+        description="Path to the per-media-item state JSON. Defaults to paths.data_dir / 'trailers_state.json'.",
+    )
     # Per-element ge=0 prevents a negative day from collapsing the back-off
     # ladder into immediate-retry (which would defeat the throttling intent).
     retry_after_days: Annotated[
@@ -1138,9 +1163,12 @@ class IndexerConfig(_StrictModel):
         log: Audit-table retention policy.
     """
 
-    db_path: Path = Field(
-        default=Path(".personalscraper/library.db"),
-        description="Path to the SQLite library database. Must not be on an external/macFUSE mount.",
+    db_path: Path | None = Field(
+        default=None,
+        description=(
+            "Path to the SQLite library database. Defaults to paths.data_dir / 'library.db' "
+            "when not set. Must not be on an external/macFUSE mount."
+        ),
         validate_default=True,
     )
     scan: IndexerScanConfig = Field(default_factory=IndexerScanConfig)
@@ -1153,31 +1181,34 @@ class IndexerConfig(_StrictModel):
 
     @field_validator("db_path", mode="after")
     @classmethod
-    def _reject_external_mount(cls, v: Path) -> Path:
+    def _reject_external_mount(cls, v: Path | None) -> Path | None:
         """Resolve ``db_path`` to an absolute path and reject macFUSE / external mounts.
+
+        When ``db_path`` is ``None``, the Config-level ``_resolve_db_path``
+        validator will fill it from ``paths.data_dir``.
 
         Two invariants enforced here:
 
         1. **Absolute path.** Relative ``db_path`` values are resolved against
            the current working directory at load-time so every consumer sees
            the same path regardless of where ``personalscraper`` is invoked
-           from. Without this, ``sqlite3.connect()`` would re-anchor the
-           relative path to whatever CWD the calling process happens to have,
-           producing different (orphan) DBs depending on the entry point.
+           from.
         2. **No external mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
            and network mounts. The database must live on the internal APFS
            volume. Detection heuristic: the resolved path starts with
            ``/Volumes/`` (macOS convention for all external mounts).
 
         Args:
-            v: Raw Path value for db_path (may be relative).
+            v: Raw Path value for db_path (may be relative, may be None).
 
         Returns:
-            Absolute Path with ``~`` expanded.
+            Absolute Path with ``~`` expanded, or None if not set.
 
         Raises:
             ValueError: If the resolved path is under ``/Volumes/``.
         """
+        if v is None:
+            return v
         resolved = v.expanduser()
         if not resolved.is_absolute():
             resolved = (Path.cwd() / resolved).resolve()
@@ -1185,7 +1216,7 @@ class IndexerConfig(_StrictModel):
             raise ValueError(
                 f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "
                 "SQLite WAL mode is unreliable on such filesystems. "
-                "Move the database to the internal APFS volume (e.g. ~/.personalscraper/library.db)."
+                "Move the database to the internal APFS volume (e.g. ~/.data/library.db)."
             )
         return resolved
 
@@ -1253,7 +1284,25 @@ class Config(_StrictModel):
 
     trailers: TrailersConfig = Field(default_factory=TrailersConfig)
 
+    thresholds: ThresholdsConfig = Field(default_factory=ThresholdsConfig)
+
     indexer: IndexerConfig = Field(default_factory=IndexerConfig)
+
+    @model_validator(mode="after")
+    def _resolve_derived_paths(self) -> "Config":
+        """Resolve derived paths from ``paths.data_dir`` when not explicitly set.
+
+        - ``indexer.db_path`` → ``paths.data_dir / 'library.db'``
+        - ``trailers.state_file`` → ``paths.data_dir / 'trailers_state.json'``
+
+        Returns:
+            self with derived paths resolved.
+        """
+        if self.indexer.db_path is None:
+            object.__setattr__(self.indexer, "db_path", self.paths.data_dir / "library.db")
+        if self.trailers.state_file is None:
+            object.__setattr__(self.trailers, "state_file", str(self.paths.data_dir / "trailers_state.json"))
+        return self
 
     @property
     def all_category_ids(self) -> frozenset[str]:

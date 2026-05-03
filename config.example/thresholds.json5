@@ -1,0 +1,16 @@
+{
+  // Operational thresholds for the pipeline.
+  thresholds: {
+    // Minimum free space on the staging drive before ingest (GB).
+    min_free_space_staging_gb: 20,
+
+    // Minimum free space on storage disks before dispatch (GB).
+    min_free_space_disk_gb: 100,
+
+    // Consecutive API errors before the circuit breaker opens.
+    circuit_breaker_threshold: 5,
+
+    // Seconds to wait before retrying after the circuit breaker opens.
+    circuit_breaker_cooldown: 300,
+  },
+}

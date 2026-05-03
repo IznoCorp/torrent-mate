@@ -73,29 +73,33 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         self.dry_run = dry_run
         self.interactive = interactive
         scraper_config = config.scraper if config is not None else None
-        self._scraper_language = scraper_config.language if scraper_config is not None else settings.scraper_language
+        thresholds_config = config.thresholds if config is not None else None
+        self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
         self._scraper_fallback_language = (
-            scraper_config.fallback_language if scraper_config is not None else settings.scraper_fallback_language
+            scraper_config.fallback_language if scraper_config is not None else "en-US"
         )
         self._prefer_local_title = (
-            scraper_config.prefer_local_title if scraper_config is not None else settings.scraper_prefer_local_title
+            scraper_config.prefer_local_title if scraper_config is not None else True
         )
         self._tvdb_language = self._to_tvdb_language(self._scraper_language)
         self._tvdb_fallback_language = self._to_tvdb_language(self._scraper_fallback_language)
 
-        # Initialize API clients with circuit breaker config from settings
+        # Initialize API clients with circuit breaker config from thresholds
         from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+
+        cb_threshold = thresholds_config.circuit_breaker_threshold if thresholds_config is not None else 5
+        cb_cooldown = thresholds_config.circuit_breaker_cooldown if thresholds_config is not None else 300
 
         self._tmdb = scraper_api.TMDBClient(
             api_key=settings.tmdb_api_key,
             language=self._scraper_language,
-            circuit_breaker_threshold=settings.circuit_breaker_threshold,
-            circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
+            circuit_breaker_threshold=cb_threshold,
+            circuit_breaker_cooldown=cb_cooldown,
         )
         self._tvdb = scraper_api.TVDBClient(
             api_key=settings.tvdb_api_key,
-            circuit_breaker_threshold=settings.circuit_breaker_threshold,
-            circuit_breaker_cooldown=settings.circuit_breaker_cooldown,
+            circuit_breaker_threshold=cb_threshold,
+            circuit_breaker_cooldown=cb_cooldown,
         )
 
         # Initialize helpers.  Pass db_path so write-through outbox publishes
@@ -103,9 +107,10 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         # (legacy/test mode) db_path is None and outbox publishing is skipped.
         _db_path = config.indexer.db_path if config is not None else None
         self._nfo = NFOGenerator(db_path=_db_path)
+        artwork_lang = scraper_config.artwork_language if scraper_config is not None else "en"
         self._artwork = ArtworkDownloader(
             dry_run=dry_run,
-            artwork_language=settings.artwork_language,
+            artwork_language=artwork_lang,
             db_path=_db_path,
         )
 

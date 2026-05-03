@@ -116,10 +116,10 @@ Use these steps after any of the following events:
 
 - `library.db` is corrupted (`library-status` exits 1 with `IndexerCorruptError`).
 - A disk was replaced and its volume UUID changed.
-- The database was lost (e.g. the `.personalscraper/` directory deleted or the internal disk reformatted).
+- The database was lost (e.g. the `paths.data_dir` directory deleted or the internal disk reformatted).
 - An unclean unmount left the index inconsistent with the disks.
 
-The default DB path is `.personalscraper/library.db` (configurable via `indexer.db_path` in `config.json5`).
+The default DB path is `paths.data_dir / "library.db"` (configurable via `indexer.db_path` in `config/indexer.json5`).
 
 ### Quick path — use `--rebuild`
 
@@ -132,13 +132,13 @@ personalscraper library-status
 ```
 
 The quarantined database is renamed to `<db_path>.corrupt-<unix_ts>` (e.g.
-`.personalscraper/library.db.corrupt-1714567890`).
+`library.db.corrupt-1714567890` inside the configured `data_dir`).
 
 ### Manual path (if `--rebuild` itself fails)
 
 ```bash
 # 1. Remove or quarantine the corrupt database manually
-mv .personalscraper/library.db .personalscraper/library.db.bak
+mv .data/library.db .data/library.db.bak
 
 # 2. Run a full scan — creates a fresh database
 personalscraper library-index --mode full

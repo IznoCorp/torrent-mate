@@ -1,14 +1,14 @@
 """JSON5 config loader with path resolution and validation warnings.
 
 The project uses a v2 split-config layout: a directory (default
-``.personalscraper/config/``) that contains a master ``config.json5`` plus a
+``./config/``) that contains a master ``config.json5`` plus a
 set of per-concern overlay files (``paths.json5``, ``disks.json5``,
 ``indexer.json5`` …) listed in the master's ``overlays`` key.
 
 Resolution order applied by :func:`resolve_config_path`:
   1. ``--config`` CLI override (highest priority)
   2. ``$PERSONALSCRAPER_CONFIG`` environment variable
-  3. ``./.personalscraper/config/`` if it contains a ``config.json5``
+  3. ``./config/`` if it contains a ``config.json5``
   4. Legacy ``./config.json5`` single-file fallback (deprecated, emits warning)
 
 :func:`load_config` dispatches automatically on the resolved path: directory →
@@ -55,7 +55,7 @@ _LOCAL_FILENAME = "local.json5"
 log = get_logger("personalscraper.conf.loader")
 
 #: Preferred location for the v2 split-config directory.
-DEFAULT_CONFIG_DIR: Path = Path("./.personalscraper/config")
+DEFAULT_CONFIG_DIR: Path = Path("./config")
 #: Legacy single-file path; resolved only when the v2 directory is absent.
 DEFAULT_LEGACY_CONFIG_PATH: Path = Path("./config.json5")
 #: Backwards-compatible alias kept for tests / callers that still import it.

@@ -30,9 +30,9 @@ Torrents terminés  →  staging  →  Disques de stockage
 PersonalScraper uses a staging area where downloaded media lands before
 being processed and dispatched to permanent storage. From version 0.4.0,
 the staging tree lives **outside the repository** at the path configured
-in `config.json5` under `paths.staging_dir`.
+in `config/paths.json5` under `paths.staging_dir`.
 
-The subdirectory names are defined by `staging_dirs` in `config.json5`.
+The subdirectory names are defined by `staging_dirs` in `config/paths.json5`.
 Each entry has an `id` (numeric prefix, 0–999) and a `name` (kebab-case).
 The on-disk folder name is `{id:03d}-{name.upper()}`, e.g.:
 
@@ -44,13 +44,13 @@ The on-disk folder name is `{id:03d}-{name.upper()}`, e.g.:
 
 ### Migrating from ≤ 0.3.0
 
-After upgrading, your `config.json5` must be updated to include
+After upgrading, your `config/` directory must be updated to include
 `staging_dirs`. Without it, PersonalScraper will exit with:
 
 > `staging_dirs` missing from config.json5 — see MANUAL.md §Staging layout for migration steps.
 
-**Step 1**: Add `staging_dirs` to your `config.json5`. Copy the section
-from `config.example.json5` and adjust if you have custom directory names.
+**Step 1**: Add `staging_dirs` to your `config/paths.json5`. Copy the section
+from `config.example/staging_dirs` and adjust if you have custom directory names.
 
 **Step 2**: Set `paths.staging_dir` to the external location. No
 production default — pick a path outside the repository (e.g.

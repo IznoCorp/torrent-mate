@@ -110,7 +110,7 @@ def integration_config(staging_tree: Path, fake_disks: list[Path], test_config: 
     - ``indexer.db_path`` → ``paths.data_dir / "library.db"`` so dispatch and
       assertions share a tmp_path-scoped SQLite file (the default
       ``IndexerConfig.db_path`` is a CWD-relative path that would otherwise
-      land in the developer's real ``.personalscraper/library.db``).
+      land in the developer's real ``.data/library.db``).
 
     The 11 builtin category IDs from ``test_config`` are redistributed
     across the four fake disks so every disk has at least one category and

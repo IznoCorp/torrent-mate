@@ -58,7 +58,7 @@ Integrate existing trailer scraping tool into the pipeline.
 
 Migrate from flat `.env` / pydantic-settings to structured JSON config.
 
-- Dedicated config directory (e.g. `.personalscraper/config/`)
+- Dedicated config directory (`./config/`) with split layout
 - JSON files per topic: `encoding.json`, `audio.json`, `paths.json`, `patterns.json`, `disks.json`
 - EVERYTHING configurable: directories, patterns, values, naming conventions, thresholds
 - The existing `encoding_rules.json` is a prototype of this approach

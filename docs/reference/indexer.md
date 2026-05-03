@@ -15,8 +15,8 @@ Cross-references: DESIGN §6, §8, §11, §12, §13, §14, §17.
 
 ## Schema Overview
 
-The database lives at `.personalscraper/library.db` by default (configurable
-via `indexer.db_path`; WAL mode; must reside on the internal APFS disk).
+The database lives at `paths.data_dir / "library.db"` by default (configurable
+via `indexer.db_path` in `config/indexer.json5`; WAL mode; must reside on the internal APFS disk).
 Full DDL is in `personalscraper/indexer/migrations/001_init.sql`; the table list
 below gives a one-line description of each table's role.
 
@@ -189,7 +189,8 @@ after an unclean unmount that left the index inconsistent.
 
 ```bash
 # 1. Quarantine the corrupt database (if any)
-mv .personalscraper/library.db .personalscraper/library.db.bak
+#    (paths.data_dir defaults to .data/)
+mv .data/library.db .data/library.db.bak
 
 # 2. Run a full scan — rebuilds from scratch
 personalscraper library-index --mode full
@@ -284,7 +285,7 @@ personalscraper library-index --rebuild
 ```
 
 The `--rebuild` flag renames the existing DB to
-`<db_path>.corrupt-<unix_ts>` (default `.personalscraper/library.db.corrupt-<unix_ts>`)
+`<db_path>.corrupt-<unix_ts>` (e.g. `library.db.corrupt-1714567890` inside the configured `data_dir`)
 and runs a full Stage-A rescan from scratch.
 
 ### Stale lock
@@ -295,8 +296,8 @@ does not exist in the process table.
 Recovery:
 
 ```bash
-# Manually remove the stale lock file
-rm .personalscraper/library.db.lock
+# Manually remove the stale SQLite lock file (resides next to library.db)
+rm .data/library.db.lock
 personalscraper library-index
 ```
 

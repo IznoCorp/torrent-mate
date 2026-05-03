@@ -1,18 +1,28 @@
 # Configuration
 
-Guide complet de configuration du fichier `.env` pour PersonalScraper.
+Guide complet de configuration pour PersonalScraper.
+
+**Deux sources de configuration :**
+
+- **`config/`** — Fichiers JSON5 (chemins, disques, seuils, préférences). Créé via `personalscraper init-config`.
+- **`.env`** — Uniquement les credentials (clés API, mots de passe, tokens). Template : `.env.example`.
 
 > Voir aussi : [INSTALLATION.md](INSTALLATION.md) (installation) | [MANUAL.md](MANUAL.md) (utilisation)
 
 ## Mise en place
 
 ```bash
+# 1. Créer la configuration
+personalscraper init-config
+
+# 2. Configurer les credentials
 cp .env.example .env
+# Éditer .env pour renseigner les clés API
 ```
 
-Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Toutes les variables ont des valeurs par défaut sauf les clés API et le mot de passe qBittorrent qui doivent être renseignés.
+Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Il contient **uniquement** les secrets (clés API, mots de passe). Toute la configuration structurelle (chemins, disques, seuils) est dans `config/`.
 
-> **Ne jamais commiter le `.env`** — il est dans `.gitignore`. Utiliser `.env.example` comme template de référence.
+> **Ne jamais commiter `.env` ni `config/`** — ils sont dans `.gitignore`. Utiliser `.env.example` et `config.example/` comme templates de référence.
 
 ---
 
@@ -64,16 +74,17 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 ---
 
-## Configuration config.json5
+## Configuration config/
 
-Depuis la version 0.4.0, les chemins principaux et la disposition du staging sont
-définis dans `config.json5` (en plus du `.env`).
+Depuis la version 0.9.0, les chemins, la disposition du staging et les seuils
+sont définis dans le dossier `config/` (format v2 split). Le `.env` ne contient
+que les credentials.
 
 ### `paths.staging_dir`
 
 Chemin vers le répertoire de staging racine où les médias arrivent pour traitement.
 
-- **Exemple (config.example.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
+- **Exemple (config.example/paths.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
 - **Pas de défaut en production** — à définir selon votre environnement (par exemple `/Volumes/<disk>/staging/`).
 - Les chemins relatifs sont résolus en chemins absolus au chargement via `Path.expanduser().resolve()`.
 - L'arborescence de staging est créée automatiquement au premier lancement — aucun `mkdir` manuel requis.

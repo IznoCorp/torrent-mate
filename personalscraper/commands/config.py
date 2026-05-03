@@ -8,7 +8,6 @@ from typing import Optional
 import typer
 
 from personalscraper.cli_app import app, config_app
-from personalscraper.cli_state import state
 
 
 @config_app.command("migrate-category")
@@ -45,12 +44,12 @@ def config_migrate_category(
 @app.command("init-config")
 def init_config_cmd(
     example: Path = typer.Option(
-        Path("config.example.json5"),
-        help="Path to the example template to read from.",
+        Path("config.example"),
+        help="Path to the example template directory to copy from.",
     ),
     output: Path = typer.Option(
-        Path("config.json5"),
-        help="Destination path for the generated config.json5.",
+        Path("./config"),
+        help="Destination path for the new config directory.",
     ),
     non_interactive: bool = typer.Option(
         False,
@@ -60,98 +59,19 @@ def init_config_cmd(
     force: bool = typer.Option(
         False,
         "--force",
-        help="Overwrite output file if it already exists.",
+        help="Overwrite output directory if it already exists.",
     ),
 ) -> None:
-    """Create config.json5 from the example template.
+    """Create ./config/ from the config.example/ template directory.
 
-    Run without arguments for interactive mode (prompts for each value).
+    Run without arguments for interactive mode (prompts for key values).
     Use --yes to skip all prompts and accept defaults.
 
     Examples:
         personalscraper init-config
         personalscraper init-config --yes
-        personalscraper init-config --output /custom/path/config.json5 --force
+        personalscraper init-config --output /custom/path/config --force
     """
     from personalscraper.commands.init_config import init_config
 
     init_config(example, output, interactive=not non_interactive, force=force)
-
-
-@config_app.command("migrate-to-v2")
-def config_migrate_to_v2(
-    ctx: typer.Context,
-    legacy: Path = typer.Argument(
-        ...,
-        help="Path to the legacy monolithic config.json5 to migrate.",
-    ),
-    target_dir: Path = typer.Argument(
-        ...,
-        help="Destination directory for the split v2 config files.",
-    ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Print what would be written without touching disk."),
-) -> None:
-    """Migrate a v1 monolithic config.json5 to the v2 split layout.
-
-    Reads the legacy single-file config.json5, splits its top-level keys
-    across per-concern JSON5 files, and writes them atomically to TARGET_DIR.
-
-    The legacy file is renamed to <legacy>.v1.bak on success.  Unknown v1 keys
-    are placed in TARGET_DIR/local.json5 and listed in migration-warnings.txt.
-
-    Use --dry-run to preview the plan without writing anything.
-
-    Examples:
-        personalscraper config migrate-to-v2 ~/.personalscraper/config.json5 ~/.personalscraper/config/
-        personalscraper config migrate-to-v2 --dry-run ~/.personalscraper/config.json5 ~/.personalscraper/config/
-
-    Args:
-        ctx: Typer context (unused here — config sub-app runs without the
-            main callback's eager config load).
-        legacy: Path to the legacy monolithic config.json5.
-        target_dir: Destination directory for the split v2 files.
-        dry_run: When True, print planned writes and exit 0 without touching disk.
-    """
-    from personalscraper.conf.migration import (  # noqa: PLC0415
-        MigrationAlreadyDoneError,
-        MigrationError,
-        MigrationMalformedError,
-        migrate_v1_to_v2,
-        plan_migration,
-    )
-
-    console = state["console"]
-    legacy_resolved = legacy.expanduser().resolve()
-    target_resolved = target_dir.expanduser().resolve()
-
-    if dry_run:
-        try:
-            plan = plan_migration(legacy_resolved)
-        except MigrationMalformedError as exc:
-            typer.echo(f"Migration error: {exc}", err=True)
-            raise typer.Exit(code=2) from exc
-
-        console.print(f"[yellow]DRY-RUN:[/yellow] Would write the following files to {target_resolved}:")
-        for fname, content in plan.items():
-            if fname == "migration-warnings.txt":
-                console.print(f"  [dim]{fname}[/dim]  (warnings text file)")
-            else:
-                key_list = ", ".join(content.keys()) if isinstance(content, dict) else "<text>"
-                console.print(f"  [cyan]{fname}[/cyan]  keys: {key_list}")
-        console.print(f"[dim]Legacy file would be renamed to {legacy_resolved}.v1.bak[/dim]")
-        return
-
-    try:
-        migrate_v1_to_v2(legacy_resolved, target_resolved)
-    except MigrationAlreadyDoneError as exc:
-        console.print(f"[yellow]Already migrated:[/yellow] {exc}")
-        raise typer.Exit(code=0) from exc
-    except MigrationMalformedError as exc:
-        typer.echo(f"Migration error (malformed input): {exc}", err=True)
-        raise typer.Exit(code=2) from exc
-    except MigrationError as exc:
-        typer.echo(f"Migration failed: {exc}", err=True)
-        raise typer.Exit(code=1) from exc
-
-    console.print(f"[green]Migration complete.[/green] Split config written to {target_resolved}")
-    console.print(f"[dim]Legacy file backed up as {legacy_resolved}.v1.bak[/dim]")

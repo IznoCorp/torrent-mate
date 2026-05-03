@@ -1171,7 +1171,7 @@ def test_publish_event_uses_custom_db_path(tmp_path: Path) -> None:
 
     This is the acceptance test for DESIGN §9.4: customising ``Config.indexer.db_path``
     must cause all write-through events to land in the user-configured database, not the
-    default ``.personalscraper/library.db``.
+    default ``.data/library.db``.
 
     Steps:
     - Create two separate databases: ``custom.db`` (the target) and ``other.db``

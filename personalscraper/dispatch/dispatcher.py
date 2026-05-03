@@ -348,7 +348,7 @@ class Dispatcher:
             result.destination = dest
 
             # Check if disk has enough space for the replacement
-            threshold = max(self.settings.min_free_space_disk_gb, item_size_gb * 1.5)
+            threshold = max(self.config.thresholds.min_free_space_disk_gb, item_size_gb * 1.5)
             disk_free = free_space_by_id.get(existing.disk, 0.0)
             if disk_free < threshold:
                 result.action = "skipped"
@@ -367,7 +367,7 @@ class Dispatcher:
                 self.config,
                 category_id,
                 free_space_by_id,
-                self.settings.min_free_space_disk_gb,
+                self.config.thresholds.min_free_space_disk_gb,
                 item_size_gb,
             )
             if not target_disk:
@@ -457,7 +457,7 @@ class Dispatcher:
             result.destination = dest
 
             # Check if disk has enough space for the merge
-            threshold = max(self.settings.min_free_space_disk_gb, item_size_gb * 1.5)
+            threshold = max(self.config.thresholds.min_free_space_disk_gb, item_size_gb * 1.5)
             disk_free = free_space_by_id.get(existing.disk, 0.0)
             if disk_free < threshold:
                 result.action = "skipped"
@@ -476,7 +476,7 @@ class Dispatcher:
                 self.config,
                 category_id,
                 free_space_by_id,
-                self.settings.min_free_space_disk_gb,
+                self.config.thresholds.min_free_space_disk_gb,
                 item_size_gb,
             )
             if not target_disk:

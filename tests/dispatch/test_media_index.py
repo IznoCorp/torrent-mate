@@ -495,14 +495,14 @@ class TestMediaIndexConnectionLifecycle:
         """When Config is supplied, MediaIndex must open config.indexer.db_path."""
 
         class _Indexer:
-            db_path = tmp_path / ".personalscraper" / "library.db"
+            db_path = tmp_path / ".data" / "library.db"
 
         class _Config:
             indexer = _Indexer()
             disks = []
             categories = {}
 
-        legacy_index_path = tmp_path / ".data" / "media_index.json"
+        legacy_index_path = tmp_path / "old_index" / "media_index.json"
         legacy_index_path.parent.mkdir()
 
         with MediaIndex(legacy_index_path, config=_Config()) as idx:  # type: ignore[arg-type]

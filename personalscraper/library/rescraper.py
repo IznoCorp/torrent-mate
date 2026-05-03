@@ -569,7 +569,7 @@ def rescrape_library(
     nfo_gen = NFOGenerator(db_path=config.indexer.db_path)
     artwork_dl = ArtworkDownloader(
         dry_run=dry_run,
-        artwork_language=settings.artwork_language,
+        artwork_language=scraper_config.artwork_language,
         db_path=config.indexer.db_path,
     )
     patterns = NamingPatterns()

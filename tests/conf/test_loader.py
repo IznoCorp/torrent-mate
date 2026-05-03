@@ -83,11 +83,11 @@ class TestResolveConfigPath:
     def test_default_when_neither(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Default points to the v2 split dir when present, else legacy file.
 
-        With no CLI/env override: if ``.personalscraper/config/config.json5``
+        With no CLI/env override: if ``config/config.json5``
         exists in cwd the resolver returns that directory; otherwise it falls
         back to ``./config.json5``. We exercise both branches from a clean
         ``tmp_path`` cwd to avoid contamination from the developer's own
-        ``.personalscraper/`` directory.
+        ``config/`` directory.
         """
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
         monkeypatch.chdir(tmp_path)
@@ -98,8 +98,8 @@ class TestResolveConfigPath:
         assert not result.is_dir()
 
         # Branch 2: v2 dir exists with a master config.json5 → returns dir.
-        (tmp_path / ".personalscraper" / "config").mkdir(parents=True)
-        (tmp_path / ".personalscraper" / "config" / "config.json5").write_text("{}")
+        (tmp_path / "config").mkdir(parents=True)
+        (tmp_path / "config" / "config.json5").write_text("{}")
         result_v2 = resolve_config_path()
         assert result_v2.is_dir()
         assert result_v2.name == "config"
@@ -436,10 +436,8 @@ class TestIndexerConfigRoundTrip:
     def test_config_has_indexer_field(self, tmp_path: Path) -> None:
         """Config model must expose an ``indexer`` field of type IndexerConfig.
 
-        The default db_path is ``.personalscraper/library.db`` but the
-        validator now resolves it to an absolute path at load-time so
-        every consumer sees the same file regardless of CWD. Assert on
-        the resolved shape rather than the raw default.
+        When db_path is not explicitly set, it is derived from
+        ``paths.data_dir / 'library.db'`` by the Config-level validator.
         """
         cfg_path = tmp_path / "config.json5"
         _write_minimal_config(cfg_path, tmp_path)
@@ -447,7 +445,7 @@ class TestIndexerConfigRoundTrip:
         assert isinstance(config.indexer, IndexerConfig)
         assert config.indexer.db_path.is_absolute()
         assert config.indexer.db_path.name == "library.db"
-        assert config.indexer.db_path.parent.name == ".personalscraper"
+        assert config.indexer.db_path.parent.name == ".data"
 
 
 # ---------------------------------------------------------------------------
@@ -460,8 +458,8 @@ class TestIndexerDbPathValidator:
 
     def test_internal_path_accepted(self) -> None:
         """A db_path on the home directory or project root must be accepted."""
-        cfg = IndexerConfig.model_validate({"db_path": "/Users/izno/.personalscraper/library.db"})
-        assert cfg.db_path == Path("/Users/izno/.personalscraper/library.db")
+        cfg = IndexerConfig.model_validate({"db_path": "/Users/izno/.data/library.db"})
+        assert cfg.db_path == Path("/Users/izno/.data/library.db")
 
     def test_tmp_path_accepted(self) -> None:
         """A path under /tmp must be accepted (internal macOS volume)."""
@@ -489,13 +487,12 @@ class TestIndexerDbPathValidator:
         (sqlite3.connect, indexer outbox, dispatch) sees the same file
         regardless of the calling process's CWD. Without this anchor the
         same config string produced different DB files depending on the
-        entry point — an orphan DB at ``.data/library.db`` was created by
-        a tool launched from a different CWD before this fix.
+        entry point.
         """
-        cfg = IndexerConfig.model_validate({"db_path": ".personalscraper/library.db"})
+        cfg = IndexerConfig.model_validate({"db_path": ".data/library.db"})
         assert cfg.db_path.is_absolute()
         assert cfg.db_path.name == "library.db"
-        assert cfg.db_path.parent.name == ".personalscraper"
+        assert cfg.db_path.parent.name == ".data"
 
     def test_validator_in_isolation(self) -> None:
         """Calling the field_validator class method directly must work for /Volumes/ paths."""

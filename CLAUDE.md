@@ -5,19 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Purpose
 
 This is a **media triage pipeline**. Downloaded media files land in the staging
-area (defined by `paths.staging_dir` in `config.json5`, outside the repository
+area (defined by `paths.staging_dir` in `config/paths.json5`, outside the repository
 by default), get renamed, cleaned of junk files/folders, scraped for metadata
 (via TMDB/TVDB APIs, with MediaElch as manual fallback), then moved to
 permanent storage on one of the configured disks.
 
 The staging subdirectory layout (`001-MOVIES/`, `002-TVSHOWS/`, etc.) is configured
-via the `staging_dirs` section of `config.json5` — not hardcoded or tracked by git.
+via the `staging_dirs` section of `config/paths.json5` — not hardcoded or tracked by git.
 
 Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 See `docs/reference/architecture.md` for the module map and package layout.
 
-All storage paths, staging layout, and category names are in `config.json5`.
-Run `personalscraper init-config` to create `config.json5` from the example template (interactive prompts, or `--yes` to accept defaults).
+All storage paths, staging layout, and category names are in the `config/` directory.
+Run `personalscraper init-config` to create `config/` from the `config.example/` template.
 
 ## Critical Rules
 

@@ -47,7 +47,7 @@ def main(
         help=(
             "Path to a v2 split-config directory (containing config.json5 + "
             "overlays) or a legacy v1 config.json5 file. Overrides "
-            "./.personalscraper/config/, ./config.json5 and "
+            "./config/, ./config.json5 and "
             "$PERSONALSCRAPER_CONFIG. Must be placed BEFORE the subcommand."
         ),
     ),

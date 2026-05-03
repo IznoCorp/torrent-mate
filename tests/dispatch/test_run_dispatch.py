@@ -41,7 +41,7 @@ class TestRunDispatch:
         config = MagicMock()
         config.paths.staging_dir = tmp_path
         config.paths.data_dir = tmp_path / ".data"
-        config.indexer.db_path = tmp_path / ".personalscraper" / "library.db"
+        config.indexer.db_path = tmp_path / ".data" / "library.db"
         config.disks = []
         config.staging_dirs = CANONICAL_STAGING_DIRS
 
@@ -77,7 +77,7 @@ class TestRunDispatch:
         config = MagicMock()
         config.paths.staging_dir = tmp_path / "staging"
         config.paths.data_dir = tmp_path / ".data"
-        config.indexer.db_path = tmp_path / ".personalscraper" / "library.db"
+        config.indexer.db_path = tmp_path / ".data" / "library.db"
         config.disks = [DiskConfig(id="disk_1", path=disk_root, categories=["movies"])]
         config.categories = {}
         config.staging_dirs = CANONICAL_STAGING_DIRS
