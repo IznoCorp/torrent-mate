@@ -87,7 +87,7 @@ def library_index_command(
         open_db,
     )
     from personalscraper.indexer.merkle import DiskBulkChangeDetected  # noqa: PLC0415
-    from personalscraper.indexer.outbox import drain_if_present  # noqa: PLC0415
+    from personalscraper.indexer.outbox._drain import drain_if_present  # noqa: PLC0415
     from personalscraper.indexer.scanner import (  # noqa: PLC0415
         IndexerConfigError,
         ScanMode,

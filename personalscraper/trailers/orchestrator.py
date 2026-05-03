@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from personalscraper.indexer.db import open_db as _open_indexer_db
-from personalscraper.indexer.outbox import disk_id_for_path, publish_event
+from personalscraper.indexer.outbox._disk import disk_id_for_path
+from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.indexer.repos import item_repo as _indexer_item_repo
 from personalscraper.logger import get_logger
 from personalscraper.scraper.ytdlp_downloader import (

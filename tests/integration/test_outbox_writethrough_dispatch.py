@@ -27,13 +27,13 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import drain_if_present
+from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.sorter.file_type import FileType

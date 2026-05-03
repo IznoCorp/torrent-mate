@@ -11,10 +11,11 @@ carries disk paths.
 import shutil
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
-from personalscraper.dispatch.dispatcher import Dispatcher, DispatchResult
+from personalscraper.dispatch._types import DispatchResult
+from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -165,7 +166,7 @@ def _drain_dispatch_outbox(config: Config) -> None:
     """
     import sqlite3
 
-    from personalscraper.indexer.outbox import drain_if_present
+    from personalscraper.indexer.outbox._drain import drain_if_present
     from personalscraper.indexer.repos.disk_repo import update_merkle_root
 
     db_path = config.indexer.db_path

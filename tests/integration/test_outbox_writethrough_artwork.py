@@ -17,7 +17,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import drain_if_present
+from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.scraper.artwork import ArtworkDownloader

@@ -32,13 +32,10 @@ from hypothesis import strategies as st
 
 from personalscraper.indexer.config import IndexerConfig
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import (
-    DrainStats,
-    disk_id_for_path,
-    drain,
-    drain_if_present,
-    publish_event,
-)
+from personalscraper.indexer.outbox._disk import disk_id_for_path
+from personalscraper.indexer.outbox._drain import drain, drain_if_present
+from personalscraper.indexer.outbox._publish import publish_event
+from personalscraper.indexer.outbox._types import DrainStats
 from personalscraper.indexer.repos import outbox_repo
 from personalscraper.indexer.schema import DiskRow, MediaItemRow, PathRow
 
@@ -607,7 +604,7 @@ def test_drain_deduplication_only_latest_applied(conn: sqlite3.Connection) -> No
 
 def test_apply_row_with_retry_succeeds_on_uncontended_db(conn: sqlite3.Connection) -> None:
     """_apply_row_with_retry returns 'done' when the DB is not locked."""
-    from personalscraper.indexer.outbox import _apply_row_with_retry  # noqa: PLC0415
+    from personalscraper.indexer.outbox._drain import _apply_row_with_retry  # noqa: PLC0415
     from personalscraper.indexer.schema import IndexOutboxRow  # noqa: PLC0415
 
     disk_id = _insert_disk(conn)
@@ -643,7 +640,7 @@ def test_apply_row_with_retry_succeeds_on_uncontended_db(conn: sqlite3.Connectio
 
 def test_apply_row_with_retry_returns_failed_on_bad_payload(conn: sqlite3.Connection) -> None:
     """_apply_row_with_retry returns 'skip' for malformed payload JSON."""
-    from personalscraper.indexer.outbox import _apply_row_with_retry  # noqa: PLC0415
+    from personalscraper.indexer.outbox._drain import _apply_row_with_retry  # noqa: PLC0415
     from personalscraper.indexer.schema import IndexOutboxRow  # noqa: PLC0415
 
     row = IndexOutboxRow(
@@ -682,7 +679,7 @@ def test_drain_marks_failed_after_exhausting_retries(conn: sqlite3.Connection) -
 
     # Patch _apply_row_with_retry to always return 'failed' (simulating exhaustion).
     with patch(
-        "personalscraper.indexer.outbox._apply_row_with_retry",
+        "personalscraper.indexer.outbox._drain._apply_row_with_retry",
         return_value="failed",
     ):
         stats = drain(conn, _make_config())
@@ -719,7 +716,7 @@ def test_drain_marks_malformed_payload_terminal(conn: sqlite3.Connection) -> Non
 
 def test_apply_row_with_retry_retries_on_lock_then_succeeds(conn: sqlite3.Connection) -> None:
     """_apply_row_with_retry succeeds after initial lock: patches _apply_move to fail once."""
-    from personalscraper.indexer.outbox import _apply_row_with_retry  # noqa: PLC0415
+    from personalscraper.indexer.outbox._drain import _apply_row_with_retry  # noqa: PLC0415
     from personalscraper.indexer.schema import IndexOutboxRow  # noqa: PLC0415
 
     disk_id = _insert_disk(conn)
@@ -749,14 +746,12 @@ def test_apply_row_with_retry_retries_on_lock_then_succeeds(conn: sqlite3.Connec
         status=raw["status"],
     )
 
-    import importlib  # noqa: PLC0415
-
-    import personalscraper.indexer.outbox as _outbox_mod  # noqa: PLC0415
+    from personalscraper.indexer.outbox import _apply as _apply_mod  # noqa: PLC0415
 
     apply_calls = 0
     # Access private names via getattr to avoid mypy attr-defined errors.
-    original_move = getattr(_outbox_mod, "_apply_move")
-    handlers: dict[str, Any] = getattr(_outbox_mod, "_OP_HANDLERS")
+    original_move = getattr(_apply_mod, "_apply_move")
+    handlers: dict[str, Any] = getattr(_apply_mod, "_OP_HANDLERS")
 
     def move_raises_once(c: sqlite3.Connection, payload: dict[str, Any]) -> None:
         nonlocal apply_calls
@@ -769,11 +764,10 @@ def test_apply_row_with_retry_retries_on_lock_then_succeeds(conn: sqlite3.Connec
     saved_move = handlers["move"]
     handlers["move"] = move_raises_once
     try:
-        with patch("personalscraper.indexer.outbox.time.sleep"):
+        with patch("personalscraper.indexer.outbox._drain.time.sleep"):
             result = _apply_row_with_retry(conn, row)
     finally:
         handlers["move"] = saved_move
-    del importlib  # only imported to satisfy noqa; unused otherwise
 
     # Should succeed on the second attempt.
     assert result == "done"
@@ -1007,7 +1001,7 @@ def test_drain_defer_with_nonexistent_disk_marks_row_failed(conn: sqlite3.Connec
     # Patch _disk_is_mounted so the drainer thinks the disk is unreachable
     # (it no longer exists, so is_mounted lookup returns False anyway, but
     # we make it explicit to isolate the behaviour under test).
-    with patch("personalscraper.indexer.outbox._disk_is_mounted", return_value=False):
+    with patch("personalscraper.indexer.outbox._drain._disk_is_mounted", return_value=False):
         stats = drain(conn, _make_config())
 
     # Drainer must not loop: exactly one row processed, marked failed.
@@ -1130,7 +1124,7 @@ def test_publish_event_swallows_bad_db_path(tmp_path: Path) -> None:
 
 def test_publish_event_swallows_exception_on_sqlite_error(tmp_path: Path) -> None:
     """publish_event() returns silently on any sqlite3 exception."""
-    with patch("personalscraper.indexer.outbox.sqlite3.connect") as mock_connect:
+    with patch("personalscraper.indexer.outbox._publish.sqlite3.connect") as mock_connect:
         mock_connect.side_effect = sqlite3.OperationalError("database is locked")
         # Should not raise.
         publish_event(
@@ -1472,7 +1466,8 @@ def test_apply_artwork_write_rejects_unknown_kind(conn: sqlite3.Connection) -> N
     A payload with kind='malicious; DROP TABLE' must be rejected before any DB
     UPDATE is executed, demonstrating defensive depth in the JSON path builder.
     """
-    from personalscraper.indexer.outbox import OutboxPayloadError, _apply_artwork_write  # noqa: PLC0415
+    from personalscraper.indexer.outbox._apply import _apply_artwork_write  # noqa: PLC0415
+    from personalscraper.indexer.outbox._types import OutboxPayloadError  # noqa: PLC0415
 
     disk_id = _insert_disk(conn)
     rel_path = "movies/ArtKindTest (2020)"

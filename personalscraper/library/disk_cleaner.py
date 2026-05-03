@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
 
 from personalscraper.logger import get_logger
 
@@ -130,7 +130,8 @@ def _publish_deleted(path: Path, label: str, db_path: Path) -> None:
             user-configured DB (DESIGN §9.4).
     """
     try:
-        from personalscraper.indexer.outbox import disk_id_for_path, publish_event  # noqa: PLC0415
+        from personalscraper.indexer.outbox._disk import disk_id_for_path  # noqa: PLC0415
+        from personalscraper.indexer.outbox._publish import publish_event  # noqa: PLC0415
 
         resolved = disk_id_for_path(path, db_path)
         if resolved is None:
