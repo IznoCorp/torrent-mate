@@ -436,8 +436,13 @@ class ExistingValidatorMixin:
 
             for (s_num, e_num), candidates in root_new.items():
                 if _dedup_and_move_root_episode(
-                    show_dir, s_num, e_num, candidates,
-                    root_api_episodes, self.patterns, self.dry_run,
+                    show_dir,
+                    s_num,
+                    e_num,
+                    candidates,
+                    root_api_episodes,
+                    self.patterns,
+                    self.dry_run,
                 ):
                     repaired = True
 
@@ -485,11 +490,7 @@ class ExistingValidatorMixin:
 
         try:
             show_data = self._tmdb.get_tv(tmdb_id)
-            season_nums = [
-                s["season_number"]
-                for s in show_data.get("seasons", [])
-                if s.get("season_number", 0) > 0
-            ]
+            season_nums = [s["season_number"] for s in show_data.get("seasons", []) if s.get("season_number", 0) > 0]
             api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
             if not api_episodes:

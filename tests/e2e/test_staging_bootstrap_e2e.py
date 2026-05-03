@@ -60,23 +60,35 @@ def e2e_env(tmp_path: Path):
     (config_dir / "config.json5").write_text(json5.dumps(master))
 
     # paths.json5 overlay
-    (config_dir / "paths.json5").write_text(json5.dumps({
-        "paths": {
-            "torrent_complete_dir": str(tmp_path / "torrents"),
-            "staging_dir": str(staging),
-            "data_dir": str(tmp_path / ".data"),
-        },
-    }))
+    (config_dir / "paths.json5").write_text(
+        json5.dumps(
+            {
+                "paths": {
+                    "torrent_complete_dir": str(tmp_path / "torrents"),
+                    "staging_dir": str(staging),
+                    "data_dir": str(tmp_path / ".data"),
+                },
+            }
+        )
+    )
 
     # disks.json5 overlay
-    (config_dir / "disks.json5").write_text(json5.dumps({
-        "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
-    }))
+    (config_dir / "disks.json5").write_text(
+        json5.dumps(
+            {
+                "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+            }
+        )
+    )
 
     # patterns.json5 overlay
-    (config_dir / "patterns.json5").write_text(json5.dumps({
-        "staging_dirs": _STAGING_DIRS,
-    }))
+    (config_dir / "patterns.json5").write_text(
+        json5.dumps(
+            {
+                "staging_dirs": _STAGING_DIRS,
+            }
+        )
+    )
 
     # Create the disk dir so dispatch can resolve it
     (tmp_path / "disk_a").mkdir()
@@ -175,20 +187,32 @@ class TestStagingBootstrapE2E:
         config_dir = tmp_path / "config"
         config_dir.mkdir()
 
-        (config_dir / "config.json5").write_text(json5.dumps({
-            "config_version": 2,
-            "overlays": ["paths.json5", "disks.json5", "patterns.json5"],
-        }))
-        (config_dir / "paths.json5").write_text(json5.dumps({
-            "paths": {
-                "torrent_complete_dir": str(tmp_path / "torrents"),
-                "staging_dir": str(tmp_path / "staging"),
-                "data_dir": str(tmp_path / ".data"),
-            },
-        }))
-        (config_dir / "disks.json5").write_text(json5.dumps({
-            "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
-        }))
+        (config_dir / "config.json5").write_text(
+            json5.dumps(
+                {
+                    "config_version": 2,
+                    "overlays": ["paths.json5", "disks.json5", "patterns.json5"],
+                }
+            )
+        )
+        (config_dir / "paths.json5").write_text(
+            json5.dumps(
+                {
+                    "paths": {
+                        "torrent_complete_dir": str(tmp_path / "torrents"),
+                        "staging_dir": str(tmp_path / "staging"),
+                        "data_dir": str(tmp_path / ".data"),
+                    },
+                }
+            )
+        )
+        (config_dir / "disks.json5").write_text(
+            json5.dumps(
+                {
+                    "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+                }
+            )
+        )
         # patterns.json5 intentionally omits staging_dirs
         (config_dir / "patterns.json5").write_text(json5.dumps({}))
 

@@ -5,8 +5,7 @@ from personalscraper.config import Settings
 
 def test_settings_defaults(monkeypatch):
     """Settings loads secret/credential defaults when no .env file is present."""
-    for key in ("TMDB_API_KEY", "TVDB_API_KEY", "YOUTUBE_API_KEY",
-                "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+    for key in ("TMDB_API_KEY", "TVDB_API_KEY", "YOUTUBE_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
         monkeypatch.delenv(key, raising=False)
     settings = Settings(_env_file=None)
     assert settings.qbit_host == "localhost"

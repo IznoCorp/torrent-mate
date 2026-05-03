@@ -612,15 +612,11 @@ class TestTrailersConfig:
             encoding="utf-8",
         )
         (cfg_dir / "paths.json5").write_text(
-            "{\n"
-            f'  paths: {{ torrent_complete_dir: "{complete}", staging_dir: "{staging}", data_dir: "{data}" }},\n'
-            "}",
+            f'{{\n  paths: {{ torrent_complete_dir: "{complete}", staging_dir: "{staging}", data_dir: "{data}" }},\n}}',
             encoding="utf-8",
         )
         (cfg_dir / "disks.json5").write_text(
-            "{\n"
-            f'  disks: [{{ id: "disk_a", path: "{disk_a}", categories: ["movies", "tv_shows"] }}],\n'
-            "}",
+            f'{{\n  disks: [{{ id: "disk_a", path: "{disk_a}", categories: ["movies", "tv_shows"] }}],\n}}',
             encoding="utf-8",
         )
         (cfg_dir / "patterns.json5").write_text(

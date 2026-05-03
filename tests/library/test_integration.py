@@ -136,10 +136,7 @@ class TestScanIntegration:
         count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
         assert count == 3
 
-        titles = {
-            row[0]
-            for row in conn.execute("SELECT title FROM media_item").fetchall()
-        }
+        titles = {row[0] for row in conn.execute("SELECT title FROM media_item").fetchall()}
         assert "The Matrix" in titles
         assert "Incomplete Movie" in titles
         assert "Fallout" in titles
@@ -157,14 +154,9 @@ class TestScanIntegration:
             scan_library(mini_library["config"], conn)
 
         # Matrix item should have actors_dir + junk_files issues
-        matrix_id = conn.execute(
-            "SELECT id FROM media_item WHERE title = 'The Matrix'"
-        ).fetchone()[0]
+        matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
         issue_types = {
-            row[0]
-            for row in conn.execute(
-                "SELECT type FROM item_issue WHERE item_id = ?", (matrix_id,)
-            ).fetchall()
+            row[0] for row in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchall()
         }
         assert ISSUE_ACTORS_DIR in issue_types
         assert ISSUE_JUNK_FILES in issue_types
@@ -181,24 +173,16 @@ class TestScanIntegration:
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
             scan_library(mini_library["config"], conn)
 
-        fallout_id = conn.execute(
-            "SELECT id FROM media_item WHERE title = 'Fallout'"
-        ).fetchone()[0]
+        fallout_id = conn.execute("SELECT id FROM media_item WHERE title = 'Fallout'").fetchone()[0]
 
-        season_count = conn.execute(
-            "SELECT COUNT(*) FROM season WHERE item_id = ?", (fallout_id,)
-        ).fetchone()[0]
+        season_count = conn.execute("SELECT COUNT(*) FROM season WHERE item_id = ?", (fallout_id,)).fetchone()[0]
         assert season_count == 1
 
-        season = conn.execute(
-            "SELECT number FROM season WHERE item_id = ?", (fallout_id,)
-        ).fetchone()
+        season = conn.execute("SELECT number FROM season WHERE item_id = ?", (fallout_id,)).fetchone()
         assert season[0] == 1
 
         episode_count = conn.execute(
-            "SELECT COUNT(*) FROM episode e "
-            "JOIN season s ON e.season_id = s.id "
-            "WHERE s.item_id = ?",
+            "SELECT COUNT(*) FROM episode e JOIN season s ON e.season_id = s.id WHERE s.item_id = ?",
             (fallout_id,),
         ).fetchone()[0]
         assert episode_count == 2
@@ -215,12 +199,8 @@ class TestScanIntegration:
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
             scan_library(mini_library["config"], conn)
 
-        movie_count = conn.execute(
-            "SELECT COUNT(*) FROM media_item WHERE kind = 'movie'"
-        ).fetchone()[0]
-        show_count = conn.execute(
-            "SELECT COUNT(*) FROM media_item WHERE kind = 'show'"
-        ).fetchone()[0]
+        movie_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+        show_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
         assert movie_count == 2
         assert show_count == 1
 
@@ -260,6 +240,7 @@ class TestCleanIntegration:
 
 class TestRecommendIntegration:
     """Integration test for library-recommend."""
+
     def test_recommend_from_analysis(self) -> None:
         """Recommendations should be generated from analysis data."""
         from personalscraper.conf.models.preferences import LibraryPrefs, VideoPrefs
@@ -357,12 +338,8 @@ class TestFullWorkflow:
             scan_library(mini_library["config"], conn)
 
         # Matrix must have issues after first scan
-        matrix_id = conn.execute(
-            "SELECT id FROM media_item WHERE title = 'The Matrix'"
-        ).fetchone()[0]
-        initial_issues = conn.execute(
-            "SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)
-        ).fetchone()[0]
+        matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
+        initial_issues = conn.execute("SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchone()[0]
         assert initial_issues >= 2  # .actors + .DS_Store
 
         # Clean both .actors and junk
@@ -372,15 +349,10 @@ class TestFullWorkflow:
         with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
             scan_library(mini_library["config"], conn)
 
-        remaining = conn.execute(
-            "SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)
-        ).fetchone()[0]
+        remaining = conn.execute("SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchone()[0]
         assert remaining < initial_issues
         issue_types = {
-            row[0]
-            for row in conn.execute(
-                "SELECT type FROM item_issue WHERE item_id = ?", (matrix_id,)
-            ).fetchall()
+            row[0] for row in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchall()
         }
         assert ISSUE_ACTORS_DIR not in issue_types
         assert ISSUE_JUNK_FILES not in issue_types

@@ -474,6 +474,7 @@ class TvServiceMixin:
         """
         try:
             from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+
             match = scraper_api.match_tvshow(
                 self._tvdb,
                 self._tmdb,
@@ -570,13 +571,15 @@ class TvServiceMixin:
                         title = ep.get("name") or f"{episode_default_name} {e_num}"
                         if ep_id:
                             trans = self._tvdb.get_episode_translation(
-                                ep_id, self._tvdb_language,
+                                ep_id,
+                                self._tvdb_language,
                             )
                             if trans and trans.get("name"):
                                 title = trans["name"]
                             else:
                                 en_trans = self._tvdb.get_episode_translation(
-                                    ep_id, self._tvdb_fallback_language,
+                                    ep_id,
+                                    self._tvdb_fallback_language,
                                 )
                                 if en_trans and en_trans.get("name"):
                                     title = en_trans["name"]
@@ -590,8 +593,7 @@ class TvServiceMixin:
                     for ep in s_detail.get("episodes", []):
                         e_num = ep.get("episode_number", 0)
                         api_episodes[(s_num, e_num)] = {
-                            "title": ep.get("name")
-                            or f"{episode_default_name} {e_num}",
+                            "title": ep.get("name") or f"{episode_default_name} {e_num}",
                             "still_path": ep.get("still_path", ""),
                         }
             except Exception as e:
@@ -637,9 +639,7 @@ class TvServiceMixin:
         if not matched:
             return 0
         needed_seasons = sorted({info["season"] for info in matched.values()})
-        ep_list = [
-            {"season_number": s, "episode_number": 0} for s in needed_seasons
-        ]
+        ep_list = [{"season_number": s, "episode_number": 0} for s in needed_seasons]
         create_season_dirs(show_dir, ep_list, self.patterns, self.dry_run)
         total = rename_episodes(matched, show_dir, self.patterns, self.dry_run)
         self._generate_episode_nfos(matched, show_dir, show_data)
