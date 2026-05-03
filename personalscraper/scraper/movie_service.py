@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
+    from personalscraper.scraper.confidence import MatchResult
     from personalscraper.scraper.nfo_generator import NFOGenerator
     from personalscraper.scraper.tmdb_client import TMDBClient
 
@@ -64,8 +65,73 @@ class MovieServiceMixin:
     _recover_movie_artwork: "Callable[..., None]"
     _repair_movie_dir: "Callable[..., bool]"
 
+    def _match_movie_candidates(
+        self,
+        title: str,
+        year: int | None,
+        result: ScrapeResult,
+    ) -> MatchResult | None:
+        """Search TMDB for movie candidates matching the given title and year.
+
+        Args:
+            title: Movie title to search for.
+            year: Optional release year to narrow the search.
+            result: ScrapeResult for error tracking.
+
+        Returns:
+            MatchResult on successful API call (may be None when no candidate
+            was found), or None when an API exception occurred (result.error
+            is set).
+        """
+        try:
+            from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+
+            return scraper_api.match_movie(self._tmdb, title, year)
+        except Exception as e:
+            result.error = f"Match failed: {e}"
+            log.error("movie_match_failed", title=title, error=str(e), exc_info=True)
+            return None
+
+    def _select_best_candidate(
+        self,
+        match: MatchResult | None,
+        title: str,
+        year: int | None,
+        result: ScrapeResult,
+    ) -> bool:
+        """Check confidence of the matched candidate and reject low-confidence matches.
+
+        Args:
+            match: MatchResult from TMDB (may be None).
+            title: Movie title for logging.
+            year: Optional release year for logging.
+            result: ScrapeResult for action tracking.
+
+        Returns:
+            True if the candidate is accepted and result.match is set,
+            False if skipped.
+        """
+        if match is None or match.confidence < LOW_CONFIDENCE:
+            result.action = "skipped_low_confidence"
+            log.warning(
+                "movie_no_confident_match",
+                title=title,
+                year=year,
+                score=round(match.confidence if match else 0.0, 2),
+            )
+            return False
+        result.match = match
+        log.info(
+            "movie_matched",
+            title=title,
+            api_title=match.api_title,
+            source=match.source,
+            confidence=round(match.confidence, 2),
+        )
+        return True
+
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
-        """Scrape a single movie: match → NFO → artwork.
+        """Scrape a single movie: match -> NFO -> artwork.
 
         Flow:
         1. Parse title + year from folder name
@@ -91,7 +157,7 @@ class MovieServiceMixin:
         nfo_name = self.patterns.format("movie_nfo", Title=title)
         nfo_path = movie_dir / nfo_name
         if _is_nfo_complete(nfo_path):
-            # Check for missing artwork — recover without re-scraping
+            # Check for missing artwork -- recover without re-scraping
             missing = self._check_missing_movie_artwork(movie_dir, title)
             if missing and not self.dry_run:
                 self._recover_movie_artwork(nfo_path, movie_dir, result)
@@ -105,7 +171,7 @@ class MovieServiceMixin:
             log.info("nfo_valid", action=result.action, directory=movie_dir.name)
             return result
 
-        # Corrupt NFO: delete before re-scrape.  Honor dry_run — without
+        # Corrupt NFO: delete before re-scrape.  Honor dry_run -- without
         # this guard a dry-run pass that detected drift would still
         # unlink the file, leaving the next real run thinking the NFO is
         # missing from the start (and downstream verify reports it as
@@ -124,33 +190,12 @@ class MovieServiceMixin:
                     return result
 
         # Match against TMDB
-        try:
-            from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
-
-            match = scraper_api.match_movie(self._tmdb, title, year)
-        except Exception as e:
-            result.error = f"Match failed: {e}"
-            log.error("movie_match_failed", title=title, error=str(e), exc_info=True)
+        match = self._match_movie_candidates(title, year, result)
+        if result.error:
             return result
-
-        if match is None or match.confidence < LOW_CONFIDENCE:
-            result.action = "skipped_low_confidence"
-            log.warning(
-                "movie_no_confident_match",
-                title=title,
-                year=year,
-                score=round(match.confidence if match else 0.0, 2),
-            )
+        if not self._select_best_candidate(match, title, year, result):
             return result
-
-        result.match = match
-        log.info(
-            "movie_matched",
-            title=title,
-            api_title=match.api_title,
-            source=match.source,
-            confidence=round(match.confidence, 2),
-        )
+        assert match is not None  # narrowed by _select_best_candidate returning True
 
         # Get full movie details (needed for local title resolution)
         try:
@@ -166,7 +211,7 @@ class MovieServiceMixin:
         # Folder name is filesystem-safe (sanitize_filename strips ``:``, ``?``,
         # ``"`` etc. for NTFS compatibility) while the NFO ``<title>`` keeps
         # the original punctuation for Plex/Kodi display. The two values are
-        # *intentionally* allowed to diverge — same item ``Some Show: Subtitle``
+        # *intentionally* allowed to diverge -- same item ``Some Show: Subtitle``
         # ends up as folder ``Some Show Subtitle`` and NFO title
         # ``Some Show: Subtitle``. Verified items downstream (verify/run.py)
         # compare on NFC-normalised, NTFS-sanitised forms so this asymmetry
@@ -240,7 +285,7 @@ class MovieServiceMixin:
 
             stream_info = scraper_api.extract_stream_info(video_file)
 
-        # Classify item — must run before NFO write so the
+        # Classify item -- must run before NFO write so the
         # category_id can be embedded in the NFO by nfo_generator.
         category_id = self._classify_item(
             media_type="movie",
@@ -252,7 +297,7 @@ class MovieServiceMixin:
         )
         result.category_id = category_id
         if category_id is None and self.config is not None:
-            # Config is present but no category matched — skip this item
+            # Config is present but no category matched -- skip this item
             result.action = "skipped_no_category"
             return result
 

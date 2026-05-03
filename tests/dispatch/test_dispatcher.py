@@ -44,7 +44,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.conf.models import DiskConfig
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.verify.verifier import VerifyResult
@@ -87,7 +87,7 @@ class TestDispatcherInit:
         self, mock_which: MagicMock, test_config, mock_settings: MagicMock, tmp_path: Path
     ) -> None:
         """Should raise DispatchError when rsync is missing."""
-        from personalscraper.dispatch.dispatcher import DispatchError
+        from personalscraper.dispatch._types import DispatchError
 
         idx = MediaIndex(tmp_path / "index.db")
         with pytest.raises(DispatchError, match="rsync"):
@@ -117,7 +117,7 @@ class TestDispatchMovie:
         (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._movie.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -146,7 +146,7 @@ class TestDispatchMovie:
         movie_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._movie.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -184,7 +184,7 @@ class TestDispatchTvshow:
         show_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._tv.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -230,7 +230,7 @@ class TestProcess:
         ]
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._movie.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -372,7 +372,7 @@ class TestReplace:
         dest.mkdir()
         (source / "file.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync", return_value=False):
+        with patch("personalscraper.dispatch._transfer.rsync", return_value=False):
             result = d._replace(source, dest)
 
         assert result is False
@@ -412,8 +412,8 @@ class TestReplace:
                 raise OSError("Simulated rename failure")
             return original_rename(src, dst)
 
-        with patch.object(d, "_rsync", side_effect=fake_rsync):
-            with patch("personalscraper.dispatch.dispatcher.os.rename", side_effect=failing_rename):
+        with patch("personalscraper.dispatch._transfer.rsync", side_effect=fake_rsync):
+            with patch("personalscraper.dispatch._movie.os.rename", side_effect=failing_rename):
                 result = d._replace(source, dest)
 
         assert result is False
@@ -440,7 +440,7 @@ class TestReplace:
             (dst / "file.mkv").write_bytes(b"\x00" * 1024)
             return True
 
-        with patch.object(d, "_rsync", side_effect=fake_rsync):
+        with patch("personalscraper.dispatch._transfer.rsync", side_effect=fake_rsync):
             result = d._replace(source, dest)
 
         assert result is True
@@ -473,7 +473,7 @@ class TestMerge:
         source.mkdir()
         dest.mkdir()
 
-        with patch.object(d, "_rsync_merge", return_value=False):
+        with patch("personalscraper.dispatch._transfer.rsync_merge", return_value=False):
             result = d._merge(source, dest)
 
         assert result is False
@@ -495,8 +495,8 @@ class TestMerge:
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch.object(d, "_rsync_merge", return_value=True),
-            patch.object(d, "_verify_transfer", return_value=False),
+            patch("personalscraper.dispatch._transfer.rsync_merge", return_value=True),
+            patch("personalscraper.dispatch._transfer.verify_transfer", return_value=False),
         ):
             result = d._merge(source, dest)
 
@@ -518,7 +518,7 @@ class TestMerge:
         dest.mkdir()
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync_merge", return_value=True), patch.object(d, "_verify_transfer", return_value=True):
+        with patch("personalscraper.dispatch._transfer.rsync_merge", return_value=True), patch("personalscraper.dispatch._transfer.verify_transfer", return_value=True):
             result = d._merge(source, dest)
 
         assert result is True
@@ -539,7 +539,7 @@ class TestMerge:
         source.mkdir()
         dest.mkdir()
 
-        with patch.object(d, "_rsync_merge", side_effect=OSError("disk error")):
+        with patch("personalscraper.dispatch._transfer.rsync_merge", side_effect=OSError("disk error")):
             result = d._merge(source, dest)
 
         assert result is False
@@ -679,7 +679,7 @@ class TestRsync:
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = d._rsync(src, dst)
 
@@ -700,7 +700,7 @@ class TestRsync:
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=23, stderr="partial transfer")
             result = d._rsync(src, dst)
 
@@ -720,7 +720,7 @@ class TestRsync:
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired(cmd="rsync", timeout=3600)
             result = d._rsync(src, dst)
 
@@ -740,7 +740,7 @@ class TestRsync:
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             d._rsync(src, dst, delete=True)
 
@@ -761,7 +761,7 @@ class TestRsync:
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             d._rsync(src, dst)
 
@@ -785,7 +785,7 @@ class TestRsync:
         dst.mkdir()
         backup = dst / ".merge_backup"
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             d._rsync_merge(src, dst, backup)
 
@@ -818,7 +818,7 @@ class TestDispatchDryRun:
 
         with (
             patch(
-                "personalscraper.dispatch.dispatcher.get_disk_status",
+                "personalscraper.dispatch._movie.get_disk_status",
             ) as mock_status,
             patch.object(d, "_rsync") as mock_rsync,
         ):
@@ -980,27 +980,27 @@ class TestNtfsPreScan:
 
     def test_item_with_colon_skipped(self, tmp_path: Path) -> None:
         """Dispatch should skip items with NTFS-illegal filenames."""
-        from personalscraper.dispatch.dispatcher import Dispatcher
+        from personalscraper.dispatch._transfer import has_ntfs_illegal_names
 
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie_dir / "Movie : Subtitle-poster.jpg").write_bytes(b"bad")
 
-        result = Dispatcher._has_ntfs_illegal_names(movie_dir)
+        result = has_ntfs_illegal_names(movie_dir)
 
         assert result is True
 
     def test_clean_item_passes(self, tmp_path: Path) -> None:
         """Items with clean filenames should pass the pre-scan."""
-        from personalscraper.dispatch.dispatcher import Dispatcher
+        from personalscraper.dispatch._transfer import has_ntfs_illegal_names
 
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie_dir / "Movie-poster.jpg").write_bytes(b"ok")
 
-        result = Dispatcher._has_ntfs_illegal_names(movie_dir)
+        result = has_ntfs_illegal_names(movie_dir)
 
         assert result is False
 
@@ -1023,10 +1023,10 @@ class TestPurgeEpisodeConflicts:
 
     @staticmethod
     def _purge(source: Path, dest: Path, backup_dir: Path) -> None:
-        """Invoke the unbound method directly — no Dispatcher state required."""
-        from personalscraper.dispatch.dispatcher import Dispatcher
+        """Invoke the module-level function directly — no Dispatcher state required."""
+        from personalscraper.dispatch._tv import purge_episode_conflicts
 
-        Dispatcher._purge_episode_conflicts(None, source, dest, backup_dir)  # type: ignore[arg-type]
+        purge_episode_conflicts(source, dest, backup_dir)
 
     def test_renamed_episode_purged_to_backup(self, tmp_path: Path) -> None:
         """Same SxxExx, different filename → dest copy goes to backup."""

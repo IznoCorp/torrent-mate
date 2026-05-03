@@ -41,10 +41,7 @@ def dispatch_movie(
     # Pre-scan for NTFS-illegal filenames before any rsync operation
     if _transfer.has_ntfs_illegal_names(movie_dir):
         result.action = "skipped"
-        result.reason = (
-            f"NTFS-illegal filenames in {movie_dir.name}. "
-            "Run 'personalscraper process' to sanitize."
-        )
+        result.reason = f"NTFS-illegal filenames in {movie_dir.name}. Run 'personalscraper process' to sanitize."
         log.error("dispatch_ntfs_illegal", path=str(movie_dir))
         return result
 

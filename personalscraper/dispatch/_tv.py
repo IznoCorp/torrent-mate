@@ -40,10 +40,7 @@ def dispatch_tvshow(
     # Pre-scan for NTFS-illegal filenames before any rsync operation
     if _transfer.has_ntfs_illegal_names(show_dir):
         result.action = "skipped"
-        result.reason = (
-            f"NTFS-illegal filenames in {show_dir.name}. "
-            "Run 'personalscraper process' to sanitize."
-        )
+        result.reason = f"NTFS-illegal filenames in {show_dir.name}. Run 'personalscraper process' to sanitize."
         log.error("dispatch_ntfs_illegal", path=str(show_dir))
         return result
 
