@@ -23,7 +23,7 @@ clean:
 
 test:
 	@echo "Running tests..."
-	python -m pytest -v
+	python -m pytest -v -n auto
 
 lint:
 	@echo "Running linter..."

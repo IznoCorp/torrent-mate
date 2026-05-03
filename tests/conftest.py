@@ -20,6 +20,39 @@ from personalscraper.logger import configure_logging
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+# Patch Retrying.__init__ so all retry decorators use a no-op sleep.
+#
+# Tenacity's Retrying class captures its sleep function as a default
+# parameter at class-definition time (``from .nap import sleep``), so
+# patching ``tenacity.nap.sleep`` after the module is loaded has no
+# effect on already-created decorator instances.  Overriding the sleep
+# argument in ``__init__`` ensures every Retrying object created after
+# this patch -- including those from ``@retry`` decorators evaluated
+# later -- uses a no-op, without touching ``time.sleep`` globally.
+#
+# Must run before any test module imports ``personalscraper.scraper.*``,
+# which triggers ``@retry`` decoration on ``TMDBClient._get`` and similar.
+import tenacity as _tenacity
+
+
+def _tenacity_noop_sleep(seconds: float) -> None:
+    pass
+
+
+_tenacity_original_init = _tenacity.Retrying.__init__
+
+
+def _tenacity_patched_init(
+    self: _tenacity.Retrying,
+    *args: object,
+    **kwargs: object,
+) -> None:
+    kwargs["sleep"] = _tenacity_noop_sleep
+    _tenacity_original_init(self, *args, **kwargs)
+
+
+_tenacity.Retrying.__init__ = _tenacity_patched_init
+
 
 def make_cli_runner() -> _RawCliRunner:
     """Return a CliRunner that separates stdout from stderr across click versions.
@@ -77,6 +110,40 @@ def _configure_logging_for_tests(tmp_path_factory: pytest.TempPathFactory) -> No
         configure_logging(verbose=False, quiet=False)
     except Exception as exc:  # noqa: BLE001 — surface any misconfiguration
         pytest.fail(f"configure_logging() failed: {exc}")
+
+    # Replace the expensive ConsoleRenderer on the console handler with a fast
+    # KeyValueRenderer.  ConsoleRenderer can take ~1 s per log call (coloring,
+    # rich formatting), which adds up to 4+ s per tenacity-based timeout test.
+    _replace_console_renderer_for_tests()
+
+
+def _replace_console_renderer_for_tests() -> None:
+    """Swap ConsoleRenderer → KeyValueRenderer on the console logging handler.
+
+    Called once per session after ``configure_logging()`` so that log output
+    remains inspectable (via ``caplog``) but does not pay the ~1 s per-call
+    formatting cost of the colored dev renderer.
+    """
+    import logging
+
+    import structlog.dev
+    import structlog.processors
+
+    root = logging.getLogger()
+    for handler in root.handlers:
+        if handler.get_name() == "console":
+            fmt = handler.formatter
+            if hasattr(fmt, "processors"):
+                # ProcessorFormatter stores processors as a list; swap the
+                # ConsoleRenderer for a cheap KeyValueRenderer.
+                new_procs = [
+                    structlog.processors.KeyValueRenderer(sort_keys=False)
+                    if isinstance(p, structlog.dev.ConsoleRenderer)
+                    else p
+                    for p in fmt.processors
+                ]
+                fmt.processors = new_procs
+            break
 
 
 @pytest.fixture(autouse=True)
