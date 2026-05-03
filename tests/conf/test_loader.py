@@ -16,7 +16,8 @@ from personalscraper.conf.loader import (
     load_config_dir,
     resolve_config_path,
 )
-from personalscraper.conf.models import Config, IndexerConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.indexer import IndexerConfig
 
 # ---------------------------------------------------------------------------
 # Helpers

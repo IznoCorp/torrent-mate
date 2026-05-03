@@ -26,7 +26,8 @@ from unittest.mock import MagicMock  # noqa: E402
 import pytest  # noqa: E402
 
 from personalscraper.conf import ids as CID  # noqa: E402
-from personalscraper.conf.models import Config, DiskConfig  # noqa: E402
+from personalscraper.conf.models.config import Config  # noqa: E402
+from personalscraper.conf.models.disks import DiskConfig  # noqa: E402
 from personalscraper.conf.staging import folder_name  # noqa: E402
 
 # ---------------------------------------------------------------------------

@@ -11,13 +11,13 @@ Tests cover:
 from pathlib import Path
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import (
+from personalscraper.conf.models.categories import (
     CategoryConfig,
-    Config,
-    DiskConfig,
     GenreMapping,
-    PathConfig,
 )
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.resolver import folder_for, pick_disk_for
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 

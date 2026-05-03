@@ -66,7 +66,7 @@ def orch_config(tmp_path):
     Returns:
         MagicMock configured as a minimal Config substitute.
     """
-    from personalscraper.conf.models import StagingDirConfig
+    from personalscraper.conf.models.staging import StagingDirConfig
 
     config = MagicMock()
     config.paths.staging_dir = tmp_path

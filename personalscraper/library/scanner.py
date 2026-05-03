@@ -27,7 +27,8 @@ from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config, DiskConfig
+    from personalscraper.conf.models.config import Config
+    from personalscraper.conf.models.disks import DiskConfig
 
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
 from personalscraper.indexer.repos import disk_repo, tv_repo

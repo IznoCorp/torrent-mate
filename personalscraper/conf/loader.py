@@ -31,7 +31,7 @@ from typing import Any
 
 import json5
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.overlay import ConfigConflictError, ConfigLoadError, merge_overlays
 from personalscraper.logger import get_logger
 

@@ -14,7 +14,8 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config, DiskConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.run import run_dispatch

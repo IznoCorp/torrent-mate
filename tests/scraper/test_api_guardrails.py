@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-from personalscraper.conf.models import ScraperConfig
+from personalscraper.conf.models.scraper import ScraperConfig
 from personalscraper.scraper.nfo_generator import NFOGenerator
 
 # ---------------------------------------------------------------------------

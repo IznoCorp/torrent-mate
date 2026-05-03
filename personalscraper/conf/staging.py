@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config, StagingDirConfig
+    from personalscraper.conf.models.config import Config
+    from personalscraper.conf.models.staging import StagingDirConfig
     from personalscraper.sorter.file_type import FileType
 
 _log = get_logger("staging")

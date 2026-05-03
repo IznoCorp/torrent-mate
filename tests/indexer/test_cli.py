@@ -99,7 +99,7 @@ def _make_config(tmp_path: Path, *, extra_categories: frozenset[str] | None = No
         A real :class:`~personalscraper.conf.models.Config` instance with a
         writable ``indexer.db_path`` under *tmp_path*.
     """
-    from personalscraper.conf.models import IndexerConfig
+    from personalscraper.conf.models.indexer import IndexerConfig
 
     mock_cfg = MagicMock()
     ic = IndexerConfig(db_path=tmp_path / "library.db")

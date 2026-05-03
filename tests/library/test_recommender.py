@@ -2,7 +2,7 @@
 
 import pytest
 
-from personalscraper.conf.models import (
+from personalscraper.conf.models.preferences import (
     EncodingRule,
     LibraryPrefs,
     RuleCriteria,

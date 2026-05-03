@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns

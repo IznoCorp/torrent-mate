@@ -12,7 +12,7 @@ from pathlib import Path
 import qbittorrentapi
 import requests
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient

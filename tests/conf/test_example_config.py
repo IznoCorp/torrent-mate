@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from personalscraper.conf.loader import load_config_dir
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 EXAMPLE_DIR = _REPO_ROOT / "config.example"

@@ -20,7 +20,7 @@ import unicodedata
 
 from rapidfuzz import utils
 
-from personalscraper.conf.models import FuzzyMatchConfig
+from personalscraper.conf.models.fuzzy import FuzzyMatchConfig
 
 # Year suffix pattern for length ratio normalization
 _YEAR_SUFFIX = re.compile(r"\s*\(\d{4}\)\s*$")

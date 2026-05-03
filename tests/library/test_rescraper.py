@@ -3,7 +3,11 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig, ScraperConfig
+from personalscraper.conf.models.categories import CategoryConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.scraper import ScraperConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 

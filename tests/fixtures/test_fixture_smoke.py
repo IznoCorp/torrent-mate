@@ -1,7 +1,7 @@
 """Smoke tests for the shared test_config fixture."""
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 
 
 class TestTestConfigFixture:

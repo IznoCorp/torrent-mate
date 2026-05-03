@@ -13,7 +13,8 @@ Caller responsibilities:
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config, DiskConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
 
 
 def folder_for(config: Config, disk: DiskConfig, category_id: str) -> Path:

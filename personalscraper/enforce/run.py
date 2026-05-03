@@ -8,7 +8,7 @@ Executes three sub-components in order:
 Each component works on the state left by the previous one.
 """
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.enforce.coherence_checker import check_coherence
 from personalscraper.enforce.file_sanitizer import sanitize_files

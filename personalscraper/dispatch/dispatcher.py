@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from personalscraper.conf import resolver
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.dispatch.disk_scanner import get_disk_configs, get_disk_status
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex

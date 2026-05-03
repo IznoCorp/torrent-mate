@@ -15,7 +15,11 @@ from pathlib import Path
 import pytest
 
 from personalscraper.conf.classifier import _read_nfo_category, classify
-from personalscraper.conf.models import AnimeRule, CategoryRule, Config
+from personalscraper.conf.models.categories import (
+    AnimeRule,
+    CategoryRule,
+)
+from personalscraper.conf.models.config import Config
 
 # ---------------------------------------------------------------------------
 # Helpers

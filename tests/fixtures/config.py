@@ -9,16 +9,16 @@ from pathlib import Path
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import (
+from personalscraper.conf.models.categories import (
     AnimeRule,
     CategoryConfig,
     CategoryRule,
-    Config,
-    DiskConfig,
     GenreMapping,
-    PathConfig,
-    StagingDirConfig,
 )
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.staging import StagingDirConfig
 
 # ---------------------------------------------------------------------------
 # Shared staging_dirs constant — import this in any test file that builds

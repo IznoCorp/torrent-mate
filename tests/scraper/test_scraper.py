@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from guessit.api import GuessitException
 
-from personalscraper.conf.models import ScraperConfig
+from personalscraper.conf.models.scraper import ScraperConfig
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.scraper import (
@@ -1787,14 +1787,14 @@ class TestClassifierIntegration:
         # test_config is a pytest fixture — call it via the fixture system
         # Here we replicate its logic directly for isolation
         from personalscraper.conf import ids as CID
-        from personalscraper.conf.models import (
+        from personalscraper.conf.models.categories import (
             AnimeRule,
             CategoryConfig,
-            Config,
-            DiskConfig,
             GenreMapping,
-            PathConfig,
         )
+        from personalscraper.conf.models.config import Config
+        from personalscraper.conf.models.disks import DiskConfig
+        from personalscraper.conf.models.paths import PathConfig
         from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
         return Config(
@@ -1970,18 +1970,17 @@ class TestClassifierIntegration:
     def test_keywords_fetched_when_keyword_rules_configured(self, mock_settings: MagicMock, tmp_path: Path) -> None:
         """When a category_rule uses tmdb_keyword, keywords are fetched via cache."""
         from personalscraper.conf import ids as CID
-        from personalscraper.conf.models import (
+        from personalscraper.conf.models.categories import (
             AnimeRule,
             CategoryConfig,
             CategoryRule,
-            Config,
-            DiskConfig,
             GenreMapping,
-            PathConfig,
         )
+        from personalscraper.conf.models.config import Config
+        from personalscraper.conf.models.disks import DiskConfig
+        from personalscraper.conf.models.paths import PathConfig
         from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
-        # Config with a tmdb_keyword rule
         config_with_kw = Config(
             paths=PathConfig(
                 torrent_complete_dir=tmp_path / "torrents",

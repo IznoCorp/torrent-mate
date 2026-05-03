@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, folder_name
 
 _STAGING_DIRS = [

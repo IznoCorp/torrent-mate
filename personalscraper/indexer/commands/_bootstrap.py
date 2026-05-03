@@ -6,7 +6,7 @@ import sqlite3
 import time
 from collections.abc import Sequence
 
-from personalscraper.conf.models import DiskConfig
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.indexer.merkle import _resolve_volume_root
 from personalscraper.logger import get_logger
 

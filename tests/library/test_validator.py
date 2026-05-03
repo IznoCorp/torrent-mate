@@ -2,7 +2,10 @@
 
 from pathlib import Path
 
-from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
+from personalscraper.conf.models.categories import CategoryConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
 from personalscraper.library.validator import validate_library
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 

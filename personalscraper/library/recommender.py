@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from personalscraper.conf.models import LibraryPrefs
+from personalscraper.conf.models.preferences import LibraryPrefs
 from personalscraper.library.models import (
     PRIORITY_HIGH,
     PRIORITY_LOW,

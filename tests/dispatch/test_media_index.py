@@ -231,7 +231,7 @@ class TestMediaIndexRebuild:
 
     def test_rebuild_indexes_media(self, tmp_path: Path) -> None:
         """Should index media directories from disk structure."""
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         # Create fake disk structure using V15 category IDs as folder names
         disk = tmp_path / "medias"
@@ -254,7 +254,7 @@ class TestMediaIndexRebuild:
 
     def test_rebuild_uses_disk_id(self, tmp_path: Path) -> None:
         """Rebuilt entries use disk.id (V15) not disk.name (V14)."""
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         disk = tmp_path / "medias"
         (disk / "movies" / "Movie A").mkdir(parents=True)
@@ -275,7 +275,8 @@ class TestMediaIndexRebuild:
         ``movies``, ``tv_programs``). Without the reverse lookup, rebuild
         silently skipped every folder whose name was not already a V15 ID.
         """
-        from personalscraper.conf.models import CategoryConfig, DiskConfig
+        from personalscraper.conf.models.categories import CategoryConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         disk = tmp_path / "medias"
         (disk / "series" / "Fallout (2024)").mkdir(parents=True)
@@ -319,7 +320,7 @@ class TestMediaIndexRebuild:
         rebuild() automatically so dispatch decisions are immediately accurate.
         After __init__ returns, media_item rows must be present.
         """
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         # Create a real disk structure so rebuild() can scan it.
         disk = tmp_path / "medias"
@@ -356,7 +357,7 @@ class TestMediaIndexRebuild:
         Folder name must equal category ID (backward compat with existing
         tests that pre-date the folder_name remapping).
         """
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         disk = tmp_path / "medias"
         (disk / "movies" / "Movie A").mkdir(parents=True)

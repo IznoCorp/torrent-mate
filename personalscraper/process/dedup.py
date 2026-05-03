@@ -15,7 +15,7 @@ from personalscraper.logger import get_logger
 from personalscraper.text_utils import fuzzy_match_score
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import FuzzyMatchConfig
+    from personalscraper.conf.models.fuzzy import FuzzyMatchConfig
 
 log = get_logger("process.dedup")
 

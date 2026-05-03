@@ -9,7 +9,7 @@ Each sub-step can be called independently for error isolation.
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger

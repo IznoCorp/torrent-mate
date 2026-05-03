@@ -10,7 +10,7 @@ Catalogue items covered:
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.config import Settings
 from personalscraper.sorter.file_type import FileType

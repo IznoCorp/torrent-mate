@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 

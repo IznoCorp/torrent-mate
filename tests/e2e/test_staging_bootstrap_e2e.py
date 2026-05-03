@@ -19,7 +19,7 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
 
 _STAGING_DIRS = [

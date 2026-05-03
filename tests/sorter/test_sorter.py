@@ -4,7 +4,7 @@ import shutil
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
 from personalscraper.sorter.sorter import Sorter
 from tests.fixtures.config import CANONICAL_STAGING_DIRS

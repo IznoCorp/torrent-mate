@@ -12,7 +12,8 @@ Key design decisions:
 import shutil
 from dataclasses import dataclass
 
-from personalscraper.conf.models import Config, DiskConfig  # noqa: F401
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig  # noqa: F401
 from personalscraper.logger import get_logger
 
 log = get_logger("disk_scanner")

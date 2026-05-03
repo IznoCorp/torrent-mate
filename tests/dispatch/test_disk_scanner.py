@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from personalscraper.conf.models import DiskConfig
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.dispatch.disk_scanner import (
     DiskStatus,
     get_disk_configs,

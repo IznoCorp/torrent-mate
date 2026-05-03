@@ -6,7 +6,7 @@ fixture produces the expected shape.  No production behaviour is tested here.
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from tests.integration.conftest import FakeQBitClient
 
 

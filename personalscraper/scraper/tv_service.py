@@ -28,7 +28,7 @@ from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.tmdb_client import TMDBClient

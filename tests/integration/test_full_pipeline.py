@@ -9,7 +9,7 @@ Catalogue items covered:
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.models import PipelineReport
 from personalscraper.pipeline import Pipeline

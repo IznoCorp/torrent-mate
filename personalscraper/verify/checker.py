@@ -17,7 +17,7 @@ from enum import Enum
 from pathlib import Path
 
 from personalscraper.conf.classifier import classify_from_nfo
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS

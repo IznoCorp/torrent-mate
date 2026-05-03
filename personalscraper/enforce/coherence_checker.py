@@ -11,7 +11,7 @@ from pathlib import Path
 
 from personalscraper.conf import ids as CID
 from personalscraper.conf.classifier import classify_from_nfo
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger

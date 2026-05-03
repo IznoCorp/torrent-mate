@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 if TYPE_CHECKING:
     from rich.console import Console
 
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.models import StepReport
 

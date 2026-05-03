@@ -18,7 +18,7 @@ from typing import Any
 
 from rich.console import Console
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger

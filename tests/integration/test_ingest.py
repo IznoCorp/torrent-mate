@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.ingest.ingest import run_ingest
 from tests.integration.conftest import FakeQBitClient, FakeTorrent

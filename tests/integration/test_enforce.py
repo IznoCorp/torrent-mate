@@ -6,7 +6,7 @@ Catalogue #9 — enforce gate invariants.
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.enforce.structure_validator import validate_structure
 from personalscraper.sorter.file_type import FileType

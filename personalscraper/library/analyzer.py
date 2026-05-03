@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.library.models import (

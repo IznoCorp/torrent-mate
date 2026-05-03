@@ -69,7 +69,7 @@ def _make_config(tmp_path: Path) -> Any:
     Returns:
         MagicMock Config whose ``indexer.db_path`` points to a writable file.
     """
-    from personalscraper.conf.models import IndexerConfig
+    from personalscraper.conf.models.indexer import IndexerConfig
 
     mock_cfg = MagicMock()
     ic = IndexerConfig(db_path=tmp_path / "library.db")

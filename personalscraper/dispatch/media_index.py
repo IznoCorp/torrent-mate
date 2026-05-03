@@ -32,7 +32,10 @@ from personalscraper.indexer.schema import ItemAttributeRow, MediaItemKind, Medi
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, FuzzyMatchConfig
+    from personalscraper.conf.models.categories import CategoryConfig
+    from personalscraper.conf.models.config import Config
+    from personalscraper.conf.models.disks import DiskConfig
+    from personalscraper.conf.models.fuzzy import FuzzyMatchConfig
 
 log = get_logger("media_index")
 

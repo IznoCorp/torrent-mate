@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, TypedDict
 from rich.console import Console
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
 
 
 @dataclass

@@ -4,14 +4,16 @@ import pytest
 from pydantic import ValidationError
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import (
+from personalscraper.conf.models.categories import (
     CategoryConfig,
     CategoryRule,
-    Config,
-    DiskConfig,
-    EncodingRule,
     GenreMapping,
-    PathConfig,
+)
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.preferences import (
+    EncodingRule,
     RuleCriteria,
     SubtitlePrefs,
     VideoPrefs,
@@ -495,35 +497,35 @@ class TestTrailersConfig:
 
     def test_trailers_config_defaults_to_disabled(self):
         """TrailersConfig defaults to enabled=False when not present in config.json5."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.enabled is False
 
     def test_trailers_config_languages_default(self):
         """TrailersConfig.languages defaults to ['fr-FR', 'en-US']."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.languages == ["fr-FR", "en-US"]
 
     def test_trailers_config_retry_after_days_default(self):
         """TrailersConfig.retry_after_days defaults to [1, 7, 30]."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.retry_after_days == [1, 7, 30]
 
     def test_trailers_config_state_file_default(self):
         """TrailersConfig.state_file defaults to None (resolved at Config level)."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.state_file is None
 
     def test_trailers_filters_defaults(self):
         """TrailersFiltersConfig defaults match the runtime trailer gates."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.filters.min_file_size_bytes == 102400
@@ -532,7 +534,7 @@ class TestTrailersConfig:
 
     def test_trailers_ytdlp_defaults(self):
         """TrailersYtdlpConfig defaults match the runtime downloader settings."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert "height<=1080" in cfg.ytdlp.format
@@ -541,7 +543,7 @@ class TestTrailersConfig:
 
     def test_trailers_two_circuit_breakers(self):
         """Two distinct breakers prevent YouTube failures from tripping TMDB."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.circuit_breakers.tmdb_videos.errors_threshold == 5
@@ -551,7 +553,7 @@ class TestTrailersConfig:
 
     def test_trailers_youtube_api_defaults(self):
         """YouTube Data API v3 quota accounting defaults."""
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.youtube_api.daily_quota_units == 10_000
@@ -563,7 +565,7 @@ class TestTrailersConfig:
         Most shows lack TMDB season-level trailers; enabling by default would spam
         YouTube searches that return nothing.
         """
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.seasons.enabled is False
@@ -575,7 +577,7 @@ class TestTrailersConfig:
         - movies: False — films rarely get re-ingested; library scan cost unjustified.
         - tv_shows: True — new episodes of existing shows arrive frequently.
         """
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         cfg = TrailersConfig()
         assert cfg.library_check.movies is False
@@ -583,6 +585,8 @@ class TestTrailersConfig:
 
     def test_config_trailers_field_defaults_to_disabled(self, tmp_path):
         """Config.trailers defaults to TrailersConfig() with enabled=False."""
+        from personalscraper.conf.models.config import Config
+
         cfg = Config(
             paths=PathConfig(
                 torrent_complete_dir=tmp_path / "complete",
@@ -636,7 +640,7 @@ class TestTrailersConfig:
         """errors_threshold must be >= 1 — a 0 means the breaker would never trip OR trip on first call."""
         import pydantic
 
-        from personalscraper.conf.models import TrailersCircuitBreakerConfig
+        from personalscraper.conf.models.trailers import TrailersCircuitBreakerConfig
 
         with pytest.raises(pydantic.ValidationError):
             TrailersCircuitBreakerConfig(errors_threshold=0, cooldown_sec=60)
@@ -645,7 +649,7 @@ class TestTrailersConfig:
         """max_filesize_mb must be > 0 (a zero cap would block every download)."""
         import pydantic
 
-        from personalscraper.conf.models import TrailersFiltersConfig
+        from personalscraper.conf.models.trailers import TrailersFiltersConfig
 
         with pytest.raises(pydantic.ValidationError):
             TrailersFiltersConfig(max_filesize_mb=0)
@@ -654,7 +658,7 @@ class TestTrailersConfig:
         """Languages must be non-empty so the finder always has at least one tier-1 query."""
         import pydantic
 
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         with pytest.raises(pydantic.ValidationError):
             TrailersConfig(languages=[])
@@ -663,7 +667,7 @@ class TestTrailersConfig:
         """A negative day collapses the back-off ladder into immediate retry."""
         import pydantic
 
-        from personalscraper.conf.models import TrailersConfig
+        from personalscraper.conf.models.trailers import TrailersConfig
 
         with pytest.raises(pydantic.ValidationError):
             TrailersConfig(retry_after_days=[-1, 7, 30])
@@ -672,7 +676,7 @@ class TestTrailersConfig:
         """An empty extension would silently disable the verify gate."""
         import pydantic
 
-        from personalscraper.conf.models import TrailersFiltersConfig
+        from personalscraper.conf.models.trailers import TrailersFiltersConfig
 
         with pytest.raises(pydantic.ValidationError):
             TrailersFiltersConfig(allowed_extensions=["", "mp4"])
@@ -681,7 +685,7 @@ class TestTrailersConfig:
         """A typo with trailing whitespace must fail validation, not propagate."""
         import pydantic
 
-        from personalscraper.conf.models import TrailersFiltersConfig
+        from personalscraper.conf.models.trailers import TrailersFiltersConfig
 
         with pytest.raises(pydantic.ValidationError):
             TrailersFiltersConfig(allowed_extensions=["mp4 ", "mkv"])

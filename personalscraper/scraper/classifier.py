@@ -11,7 +11,7 @@ from guessit.api import GuessitException
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
     from personalscraper.scraper.keywords_cache import KeywordsCache
     from personalscraper.scraper.tmdb_client import TMDBClient
 
