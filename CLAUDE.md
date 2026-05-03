@@ -127,7 +127,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: media-indexer
-**Branch**: feat/media-indexer
-**Design**: docs/features/media-indexer/DESIGN.md
-**Plan**: docs/features/media-indexer/plan/
+**Feature**: arch-cleanup
+**Branch**: refactor/arch-cleanup
+**Design**: docs/features/arch-cleanup/DESIGN.md
+**Plan**: docs/features/arch-cleanup/plan/
