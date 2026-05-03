@@ -8,7 +8,7 @@ Ce document explique comment utiliser la zone de staging (tri) et les outils dis
 
 ```
 Torrents terminés  →  staging  →  Disques de stockage
-                    personalscraper run     (7 étapes séquentielles)
+                    personalscraper run     (9 étapes séquentielles)
 ```
 
 **Pipeline automatisé (PersonalScraper) :**
@@ -18,8 +18,10 @@ Torrents terminés  →  staging  →  Disques de stockage
 3. **Clean** — Nettoyage noms (reclean) + dédoublonnage fuzzy (dedup)
 4. **Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
 5. **Cleanup** — Suppression des dossiers vides
-6. **Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
-7. **Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
+6. **Enforce** — Application des règles de conformité (nommage, structure)
+7. **Verify** — Contrôle qualité avant dispatch (checker + fixer + catégorisation genre)
+8. **Trailers** — Téléchargement des bandes-annonces via yt-dlp (optionnel, activé par défaut)
+9. **Dispatch** — Déplacement vers le bon disque de stockage (replace films, merge séries)
 
 > **Note :** MediaElch reste disponible comme fallback manuel pour le scraping si l'API ne trouve pas le résultat.
 
@@ -86,8 +88,8 @@ is responsible for moving or archiving these files separately.
 Le pipeline automatisé est accessible via la commande `personalscraper` :
 
 ```bash
-# Pipeline complet (7 étapes en séquence)
-personalscraper run                 # Exécute tout : ingest → sort → clean → scrape → cleanup → verify → dispatch
+# Pipeline complet (9 étapes en séquence)
+personalscraper run                 # Exécute tout : ingest → sort → clean → scrape → cleanup → enforce → verify → trailers → dispatch
 personalscraper run --dry-run       # Prévisualiser sans modifier
 
 # Phase process seule (reclean + dedup + scrape + cleanup)
@@ -99,20 +101,20 @@ personalscraper ingest              # Copier/déplacer les torrents terminés de
 personalscraper ingest --dry-run    # Prévisualiser
 personalscraper sort                # Trier dans 001-MOVIES, 002-TVSHOWS, etc.
 personalscraper scrape              # Récupérer métadonnées TMDB/TVDB (.nfo, artwork)
+personalscraper enforce             # Appliquer les règles de conformité
 personalscraper verify              # Contrôle qualité avant dispatch
 personalscraper dispatch            # Déplacer vers disques de stockage
 ```
 
-Chaque commande supporte des options supplémentaires (`--dry-run`, `--movies-only`, `--tvshows-only`, etc.). Voir `personalscraper <command> --help`.
+Certaines commandes supportent des options de filtrage (`--movies-only`, `--tvshows-only` pour `scrape` et `verify`). Voir `personalscraper <command> --help`.
 
 **Prérequis :** fichier `.env` configuré (clés API TMDB/TVDB, credentials qBittorrent). Voir `.env.example`.
 
 **Scheduling :** un agent launchd (`com.personalscraper.pipeline.plist`) peut exécuter le pipeline automatiquement à 3h du matin.
 
 ```bash
-# Installer et activer
-cp com.personalscraper.pipeline.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+# Installer et activer (via le script d'installation)
+bash scripts/install-launchd.sh
 
 # Désactiver
 launchctl unload ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
@@ -144,23 +146,6 @@ python -m pytest -m roundtrip -v -s     # 2 tests (matching aller-retour film + 
 ---
 
 ## Commandes shell
-
-### torrent-sort
-
-Trie les fichiers à la racine de la zone de staging dans les bons sous-dossiers.
-
-```bash
-# Trier (mode normal)
-torrent-sort
-
-# Prévisualiser sans déplacer
-torrent-sort --dry-run
-
-# Trier + supprimer les restes
-torrent-sort --verbose --clean
-```
-
-L'outil **FileMate** (`~/dev/FileMate/`) est appelé en arrière-plan. Les associations type → dossier sont configurées dans `~/dev/FileMate/.env`.
 
 ### Espace disque
 
@@ -198,15 +183,21 @@ df -h /Volumes/Disk{1,2,3,4}
 │   ├── sorter/          guessit + strategies → dossiers catégorie
 │   ├── process/         reclean, dedup, cleanup
 │   ├── scraper/         TMDB/TVDB matching, NFO, artwork
+│   ├── enforce/         Règles de conformité (nommage, structure)
 │   ├── verify/          contrôle qualité renforcé
 │   ├── dispatch/        rsync vers disques configurés
-│   └── pipeline.py      Orchestrateur 7 étapes séquentiel
+│   ├── trailers/        Téléchargement bandes-annonces (yt-dlp)
+│   ├── indexer/         Index SQLite des disques (scan, query, drift)
+│   ├── conf/            Modèles Pydantic + loader JSON5
+│   ├── commands/        Groupes de commandes Typer
+│   ├── pipeline.py      Orchestrateur 9 étapes séquentiel
+│   └── pipeline_steps.py Registre des étapes du pipeline
 ├── tests/               Tests unitaires + E2E
 └── assets/torrents/     Fichiers .torrent pour tests E2E
 ```
 
 Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
-défini par `paths.staging_dir` dans `config.json5` — en dehors du dépôt par défaut.
+défini par `paths.staging_dir` dans `config/paths.json5` — en dehors du dépôt par défaut.
 Ils ne sont pas suivis par git.
 
 ### Nommage des films
