@@ -20,6 +20,7 @@ _HAS_TMDB_KEY = bool(os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get(
 @pytest.mark.network
 @pytest.mark.skipif(not _HAS_TMDB_KEY, reason="TMDB_READ_ACCESS_TOKEN or TMDB_API_KEY not set")
 def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
+    """Download Big Buck Bunny trailer via TMDB + yt-dlp end-to-end."""
     api_key = os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get("TMDB_API_KEY")
     assert api_key is not None  # guarded by skipif, here for type narrowing
 
