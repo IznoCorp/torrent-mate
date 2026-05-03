@@ -1,18 +1,7 @@
-"""Thin indexer-backed wrapper for cross-disk media tracking.
+"""Thin SQLite-backed wrapper for cross-disk media tracking.
 
-Replaces the old JSON-file ``MediaIndex`` with a wrapper over
-``personalscraper.indexer`` repositories.  The public API
-(``find``, ``add``, ``rebuild``, ``remove_stale``, ``load``, ``save``)
-is preserved exactly; callers (``dispatch/dispatcher.py``,
-``dispatch/run.py``) need zero behavioural change.
-
-``load()`` and ``save()`` are no-ops: the SQLite DB has its own
-lifecycle and does not need explicit flush/hydrate calls.
-
-``media_index.json`` is no longer written or read.  If one is present on
-disk it is silently ignored (a deprecation warning is logged once).  Run
-``personalscraper library-index --mode full`` to populate the indexer and
-make dispatch decisions accurate on a fresh install.
+Wraps ``personalscraper.indexer`` repositories for dispatcher lookups and
+updates. The SQLite DB is the only persistence layer used by dispatch.
 
 On first run (empty DB), ``__init__`` triggers an automatic full rebuild
 when a ``Config`` is supplied and auto-rebuild is enabled.  Subsequent
@@ -124,7 +113,7 @@ class IndexEntry:
     """A single media entry in the index.
 
     Category stores a category_id (e.g. "movies"), disk stores a disk_id
-    (e.g. "drive_a" or "disk_1") — not legacy French labels/names.
+    (e.g. "drive_a" or "disk_1").
 
     Attributes:
         name: Original directory name.
@@ -165,27 +154,22 @@ class MediaIndex:
 
     def __init__(
         self,
-        index_path: Path,
+        db_path: Path,
         *,
         config: Config | None = None,
         auto_rebuild: bool = True,
     ) -> None:
         """Open the configured indexer database.
 
-        ``index_path`` is accepted for backward compatibility with existing
-        callers.  When *config* is supplied, ``config.indexer.db_path`` is the
-        source of truth.  Without *config*, a ``*.db`` path is used directly;
-        legacy JSON-style paths still resolve to ``index_path.parent / "library.db"``.
+        When *config* is supplied, ``config.indexer.db_path`` is the source of
+        truth. Without *config*, *db_path* is used directly.
 
         If the DB is empty (no ``media_item`` rows) and ``config`` is
         supplied, a full rebuild is triggered automatically so that
         dispatch decisions are accurate from the very first run.
 
-        If a legacy ``media_index.json`` file is found next to *index_path*,
-        a one-time deprecation warning is logged; the file is NOT read.
-
         Args:
-            index_path: Legacy path argument (ignored; kept for API compat).
+            db_path: Path to the SQLite indexer database.
             config: Optional Config used for the automatic first-run rebuild.
                 If None and the DB is empty, a warning is logged and the
                 rebuild is skipped (manual rebuild required).
@@ -193,37 +177,15 @@ class MediaIndex:
                 Dry-run callers disable this and wrap any preview rebuild in a
                 rollbackable savepoint.
         """
-        # Use the configured indexer DB when available.  This keeps dispatch on
-        # the same SQLite file as ``personalscraper library-index`` and outbox
-        # publishers even when paths.data_dir differs from indexer.db_path.
         configured_db_path = getattr(getattr(config, "indexer", None), "db_path", None)
         if isinstance(configured_db_path, Path):
             db_path = configured_db_path
-        elif index_path.suffix == ".db":
-            db_path = index_path
-        else:
-            db_path = index_path.parent / "library.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
         self._conn = open_db(db_path)
         apply_migrations(self._conn, _MIGRATIONS_DIR)
 
-        # Surface the active indexer DB at INFO so a pipeline run can verify
-        # the dispatcher is consulting the SQLite store and not a stale JSON.
         log.info("indexer.dispatch.opened", db_path=str(db_path))
-
-        # Warn once if a legacy media_index.json is present alongside the DB.
-        # The file is intentionally NOT read; users should run a full rebuild.
-        legacy_json = index_path.parent / "media_index.json"
-        if legacy_json.exists():
-            log.warning(
-                "indexer.legacy_json_found",
-                message=(
-                    "media_index.json found; it is no longer used — run "
-                    "`personalscraper library-index --mode full` to populate the indexer."
-                ),
-                path=str(legacy_json),
-            )
 
         # First-run detection: trigger an automatic rebuild when the DB is empty.
         row_count = self._conn.execute("SELECT COUNT(*) FROM media_item").fetchone()
@@ -292,16 +254,6 @@ class MediaIndex:
             self.close()
         except Exception:  # noqa: BLE001 — __del__ must never raise
             pass
-
-    # ------------------------------------------------------------------
-    # No-op persistence shims (kept for backward compatibility)
-    # ------------------------------------------------------------------
-
-    def load(self) -> None:
-        """No-op: the SQLite DB has its own lifecycle; no explicit load needed."""
-
-    def save(self) -> None:
-        """No-op: writes are committed immediately; no explicit flush needed."""
 
     def begin_preview(self) -> None:
         """Start a rollbackable preview transaction for dry-run index writes."""

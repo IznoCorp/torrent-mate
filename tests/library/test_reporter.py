@@ -1,8 +1,7 @@
 """Tests for personalscraper.library.reporter — DB-backed report generation.
 
-After the legacy JSON migration, ``generate_report`` no longer accepts
-``scan_data`` (parsed ``library_scan.json``).  All totals, distribution and
-top-largest data come from :class:`AnalysisResult` produced by
+``generate_report`` reads totals, distribution and top-largest data from
+:class:`AnalysisResult` produced by
 :func:`~personalscraper.library.analyzer.analyze` against the indexer DB.
 Validation, recommendations, and rescrape data remain regular per-command
 JSON outputs and are still consumed by the report.

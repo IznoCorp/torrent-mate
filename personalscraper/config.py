@@ -70,17 +70,6 @@ class Settings(BaseSettings):
     # Monitoring (optional)
     healthcheck_url: str = ""
 
-    # ── Thresholds & scraper defaults (backward-compatible) ──────────────────
-    # TODO(arch-cleanup): migrated to Config (conf/models.py). These fields
-    # remain on Settings so existing tests and env-var overrides keep working.
-    # New code should read from Config.scraper / Config.thresholds instead.
-    scraper_language: str = "fr-FR"
-    scraper_fallback_language: str = "en-US"
-    scraper_prefer_local_title: bool = True
-    min_free_space_staging_gb: int = 20
-    min_free_space_disk_gb: float = 100
-    library_preferences_file: str = "library_preferences.json"
-
     # Fields whose values must never appear in repr/str output (tracebacks, logs, etc.).
     _SECRET_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {

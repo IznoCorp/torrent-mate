@@ -33,7 +33,7 @@ def _make_settings() -> Settings:
     Returns:
         Settings instance with disk-space threshold cleared.
     """
-    return Settings(min_free_space_staging_gb=0)
+    return Settings()
 
 
 def _make_torrent_dir(root: Path, name: str) -> FakeTorrent:

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 from typing import Any, Optional
 
@@ -15,67 +14,6 @@ from personalscraper.cli_state import state
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
-
-
-@app.command()
-@handle_cli_errors
-def library_scan(
-    ctx: typer.Context,
-    disk: str = typer.Option(None, "--disk", help="Scan only this disk (id from config)"),
-    category: str = typer.Option(None, "--category", help="Scan only this category"),
-) -> None:
-    """[DEPRECATED, removal in 0.10.0] Scan library structure.
-
-    Walks all configured storage disks and records every media file in the
-    indexer database.  The ``--disk`` and ``--category`` filters are no longer
-    supported (the indexer always performs a full scan); passing them prints a
-    deprecation warning and the flags are ignored.
-
-    Use ``library-index`` for the full-featured indexer command.
-
-    Examples:
-        personalscraper library-scan
-    """
-    warnings.warn(
-        "library-scan is deprecated and will be removed in 0.10.0. Use library-index instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    import sqlite3  # noqa: PLC0415
-
-    from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
-    from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
-    from personalscraper.library.scanner import scan_library  # noqa: PLC0415
-
-    console = state["console"]
-    config = ctx.obj.config
-    console.print(
-        "[yellow]library-scan is deprecated and will be removed in 0.10.0. Use library-index instead.[/yellow]"
-    )
-
-    # --disk and --category are no longer forwarded to scan_library; warn once.
-    if disk is not None:
-        console.print(
-            "[yellow]Warning:[/yellow] --disk is deprecated for library-scan "
-            "and will be removed in 0.10.0. It is ignored. Use library-index --disk instead."
-        )
-    if category is not None:
-        console.print(
-            "[yellow]Warning:[/yellow] --category is deprecated for library-scan "
-            "and will be removed in 0.10.0. It is ignored. Use library-index instead."
-        )
-
-    db_path = config.indexer.db_path
-    migrations_dir = Path(_migrations_pkg.__file__).parent
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn: sqlite3.Connection = open_db(db_path)
-    apply_migrations(conn, migrations_dir)
-
-    console.print("[bold]Scanning library...[/bold]")
-    scan_library(config, conn)
-
-    total = conn.execute("SELECT COUNT(*) FROM media_file").fetchone()[0]
-    console.print(f"[green]Scan complete:[/green] {total} files indexed in {db_path}")
 
 
 @app.command("library-status")
@@ -731,11 +669,9 @@ def library_analyze(
     ``--from-index`` to read enrich-populated streams from the DB instead
     (orders of magnitude faster, with the documented HDR / Atmos caveats).
 
-    The result set is **not persisted to disk** (the legacy
-    ``library_analysis.json`` cache was removed when the indexer DB became
-    the single source of truth).  ``library-recommend`` runs this scan
-    inline before producing recommendations, so there is no need to call
-    ``library-analyze`` first as a side-effect setup step.
+    The result set is **not persisted to disk**. ``library-recommend`` runs
+    this scan inline before producing recommendations, so there is no need to
+    call ``library-analyze`` first as a side-effect setup step.
 
     Examples:
         personalscraper library-analyze
@@ -866,9 +802,7 @@ def library_recommend(
         finally:
             conn.close()
     else:
-        # Run analysis inline — no on-disk cache.  The legacy
-        # library_analysis.json was removed when the indexer DB became the
-        # single source of truth (DESIGN §10.2).
+        # Run analysis inline; the indexer DB remains the source of truth.
         console.print("[bold]Analyzing library (ffprobe)...[/bold]")
         analysis = analyze_library(
             config,
@@ -1032,8 +966,6 @@ def library_report(
     console = state["console"]
 
     # Load supplementary JSON outputs (validation, recommendations, rescrape).
-    # The legacy library_scan.json / library_analysis.json files are no
-    # longer read — the indexer DB is the source of truth (DESIGN §10.2).
     def _load(name: str) -> dict[str, Any] | None:
         path = config.paths.data_dir / name
         if path.exists():

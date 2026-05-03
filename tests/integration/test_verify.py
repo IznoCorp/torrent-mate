@@ -26,7 +26,7 @@ def _make_settings() -> Settings:
     Returns:
         Settings instance suitable for integration tests (no real disk checks).
     """
-    return Settings(min_free_space_staging_gb=0, min_free_space_disk_gb=0)
+    return Settings()
 
 
 def _build_movie_dir(

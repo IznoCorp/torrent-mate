@@ -175,7 +175,7 @@ class ClassifierMixin:
     ) -> str:
         """Pick the best title for folder renaming.
 
-        When scraper_prefer_local_title is True and the API data
+        When config.scraper.prefer_local_title is True and the API data
         contains a local (FR) title, uses it. Falls back to
         match_title if the local title is empty or identical
         to the original title.

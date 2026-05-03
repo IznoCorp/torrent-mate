@@ -1,22 +1,16 @@
-"""Tests for personalscraper.config — Settings loading and validation.
-
-V15 note: disk paths (disk1_dir..disk4_dir), staging_dir, torrent_complete_dir,
-and data_dir were removed from Settings in P6.1 — they now live in Config (conf/models.py).
-Tests for those removed fields have been deleted accordingly.
-"""
+"""Tests for personalscraper.config — Settings loading and validation."""
 
 from personalscraper.config import Settings
 
 
 def test_settings_defaults():
-    """Settings loads with defaults when no .env file is present."""
+    """Settings loads secret/credential defaults when no .env file is present."""
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert settings.qbit_host == "localhost"
     assert settings.qbit_port == 8081
-    assert settings.scraper_language == "fr-FR"
-    assert settings.min_free_space_staging_gb == 20
-    assert settings.min_free_space_disk_gb == 100
-    assert settings.scraper_prefer_local_title is True
+    assert settings.tmdb_api_key == ""
+    assert settings.tvdb_api_key == ""
+    assert settings.youtube_api_key == ""
 
 
 def test_settings_from_env(tmp_path, monkeypatch):
@@ -28,19 +22,16 @@ def test_settings_from_env(tmp_path, monkeypatch):
     assert settings.qbit_port == 9090
 
 
-def test_settings_thresholds_configurable(monkeypatch):
-    """Numeric thresholds can be overridden via env vars."""
+def test_pipeline_tunables_are_ignored_by_settings(monkeypatch):
+    """Pipeline tunables live in Config and are ignored by Settings."""
     monkeypatch.setenv("MIN_FREE_SPACE_DISK_GB", "200.5")
     monkeypatch.setenv("MIN_FREE_SPACE_STAGING_GB", "50")
+    monkeypatch.setenv("SCRAPER_LANGUAGE", "en-US")
     s = Settings(_env_file=None)  # type: ignore[call-arg]
-    assert s.min_free_space_disk_gb == 200.5
-    assert s.min_free_space_staging_gb == 50
-
-
-def test_library_preferences_file_default():
-    """library_preferences_file should default to 'library_preferences.json'."""
-    settings = Settings(_env_file=None)  # type: ignore[call-arg]
-    assert settings.library_preferences_file == "library_preferences.json"
+    rendered = s.model_dump()
+    assert "min_free_space_disk_gb" not in rendered
+    assert "min_free_space_staging_gb" not in rendered
+    assert "scraper_language" not in rendered
 
 
 def test_rich_repr_masks_secrets(monkeypatch):
@@ -60,4 +51,4 @@ def test_rich_repr_masks_secrets(monkeypatch):
     assert rendered["tmdb_api_key"] == "<masked>"
     assert rendered["tvdb_api_key"] == "<masked>"
     # Non-secret fields must still be visible
-    assert rendered["scraper_language"] == "fr-FR"
+    assert rendered["qbit_host"] == "localhost"

@@ -330,103 +330,43 @@ class TestWriteTrailerUrlToNfo:
         assert result is True
 
 
-# ── Legacy TV-show flat-path probe (I6) ──────────────────────────────────────
+# ── TV-show trailer lookup ──────────────────────────────────────────────────
 
 
-class TestFindExistingTrailerLegacyFallback:
-    """Tests for find_existing_trailer() legacy flat path probe for TV shows (I6)."""
+class TestFindExistingTrailerTvShows:
+    """Tests for find_existing_trailer() TV-show subfolder lookup."""
 
-    def test_find_existing_trailer_finds_legacy_flat_tvshow_path(self, tmp_path: Path) -> None:
-        """find_existing_trailer() finds a flat {show}-trailer.{ext} legacy file.
-
-        Prior to 2026-04-25, TV-show trailers were placed using the same
-        flat ``{show}-trailer.{ext}`` convention as movies.  The function must
-        detect these legacy files as already-present and return their path
-        (rather than None, which would trigger a redundant re-download).
-
-        Args:
-            tmp_path: Pytest tmp_path fixture.
-        """
+    def test_find_existing_trailer_returns_subfolder_path(self, tmp_path: Path) -> None:
+        """find_existing_trailer() returns the canonical Trailers/ path."""
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
-        # Create the legacy flat trailer (wrong placement for Plex, but must be detected).
-        legacy = show_dir / "Breaking Bad (2008)-trailer.mp4"
-        legacy.write_bytes(b"x" * 1000)
-
-        result = find_existing_trailer(show_dir, "Breaking Bad (2008)", media_type="tvshow")
-
-        assert result == legacy
-
-    def test_find_existing_trailer_prefers_correct_subfolder_over_legacy(self, tmp_path: Path) -> None:
-        """find_existing_trailer() returns the correct Trailers/ path when both exist.
-
-        If both the canonical ``Trailers/{show}.mp4`` and the legacy flat file
-        are present, the canonical path must be returned (not the legacy one).
-
-        Args:
-            tmp_path: Pytest tmp_path fixture.
-        """
-        show_dir = tmp_path / "Breaking Bad (2008)"
-        show_dir.mkdir()
-        # Correct Plex subfolder placement.
         trailers_dir = show_dir / "Trailers"
         trailers_dir.mkdir()
         canonical = trailers_dir / "Breaking Bad (2008).mp4"
         canonical.write_bytes(b"x" * 1000)
-        # Legacy flat placement — must NOT shadow the correct one.
-        legacy = show_dir / "Breaking Bad (2008)-trailer.mp4"
-        legacy.write_bytes(b"x" * 1000)
 
         result = find_existing_trailer(show_dir, "Breaking Bad (2008)", media_type="tvshow")
 
         assert result == canonical
 
-    def test_find_existing_trailer_returns_none_when_neither_path_exists(self, tmp_path: Path) -> None:
-        """find_existing_trailer() returns None when no trailer file exists at either path.
-
-        Args:
-            tmp_path: Pytest tmp_path fixture.
-        """
+    def test_find_existing_trailer_ignores_flat_tvshow_path(self, tmp_path: Path) -> None:
+        """TV-show lookup does not scan the movie-style flat path."""
         show_dir = tmp_path / "Breaking Bad (2008)"
         show_dir.mkdir()
+        flat = show_dir / "Breaking Bad (2008)-trailer.mp4"
+        flat.write_bytes(b"x" * 1000)
 
         result = find_existing_trailer(show_dir, "Breaking Bad (2008)", media_type="tvshow")
 
         assert result is None
 
-    def test_legacy_trailer_warning_logged(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        """find_existing_trailer() logs a WARNING when it finds a legacy flat path.
-
-        Args:
-            tmp_path: Pytest tmp_path fixture.
-            caplog: Pytest log-capture fixture.
-        """
-        show_dir = tmp_path / "The Sopranos (1999)"
-        show_dir.mkdir()
-        legacy = show_dir / "The Sopranos (1999)-trailer.mp4"
-        legacy.write_bytes(b"x" * 1000)
-
-        find_existing_trailer(show_dir, "The Sopranos (1999)", media_type="tvshow")
-
-        assert any("placement.legacy_tvshow_trailer_found" in rec.message for rec in caplog.records)
-
-    def test_legacy_probe_not_applied_for_movies(self, tmp_path: Path) -> None:
-        """Legacy flat probe is not applied for movies (movies always use flat naming).
-
-        The legacy fallback must only fire for media_type='tvshow'; for movies
-        the flat path is the canonical path, so the primary loop already handles
-        it and the legacy probe is irrelevant.
-
-        Args:
-            tmp_path: Pytest tmp_path fixture.
-        """
+    def test_movie_lookup_still_uses_flat_path(self, tmp_path: Path) -> None:
+        """Movies use flat trailer naming."""
         movie_dir = tmp_path / "Fight Club (1999)"
         movie_dir.mkdir()
-        # Only the canonical flat movie path exists.
         flat = movie_dir / "Fight Club (1999)-trailer.mp4"
         flat.write_bytes(b"x" * 1000)
 
         result = find_existing_trailer(movie_dir, "Fight Club (1999)", media_type="movie")
 
-        # The primary loop finds it; result must be the flat canonical path.
         assert result == flat

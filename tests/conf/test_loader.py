@@ -58,6 +58,13 @@ def _write_minimal_config(path: Path, tmp_path: Path) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _write_minimal_config_dir(path: Path, tmp_path: Path) -> Path:
+    """Write a minimal split-config directory and return it."""
+    path.mkdir(parents=True, exist_ok=True)
+    _write_minimal_config(path / "config.json5", tmp_path)
+    return path
+
+
 # ---------------------------------------------------------------------------
 # resolve_config_path
 # ---------------------------------------------------------------------------
@@ -68,46 +75,30 @@ class TestResolveConfigPath:
 
     def test_cli_override_takes_priority(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """CLI override must be returned even if env var is set."""
-        monkeypatch.setenv(ENV_CONFIG_PATH, str(tmp_path / "env_config.json5"))
-        cli_path = tmp_path / "cli_config.json5"
+        monkeypatch.setenv(ENV_CONFIG_PATH, str(tmp_path / "env_config"))
+        cli_path = tmp_path / "cli_config"
         result = resolve_config_path(cli_override=cli_path)
         assert result == cli_path.expanduser().resolve()
 
     def test_env_var_used_when_no_cli(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Env var path must be used when no CLI override given."""
-        env_path = tmp_path / "env_config.json5"
+        env_path = tmp_path / "env_config"
         monkeypatch.setenv(ENV_CONFIG_PATH, str(env_path))
         result = resolve_config_path()
         assert result == env_path.expanduser().resolve()
 
     def test_default_when_neither(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Default points to the v2 split dir when present, else legacy file.
-
-        With no CLI/env override: if ``config/config.json5``
-        exists in cwd the resolver returns that directory; otherwise it falls
-        back to ``./config.json5``. We exercise both branches from a clean
-        ``tmp_path`` cwd to avoid contamination from the developer's own
-        ``config/`` directory.
-        """
+        """Default points to the split-config directory."""
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
         monkeypatch.chdir(tmp_path)
 
-        # Branch 1: nothing exists → falls through to legacy file path.
         result = resolve_config_path()
-        assert result.name == "config.json5"
-        assert not result.is_dir()
-
-        # Branch 2: v2 dir exists with a master config.json5 → returns dir.
-        (tmp_path / "config").mkdir(parents=True)
-        (tmp_path / "config" / "config.json5").write_text("{}")
-        result_v2 = resolve_config_path()
-        assert result_v2.is_dir()
-        assert result_v2.name == "config"
+        assert result == (tmp_path / "config").resolve()
 
     def test_expanduser_applied(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Tilde paths must be expanded."""
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
-        tilde_path = "~/my_config.json5"
+        tilde_path = "~/my_config"
         result = resolve_config_path(cli_override=Path(tilde_path))
         assert "~" not in str(result)
 
@@ -121,30 +112,38 @@ class TestLoadConfig:
     """Tests for load_config function."""
 
     def test_loads_valid_config(self, tmp_path: Path) -> None:
-        """A valid config file must be loaded and return a Config instance."""
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        """A valid config directory must be loaded and return a Config instance."""
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
         assert isinstance(config, Config)
         assert config.disks[0].id == "disk_a"
 
     def test_missing_file_raises_not_found(self, tmp_path: Path) -> None:
-        """A missing file must raise ConfigNotFoundError."""
-        with pytest.raises(ConfigNotFoundError, match="No config file or split-config directory"):
-            load_config(tmp_path / "nonexistent.json5")
+        """A missing config directory must raise ConfigNotFoundError."""
+        with pytest.raises(ConfigNotFoundError, match="No split-config directory"):
+            load_config(tmp_path / "missing_config")
+
+    def test_file_path_raises_not_found(self, tmp_path: Path) -> None:
+        """A file path is rejected; config is directory-based only."""
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+        with pytest.raises(ConfigNotFoundError, match="No split-config directory"):
+            load_config(cfg_path)
 
     def test_invalid_json5_raises_validation_error(self, tmp_path: Path) -> None:
         """A file with invalid JSON5 syntax must raise ConfigValidationError."""
-        cfg_path = tmp_path / "bad.json5"
-        cfg_path.write_text("{ this is not valid json5 !!!", encoding="utf-8")
+        cfg_dir = tmp_path / "bad_config"
+        cfg_dir.mkdir()
+        (cfg_dir / "config.json5").write_text("{ this is not valid json5 !!!", encoding="utf-8")
         with pytest.raises(ConfigValidationError, match="JSON5 parse error"):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
     def test_pydantic_validation_error_wrapped(self, tmp_path: Path) -> None:
         """A Pydantic validation error must be wrapped in ConfigValidationError."""
-        cfg_path = tmp_path / "bad_schema.json5"
+        cfg_dir = tmp_path / "bad_schema"
+        cfg_dir.mkdir()
         # Missing required 'paths' field
-        cfg_path.write_text(
+        (cfg_dir / "config.json5").write_text(
             json.dumps(
                 {
                     "disks": [
@@ -159,14 +158,13 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         with pytest.raises(ConfigValidationError, match="Validation error"):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
     def test_expanduser_resolve_applied(self, tmp_path: Path) -> None:
-        """Path passed to load_config must be resolved via expanduser/resolve."""
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
+        """Path passed to load_config must work as an absolute directory."""
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
         # Verify the function accepts an absolute path object without errors.
-        config = load_config(cfg_path)
+        config = load_config(cfg_dir)
         assert config is not None
 
 
@@ -439,9 +437,8 @@ class TestIndexerConfigRoundTrip:
         When db_path is not explicitly set, it is derived from
         ``paths.data_dir / 'library.db'`` by the Config-level validator.
         """
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
         assert isinstance(config.indexer, IndexerConfig)
         assert config.indexer.db_path.is_absolute()
         assert config.indexer.db_path.name == "library.db"
@@ -544,9 +541,8 @@ class TestCategoryOrphanCheck:
         """
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
 
         # Override db_path to a nonexistent location.
         object.__setattr__(
@@ -565,9 +561,8 @@ class TestCategoryOrphanCheck:
         """When all DB category_ids are declared in config, no warning is emitted."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
 
         db_path = tmp_path / "library.db"
         # "movies" and "tv_shows" are builtin IDs — always in all_category_ids.
@@ -584,9 +579,8 @@ class TestCategoryOrphanCheck:
         """When the DB contains a category_id not in config, a warning must be logged."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
 
         db_path = tmp_path / "library.db"
         # "movies_old" does not exist in any declared category.
@@ -603,8 +597,8 @@ class TestCategoryOrphanCheck:
         """load_config must trigger the orphan check if library.db is present."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        cfg_path = cfg_dir / "config.json5"
 
         # Build a config to find the default db_path; patch it to tmp_path.
         # We do this by writing a config that sets the db_path to our DB.
@@ -643,37 +637,22 @@ class TestCategoryOrphanCheck:
         cfg_path.write_text(content, encoding="utf-8")
 
         with caplog.at_level(logging.WARNING):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
         assert "indexer.config.category_orphan" in caplog.text
         assert "zombie_category" in caplog.text
 
 
 # ---------------------------------------------------------------------------
-# DeprecationWarning for v1 single-file loader
+# load_config_dir warning behaviour
 # ---------------------------------------------------------------------------
 
 
-class TestLoadConfigDeprecationWarning:
-    """Tests that load_config emits a DeprecationWarning and load_config_dir does not."""
-
-    def test_load_config_emits_deprecation_warning(self, tmp_path: Path, caplog) -> None:
-        """load_config must emit exactly one DeprecationWarning directing users to migrate."""
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-
-        with pytest.warns(DeprecationWarning, match="migrate-to-v2") as warning_list:
-            load_config(cfg_path)
-
-        # Exactly one DeprecationWarning must be emitted — not silently swallowed.
-        deprecation_warnings = [w for w in warning_list if issubclass(w.category, DeprecationWarning)]
-        assert len(deprecation_warnings) == 1
-        assert "v1 single-file config is deprecated" in str(deprecation_warnings[0].message)
-        assert "0.10.0" in str(deprecation_warnings[0].message)
-        assert "config_v1_deprecated" in caplog.text
+class TestLoadConfigWarnings:
+    """Tests that load_config_dir does not emit unrelated warnings."""
 
     def test_load_config_dir_does_not_emit_deprecation_warning(self, tmp_path: Path) -> None:
-        """load_config_dir (v2 path) must NOT emit a DeprecationWarning."""
+        """load_config_dir must NOT emit a DeprecationWarning."""
         cfg_dir = tmp_path / "cfg"
         cfg_dir.mkdir()
         (cfg_dir / "config.json5").write_text(

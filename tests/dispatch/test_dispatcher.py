@@ -63,9 +63,8 @@ def _rsync_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def mock_settings() -> MagicMock:
-    """Create mock Settings (V15: no disk paths — thresholds only)."""
+    """Create mock Settings for dispatcher tests."""
     s = MagicMock()
-    s.min_free_space_disk_gb = 100.0
     return s
 
 
@@ -79,7 +78,7 @@ class TestDispatcherInit:
 
     def test_init_with_rsync(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
         """Should initialize when rsync is available."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
         assert d is not None
 
@@ -90,7 +89,7 @@ class TestDispatcherInit:
         """Should raise DispatchError when rsync is missing."""
         from personalscraper.dispatch.dispatcher import DispatchError
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         with pytest.raises(DispatchError, match="rsync"):
             Dispatcher(test_config, mock_settings, idx)
 
@@ -110,7 +109,7 @@ class TestDispatchMovie:
         tmp_path: Path,
     ) -> None:
         """Dry run should report action without moving."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Matrix (1999)"
@@ -140,7 +139,7 @@ class TestDispatchMovie:
         tmp_path: Path,
     ) -> None:
         """Should skip when no disk has enough space."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         movie_dir = tmp_path / "Movie (2024)"
@@ -178,7 +177,7 @@ class TestDispatchTvshow:
         tmp_path: Path,
     ) -> None:
         """Dry run for new show should report action."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         show_dir = tmp_path / "Fallout (2024)"
@@ -215,7 +214,7 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should dispatch each verified item."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Movie (2024)"
@@ -253,7 +252,7 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should skip items without a category."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         verified = [
@@ -276,7 +275,7 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should return empty results for empty verified list."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         results = d.process(verified=[])
@@ -298,7 +297,7 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return True when all files match."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -318,7 +317,7 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return False when dest file is missing."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -336,7 +335,7 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return False when file sizes differ."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -364,7 +363,7 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should clean tmp_new and return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -388,7 +387,7 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """If atomic swap fails, original should be restored from tmp_old."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -426,7 +425,7 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """Successful replace: rsync → swap → cleanup old + source."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -466,7 +465,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -486,7 +485,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Verification failure after rsync should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -510,7 +509,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Successful merge: rsync + verify → source removed."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -532,7 +531,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """OSError during merge should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -561,7 +560,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Successful move: rsync to tmp → rename → verify → source removed."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -591,7 +590,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False, dest should not exist."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -611,7 +610,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Verification failure should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -634,7 +633,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Existing orphan _tmp_dispatch_* is cleaned before new attempt."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -673,7 +672,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Successful rsync returns True."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -694,7 +693,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Failed rsync (non-zero returncode) returns False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -714,7 +713,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Timeout should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -734,7 +733,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """delete=True should include --delete flag."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -755,7 +754,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Rsync command should exclude .DS_Store and ._* files (Bug #1)."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -777,7 +776,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Rsync merge command should also exclude .DS_Store and ._* files (Bug #1)."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -810,7 +809,7 @@ class TestDispatchDryRun:
         tmp_path: Path,
     ) -> None:
         """Dry run should not call rsync or modify filesystem."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "DryRunMovie (2024)"
@@ -860,7 +859,7 @@ class TestOrphanCleanup:
         orphan.mkdir()
         (orphan / "partial.mkv").write_bytes(b"\x00" * 512)
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
         d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["movies"])]
 
@@ -884,7 +883,7 @@ class TestOrphanCleanup:
         backup.mkdir()
         (backup / "old_file.mkv").write_bytes(b"\x00" * 100)
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
         d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["tv_shows"])]
 

@@ -14,7 +14,6 @@ Covers:
 - ``library show <unknown_id>`` → exit 2; "no item with id".
 - ``library repair --budget 10`` → exit 0; JSON summary with queue stats.
 - ``library verify --disk Disk2`` → exit 0; valid JSON summary.
-- ``config migrate-to-v2 --dry-run`` with malformed v1 → exit 2; stderr lists offending keys.
 - ``library index --rebuild`` after DB corruption → exit 0; fresh DB populated.
 - ``library index --mode full --disk D --confirm-bulk-change`` → exit 0.
 - ``config migrate-category --from old --to new`` → exit 0; UPDATE issued; second run no-op;
@@ -637,45 +636,6 @@ class TestLibraryVerify:
         summary = json.loads(result.stdout.strip())
         assert summary["mode"] == "verify"
         assert summary["status"] == "ok"
-
-
-# ---------------------------------------------------------------------------
-# Case 14: config migrate-to-v2 --dry-run with malformed v1 → exit 2
-# ---------------------------------------------------------------------------
-
-
-class TestConfigMigrateToV2:
-    """config migrate-to-v2 --dry-run with malformed v1 exits 2."""
-
-    def test_dry_run_malformed_exits_two(self, tmp_path: Path) -> None:
-        """Passing a malformed v1 config file to migrate-to-v2 --dry-run exits 2.
-
-        We patch plan_migration to raise MigrationMalformedError which is what
-        the real implementation raises when the v1 file has unexpected top-level keys.
-        """
-        try:
-            from personalscraper.conf.migration import MigrationMalformedError  # noqa: F401
-        except ImportError:
-            pytest.skip("conf.migration module removed in arch-cleanup")
-
-        # Create a dummy v1 file (content doesn't matter because we patch the function)
-        v1_file = tmp_path / "config.json5"
-        v1_file.write_text("{}")
-
-        with patch(
-            "personalscraper.conf.migration.plan_migration",
-            side_effect=MigrationMalformedError("offending key: bad_key"),
-        ):
-            result = runner.invoke(
-                app,
-                ["config", "migrate-to-v2", "--dry-run", str(v1_file), str(tmp_path / "out")],
-            )
-
-        assert result.exit_code == 2, f"Expected 2, got {result.exit_code}. Output:\n{result.output}"
-        combined = (result.output or "") + (result.stderr or "")
-        assert "migration" in combined.lower() or "offending" in combined.lower(), (
-            f"Expected migration error in output. Got:\n{combined}"
-        )
 
 
 # ---------------------------------------------------------------------------

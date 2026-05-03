@@ -263,7 +263,6 @@ class TestRunIngest:
         """No completed torrents should return success_count=0."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 1
 
         mock_client = MagicMock()
         mock_client.get_completed_torrents.return_value = []
@@ -288,7 +287,6 @@ class TestRunIngest:
         """Already-ingested torrents should be skipped."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 1
 
         mock_client = MagicMock()
         torrent = _make_torrent("Movie (2024)", "abc123")
@@ -320,7 +318,6 @@ class TestRunIngest:
         """Seeding torrent should be copied (not moved)."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("SeedingMovie", "hash1")
         source = tmp_path / "complete" / "SeedingMovie"
@@ -360,7 +357,6 @@ class TestRunIngest:
         """Completed (not seeding) torrent should be moved."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("DoneMovie", "hash2")
         source = tmp_path / "complete" / "DoneMovie"
@@ -439,7 +435,6 @@ class TestRunIngest:
         """Transfer failure should increment error_count."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("FailMovie", "hash4")
         source = tmp_path / "complete" / "FailMovie"
@@ -475,7 +470,6 @@ class TestRunIngest:
         """Dry run should not call _cleanup_orphan_temps or mark ingested."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("DryMovie", "hash5")
         source = tmp_path / "complete" / "DryMovie"
@@ -511,7 +505,6 @@ class TestRunIngest:
         """StepReport should have correct name and initial counts."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         mock_client = MagicMock()
         mock_client.get_completed_torrents.return_value = []
@@ -540,7 +533,6 @@ class TestRunIngest:
         """Multiple torrents: 1 seeding (copy) + 1 done (move) + 1 already ingested."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         t1 = _make_torrent("Seeding", "h1")
         t2 = _make_torrent("Done", "h2")
@@ -598,7 +590,6 @@ class TestRunIngest:
         """Missing content path should increment skip_count (file likely already processed)."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("Ghost", "hash6")
 
@@ -634,7 +625,6 @@ class TestRunIngest:
         """OSError on one transfer should not prevent the others from completing."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         t1 = _make_torrent("Good1", "h1")
         t2 = _make_torrent("Bad", "h2")
@@ -684,7 +674,6 @@ class TestRunIngest:
         """Two consecutive identical errors should abort the loop (systemic failure)."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         t1 = _make_torrent("Fail1", "h1")
         t2 = _make_torrent("Fail2", "h2")
@@ -806,7 +795,6 @@ class TestRunIngest:
         """If destination already exists in staging, skip and mark ingested."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 0
 
         torrent = _make_torrent("Existing", "hash7")
         source = tmp_path / "complete" / "Existing"

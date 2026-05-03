@@ -35,10 +35,9 @@ def library_status_command(config_path: Path | None = None) -> int:
       orphans exist, or an infrastructure error occurred.
 
     Args:
-        config_path: Optional explicit path to the config file (or config
-            directory for v2 split layout).  When ``None`` the standard
-            resolution order is used (``$PERSONALSCRAPER_CONFIG``, then
-            ``./config.json5``).
+        config_path: Optional explicit path to the config directory. When
+            ``None`` the standard resolution order is used
+            (``$PERSONALSCRAPER_CONFIG``, then ``./config``).
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error or unhealthy state.

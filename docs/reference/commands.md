@@ -56,8 +56,6 @@ personalscraper library-relink --apply                        # Persist release 
 ### Disk-walking commands
 
 ```bash
-personalscraper library-scan                                 # Deprecated; use library-index
-personalscraper library-scan --disk Disk1                    # Deprecated and ignored; use library-index --disk
 personalscraper library-clean                                # Dry-run: show what would be cleaned
 personalscraper library-clean --apply                        # Delete .actors/, empty dirs, junk
 personalscraper library-clean --only actors --apply          # Only .actors/ dirs
@@ -83,10 +81,7 @@ personalscraper library-report --format json                 # Export as JSON
 
 ### Deprecations
 
-- `personalscraper library-scan` is deprecated in 0.9.0 and scheduled for removal in 0.10.0. Use `personalscraper library-index`.
-- `personalscraper library-scan --disk` and `--category` are deprecated, ignored, and scheduled for removal in 0.10.0.
 - `personalscraper verify --fix` is deprecated and scheduled for removal in 0.10.0. Use `personalscraper enforce` before `personalscraper verify`.
-- v1 single-file `config.json5` loading is deprecated and scheduled for removal in 0.10.0.
 
 ## Trailers
 

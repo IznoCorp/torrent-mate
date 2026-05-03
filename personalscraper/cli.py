@@ -45,9 +45,8 @@ def main(
         "--config",
         "-c",
         help=(
-            "Path to a v2 split-config directory (containing config.json5 + "
-            "overlays) or a legacy v1 config.json5 file. Overrides "
-            "./config/, ./config.json5 and "
+            "Path to a split-config directory (containing config.json5 + "
+            "overlays). Overrides ./config/ and "
             "$PERSONALSCRAPER_CONFIG. Must be placed BEFORE the subcommand."
         ),
     ),
@@ -68,9 +67,8 @@ def main(
     state["quiet"] = quiet
     configure_logging(verbose=verbose, quiet=quiet)
 
-    # init-config and config sub-app bypass eager load: config.json5 may not
-    # exist yet (init-config) or the user is performing the migration itself
-    # (config migrate-to-v2).
+    # init-config and config sub-app bypass eager load: config/ may not exist
+    # yet, and config maintenance commands load their own paths.
     if ctx.invoked_subcommand in {"init-config", "config"}:
         ctx.obj = AppCtx(config=None, config_override=config)
         return

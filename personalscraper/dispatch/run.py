@@ -101,7 +101,6 @@ def run_dispatch(
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
     with MediaIndex(index_path, config=config, auto_rebuild=not dry_run) as index:
-        index.load()
         preview_index = False
         if dry_run:
             index.begin_preview()
@@ -125,8 +124,6 @@ def run_dispatch(
                 count = index.rebuild(disk_configs, categories=config.categories)
                 event = "index_rebuilt_on_empty_preview" if dry_run else "index_rebuilt_on_empty"
                 log.info(event, entries=count)
-                if not dry_run:
-                    index.save()
 
             dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
 
@@ -137,10 +134,6 @@ def run_dispatch(
                 _, verified = run_verify(settings, config, dry_run=dry_run)
 
             results = dispatcher.process(verified=verified)
-
-            # Save updated index
-            if not dry_run:
-                index.save()
 
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately

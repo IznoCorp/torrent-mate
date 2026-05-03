@@ -147,9 +147,6 @@ class TestScraperLanguage:
         settings = MagicMock()
         settings.tmdb_api_key = "fake-key"
         settings.tvdb_api_key = "fake-key"
-        settings.scraper_language = "fr-FR"
-        settings.scraper_fallback_language = "en-US"
-        settings.scraper_prefer_local_title = True
         settings.artwork_language = "fr"
         settings.circuit_breaker_threshold = 5
         settings.circuit_breaker_cooldown = 300
@@ -1782,7 +1779,6 @@ class TestClassifierIntegration:
         settings.circuit_breaker_threshold = 5
         settings.circuit_breaker_cooldown = 300
         settings.artwork_language = "fr"
-        settings.scraper_prefer_local_title = False
         return settings
 
     @pytest.fixture

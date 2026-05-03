@@ -1,18 +1,16 @@
 """JSON5 config loader with path resolution and validation warnings.
 
-The project uses a v2 split-config layout: a directory (default
-``./config/``) that contains a master ``config.json5`` plus a
-set of per-concern overlay files (``paths.json5``, ``disks.json5``,
-``indexer.json5`` …) listed in the master's ``overlays`` key.
+The project uses a split-config layout: a directory (default ``./config/``)
+that contains a master ``config.json5`` plus a set of per-concern overlay
+files (``paths.json5``, ``disks.json5``, ``indexer.json5`` ...) listed in the
+master's ``overlays`` key.
 
 Resolution order applied by :func:`resolve_config_path`:
   1. ``--config`` CLI override (highest priority)
   2. ``$PERSONALSCRAPER_CONFIG`` environment variable
-  3. ``./config/`` if it contains a ``config.json5``
-  4. Legacy ``./config.json5`` single-file fallback (deprecated, emits warning)
+  3. ``./config/``
 
-:func:`load_config` dispatches automatically on the resolved path: directory →
-:func:`load_config_dir` (v2 split), file → legacy v1 monolithic loader.
+:func:`load_config` requires the resolved path to be a config directory.
 
 Warnings are non-blocking: they are logged but do not prevent the config from
 loading.
@@ -28,7 +26,6 @@ Startup checks (non-blocking, warning-only):
 
 import os
 import sqlite3
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -54,12 +51,8 @@ _LOCAL_FILENAME = "local.json5"
 
 log = get_logger("personalscraper.conf.loader")
 
-#: Preferred location for the v2 split-config directory.
+#: Preferred location for the split-config directory.
 DEFAULT_CONFIG_DIR: Path = Path("./config")
-#: Legacy single-file path; resolved only when the v2 directory is absent.
-DEFAULT_LEGACY_CONFIG_PATH: Path = Path("./config.json5")
-#: Backwards-compatible alias kept for tests / callers that still import it.
-DEFAULT_CONFIG_PATH: Path = DEFAULT_LEGACY_CONFIG_PATH
 ENV_CONFIG_PATH: str = "PERSONALSCRAPER_CONFIG"
 
 
@@ -72,16 +65,11 @@ class ConfigValidationError(ValueError):
 
 
 def resolve_config_path(cli_override: Path | None = None) -> Path:
-    """Resolve the active config location using CLI > env > v2 dir > legacy file.
-
-    The returned path may point at either a directory (v2 split layout) or a
-    single file (legacy v1 monolithic). :func:`load_config` dispatches on the
-    file/dir distinction, so callers do not need to know which layout the user
-    has installed.
+    """Resolve the active config directory using CLI > env > default.
 
     Args:
         cli_override: Path passed via --config CLI option. Takes highest priority.
-            May point at a directory (split layout) or a single file (legacy).
+            Must point at a config directory.
 
     Returns:
         Resolved absolute path. Existence is verified by the loader, not here.
@@ -91,13 +79,7 @@ def resolve_config_path(cli_override: Path | None = None) -> Path:
     env = os.environ.get(ENV_CONFIG_PATH)
     if env:
         return Path(env).expanduser().resolve()
-    # Prefer the v2 split layout when it carries a master config.json5.  This
-    # makes the directory the default for fresh installs while letting an
-    # existing legacy ``config.json5`` keep working until it is removed.
-    candidate_dir = DEFAULT_CONFIG_DIR.expanduser().resolve()
-    if (candidate_dir / _MASTER_FILENAME).is_file():
-        return candidate_dir
-    return DEFAULT_LEGACY_CONFIG_PATH.expanduser().resolve()
+    return DEFAULT_CONFIG_DIR.expanduser().resolve()
 
 
 def _load_json5_file(path: Path) -> dict[str, Any]:
@@ -123,7 +105,7 @@ def _load_json5_file(path: Path) -> dict[str, Any]:
 
 
 def load_config_dir(config_dir: Path) -> Config:
-    """Load and merge a v2 split-config directory into a validated Config.
+    """Load and merge a split-config directory into a validated Config.
 
     Resolution order:
     1. ``<config_dir>/config.json5`` — master file; may declare an ``overlays``
@@ -185,7 +167,7 @@ def load_config_dir(config_dir: Path) -> Config:
     except Exception as exc:
         raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
 
-    # Emit non-blocking warnings — same as v1 loader.
+    # Emit non-blocking warnings.
     for warning in collect_warnings(config):
         log.warning(warning)
 
@@ -196,76 +178,30 @@ def load_config_dir(config_dir: Path) -> Config:
 
 
 def load_config(path: Path | None = None) -> Config:
-    """Load and validate the project configuration, dispatching on layout.
-
-    Behaviour by resolved-path type:
-
-    * **Directory** → treated as a v2 split-config root and forwarded to
-      :func:`load_config_dir`. The directory must contain a ``config.json5``
-      master file declaring the overlay list.
-    * **File** → treated as the legacy v1 monolithic ``config.json5`` and
-      parsed in-place. A ``DeprecationWarning`` is emitted so the user sees
-      the migration instruction; the value is still loaded successfully.
+    """Load and validate the project configuration directory.
 
     Emits non-blocking warnings via :func:`collect_warnings` after successful
     validation. The config is returned regardless of warnings.
 
     Args:
-        path: Explicit path to a config file or split-config directory. If
-            ``None``, :func:`resolve_config_path` is called to determine
-            which layout is active.
+        path: Explicit path to a split-config directory. If ``None``,
+            :func:`resolve_config_path` is called to determine which directory
+            is active.
 
     Returns:
         Validated :class:`~personalscraper.conf.models.Config` instance.
 
     Raises:
-        ConfigNotFoundError: If neither a file nor a directory exists at the
-            resolved path.
+        ConfigNotFoundError: If the resolved path is not a directory.
         ConfigValidationError: If JSON5 parsing or Pydantic validation fails.
     """
     resolved = path if path is not None else resolve_config_path()
-
-    # v2 split layout: dispatch to the directory loader.  This is the default
-    # path for fresh installs (DEFAULT_CONFIG_DIR) and any caller passing the
-    # directory explicitly.
-    if resolved.is_dir():
-        return load_config_dir(resolved)
-
-    if not resolved.is_file():
+    if not resolved.is_dir():
         raise ConfigNotFoundError(
-            f"No config file or split-config directory at {resolved}. "
+            f"No split-config directory at {resolved}. "
             "Run 'personalscraper init-config' to create one from the example template."
         )
-
-    # v1 single-file config is deprecated in favour of the v2 split-directory layout.
-    # Emit a DeprecationWarning so users see the migration instruction at call site.
-    warnings.warn(
-        "v1 single-file config is deprecated and will be removed in 0.10.0; run "
-        "`personalscraper config migrate-to-v2 <legacy-path> <target-dir>` to migrate",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    log.warning("config_v1_deprecated", path=str(resolved), removal_version="0.10.0")
-
-    with resolved.open("r", encoding="utf-8") as f:
-        try:
-            raw = json5.load(f)
-        except Exception as exc:
-            raise ConfigValidationError(f"JSON5 parse error in {resolved}: {exc}") from exc
-    try:
-        config = Config.model_validate(raw)
-    except Exception as exc:
-        raise ConfigValidationError(f"Validation error in {resolved}:\n{exc}") from exc
-
-    # Emit non-blocking warnings — do not raise, just log.
-    # The warning text is used as the event so stdlib caplog records carry it.
-    for warning in collect_warnings(config):
-        log.warning(warning)
-
-    # Non-blocking category-orphan startup check (DESIGN §17.2).
-    _check_category_orphans(config)
-
-    return config
+    return load_config_dir(resolved)
 
 
 def collect_warnings(config: Config) -> list[str]:

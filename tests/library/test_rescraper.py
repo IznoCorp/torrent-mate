@@ -285,7 +285,6 @@ class TestRescrapeLibraryConfig:
         settings.tmdb_api_key = "tmdb-key"
         settings.tvdb_api_key = "tvdb-key"
         settings.artwork_language = "en"
-        settings.scraper_language = "en-US"
 
         with (
             patch("personalscraper.library.rescraper._collect_rescrape_candidates", return_value=[]),
