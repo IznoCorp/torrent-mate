@@ -153,6 +153,7 @@ class TestPingHealthcheck:
 # ── Live Telegram tests (skipped if no credentials) ──
 
 
+@pytest.mark.skipif(not _HAS_TELEGRAM, reason="TELEGRAM_BOT_TOKEN/CHAT_ID not set in env")
 class TestTelegramLive:
     """Live integration tests against the real Telegram Bot API.
 

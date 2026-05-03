@@ -14,22 +14,14 @@ from pathlib import Path
 
 import pytest
 
+_HAS_TMDB_KEY = bool(os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get("TMDB_API_KEY"))
+
 
 @pytest.mark.network
+@pytest.mark.skipif(not _HAS_TMDB_KEY, reason="TMDB_READ_ACCESS_TOKEN or TMDB_API_KEY not set")
 def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
-    """Download the Big Buck Bunny trailer end-to-end using the real TMDB client.
-
-    Big Buck Bunny is a freely licensed Blender Foundation film. Its TMDB ID
-    is 10378 (confirmed stable). This test verifies:
-    1. TrailerFinder discovers at least one trailer URL via TMDB.
-    2. YtdlpDownloader downloads the trailer to tmpdir without error.
-    3. trailer_exists() confirms the file meets the minimum size threshold.
-
-    Args:
-        tmp_path: Pytest tmp_path fixture for isolated temporary directory.
-    """
     api_key = os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get("TMDB_API_KEY")
-    assert api_key, "TMDB_READ_ACCESS_TOKEN or TMDB_API_KEY must be set in .env"
+    assert api_key is not None  # guarded by skipif, here for type narrowing
 
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
     from personalscraper.scraper.json_ttl_cache import JsonTTLCache
