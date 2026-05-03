@@ -6,12 +6,12 @@ Storage disk layout, NTFS/macFUSE constraints, rsync flags, and disk space rules
 
 All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) over USB.
 
-| Disk  | Mount                 | Filesystem | Categories                                                                                                                                    |
-| ----- | --------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Disk1 | /Volumes/Disk1/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk2 | /Volumes/Disk2/medias | NTFS       | series, series animes                                                                                                                         |
-| Disk3 | /Volumes/Disk3/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk4 | /Volumes/Disk4/medias | NTFS       | films, films animations, series, series animations, series documentaires, emissions                                                           |
+| Disk  | Mount                 | Filesystem | Categories                                                                                                                                                   |
+| ----- | --------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Disk1 | /Volumes/Disk1/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, series animes, spectacles, theatres, emissions |
+| Disk2 | /Volumes/Disk2/medias | NTFS       | series, series animes                                                                                                                                        |
+| Disk3 | /Volumes/Disk3/medias | NTFS       | films, films animations, films documentaires, series, series animations, series documentaires, spectacles, theatres, emissions                               |
+| Disk4 | /Volumes/Disk4/medias | NTFS       | films, films animations, series, series animations, series documentaires                                                                                     |
 
 ## Move Rules (dispatch)
 

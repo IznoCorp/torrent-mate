@@ -57,7 +57,7 @@ The file currently contains: Typer app + global options + 50+ command bodies + h
 | `commands/pipeline.py`     | `run`, `ingest`, `sort`, `process`, `clean`, `scrape`, `cleanup`, `enforce`, `verify`, `trailers`, `dispatch` (each as a Typer command function delegating to its domain entry point) |
 | `commands/library.py`      | `library-scan` (legacy, deprecation warning), `library-index`, `library-search`, `library-clean`, `library-report`, `library-analyze`                                                 |
 | `commands/config.py`       | `init-config`, `validate-config`, `migrate-config`, `show-config`                                                                                                                     |
-| `commands/info.py`         | `version`, `info`, `paths`, `disks`                                                                                                                                                   |
+| `commands/info.py`         | `info` (paths/disks/version available via CLI global options)                                                                                                                         |
 | ~~`commands/diagnose.py`~~ | Skipped — no `diagnose` (or doctor-style) commands existed in `cli.py` at extraction time                                                                                             |
 | `cli.py`                   | Typer app instance + global options + exception handler shell + sub-app mounting                                                                                                      |
 

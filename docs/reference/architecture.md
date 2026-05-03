@@ -44,6 +44,7 @@ staging/
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── commands/        # Typer command groups (pipeline, library, config, info)
+│   ├── conf/            # Config loader, overlay merger, resolver, classifier, staging
 │   ├── info/            # info command implementation (run.py)
 │   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
@@ -91,7 +92,10 @@ staging/
 │   │   ├── _macos_io.py         # macOS-specific I/O helpers (diskutil, volume UUID)
 │   │   ├── _throttle.py         # token-bucket I/O rate limiter
 │   │   ├── migrations/          # numbered .sql files + applier
-│   │   │   └── 001_init.sql     # full schema DDL
+│   │   │   ├── 001_init.sql
+│   │   │   ├── 002_nullable_release_id_oshash.sql
+│   │   │   ├── 003_repair_queue_pending_dedup.sql
+│   │   │   └── 004_extend_media_stream.sql
 │   │   └── repos/               # one Repository class per entity group
 │   │       ├── disk_repo.py     # disk + path tables
 │   │       ├── item_repo.py     # media_item + item_attribute (flex attrs)
@@ -118,6 +122,7 @@ staging/
 │   ├── models.py        # StepReport, SortResult, PipelineReport
 │   ├── text_utils.py    # media_processor, fuzzy_match_score (shared across modules)
 │   ├── naming_patterns.py # NamingPatterns dataclass (shared across modules)
+│   ├── nfo_utils.py     # NFO parsing helpers (is_nfo_complete, etc.)
 │   ├── notifier.py      # Telegram notifications
 ├── tests/               # pytest tests (unit + E2E)
 │   ├── commands/        # CLI command tests
@@ -143,7 +148,6 @@ staging/
 ├── assets/torrents/     # .torrent files for E2E tests (Jumanji, Malcolm)
 │   └── expected/        # Golden files (expected results per torrent)
 ├── docs/                # Reference docs, feature plans, archive
-├── 099-SCRIPTS/         # Legacy scripts (.bak files, gitignored)
 ├── pyproject.toml       # Project config (PEP 621)
 ├── Makefile             # make test/lint/format/install-dev
 ├── MANUAL.md            # User manual (French) — shell commands, disk layout, naming
@@ -154,7 +158,6 @@ staging/
 
 Notes:
 
-- Legacy scripts (099-SCRIPTS/) exist on disk but are gitignored. Contains 7 `.bak` Python scripts and a `plex/` subfolder.
 - MediaElch is the external metadata scraper — Claude does not interact with it directly.
 
 ## Shared Utilities (single source of truth)

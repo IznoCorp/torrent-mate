@@ -80,7 +80,7 @@ def test_dry_run_three_torrents(
     rsync_available: None,
     tmp_path: Path,
 ) -> None:
-    """Full pipeline dry-run with 2 movies + 1 TV episode produces 8 StepReports.
+    """Full pipeline dry-run with 2 movies + 1 TV episode produces 9 StepReports.
 
     Catalogue #15 — dry-run orchestration invariant.
 
@@ -177,9 +177,9 @@ def test_dry_run_three_torrents(
     )
     report: PipelineReport = pipeline.run()
 
-    # --- Structural invariant: all 8 steps must be present ---------------
-    # The plan specified 6 StepReports; actual production code produces 8
-    # (ingest, sort, clean, scrape, cleanup, enforce, verify, dispatch).
+    # --- Structural invariant: all 9 steps must be present ---------------
+    # The plan specified 6 StepReports; actual production code produces 9
+    # (ingest, sort, clean, scrape, cleanup, enforce, verify, trailers, dispatch).
     # We assert on the actual shape to avoid false failures.
     assert set(report.steps.keys()) == set(_EXPECTED_STEPS), (
         f"Expected steps {_EXPECTED_STEPS!r}, got {list(report.steps.keys())!r}"
