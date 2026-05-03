@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 
@@ -24,6 +24,15 @@ from personalscraper.scraper.rename_service import (
     _rename_dir_case_safe,
 )
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from personalscraper.conf.models import Config
+    from personalscraper.naming_patterns import NamingPatterns
+    from personalscraper.scraper.artwork import ArtworkDownloader
+    from personalscraper.scraper.tmdb_client import TMDBClient
+    from personalscraper.scraper.tvdb_client import TVDBClient
 
 log = get_logger("scraper")
 
@@ -190,6 +199,25 @@ def _tvdb_series_to_show_data(
 
 class TvServiceMixin:
     """TV show scrape service methods."""
+
+    patterns: "NamingPatterns"
+    dry_run: bool
+    _tvdb: "TVDBClient"
+    _tmdb: "TMDBClient"
+    _scraper_language: str
+    _scraper_fallback_language: str
+    _tvdb_language: str
+    _tvdb_fallback_language: str
+    _nfo: "NFOGenerator"
+    _artwork: "ArtworkDownloader"
+    config: "Config | None"
+    _classify_item: "Callable[..., str | None]"
+    _resolve_title: "Callable[..., str]"
+    _strip_trailing_year: "Callable[[str], str]"
+    _verify_existing_scrape: "Callable[..., tuple[bool, str]]"
+    _check_missing_tvshow_artwork: "Callable[..., list[str]]"
+    _recover_tvshow_artwork: "Callable[..., None]"
+    _repair_tvshow_dir: "Callable[..., bool]"
 
     @staticmethod
     def _to_tvdb_language(language: str) -> str:

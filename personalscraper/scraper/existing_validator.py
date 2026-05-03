@@ -6,10 +6,15 @@ import re
 import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
+
+if TYPE_CHECKING:
+    from personalscraper.scraper.artwork import ArtworkDownloader
+    from personalscraper.scraper.tmdb_client import TMDBClient
+
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.episode_manager import (
@@ -184,6 +189,12 @@ def verify_tvshow_scrape_drift(
 
 class ExistingValidatorMixin:
     """Existing scrape validation and repair helper methods."""
+
+    patterns: "NamingPatterns"
+    dry_run: bool
+    _tmdb: "TMDBClient"
+    _artwork: "ArtworkDownloader"
+    _generate_episode_nfos: Any  # from TvServiceMixin
 
     def _check_missing_movie_artwork(self, movie_dir: Path, title: str) -> list[str]:
         """List missing essential artwork for a movie directory.

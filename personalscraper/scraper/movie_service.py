@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import requests
 
@@ -14,6 +15,15 @@ from personalscraper.scraper.classifier import _parse_folder_name
 from personalscraper.scraper.confidence import LOW_CONFIDENCE
 from personalscraper.scraper.rename_service import _cleanup_stale_files, _merge_dirs
 from personalscraper.text_utils import sanitize_filename
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from personalscraper.conf.models import Config
+    from personalscraper.naming_patterns import NamingPatterns
+    from personalscraper.scraper.artwork import ArtworkDownloader
+    from personalscraper.scraper.nfo_generator import NFOGenerator
+    from personalscraper.scraper.tmdb_client import TMDBClient
 
 log = get_logger("scraper")
 
@@ -40,6 +50,19 @@ _EPISODE_FALLBACK_RE = re.compile(r"^S\d{2}E0*(\d+) - Episode 0*\1\.\w+$", re.IG
 
 class MovieServiceMixin:
     """Movie scrape service methods."""
+
+    patterns: "NamingPatterns"
+    dry_run: bool
+    _tmdb: "TMDBClient"
+    _artwork: "ArtworkDownloader"
+    config: "Config | None"
+    _nfo: "NFOGenerator"
+    _classify_item: "Callable[..., str | None]"
+    _resolve_title: "Callable[..., str]"
+    _strip_trailing_year: "Callable[[str], str]"
+    _check_missing_movie_artwork: "Callable[..., list[str]]"
+    _recover_movie_artwork: "Callable[..., None]"
+    _repair_movie_dir: "Callable[..., bool]"
 
     def scrape_movie(self, movie_dir: Path) -> ScrapeResult:
         """Scrape a single movie: match → NFO → artwork.

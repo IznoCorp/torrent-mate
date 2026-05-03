@@ -75,12 +75,8 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         scraper_config = config.scraper if config is not None else None
         thresholds_config = config.thresholds if config is not None else None
         self._scraper_language = scraper_config.language if scraper_config is not None else "fr-FR"
-        self._scraper_fallback_language = (
-            scraper_config.fallback_language if scraper_config is not None else "en-US"
-        )
-        self._prefer_local_title = (
-            scraper_config.prefer_local_title if scraper_config is not None else True
-        )
+        self._scraper_fallback_language = scraper_config.fallback_language if scraper_config is not None else "en-US"
+        self._prefer_local_title = scraper_config.prefer_local_title if scraper_config is not None else True
         self._tvdb_language = self._to_tvdb_language(self._scraper_language)
         self._tvdb_fallback_language = self._to_tvdb_language(self._scraper_fallback_language)
 

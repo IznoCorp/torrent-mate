@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from guessit.api import GuessitException
 
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models import Config
+    from personalscraper.scraper.keywords_cache import KeywordsCache
+    from personalscraper.scraper.tmdb_client import TMDBClient
 
 log = get_logger("scraper")
 
@@ -74,9 +79,15 @@ def _parse_folder_name(name: str) -> tuple[str, int | None]:
 class ClassifierMixin:
     """Classification and title helper methods for Scraper."""
 
+    config: "Config | None"
+    _needs_keywords: bool
+    _keywords_cache: "KeywordsCache | None"
+    _prefer_local_title: bool
+    _tmdb: "TMDBClient"
+
     def _classify_item(
         self,
-        media_type: str,
+        media_type: Literal["movie", "tv"],
         path: Path,
         title: str,
         api_data: dict[str, Any],
@@ -110,10 +121,10 @@ class ClassifierMixin:
         # Fetch TMDB keywords (via cache) only when needed
         tmdb_keywords: list[str] = []
         if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
-            cached = self._keywords_cache.get(tmdb_id, media_type)  # type: ignore[arg-type,attr-defined]
+            cached = self._keywords_cache.get(tmdb_id, media_type)
             if cached is None:
-                fetched = self._tmdb.get_keywords(tmdb_id, media_type)  # type: ignore[arg-type,attr-defined]
-                self._keywords_cache.set(tmdb_id, media_type, fetched)  # type: ignore[arg-type,attr-defined]
+                fetched = self._tmdb.get_keywords(tmdb_id, media_type)
+                self._keywords_cache.set(tmdb_id, media_type, fetched)
                 tmdb_keywords = fetched
             else:
                 tmdb_keywords = cached
@@ -139,7 +150,7 @@ class ClassifierMixin:
 
         category_id, reason = scraper_api._classifier.classify(
             self.config,
-            media_type=media_type,  # type: ignore[arg-type]
+            media_type=media_type,
             path=path,
             title=title,
             tmdb_genres=tmdb_genres or None,
