@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 
 from personalscraper import cli as cli_compat
@@ -24,7 +22,7 @@ def ingest(
     config = ctx.obj.config
     assert config is not None  # guaranteed non-None by callback
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -43,7 +41,7 @@ def ingest(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
@@ -57,7 +55,7 @@ def sort(
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -71,7 +69,7 @@ def sort(
             for detail in report.details:
                 console.print(f"  {detail}")
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
@@ -89,7 +87,7 @@ def scrape(
     config = ctx.obj.config  # Guaranteed non-None by callback.
     assert config is not None
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -110,19 +108,14 @@ def scrape(
             for detail in report.details:
                 console.print(f"  {detail}")
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
 @handle_cli_errors
 def verify(
     ctx: typer.Context,
-    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without fixing"),
-    fix: Optional[bool] = typer.Option(
-        None,
-        "--fix/--no-fix",
-        help="Attempt auto-fixes (deprecated — use 'enforce' instead)",
-    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without modifying files"),
     movies_only: bool = typer.Option(False, "--movies-only", help="Process only movies"),
     tvshows_only: bool = typer.Option(False, "--tvshows-only", help="Process only TV shows"),
 ) -> None:
@@ -131,23 +124,16 @@ def verify(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        if fix is not None:
-            console.print(
-                "[yellow]Warning: --fix is deprecated and will be removed in 0.10.0. "
-                "Use 'personalscraper enforce' before verify instead.[/yellow]"
-            )
-        effective_fix = bool(fix) if fix is not None else False
         report, dispatchable = run_verify(
             settings,
             config,
             dry_run=dry_run,
-            fix=effective_fix,
             movies_only=movies_only,
             tvshows_only=tvshows_only,
         )
@@ -157,7 +143,7 @@ def verify(
             for detail in report.details:
                 console.print(f"  {detail}")
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
@@ -171,7 +157,7 @@ def enforce(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -183,7 +169,7 @@ def enforce(
             for detail in report.details:
                 console.print(f"  {detail}")
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
@@ -197,7 +183,7 @@ def dispatch(
 
     config = ctx.obj.config
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -212,7 +198,7 @@ def dispatch(
             for detail in report.details:
                 console.print(f"  {detail}")
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
@@ -227,7 +213,7 @@ def process(
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
     try:
@@ -249,7 +235,7 @@ def process(
                 for detail in report.details:
                     console.print(f"  {detail}")
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 @app.command()
@@ -285,7 +271,7 @@ def run(
     verbose = state["verbose"]
     _run_log = get_logger("pipeline")
 
-    if not cli_compat.acquire_lock():
+    if not cli_compat.acquire_lock(lock_file=config.paths.data_dir / "pipeline.lock"):
         console.print("[red]Another instance is running. Exiting.[/red]")
         raise typer.Exit(1)
 
@@ -375,7 +361,7 @@ def run(
             raise typer.Exit(1)
 
     finally:
-        cli_compat.release_lock()
+        cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")
 
 
 # --- Library maintenance commands ---
