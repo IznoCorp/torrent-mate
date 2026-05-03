@@ -245,6 +245,7 @@ def _make_config(tmp_path: Path) -> MagicMock:
     c.staging_dirs = CANONICAL_STAGING_DIRS
     c.paths.staging_dir = tmp_path
     c.ingest.min_ratio = 0.0  # disable ratio guard — matches IngestConfig default
+    c.thresholds.min_free_space_staging_gb = 0  # disable disk-space guard in tests
     return c
 
 
@@ -399,7 +400,9 @@ class TestRunIngest:
         """Insufficient disk space should skip the torrent."""
         settings = MagicMock()
         settings.ingest_dir = tmp_path / "097-TEMP"
-        settings.min_free_space_staging_gb = 999
+
+        config = _make_config(tmp_path)
+        config.thresholds.min_free_space_staging_gb = 999
 
         torrent = _make_torrent("BigMovie", "hash3")
         source = tmp_path / "complete" / "BigMovie"
@@ -418,7 +421,7 @@ class TestRunIngest:
         mock_tracker.is_ingested.return_value = False
         mock_tracker_cls.return_value = mock_tracker
 
-        report = run_ingest(settings, config=_make_config(tmp_path))
+        report = run_ingest(settings, config=config)
 
         assert report.skip_count == 1
         assert report.success_count == 0
