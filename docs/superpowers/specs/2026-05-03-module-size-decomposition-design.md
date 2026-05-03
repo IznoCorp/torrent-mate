@@ -398,6 +398,50 @@ The script already supports the right thresholds. The change is: when REPORT fin
 
 ---
 
-## 10. VERSION bump
+## 10. Documentation updates (exhaustive)
+
+Every documentation file referencing a decomposed module must be updated in the same commit as the decomposition.
+
+### 10.1 `docs/reference/architecture.md`
+
+| Location              | Change                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Line 46: `commands/`  | Add `commands/library/` sub-package listing its 5 modules                                                                      |
+| Line 47: `conf/`      | Add `conf/models/` sub-package listing its 11 domain files                                                                     |
+| Line 97: `outbox.py`  | Replace with `outbox/` package tree (6 files: `_types.py`, `_disk.py`, `_apply.py`, `_drain.py`, `_publish.py`, `__init__.py`) |
+| Line 123: `dispatch/` | Add new `_types.py`, `_transfer.py`, `_movie.py`, `_tv.py` files                                                               |
+| Line 136: `models.py` | Clarify as `personalscraper/models.py` (StepReport, SortResult) — distinct from `conf/models/`                                 |
+
+### 10.2 `docs/reference/indexer-json-shapes.md`
+
+| Location                                            | Change                                                                                                |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Line 61: `` `personalscraper/indexer/outbox.py` ``  | Replace with `` `personalscraper/indexer/outbox/_apply.py` `` (or the appropriate specific submodule) |
+| Line 119: `` `personalscraper/indexer/outbox.py` `` | Replace with `` `personalscraper/indexer/outbox/_drain.py` ``                                         |
+
+### 10.3 `CLAUDE.md` (project root)
+
+| Location                           | Change                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| Module-size rule (already present) | Verify thresholds are accurate (800 WARN, 1000 REPORT hard block in 0.10.0) |
+| Reference Index table              | If any entry references the old module paths, update                        |
+
+### 10.4 `docs/reference/indexer.md`
+
+| Location                  | Change                      |
+| ------------------------- | --------------------------- |
+| Any `outbox.py` reference | Update to `outbox/` package |
+
+### 10.5 `docs/superpowers/plans/2026-05-03-config-coherence-intervention.md`
+
+**Do NOT update** — this is another agent's active plan. Merge conflict prevention: if this plan is modified, coordinate with the other agent.
+
+### 10.6 Archive docs (`docs/archive/`)
+
+**Do NOT update** — archive docs are historical snapshots. They intentionally reference the file structure at the time they were written. Updating them would destroy the historical record.
+
+---
+
+## 11. VERSION bump
 
 0.9.0 → 0.10.0 (minor). Rationale: the hard-block size guardrail promotion is a behavioural change that downstream tooling (`make check` in CI) will feel. The Reserved field removal is a schema change (backward-incompatible for config files containing removed fields).
