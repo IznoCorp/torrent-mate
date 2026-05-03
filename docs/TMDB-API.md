@@ -55,8 +55,11 @@ Deux méthodes équivalentes (même niveau d'accès) :
 ### Bearer Token (recommandé)
 
 ```
-Authorization: Bearer <TMDB_READ_ACCESS_TOKEN>
+Authorization: Bearer <TMDB_API_KEY>
 ```
+
+> TMDB appelle cette clé "API Read Access Token" (v4), mais le pipeline
+> utilise `TMDB_API_KEY` (env var) comme Bearer token.
 
 Fonctionne avec les endpoints v3 et v4. Token disponible sur https://www.themoviedb.org/settings/api.
 
@@ -71,9 +74,8 @@ Approche legacy, toujours supportée pour l'API v3.
 ### Emplacement des clés dans le pipeline
 
 ```
-/opt/YoutubeTrailerScraper/.env
-  → TMDB_API_KEY=...
-  → TMDB_READ_ACCESS_TOKEN=...
+<project_root>/.env
+  → TMDB_API_KEY=...    # Clé API v3 (Bearer token)
 ```
 
 ---

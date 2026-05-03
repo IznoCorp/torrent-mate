@@ -9,7 +9,7 @@ Package name: `personalscraper`. CLI entry point: `personalscraper <command>`.
 ## Workflow Pipeline
 
 1. **Torrent download** — completed torrents land in `/path/to/torrents/complete`
-2. **Initial sort (`torrent-sort`)** — files are deposited at the root of `staging/`, then `torrent-sort` dispatches them into the correct subdirectories (001-MOVIES, 002-TVSHOWS, 004-AUDIO, etc.) based on file type detection
+2. **Initial sort** — files are deposited at the root of `staging/`, then `personalscraper sort` dispatches them into the correct subdirectories (001-MOVIES, 002-TVSHOWS, etc.) based on file type detection
 3. **Rename & clean** — strip release-group tags, codec info, resolution labels from filenames
 4. **Scrape metadata** (`personalscraper scrape`) — automated via TMDB/TVDB APIs, produces `.nfo` files and artwork. MediaElch can still be used manually as fallback.
 5. **Move to storage** — files go to one of the 4 destination disks
@@ -50,9 +50,23 @@ staging/
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
 │   │   ├── movie_service.py     # movie scrape flow
 │   │   ├── tv_service.py        # TV show/episode scrape flow
+│   │   ├── tmdb_client.py       # TMDB API v3 client (Bearer token auth)
+│   │   ├── tvdb_client.py       # TVDB API v4 client (Negotiated Contract auth)
+│   │   ├── nfo_generator.py     # NFO file writer (Kodi-compliant XML)
+│   │   ├── artwork.py           # poster + background download (TMDB/TVDB)
+│   │   ├── confidence.py        # fuzzy match confidence scoring
+│   │   ├── mediainfo.py         # ffprobe wrapper + ISO 639-2 codec/lang mapping
+│   │   ├── circuit_breaker.py   # TMDB/TVDB circuit breaker (5 failures → 5 min open)
 │   │   ├── rename_service.py    # rename helpers
 │   │   ├── existing_validator.py # existing NFO/artwork validation
 │   │   ├── classifier.py        # media item classification adapter
+│   │   ├── episode_manager.py   # episode renumber + phantom-season remap
+│   │   ├── http_retry.py        # tenacity retry logger builder
+│   │   ├── keywords_cache.py    # TMDB keyword lookup cache
+│   │   ├── providers.py         # API provider enum + routing helpers
+│   │   ├── run.py               # scrape step entry point
+│   │   ├── scraper.py           # legacy scraper compositor (post-decomposition thin wrapper)
+│   │   ├── _shared.py           # internal shared helpers
 │   │   ├── json_ttl_cache.py    # JSON-backed TTL cache for YouTube search results
 │   │   ├── youtube_search.py    # YouTube Data API v3 quota-aware search
 │   │   ├── trailer_finder.py    # Two-tier TMDB/YouTube trailer URL discovery

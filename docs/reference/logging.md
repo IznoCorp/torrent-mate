@@ -186,4 +186,4 @@ broad-except sites is out of scope per DESIGN §2 (only new/touched code is in s
 
 - `personalscraper/logger.py` — structlog factory, `configure_logging()`, `get_logger()`.
 - `scripts/check_logging.py` — AST walker enforcing the convention above.
-- `docs/features/logging/DESIGN.md` — original design document (archived post-merge).
+- `docs/archive/features/logging/DESIGN.md` — original design document (archived).

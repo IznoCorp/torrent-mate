@@ -126,22 +126,22 @@ Exit codes: 0 (ok), 2 (bad --since date).
 
 Discover and download missing trailers.
 
-Options: --dry-run, --disk, --category, --since, --limit, --level, --season.
-Exit codes: 0 (ok or zero errors), 1 (download error).
+Options: --dry-run, --disk, --category, --since, --limit, --level, --season, --no-refresh.
+Exit codes: 0 (ok or zero errors), 1 (download error), 2 (bad --since date or invalid --level/--season).
 
 ### trailers verify
 
 Audit existing trailer files (size, extension, optional ffprobe).
 
-Options: --disk, --category, --deep, --no-refresh.
-Exit codes: 0 (all valid), 2 (functional check failure: missing/undersized/wrong_extension/unplayable), 4 (ffprobe error).
+Options: --disk, --category, --deep, --since, --level, --season, --no-refresh.
+Exit codes: 0 (all valid), 2 (functional check failure or bad arg), 4 (ffprobe error).
 
 ### trailers purge
 
 Remove orphan trailer files.
 
-Options: --dry-run, --disk.
-Exit codes: 0 (ok), 1 (error).
+Options: --dry-run, --disk, --since, --include-state, --level, --season.
+Exit codes: 0 (ok), 1 (error), 2 (bad --since date or invalid --level/--season).
 
 ### personalscraper run flags
 
@@ -219,14 +219,8 @@ files are detected as already-present rather than silently re-downloaded alongsi
 the correct new path. A `placement.legacy_tvshow_trailer_found` WARNING is emitted
 when a legacy file is found.
 
-To migrate legacy files to the correct location, run:
-
-```
-personalscraper trailers purge --legacy-paths
-```
-
-This helper is **not yet implemented**. Until it is, the legacy files remain in
-place and are reported as already-present on each pipeline run.
+Legacy flat-path trailer files are reported as WARNING on each pipeline run.
+A future purge enhancement will handle automatic migration.
 
 ### Library-aware idempotence (DESIGN section 8)
 

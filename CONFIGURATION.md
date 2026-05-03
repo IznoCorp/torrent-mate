@@ -30,12 +30,12 @@ Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-sett
 
 Variables de connexion à l'interface Web de qBittorrent (Ingest).
 
-| Variable        | Défaut      | Description                           |
-| --------------- | ----------- | ------------------------------------- |
-| `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent |
-| `QBIT_PORT`     | `8080`      | Port de l'interface Web API           |
-| `QBIT_USERNAME` | `""`        | Nom d'utilisateur Web UI              |
-| `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                   |
+| Variable        | Défaut      | Description                                             |
+| --------------- | ----------- | ------------------------------------------------------- |
+| `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent                   |
+| `QBIT_PORT`     | `8081`      | Port de l'interface Web API (qBittorrent défaut : 8080) |
+| `QBIT_USERNAME` | `""`        | Nom d'utilisateur Web UI                                |
+| `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                                     |
 
 ### Comment configurer
 

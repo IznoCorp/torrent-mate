@@ -49,7 +49,7 @@ Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support
 
 ### Disk selection
 
-The `Dispatcher` class selects the target disk for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()` which considers only disks accepting the category. If no disk has both the category and enough space, the item is skipped (INFO log). The older `choose_disk()` fallback-to-any-disk behavior is deprecated and no longer called by the Dispatcher.
 
 ### Standalone invocation
 
