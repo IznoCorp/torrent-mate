@@ -47,8 +47,8 @@ def test_script_warns_above_warn_threshold(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0
-    assert "WARN" in result.stdout
-    assert "big.py" in result.stdout
+    assert "WARN" in result.stderr
+    assert "big.py" in result.stderr
 
 
 def test_script_excludes_init_and_tests(tmp_path: Path) -> None:
@@ -72,7 +72,7 @@ def test_script_excludes_init_and_tests(tmp_path: Path) -> None:
 
 
 def test_script_reports_above_block_threshold(tmp_path: Path) -> None:
-    """Modules over 1000 non-blank lines are reported but still advisory."""
+    """Modules over 1000 non-blank lines exit 1 (hard block in 0.10.0)."""
     pkg = tmp_path / "pkg"
     pkg.mkdir()
     (pkg / "__init__.py").write_text("", encoding="utf-8")
@@ -85,6 +85,6 @@ def test_script_reports_above_block_threshold(tmp_path: Path) -> None:
         check=False,
     )
 
-    assert result.returncode == 0
+    assert result.returncode == 1
     assert "REPORT" in result.stdout
     assert "huge.py" in result.stdout
