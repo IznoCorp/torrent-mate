@@ -34,7 +34,7 @@ being processed and dispatched to permanent storage. From version 0.4.0,
 the staging tree lives **outside the repository** at the path configured
 in `config/paths.json5` under `paths.staging_dir`.
 
-The subdirectory names are defined by `staging_dirs` in `config/paths.json5`.
+The subdirectory names are defined by `staging_dirs` in `config/patterns.json5`.
 Each entry has an `id` (numeric prefix, 0–999) and a `name` (kebab-case).
 The on-disk folder name is `{id:03d}-{name.upper()}`, e.g.:
 
@@ -51,8 +51,8 @@ After upgrading, your `config/` directory must be updated to include
 
 > `staging_dirs` missing from config.json5 — see MANUAL.md §Staging layout for migration steps.
 
-**Step 1**: Add `staging_dirs` to your `config/paths.json5`. Copy the section
-from `config.example/staging_dirs` and adjust if you have custom directory names.
+**Step 1**: Add `staging_dirs` to your `config/patterns.json5`. Copy the section
+from `config.example/patterns.json5` and adjust if you have custom directory names.
 
 **Step 2**: Set `paths.staging_dir` to the external location. No
 production default — pick a path outside the repository (e.g.
@@ -274,7 +274,7 @@ Hooks actifs dans `.claude/settings.json` :
 3. **Auto-format** (`auto_format.py`) — Formate automatiquement après chaque édition
 4. **Loggers** — `bash_logger.py`, `agent_logger.py`, `skill_logger.py` enregistrent les actions
 
-> **Note :** Les hooks `block_media_files.py` et `block_disk_destructive.py` sont configurés dans settings.json mais les fichiers Python n'existent pas dans `.claude/hooks/` — ces protections sont **inactives**. La commande `rm` est bloquée via la liste `deny` des permissions.
+> **Note :** Les hooks `block_media_files.py` et `block_disk_destructive.py` sont actifs dans `.claude/hooks/` et bloquent l'édition de fichiers média et les commandes destructives sur disque. La commande `rm` est également bloquée via la liste `deny` des permissions.
 
 ---
 
