@@ -85,7 +85,7 @@ def main(
 # attach commands to the shared Typer app.
 import personalscraper.commands.config  # noqa: E402,F401
 import personalscraper.commands.info  # noqa: E402,F401
-import personalscraper.commands.library  # noqa: E402,F401
+import personalscraper.commands.library  # noqa: E402,F401 — re-exports from library/{scan,query,maintenance,audit,analyze}
 import personalscraper.commands.pipeline  # noqa: E402,F401
 
 __all__ = [

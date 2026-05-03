@@ -1,0 +1,273 @@
+"""Maintenance Typer commands for the library."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+import typer
+
+from personalscraper import cli as cli_compat
+from personalscraper.cli_app import app
+from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
+from personalscraper.cli_state import state
+
+
+@app.command("library-verify")
+@handle_cli_errors
+def library_verify(
+    ctx: typer.Context,
+    disk: Optional[str] = typer.Option(None, "--disk", help="Restrict verification to this disk label"),
+    budget: Optional[int] = typer.Option(
+        None,
+        "--budget",
+        help="Wall-clock budget in seconds; partial verifies are safe to resume.",
+    ),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Re-stat every indexed file and mark mismatches for repair.
+
+    Runs a verify-mode scan that re-checks every file's stat metadata against
+    the stored snapshot.  Files that no longer match are escalated to the repair
+    queue — they are NOT soft-deleted.  Use this command to identify drift
+    before deciding whether to accept or revert changes.
+
+    With ``--budget`` the verify pass exits cleanly when the wall-clock limit
+    is reached; the next invocation continues from where it stopped (every
+    file commits ``last_verified_at`` individually so partial progress is
+    preserved across runs).
+
+    Examples:
+        personalscraper library-verify
+        personalscraper library-verify --disk Disk2
+        personalscraper library-verify --budget 300
+    """
+    from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_verify_command(
+        disk=disk,
+        budget_seconds=float(budget) if budget is not None else None,
+        config_path=effective_config,
+    )
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command("library-repair")
+@handle_cli_errors
+def library_repair(
+    ctx: typer.Context,
+    budget: int = typer.Option(60, "--budget", help="Maximum seconds to spend draining the repair queue"),
+    config: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config.json5 or config dir"),
+) -> None:
+    """Drain the repair queue within a time budget.
+
+    Processes pending repair rows in FIFO order.  Stops cleanly when the budget
+    is exhausted.  Prints a JSON summary of processed / succeeded / failed counts.
+
+    Examples:
+        personalscraper library-repair
+        personalscraper library-repair --budget 120
+    """
+    from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
+
+    effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
+    rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
+    if rc != 0:
+        raise typer.Exit(rc)
+
+
+@app.command()
+@handle_cli_errors
+def library_clean(
+    ctx: typer.Context,
+    apply: bool = typer.Option(False, "--apply", help="Actually delete (default: dry-run)"),
+    only: str = typer.Option(
+        None,
+        "--only",
+        help="Only clean: actors, empty, junk, release, orphans",
+    ),
+    disk: str = typer.Option(None, "--disk", help="Clean only this disk (id from config)"),
+    category: str = typer.Option(None, "--category", help="Clean only this category"),
+) -> None:
+    """Remove .actors/, empty dirs, junk files from storage disks.
+
+    Dry-run by default — shows what would be deleted without deleting.
+    Use --apply to actually execute deletions.
+    Use --only to target specific cleanup types.
+
+    The ``orphans`` mode targets stale release directories that no longer
+    contain a main video file — typically ``.actors/`` + trailer + NFO + artwork
+    left behind after a manual video delete. It is opt-in (never part of the
+    default "all" run) because the deletion granularity is the entire release
+    directory.
+
+    Examples:
+        personalscraper library-clean
+        personalscraper library-clean --apply
+        personalscraper library-clean --apply --only actors
+        personalscraper library-clean --only orphans                # dry-run
+        personalscraper library-clean --only orphans --apply        # delete
+        personalscraper library-clean --disk Disk1
+    """
+    from personalscraper.library.disk_cleaner import clean_library
+
+    category_id = _resolve_category(ctx, category)
+    console = state["console"]
+    config = ctx.obj.config
+
+    # Validate --only parameter
+    valid_only = {"actors", "empty", "junk", "release", "orphans"}
+    if only and only not in valid_only:
+        console.print(f"[red]Invalid --only value '{only}'. Valid: {', '.join(sorted(valid_only))}[/red]")
+        raise typer.Exit(1)
+
+    # Acquire lock only when applying changes
+    if apply:
+        if not cli_compat.acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        mode = "[bold red]APPLY[/bold red]" if apply else "[bold yellow]DRY-RUN[/bold yellow]"
+        console.print(f"[bold]Cleaning library ({mode})...[/bold]")
+
+        result = clean_library(
+            config,
+            apply=apply,
+            only=only,
+            disk_filter=disk,
+            category_filter=category_id,
+        )
+
+        if result.dry_run:
+            console.print(
+                f"[yellow]DRY-RUN:[/yellow] Would delete {result.deleted_count} items "
+                f"({result.freed_bytes / 1024 / 1024:.1f} MB)"
+            )
+            # Orphan deletes a whole release directory at once — high blast
+            # radius. List the first matches so the operator can sanity-check
+            # before re-running with --apply.
+            if only == "orphans" and result.details:
+                preview = result.details[:20]
+                console.print(f"[dim]Preview ({len(preview)} of {len(result.details)}):[/dim]")
+                for line in preview:
+                    console.print(f"  {line}")
+                if len(result.details) > len(preview):
+                    console.print(f"  [dim]… and {len(result.details) - len(preview)} more[/dim]")
+        else:
+            console.print(
+                f"[green]Deleted:[/green] {result.deleted_count} items "
+                f"({result.freed_bytes / 1024 / 1024:.1f} MB freed)"
+            )
+            if result.error_count:
+                console.print(f"[red]Errors:[/red] {result.error_count} deletions failed (NTFS)")
+                for err in result.errors:
+                    console.print(f"  {err}")
+    finally:
+        if apply:
+            cli_compat.release_lock()
+
+
+@app.command()
+@handle_cli_errors
+def library_validate(
+    ctx: typer.Context,
+    disk: str = typer.Option(None, "--disk", help="Validate only this disk"),
+    category: str = typer.Option(None, "--category", help="Validate only this category"),
+    fix: bool = typer.Option(False, "--fix", help="Attempt automatic fixes"),
+    apply: bool = typer.Option(False, "--apply", help="Apply fixes (requires --fix)"),
+    from_index: bool = typer.Option(
+        False,
+        "--from-index",
+        help=(
+            "Read NFO + artwork status from the indexer DB instead of walking "
+            "the filesystem. Skips structural checks (empty dirs, NTFS chars, "
+            "dir naming) and does not support --fix. See validate_from_index "
+            "docstring for the full trade-off list."
+        ),
+    ),
+) -> None:
+    """Validate NFO, artwork, naming conformity of library items.
+
+    Checks each media item on storage disks against quality rules.
+    Use --fix --apply to attempt automatic corrections.
+    Use --from-index for a fast pre-screen that reads NFO + artwork status
+    from the indexer DB (NFO presence + poster/landscape only; no structural
+    checks; no --fix support).
+
+    Examples:
+        personalscraper library-validate
+        personalscraper library-validate --disk Disk1
+        personalscraper library-validate --fix --apply
+        personalscraper library-validate --from-index
+    """
+    from personalscraper.library.models import write_json
+    from personalscraper.library.validator import validate_from_index, validate_library
+
+    category_id = _resolve_category(ctx, category)
+    console = state["console"]
+    config = ctx.obj.config
+
+    if from_index and (fix or apply):
+        console.print("[red]--from-index does not support --fix / --apply[/red]")
+        raise typer.Exit(1)
+
+    if apply and not fix:
+        console.print("[red]--apply requires --fix[/red]")
+        raise typer.Exit(1)
+
+    if fix and apply:
+        if not cli_compat.acquire_lock():
+            console.print("[red]Another instance is running. Exiting.[/red]")
+            raise typer.Exit(1)
+
+    try:
+        if from_index:
+            console.print("[bold]Validating library (from index)...[/bold]")
+            import sqlite3  # noqa: PLC0415
+
+            from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
+            from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
+
+            db_path = config.indexer.db_path
+            migrations_dir = Path(_migrations_pkg.__file__).parent
+            conn: sqlite3.Connection = open_db(db_path)
+            apply_migrations(conn, migrations_dir)
+            try:
+                result = validate_from_index(
+                    conn,
+                    disk_filter=disk,
+                    category_filter=category_id,
+                )
+            finally:
+                conn.close()
+        else:
+            console.print("[bold]Validating library...[/bold]")
+            result = validate_library(
+                config,
+                disk_filter=disk,
+                category_filter=category_id,
+                fix=fix,
+                apply=apply,
+            )
+
+        output_path = config.paths.data_dir / "library_validation.json"
+        write_json(result, output_path)
+
+        console.print(
+            f"[green]Valid:[/green] {result.valid_count}  "
+            f"[yellow]Fixed:[/yellow] {result.fixed_count}  "
+            f"[red]Issues:[/red] {result.issues_count}  "
+            f"→ {output_path}"
+        )
+
+        if fix and result.issues_count:
+            console.print(
+                f"\n[yellow]{result.issues_count} items have API-dependent issues.[/yellow]\n"
+                "  Use: personalscraper library-rescrape"
+            )
+    finally:
+        if fix and apply:
+            cli_compat.release_lock()
