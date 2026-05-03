@@ -99,7 +99,8 @@ Apply function: `_apply_nfo_write` — UPDATEs `media_item.nfo_status`,
 
 `rel_path` points at the `.nfo` file; the apply function resolves the
 owning directory via `Path(rel_path).parent`. `item_kind` is
-informational; `tmdb_id` / `imdb_id` are merged with `COALESCE`.
+producer-only metadata — `_apply_nfo_write` never reads it. `tmdb_id` /
+`imdb_id` are merged with `COALESCE`.
 
 ### `op: "artwork_write"`
 
@@ -194,7 +195,7 @@ payload_json=None
 ### Producer: `library-reconcile`
 
 ```json
-// indexer/reconcile.py:418 — typical detector payload
+// indexer/reconcile.py ~L423 — typical detector payload
 {
   "detector": "merkle"
 }
@@ -259,7 +260,7 @@ Notes:
 not instantiated by the runtime.
 
 **Current writers:** the only `insert_scan_event` call site today is
-`personalscraper/indexer/scanner/__init__.py:187`, which writes one
+`personalscraper/indexer/scanner/__init__.py` (~L189), which writes one
 row per scanned disk with `event = "indexer.scan.disk_done"`.
 
 ```json

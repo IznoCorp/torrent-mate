@@ -28,8 +28,8 @@ ffprobe returns ISO 639-2/B codes (`fre`), Kodi NFO expects 639-2/T (`fra`). Alw
 
 ## NFO Invariants
 
-- `is_nfo_complete()` (defined in `nfo_utils.py`, imported as `is_nfo_complete` in `scraper.py`) validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection.
-- Verify `nfo_ids` check requires both TMDB and IMDB for a pass. Missing one is WARNING (check fails but non-blocking), missing both is ERROR (blocking). Some recent films (e.g. "Libre antenne") have TMDB but no IMDB yet.
+- `is_nfo_complete()` (defined in `nfo_utils.py`, imported as `_is_nfo_complete` in scraper modules) validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection.
+- Movie verify `nfo_ids` check requires both TMDB and IMDB for a pass. TV shows require either TVDB or TMDB (IMDB not required). Missing one is WARNING (check fails but non-blocking), missing both is ERROR (blocking).
 
 ## Artwork Recovery
 

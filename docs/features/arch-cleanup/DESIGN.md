@@ -90,13 +90,13 @@ If the file contains a 5th mode (e.g., spotlight-driven), it gets its own module
 
 #### `personalscraper/indexer/cli.py` (1389 LOC) → `indexer/commands/`
 
-| Extraction target              | Contents                                                             |
-| ------------------------------ | -------------------------------------------------------------------- |
-| `indexer/commands/scan.py`     | `scan`, `scan-disk`, mode flags                                      |
-| `indexer/commands/query.py`    | `search`, `list`, `stats`, `info`                                    |
-| `indexer/commands/repair.py`   | `repair`, `verify-integrity`, `rebuild-merkle`                       |
-| `indexer/commands/diagnose.py` | `config_migrate_category_command` (no standalone `diagnose` command) |
-| `indexer/cli.py`               | Typer sub-app + wiring shell                                         |
+| Extraction target              | Contents                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `indexer/commands/scan.py`     | `library_index_command`, `library_reconcile_command`                                                 |
+| `indexer/commands/query.py`    | `library_status_command`, `library_verify_command`, `library_search_command`, `library_show_command` |
+| `indexer/commands/repair.py`   | `library_repair_command` (single repair entry point)                                                 |
+| `indexer/commands/diagnose.py` | `config_migrate_category_command` (no standalone `diagnose` command)                                 |
+| `indexer/cli.py`               | Typer sub-app + wiring shell                                                                         |
 
 ### 2.2 Axis 2 — `PipelineStep` Protocol + `StepContext`
 

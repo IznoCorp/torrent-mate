@@ -60,7 +60,9 @@ Unified formula:
 free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 ```
 
-The `Dispatcher` class selects the target disk for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()` (and the deprecated compat shim `choose_disk()` in `disk_scanner.py`). Falls back to any disk with space if no disk has the category. `get_disk_status()` returns a `DiskStatus` dataclass with the `free_space_gb` property. Logs WARNING for overflow (category not in disk config).
+
+Movie vs TV dispatch routing is inline in `process()` (no named `MOVIES_REPLACE`/`TVSHOWS_MERGE` constants): `dispatch_movie()` replaces the existing folder, `dispatch_tvshow()` merges new episodes into it.
 
 ## 24 TB Operations Guide
 

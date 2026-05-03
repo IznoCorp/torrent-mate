@@ -134,7 +134,7 @@ Exit codes: 0 (ok or zero errors), 1 (download error).
 Audit existing trailer files (size, extension, optional ffprobe).
 
 Options: --disk, --category, --deep, --no-refresh.
-Exit codes: 0 (all valid), 1 (invalid trailer found).
+Exit codes: 0 (all valid), 2 (functional check failure: missing/undersized/wrong_extension/unplayable), 4 (ffprobe error).
 
 ### trailers purge
 
