@@ -331,10 +331,23 @@ class MovieServiceMixin:
         ...
 ```
 
-### 6.3 Impact
+### 6.4 God-method decomposition (opportunistic)
+
+Three mixin methods exceed 200 lines and will benefit from extraction while we touch these files:
+
+| Method               | Lines | File                    | Extraction targets                                                             |
+| -------------------- | ----- | ----------------------- | ------------------------------------------------------------------------------ |
+| `scrape_tvshow`      | 331   | `tv_service.py`         | Extract `_lookup_series()`, `_match_seasons()`, `_build_episode_map()`         |
+| `_repair_tvshow_dir` | 289   | `existing_validator.py` | Extract `_repair_season_dir()`, `_repair_episode_files()`, `_repair_artwork()` |
+| `scrape_movie`       | 220   | `movie_service.py`      | Extract `_match_movie_candidates()`, `_select_best_candidate()`                |
+
+Extraction is **behaviour-preserving**: cut + paste + adjust indentation + add `self:` calls. Zero logic changes. Done in the same commit as the `ScraperContext` Protocol addition.
+
+### 6.5 Impact
 
 - New file: `scraper/_context.py` (~70 LOC, Protocol only)
 - Each mixin method signature gets `self: ScraperContext` — purely static, no runtime effect
+- God-methods decomposed into 8-10 smaller sub-methods
 - Zero logic changes, zero test impact
 - 112 mypy errors → 0
 
@@ -381,6 +394,7 @@ The script already supports the right thresholds. The change is: when REPORT fin
 | R5  | Reserved field removal deletes a field that IS consumed but grep missed it                  | Low        | High   | `make test` runs all tests including E2E; any config loading failure will fail tests                                                   |
 | R6  | `Dispatcher` method extraction breaks subtle `self` state coupling                          | Medium     | Medium | Read each method body before extracting; if > 4 `self` attribute accesses, keep as method                                              |
 | R7  | `ScraperContext` Protocol misses an attribute → mypy errors persist                         | Low        | Medium | Grep `self\._*\w+` in all 4 mixins before finalizing the Protocol; verify with `make lint`                                             |
+| R8  | God-method extraction breaks implicit closure over local vars                               | Medium     | Medium | Each extracted sub-method receives all needed vars as explicit parameters; review diff carefully                                       |
 
 ---
 
