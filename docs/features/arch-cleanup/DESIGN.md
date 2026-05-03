@@ -95,7 +95,7 @@ If the file contains a 5th mode (e.g., spotlight-driven), it gets its own module
 | `indexer/commands/scan.py`     | `scan`, `scan-disk`, mode flags                |
 | `indexer/commands/query.py`    | `search`, `list`, `stats`, `info`              |
 | `indexer/commands/repair.py`   | `repair`, `verify-integrity`, `rebuild-merkle` |
-| `indexer/commands/diagnose.py` | `diagnose`, `dump-config`, `show-migrations`   |
+| `indexer/commands/diagnose.py` | `diagnose`, `config_migrate_category_command`  |
 | `indexer/cli.py`               | Typer sub-app + wiring shell                   |
 
 ### 2.2 Axis 2 — `PipelineStep` Protocol + `StepContext`
@@ -108,7 +108,7 @@ from typing import Any, Protocol, runtime_checkable
 @runtime_checkable
 class PipelineStep(Protocol):
     name: str
-    def __call__(self, ctx: StepContext) -> StepReport: ...
+    def __call__(self, ctx: StepContext) -> "StepReport | tuple[StepReport, Any]": ...
 ```
 
 ```python
@@ -130,7 +130,7 @@ class StepContext:
 ```python
 class IngestStep:
     name = "ingest"
-    def __call__(self, ctx: StepContext) -> StepReport:
+    def __call__(self, ctx: StepContext) -> "StepReport | tuple[StepReport, Any]":
         return run_ingest(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
 ```
 
@@ -164,7 +164,7 @@ class TrailersDetails:
     failed: list[tuple[str, str]]
 ```
 
-Each step constructs and returns one of these alongside the existing untyped `details: list[str]`.
+Each step's `*Details` payload is auto-created (empty) by `Pipeline._with_details_payload()` after execution. Domain modules do not populate typed payloads yet (deferred to Tier B).
 
 **(b) Contract registry**:
 
@@ -206,7 +206,7 @@ A grep audit at the start of phase 8 produces the actual removal list. Anything 
 | `docs/reference/trailers.md`                  | Document placement (before dispatch, after verify), non-blocking semantics, skip flags, `continue_on_trailer_error` |
 | `docs/reference/indexer.md`                   | Reflect current scanner modes inventory                                                                             |
 | `docs/reference/commands.md`                  | Document deprecated commands, deprecation-to-removal schedule                                                       |
-| `CLAUDE.md` and `.claude/CLAUDE.md`           | Add module-size rule (≤ 800 LOC advisory, ≤ 1000 LOC hard ceiling next minor)                                       |
+| `CLAUDE.md`                                   | Add module-size rule (≤ 800 LOC advisory, ≤ 1000 LOC hard ceiling next minor)                                       |
 
 Audit method (phase 1): grep `8 step`, `eight steps`, `8 StepReport`, `library_scan` in code+docs, then per-doc review.
 
