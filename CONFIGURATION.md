@@ -198,10 +198,12 @@ TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 Configuration des langues pour les requêtes API.
 
-| Variable                    | Défaut  | Description                                                          |
-| --------------------------- | ------- | -------------------------------------------------------------------- |
-| `SCRAPER_LANGUAGE`          | `fr-FR` | Langue principale pour les titres, descriptions, noms d'épisodes     |
-| `SCRAPER_FALLBACK_LANGUAGE` | `en-US` | Langue de repli si le contenu n'existe pas dans la langue principale |
+Ces réglages sont dans `config/scraper.json5` (clés `language` et `fallback_language`), pas dans `.env`.
+
+| Clé (scraper.json5) | Défaut  | Description                                                          |
+| ------------------- | ------- | -------------------------------------------------------------------- |
+| `language`          | `fr-FR` | Langue principale pour les titres, descriptions, noms d'épisodes     |
+| `fallback_language` | `en-US` | Langue de repli si le contenu n'existe pas dans la langue principale |
 
 ### Comment configurer
 
@@ -215,9 +217,12 @@ Exemples courants :
 - `es-ES` — Espagnol (Espagne)
 - `ja-JP` — Japonais (Japon)
 
-```ini
-SCRAPER_LANGUAGE=fr-FR
-SCRAPER_FALLBACK_LANGUAGE=en-US
+```json5
+// config/scraper.json5
+{
+  language: "fr-FR",
+  fallback_language: "en-US",
+}
 ```
 
 > Les valeurs par défaut conviennent pour une bibliothèque francophone. Le fallback anglais permet de récupérer les titres/descriptions quand la traduction française n'existe pas (fréquent pour les anime et les séries récentes).
@@ -303,37 +308,40 @@ HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ## Seuils d'espace disque
 
-Protections contre le remplissage des disques.
+Protections contre le remplissage des disques. Ces réglages sont dans `config/thresholds.json5`, pas dans `.env`.
 
-| Variable                    | Défaut | Description                                                               |
+| Clé (thresholds.json5)      | Défaut | Description                                                               |
 | --------------------------- | ------ | ------------------------------------------------------------------------- |
-| `MIN_FREE_SPACE_STAGING_GB` | `20`   | Espace libre minimum (Go) sur le SSD avant d'ingérer de nouveaux torrents |
-| `MIN_FREE_SPACE_DISK_GB`    | `100`  | Espace libre minimum (Go) sur un disque de stockage avant d'y dispatcher  |
+| `min_free_space_staging_gb` | `20`   | Espace libre minimum (Go) sur le SSD avant d'ingérer de nouveaux torrents |
+| `min_free_space_disk_gb`    | `100`  | Espace libre minimum (Go) sur un disque de stockage avant d'y dispatcher  |
 
 ### Comment configurer
 
-```ini
-# SSD de 1 To → garder 20 Go de marge
-MIN_FREE_SPACE_STAGING_GB=20
+```json5
+// config/thresholds.json5
+{
+  // SSD de 1 To → garder 20 Go de marge
+  min_free_space_staging_gb: 20,
 
-# Disques de 4-8 To → garder 100 Go de marge
-MIN_FREE_SPACE_DISK_GB=100
+  // Disques de 4-8 To → garder 100 Go de marge
+  min_free_space_disk_gb: 100,
+}
 ```
 
 > **Formule de dispatch** : un disque est éligible si `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)`. Cela garantit une marge même pour les gros fichiers (ex: une série de 50 Go nécessite 75 Go libres minimum).
 
-> Adapter ces valeurs à la taille de vos disques. Pour des disques plus petits (1-2 To), baisser `MIN_FREE_SPACE_DISK_GB` à 50.
+> Adapter ces valeurs à la taille de vos disques. Pour des disques plus petits (1-2 To), baisser `min_free_space_disk_gb` à 50.
 
 ---
 
 ## Circuit Breaker
 
-Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker détecte quand un provider est durablement down et évite de le spammer.
+Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker détecte quand un provider est durablement down et évite de le spammer. Ces réglages sont dans `config/thresholds.json5`, pas dans `.env`.
 
-| Variable                    | Défaut | Description                                                  |
+| Clé (thresholds.json5)      | Défaut | Description                                                  |
 | --------------------------- | ------ | ------------------------------------------------------------ |
-| `CIRCUIT_BREAKER_THRESHOLD` | `5`    | Nombre d'erreurs consécutives avant d'ouvrir le circuit      |
-| `CIRCUIT_BREAKER_COOLDOWN`  | `300`  | Temps d'attente (secondes) avant de retenter après ouverture |
+| `circuit_breaker_threshold` | `5`    | Nombre d'erreurs consécutives avant d'ouvrir le circuit      |
+| `circuit_breaker_cooldown`  | `300`  | Temps d'attente (secondes) avant de retenter après ouverture |
 
 ### Fonctionnement
 
@@ -345,10 +353,13 @@ Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker dé
 
 ### Comment configurer
 
-```ini
-# Valeurs par défaut — adaptées à la plupart des cas
-CIRCUIT_BREAKER_THRESHOLD=5
-CIRCUIT_BREAKER_COOLDOWN=300
+```json5
+// config/thresholds.json5
+{
+  // Valeurs par défaut — adaptées à la plupart des cas
+  circuit_breaker_threshold: 5,
+  circuit_breaker_cooldown: 300,
+}
 ```
 
 > Pour un usage intensif avec beaucoup de médias, augmenter le seuil à 10 pour tolérer des erreurs transitoires. Pour un réseau instable, baisser le cooldown à 120 secondes.
@@ -357,24 +368,18 @@ CIRCUIT_BREAKER_COOLDOWN=300
 
 ## Exemple complet
 
+### .env (credentials uniquement)
+
 ```ini
-# ── qBittorrent ────────────────────────────��─
+# ── qBittorrent ──────────────────────────────
 QBIT_HOST=localhost
 QBIT_PORT=8081
 QBIT_USERNAME=admin
 QBIT_PASSWORD=mon_mot_de_passe
 
-# ── Paths ────────────────────────────────────
-# (Removed — paths live in config.json5 since v0.4.0;
-#  see the Configuration config.json5 section above.)
-
 # ── TMDB / TVDB ──────────────────────────────
 TMDB_API_KEY=abcdef1234567890abcdef1234567890
 TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-
-# ── Scraper ──────────────────────────────────
-SCRAPER_LANGUAGE=fr-FR
-SCRAPER_FALLBACK_LANGUAGE=en-US
 
 # ── Telegram ─────────────────────────────────
 TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIjKlMnOpQrStUvWxYz
@@ -382,14 +387,26 @@ TELEGRAM_CHAT_ID=123456789
 
 # ── Monitoring ───────────────────────────────
 HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
 
-# ── Thresholds ───────────────────────────────
-MIN_FREE_SPACE_STAGING_GB=20
-MIN_FREE_SPACE_DISK_GB=100
+### config/thresholds.json5
 
-# ── Circuit Breaker ──────────────────────────
-CIRCUIT_BREAKER_THRESHOLD=5
-CIRCUIT_BREAKER_COOLDOWN=300
+```json5
+{
+  min_free_space_staging_gb: 20,
+  min_free_space_disk_gb: 100,
+  circuit_breaker_threshold: 5,
+  circuit_breaker_cooldown: 300,
+}
+```
+
+### config/scraper.json5 (extrait)
+
+```json5
+{
+  language: "fr-FR",
+  fallback_language: "en-US",
+}
 ```
 
 ---
