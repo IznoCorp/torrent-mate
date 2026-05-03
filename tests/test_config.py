@@ -3,9 +3,12 @@
 from personalscraper.config import Settings
 
 
-def test_settings_defaults():
+def test_settings_defaults(monkeypatch):
     """Settings loads secret/credential defaults when no .env file is present."""
-    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    for key in ("TMDB_API_KEY", "TVDB_API_KEY", "YOUTUBE_API_KEY",
+                "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+        monkeypatch.delenv(key, raising=False)
+    settings = Settings(_env_file=None)
     assert settings.qbit_host == "localhost"
     assert settings.qbit_port == 8081
     assert settings.tmdb_api_key == ""

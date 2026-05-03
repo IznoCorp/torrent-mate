@@ -16,10 +16,6 @@ import pytest
 
 
 @pytest.mark.network
-@pytest.mark.skipif(
-    not os.getenv("TRAILER_INTEGRATION_TESTS"),
-    reason="Network integration test -- set TRAILER_INTEGRATION_TESTS=1 to run",
-)
 def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     """Download the Big Buck Bunny trailer end-to-end using the real TMDB client.
 
@@ -33,8 +29,7 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
         tmp_path: Pytest tmp_path fixture for isolated temporary directory.
     """
     api_key = os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get("TMDB_API_KEY")
-    if not api_key:
-        pytest.skip("TMDB_READ_ACCESS_TOKEN not set -- skipping integration test")
+    assert api_key, "TMDB_READ_ACCESS_TOKEN or TMDB_API_KEY must be set in .env"
 
     from personalscraper.scraper.circuit_breaker import CircuitBreaker
     from personalscraper.scraper.json_ttl_cache import JsonTTLCache

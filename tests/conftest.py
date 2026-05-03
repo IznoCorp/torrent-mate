@@ -10,6 +10,10 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 import pytest
 from typer.testing import CliRunner as _RawCliRunner
 

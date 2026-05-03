@@ -5,7 +5,6 @@ The @pytest.mark.network E2E test is opt-in via TRAILER_INTEGRATION_TESTS env va
 """
 
 import logging
-import os
 import stat
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -524,10 +523,6 @@ class TestRetryTransportErrorClassification:
 
 
 @pytest.mark.network
-@pytest.mark.skipif(
-    not os.getenv("TRAILER_INTEGRATION_TESTS"),
-    reason="Network test — set TRAILER_INTEGRATION_TESTS=1 to run",
-)
 def test_download_cc_licensed_clip(tmp_path: Path) -> None:
     """Download a stable CC-licensed clip to verify yt-dlp integration end-to-end.
 
