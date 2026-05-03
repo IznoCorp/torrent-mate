@@ -44,6 +44,7 @@ staging/
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── commands/        # Typer command groups (pipeline, library, config, info)
+│   │   ├── library/         # library-* sub-commands (scan, query, maintenance, audit, analyze)
 │   ├── conf/            # Config loader, overlay merger, resolver, classifier, staging
 │   │   ├── models/          # Pydantic sub-models (categories, disks, paths, preferences, etc.)
 │   ├── info/            # info command implementation (run.py)
@@ -95,7 +96,7 @@ staging/
 │   │   ├── mediainfo.py         # pymediainfo wrapper, normalised stream extraction
 │   │   ├── merkle.py            # per-disk Merkle root + mountpoint sentinel guard
 │   │   ├── repair.py            # repair queue worker + budget drain
-│   │   ├── outbox.py            # outbox drainer + write-through helpers
+│   │   ├── outbox/              # outbox drainer + write-through (apply, drain, publish, disk)
 │   │   ├── query.py             # flex-attr query parser (FIELD_REGISTRY, execute())
 │   │   ├── cli.py               # compatibility registration for library commands
 │   │   ├── commands/            # indexer CLI command implementations
@@ -121,7 +122,7 @@ staging/
 │   │       └── outbox_repo.py   # index_outbox + pending_op + repair_queue
 │   ├── library/         # scan, clean, validate, analyze, recommend, report
 │   ├── verify/          # quality gate, fixer, genre categorization, reinforced checks
-│   ├── dispatch/        # disk scanner, media index, rsync transfer + rollback/fallback
+│   ├── dispatch/        # disk scanner, media index, transfer helpers, movie/tv dispatch
 │   ├── pipeline.py      # sequential 9-step pipeline orchestrator
 │   ├── pipeline_protocol.py # PipelineStep protocol + StepContext
 │   ├── pipeline_steps.py # default step registry + legacy override shim

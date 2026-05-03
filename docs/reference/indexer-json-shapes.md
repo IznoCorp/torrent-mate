@@ -58,7 +58,7 @@ from this JSON via `json_extract()` and indexed for fast WHERE queries.
 
 **Pydantic shape model (documentation only)**: `OutboxPayload`
 (`personalscraper/indexer/schema.py`). The runtime apply functions in
-`personalscraper/indexer/outbox.py` parse the dict directly — they do
+`personalscraper/indexer/outbox/_apply.py` parse the dict directly — they do
 not instantiate `OutboxPayload` — so the _real_ payload contract is
 the set of `payload[...]` accesses inside each `_apply_*` function, not
 the envelope fields on the Pydantic class. The shapes below mirror
@@ -116,7 +116,7 @@ Apply function: `_apply_artwork_write` — flips a boolean in
 ```
 
 The `kind` field is whitelisted by `_ALLOWED_ARTWORK_KINDS` in
-`personalscraper/indexer/outbox.py` (DESIGN §9.6 defensive depth);
+`personalscraper/indexer/outbox/_apply.py` (DESIGN §9.6 defensive depth);
 unknown values raise `OutboxPayloadError` before any DB UPDATE.
 
 ### `op: "trailer_download"`
