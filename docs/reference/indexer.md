@@ -93,8 +93,7 @@ WARN exit from `library status`.
 ## Scan Modes
 
 The scanner (`personalscraper/indexer/scanner/`) supports four production modes
-plus one utility mode. The mode is chosen with `--mode` on the CLI or via
-`indexer.json5: scan.nightly_mode`.
+plus one utility mode. The mode is chosen with `--mode` on the CLI.
 
 | Mode          | What it reads                                                       | Typical use                                      |
 | ------------- | ------------------------------------------------------------------- | ------------------------------------------------ |

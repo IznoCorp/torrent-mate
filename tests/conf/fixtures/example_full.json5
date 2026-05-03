@@ -122,7 +122,7 @@
     default_tv_category: "tv_shows",
   },
 
-  // Préférences library (anciennement library_preferences.json V14)
+  // Préférences library
   library: {
     video: {
       // Codec cible pour les recommandations d'encodage
@@ -141,18 +141,10 @@
     audio: {
       // Ordre de préférence des profils audio (multi=multilingue, vf=VF, vostfr, vo)
       profile_priority: ["multi", "vf", "vostfr", "vo"],
-      // Nombre minimum de canaux audio (1=mono, 2=stéréo, 6=5.1, etc.)
-      min_channels: 2,
-      // Codec audio préféré (null = pas de préférence)
-      preferred_codec: null,
     },
     subtitles: {
       // Langues obligatoires (erreur si absentes) — codes ISO 639-2/T
       required_languages: ["fra"],
-      // Langues souhaitées (warning si absentes)
-      preferred_languages: ["fra", "eng"],
-      // Émettre un warning si des sous-titres manquent
-      warn_if_missing: true,
     },
     // Règles d'override d'encodage pour des médias spécifiques
     // encoding_rules: [

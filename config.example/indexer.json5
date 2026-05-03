@@ -6,43 +6,21 @@
   indexer: {
     db_path: null,
     scan: {
-      nightly_mode: "quick",              // quick | incremental | enrich | full
       budget_seconds: 1800,               // hard cap per scan run
       checkpoint_every_n_files: 100,      // crash-resume granularity
       max_workers_total: 4,               // capped at len(mounted_disks) at runtime
-      racy_window_seconds: 2.0,           // git-style mtime-collision window
       n_strikes_for_softdelete: 3,        // missed scans before deleted_at is set
       read_rate_mb_per_sec: null,         // null = unlimited; e.g. 80 for spinning rust
-      sequential_read_hint: true,         // macOS F_RDADVISE; no-op elsewhere
       drop_indexes_during_full_scan: true,// faster bulk inserts on cold scan
-    },
-    fingerprint: {
-      oshash: true,                       // store OSHash on every file (rename-survival)
-      xxh3_partial_bytes: 1048576,        // 1 MB head + 1 MB tail
-      compute_xxh3_on_racy: true,         // confirm racy-window changes are real
-    },
-    mediainfo: {
-      library_path: null,                 // null = auto-detect via brew
-      extract_streams: true,
-      min_size_mb: 50,                    // skip mediainfo on files smaller than this
-      parse_speed: 1.0,                   // 0.5 = fast, 1.0 = full
-      defer_to_enrich: true,              // skip mediainfo during quick/incremental
+      paranoia_window_seconds: 86400,     // quick-mode recent outbox recheck window
     },
     drift: {
-      merkle_per_disk: true,
-      verify_disks_each_scan: true,       // mountpoint + sentinel checks
-      sentinel_filename: ".personalscraper-disk-id",
+      merkle_delta_freeze_threshold: 0.50,
     },
     spotlight: {
-      probe_at_startup: true,             // run mdutil -s on each disk
       use_when_available: true,           // delegate change detection to Spotlight
     },
-    repair: {
-      queue_drain_on_scan_finish: true,
-      max_repair_seconds_per_drain: 300,
-    },
     log: {
-      scan_event_retention_days: 90,
       deleted_item_retention_days: 365,
     },
   },

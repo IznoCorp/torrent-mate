@@ -211,10 +211,9 @@ class TestVideoPrefs:
 class TestSubtitlePrefs:
     """Tests for SubtitlePrefs model."""
 
-    def test_required_not_subset_rejected(self):
-        """required_languages not a subset of preferred_languages must be rejected."""
-        with pytest.raises(ValidationError, match="subset"):
-            SubtitlePrefs(required_languages=["deu"], preferred_languages=["fra", "eng"])
+    def test_required_languages_default(self):
+        """required_languages defaults to French subtitles."""
+        assert SubtitlePrefs().required_languages == ["fra"]
 
 
 # ---------------------------------------------------------------------------
@@ -522,16 +521,8 @@ class TestTrailersConfig:
         cfg = TrailersConfig()
         assert cfg.state_file is None
 
-    def test_trailers_placement_defaults(self):
-        """TrailersPlacementConfig uses the flat convention for movies AND TV."""
-        from personalscraper.conf.models import TrailersConfig
-
-        cfg = TrailersConfig()
-        assert cfg.placement.movie_pattern == "{folder}/{name}-trailer.{ext}"
-        assert cfg.placement.tvshow_pattern == "{folder}/{name}-trailer.{ext}"
-
     def test_trailers_filters_defaults(self):
-        """TrailersFiltersConfig defaults match DESIGN section 9 spec (v0.7.0 minimal set)."""
+        """TrailersFiltersConfig defaults match the runtime trailer gates."""
         from personalscraper.conf.models import TrailersConfig
 
         cfg = TrailersConfig()
@@ -540,14 +531,13 @@ class TestTrailersConfig:
         assert set(cfg.filters.allowed_extensions) == {"mp4", "mkv", "webm"}
 
     def test_trailers_ytdlp_defaults(self):
-        """TrailersYtdlpConfig defaults match DESIGN section 9 spec (1080p cap + fallback search)."""
+        """TrailersYtdlpConfig defaults match the runtime downloader settings."""
         from personalscraper.conf.models import TrailersConfig
 
         cfg = TrailersConfig()
         assert "height<=1080" in cfg.ytdlp.format
         assert cfg.ytdlp.socket_timeout_sec == 30
         assert cfg.ytdlp.retries == 3
-        assert cfg.ytdlp.default_search == "ytsearch1"
 
     def test_trailers_two_circuit_breakers(self):
         """Two distinct breakers prevent YouTube failures from tripping TMDB."""
@@ -566,14 +556,6 @@ class TestTrailersConfig:
         cfg = TrailersConfig()
         assert cfg.youtube_api.daily_quota_units == 10_000
         assert cfg.youtube_api.search_list_cost_units == 100
-        assert cfg.youtube_api.cache_ttl_days == 7
-
-    def test_trailers_bot_detected_bounded_retry(self):
-        """Bounded bot_detected retry prevents infinite YouTube spam on age-restricted content."""
-        from personalscraper.conf.models import TrailersConfig
-
-        cfg = TrailersConfig()
-        assert cfg.bot_detected_max_consecutive_attempts == 5
 
     def test_trailers_config_has_seasons_default_disabled(self):
         """Season-level trailer download is opt-in (default off).
@@ -585,8 +567,6 @@ class TestTrailersConfig:
 
         cfg = TrailersConfig()
         assert cfg.seasons.enabled is False
-        assert cfg.seasons.language_fallback is None
-        assert cfg.seasons.search_query_format == "{title} {year} saison {season} bande annonce"
 
     def test_trailers_config_library_check_defaults(self):
         """Library-aware idempotence has per-media-type toggles.
@@ -615,45 +595,42 @@ class TestTrailersConfig:
 
     def test_config_without_trailers_section_is_valid(self, tmp_path):
         """Config without a trailers block parses cleanly (enabled=False by default)."""
-        from personalscraper.conf.loader import load_config
+        from personalscraper.conf.loader import load_config_dir
 
-        cfg_file = tmp_path / "config.json5"
+        cfg_dir = tmp_path / "config"
+        cfg_dir.mkdir()
         complete = str(tmp_path / "complete")
         staging = str(tmp_path / "staging")
         data = str(tmp_path / ".data")
         disk_a = str(tmp_path / "disk_a")
-        content = (
+        (cfg_dir / "config.json5").write_text(
+            '{ config_version: 2, overlays: ["paths.json5", "disks.json5", "patterns.json5"] }',
+            encoding="utf-8",
+        )
+        (cfg_dir / "paths.json5").write_text(
             "{\n"
             f'  paths: {{ torrent_complete_dir: "{complete}", staging_dir: "{staging}", data_dir: "{data}" }},\n'
+            "}",
+            encoding="utf-8",
+        )
+        (cfg_dir / "disks.json5").write_text(
+            "{\n"
             f'  disks: [{{ id: "disk_a", path: "{disk_a}", categories: ["movies", "tv_shows"] }}],\n'
+            "}",
+            encoding="utf-8",
+        )
+        (cfg_dir / "patterns.json5").write_text(
+            "{\n"
             "  staging_dirs: [\n"
             '    { id: 1, name: "movies", file_type: "movie" },\n'
             '    { id: 2, name: "tvshows", file_type: "tvshow" },\n'
             '    { id: 97, name: "temp", file_type: null, role: "ingest" },\n'
             "  ],\n"
-            "}"
+            "}",
+            encoding="utf-8",
         )
-        cfg_file.write_text(content, encoding="utf-8")
-        config = load_config(cfg_file)
+        config = load_config_dir(cfg_dir)
         assert config.trailers.enabled is False
-
-    def test_placement_pattern_missing_placeholder_rejected(self):
-        """A pattern without {ext} fails at config load (not at first download)."""
-        import pydantic
-
-        from personalscraper.conf.models import TrailersPlacementConfig
-
-        with pytest.raises(pydantic.ValidationError):
-            TrailersPlacementConfig(movie_pattern="{folder}/{name}-trailer.mp4")  # missing {ext}
-
-    def test_placement_pattern_invalid_format_rejected(self):
-        """A pattern with an unknown placeholder fails fast."""
-        import pydantic
-
-        from personalscraper.conf.models import TrailersPlacementConfig
-
-        with pytest.raises(pydantic.ValidationError):
-            TrailersPlacementConfig(tvshow_pattern="{folder}/{unknown}-trailer.{ext}")
 
     def test_negative_circuit_breaker_threshold_rejected(self):
         """errors_threshold must be >= 1 — a 0 means the breaker would never trip OR trip on first call."""

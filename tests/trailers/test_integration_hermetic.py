@@ -63,8 +63,6 @@ def _make_config(tmp_path: Path, *, seasons_enabled: bool = False) -> MagicMock:
     cfg.trailers.ytdlp.socket_timeout_sec = 30
     cfg.trailers.ytdlp.retries = 3
     cfg.trailers.seasons.enabled = seasons_enabled
-    cfg.trailers.seasons.language_fallback = None
-    cfg.trailers.seasons.search_query_format = "{title} {year} saison {season} bande annonce"
     cfg.trailers.library_check.movies = False
     cfg.trailers.library_check.tv_shows = True
     # Large budget so time-based tests do not flake.

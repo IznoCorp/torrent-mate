@@ -363,54 +363,29 @@ class TestIndexerConfigRoundTrip:
         raw: dict[str, object] = {
             "db_path": "/tmp/test_library.db",
             "scan": {
-                "nightly_mode": "full",
                 "budget_seconds": 3600,
                 "checkpoint_every_n_files": 500,
                 "max_workers_total": 2,
-                "racy_window_seconds": 5.0,
                 "n_strikes_for_softdelete": 5,
                 "read_rate_mb_per_sec": 80.0,
-                "sequential_read_hint": False,
                 "drop_indexes_during_full_scan": False,
-            },
-            "fingerprint": {
-                "oshash": False,
-                "xxh3_partial_bytes": 2097152,
-                "compute_xxh3_on_racy": False,
-            },
-            "mediainfo": {
-                "library_path": "/opt/homebrew/lib/libmediainfo.dylib",
-                "extract_streams": False,
-                "min_size_mb": 100,
-                "parse_speed": 0.5,
-                "defer_to_enrich": False,
+                "paranoia_window_seconds": 7200,
             },
             "drift": {
-                "merkle_per_disk": False,
-                "verify_disks_each_scan": False,
-                "sentinel_filename": ".my-sentinel",
+                "merkle_delta_freeze_threshold": 0.75,
             },
             "spotlight": {
-                "probe_at_startup": False,
                 "use_when_available": False,
             },
-            "repair": {
-                "queue_drain_on_scan_finish": False,
-                "max_repair_seconds_per_drain": 600,
-            },
             "log": {
-                "scan_event_retention_days": 30,
                 "deleted_item_retention_days": 180,
             },
         }
         cfg = IndexerConfig.model_validate(raw)
-        assert cfg.scan.nightly_mode == "full"
         assert cfg.scan.budget_seconds == 3600
-        assert cfg.fingerprint.xxh3_partial_bytes == 2097152
-        assert cfg.mediainfo.library_path == "/opt/homebrew/lib/libmediainfo.dylib"
-        assert cfg.drift.sentinel_filename == ".my-sentinel"
-        assert cfg.spotlight.probe_at_startup is False
-        assert cfg.repair.max_repair_seconds_per_drain == 600
+        assert cfg.scan.paranoia_window_seconds == 7200
+        assert cfg.drift.merkle_delta_freeze_threshold == 0.75
+        assert cfg.spotlight.use_when_available is False
         assert cfg.log.deleted_item_retention_days == 180
 
         # Dump and re-parse must produce an equal model.
@@ -424,12 +399,12 @@ class TestIndexerConfigRoundTrip:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             IndexerConfig.model_validate({"unknown_key": True})
 
-    def test_nightly_mode_enum_validation(self) -> None:
-        """Invalid nightly_mode literal must raise ValidationError."""
+    def test_removed_scan_field_rejected(self) -> None:
+        """Removed scan fields must be rejected loudly."""
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            IndexerConfig.model_validate({"scan": {"nightly_mode": "turbo"}})
+            IndexerConfig.model_validate({"scan": {"unknown_scan_field": "turbo"}})
 
     def test_config_has_indexer_field(self, tmp_path: Path) -> None:
         """Config model must expose an ``indexer`` field of type IndexerConfig.

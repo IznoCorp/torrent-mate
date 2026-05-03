@@ -23,7 +23,6 @@ All keys under the trailers block in config/trailers.json5. Most keys have sensi
 | search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query                                    |
 | state_file                            | str  | ".data/trailers_state.json"    | State JSON path                                           |
 | retry_after_days                      | list | [1,7,30]                       | Days before retry                                         |
-| bot_detected_max_consecutive_attempts | int  | 5                              | Reserved (no production code path reads this field today) |
 
 ### trailers.filters
 
@@ -40,7 +39,6 @@ All keys under the trailers block in config/trailers.json5. Most keys have sensi
 | format             | str  | bestvideo[height<=1080]+bestaudio/best[height<=1080] | yt-dlp format selector                                                          |
 | socket_timeout_sec | int  | 30                                                   | Socket timeout                                                                  |
 | retries            | int  | 3                                                    | Retry count                                                                     |
-| default_search     | str  | ytsearch1                                            | Reserved (youtube_search.py hardcodes ytsearch1; never read by production code) |
 
 ### trailers.step
 
@@ -63,7 +61,6 @@ Two independent circuit breakers.
 | ---------------------- | ---- | ------- | -------------------------- |
 | daily_quota_units      | int  | 10000   | Google daily quota         |
 | search_list_cost_units | int  | 100     | Quota per search.list call |
-| cache_ttl_days         | int  | 7       | YouTube search result TTL  |
 
 ### trailers.seasons
 
@@ -72,8 +69,6 @@ Opt-in per-season discovery. Disabled by default.
 | Key                 | Type | Default                                        | Description                                |
 | ------------------- | ---- | ---------------------------------------------- | ------------------------------------------ |
 | enabled             | bool | false                                          | Enable per-season download                 |
-| language_fallback   | list | null                                           | Override languages for season TMDB lookups |
-| search_query_format | str  | "{title} {year} saison {season} bande annonce" | Season YouTube query                       |
 
 ### trailers.library_check
 
@@ -180,7 +175,7 @@ Location: .data/trailers_state.json (via trailers.state_file).
 
 - Items with next_retry_at in the future are skipped.
 - BOT_DETECTED is exempt from retry-after (retried each run).
-- After bot_detected_max_consecutive_attempts consecutive BOT_DETECTED: permanent skip.
+- Bot-detection outcomes stay retryable; refresh cookies if they recur.
 
 ## Placement Convention
 

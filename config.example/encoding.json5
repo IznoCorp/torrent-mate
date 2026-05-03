@@ -1,6 +1,5 @@
 {
-  // Library encoding and media quality preferences
-  // (formerly library_preferences.json V14).
+  // Library encoding and media quality preferences.
   library: {
     video: {
       // Target codec for encoding recommendations
@@ -19,18 +18,10 @@
     audio: {
       // Ordered preference for audio profiles (multi=multilingual, vf=French dub, vostfr, vo)
       profile_priority: ["multi", "vf", "vostfr", "vo"],
-      // Minimum channel count (1=mono, 2=stereo, 6=5.1, etc.)
-      min_channels: 2,
-      // Preferred audio codec (null = no preference)
-      preferred_codec: null,
     },
     subtitles: {
       // Required languages (error if absent) — ISO 639-2/T codes
       required_languages: ["fra"],
-      // Preferred languages (warning if absent)
-      preferred_languages: ["fra", "eng"],
-      // Emit a warning if subtitles are missing
-      warn_if_missing: true,
     },
     // Encoding override rules for specific media
     // encoding_rules: [
