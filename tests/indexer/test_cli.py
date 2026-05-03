@@ -51,8 +51,6 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from personalscraper.cli import app
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner import ScanRunResult
