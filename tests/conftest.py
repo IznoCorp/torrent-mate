@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import tenacity as _tenacity
 from dotenv import load_dotenv
 from typer.testing import CliRunner as _RawCliRunner
 
@@ -21,37 +20,40 @@ from personalscraper.logger import configure_logging
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-# Patch Retrying.__init__ so all retry decorators use a no-op sleep.
-#
-# Tenacity's Retrying class captures its sleep function as a default
-# parameter at class-definition time (``from .nap import sleep``), so
-# patching ``tenacity.nap.sleep`` after the module is loaded has no
-# effect on already-created decorator instances.  Overriding the sleep
-# argument in ``__init__`` ensures every Retrying object created after
-# this patch -- including those from ``@retry`` decorators evaluated
-# later -- uses a no-op, without touching ``time.sleep`` globally.
-#
-# Must run before any test module imports ``personalscraper.scraper.*``,
-# which triggers ``@retry`` decoration on ``TMDBClient._get`` and similar.
+
+def _patch_tenacity_sleep() -> None:
+    """Replace tenacity sleep with a no-op so retries are instant in tests.
+
+    Tenacity's Retrying class captures its sleep function as a default
+    parameter at class-definition time (``from .nap import sleep``), so
+    patching ``tenacity.nap.sleep`` after the module is loaded has no
+    effect on already-created decorator instances.  Overriding the sleep
+    argument in ``__init__`` ensures every Retrying object created after
+    this patch uses a no-op without touching ``time.sleep`` globally.
+
+    Must run at module level (import time), before any test module
+    imports ``personalscraper.scraper.*`` which triggers ``@retry``
+    decoration on ``TMDBClient._get`` and similar.
+    """
+    import tenacity as _tenacity
+
+    def _noop_sleep(seconds: float) -> None:
+        pass
+
+    _original_init = _tenacity.Retrying.__init__
+
+    def _patched_init(
+        self: _tenacity.Retrying,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        kwargs["sleep"] = _noop_sleep
+        _original_init(self, *args, **kwargs)
+
+    _tenacity.Retrying.__init__ = _patched_init
 
 
-def _tenacity_noop_sleep(seconds: float) -> None:
-    pass
-
-
-_tenacity_original_init = _tenacity.Retrying.__init__
-
-
-def _tenacity_patched_init(
-    self: _tenacity.Retrying,
-    *args: object,
-    **kwargs: object,
-) -> None:
-    kwargs["sleep"] = _tenacity_noop_sleep
-    _tenacity_original_init(self, *args, **kwargs)
-
-
-_tenacity.Retrying.__init__ = _tenacity_patched_init
+_patch_tenacity_sleep()
 
 
 def make_cli_runner() -> _RawCliRunner:

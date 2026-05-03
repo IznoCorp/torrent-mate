@@ -241,6 +241,19 @@ The arch-cleanup feature completed major decomposition (CLI, scraper, indexer CL
 - Logic changes during extraction — behaviour-preserving moves only (same approach as arch-cleanup phases 2–5).
 - No new abstractions — these are purely structural splits.
 
+**Also monitor (700–800 LOC, below advisory ceiling but above DESIGN target of 700):**
+
+| Module                          | LOC | Risk                                                                                         |
+| ------------------------------- | --- | -------------------------------------------------------------------------------------------- |
+| `scraper/tmdb_client.py`        | 770 | API client with retry, pagination, circuit breaker — natural growth as TMDB surface expands. |
+| `scraper/existing_validator.py` | 765 | Re-validation of already-scraped folders — 7 check categories with nested helpers.           |
+| `scraper/tv_service.py`         | 735 | TVDB season/episode resolution — multi-season loop + episode-level NFO logic.                |
+| `scraper/nfo_generator.py`      | 718 | NFO XML generation for movies + TV shows — template per media type + artwork references.     |
+
+These modules are below the 0.9.0 advisory ceiling (800 LOC) but above the
+decomposition target (≤700 LOC). They will need attention before the 0.10.0
+hard block if the ceiling is lowered.
+
 ### P3 — Dependency Injection Container
 
 Components directly instantiate their dependencies (e.g., `Scraper.__init__` creates its own `TMDBClient`, `TVDBClient`, `NFOGenerator`, `ArtworkDownloader`). This makes testing harder (requires monkeypatching) and blocks the Web UI from swapping real implementations for mocks.
