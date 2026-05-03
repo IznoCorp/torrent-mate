@@ -37,8 +37,7 @@ def library_scan(
         personalscraper library-scan
     """
     warnings.warn(
-        "library-scan is deprecated and will be removed in 0.10.0. "
-        "Use library-index instead.",
+        "library-scan is deprecated and will be removed in 0.10.0. Use library-index instead.",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -51,8 +50,7 @@ def library_scan(
     console = state["console"]
     config = ctx.obj.config
     console.print(
-        "[yellow]library-scan is deprecated and will be removed in 0.10.0. "
-        "Use library-index instead.[/yellow]"
+        "[yellow]library-scan is deprecated and will be removed in 0.10.0. Use library-index instead.[/yellow]"
     )
 
     # --disk and --category are no longer forwarded to scan_library; warn once.
