@@ -26,7 +26,7 @@ INGEST → SORT → [gate: 097-TEMP empty] → CLEAN (reclean+dedup) → SCRAPE 
 - Steps 3-5 (clean, scrape, cleanup) run with individual error isolation
 - Step 6 (enforce) sanitizes filenames, validates structure, checks cross-step coherence
 - Step 7 (verify) produces a dispatchable list; step 9 (dispatch) is skipped if verify fails
-- Step 8 (trailers) is non-blocking -- trailer errors do not abort the pipeline. Disabled by default.
+- Step 8 (trailers) blocks on error -- trailer errors abort the pipeline. Enabled by default.
 
 ## Directory Structure
 
@@ -63,7 +63,6 @@ staging/
 │   │   ├── db.py                # connection, WAL PRAGMAs, lock, migrations applier
 │   │   ├── schema.py            # frozen dataclass row types + Pydantic JSON-column models
 │   │   ├── scanner/             # scan engine (os.scandir + ThreadPool, modes, checkpoint)
-│   │   │   ├── _core.py         # scan() entry point + filter_disks()
 │   │   │   ├── _modes/          # ScanMode enum + full/quick/incremental/enrich/verify/backfill handlers
 │   │   │   ├── _walker.py       # recursive dir walker + dir-mtime skip
 │   │   │   ├── _db_writes.py    # batch upserts into media_file + path tables
@@ -73,7 +72,6 @@ staging/
 │   │   │   ├── _spotlight.py    # macOS Spotlight availability probe
 │   │   │   ├── _index_ddl.py    # per-scan WAL index creation
 │   │   │   ├── _shutdown.py     # SIGTERM handler + budget guard
-│   │   │   ├── _throttle.py     # token-bucket I/O throttle
 │   │   │   └── _types.py        # internal ScanContext / FileVisit types
 │   │   ├── drift.py             # racy-mtime rule, N-strikes soft-delete, rename detection
 │   │   ├── fingerprint.py       # OSHash + xxh3_64 partial + racy detection
@@ -113,7 +111,6 @@ staging/
 │   ├── text_utils.py    # media_processor, fuzzy_match_score (shared across modules)
 │   ├── naming_patterns.py # NamingPatterns dataclass (shared across modules)
 │   ├── notifier.py      # Telegram notifications
-│   └── genre_mapper.py  # Genre → category mapping
 ├── tests/               # pytest tests (unit + E2E)
 │   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent); indexer E2E scenarios
 │   ├── indexer/         # indexer unit + property tests (db, schema, repos, scanner, drift, query, CLI, plists)
@@ -149,7 +146,7 @@ Notes:
 ## Shared Utilities (single source of truth)
 
 - `classify()` — lives in `personalscraper/conf/classifier.py`; imported by verify and dispatch for genre/rule → category mapping (replaces the removed `genre_mapper` module).
-- `media_processor()` — lives in `personalscraper/text_utils.py`; imported by sorter, scraper, and `personalscraper/dispatch/media_index.py`. NFD accent stripping for French titles.
+- `media_processor()` — lives in `personalscraper/text_utils.py`; imported by sorter and scraper. NFD accent stripping for French titles.
 - `sanitize_filename()` — lives in `personalscraper/text_utils.py`; strips `<>:"/\|?*` and normalizes U+00A0→space. Applied in `NamingPatterns.format()` (all artwork/NFO filenames) and in scraper `clean_name` (folder renames). TMDB titles often contain `:` (e.g. "Spirale : L'Héritage de Saw") and non-breaking spaces (French typography before `:`).
 - `SortResult`, `StepReport`, `PipelineReport` — defined in `personalscraper/models.py`. Each `run_*()` converts internal results to `StepReport` before returning; `personalscraper/reports/` defines typed `details_payload` contracts for each pipeline step.
 - TV show folders: sorter creates `Show Name/` (no year), scraper renames to `Show Name (Year)/` after API matching (idempotent rename).

@@ -82,32 +82,34 @@ personalscraper library-report --format json                 # Export as JSON
 - `personalscraper library-scan` is deprecated in 0.9.0 and scheduled for removal in 0.10.0. Use `personalscraper library-index`.
 - `personalscraper library-scan --disk` and `--category` are deprecated, ignored, and scheduled for removal in 0.10.0.
 - `personalscraper verify --fix` is deprecated and scheduled for removal in 0.10.0. Use `personalscraper enforce` before `personalscraper verify`.
-- v1 single-file `config.json5` loading is deprecated and scheduled for removal in 0.10.0. Run `personalscraper config migrate-to-v2 <legacy-path> <target-dir>`.
+- v1 single-file `config.json5` loading is deprecated and scheduled for removal in 0.10.0.
 
 ## Trailers
 
 personalscraper trailers scan [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level show|season|both] [--season N] [--no-refresh]
-personalscraper trailers download [--dry-run] [--disk D] [--category C] [--limit N] [--level season] [--season N]
-personalscraper trailers verify [--disk D] [--category C] [--deep] [--no-refresh]
-personalscraper trailers purge [--dry-run] [--disk D]
+personalscraper trailers download [--dry-run] [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level season] [--season N] [--no-refresh]
+personalscraper trailers verify [--disk D] [--category C] [--deep] [--since YYYY-MM-DD] [--level show|season|both] [--season N]
+personalscraper trailers purge [--dry-run] [--disk D] [--since YYYY-MM-DD] [--level show|season|both] [--season N]
 
 Exit codes: 0 ok, 1 error, 2 bad argument.
+
+Common filters: `--disk` and `--category` are accepted by scan, download, and verify.
+`--since`, `--level`, and `--season` are accepted by all four commands.
+`--limit` and `--no-refresh` are only accepted by scan and download.
 
 ## Bootstrap & Inspection
 
 ```bash
-personalscraper init-config                          # Create config.json5 from the example template (interactive)
+personalscraper init-config                          # Create config/ directory from the config.example/ template (interactive)
 personalscraper init-config --yes                    # Non-interactive — accept all defaults
-personalscraper init-config --force                  # Overwrite existing config.json5 (backs up to .bak)
+personalscraper init-config --force                  # Overwrite existing config/ directory (backs up to .bak)
 personalscraper info                                 # Display version, config paths, disk status
 ```
 
 ## Config Migration
 
 ```bash
-personalscraper config migrate-to-v2                 # Migrate legacy config.json5 → split-config layout
-personalscraper config migrate-to-v2 --dry-run       # Preview migration without writes
-personalscraper config migrate-category <old> <new>  # Rename a category id across config + on-disk paths
+personalscraper config migrate-category --from OLD --to NEW  # Rename a category id across config + on-disk paths
 ```
 
 ## Aliases
