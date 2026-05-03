@@ -74,7 +74,7 @@ def _make_config(tmp_path: Path) -> Any:
         MagicMock Config with a real :class:`~personalscraper.conf.models.IndexerConfig`
         whose ``db_path`` points to a writable file.
     """
-    from personalscraper.conf.models import IndexerConfig  # noqa: PLC0415
+    from personalscraper.conf.models.indexer import IndexerConfig  # noqa: PLC0415
 
     mock_cfg = MagicMock()
     ic = IndexerConfig(db_path=tmp_path / "library.db")

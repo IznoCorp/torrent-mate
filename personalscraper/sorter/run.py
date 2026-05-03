@@ -12,7 +12,7 @@ resolved via staging_path(config, find_ingest_dir(config)).
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger

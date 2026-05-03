@@ -24,7 +24,7 @@ class TestMediaIndexCRUD:
 
     def test_add_and_find_exact(self, tmp_path: Path) -> None:
         """Should find entries by exact normalized name."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="The Matrix (1999)",
@@ -40,7 +40,7 @@ class TestMediaIndexCRUD:
 
     def test_find_case_insensitive(self, tmp_path: Path) -> None:
         """Should find entries regardless of case."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="The Matrix (1999)",
@@ -55,7 +55,7 @@ class TestMediaIndexCRUD:
 
     def test_find_wrong_type_returns_none(self, tmp_path: Path) -> None:
         """Should not match if media_type differs."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Test",
@@ -69,7 +69,7 @@ class TestMediaIndexCRUD:
 
     def test_find_not_found(self, tmp_path: Path) -> None:
         """Should return None for unknown names."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         assert idx.find("Unknown Movie", "movie") is None
 
     def test_find_nfc_matches_nfd_entry(self, tmp_path: Path) -> None:
@@ -80,7 +80,7 @@ class TestMediaIndexCRUD:
         in _normalize_key, the same show would map to two distinct index
         keys, breaking exact lookup after a merge.
         """
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         nfd_name = "Top Chef Le Concours Paralle\u0300le (2026)"
         nfc_name = "Top Chef Le Concours Parall\u00e8le (2026)"
         assert nfd_name != nfc_name
@@ -99,7 +99,7 @@ class TestMediaIndexCRUD:
 
     def test_add_nfc_after_nfd_does_not_create_duplicate_key(self, tmp_path: Path) -> None:
         """Adding the NFC form of an NFD-keyed entry must update, not duplicate."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         nfd_name = "Acharne\u0301s (2023)"
         nfc_name = "Acharn\u00e9s (2023)"
         idx.add(
@@ -135,11 +135,11 @@ class TestMediaIndexCRUD:
 
 
 class TestMediaIndexPersistence:
-    """Tests for save and load (DB-backed; load/save are no-ops)."""
+    """Tests for SQLite-backed persistence."""
 
     def test_save_and_load(self, tmp_path: Path) -> None:
         """Data added to one instance is visible in a second instance on the same DB."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Test",
@@ -149,33 +149,19 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
-        # save() is a no-op; data is committed to the DB immediately.
-        idx.save()
-
-        # A second instance opening the same DB directory sees the entry.
-        idx2 = MediaIndex(tmp_path / "index.json")
-        idx2.load()  # no-op; DB is already up to date
+        # A second instance opening the same DB sees the entry.
+        idx2 = MediaIndex(tmp_path / "index.db")
         assert idx2.count == 1
         assert idx2.find("Test", "movie") is not None
 
-    def test_load_missing_file(self, tmp_path: Path) -> None:
-        """Opening with no prior DB (or a non-existent legacy JSON) gives empty index."""
-        idx = MediaIndex(tmp_path / "nonexistent.json")
-        idx.load()  # no-op; freshly created DB has zero entries
+    def test_missing_db_starts_empty(self, tmp_path: Path) -> None:
+        """Opening with no prior DB creates an empty index."""
+        idx = MediaIndex(tmp_path / "nonexistent.db")
         assert idx.count == 0
 
-    def test_load_corrupted_file(self, tmp_path: Path) -> None:
-        """A stale or corrupted legacy JSON file is ignored; DB starts empty."""
-        # The old JSON file is irrelevant to the new DB-backed implementation.
-        path = tmp_path / "bad.json"
-        path.write_text("not json {{{")
-        idx = MediaIndex(path)
-        idx.load()  # no-op; DB is fresh regardless of any JSON sidecar
-        assert idx.count == 0
-
-    def test_atomic_save(self, tmp_path: Path) -> None:
-        """save() is a no-op: it must not crash and must leave no .tmp files."""
-        idx = MediaIndex(tmp_path / "index.json")
+    def test_add_commits_without_temp_files(self, tmp_path: Path) -> None:
+        """Adding an entry commits through SQLite without temporary JSON files."""
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Test",
@@ -185,15 +171,12 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
-        # save() must complete without error and must not create temporary files.
-        idx.save()
-        assert not (tmp_path / "index.json.tmp").exists()
-        # Entry is still accessible (committed to DB, not lost).
+        assert not (tmp_path / "index.db.tmp").exists()
         assert idx.count == 1
 
-    def test_save_always_v15_format(self, tmp_path: Path) -> None:
-        """Entries must round-trip with V15 canonical IDs (not V14 labels)."""
-        idx = MediaIndex(tmp_path / "index.json")
+    def test_canonical_ids_round_trip(self, tmp_path: Path) -> None:
+        """Entries must round-trip with canonical IDs."""
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Inception (2010)",
@@ -203,9 +186,7 @@ class TestMediaIndexPersistence:
                 media_type="movie",
             )
         )
-        idx.save()  # no-op; data already in DB
 
-        # V15 IDs must survive the round-trip through the DB.
         entry = idx.find("Inception (2010)", "movie")
         assert entry is not None
         assert entry.category == "movies"
@@ -222,7 +203,7 @@ class TestCanonicalIdLoad:
 
     def test_canonical_ids_loaded_verbatim(self, tmp_path: Path) -> None:
         """Canonical-ID entries written via add() are returned unchanged by find()."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Inception (2010)",
@@ -250,7 +231,7 @@ class TestMediaIndexRebuild:
 
     def test_rebuild_indexes_media(self, tmp_path: Path) -> None:
         """Should index media directories from disk structure."""
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         # Create fake disk structure using V15 category IDs as folder names
         disk = tmp_path / "medias"
@@ -264,7 +245,7 @@ class TestMediaIndexRebuild:
             categories=["movies", "tv_shows"],
         )
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         count = idx.rebuild([config])
 
         assert count == 3
@@ -273,13 +254,13 @@ class TestMediaIndexRebuild:
 
     def test_rebuild_uses_disk_id(self, tmp_path: Path) -> None:
         """Rebuilt entries use disk.id (V15) not disk.name (V14)."""
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         disk = tmp_path / "medias"
         (disk / "movies" / "Movie A").mkdir(parents=True)
 
         config = DiskConfig(id="my_nas", path=disk, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.rebuild([config])
 
         entry = idx.find("Movie A", "movie")
@@ -294,7 +275,8 @@ class TestMediaIndexRebuild:
         ``movies``, ``tv_programs``). Without the reverse lookup, rebuild
         silently skipped every folder whose name was not already a V15 ID.
         """
-        from personalscraper.conf.models import CategoryConfig, DiskConfig
+        from personalscraper.conf.models.categories import CategoryConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         disk = tmp_path / "medias"
         (disk / "series" / "Fallout (2024)").mkdir(parents=True)
@@ -312,7 +294,7 @@ class TestMediaIndexRebuild:
             "movies": CategoryConfig(folder_name="films"),
         }
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         count = idx.rebuild([config], categories=categories)
 
         assert count == 3
@@ -338,7 +320,7 @@ class TestMediaIndexRebuild:
         rebuild() automatically so dispatch decisions are immediately accurate.
         After __init__ returns, media_item rows must be present.
         """
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         # Create a real disk structure so rebuild() can scan it.
         disk = tmp_path / "medias"
@@ -358,7 +340,7 @@ class TestMediaIndexRebuild:
             categories: dict[str, object] = {}  # no folder_name remapping needed
 
         # Pass a fresh DB path — library.db does not exist yet (empty first run).
-        idx = MediaIndex(tmp_path / "index.json", config=_StubConfig())  # type: ignore[arg-type]
+        idx = MediaIndex(tmp_path / "index.db", config=_StubConfig())  # type: ignore[arg-type]
 
         # Auto-rebuild must have inserted the two media directories.
         assert idx.count == 2
@@ -366,7 +348,7 @@ class TestMediaIndexRebuild:
         assert idx.find("Fallout (2024)", "tvshow") is not None
 
         # A second instantiation (rows now present) must NOT trigger another rebuild.
-        idx2 = MediaIndex(tmp_path / "index.json")
+        idx2 = MediaIndex(tmp_path / "index.db")
         assert idx2.count == 2
 
     def test_rebuild_without_categories_falls_back_to_legacy(self, tmp_path: Path) -> None:
@@ -375,14 +357,14 @@ class TestMediaIndexRebuild:
         Folder name must equal category ID (backward compat with existing
         tests that pre-date the folder_name remapping).
         """
-        from personalscraper.conf.models import DiskConfig
+        from personalscraper.conf.models.disks import DiskConfig
 
         disk = tmp_path / "medias"
         (disk / "movies" / "Movie A").mkdir(parents=True)
         (disk / "series" / "Show B").mkdir(parents=True)  # Will be skipped — no mapping
 
         config = DiskConfig(id="drive_a", path=disk, categories=["movies", "tv_shows"])
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         count = idx.rebuild([config])  # no categories kwarg
 
         assert count == 1  # Only "movies" dir matched (folder_name == category_id)
@@ -400,7 +382,7 @@ class TestMediaIndexRemoveStale:
 
     def test_removes_nonexistent_paths(self, tmp_path: Path) -> None:
         """Should remove entries for paths that no longer exist."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Gone Movie",
@@ -435,7 +417,7 @@ class TestFuzzyGuards:
 
     def test_matrix_does_not_match_matrix_reloaded(self, tmp_path: Path) -> None:
         """'The Matrix' should NOT match 'The Matrix Reloaded' (length guard)."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="The Matrix Reloaded (2003)",
@@ -451,7 +433,7 @@ class TestFuzzyGuards:
 
     def test_alien_does_not_match_aliens(self, tmp_path: Path) -> None:
         """'Alien (1979)' should NOT match 'Aliens (1986)' (year + threshold)."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Aliens (1986)",
@@ -467,7 +449,7 @@ class TestFuzzyGuards:
 
     def test_jumanji_matches_jumanji(self, tmp_path: Path) -> None:
         """'Jumanji (1995)' SHOULD match 'Jumanji (1995)' in the index."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.add(
             IndexEntry(
                 name="Jumanji (1995)",
@@ -491,21 +473,21 @@ class TestFuzzyGuards:
 class TestMediaIndexConnectionLifecycle:
     """Tests for close(), __enter__/__exit__, and __del__ behaviour."""
 
-    def test_configured_db_path_wins_over_legacy_index_path(self, tmp_path: Path) -> None:
+    def test_configured_db_path_wins_over_constructor_db_path(self, tmp_path: Path) -> None:
         """When Config is supplied, MediaIndex must open config.indexer.db_path."""
 
         class _Indexer:
-            db_path = tmp_path / ".personalscraper" / "library.db"
+            db_path = tmp_path / ".data" / "library.db"
 
         class _Config:
             indexer = _Indexer()
             disks = []
             categories = {}
 
-        legacy_index_path = tmp_path / ".data" / "media_index.json"
-        legacy_index_path.parent.mkdir()
+        constructor_db_path = tmp_path / "other_index" / "media_index.db"
+        constructor_db_path.parent.mkdir()
 
-        with MediaIndex(legacy_index_path, config=_Config()) as idx:  # type: ignore[arg-type]
+        with MediaIndex(constructor_db_path, config=_Config()) as idx:  # type: ignore[arg-type]
             idx.add(
                 IndexEntry(
                     name="Configured DB (2026)",
@@ -517,7 +499,7 @@ class TestMediaIndexConnectionLifecycle:
             )
 
         assert _Indexer.db_path.exists()
-        assert not (legacy_index_path.parent / "library.db").exists()
+        assert not constructor_db_path.exists()
 
     def test_context_manager_closes_connection(self, tmp_path: Path) -> None:
         """FD count must return to baseline after the ``with`` block exits.
@@ -532,8 +514,7 @@ class TestMediaIndexConnectionLifecycle:
         import os
         import resource
 
-        db_path = tmp_path / "library.db"
-        index_path = tmp_path / "index.json"
+        db_path = tmp_path / "index.db"
 
         # Measure FD baseline before any MediaIndex is created.
         soft_limit, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -555,7 +536,7 @@ class TestMediaIndexConnectionLifecycle:
         fds_before = _open_fds()
 
         # Open via context manager, do a query, then exit.
-        with MediaIndex(index_path, config=None) as idx:
+        with MediaIndex(db_path, config=None) as idx:
             idx.add(
                 IndexEntry(
                     name="Connection Test (2024)",
@@ -580,7 +561,7 @@ class TestMediaIndexConnectionLifecycle:
 
     def test_explicit_close_is_idempotent(self, tmp_path: Path) -> None:
         """Calling close() multiple times must not raise."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         idx.close()
         idx.close()  # Second call must be a no-op, not an exception.
 

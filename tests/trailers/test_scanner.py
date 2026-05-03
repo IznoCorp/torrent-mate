@@ -255,7 +255,7 @@ class TestSeasonAwareScanning:
 
 
 # ---------------------------------------------------------------------------
-# Edge-case and library-scan coverage
+# Edge-case and library scanner coverage
 # ---------------------------------------------------------------------------
 
 

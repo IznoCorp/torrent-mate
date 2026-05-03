@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.run import _to_step_report, run_verify
 from personalscraper.verify.verifier import Verifier, VerifyResult

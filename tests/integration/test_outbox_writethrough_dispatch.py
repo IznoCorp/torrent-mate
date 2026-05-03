@@ -27,13 +27,13 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import drain_if_present
+from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.sorter.file_type import FileType
@@ -97,7 +97,7 @@ def _make_settings() -> Settings:
         Settings instance with zero thresholds so the tests are not skipped
         due to real filesystem constraints.
     """
-    return Settings(min_free_space_staging_gb=0, min_free_space_disk_gb=0)
+    return Settings()
 
 
 def _build_multi_disk_config(base_config: Config, fake_disks: list[Path]) -> Config:
@@ -213,7 +213,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
         _insert_mounted_disk(conn, mount_path=str(disk_path), label=f"Disk{i}")
 
     # --- Override indexer.db_path in the config so dispatch_movie lands events
-    # in the test DB rather than the default .personalscraper/library.db ---
+    # in the test DB rather than the default .data/library.db ---
     new_indexer = integration_config.indexer.model_copy(update={"db_path": db_path})
     test_config = integration_config.model_copy(update={"indexer": new_indexer})
 
@@ -252,11 +252,10 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     movie_dir = _build_verified_movie_dir(movies_staging, title=movie_title, year=movie_year)
 
     # --- Build the MediaIndex (empty — new item, will be moved to disk1) ---
-    index_path = tmp_path / "media.json"
+    index_path = tmp_path / "media.db"
     index = MediaIndex(index_path)
-    index.load()
 
-    # --- Ensure data_dir exists (MediaIndex.save may need it) ---
+    # --- Ensure data_dir exists ---
     test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Invoke dispatch_movie directly (bypass run_dispatch for precision) ---

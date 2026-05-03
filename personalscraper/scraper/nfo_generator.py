@@ -13,7 +13,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, cast
 
-from personalscraper.indexer.outbox import disk_id_for_path, publish_event
+from personalscraper.indexer.outbox._disk import disk_id_for_path
+from personalscraper.indexer.outbox._publish import publish_event
 
 # Preview image sizes for inline thumbs
 POSTER_PREVIEW_SIZE = "w342"

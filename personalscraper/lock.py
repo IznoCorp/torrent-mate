@@ -1,7 +1,7 @@
 """Pipeline lock file — prevents concurrent pipeline executions.
 
-Uses a PID-based lock file in the project data directory (configurable
-via DATA_DIR_NAME in .env, defaults to .personalscraper/ under staging_dir).
+Uses a PID-based lock file in the project data directory (configured
+via ``paths.data_dir`` in config.json5, defaults to ``./.data/``).
 Detects and cleans up stale locks from crashed processes.
 
 Lock is acquired at CLI command level (not in run_*() functions)
@@ -17,18 +17,15 @@ log = get_logger("lock")
 
 
 def _default_lock_file() -> Path:
-    """Return the default lock file path from settings.
+    """Return the default lock file path from config.
 
     Returns:
         Path to pipeline.lock inside the configured data directory.
     """
-    from pathlib import Path as _Path
+    from personalscraper.conf.loader import load_config, resolve_config_path
 
-    from personalscraper.config import get_settings
-
-    settings = get_settings()
-    data_dir = _Path(getattr(settings, "data_dir", ".data"))
-    return data_dir / "pipeline.lock"
+    config = load_config(resolve_config_path())
+    return config.paths.data_dir / "pipeline.lock"
 
 
 def acquire_lock(lock_file: Path | None = None) -> bool:

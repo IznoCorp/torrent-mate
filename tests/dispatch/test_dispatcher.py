@@ -44,7 +44,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.conf.models import DiskConfig
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.verify.verifier import VerifyResult
@@ -63,9 +63,8 @@ def _rsync_on_path(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def mock_settings() -> MagicMock:
-    """Create mock Settings (V15: no disk paths — thresholds only)."""
+    """Create mock Settings for dispatcher tests."""
     s = MagicMock()
-    s.min_free_space_disk_gb = 100.0
     return s
 
 
@@ -79,7 +78,7 @@ class TestDispatcherInit:
 
     def test_init_with_rsync(self, test_config, mock_settings: MagicMock, tmp_path: Path) -> None:
         """Should initialize when rsync is available."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
         assert d is not None
 
@@ -88,9 +87,9 @@ class TestDispatcherInit:
         self, mock_which: MagicMock, test_config, mock_settings: MagicMock, tmp_path: Path
     ) -> None:
         """Should raise DispatchError when rsync is missing."""
-        from personalscraper.dispatch.dispatcher import DispatchError
+        from personalscraper.dispatch._types import DispatchError
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         with pytest.raises(DispatchError, match="rsync"):
             Dispatcher(test_config, mock_settings, idx)
 
@@ -110,7 +109,7 @@ class TestDispatchMovie:
         tmp_path: Path,
     ) -> None:
         """Dry run should report action without moving."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Matrix (1999)"
@@ -118,7 +117,7 @@ class TestDispatchMovie:
         (movie_dir / "Matrix.mkv").write_bytes(b"\x00" * 1024)
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._movie.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -140,14 +139,14 @@ class TestDispatchMovie:
         tmp_path: Path,
     ) -> None:
         """Should skip when no disk has enough space."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         movie_dir = tmp_path / "Movie (2024)"
         movie_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._movie.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -178,14 +177,14 @@ class TestDispatchTvshow:
         tmp_path: Path,
     ) -> None:
         """Dry run for new show should report action."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         show_dir = tmp_path / "Fallout (2024)"
         show_dir.mkdir()
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._tv.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -215,7 +214,7 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should dispatch each verified item."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "Movie (2024)"
@@ -231,7 +230,7 @@ class TestProcess:
         ]
 
         with patch(
-            "personalscraper.dispatch.dispatcher.get_disk_status",
+            "personalscraper.dispatch._movie.get_disk_status",
         ) as mock_status:
             from personalscraper.dispatch.disk_scanner import DiskStatus
 
@@ -253,7 +252,7 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should skip items without a category."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         verified = [
@@ -276,7 +275,7 @@ class TestProcess:
         tmp_path: Path,
     ) -> None:
         """Should return empty results for empty verified list."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         results = d.process(verified=[])
@@ -298,7 +297,7 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return True when all files match."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -318,7 +317,7 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return False when dest file is missing."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -336,7 +335,7 @@ class TestVerifyTransfer:
         tmp_path: Path,
     ) -> None:
         """Should return False when file sizes differ."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -364,7 +363,7 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should clean tmp_new and return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -373,7 +372,7 @@ class TestReplace:
         dest.mkdir()
         (source / "file.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync", return_value=False):
+        with patch("personalscraper.dispatch._transfer.rsync", return_value=False):
             result = d._replace(source, dest)
 
         assert result is False
@@ -388,7 +387,7 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """If atomic swap fails, original should be restored from tmp_old."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -413,8 +412,8 @@ class TestReplace:
                 raise OSError("Simulated rename failure")
             return original_rename(src, dst)
 
-        with patch.object(d, "_rsync", side_effect=fake_rsync):
-            with patch("personalscraper.dispatch.dispatcher.os.rename", side_effect=failing_rename):
+        with patch("personalscraper.dispatch._transfer.rsync", side_effect=fake_rsync):
+            with patch("personalscraper.dispatch._movie.os.rename", side_effect=failing_rename):
                 result = d._replace(source, dest)
 
         assert result is False
@@ -426,7 +425,7 @@ class TestReplace:
         tmp_path: Path,
     ) -> None:
         """Successful replace: rsync → swap → cleanup old + source."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -441,7 +440,7 @@ class TestReplace:
             (dst / "file.mkv").write_bytes(b"\x00" * 1024)
             return True
 
-        with patch.object(d, "_rsync", side_effect=fake_rsync):
+        with patch("personalscraper.dispatch._transfer.rsync", side_effect=fake_rsync):
             result = d._replace(source, dest)
 
         assert result is True
@@ -466,7 +465,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -474,7 +473,7 @@ class TestMerge:
         source.mkdir()
         dest.mkdir()
 
-        with patch.object(d, "_rsync_merge", return_value=False):
+        with patch("personalscraper.dispatch._transfer.rsync_merge", return_value=False):
             result = d._merge(source, dest)
 
         assert result is False
@@ -486,7 +485,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Verification failure after rsync should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -496,8 +495,8 @@ class TestMerge:
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
         with (
-            patch.object(d, "_rsync_merge", return_value=True),
-            patch.object(d, "_verify_transfer", return_value=False),
+            patch("personalscraper.dispatch._transfer.rsync_merge", return_value=True),
+            patch("personalscraper.dispatch._transfer.verify_transfer", return_value=False),
         ):
             result = d._merge(source, dest)
 
@@ -510,7 +509,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """Successful merge: rsync + verify → source removed."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -519,7 +518,10 @@ class TestMerge:
         dest.mkdir()
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch.object(d, "_rsync_merge", return_value=True), patch.object(d, "_verify_transfer", return_value=True):
+        with (
+            patch("personalscraper.dispatch._transfer.rsync_merge", return_value=True),
+            patch("personalscraper.dispatch._transfer.verify_transfer", return_value=True),
+        ):
             result = d._merge(source, dest)
 
         assert result is True
@@ -532,7 +534,7 @@ class TestMerge:
         tmp_path: Path,
     ) -> None:
         """OSError during merge should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -540,7 +542,7 @@ class TestMerge:
         source.mkdir()
         dest.mkdir()
 
-        with patch.object(d, "_rsync_merge", side_effect=OSError("disk error")):
+        with patch("personalscraper.dispatch._transfer.rsync_merge", side_effect=OSError("disk error")):
             result = d._merge(source, dest)
 
         assert result is False
@@ -561,7 +563,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Successful move: rsync to tmp → rename → verify → source removed."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -591,7 +593,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Rsync failure should return False, dest should not exist."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -611,7 +613,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Verification failure should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -634,7 +636,7 @@ class TestMoveNew:
         tmp_path: Path,
     ) -> None:
         """Existing orphan _tmp_dispatch_* is cleaned before new attempt."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         source = tmp_path / "source"
@@ -673,14 +675,14 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Successful rsync returns True."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = d._rsync(src, dst)
 
@@ -694,14 +696,14 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Failed rsync (non-zero returncode) returns False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=23, stderr="partial transfer")
             result = d._rsync(src, dst)
 
@@ -714,14 +716,14 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Timeout should return False."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.side_effect = subprocess.TimeoutExpired(cmd="rsync", timeout=3600)
             result = d._rsync(src, dst)
 
@@ -734,14 +736,14 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """delete=True should include --delete flag."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             d._rsync(src, dst, delete=True)
 
@@ -755,14 +757,14 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Rsync command should exclude .DS_Store and ._* files (Bug #1)."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
         dst = tmp_path / "dst"
         src.mkdir()
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             d._rsync(src, dst)
 
@@ -777,7 +779,7 @@ class TestRsync:
         tmp_path: Path,
     ) -> None:
         """Rsync merge command should also exclude .DS_Store and ._* files (Bug #1)."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
 
         src = tmp_path / "src"
@@ -786,7 +788,7 @@ class TestRsync:
         dst.mkdir()
         backup = dst / ".merge_backup"
 
-        with patch("personalscraper.dispatch.dispatcher.subprocess.run") as mock_run:
+        with patch("personalscraper.dispatch._transfer.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             d._rsync_merge(src, dst, backup)
 
@@ -810,7 +812,7 @@ class TestDispatchDryRun:
         tmp_path: Path,
     ) -> None:
         """Dry run should not call rsync or modify filesystem."""
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx, dry_run=True)
 
         movie_dir = tmp_path / "DryRunMovie (2024)"
@@ -819,7 +821,7 @@ class TestDispatchDryRun:
 
         with (
             patch(
-                "personalscraper.dispatch.dispatcher.get_disk_status",
+                "personalscraper.dispatch._movie.get_disk_status",
             ) as mock_status,
             patch.object(d, "_rsync") as mock_rsync,
         ):
@@ -860,7 +862,7 @@ class TestOrphanCleanup:
         orphan.mkdir()
         (orphan / "partial.mkv").write_bytes(b"\x00" * 512)
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
         d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["movies"])]
 
@@ -884,7 +886,7 @@ class TestOrphanCleanup:
         backup.mkdir()
         (backup / "old_file.mkv").write_bytes(b"\x00" * 100)
 
-        idx = MediaIndex(tmp_path / "index.json")
+        idx = MediaIndex(tmp_path / "index.db")
         d = Dispatcher(test_config, mock_settings, idx)
         d._disk_configs = [DiskConfig(id="drive_a", path=disk, categories=["tv_shows"])]
 
@@ -981,27 +983,27 @@ class TestNtfsPreScan:
 
     def test_item_with_colon_skipped(self, tmp_path: Path) -> None:
         """Dispatch should skip items with NTFS-illegal filenames."""
-        from personalscraper.dispatch.dispatcher import Dispatcher
+        from personalscraper.dispatch._transfer import has_ntfs_illegal_names
 
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie_dir / "Movie : Subtitle-poster.jpg").write_bytes(b"bad")
 
-        result = Dispatcher._has_ntfs_illegal_names(movie_dir)
+        result = has_ntfs_illegal_names(movie_dir)
 
         assert result is True
 
     def test_clean_item_passes(self, tmp_path: Path) -> None:
         """Items with clean filenames should pass the pre-scan."""
-        from personalscraper.dispatch.dispatcher import Dispatcher
+        from personalscraper.dispatch._transfer import has_ntfs_illegal_names
 
         movie_dir = tmp_path / "Movie (2025)"
         movie_dir.mkdir()
         (movie_dir / "Movie.mkv").write_bytes(b"\x00" * 1000)
         (movie_dir / "Movie-poster.jpg").write_bytes(b"ok")
 
-        result = Dispatcher._has_ntfs_illegal_names(movie_dir)
+        result = has_ntfs_illegal_names(movie_dir)
 
         assert result is False
 
@@ -1024,10 +1026,10 @@ class TestPurgeEpisodeConflicts:
 
     @staticmethod
     def _purge(source: Path, dest: Path, backup_dir: Path) -> None:
-        """Invoke the unbound method directly — no Dispatcher state required."""
-        from personalscraper.dispatch.dispatcher import Dispatcher
+        """Invoke the module-level function directly — no Dispatcher state required."""
+        from personalscraper.dispatch._tv import purge_episode_conflicts
 
-        Dispatcher._purge_episode_conflicts(None, source, dest, backup_dir)  # type: ignore[arg-type]
+        purge_episode_conflicts(source, dest, backup_dir)
 
     def test_renamed_episode_purged_to_backup(self, tmp_path: Path) -> None:
         """Same SxxExx, different filename → dest copy goes to backup."""

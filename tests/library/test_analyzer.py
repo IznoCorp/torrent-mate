@@ -20,7 +20,10 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
+from personalscraper.conf.models.categories import CategoryConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.library.analyzer import AnalysisResult, analyze, deduce_audio_profile
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -398,16 +401,14 @@ class TestAnalyze:
         # "Scraped" is NOT a candidate (valid NFO + refreshed); the other 2 are
         assert result.items_needing_rescrape == 2
 
-    def test_no_json_file_written(self, tmp_path: Path) -> None:
-        """analyze() writes no JSON file to disk."""
+    def test_no_file_written(self, tmp_path: Path) -> None:
+        """analyze() writes no files to disk."""
         conn = _make_conn()
         _seed_media_item(conn, title="Movie X")
 
         analyze(conn)
 
-        # Confirm no library_analysis.json was written anywhere in tmp_path
-        json_files = list(tmp_path.rglob("library_analysis.json"))
-        assert json_files == []
+        assert list(tmp_path.iterdir()) == []
 
     def test_analyzed_at_is_iso8601(self) -> None:
         """analyzed_at field is a non-empty ISO 8601 string."""

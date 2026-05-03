@@ -7,6 +7,6 @@ shim keeps the indexer package self-contained: internal modules import from
 ``personalscraper.conf.models``.
 """
 
-from personalscraper.conf.models import IndexerConfig
+from personalscraper.conf.models.indexer import IndexerConfig
 
 __all__ = ["IndexerConfig"]

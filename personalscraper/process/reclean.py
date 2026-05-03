@@ -18,7 +18,7 @@ from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.text_utils import sanitize_filename
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
 
 log = get_logger("process.reclean")
 

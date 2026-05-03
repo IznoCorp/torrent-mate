@@ -6,12 +6,12 @@ Storage disk layout, NTFS/macFUSE constraints, rsync flags, and disk space rules
 
 All 4 disks are **NTFS** formatted, mounted via **macFUSE** (ntfstool driver) over USB.
 
-| Disk  | Mount                 | Filesystem | Categories                                                                                                                                    |
-| ----- | --------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Disk1 | /Volumes/Disk1/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk2 | /Volumes/Disk2/medias | NTFS       | series, series animes                                                                                                                         |
-| Disk3 | /Volumes/Disk3/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk4 | /Volumes/Disk4/medias | NTFS       | films, films animations, series, series animations, series documentaires, emissions                                                           |
+| Disk  | Mount                 | Filesystem | Categories                                                                                                                                                   |
+| ----- | --------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Disk1 | /Volumes/Disk1/medias | NTFS       | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, series animes, spectacles, theatres, emissions |
+| Disk2 | /Volumes/Disk2/medias | NTFS       | series, series animes                                                                                                                                        |
+| Disk3 | /Volumes/Disk3/medias | NTFS       | films, films animations, films documentaires, series, series animations, series documentaires, spectacles, theatres, emissions                               |
+| Disk4 | /Volumes/Disk4/medias | NTFS       | films, films animations, series, series animations, series documentaires                                                                                     |
 
 ## Move Rules (dispatch)
 
@@ -60,7 +60,9 @@ Unified formula:
 free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 ```
 
-`choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()`. A disk is eligible only when it is mounted, accepts the target category, and satisfies the free-space formula above. `get_disk_status()` returns a `DiskStatus` dataclass with the `free_space_gb` property.
+
+Movie vs TV dispatch routing is inline in `process()` (no named `MOVIES_REPLACE`/`TVSHOWS_MERGE` constants): `dispatch_movie()` replaces the existing folder, `dispatch_tvshow()` merges new episodes into it.
 
 ## 24 TB Operations Guide
 
@@ -101,14 +103,15 @@ Use `budget_seconds` to cap wall-clock time and resume across multiple sessions:
 | Incremental scan, all    | 8–20 min           | 1 800 s (30 min)   |
 | Enrich pass, 1 disk      | 10–30 min          | 1 800 s (30 min)   |
 
-The `budget_seconds` parameter is passed via the CLI flag `--budget-seconds` or
+The `budget_seconds` parameter is passed via the CLI flag `--budget` or
 set in `config.json5` under `indexer.scan.budget_seconds`. When the budget is
 exhausted the scanner writes a checkpoint and exits with `budget_exhausted=True`;
 the next invocation resumes from the last checkpoint automatically.
 
 For nightly scheduled scans (launchd), set the budget to ≤ 3 600 s (1 hour) to
-ensure the job completes before the next wake window. Use `--mode incremental`
-for nightly runs and reserve `--mode full` for weekend maintenance windows.
+ensure the job completes before the next wake window. Use `--mode quick` for
+nightly runs, `--mode incremental` for more frequent scans (e.g. every few hours
+during the day), and reserve `--mode full` for weekend maintenance windows.
 
 ## Indexer Cold-Rebuild Playbook
 
@@ -116,10 +119,10 @@ Use these steps after any of the following events:
 
 - `library.db` is corrupted (`library-status` exits 1 with `IndexerCorruptError`).
 - A disk was replaced and its volume UUID changed.
-- The database was lost (e.g. the `.personalscraper/` directory deleted or the internal disk reformatted).
+- The database was lost (e.g. the `paths.data_dir` directory deleted or the internal disk reformatted).
 - An unclean unmount left the index inconsistent with the disks.
 
-The default DB path is `.personalscraper/library.db` (configurable via `indexer.db_path` in `config.json5`).
+The default DB path is `paths.data_dir / "library.db"` (configurable via `indexer.db_path` in `config/indexer.json5`).
 
 ### Quick path — use `--rebuild`
 
@@ -132,13 +135,13 @@ personalscraper library-status
 ```
 
 The quarantined database is renamed to `<db_path>.corrupt-<unix_ts>` (e.g.
-`.personalscraper/library.db.corrupt-1714567890`).
+`library.db.corrupt-1714567890` inside the configured `data_dir`).
 
 ### Manual path (if `--rebuild` itself fails)
 
 ```bash
 # 1. Remove or quarantine the corrupt database manually
-mv .personalscraper/library.db .personalscraper/library.db.bak
+mv .data/library.db .data/library.db.bak
 
 # 2. Run a full scan — creates a fresh database
 personalscraper library-index --mode full

@@ -17,7 +17,7 @@ Invariants enforced:
    translations**, with the fallback language only consulted when the
    primary returns nothing on both APIs.
 4. **No hard-coded language strings** — every API call passes a
-   language derived from ``ScraperConfig`` (or its Settings fallback).
+   language derived from ``ScraperConfig``.
 
 Tests use mocked clients so they run offline and instantly.
 """
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-from personalscraper.config import Settings
+from personalscraper.conf.models.scraper import ScraperConfig
 from personalscraper.scraper.nfo_generator import NFOGenerator
 
 # ---------------------------------------------------------------------------
@@ -202,17 +202,17 @@ class TestMovieIdPriority:
 class TestConfiguredLanguageRespected:
     """Scraper must read the language from ScraperConfig, not hard-code it."""
 
-    def test_settings_default_is_french(self) -> None:
-        """Sanity: the default project setting is FR (FR primary, EN fallback).
+    def test_scraper_config_default_is_french(self) -> None:
+        """Sanity: the default scraper config is FR (FR primary, EN fallback).
 
         If this changes, every guardrail below must be re-checked because
         most of them assume FR is the primary translation language. The
         TMDB-style locale ``fr-FR`` is what the scraper passes through to
         TMDB; the TVDB client maps it to ``fra`` internally.
         """
-        s = Settings()
-        assert s.scraper_language == "fr-FR"
-        assert s.scraper_fallback_language == "en-US"
+        cfg = ScraperConfig()
+        assert cfg.language == "fr-FR"
+        assert cfg.fallback_language == "en-US"
 
     def test_language_codes_documented(self) -> None:
         """The TVDB client uses 3-char codes; TMDB uses 2-char codes.

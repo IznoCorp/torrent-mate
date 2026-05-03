@@ -1,6 +1,6 @@
 {
   // Master config file (v2 split layout).
-  // Copy this directory to .personalscraper/config/ and fill in your values,
+  // Copy this directory to ./config/ and fill in your values,
   // or run `personalscraper init-config` to be guided through the setup.
   //
   // The overlays list names the per-concern files merged in order.
@@ -16,5 +16,6 @@
     "scraper.json5",
     "trailers.json5",
     "indexer.json5",
+    "thresholds.json5",
   ],
 }

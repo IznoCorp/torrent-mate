@@ -10,7 +10,7 @@ import os
 import shutil
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
 from personalscraper.logger import get_logger
 from personalscraper.models import SortResult

@@ -5,7 +5,7 @@ Uses a realistic temporary filesystem with movies and TV shows.
 """
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -13,6 +13,8 @@ from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
     ISSUE_JUNK_FILES,
 )
+
+MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
 
 
 @pytest.fixture()
@@ -84,12 +86,15 @@ def mini_library(tmp_path: Path):
     (show_actors / "Ella Purnell.jpg").write_bytes(b"\x00" * 50)
     (fallout / "empty_release_dir").mkdir()
 
-    # Build V15 DiskConfig + Config for scan operations
-    from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
+    # Build DiskConfig + Config for scan operations
+    from personalscraper.conf.models.categories import CategoryConfig
+    from personalscraper.conf.models.config import Config
+    from personalscraper.conf.models.disks import DiskConfig
+    from personalscraper.conf.models.paths import PathConfig
     from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
     disk_cfg = DiskConfig(id="disk1", path=disk, categories=["movies", "tv_shows"])
-    v15_config = Config(
+    config = Config(
         paths=PathConfig(
             torrent_complete_dir=tmp_path / "torrents",
             staging_dir=tmp_path / "staging",
@@ -103,17 +108,9 @@ def mini_library(tmp_path: Path):
         staging_dirs=CANONICAL_STAGING_DIRS,
     )
 
-    # Build V14-style mock DiskConfig for disk_cleaner / disk_scanner calls
-    # (will be migrated in P8.5)
-    legacy_config = MagicMock()
-    legacy_config.path = disk
-    legacy_config.name = "Disk1"
-    legacy_config.categories = ["films", "series"]
-
     return {
         "disk": disk,
-        "config": legacy_config,
-        "v15_config": v15_config,
+        "config": config,
         "disk_cfg": disk_cfg,
         "matrix": matrix,
         "incomplete": incomplete,
@@ -122,60 +119,90 @@ def mini_library(tmp_path: Path):
 
 
 class TestScanIntegration:
-    """Integration test for library-scan."""
+    """Integration test for library scanning (DB-backed API)."""
 
-    @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
     def test_scan_finds_all_items(self, mini_library) -> None:
-        """Scan should find 2 movies + 1 TV show = 3 items."""
+        """scan_library(config, conn) -> 2 movies + 1 TV show = 3 media_item rows."""
+        import sqlite3
+
+        from personalscraper.indexer.db import apply_migrations
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
+        conn = sqlite3.connect(":memory:")
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
 
-        assert result.item_count == 3
-        titles = {i.title for i in result.items}
+        count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
+        assert count == 3
+
+        titles = {row[0] for row in conn.execute("SELECT title FROM media_item").fetchall()}
         assert "The Matrix" in titles
         assert "Incomplete Movie" in titles
         assert "Fallout" in titles
 
-    @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
     def test_scan_detects_issues(self, mini_library) -> None:
-        """Scan should detect .actors, junk files, bad naming."""
+        """scan_library must persist item_issue rows for .actors and junk files."""
+        import sqlite3
+
+        from personalscraper.indexer.db import apply_migrations
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
+        conn = sqlite3.connect(":memory:")
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
 
-        # Matrix: .actors + .DS_Store
-        matrix_item = next(i for i in result.items if i.title == "The Matrix")
-        assert ISSUE_ACTORS_DIR in matrix_item.issues
-        assert ISSUE_JUNK_FILES in matrix_item.issues
+        # Matrix item should have actors_dir + junk_files issues
+        matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
+        issue_types = {
+            row[0] for row in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchall()
+        }
+        assert ISSUE_ACTORS_DIR in issue_types
+        assert ISSUE_JUNK_FILES in issue_types
 
-    @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
     def test_scan_detects_seasons(self, mini_library) -> None:
-        """TV show scan should find season structure."""
+        """scan_library must persist season and episode rows for TV shows."""
+        import sqlite3
+
+        from personalscraper.indexer.db import apply_migrations
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
+        conn = sqlite3.connect(":memory:")
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
 
-        fallout = next(i for i in result.items if i.title == "Fallout")
-        assert fallout.seasons is not None
-        assert len(fallout.seasons) == 1
-        assert fallout.seasons[0].number == 1
-        assert fallout.seasons[0].episode_count == 2
-        assert fallout.seasons[0].episodes_with_nfo == 1
+        fallout_id = conn.execute("SELECT id FROM media_item WHERE title = 'Fallout'").fetchone()[0]
 
-    @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
-    def test_scan_json_roundtrip(self, mini_library, tmp_path) -> None:
-        """Scan result should survive JSON serialization."""
-        from personalscraper.library.models import read_json, write_json
+        season_count = conn.execute("SELECT COUNT(*) FROM season WHERE item_id = ?", (fallout_id,)).fetchone()[0]
+        assert season_count == 1
+
+        season = conn.execute("SELECT number FROM season WHERE item_id = ?", (fallout_id,)).fetchone()
+        assert season[0] == 1
+
+        episode_count = conn.execute(
+            "SELECT COUNT(*) FROM episode e JOIN season s ON e.season_id = s.id WHERE s.item_id = ?",
+            (fallout_id,),
+        ).fetchone()[0]
+        assert episode_count == 2
+
+    def test_scan_db_roundtrip(self, mini_library) -> None:
+        """After scan_library, DB queries must return consistent item counts by kind."""
+        import sqlite3
+
+        from personalscraper.indexer.db import apply_migrations
         from personalscraper.library.scanner import scan_library
 
-        result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
-        json_path = tmp_path / "scan.json"
-        write_json(result, json_path)
-        data = read_json(json_path)
+        conn = sqlite3.connect(":memory:")
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
 
-        assert data["item_count"] == 3
-        assert len(data["items"]) == 3
+        movie_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'movie'").fetchone()[0]
+        show_count = conn.execute("SELECT COUNT(*) FROM media_item WHERE kind = 'show'").fetchone()[0]
+        assert movie_count == 2
+        assert show_count == 1
 
 
 class TestCleanIntegration:
@@ -185,7 +212,7 @@ class TestCleanIntegration:
         """Clean should remove .actors/ directories."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        result = clean_library(mini_library["v15_config"], apply=True, only="actors")
+        result = clean_library(mini_library["config"], apply=True, only="actors")
 
         assert result.deleted_count == 2  # Matrix + Fallout .actors
         assert not (mini_library["matrix"] / ".actors").exists()
@@ -195,7 +222,7 @@ class TestCleanIntegration:
         """Clean should remove .DS_Store files."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        clean_library(mini_library["v15_config"], apply=True, only="junk")
+        clean_library(mini_library["config"], apply=True, only="junk")
 
         assert not (mini_library["matrix"] / ".DS_Store").exists()
 
@@ -203,7 +230,7 @@ class TestCleanIntegration:
         """Dry-run should not delete anything."""
         from personalscraper.library.disk_cleaner import clean_library
 
-        result = clean_library(mini_library["v15_config"], apply=False)
+        result = clean_library(mini_library["config"], apply=False)
 
         assert result.dry_run is True
         assert result.deleted_count > 0  # counted
@@ -216,7 +243,7 @@ class TestRecommendIntegration:
 
     def test_recommend_from_analysis(self) -> None:
         """Recommendations should be generated from analysis data."""
-        from personalscraper.conf.models import LibraryPrefs, VideoPrefs
+        from personalscraper.conf.models.preferences import LibraryPrefs, VideoPrefs
         from personalscraper.library.models import (
             AudioTrack,
             LibraryAnalysisItem,
@@ -265,58 +292,67 @@ class TestRecommendIntegration:
 
 
 class TestReportIntegration:
-    """Integration test for library-report."""
+    """Integration test for library-report (DB-backed API)."""
 
-    @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
-    def test_report_from_scan_data(self, mini_library, tmp_path) -> None:
-        """Report should aggregate scan data correctly."""
-        from personalscraper.library.models import read_json, write_json
+    def test_report_from_scan_data(self, mini_library) -> None:
+        """Report should aggregate data from the indexer DB after scan_library."""
+        import sqlite3
+
+        from personalscraper.indexer.db import apply_migrations
+        from personalscraper.library.analyzer import analyze
         from personalscraper.library.reporter import generate_report
         from personalscraper.library.scanner import scan_library
 
-        # Scan first
-        scan_result = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
-        scan_path = tmp_path / "scan.json"
-        write_json(scan_result, scan_path)
-        scan_data = read_json(scan_path)
+        conn = sqlite3.connect(":memory:")
+        apply_migrations(conn, MIGRATIONS_DIR)
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
 
-        # Generate report. ``scan_data`` was removed from the signature
-        # when scan_issues moved into ``AnalysisResult.scan_issues``; this
-        # legacy call passes it as a keyword to verify the deprecation
-        # path stays silent. A type ignore is required because Pyright
-        # rightly flags the missing parameter — we are testing exactly
-        # that call shape.
-        report = generate_report(scan_data=scan_data)  # type: ignore[call-arg]
+        analysis_result = analyze(conn)
+        report = generate_report(analysis_result=analysis_result)
 
         assert report.total_items == 3
-        assert report.items_per_disk["disk1"] == 3
-        assert report.actors_dir_count == 2  # Matrix + Fallout
-        assert report.nfo_valid_count >= 2  # Matrix + Fallout have valid NFOs
+        # All items are on disk1
+        assert report.items_per_disk.get("disk1", 0) == 3
 
 
 class TestFullWorkflow:
-    """Test the full scan -> clean -> rescan chain."""
+    """Test the full scan -> clean -> rescan chain (rewritten for v7.2)."""
 
-    @pytest.mark.skip(reason="scan_library signature changed in 7.1 (-> None); rewritten in 7.2")
     def test_clean_then_rescan_shows_fewer_issues(self, mini_library) -> None:
-        """After cleaning, a rescan should show fewer issues."""
+        """After cleaning .actors and junk, rescan must drop those item_issue rows."""
+        import sqlite3
+        from unittest.mock import patch
+
+        from personalscraper.indexer.db import apply_migrations
         from personalscraper.library.disk_cleaner import clean_library
         from personalscraper.library.scanner import scan_library
 
-        # Initial scan
-        scan1 = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
-        issues1 = sum(len(i.issues) for i in scan1.items)
+        # Use a file DB so it survives between scan calls.
+        db_path = mini_library["config"].paths.data_dir / "library.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path))
+        apply_migrations(conn, MIGRATIONS_DIR)
 
-        # Clean
-        clean_library(mini_library["v15_config"], apply=True)
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
 
-        # Rescan
-        scan2 = scan_library(mini_library["v15_config"].disks, config=mini_library["v15_config"])  # type: ignore[call-arg, func-returns-value, misc]
-        issues2 = sum(len(i.issues) for i in scan2.items)
+        # Matrix must have issues after first scan
+        matrix_id = conn.execute("SELECT id FROM media_item WHERE title = 'The Matrix'").fetchone()[0]
+        initial_issues = conn.execute("SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchone()[0]
+        assert initial_issues >= 2  # .actors + .DS_Store
 
-        # .actors and .DS_Store issues should be gone
-        assert issues2 < issues1
+        # Clean both .actors and junk
+        clean_library(mini_library["config"], apply=True)
 
-        matrix = next(i for i in scan2.items if i.title == "The Matrix")
-        assert ISSUE_ACTORS_DIR not in matrix.issues
-        assert ISSUE_JUNK_FILES not in matrix.issues
+        # Rescan — issues for Matrix should be gone
+        with patch("personalscraper.indexer.scanner.guard_disk_mounted", return_value=None):
+            scan_library(mini_library["config"], conn)
+
+        remaining = conn.execute("SELECT COUNT(*) FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchone()[0]
+        assert remaining < initial_issues
+        issue_types = {
+            row[0] for row in conn.execute("SELECT type FROM item_issue WHERE item_id = ?", (matrix_id,)).fetchall()
+        }
+        assert ISSUE_ACTORS_DIR not in issue_types
+        assert ISSUE_JUNK_FILES not in issue_types

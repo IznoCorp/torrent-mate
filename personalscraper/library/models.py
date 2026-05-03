@@ -326,9 +326,7 @@ class LibraryAnalysisResult:
     """In-memory container for ``analyze_library`` ffprobe results.
 
     Returned by :func:`personalscraper.library.analyzer.analyze_library`
-    and consumed inline by ``library-recommend``.  No longer persisted to
-    disk — the legacy ``library_analysis.json`` cache was removed when the
-    indexer DB became the single source of truth (DESIGN §10.2).
+    and consumed inline by ``library-recommend``.
     """
 
     analyzed_at: str

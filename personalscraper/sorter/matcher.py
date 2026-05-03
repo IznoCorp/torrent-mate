@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from personalscraper.conf.models import FuzzyMatchConfig
+from personalscraper.conf.models.fuzzy import FuzzyMatchConfig
 
 # Year pattern: 4-digit year in parentheses or standalone
 _YEAR_PATTERN: re.Pattern[str] = re.compile(r"\b((?:19|20)\d{2})\b")

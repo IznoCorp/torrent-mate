@@ -11,7 +11,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
@@ -37,7 +37,7 @@ def _make_settings() -> Settings:
         Settings instance with zero thresholds so the tests are not gated
         by real filesystem free-space requirements.
     """
-    return Settings(min_free_space_staging_gb=0, min_free_space_disk_gb=0)
+    return Settings()
 
 
 def _build_verified_tvshow_dir(
@@ -197,7 +197,6 @@ def test_dispatch_merges_tvshow_new_episodes(
     assert not backup_residue, f"Unexpected .merge_backup residue on Disk1: {backup_residue}"
 
     # The DB-backed index must have an entry for the show after dispatch.
-    # MediaIndex.save() / load() are no-ops; query the DB directly via find().
     post_index = MediaIndex(index_path)
     entry = post_index.find(folder, "tvshow")
     assert entry is not None, (

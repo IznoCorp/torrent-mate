@@ -127,24 +127,6 @@ def find_existing_trailer(
         if candidate.is_file():
             return candidate
 
-    # Legacy fallback for TV shows: earlier pipeline versions (pre-2026-04-25) placed
-    # show-level trailers using the flat ``{show}-trailer.{ext}`` convention (same as
-    # movies) rather than the Plex-mandated ``Trailers/{show}.{ext}`` subfolder.
-    # Probe the legacy path so those files are detected as already-present rather than
-    # silently re-downloaded next to the correct new path.
-    # Migration: run ``personalscraper trailers purge --legacy-paths`` (not yet
-    # implemented) to move or delete these files once Plex has rescanned the library.
-    if media_type == "tvshow":
-        for ext in _KNOWN_TRAILER_EXTENSIONS:
-            legacy = media_dir / f"{media_name}-trailer.{ext}"
-            if legacy.is_file():
-                logger.warning(
-                    "placement.legacy_tvshow_trailer_found",
-                    legacy_path=str(legacy),
-                    hint="migrate with: personalscraper trailers purge --legacy-paths (not yet implemented)",
-                )
-                return legacy
-
     return None
 
 

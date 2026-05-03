@@ -13,7 +13,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.logger import get_logger
 from personalscraper.sorter.cleaner import NameCleaner

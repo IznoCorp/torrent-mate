@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from personalscraper.conf.models import Config
+    from personalscraper.conf.models.config import Config
 
 from personalscraper.logger import get_logger
 
@@ -130,7 +130,8 @@ def _publish_deleted(path: Path, label: str, db_path: Path) -> None:
             user-configured DB (DESIGN §9.4).
     """
     try:
-        from personalscraper.indexer.outbox import disk_id_for_path, publish_event  # noqa: PLC0415
+        from personalscraper.indexer.outbox._disk import disk_id_for_path  # noqa: PLC0415
+        from personalscraper.indexer.outbox._publish import publish_event  # noqa: PLC0415
 
         resolved = disk_id_for_path(path, db_path)
         if resolved is None:
@@ -489,14 +490,18 @@ def clean_library(
                     if skip_orphans_for_category:
                         continue
                     if _is_orphan_release_dir(media_dir):
+                        db_path = config.indexer.db_path
+                        assert db_path is not None, "indexer.db_path must be resolved"
                         _delete_dir(
                             media_dir,
                             result,
                             not apply,
                             "orphan release",
-                            config.indexer.db_path,
+                            db_path,
                         )
                     continue
+                db_path = config.indexer.db_path
+                assert db_path is not None, "indexer.db_path must be resolved"
                 _clean_media_dir(
                     media_dir,
                     result,
@@ -505,7 +510,7 @@ def clean_library(
                     clean_empty,
                     clean_junk,
                     clean_release,
-                    config.indexer.db_path,
+                    db_path,
                 )
 
     return result

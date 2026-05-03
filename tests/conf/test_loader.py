@@ -16,7 +16,8 @@ from personalscraper.conf.loader import (
     load_config_dir,
     resolve_config_path,
 )
-from personalscraper.conf.models import Config, IndexerConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.indexer import IndexerConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -58,6 +59,13 @@ def _write_minimal_config(path: Path, tmp_path: Path) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _write_minimal_config_dir(path: Path, tmp_path: Path) -> Path:
+    """Write a minimal split-config directory and return it."""
+    path.mkdir(parents=True, exist_ok=True)
+    _write_minimal_config(path / "config.json5", tmp_path)
+    return path
+
+
 # ---------------------------------------------------------------------------
 # resolve_config_path
 # ---------------------------------------------------------------------------
@@ -68,46 +76,30 @@ class TestResolveConfigPath:
 
     def test_cli_override_takes_priority(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """CLI override must be returned even if env var is set."""
-        monkeypatch.setenv(ENV_CONFIG_PATH, str(tmp_path / "env_config.json5"))
-        cli_path = tmp_path / "cli_config.json5"
+        monkeypatch.setenv(ENV_CONFIG_PATH, str(tmp_path / "env_config"))
+        cli_path = tmp_path / "cli_config"
         result = resolve_config_path(cli_override=cli_path)
         assert result == cli_path.expanduser().resolve()
 
     def test_env_var_used_when_no_cli(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Env var path must be used when no CLI override given."""
-        env_path = tmp_path / "env_config.json5"
+        env_path = tmp_path / "env_config"
         monkeypatch.setenv(ENV_CONFIG_PATH, str(env_path))
         result = resolve_config_path()
         assert result == env_path.expanduser().resolve()
 
     def test_default_when_neither(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Default points to the v2 split dir when present, else legacy file.
-
-        With no CLI/env override: if ``.personalscraper/config/config.json5``
-        exists in cwd the resolver returns that directory; otherwise it falls
-        back to ``./config.json5``. We exercise both branches from a clean
-        ``tmp_path`` cwd to avoid contamination from the developer's own
-        ``.personalscraper/`` directory.
-        """
+        """Default points to the split-config directory."""
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
         monkeypatch.chdir(tmp_path)
 
-        # Branch 1: nothing exists → falls through to legacy file path.
         result = resolve_config_path()
-        assert result.name == "config.json5"
-        assert not result.is_dir()
-
-        # Branch 2: v2 dir exists with a master config.json5 → returns dir.
-        (tmp_path / ".personalscraper" / "config").mkdir(parents=True)
-        (tmp_path / ".personalscraper" / "config" / "config.json5").write_text("{}")
-        result_v2 = resolve_config_path()
-        assert result_v2.is_dir()
-        assert result_v2.name == "config"
+        assert result == (tmp_path / "config").resolve()
 
     def test_expanduser_applied(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Tilde paths must be expanded."""
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
-        tilde_path = "~/my_config.json5"
+        tilde_path = "~/my_config"
         result = resolve_config_path(cli_override=Path(tilde_path))
         assert "~" not in str(result)
 
@@ -121,30 +113,38 @@ class TestLoadConfig:
     """Tests for load_config function."""
 
     def test_loads_valid_config(self, tmp_path: Path) -> None:
-        """A valid config file must be loaded and return a Config instance."""
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        """A valid config directory must be loaded and return a Config instance."""
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
         assert isinstance(config, Config)
         assert config.disks[0].id == "disk_a"
 
     def test_missing_file_raises_not_found(self, tmp_path: Path) -> None:
-        """A missing file must raise ConfigNotFoundError."""
-        with pytest.raises(ConfigNotFoundError, match="No config file or split-config directory"):
-            load_config(tmp_path / "nonexistent.json5")
+        """A missing config directory must raise ConfigNotFoundError."""
+        with pytest.raises(ConfigNotFoundError, match="No split-config directory"):
+            load_config(tmp_path / "missing_config")
+
+    def test_file_path_raises_not_found(self, tmp_path: Path) -> None:
+        """A file path is rejected; config is directory-based only."""
+        cfg_path = tmp_path / "config.json5"
+        _write_minimal_config(cfg_path, tmp_path)
+        with pytest.raises(ConfigNotFoundError, match="No split-config directory"):
+            load_config(cfg_path)
 
     def test_invalid_json5_raises_validation_error(self, tmp_path: Path) -> None:
         """A file with invalid JSON5 syntax must raise ConfigValidationError."""
-        cfg_path = tmp_path / "bad.json5"
-        cfg_path.write_text("{ this is not valid json5 !!!", encoding="utf-8")
+        cfg_dir = tmp_path / "bad_config"
+        cfg_dir.mkdir()
+        (cfg_dir / "config.json5").write_text("{ this is not valid json5 !!!", encoding="utf-8")
         with pytest.raises(ConfigValidationError, match="JSON5 parse error"):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
     def test_pydantic_validation_error_wrapped(self, tmp_path: Path) -> None:
         """A Pydantic validation error must be wrapped in ConfigValidationError."""
-        cfg_path = tmp_path / "bad_schema.json5"
+        cfg_dir = tmp_path / "bad_schema"
+        cfg_dir.mkdir()
         # Missing required 'paths' field
-        cfg_path.write_text(
+        (cfg_dir / "config.json5").write_text(
             json.dumps(
                 {
                     "disks": [
@@ -159,14 +159,13 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         with pytest.raises(ConfigValidationError, match="Validation error"):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
     def test_expanduser_resolve_applied(self, tmp_path: Path) -> None:
-        """Path passed to load_config must be resolved via expanduser/resolve."""
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
+        """Path passed to load_config must work as an absolute directory."""
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
         # Verify the function accepts an absolute path object without errors.
-        config = load_config(cfg_path)
+        config = load_config(cfg_dir)
         assert config is not None
 
 
@@ -365,54 +364,29 @@ class TestIndexerConfigRoundTrip:
         raw: dict[str, object] = {
             "db_path": "/tmp/test_library.db",
             "scan": {
-                "nightly_mode": "full",
                 "budget_seconds": 3600,
                 "checkpoint_every_n_files": 500,
                 "max_workers_total": 2,
-                "racy_window_seconds": 5.0,
                 "n_strikes_for_softdelete": 5,
                 "read_rate_mb_per_sec": 80.0,
-                "sequential_read_hint": False,
                 "drop_indexes_during_full_scan": False,
-            },
-            "fingerprint": {
-                "oshash": False,
-                "xxh3_partial_bytes": 2097152,
-                "compute_xxh3_on_racy": False,
-            },
-            "mediainfo": {
-                "library_path": "/opt/homebrew/lib/libmediainfo.dylib",
-                "extract_streams": False,
-                "min_size_mb": 100,
-                "parse_speed": 0.5,
-                "defer_to_enrich": False,
+                "paranoia_window_seconds": 7200,
             },
             "drift": {
-                "merkle_per_disk": False,
-                "verify_disks_each_scan": False,
-                "sentinel_filename": ".my-sentinel",
+                "merkle_delta_freeze_threshold": 0.75,
             },
             "spotlight": {
-                "probe_at_startup": False,
                 "use_when_available": False,
             },
-            "repair": {
-                "queue_drain_on_scan_finish": False,
-                "max_repair_seconds_per_drain": 600,
-            },
             "log": {
-                "scan_event_retention_days": 30,
                 "deleted_item_retention_days": 180,
             },
         }
         cfg = IndexerConfig.model_validate(raw)
-        assert cfg.scan.nightly_mode == "full"
         assert cfg.scan.budget_seconds == 3600
-        assert cfg.fingerprint.xxh3_partial_bytes == 2097152
-        assert cfg.mediainfo.library_path == "/opt/homebrew/lib/libmediainfo.dylib"
-        assert cfg.drift.sentinel_filename == ".my-sentinel"
-        assert cfg.spotlight.probe_at_startup is False
-        assert cfg.repair.max_repair_seconds_per_drain == 600
+        assert cfg.scan.paranoia_window_seconds == 7200
+        assert cfg.drift.merkle_delta_freeze_threshold == 0.75
+        assert cfg.spotlight.use_when_available is False
         assert cfg.log.deleted_item_retention_days == 180
 
         # Dump and re-parse must produce an equal model.
@@ -426,28 +400,25 @@ class TestIndexerConfigRoundTrip:
         with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
             IndexerConfig.model_validate({"unknown_key": True})
 
-    def test_nightly_mode_enum_validation(self) -> None:
-        """Invalid nightly_mode literal must raise ValidationError."""
+    def test_removed_scan_field_rejected(self) -> None:
+        """Removed scan fields must be rejected loudly."""
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            IndexerConfig.model_validate({"scan": {"nightly_mode": "turbo"}})
+            IndexerConfig.model_validate({"scan": {"unknown_scan_field": "turbo"}})
 
     def test_config_has_indexer_field(self, tmp_path: Path) -> None:
         """Config model must expose an ``indexer`` field of type IndexerConfig.
 
-        The default db_path is ``.personalscraper/library.db`` but the
-        validator now resolves it to an absolute path at load-time so
-        every consumer sees the same file regardless of CWD. Assert on
-        the resolved shape rather than the raw default.
+        When db_path is not explicitly set, it is derived from
+        ``paths.data_dir / 'library.db'`` by the Config-level validator.
         """
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
         assert isinstance(config.indexer, IndexerConfig)
         assert config.indexer.db_path.is_absolute()
         assert config.indexer.db_path.name == "library.db"
-        assert config.indexer.db_path.parent.name == ".personalscraper"
+        assert config.indexer.db_path.parent.name == ".data"
 
 
 # ---------------------------------------------------------------------------
@@ -460,8 +431,8 @@ class TestIndexerDbPathValidator:
 
     def test_internal_path_accepted(self) -> None:
         """A db_path on the home directory or project root must be accepted."""
-        cfg = IndexerConfig.model_validate({"db_path": "/Users/izno/.personalscraper/library.db"})
-        assert cfg.db_path == Path("/Users/izno/.personalscraper/library.db")
+        cfg = IndexerConfig.model_validate({"db_path": "/Users/izno/.data/library.db"})
+        assert cfg.db_path == Path("/Users/izno/.data/library.db")
 
     def test_tmp_path_accepted(self) -> None:
         """A path under /tmp must be accepted (internal macOS volume)."""
@@ -489,13 +460,12 @@ class TestIndexerDbPathValidator:
         (sqlite3.connect, indexer outbox, dispatch) sees the same file
         regardless of the calling process's CWD. Without this anchor the
         same config string produced different DB files depending on the
-        entry point — an orphan DB at ``.data/library.db`` was created by
-        a tool launched from a different CWD before this fix.
+        entry point.
         """
-        cfg = IndexerConfig.model_validate({"db_path": ".personalscraper/library.db"})
+        cfg = IndexerConfig.model_validate({"db_path": ".data/library.db"})
         assert cfg.db_path.is_absolute()
         assert cfg.db_path.name == "library.db"
-        assert cfg.db_path.parent.name == ".personalscraper"
+        assert cfg.db_path.parent.name == ".data"
 
     def test_validator_in_isolation(self) -> None:
         """Calling the field_validator class method directly must work for /Volumes/ paths."""
@@ -547,9 +517,8 @@ class TestCategoryOrphanCheck:
         """
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
 
         # Override db_path to a nonexistent location.
         object.__setattr__(
@@ -568,9 +537,8 @@ class TestCategoryOrphanCheck:
         """When all DB category_ids are declared in config, no warning is emitted."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
 
         db_path = tmp_path / "library.db"
         # "movies" and "tv_shows" are builtin IDs — always in all_category_ids.
@@ -587,9 +555,8 @@ class TestCategoryOrphanCheck:
         """When the DB contains a category_id not in config, a warning must be logged."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-        config = load_config(cfg_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        config = load_config(cfg_dir)
 
         db_path = tmp_path / "library.db"
         # "movies_old" does not exist in any declared category.
@@ -606,8 +573,8 @@ class TestCategoryOrphanCheck:
         """load_config must trigger the orphan check if library.db is present."""
         import logging
 
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
+        cfg_dir = _write_minimal_config_dir(tmp_path / "config", tmp_path)
+        cfg_path = cfg_dir / "config.json5"
 
         # Build a config to find the default db_path; patch it to tmp_path.
         # We do this by writing a config that sets the db_path to our DB.
@@ -646,35 +613,22 @@ class TestCategoryOrphanCheck:
         cfg_path.write_text(content, encoding="utf-8")
 
         with caplog.at_level(logging.WARNING):
-            load_config(cfg_path)
+            load_config(cfg_dir)
 
         assert "indexer.config.category_orphan" in caplog.text
         assert "zombie_category" in caplog.text
 
 
 # ---------------------------------------------------------------------------
-# DeprecationWarning for v1 single-file loader
+# load_config_dir warning behaviour
 # ---------------------------------------------------------------------------
 
 
-class TestLoadConfigDeprecationWarning:
-    """Tests that load_config emits a DeprecationWarning and load_config_dir does not."""
+class TestLoadConfigWarnings:
+    """Tests that load_config_dir does not emit unrelated warnings."""
 
-    def test_load_config_emits_deprecation_warning(self, tmp_path: Path) -> None:
-        """load_config must emit exactly one DeprecationWarning directing users to migrate."""
-        cfg_path = tmp_path / "config.json5"
-        _write_minimal_config(cfg_path, tmp_path)
-
-        with pytest.warns(DeprecationWarning, match="migrate-to-v2") as warning_list:
-            load_config(cfg_path)
-
-        # Exactly one DeprecationWarning must be emitted — not silently swallowed.
-        deprecation_warnings = [w for w in warning_list if issubclass(w.category, DeprecationWarning)]
-        assert len(deprecation_warnings) == 1
-        assert "v1 single-file config is deprecated" in str(deprecation_warnings[0].message)
-
-    def test_load_config_dir_does_not_emit_deprecation_warning(self, tmp_path: Path) -> None:
-        """load_config_dir (v2 path) must NOT emit a DeprecationWarning."""
+    def test_load_config_dir_does_not_emit_python_warnings(self, tmp_path: Path) -> None:
+        """load_config_dir must not emit Python warnings."""
         cfg_dir = tmp_path / "cfg"
         cfg_dir.mkdir()
         (cfg_dir / "config.json5").write_text(
@@ -682,14 +636,10 @@ class TestLoadConfigDeprecationWarning:
             encoding="utf-8",
         )
 
-        # recwarn collects all warnings; we assert none are DeprecationWarning.
         import warnings as _warnings
 
         with _warnings.catch_warnings(record=True) as caught:
             _warnings.simplefilter("always")
             load_config_dir(cfg_dir)
 
-        deprecation_warnings = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-        assert deprecation_warnings == [], (
-            f"load_config_dir must not emit DeprecationWarning, but got: {deprecation_warnings}"
-        )
+        assert caught == []

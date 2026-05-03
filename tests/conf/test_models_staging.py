@@ -3,7 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from personalscraper.conf.models import Config, StagingDirConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.staging import StagingDirConfig
 
 # ---------------------------------------------------------------------------
 # StagingDirConfig unit tests

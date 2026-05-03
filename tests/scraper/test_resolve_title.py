@@ -8,12 +8,20 @@ from personalscraper.scraper.scraper import Scraper
 def _make_scraper(prefer_local: bool = True) -> Scraper:
     """Create a Scraper with mocked settings for title resolution tests."""
     settings = MagicMock()
-    settings.scraper_prefer_local_title = prefer_local
     settings.tmdb_api_key = "fake"
     settings.tvdb_api_key = "fake"
     settings.circuit_breaker_threshold = 5
     settings.circuit_breaker_cooldown = 300
-    return Scraper(settings, MagicMock(), dry_run=True)
+
+    config = MagicMock()
+    config.scraper.language = "fr-FR"
+    config.scraper.fallback_language = "en-US"
+    config.scraper.prefer_local_title = prefer_local
+    config.scraper.artwork_language = "en"
+    config.thresholds.circuit_breaker_threshold = 5
+    config.thresholds.circuit_breaker_cooldown = 300
+
+    return Scraper(settings, MagicMock(), dry_run=True, config=config, interactive=False)
 
 
 class TestResolveTitle:

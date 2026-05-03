@@ -1,9 +1,7 @@
 # Indexer Reference
 
 The media indexer (`personalscraper/indexer/`) is a SQLite-backed subsystem that
-replaces the three legacy JSON sources of truth (`media_index.json`,
-`library_scan.json`, `library_analysis.json`) with a single queryable mirror of
-the four storage disks.
+maintains a single queryable mirror of the configured storage disks.
 
 Cross-references: DESIGN §6, §8, §11, §12, §13, §14, §17.
 
@@ -11,8 +9,8 @@ Cross-references: DESIGN §6, §8, §11, §12, §13, §14, §17.
 
 ## Schema Overview
 
-The database lives at `.personalscraper/library.db` by default (configurable
-via `indexer.db_path`; WAL mode; must reside on the internal APFS disk).
+The database lives at `paths.data_dir / "library.db"` by default (configurable
+via `indexer.db_path` in `config/indexer.json5`; WAL mode; must reside on the internal APFS disk).
 Full DDL is in `personalscraper/indexer/migrations/001_init.sql`; the table list
 below gives a one-line description of each table's role.
 
@@ -69,9 +67,8 @@ preserves the `media_item` row and all linked metadata.
 
 ### OSHash collision handling
 
-If two distinct physical files hash to the same `oshash`, the indexer escalates
-to `xxh3_full` (full file content) to disambiguate. Both files are kept with
-distinct `media_file` rows; the collision is logged as
+If two distinct physical files hash to the same `oshash`, both files are
+kept with distinct `media_file` rows; the collision is logged as
 `indexer.drift.oshash_collision` at WARNING level.
 
 ### N-strikes soft-delete policy
@@ -96,8 +93,7 @@ WARN exit from `library status`.
 ## Scan Modes
 
 The scanner (`personalscraper/indexer/scanner/`) supports four production modes
-plus two utility modes. The mode is chosen with `--mode` on the CLI or via
-`indexer.json5: scan.default_mode`.
+plus one utility mode. The mode is chosen with `--mode` on the CLI.
 
 | Mode          | What it reads                                                       | Typical use                                      |
 | ------------- | ------------------------------------------------------------------- | ------------------------------------------------ |
@@ -106,7 +102,6 @@ plus two utility modes. The mode is chosen with `--mode` on the CLI or via
 | `enrich`      | Only files where `enriched_at IS NULL` or `enriched_at` is stale.   | Back-fill mediainfo + NFO + artwork after add.   |
 | `full`        | Every file on every disk, regardless of cached mtimes.              | Cold rebuild; after disk replacement.            |
 | `verify`      | Re-stat every file; escalate to tier-2 on mismatch; no soft-delete. | On-demand quality gate (wraps `library verify`). |
-| `repair`      | Only `repair_queue` rows with status `'pending'`.                   | Internal; driven by `library repair`.            |
 
 `--disk LABEL` narrows any mode to a single disk and forces `max_workers=1` to
 prevent accidental parallel I/O on the USB hub.
@@ -185,7 +180,8 @@ after an unclean unmount that left the index inconsistent.
 
 ```bash
 # 1. Quarantine the corrupt database (if any)
-mv .personalscraper/library.db .personalscraper/library.db.bak
+#    (paths.data_dir defaults to .data/)
+mv .data/library.db .data/library.db.bak
 
 # 2. Run a full scan — rebuilds from scratch
 personalscraper library-index --mode full
@@ -280,7 +276,7 @@ personalscraper library-index --rebuild
 ```
 
 The `--rebuild` flag renames the existing DB to
-`<db_path>.corrupt-<unix_ts>` (default `.personalscraper/library.db.corrupt-<unix_ts>`)
+`<db_path>.corrupt-<unix_ts>` (e.g. `library.db.corrupt-1714567890` inside the configured `data_dir`)
 and runs a full Stage-A rescan from scratch.
 
 ### Stale lock
@@ -291,13 +287,13 @@ does not exist in the process table.
 Recovery:
 
 ```bash
-# Manually remove the stale lock file
-rm .personalscraper/library.db.lock
+# Manually remove the stale SQLite lock file (resides next to library.db)
+rm .data/library.db.lock
 personalscraper library-index
 ```
 
 The lock file path is derived from the database path as `<indexer.db_path>.lock`
-(default `.personalscraper/library.db.lock`); it is not separately configurable.
+(default `.data/library.db.lock`); it is not separately configurable.
 
 ### Partial migration recovery
 
@@ -329,16 +325,16 @@ personalscraper library-index --mode full --disk Disk2 --confirm-bulk-change
 
 Full option documentation is in `docs/reference/commands.md`.
 
-| Command                                            | Exit codes               | Notes                                     |
-| -------------------------------------------------- | ------------------------ | ----------------------------------------- |
-| `library index [--mode M] [--disk D] [--budget S]` | 0 ok / 1 err / 2 bad arg | Main scan command.                        |
-| `library index --dry-run`                          | 0                        | Suppresses all media\_\* mutations.       |
-| `library index --rebuild`                          | 0 ok / 1 err             | Quarantines old DB, fresh Stage-A scan.   |
-| `library index --confirm-bulk-change`              | 0 ok / 1 err             | Bypasses Merkle-delta freeze.             |
-| `library status`                                   | 0 healthy / 1 warn       | WARN on old/deep repair queue or orphans. |
-| `library verify [--disk D]`                        | 0 ok / 1 err             | No soft-deletes; marks for repair only.   |
-| `library search QUERY [--limit N]`                 | 0 ok / 2 bad query       | Uses flex-attr parser.                    |
-| `library repair [--budget S]`                      | 0 ok / 1 err             | Drains repair queue within budget.        |
-| `library show ITEM_ID`                             | 0 ok / 2 not found       | Pretty-prints all stored data.            |
-| `config migrate-category --from OLD --to NEW`      | 0 ok / 2 unknown NEW     | Rewrites category_id in bulk.             |
-| `config migrate-to-v2 [--dry-run]`                 | 0 ok / 2 err             | One-shot v1 → v2 config migration.        |
+| Command                                             | Exit codes                                      | Notes                                     |
+| --------------------------------------------------- | ----------------------------------------------- | ----------------------------------------- |
+| `library index [--mode M] [--disk D] [--budget S]`  | 0 ok / 1 err / 2 bad arg / 3 bulk change frozen | Main scan command.                        |
+| `library index --dry-run`                           | 0                                               | Suppresses all media\_\* mutations.       |
+| `library index --rebuild`                           | 0 ok / 1 err                                    | Quarantines old DB, fresh Stage-A scan.   |
+| `library index --confirm-bulk-change`               | 0 ok / 1 err                                    | Bypasses Merkle-delta freeze.             |
+| `library status`                                    | 0 healthy / 1 warn                              | WARN on old/deep repair queue or orphans. |
+| `library verify [--disk D]`                         | 0 ok / 1 err / 2 unknown disk                   | No soft-deletes; marks for repair only.   |
+| `library search QUERY [--limit N]`                  | 0 ok / 2 bad query                              | Uses flex-attr parser.                    |
+| `library repair [--budget S]`                       | 0 ok / 1 err                                    | Drains repair queue within budget.        |
+| `library reconcile [--scope S] [--enqueue-repairs]` | 0 ok / 1 err                                    | DB-only divergence detection.             |
+| `library show ITEM_ID`                              | 0 ok / 2 not found                              | Pretty-prints all stored data.            |
+| `config migrate-category --from OLD --to NEW`       | 0 ok / 2 unknown NEW                            | Rewrites category_id in bulk.             |

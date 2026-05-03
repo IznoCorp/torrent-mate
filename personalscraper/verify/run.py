@@ -4,7 +4,7 @@ Instantiates the Verifier, processes movies and TV shows, and
 converts VerifyResult lists to StepReport.
 """
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger

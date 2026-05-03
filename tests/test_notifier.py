@@ -111,9 +111,11 @@ class TestIsConfigured:
         settings = Settings(telegram_bot_token="tok", telegram_chat_id="")
         assert TelegramNotifier.is_configured(settings) is False
 
-    def test_not_configured_both_empty(self):
+    def test_not_configured_both_empty(self, monkeypatch):
         """Returns False when both are empty (default state)."""
-        settings = Settings()
+        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+        monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+        settings = Settings(_env_file=None)
         assert TelegramNotifier.is_configured(settings) is False
 
 

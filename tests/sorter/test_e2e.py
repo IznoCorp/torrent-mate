@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter

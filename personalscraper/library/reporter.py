@@ -1,19 +1,17 @@
-"""Library reporter — aggregate statistics from the indexer DB and JSON data files.
+"""Library reporter — aggregate statistics from the indexer DB and command outputs.
 
 Reads health metrics from :class:`~personalscraper.library.analyzer.AnalysisResult`
 (produced by :func:`~personalscraper.library.analyzer.analyze`) and supplementary
-JSON files (validation, recommendations, rescrape) to produce a comprehensive
+command outputs (validation, recommendations, rescrape) to produce a comprehensive
 library health report with clear explanations and suggested remediation commands.
 
-The legacy ``library_scan.json`` and ``library_analysis.json`` files are no
-longer read — the DB-backed :class:`AnalysisResult` is the only source of
-totals, NFO / artwork metrics, disk distribution, and per-item size data
-(DESIGN §10.2).  Scan-issue data (``actors_dir_present``, ``junk_files``,
-etc.) and ``actors_dir_count`` are persisted in the indexer's
-``item_issue`` table by ``library-scan`` and surfaced here via
-``AnalysisResult.scan_issues`` / ``actors_dir_count`` so the report can
-flag dirty directories without re-walking the disks.  ``library-clean``
-remains the user-driven action that resolves them.
+The DB-backed :class:`AnalysisResult` is the source of totals, NFO / artwork
+metrics, disk distribution, and per-item size data. Scan-issue data
+(``actors_dir_present``, ``junk_files``, etc.) and ``actors_dir_count`` are
+persisted in the indexer's ``item_issue`` table and surfaced here via
+``AnalysisResult.scan_issues`` / ``actors_dir_count`` so the report can flag
+dirty directories without re-walking the disks. ``library-clean`` remains the
+user-driven action that resolves them.
 """
 
 from __future__ import annotations
@@ -176,7 +174,7 @@ def generate_report(
     """
     report = LibraryReport(generated_at=datetime.now(tz=timezone.utc).isoformat())
 
-    # --- DB-backed analysis result — totals, distribution, NFO/artwork metrics
+    # --- DB-backed analysis result: totals, distribution, NFO/artwork metrics
     if analysis_result is not None:
         report.total_items = analysis_result.total_items
         report.total_size_gb = analysis_result.total_size_gb
@@ -193,8 +191,7 @@ def generate_report(
         # surfaced via ``AnalysisResult.scan_issues`` / ``actors_dir_count``.
         # ``Counter.most_common()`` on a dict returns descending counts so
         # the SCAN section in ``format_report_text`` lists the heaviest
-        # issue type first — same ordering the legacy library_scan.json
-        # path produced.
+        # issue type first.
         if analysis_result.scan_issues:
             report.scan_issues = dict(Counter(analysis_result.scan_issues).most_common())
         report.actors_dir_count = analysis_result.actors_dir_count

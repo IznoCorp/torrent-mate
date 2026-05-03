@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -40,7 +40,6 @@ def resilience_settings(staging):
     s.tvshows_dir_name = "002-TVSHOWS"
     s.ingest_dir_name = "097-TEMP"
     s.ingest_dir.side_effect = lambda staging_dir: staging_dir / "097-TEMP"
-    s.min_free_space_disk_gb = 100.0
     return s
 
 

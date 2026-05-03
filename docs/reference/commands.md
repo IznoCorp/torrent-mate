@@ -47,13 +47,15 @@ personalscraper library-repair --budget 120                  # Drain with explic
 personalscraper library-reconcile                            # Detect index ↔ FS divergences (DB-only, no rescan)
 personalscraper library-reconcile --scope enrich             # Restrict to one detector (repeatable)
 personalscraper library-reconcile --enqueue-repairs          # Push findings into repair_queue (drained by library-repair)
+personalscraper library-ghost-audit                           # Audit disks for NTFS-via-macFUSE ghost directory entries
+personalscraper library-ghost-audit --disk Disk1              # Audit only one disk
+personalscraper library-relink                                # Dry-run: show media_file rows with missing release links
+personalscraper library-relink --apply                        # Persist release link updates
 ```
 
 ### Disk-walking commands
 
 ```bash
-personalscraper library-scan                                 # Walk disks, populate indexer + dispatch_path attrs
-personalscraper library-scan --disk Disk1                    # Single disk
 personalscraper library-clean                                # Dry-run: show what would be cleaned
 personalscraper library-clean --apply                        # Delete .actors/, empty dirs, junk
 personalscraper library-clean --only actors --apply          # Only .actors/ dirs
@@ -80,33 +82,29 @@ personalscraper library-report --format json                 # Export as JSON
 ## Trailers
 
 personalscraper trailers scan [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level show|season|both] [--season N] [--no-refresh]
-personalscraper trailers download [--dry-run] [--disk D] [--category C] [--limit N] [--level season] [--season N]
-personalscraper trailers verify [--disk D] [--category C] [--deep] [--no-refresh]
-personalscraper trailers purge [--dry-run] [--disk D]
+personalscraper trailers download [--dry-run] [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level season] [--season N] [--no-refresh]
+personalscraper trailers verify [--disk D] [--category C] [--deep] [--since YYYY-MM-DD] [--level show|season|both] [--season N]
+personalscraper trailers purge [--dry-run] [--disk D] [--since YYYY-MM-DD] [--level show|season|both] [--season N] [--include-state]
 
 Exit codes: 0 ok, 1 error, 2 bad argument.
+
+Common filters: `--disk` and `--category` are accepted by scan, download, and verify.
+`--since`, `--level`, and `--season` are accepted by all four commands.
+`--limit` and `--no-refresh` are only accepted by scan and download.
 
 ## Bootstrap & Inspection
 
 ```bash
-personalscraper init-config                          # Create config.json5 from the example template (interactive)
+personalscraper init-config                          # Create config/ directory from the config.example/ template (interactive)
 personalscraper init-config --yes                    # Non-interactive — accept all defaults
-personalscraper init-config --force                  # Overwrite existing config.json5 (backs up to .bak)
+personalscraper init-config --force                  # Overwrite existing config/ directory (backs up to .bak)
 personalscraper info                                 # Display version, config paths, disk status
 ```
 
 ## Config Migration
 
 ```bash
-personalscraper config migrate-to-v2                 # Migrate legacy config.json5 → split-config layout
-personalscraper config migrate-to-v2 --dry-run       # Preview migration without writes
-personalscraper config migrate-category <old> <new>  # Rename a category id across config + on-disk paths
-```
-
-## Aliases
-
-```bash
-media-ingest                        # → personalscraper ingest
+personalscraper config migrate-category --from OLD --to NEW  # Rename a category id across config + on-disk paths
 ```
 
 ## Disk Space Check

@@ -1,18 +1,28 @@
 # Configuration
 
-Guide complet de configuration du fichier `.env` pour PersonalScraper.
+Guide complet de configuration pour PersonalScraper.
+
+**Deux sources de configuration :**
+
+- **`config/`** — Fichiers JSON5 (chemins, disques, seuils, préférences). Créé via `personalscraper init-config`.
+- **`.env`** — Uniquement les credentials (clés API, mots de passe, tokens). Template : `.env.example`.
 
 > Voir aussi : [INSTALLATION.md](INSTALLATION.md) (installation) | [MANUAL.md](MANUAL.md) (utilisation)
 
 ## Mise en place
 
 ```bash
+# 1. Créer la configuration
+personalscraper init-config
+
+# 2. Configurer les credentials
 cp .env.example .env
+# Éditer .env pour renseigner les clés API
 ```
 
-Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Toutes les variables ont des valeurs par défaut sauf les clés API et le mot de passe qBittorrent qui doivent être renseignés.
+Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/). Il contient **uniquement** les secrets (clés API, mots de passe). Toute la configuration structurelle (chemins, disques, seuils) est dans `config/`.
 
-> **Ne jamais commiter le `.env`** — il est dans `.gitignore`. Utiliser `.env.example` comme template de référence.
+> **Ne jamais commiter `.env` ni `config/`** — ils sont dans `.gitignore`. Utiliser `.env.example` et `config.example/` comme templates de référence.
 
 ---
 
@@ -20,12 +30,12 @@ Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-sett
 
 Variables de connexion à l'interface Web de qBittorrent (Ingest).
 
-| Variable        | Défaut      | Description                           |
-| --------------- | ----------- | ------------------------------------- |
-| `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent |
-| `QBIT_PORT`     | `8081`      | Port de l'interface Web API           |
-| `QBIT_USERNAME` | `admin`     | Nom d'utilisateur Web UI              |
-| `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                   |
+| Variable        | Défaut      | Description                                             |
+| --------------- | ----------- | ------------------------------------------------------- |
+| `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent                   |
+| `QBIT_PORT`     | `8081`      | Port de l'interface Web API (qBittorrent défaut : 8080) |
+| `QBIT_USERNAME` | `""`        | Nom d'utilisateur Web UI                                |
+| `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                                     |
 
 ### Comment configurer
 
@@ -48,13 +58,13 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 ## Chemins
 
-> **Depuis la version 0.4.0**, tous les chemins du pipeline
+> **Depuis la version 0.9.0**, tous les chemins du pipeline
 > (`torrent_complete_dir`, `staging_dir`, `data_dir`, disques de stockage)
-> sont définis dans `config.json5`. Les anciennes variables d'environnement
+> sont définis dans `config/`. Les anciennes variables d'environnement
 > `TORRENT_COMPLETE_DIR`, `STAGING_DIR`, `DISK1_DIR`…`DISK4_DIR` **ont été
 > retirées** — les positionner dans `.env` n'a plus aucun effet.
 >
-> Voir la section [Configuration config.json5](#configuration-configjson5)
+> Voir la section [Configuration config/](#configuration-config)
 > ci-dessous pour la nouvelle disposition (`paths:` et `disks:`).
 
 > **Attention aux espaces** dans les chemins définis dans `config.json5` :
@@ -64,16 +74,17 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 ---
 
-## Configuration config.json5
+## Configuration config/
 
-Depuis la version 0.4.0, les chemins principaux et la disposition du staging sont
-définis dans `config.json5` (en plus du `.env`).
+Depuis la version 0.9.0, les chemins, la disposition du staging et les seuils
+sont définis dans le dossier `config/` (format v2 split). Le `.env` ne contient
+que les credentials.
 
 ### `paths.staging_dir`
 
 Chemin vers le répertoire de staging racine où les médias arrivent pour traitement.
 
-- **Exemple (config.example.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
+- **Exemple (config.example/paths.json5) :** `./staging/` (relatif, portable — se résout en `<repo>/staging/` en CI)
 - **Pas de défaut en production** — à définir selon votre environnement (par exemple `/Volumes/<disk>/staging/`).
 - Les chemins relatifs sont résolus en chemins absolus au chargement via `Path.expanduser().resolve()`.
 - L'arborescence de staging est créée automatiquement au premier lancement — aucun `mkdir` manuel requis.
@@ -90,7 +101,7 @@ Chemin vers le répertoire d'état du pipeline (index, locks, cache d'analyse).
 
 ### `staging_dirs`
 
-**Requis** (depuis la version 0.4.0). Définit la disposition des sous-répertoires de la zone de staging.
+**Requis**. Définit la disposition des sous-répertoires de la zone de staging.
 
 Chaque entrée :
 
@@ -187,10 +198,32 @@ TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 Configuration des langues pour les requêtes API.
 
-| Variable                    | Défaut  | Description                                                          |
-| --------------------------- | ------- | -------------------------------------------------------------------- |
-| `SCRAPER_LANGUAGE`          | `fr-FR` | Langue principale pour les titres, descriptions, noms d'épisodes     |
-| `SCRAPER_FALLBACK_LANGUAGE` | `en-US` | Langue de repli si le contenu n'existe pas dans la langue principale |
+Ces réglages sont dans `config/scraper.json5`, pas dans `.env`.
+
+### `scraper`
+
+| Clé (`scraper` bloc)   | Défaut      | Description                                                            |
+| ---------------------- | ----------- | ---------------------------------------------------------------------- |
+| `language`             | `fr-FR`     | Langue principale pour les titres, descriptions, noms d'épisodes       |
+| `fallback_language`    | `en-US`     | Langue de repli si le contenu n'existe pas dans la langue principale   |
+| `prefer_local_title`   | `true`      | Préférer le titre dans la langue configurée pour les noms de dossier   |
+| `episode_default_name` | `"Episode"` | Préfixe des titres d'épisode synthétiques quand l'API n'en fournit pas |
+| `artwork_language`     | `"en"`      | Langue préférée pour les artworks (ISO 639-1)                          |
+
+### `ingest`
+
+| Clé (`ingest` bloc) | Défaut | Description                                                              |
+| ------------------- | ------ | ------------------------------------------------------------------------ |
+| `min_ratio`         | `0.0`  | Ratio de seeding minimum pour l'éligibilité à l'ingest (0.0 = désactivé) |
+
+### `fuzzy_match`
+
+| Clé (`fuzzy_match` bloc) | Défaut | Description                                                 |
+| ------------------------ | ------ | ----------------------------------------------------------- |
+| `min_length_ratio`       | `0.67` | Ratio minimum longueur courte/longue pour accepter un match |
+| `short_title_length`     | `10`   | Limite de caractères séparant titres courts/longs           |
+| `short_title_threshold`  | `95.0` | Score WRatio requis pour les titres ≤ `short_title_length`  |
+| `long_title_threshold`   | `90.0` | Score WRatio requis pour les titres > `short_title_length`  |
 
 ### Comment configurer
 
@@ -204,12 +237,44 @@ Exemples courants :
 - `es-ES` — Espagnol (Espagne)
 - `ja-JP` — Japonais (Japon)
 
-```ini
-SCRAPER_LANGUAGE=fr-FR
-SCRAPER_FALLBACK_LANGUAGE=en-US
+```json5
+// config/scraper.json5
+{
+  language: "fr-FR",
+  fallback_language: "en-US",
+}
 ```
 
 > Les valeurs par défaut conviennent pour une bibliothèque francophone. Le fallback anglais permet de récupérer les titres/descriptions quand la traduction française n'existe pas (fréquent pour les anime et les séries récentes).
+
+---
+
+## YouTube / Trailers (optionnel)
+
+Credentials et configuration pour le téléchargement des bandes-annonces via yt-dlp.
+
+| Variable                       | Défaut   | Description                                                              |
+| ------------------------------ | -------- | ------------------------------------------------------------------------ |
+| `YOUTUBE_API_KEY`              | _(vide)_ | Clé API YouTube Data v3 (coût : 100 unités/search.list, quota 10k/jour)  |
+| `YOUTUBE_COOKIES_FILE`         | _(vide)_ | Chemin vers un fichier cookies.txt Netscape (doit être en mode 600)      |
+| `YOUTUBE_COOKIES_FROM_BROWSER` | _(vide)_ | Extraction live depuis un profil navigateur (firefox, chrome, safari...) |
+
+> **ffmpeg** doit être installé sur le PATH (`brew install ffmpeg`).
+
+### Comment configurer
+
+1. Créer une clé API YouTube sur [Google Cloud Console](https://console.developers.google.com/apis/api/youtube.googleapis.com)
+2. Pour les cookies : exporter un fichier `cookies.txt` au format Netscape, ou utiliser `YOUTUBE_COOKIES_FROM_BROWSER`
+
+```ini
+YOUTUBE_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Option A
+YOUTUBE_COOKIES_FILE=/path/to/cookies.txt
+# Option B (alternative)
+YOUTUBE_COOKIES_FROM_BROWSER=firefox
+```
+
+> Sans `YOUTUBE_API_KEY`, le pipeline utilise `ytsearch1` (recherche directe yt-dlp, plus lente, sans quota).
 
 ---
 
@@ -292,37 +357,40 @@ HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ## Seuils d'espace disque
 
-Protections contre le remplissage des disques.
+Protections contre le remplissage des disques. Ces réglages sont dans `config/thresholds.json5`, pas dans `.env`.
 
-| Variable                    | Défaut | Description                                                               |
+| Clé (thresholds.json5)      | Défaut | Description                                                               |
 | --------------------------- | ------ | ------------------------------------------------------------------------- |
-| `MIN_FREE_SPACE_STAGING_GB` | `20`   | Espace libre minimum (Go) sur le SSD avant d'ingérer de nouveaux torrents |
-| `MIN_FREE_SPACE_DISK_GB`    | `100`  | Espace libre minimum (Go) sur un disque de stockage avant d'y dispatcher  |
+| `min_free_space_staging_gb` | `20`   | Espace libre minimum (Go) sur le SSD avant d'ingérer de nouveaux torrents |
+| `min_free_space_disk_gb`    | `100`  | Espace libre minimum (Go) sur un disque de stockage avant d'y dispatcher  |
 
 ### Comment configurer
 
-```ini
-# SSD de 1 To → garder 20 Go de marge
-MIN_FREE_SPACE_STAGING_GB=20
+```json5
+// config/thresholds.json5
+{
+  // SSD de 1 To → garder 20 Go de marge
+  min_free_space_staging_gb: 20,
 
-# Disques de 4-8 To → garder 100 Go de marge
-MIN_FREE_SPACE_DISK_GB=100
+  // Disques de 4-8 To → garder 100 Go de marge
+  min_free_space_disk_gb: 100,
+}
 ```
 
 > **Formule de dispatch** : un disque est éligible si `free_space_gb >= max(min_free_gb, item_size_gb * 1.5)`. Cela garantit une marge même pour les gros fichiers (ex: une série de 50 Go nécessite 75 Go libres minimum).
 
-> Adapter ces valeurs à la taille de vos disques. Pour des disques plus petits (1-2 To), baisser `MIN_FREE_SPACE_DISK_GB` à 50.
+> Adapter ces valeurs à la taille de vos disques. Pour des disques plus petits (1-2 To), baisser `min_free_space_disk_gb` à 50.
 
 ---
 
 ## Circuit Breaker
 
-Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker détecte quand un provider est durablement down et évite de le spammer.
+Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker détecte quand un provider est durablement down et évite de le spammer. Ces réglages sont dans `config/thresholds.json5`, pas dans `.env`.
 
-| Variable                    | Défaut | Description                                                  |
+| Clé (thresholds.json5)      | Défaut | Description                                                  |
 | --------------------------- | ------ | ------------------------------------------------------------ |
-| `CIRCUIT_BREAKER_THRESHOLD` | `5`    | Nombre d'erreurs consécutives avant d'ouvrir le circuit      |
-| `CIRCUIT_BREAKER_COOLDOWN`  | `300`  | Temps d'attente (secondes) avant de retenter après ouverture |
+| `circuit_breaker_threshold` | `5`    | Nombre d'erreurs consécutives avant d'ouvrir le circuit      |
+| `circuit_breaker_cooldown`  | `300`  | Temps d'attente (secondes) avant de retenter après ouverture |
 
 ### Fonctionnement
 
@@ -334,10 +402,13 @@ Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker dé
 
 ### Comment configurer
 
-```ini
-# Valeurs par défaut — adaptées à la plupart des cas
-CIRCUIT_BREAKER_THRESHOLD=5
-CIRCUIT_BREAKER_COOLDOWN=300
+```json5
+// config/thresholds.json5
+{
+  // Valeurs par défaut — adaptées à la plupart des cas
+  circuit_breaker_threshold: 5,
+  circuit_breaker_cooldown: 300,
+}
 ```
 
 > Pour un usage intensif avec beaucoup de médias, augmenter le seuil à 10 pour tolérer des erreurs transitoires. Pour un réseau instable, baisser le cooldown à 120 secondes.
@@ -346,24 +417,18 @@ CIRCUIT_BREAKER_COOLDOWN=300
 
 ## Exemple complet
 
+### .env (credentials uniquement)
+
 ```ini
-# ── qBittorrent ────────────────────────────��─
+# ── qBittorrent ──────────────────────────────
 QBIT_HOST=localhost
 QBIT_PORT=8081
 QBIT_USERNAME=admin
 QBIT_PASSWORD=mon_mot_de_passe
 
-# ── Paths ────────────────────────────────────
-# (Removed — paths live in config.json5 since v0.4.0;
-#  see the Configuration config.json5 section above.)
-
 # ── TMDB / TVDB ──────────────────────────────
 TMDB_API_KEY=abcdef1234567890abcdef1234567890
 TVDB_API_KEY=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-
-# ── Scraper ──────────────────────────────────
-SCRAPER_LANGUAGE=fr-FR
-SCRAPER_FALLBACK_LANGUAGE=en-US
 
 # ── Telegram ─────────────────────────────────
 TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIjKlMnOpQrStUvWxYz
@@ -372,13 +437,44 @@ TELEGRAM_CHAT_ID=123456789
 # ── Monitoring ───────────────────────────────
 HEALTHCHECK_URL=https://hc-ping.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
-# ── Thresholds ───────────────────────────────
-MIN_FREE_SPACE_STAGING_GB=20
-MIN_FREE_SPACE_DISK_GB=100
+# ── Trailers (yt-dlp) ────────────────────────
+YOUTUBE_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# YOUTUBE_COOKIES_FILE=/path/to/cookies.txt
+# YOUTUBE_COOKIES_FROM_BROWSER=firefox
+```
 
-# ── Circuit Breaker ──────────────────────────
-CIRCUIT_BREAKER_THRESHOLD=5
-CIRCUIT_BREAKER_COOLDOWN=300
+### config/thresholds.json5
+
+```json5
+{
+  min_free_space_staging_gb: 20,
+  min_free_space_disk_gb: 100,
+  circuit_breaker_threshold: 5,
+  circuit_breaker_cooldown: 300,
+}
+```
+
+### config/scraper.json5 (extrait)
+
+```json5
+{
+  scraper: {
+    language: "fr-FR",
+    fallback_language: "en-US",
+    prefer_local_title: true,
+    episode_default_name: "Episode",
+    artwork_language: "en",
+  },
+  ingest: {
+    min_ratio: 0.0,
+  },
+  fuzzy_match: {
+    min_length_ratio: 0.67,
+    short_title_length: 10,
+    short_title_threshold: 95.0,
+    long_title_threshold: 90.0,
+  },
+}
 ```
 
 ---

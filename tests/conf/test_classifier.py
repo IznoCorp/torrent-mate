@@ -15,7 +15,11 @@ from pathlib import Path
 import pytest
 
 from personalscraper.conf.classifier import _read_nfo_category, classify
-from personalscraper.conf.models import AnimeRule, CategoryRule, Config
+from personalscraper.conf.models.categories import (
+    AnimeRule,
+    CategoryRule,
+)
+from personalscraper.conf.models.config import Config
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -450,29 +454,6 @@ class TestClassifyAnimeRule:
         )
         # Rule skipped for TV → genre_mapping
         assert cid == "tv_shows_animation"
-
-    def test_applies_to_movies_legacy_normalized(self, test_config: Config) -> None:
-        """Legacy 'movies' (plural) is normalized to 'movie' for backward compat."""
-        cfg = test_config.model_copy(
-            update={
-                "anime_rule": AnimeRule(
-                    enabled=True,
-                    applies_to="movies",  # type: ignore[arg-type]  # legacy plural, normalized by validator
-                    requires_genre_id=16,
-                    requires_origin_country=["JP"],
-                    maps_to="anime",
-                )
-            }
-        )
-        # Rule fires for movie (would be a no-op before the normalization fix)
-        cid, reason = classify(
-            cfg,
-            media_type="movie",
-            tmdb_genre_ids=[16],
-            origin_country=["JP"],
-        )
-        assert cid == "anime"
-        assert reason == "anime_rule"
 
     def test_applies_to_both_fires_for_movie(self, test_config: Config) -> None:
         """anime_rule with applies_to='both' fires for movie + Animation + JP."""

@@ -26,7 +26,8 @@ from unittest.mock import MagicMock  # noqa: E402
 import pytest  # noqa: E402
 
 from personalscraper.conf import ids as CID  # noqa: E402
-from personalscraper.conf.models import Config, DiskConfig  # noqa: E402
+from personalscraper.conf.models.config import Config  # noqa: E402
+from personalscraper.conf.models.disks import DiskConfig  # noqa: E402
 from personalscraper.conf.staging import folder_name  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -110,7 +111,7 @@ def integration_config(staging_tree: Path, fake_disks: list[Path], test_config: 
     - ``indexer.db_path`` → ``paths.data_dir / "library.db"`` so dispatch and
       assertions share a tmp_path-scoped SQLite file (the default
       ``IndexerConfig.db_path`` is a CWD-relative path that would otherwise
-      land in the developer's real ``.personalscraper/library.db``).
+      land in the developer's real ``.data/library.db``).
 
     The 11 builtin category IDs from ``test_config`` are redistributed
     across the four fake disks so every disk has at least one category and
@@ -157,7 +158,20 @@ def integration_config(staging_tree: Path, fake_disks: list[Path], test_config: 
     # into the developer's real library.db via the relative default.
     new_indexer = test_config.indexer.model_copy(update={"db_path": new_paths.data_dir / "library.db"})
 
-    return test_config.model_copy(update={"paths": new_paths, "disks": new_disks, "indexer": new_indexer})
+    # Disable disk-space thresholds so tests never fail on small /tmp partitions
+    # (CI runners often have less than the default 20 GB / 100 GB thresholds).
+    new_thresholds = test_config.thresholds.model_copy(
+        update={"min_free_space_staging_gb": 0, "min_free_space_disk_gb": 0.0}
+    )
+
+    return test_config.model_copy(
+        update={
+            "paths": new_paths,
+            "disks": new_disks,
+            "indexer": new_indexer,
+            "thresholds": new_thresholds,
+        }
+    )
 
 
 @pytest.fixture()

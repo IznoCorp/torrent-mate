@@ -11,10 +11,11 @@ carries disk paths.
 import shutil
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
-from personalscraper.dispatch.dispatcher import Dispatcher, DispatchResult
+from personalscraper.dispatch._types import DispatchResult
+from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -93,6 +94,7 @@ def run_dispatch(
     # and the outbox publishers.  ``paths.data_dir`` can differ from the
     # indexer storage directory in the split config layout.
     index_path = config.indexer.db_path
+    assert index_path is not None, "indexer.db_path must be resolved"
 
     # Clean orphaned temp dirs from staging area
     cleaned = 0
@@ -100,7 +102,6 @@ def run_dispatch(
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
     with MediaIndex(index_path, config=config, auto_rebuild=not dry_run) as index:
-        index.load()
         preview_index = False
         if dry_run:
             index.begin_preview()
@@ -124,8 +125,6 @@ def run_dispatch(
                 count = index.rebuild(disk_configs, categories=config.categories)
                 event = "index_rebuilt_on_empty_preview" if dry_run else "index_rebuilt_on_empty"
                 log.info(event, entries=count)
-                if not dry_run:
-                    index.save()
 
             dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
 
@@ -137,9 +136,11 @@ def run_dispatch(
 
             results = dispatcher.process(verified=verified)
 
-            # Save updated index
+            # Drain the outbox so that write-through events emitted during
+            # dispatch (move/upsert) are applied to the indexer DB immediately
+            # rather than waiting for the next nightly scan.
             if not dry_run:
-                index.save()
+                _drain_dispatch_outbox(config)
         finally:
             if preview_index:
                 index.rollback_preview()
@@ -148,6 +149,43 @@ def run_dispatch(
     if cleaned:
         report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
     return report
+
+
+def _drain_dispatch_outbox(config: Config) -> None:
+    """Drain the indexer outbox and refresh Merkle roots after dispatch.
+
+    Opens a short-lived connection to ``config.indexer.db_path``, drains
+    any pending outbox rows, then resets ``disk.merkle_root`` to NULL for
+    every mounted disk.  The next ``library-index --mode quick`` will
+    recompute each root from the current DB state instead of detecting a
+    bulk change and freezing (the dispatch intentionally modifies every
+    disk, so a high delta is expected).
+
+    Args:
+        config: Validated Config with a resolved ``indexer.db_path``.
+    """
+    import sqlite3
+
+    from personalscraper.indexer.outbox._drain import drain_if_present
+    from personalscraper.indexer.repos.disk_repo import update_merkle_root
+
+    db_path = config.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
+    conn = sqlite3.connect(str(db_path))
+    try:
+        applied = drain_if_present(conn, config.indexer)
+        if applied:
+            log.info("dispatch_outbox_drained", applied=applied)
+
+        # Reset Merkle roots so the next quick scan recomputes from the
+        # (now up-to-date) DB rather than detecting a spurious bulk change.
+        disk_ids = conn.execute("SELECT id FROM disk WHERE is_mounted = 1").fetchall()
+        for (disk_id,) in disk_ids:
+            update_merkle_root(conn, disk_id, None)
+        if disk_ids:
+            log.info("dispatch_merkle_reset", disk_count=len(disk_ids))
+    finally:
+        conn.close()
 
 
 def _to_step_report(results: list[DispatchResult]) -> StepReport:

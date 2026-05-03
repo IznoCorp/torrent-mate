@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import drain_if_present
+from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.scraper.nfo_generator import NFOGenerator

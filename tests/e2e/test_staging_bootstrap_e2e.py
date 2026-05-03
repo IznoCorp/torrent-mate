@@ -19,7 +19,7 @@ import pytest
 from typer.testing import CliRunner
 
 from personalscraper.cli import app
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
 
 _STAGING_DIRS = [
@@ -36,34 +36,64 @@ _STAGING_DIRS = [
 
 @pytest.fixture
 def e2e_env(tmp_path: Path):
-    """Create a minimal config.json5 in tmp_path with an empty staging_dir.
+    """Create a minimal v2 split-config directory in tmp_path.
 
     Args:
         tmp_path: pytest-provided temporary directory.
 
     Returns:
-        Dict with keys: tmp_path, staging, config_file.
+        Dict with keys: tmp_path, staging, config_dir.
     """
     staging = tmp_path / "staging"
-    # Do NOT create staging -- let the CLI auto-create it
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
 
-    config_data = {
-        "config_version": 1,
-        "paths": {
-            "torrent_complete_dir": str(tmp_path / "torrents"),
-            "staging_dir": str(staging),
-            "data_dir": str(tmp_path / ".data"),
-        },
-        "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
-        "staging_dirs": _STAGING_DIRS,
+    # Master config.json5 with overlay list
+    master = {
+        "config_version": 2,
+        "overlays": [
+            "paths.json5",
+            "disks.json5",
+            "patterns.json5",
+        ],
     }
-    config_file = tmp_path / "config.json5"
-    config_file.write_text(json5.dumps(config_data))
+    (config_dir / "config.json5").write_text(json5.dumps(master))
+
+    # paths.json5 overlay
+    (config_dir / "paths.json5").write_text(
+        json5.dumps(
+            {
+                "paths": {
+                    "torrent_complete_dir": str(tmp_path / "torrents"),
+                    "staging_dir": str(staging),
+                    "data_dir": str(tmp_path / ".data"),
+                },
+            }
+        )
+    )
+
+    # disks.json5 overlay
+    (config_dir / "disks.json5").write_text(
+        json5.dumps(
+            {
+                "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+            }
+        )
+    )
+
+    # patterns.json5 overlay
+    (config_dir / "patterns.json5").write_text(
+        json5.dumps(
+            {
+                "staging_dirs": _STAGING_DIRS,
+            }
+        )
+    )
 
     # Create the disk dir so dispatch can resolve it
     (tmp_path / "disk_a").mkdir()
 
-    return {"tmp_path": tmp_path, "staging": staging, "config_file": config_file}
+    return {"tmp_path": tmp_path, "staging": staging, "config_dir": config_dir}
 
 
 class TestStagingBootstrapE2E:
@@ -80,13 +110,13 @@ class TestStagingBootstrapE2E:
             e2e_env: Fixture providing tmp_path, staging, and config_file.
         """
         runner = CliRunner()
-        config_path = str(e2e_env["config_file"])
+        config_dir = str(e2e_env["config_dir"])
         staging = e2e_env["staging"]
 
         # Staging does not exist before the run
         assert not staging.exists(), "Pre-condition: staging dir must not exist"
 
-        result = runner.invoke(app, ["--config", config_path, "run", "--dry-run"])
+        result = runner.invoke(app, ["--config", config_dir, "run", "--dry-run"])
 
         # Exit code 0 (empty staging, no errors) or 1 (ingest failed -- qBittorrent
         # not available in test env). Both are acceptable: staging creation happens
@@ -111,6 +141,7 @@ class TestStagingBootstrapE2E:
                     }
                 ],
                 "staging_dirs": _STAGING_DIRS,
+                "trailers": {"enabled": False},
             }
         )
         for entry in config.staging_dirs:
@@ -125,17 +156,17 @@ class TestStagingBootstrapE2E:
         directories are silently skipped).
 
         Args:
-            e2e_env: Fixture providing tmp_path, staging, and config_file.
+            e2e_env: Fixture providing tmp_path, staging, and config_dir.
         """
         runner = CliRunner()
-        config_path = str(e2e_env["config_file"])
+        config_dir = str(e2e_env["config_dir"])
 
         # First run creates the tree
-        result_first = runner.invoke(app, ["--config", config_path, "run", "--dry-run"])
+        result_first = runner.invoke(app, ["--config", config_dir, "run", "--dry-run"])
         first_code = result_first.exit_code
 
         # Second run should return the same exit code without crashing
-        result = runner.invoke(app, ["--config", config_path, "run", "--dry-run"])
+        result = runner.invoke(app, ["--config", config_dir, "run", "--dry-run"])
         assert result.exit_code in (0, 1), (
             f"Second run failed with unexpected exit code {result.exit_code}.\nOutput:\n{result.output}"
         )
@@ -153,21 +184,40 @@ class TestStagingBootstrapE2E:
         Args:
             tmp_path: pytest-provided temporary directory.
         """
-        config_data = {
-            "config_version": 1,
-            "paths": {
-                "torrent_complete_dir": str(tmp_path / "torrents"),
-                "staging_dir": str(tmp_path / "staging"),
-                "data_dir": str(tmp_path / ".data"),
-            },
-            "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
-            # staging_dirs intentionally omitted
-        }
-        config_file = tmp_path / "config.json5"
-        config_file.write_text(json5.dumps(config_data))
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+
+        (config_dir / "config.json5").write_text(
+            json5.dumps(
+                {
+                    "config_version": 2,
+                    "overlays": ["paths.json5", "disks.json5", "patterns.json5"],
+                }
+            )
+        )
+        (config_dir / "paths.json5").write_text(
+            json5.dumps(
+                {
+                    "paths": {
+                        "torrent_complete_dir": str(tmp_path / "torrents"),
+                        "staging_dir": str(tmp_path / "staging"),
+                        "data_dir": str(tmp_path / ".data"),
+                    },
+                }
+            )
+        )
+        (config_dir / "disks.json5").write_text(
+            json5.dumps(
+                {
+                    "disks": [{"id": "disk_a", "path": str(tmp_path / "disk_a"), "categories": ["movies"]}],
+                }
+            )
+        )
+        # patterns.json5 intentionally omits staging_dirs
+        (config_dir / "patterns.json5").write_text(json5.dumps({}))
 
         runner = CliRunner()
-        result = runner.invoke(app, ["--config", str(config_file), "run", "--dry-run"])
+        result = runner.invoke(app, ["--config", str(config_dir), "run", "--dry-run"])
 
         assert result.exit_code != 0
         assert "MANUAL.md" in result.output or "staging_dirs" in result.output

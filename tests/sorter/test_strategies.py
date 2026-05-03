@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name, staging_path
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.file_type import FileType

@@ -17,6 +17,9 @@
     // Prefix for a synthetic episode title when the provider lacks the episode
     // (concatenated with the number: "Episode 8"). Also used when a phantom-season remap fails.
     episode_default_name: "Episode",
+
+    // Preferred language for artwork selection (ISO 639-1).
+    artwork_language: "en",
   },
 
   // Ingest step tunables.

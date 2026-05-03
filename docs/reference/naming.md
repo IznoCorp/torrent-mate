@@ -24,7 +24,7 @@ The split is not arbitrary:
   apply at the show root, and per-season variants are `seasonNN-poster.jpg`.
 
 The artwork-detection helper `_inventory_artwork`
-(`personalscraper/indexer/scanner/_modes.py`) accepts both layouts; new
+(`personalscraper/indexer/scanner/_modes/enrich.py`) accepts both layouts; new
 consumers must do the same.
 
 ## Movie Folders

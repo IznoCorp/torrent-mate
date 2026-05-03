@@ -12,7 +12,7 @@ from pathlib import Path
 import qbittorrentapi
 import requests
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
 from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient
@@ -413,7 +413,8 @@ def run_ingest(
 
                     # Check disk space
                     source_size = _get_dir_size(source)
-                    if not _check_disk_space(resolved_ingest_dir, source_size, settings.min_free_space_staging_gb):
+                    min_free = config.thresholds.min_free_space_staging_gb
+                    if not _check_disk_space(resolved_ingest_dir, source_size, min_free):
                         log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
                         report.skip_count += 1
                         report.warnings.append(f"{name}: insufficient disk space")

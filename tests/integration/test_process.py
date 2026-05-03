@@ -12,7 +12,7 @@ Catalogue items covered:
 
 from pathlib import Path
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.config import Settings
 from personalscraper.process.run import run_clean
@@ -30,7 +30,7 @@ def _make_settings() -> Settings:
         Settings instance with disk-space threshold cleared so the check never
         blocks tests on machines with a small ``/tmp`` partition.
     """
-    return Settings(min_free_space_staging_gb=0, min_free_space_disk_gb=0)
+    return Settings()
 
 
 def _movies_dir(integration_config: Config) -> Path:

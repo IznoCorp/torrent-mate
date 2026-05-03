@@ -75,12 +75,12 @@ TMDB_API_KEY=votre_clé_tmdb
 TVDB_API_KEY=votre_clé_tvdb
 ```
 
-Pour le guide complet de toutes les variables (16 au total), comment obtenir les clés API, et les options avancées, voir **[CONFIGURATION.md](CONFIGURATION.md)**.
+Pour le guide complet de toutes les variables d'environnement (12 au total), comment obtenir les clés API, et les options avancées (config JSON5), voir **[CONFIGURATION.md](CONFIGURATION.md)**.
 
 ### Répertoire de staging
 
 Au premier lancement, PersonalScraper crée automatiquement l'arborescence du staging
-dans `paths.staging_dir` (tel que défini dans votre `config.json5`). Aucun `mkdir`
+dans `paths.staging_dir` (tel que défini dans votre `config/paths.json5`). Aucun `mkdir`
 manuel n'est nécessaire.
 
 Vous verrez un unique avertissement de log au premier lancement :
@@ -111,8 +111,8 @@ Un agent launchd permet d'exécuter le pipeline automatiquement tous les jours �
 ### Installer l'agent
 
 ```bash
-cp com.personalscraper.pipeline.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.personalscraper.pipeline.plist
+# Utiliser le script d'installation (substitue les placeholders du template)
+bash scripts/install-launchd.sh
 ```
 
 ### Gérer l'agent

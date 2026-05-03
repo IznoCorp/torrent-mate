@@ -5,7 +5,7 @@
 The v2 config is a directory of JSON5 files rather than a single monolith:
 
 ```
-.personalscraper/config/      ← gitignored, machine-specific
+config/                       ← gitignored, machine-specific (created by init-config)
   config.json5                ← master: declares overlays list + config_version
   paths.json5                 ← paths.*
   disks.json5                 ← disks[]
@@ -14,6 +14,8 @@ The v2 config is a directory of JSON5 files rather than a single monolith:
   encoding.json5              ← library.*
   scraper.json5               ← scraper, ingest, fuzzy_match
   trailers.json5              ← trailers.*
+  indexer.json5               ← indexer.*
+  thresholds.json5            ← thresholds.*
   local.json5                 ← optional, gitignored, last-wins machine overrides
 ```
 
@@ -31,10 +33,12 @@ config.example/               ← tracked, canonical template for new installs
   encoding.json5
   scraper.json5
   trailers.json5
+  indexer.json5
+  thresholds.json5
 ```
 
-The legacy `config.example.json5` at repo root is kept as a compatibility reference
-and updated to point users to `config.example/` in its header comment.
+The `config.example/` directory at repo root is the tracked template for new installs.
+Run `personalscraper init-config` to copy it to `./config/`.
 
 ## Overlay merge rules
 
@@ -56,3 +60,5 @@ and updated to point users to `config.example/` in its header comment.
 | `library`                                                                          | `encoding.json5`   |
 | `scraper`, `ingest`, `fuzzy_match`                                                 | `scraper.json5`    |
 | `trailers`                                                                         | `trailers.json5`   |
+| `indexer`                                                                          | `indexer.json5`    |
+| `thresholds`                                                                       | `thresholds.json5` |

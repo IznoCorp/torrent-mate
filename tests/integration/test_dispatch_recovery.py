@@ -12,7 +12,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.media_index import MediaIndex
@@ -30,7 +30,7 @@ def _make_settings() -> Settings:
         Settings instance with zero thresholds so the tests are not gated
         by real filesystem free-space requirements.
     """
-    return Settings(min_free_space_staging_gb=0, min_free_space_disk_gb=0)
+    return Settings()
 
 
 def _build_verified_movie_dir(parent: Path, title: str, year: int) -> Path:
@@ -88,8 +88,8 @@ def test_crash_recovery_uses_filesystem_scan(
     Catalogue #14 — crash-recovery invariant.
 
     Simulates a post-crash state where the previous run transferred the movie
-    to Disk1 but did not persist ``media_index.json`` (left empty / ``{}``).
-    A new version of the same movie is placed in staging.
+    to Disk1 before the index was updated. A new version of the same movie is
+    placed in staging.
 
     When ``run_dispatch`` is called:
     1. It loads the index and finds it empty (``count == 0``).
@@ -159,7 +159,6 @@ def test_crash_recovery_uses_filesystem_scan(
     )
 
     # The DB-backed index must have an entry for the movie after dispatch.
-    # MediaIndex.save() / load() are no-ops; query the DB directly via find().
     post_index = MediaIndex(index_path)
     entry = post_index.find(folder, "movie")
     assert entry is not None, (

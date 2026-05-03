@@ -1,8 +1,7 @@
 """Cache for TMDB video responses and YouTube search results.
 
 Uses ``JsonTTLCache`` for storage. TMDB video lists are cached for 7 days
-(trailers don't change often). YouTube search results are cached for 7 days
-(matches DESIGN §9 `youtube_api.cache_ttl_days: 7`).
+(trailers don't change often). YouTube search results are cached for 7 days.
 
 Key scheme:
     TMDB videos:    ``tmdb_videos:{media_type}:{tmdb_id}:{language}``
@@ -22,7 +21,6 @@ from personalscraper.scraper.tmdb_client import Video
 logger = get_logger(__name__)
 
 _TMDB_TTL_SECONDS = 7 * 24 * 3600  # 7 days
-# 7 days matches DESIGN §9 (`youtube_api.cache_ttl_days: 7`).
 _YOUTUBE_TTL_SECONDS = 7 * 24 * 3600  # 7 days
 
 # Sentinel stored when a YouTube search returned no results, to distinguish

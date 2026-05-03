@@ -12,18 +12,17 @@ two-tier search: TMDB /videos -> YouTube API v3 -> yt-dlp fallback.
 
 ## Configuration
 
-All keys under the trailers block in config.json5.
+All keys under the trailers block in config/trailers.json5. Most keys have sensible Pydantic defaults and are optional; `config.example/trailers.json5` shows only the minimal required subset.
 
 ### Top-level keys
 
-| Key                                   | Type | Default                        | Description                  |
-| ------------------------------------- | ---- | ------------------------------ | ---------------------------- |
-| enabled                               | bool | false                          | Master switch                |
-| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes    |
-| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query       |
-| state_file                            | str  | ".data/trailers_state.json"    | State JSON path              |
-| retry_after_days                      | list | [1,7,30]                       | Days before retry            |
-| bot_detected_max_consecutive_attempts | int  | 5                              | Max consecutive BOT_DETECTED |
+| Key                                   | Type | Default                        | Description                                               |
+| ------------------------------------- | ---- | ------------------------------ | --------------------------------------------------------- |
+| enabled                               | bool | false                          | Master switch                                             |
+| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes                                 |
+| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query                                    |
+| state_file                            | str  | ".data/trailers_state.json"    | State JSON path                                           |
+| retry_after_days                      | list | [1,7,30]                       | Days before retry                                         |
 
 ### trailers.filters
 
@@ -35,12 +34,11 @@ All keys under the trailers block in config.json5.
 
 ### trailers.ytdlp
 
-| Key                | Type | Default                                | Description            |
-| ------------------ | ---- | -------------------------------------- | ---------------------- |
-| format             | str  | bestvideo[height<=1080]+bestaudio/best | yt-dlp format selector |
-| socket_timeout_sec | int  | 30                                     | Socket timeout         |
-| retries            | int  | 3                                      | Retry count            |
-| default_search     | str  | ytsearch1                              | Search prefix fallback |
+| Key                | Type | Default                                              | Description                                                                     |
+| ------------------ | ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| format             | str  | bestvideo[height<=1080]+bestaudio/best[height<=1080] | yt-dlp format selector                                                          |
+| socket_timeout_sec | int  | 30                                                   | Socket timeout                                                                  |
+| retries            | int  | 3                                                    | Retry count                                                                     |
 
 ### trailers.step
 
@@ -52,10 +50,10 @@ All keys under the trailers block in config.json5.
 
 Two independent circuit breakers.
 
-| Service | errors_threshold | cooldown_sec  |
-| ------- | ---------------- | ------------- |
-| tmdb    | 5                | 1800 (30 min) |
-| youtube | 5                | 3600 (60 min) |
+| Service     | errors_threshold | cooldown_sec  |
+| ----------- | ---------------- | ------------- |
+| tmdb_videos | 5                | 1800 (30 min) |
+| youtube     | 5                | 3600 (60 min) |
 
 ### trailers.youtube_api
 
@@ -63,7 +61,6 @@ Two independent circuit breakers.
 | ---------------------- | ---- | ------- | -------------------------- |
 | daily_quota_units      | int  | 10000   | Google daily quota         |
 | search_list_cost_units | int  | 100     | Quota per search.list call |
-| cache_ttl_days         | int  | 7       | YouTube search result TTL  |
 
 ### trailers.seasons
 
@@ -72,8 +69,6 @@ Opt-in per-season discovery. Disabled by default.
 | Key                 | Type | Default                                        | Description                                |
 | ------------------- | ---- | ---------------------------------------------- | ------------------------------------------ |
 | enabled             | bool | false                                          | Enable per-season download                 |
-| language_fallback   | list | null                                           | Override languages for season TMDB lookups |
-| search_query_format | str  | "{title} {year} saison {season} bande annonce" | Season YouTube query                       |
 
 ### trailers.library_check
 
@@ -99,12 +94,12 @@ Per-type library-aware idempotence toggles.
 | YOUTUBE_COOKIES_FILE         | Optional | Netscape cookies file path (mode 600 on APFS).                  |
 | YOUTUBE_COOKIES_FROM_BROWSER | Optional | Browser name for --cookies-from-browser (e.g. chrome).          |
 
-Never put API keys in config.json5 -- use .env (gitignored).
+Never put API keys in config files -- use .env (gitignored).
 
 ## Pipeline Step
 
 Step **8** of 9, between verify and dispatch.
-Non-blocking by default.
+Blocking by default (trailer errors abort dispatch unless `--continue-on-trailer-error` is passed).
 
 - --skip-trailers : skip for this run.
 - --continue-on-trailer-error : continue to dispatch on errors.
@@ -126,22 +121,22 @@ Exit codes: 0 (ok), 2 (bad --since date).
 
 Discover and download missing trailers.
 
-Options: --dry-run, --disk, --category, --since, --limit, --level, --season.
-Exit codes: 0 (ok or zero errors), 1 (download error).
+Options: --dry-run, --disk, --category, --since, --limit, --level, --season, --no-refresh.
+Exit codes: 0 (ok or zero errors), 1 (download error), 2 (bad --since date or invalid --level/--season).
 
 ### trailers verify
 
 Audit existing trailer files (size, extension, optional ffprobe).
 
-Options: --disk, --category, --deep, --no-refresh.
-Exit codes: 0 (all valid), 1 (invalid trailer found).
+Options: --disk, --category, --deep, --since, --level, --season, --no-refresh.
+Exit codes: 0 (all valid), 2 (functional check failure or bad arg), 4 (ffprobe error).
 
 ### trailers purge
 
 Remove orphan trailer files.
 
-Options: --dry-run, --disk.
-Exit codes: 0 (ok), 1 (error).
+Options: --dry-run, --disk, --since, --include-state, --level, --season.
+Exit codes: 0 (ok), 1 (error), 2 (bad --since date or invalid --level/--season).
 
 ### personalscraper run flags
 
@@ -180,7 +175,7 @@ Location: .data/trailers_state.json (via trailers.state_file).
 
 - Items with next_retry_at in the future are skipped.
 - BOT_DETECTED is exempt from retry-after (retried each run).
-- After bot_detected_max_consecutive_attempts consecutive BOT_DETECTED: permanent skip.
+- Bot-detection outcomes stay retryable; refresh cookies if they recur.
 
 ## Placement Convention
 
@@ -206,28 +201,6 @@ Accepted extensions: .mp4, .mkv, .webm (priority order).
 
 NFO <trailer> tag: populated with YouTube URL for Plex/Kodi remote-trailer fallback.
 
-### Legacy TV-show flat paths
-
-Prior to the 2026-04-25 pipeline fix, TV show trailers were placed using the same
-flat `{show}-trailer.{ext}` convention as movies. This produces unrecognised orphan
-videos in Plex's TV Series agent. The correct convention is the subfolder path
-`Trailers/{show}.{ext}` (or `Saison NN/Trailers/{show} - Saison NN.{ext}` for
-season-level).
-
-`find_existing_trailer()` probes the legacy flat path as a fallback so existing
-files are detected as already-present rather than silently re-downloaded alongside
-the correct new path. A `placement.legacy_tvshow_trailer_found` WARNING is emitted
-when a legacy file is found.
-
-To migrate legacy files to the correct location, run:
-
-```
-personalscraper trailers purge --legacy-paths
-```
-
-This helper is **not yet implemented**. Until it is, the legacy files remain in
-place and are reported as already-present on each pipeline run.
-
 ### Library-aware idempotence (DESIGN section 8)
 
 When trailers.library_check.tv_shows = true (default), the orchestrator
@@ -235,9 +208,7 @@ queries the indexer DB (via `trailers.scanner.Scanner.scan_library`, which
 calls `indexer.query.find_items_without_trailer`) once before processing TV
 show items. If the show is already indexed and has a valid trailer file on
 a storage disk, the entry is marked `already_present_on_disk` and no
-network call is made. The previous TTL-cached library walk and the
-`library_scan_max_age_hours` config knob were removed when the indexer DB
-became the single source of truth (DESIGN §10.3).
+network call is made.
 
 - movies = false (films rarely re-ingested)
 - tv_shows = true (new episodes arrive frequently)

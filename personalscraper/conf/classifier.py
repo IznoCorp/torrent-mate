@@ -20,7 +20,8 @@ from pathlib import Path
 from typing import Literal
 from xml.etree import ElementTree as ET
 
-from personalscraper.conf.models import CategoryRule, Config
+from personalscraper.conf.models.categories import CategoryRule
+from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
 
 log = get_logger("personalscraper.conf.classifier")

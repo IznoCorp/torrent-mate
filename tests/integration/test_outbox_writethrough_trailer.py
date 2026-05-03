@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.indexer.db import apply_migrations
-from personalscraper.indexer.outbox import drain_if_present
+from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.schema import DiskRow
 from personalscraper.scraper.ytdlp_downloader import DownloadResult, DownloadStatus
@@ -95,8 +95,6 @@ def _make_config(tmp_path: Path) -> MagicMock:
     cfg.trailers.ytdlp.socket_timeout_sec = 30
     cfg.trailers.ytdlp.retries = 3
     cfg.trailers.seasons.enabled = False
-    cfg.trailers.seasons.language_fallback = None
-    cfg.trailers.seasons.search_query_format = "{title} {year} saison {season} bande annonce"
     cfg.trailers.library_check.movies = False
     cfg.trailers.library_check.tv_shows = False  # disable library scan entirely
     cfg.trailers.step.max_duration_sec = 1800

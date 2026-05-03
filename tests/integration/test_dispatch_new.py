@@ -14,7 +14,8 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import Config, DiskConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.dispatch.run import run_dispatch
@@ -33,7 +34,7 @@ def _make_settings() -> Settings:
         Settings instance with zero thresholds so the tests are not skipped
         due to real filesystem constraints.
     """
-    return Settings(min_free_space_staging_gb=0, min_free_space_disk_gb=0)
+    return Settings()
 
 
 def _build_verified_movie_dir(parent: Path, title: str = "Oppenheimer", year: int = 2023) -> Path:
@@ -148,7 +149,7 @@ def test_dispatch_picks_disk_with_most_space(
     # free-space selection among multiple eligible disks is exercised.
     config = _build_multi_disk_config(integration_config, fake_disks)
 
-    # Ensure data_dir exists — MediaIndex.load() requires the parent directory.
+    # Ensure data_dir exists for indexer state.
     config.paths.data_dir.mkdir(parents=True, exist_ok=True)
 
     # Fake free-space values per disk path:

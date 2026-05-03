@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from personalscraper.scraper.tvdb_client import TVDBClient
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,
@@ -569,7 +569,7 @@ def rescrape_library(
     nfo_gen = NFOGenerator(db_path=config.indexer.db_path)
     artwork_dl = ArtworkDownloader(
         dry_run=dry_run,
-        artwork_language=settings.artwork_language,
+        artwork_language=scraper_config.artwork_language,
         db_path=config.indexer.db_path,
     )
     patterns = NamingPatterns()

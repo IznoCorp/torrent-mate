@@ -3,7 +3,11 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig, ScraperConfig
+from personalscraper.conf.models.categories import CategoryConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
+from personalscraper.conf.models.scraper import ScraperConfig
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -285,7 +289,6 @@ class TestRescrapeLibraryConfig:
         settings.tmdb_api_key = "tmdb-key"
         settings.tvdb_api_key = "tvdb-key"
         settings.artwork_language = "en"
-        settings.scraper_language = "en-US"
 
         with (
             patch("personalscraper.library.rescraper._collect_rescrape_candidates", return_value=[]),

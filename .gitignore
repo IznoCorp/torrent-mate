@@ -94,6 +94,7 @@ htmlcov/
 # Logs (structured JSON, non-committed)
 # ===========================================
 logs/
+pytestdebug.log
 
 # ===========================================
 # IDE / Editor
@@ -130,6 +131,7 @@ docs/pipeline-runs/
 .data/media_index.json
 
 # V15: personal config (paths + preferences, no secrets but gitignored for privacy)
+config/
 config.json5
 config.json5.v15.bak
 # TMDB keywords cache

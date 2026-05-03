@@ -25,7 +25,10 @@ from unittest.mock import patch
 import pytest
 
 from personalscraper.conf import ids as CID
-from personalscraper.conf.models import CategoryConfig, Config, DiskConfig, PathConfig
+from personalscraper.conf.models.categories import CategoryConfig
+from personalscraper.conf.models.config import Config
+from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.conf.models.paths import PathConfig
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
@@ -372,9 +375,7 @@ class TestScanLibraryPopulatesDB:
         """A movie with .actors/ + junk file gets matching ``item_issue`` rows.
 
         Without these rows the report layer cannot surface
-        directory-hygiene issues without re-walking the disks; the
-        previous library_scan.json path is gone, so the indexer is the
-        single source of truth.
+        directory-hygiene issues without re-walking the disks.
         """
         fs.pause()
         conn = _make_conn_real()

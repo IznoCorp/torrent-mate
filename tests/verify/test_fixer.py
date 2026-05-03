@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.checker import CheckResult, MediaChecker, Severity
 from personalscraper.verify.fixer import MediaFixer

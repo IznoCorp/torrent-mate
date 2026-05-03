@@ -320,8 +320,7 @@ def detect_season_count_drift(conn: sqlite3.Connection) -> list[int]:
 
     The ``season.episode_count`` column is a denormalised cache populated
     by the library scanner from the directory walk.  Drift happens when
-    new episodes are ingested without the season row being recomputed
-    (e.g. ingest path that bypasses ``library-scan``).
+    new episodes are ingested without the season row being recomputed.
 
     Args:
         conn: Open SQLite connection.
@@ -346,10 +345,10 @@ def detect_season_count_drift(conn: sqlite3.Connection) -> list[int]:
 def detect_items_without_files(conn: sqlite3.Connection) -> list[int]:
     """Return item IDs that have no surviving ``media_file`` evidence.
 
-    Items in this state are either freshly inserted by ``library-scan``
-    on a walk that did not also populate ``media_file`` rows (e.g. the
-    delegated ``indexer.scan`` failed mid-disk) or are stale ghosts left
-    behind after every file under them was soft-deleted.
+    Items in this state are either freshly inserted on a walk that did not
+    also populate ``media_file`` rows (e.g. the delegated ``indexer.scan``
+    failed mid-disk) or are stale ghosts left behind after every file under
+    them was soft-deleted.
 
     Args:
         conn: Open SQLite connection.

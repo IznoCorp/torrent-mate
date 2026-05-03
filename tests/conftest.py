@@ -11,11 +11,49 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from dotenv import load_dotenv
 from typer.testing import CliRunner as _RawCliRunner
 
 import personalscraper.logger as _logger_mod
 from personalscraper.config import Settings
 from personalscraper.logger import configure_logging
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+
+def _patch_tenacity_sleep() -> None:
+    """Replace tenacity sleep with a no-op so retries are instant in tests.
+
+    Tenacity's Retrying class captures its sleep function as a default
+    parameter at class-definition time (``from .nap import sleep``), so
+    patching ``tenacity.nap.sleep`` after the module is loaded has no
+    effect on already-created decorator instances.  Overriding the sleep
+    argument in ``__init__`` ensures every Retrying object created after
+    this patch uses a no-op without touching ``time.sleep`` globally.
+
+    Must run at module level (import time), before any test module
+    imports ``personalscraper.scraper.*`` which triggers ``@retry``
+    decoration on ``TMDBClient._get`` and similar.
+    """
+    import tenacity as _tenacity
+
+    def _noop_sleep(seconds: float) -> None:
+        pass
+
+    _original_init = _tenacity.Retrying.__init__
+
+    def _patched_init(
+        self: _tenacity.Retrying,
+        *args: object,
+        **kwargs: object,
+    ) -> None:
+        kwargs["sleep"] = _noop_sleep
+        _original_init(self, *args, **kwargs)
+
+    _tenacity.Retrying.__init__ = _patched_init
+
+
+_patch_tenacity_sleep()
 
 
 def make_cli_runner() -> _RawCliRunner:
@@ -74,6 +112,40 @@ def _configure_logging_for_tests(tmp_path_factory: pytest.TempPathFactory) -> No
         configure_logging(verbose=False, quiet=False)
     except Exception as exc:  # noqa: BLE001 — surface any misconfiguration
         pytest.fail(f"configure_logging() failed: {exc}")
+
+    # Replace the expensive ConsoleRenderer on the console handler with a fast
+    # KeyValueRenderer.  ConsoleRenderer can take ~1 s per log call (coloring,
+    # rich formatting), which adds up to 4+ s per tenacity-based timeout test.
+    _replace_console_renderer_for_tests()
+
+
+def _replace_console_renderer_for_tests() -> None:
+    """Swap ConsoleRenderer → KeyValueRenderer on the console logging handler.
+
+    Called once per session after ``configure_logging()`` so that log output
+    remains inspectable (via ``caplog``) but does not pay the ~1 s per-call
+    formatting cost of the colored dev renderer.
+    """
+    import logging
+
+    import structlog.dev
+    import structlog.processors
+
+    root = logging.getLogger()
+    for handler in root.handlers:
+        if handler.get_name() == "console":
+            fmt = handler.formatter
+            if hasattr(fmt, "processors"):
+                # ProcessorFormatter stores processors as a list; swap the
+                # ConsoleRenderer for a cheap KeyValueRenderer.
+                new_procs = [
+                    structlog.processors.KeyValueRenderer(sort_keys=False)
+                    if isinstance(p, structlog.dev.ConsoleRenderer)
+                    else p
+                    for p in fmt.processors
+                ]
+                fmt.processors = new_procs
+            break
 
 
 @pytest.fixture(autouse=True)

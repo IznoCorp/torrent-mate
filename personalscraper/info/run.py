@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from personalscraper import __version__
-from personalscraper.conf.models import Config
+from personalscraper.conf.models.config import Config
 
 
 @dataclass(frozen=True)

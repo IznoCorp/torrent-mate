@@ -9,20 +9,32 @@ Circuit breaker, fast-skip behavior, dispatch/verify internals, idempotence.
 - Only counts 5xx / timeout / connection — **NOT** 429 (tenacity handles) or 4xx (client errors).
 - `guard()` method centralizes check-then-raise: clients call `self._circuit.guard()` instead of manually checking `can_proceed()` + constructing `CircuitOpenError`.
 
+## Step Contracts
+
+The orchestrator executes `PipelineStep` objects through
+`personalscraper.pipeline_protocol.StepContext`. Production steps are registered
+in `personalscraper.pipeline_steps.DEFAULT_STEPS`; tests can still pass legacy
+callables through `step_overrides`, which are adapted by the compatibility shim.
+
+Each executed step returns a `StepReport`. The legacy `details: list[str]`
+field remains for CLI and HTML rendering; `details_payload` is the additive
+typed payload. The registry in `personalscraper.reports.STEP_REPORT_CONTRACT`
+maps the nine public step names to their `*Details` dataclass.
+
 ## Fast-Skip (idempotence)
 
-All 8 pipeline steps are idempotent — re-running produces no changes if everything is already processed.
+All 9 pipeline steps are idempotent — re-running produces no changes if everything is already processed.
 
 ### Scrape fast-skip
 
-- `_all_nfos_valid()` scans all movie/show dirs before starting
+- `_has_unscraped_items()` scans all movie/show dirs before starting
 - If all have valid NFOs, the entire scrape step is skipped
 - If NFO valid but artwork missing → re-download artwork only (no re-scrape)
 
 ### Clean fast-skip
 
 - `_has_polluted_folders()` scans category dirs
-- If no polluted names found, skip reclean+dedup entirely
+- If no polluted names found, skip reclean entirely (dedup always runs — lightweight fuzzy comparison)
 
 ## Dispatch
 
@@ -37,7 +49,7 @@ Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support
 
 ### Disk selection
 
-`choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+The `Dispatcher` class selects the target disk for new items via `conf.resolver.pick_disk_for()` which considers only mounted disks accepting the category. If no disk has both the category and enough space, the item is skipped (INFO log).
 
 ### Standalone invocation
 
@@ -45,7 +57,5 @@ Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support
 
 ## Verify
 
-- `nfo_ids` check: at least one of TMDB or IMDB required (not both)
-- Missing one → WARNING
-- Missing both → ERROR
-- Some recent films have TMDB but no IMDB yet (acceptable).
+- Movie `nfo_ids` check: both TMDB and IMDB required for a pass. Missing one → WARNING (check fails but non-blocking); missing both → ERROR (blocking).
+- TV show `nfo_ids` check: either TVDB or TMDB required for a pass (IMDB not required).

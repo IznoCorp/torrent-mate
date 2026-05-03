@@ -56,6 +56,7 @@ dev = [
     "sqlite-utils>=3.36",
     "pyfakefs>=5.4.0",
     "hypothesis>=6.100.0",
+    "pytest-xdist>=3.8.0",
 ]
 
 [project.scripts]
@@ -79,7 +80,7 @@ markers = [
     "slow: slow tests (perf regression), off by default — run with -m slow",
     "darwin_only: macOS-only smoke tests (skipped on Linux/Windows CI runners)",
 ]
-addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not network and not slow'"
+addopts = "-m 'not e2e and not e2e_torrent and not e2e_idempotence and not slow and not network'"
 
 [tool.ruff]
 target-version = "py310"

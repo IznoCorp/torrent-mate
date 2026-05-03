@@ -1,8 +1,7 @@
 """Tests for personalscraper.library.reporter — DB-backed report generation.
 
-After the legacy JSON migration, ``generate_report`` no longer accepts
-``scan_data`` (parsed ``library_scan.json``).  All totals, distribution and
-top-largest data come from :class:`AnalysisResult` produced by
+``generate_report`` reads totals, distribution and top-largest data from
+:class:`AnalysisResult` produced by
 :func:`~personalscraper.library.analyzer.analyze` against the indexer DB.
 Validation, recommendations, and rescrape data remain regular per-command
 JSON outputs and are still consumed by the report.
@@ -215,13 +214,8 @@ class TestGenerateReport:
         report = generate_report(analysis_result=ar)
         assert report.poster_missing_count == 8
 
-    def test_report_no_legacy_json_read(self, tmp_path: Path) -> None:
-        """generate_report must not read library_scan.json or library_analysis.json."""
-        # Both legacy files exist next to tmp_path with bogus high counts —
-        # if generate_report reads them, totals would be wildly wrong.
-        (tmp_path / "library_analysis.json").write_text('{"item_count": 999, "items": []}')
-        (tmp_path / "library_scan.json").write_text('{"item_count": 999, "items": []}')
-
+    def test_report_uses_analysis_result_only_for_totals(self) -> None:
+        """generate_report uses the supplied AnalysisResult for library totals."""
         conn = _make_conn()
         _seed_item(conn, title="Movie A", nfo_status="valid", artwork_json=_ARTWORK_POSTER)
         ar = analyze(conn)

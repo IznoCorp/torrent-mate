@@ -324,43 +324,6 @@ def test_invalid_config_shows_friendly_error(mock_get_settings):
     assert "ValidationError" not in result.output
 
 
-# --- Library maintenance CLI tests ---
-
-
-class TestLibraryScan:
-    """Tests for library-scan CLI command."""
-
-    def test_help(self) -> None:
-        """library-scan --help should display usage."""
-        result = runner.invoke(app, ["library-scan", "--help"])
-        assert result.exit_code == 0
-        assert "library-scan" in result.output
-        assert "--disk" in result.output
-        assert "--category" in result.output
-
-    def test_scan_populates_db(self, tmp_path, monkeypatch) -> None:
-        """library-scan should call scan_library and print an indexed-file count."""
-        mock_conn = MagicMock()
-        # Simulate COUNT(*) query returning 3 files indexed
-        mock_conn.execute.return_value.fetchone.return_value = [3]
-
-        with (
-            patch("personalscraper.library.scanner.scan_library") as mock_scan,
-            patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
-            patch("personalscraper.indexer.db.apply_migrations"),
-            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
-        ):
-            settings = MagicMock()
-            settings.data_dir = tmp_path
-            mock_settings.return_value = settings
-
-            result = runner.invoke(app, ["library-scan"])
-
-        assert result.exit_code == 0, result.output
-        mock_scan.assert_called_once()
-
-
 class TestLibraryClean:
     """Tests for library-clean CLI command."""
 
@@ -752,92 +715,6 @@ def test_init_config_cmd_passes_flags() -> None:
     _, kwargs = mock_init.call_args
     assert kwargs["interactive"] is False
     assert kwargs["force"] is True
-
-
-# ── 5.5 --category accepts ID or alias ──────────────────────────────────────
-
-
-class TestCategoryResolution:
-    """Tests for --category deprecation warning in library-scan command.
-
-    Since scan_library no longer accepts category_filter, --category is now
-    ignored with a deprecation warning.  The command always performs a full
-    scan regardless of the value passed.
-    """
-
-    def test_category_direct_id_ignored_with_warning(self) -> None:
-        """--category movies prints a deprecation warning and exits 0."""
-        from unittest.mock import MagicMock
-
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = [0]
-
-        with (
-            patch("personalscraper.library.scanner.scan_library") as mock_scan,
-            patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
-            patch("personalscraper.indexer.db.apply_migrations"),
-            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
-        ):
-            settings = MagicMock()
-            settings.data_dir = MagicMock()
-            settings.data_dir.__truediv__ = lambda s, x: MagicMock()
-            mock_settings.return_value = settings
-
-            result = runner.invoke(app, ["library-scan", "--category", "movies"])
-
-        assert result.exit_code == 0, result.output
-        assert "deprecated" in result.output.lower()
-        # scan_library is still called (full scan, filter ignored)
-        mock_scan.assert_called_once()
-
-    def test_category_alias_ignored_with_warning(self, test_config) -> None:
-        """--category with any value prints a deprecation warning and exits 0."""
-        from unittest.mock import MagicMock
-
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = [0]
-
-        with (
-            patch(_PATCH_LOAD_CONFIG, return_value=test_config),
-            patch("personalscraper.library.scanner.scan_library") as mock_scan,
-            patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
-            patch("personalscraper.indexer.db.apply_migrations"),
-            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-            patch("personalscraper.cli.get_settings") as mock_settings,
-        ):
-            settings = MagicMock()
-            settings.data_dir = MagicMock()
-            settings.data_dir.__truediv__ = lambda s, x: MagicMock()
-            mock_settings.return_value = settings
-
-            result = runner.invoke(app, ["library-scan", "--category", "films"])
-
-        assert result.exit_code == 0, result.output
-        assert "deprecated" in result.output.lower()
-        mock_scan.assert_called_once()
-
-    def test_category_unknown_ignored_with_warning(self) -> None:
-        """--category with an unknown value is ignored (deprecation warning, exit 0).
-
-        Filtering by category is no longer supported — the value is not
-        validated against the category registry.
-        """
-        from unittest.mock import MagicMock
-
-        mock_conn = MagicMock()
-        mock_conn.execute.return_value.fetchone.return_value = [0]
-
-        with (
-            patch("personalscraper.library.scanner.scan_library"),
-            patch("personalscraper.indexer.db.open_db", return_value=mock_conn),
-            patch("personalscraper.indexer.db.apply_migrations"),
-            patch("personalscraper.dispatch.disk_scanner.get_disk_configs", return_value=[]),
-        ):
-            result = runner.invoke(app, ["library-scan", "--category", "unknown_xyz"])
-
-        assert result.exit_code == 0, result.output
-        assert "deprecated" in result.output.lower()
 
 
 # ── info command ─────────────────────────────────────────────────────────────
