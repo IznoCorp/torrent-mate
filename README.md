@@ -18,10 +18,13 @@ qBittorrent  →  staging/  →  Disques de stockage (configurés)
 | ------------ | -------------------------- | -------------------------------------------------------------- |
 | **Ingest**   | `personalscraper ingest`   | Copie/déplace les torrents terminés depuis qBittorrent         |
 | **Sort**     | `personalscraper sort`     | Tri dans les dossiers de staging (définis dans `staging_dirs`) |
+| **Clean**    | (intégré au pipeline)      | Nettoyage noms + dédoublonnage fuzzy                           |
 | **Scrape**   | `personalscraper scrape`   | Métadonnées TMDB/TVDB (.nfo, artwork, rename)                  |
+| **Cleanup**  | (intégré au pipeline)      | Suppression des dossiers vides                                 |
+| **Enforce**  | `personalscraper enforce`  | Application des règles de conformité (nommage, structure)      |
 | **Verify**   | `personalscraper verify`   | Contrôle qualité + catégorisation par genre                    |
+| **Trailers** | (intégré au pipeline)      | Téléchargement bandes-annonces via yt-dlp                      |
 | **Dispatch** | `personalscraper dispatch` | Déplacement vers le bon disque de stockage                     |
-| **Library**  | `personalscraper library`  | Index SQLite des disques — scan, search, verify, repair, show  |
 
 Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour prévisualiser).
 
@@ -48,13 +51,15 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées.
 
 ```
 staging/
-├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch)
+├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch, indexer, trailers, commands)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation
+├── scripts/             # Scripts utilitaires (install-launchd.sh, check-logging.py, etc.)
 ├── config.example/      # Template de configuration (v2 split)
 ├── config/              # Configuration utilisateur — chemins, disques, catégories, règles (gitignored)
 ├── .env                 # Secrets API uniquement — TMDB/TVDB keys, qBit credentials (gitignored)
 ├── .env.example         # Template .env
+├── assets/              # Fichiers .torrent pour tests E2E
 └── Makefile             # make test/lint/format/install-dev
 ```
 
@@ -73,8 +78,16 @@ personalscraper run --dry-run           # Prévisualiser
 personalscraper ingest --dry-run        # Prévisualiser l'ingestion
 personalscraper sort                    # Trier les fichiers
 personalscraper scrape                  # Scraper les métadonnées
+personalscraper enforce                 # Appliquer les règles de conformité
 personalscraper verify                  # Vérifier la qualité
 personalscraper dispatch                # Déplacer vers stockage
+
+# Library (indexeur media)
+personalscraper library-index           # Scanner les disques
+personalscraper library-search          # Rechercher dans l'index
+
+# Configuration
+personalscraper init-config             # Créer le dossier config/
 
 # Développement
 make test                               # Lancer les tests
@@ -106,6 +119,11 @@ brew install media-info   # pymediainfo backend (stream extraction for the index
 - **structlog** — Logging JSON structuré (console + fichier)
 - **rich** — Affichage CLI (progress bars, tables, couleurs)
 - **pymediainfo** — Extraction des streams vidéo/audio (requiert `brew install media-info`)
+- **yt-dlp** — Téléchargement des bandes-annonces YouTube
+- **qbittorrent-api** — Interface avec le client qBittorrent
+- **tenacity** — Retry avec backoff pour les appels API
+- **json5** — Fichiers de configuration avec commentaires
+- **xxhash** — Hashing rapide pour la détection de doublons
 
 ## Licence
 
