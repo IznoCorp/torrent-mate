@@ -1,82 +1,24 @@
 # ROADMAP — PersonalScraper
 
 > Future ideas. Each item gets its own brainstorming session before implementation.
+> Priority scale: **P0** (critical — blocks other items & must be next) → **P3** (stretch — nice to have, no urgency).
 
-## Future Ideas
+---
 
-### Web Management UI
+## P0 — Critical Path (do next, unblocks multiple downstream items)
 
-Web-based graphical interface to pilot and supervise the whole project from a browser.
+### P0 — Third-Party API Consumer Unification
 
-- **Pipeline control**: start / pause / resume / kill each step (`ingest`, `sort`, `process`, `dispatch`), view live logs, step status, and per-run history
-- **Configuration editor**: visual editor for `config.json5` (paths, categories, disks, thresholds, patterns) with schema validation and safe reload — no shell required
-- **Maintenance dashboard**: disk usage / free space per disk, orphan files (`_tmp_ingest_*`, `_tmp_dispatch_*`), stale locks, library index health, pipeline-runs history
-- **Interactive scraping**: front-end for the manual-decision points currently handled via MediaElch / CLI prompts — ambiguous TMDB/TVDB matches, multi-result picks, low-fuzzy-score arbitration, manual override of detected title/year/season
-- **Future-ready**: UI shell designed to host pages for upcoming roadmap items, notably:
-  - **Auto-Download System** — tracker search, format preferences, subscription list CRUD, override rules editor
-  - **Watcher Service** — live watcher status, trigger history
-  - **Library Indexer** — browse/search indexed media, trigger re-scan, view stale entries
-  - **YoutubeTrailerScraper Integration** — missing-trailer queue, per-item scrape trigger
-- **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`)
-- **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX
+Unify all external API integrations behind a single client abstraction so new providers plug in without touching the rest of the codebase. Today each provider is wired ad hoc (`scraper/tmdb_client.py`, `scraper/tvdb_client.py`, `ingest/qbit_client.py`, `scraper/youtube_search.py`, `scraper/artwork.py`, `notifier.py`) and shares no contract — adding a new tracker means re-inventing retry, auth, rate-limiting, and result normalisation each time.
 
-### Auto-Download System
-
-Automatic torrent download pipeline with tracker API integration.
-
-- Define preferred format + fallback formats
-- Series subscription list with cron-based new episode checks
-- Search multiple trackers via their APIs with preference ordering
-- Connect the library recommendation list to auto-download for library renewal
-- Override rules by criteria: studio, director, franchise, title, IMDB ID
-
-### Watcher Service
-
-Replace cron-based pipeline trigger with a real-time watcher service.
-
-- Service that watches either qBittorrent state or the `complete/` directory
-- Triggers `personalscraper run` automatically on new downloads
-- More responsive than the current 3am daily cron
-
-### YoutubeTrailerScraper Integration ✅ (completed — v0.5.0)
-
-Trailer scraping is integrated into the pipeline as step 8 (trailers).
-
-- yt-dlp based download with configurable format selectors
-- State tracking per media item (pending/downloaded/skipped)
-- CLI: `personalscraper trailers scan|download|verify|purge`
-- Pipeline integration: `personalscraper run` (trailers step, skippable via `--skip-trailers`)
-- Archived feature docs: `docs/archive/features/trailer/`
-
-### Config System Overhaul ✅ (completed — v0.9.0)
-
-Config is now a directory of JSON5 files with overlay merge.
-
-- Split layout: `config.json5` (master + overlays) + per-topic files (paths, disks, categories, patterns, encoding, scraper, trailers, indexer, thresholds)
-- `personalscraper init-config` creates `config/` from `config.example/` template
-- Optional `local.json5` for machine-specific overrides with last-wins semantics
-- All paths, staging layout, thresholds, and preferences live in `config/` — `.env` is credentials only
-
-### Reverse Episode Lookup (standalone)
-
-Find SXXEXX for episodes missing season/episode numbers via reverse scraping on TVDB (TMDB/other fallback). Standalone command invoked manually when needed.
-
-- **Input**: a video file named without SXXEXX (e.g. `The Return of the King.mkv`)
-- **Reverse lookup**: clean the filename → search the episode name in TVDB (within the already-identified series) → retrieve `airedSeason` and `airedEpisodeNumber`
-- **Cascading fallback**: TVDB in scraping language → TVDB in fallback language → TMDB → other scrapers
-- **Output**: rename the file to `SXXEXX - Episode Name.ext` so it flows through the standard pipeline
-- **CLI**: `personalscraper resolve-episodes <path>` — standalone, not integrated into the automated pipeline
-- **Codebase**: inspired by the `TVDBNameToNum.py.bak` script (interactive TVDB v3 interface, name cleaning/normalization, fuzzy matching)
-
-### Third-Party API Consumer Unification
-
-Unify all external API integrations behind a single client abstraction so new providers plug in without touching the rest of the codebase. Today each provider is wired ad hoc (`scraper/tmdb_client.py`, `scraper/tvdb_client.py`, `ingest/qbit_client.py`) and shares no contract — adding a new tracker means re-inventing retry, auth, rate-limiting, and result normalisation each time.
+**Blocked by this refactor**: Auto-Download System (needs 4 tracker clients), Web Management UI (needs mockable API clients), provider matrix expansion (IMDB, SensCritique, Transmission).
 
 **Goals**
 
-- One `ApiClient` base contract per family (metadata / torrent client / tracker) with shared retry, throttle, auth-renewal, structured logging, and a typed response model.
+- One `ApiClient` base contract per family (metadata / torrent client / tracker) with shared retry, throttle, auth renewal, circuit breaker, structured logging, and a typed response model.
 - Provider-specific subclasses implement only the differential surface (endpoint paths, response parsing, auth flow).
 - Integration test fixtures shared across providers (golden response files, replay harness).
+- All 6 modules currently using `requests` directly migrate to the new base client.
 
 **Activation via credentials**
 
@@ -116,9 +58,228 @@ Unify all external API integrations behind a single client abstraction so new pr
 3. Selected torrent is sent to the configured torrent-client provider (qBittorrent or Transmission).
 4. Existing pipeline picks up the completed download via the watcher service.
 
-**Depends on:** Auto-Download System (consumer of the tracker layer), Watcher Service (downstream trigger).
+**Depends on:** nothing (this is the foundation refactor).
 
-### Library Indexer ✅ (completed — v0.7.0+)
+---
+
+## P1 — High Priority (next after P0, unblocks major features)
+
+### P1 — Pipeline Observer Protocol (Headless Mode)
+
+`pipeline.py` is directly coupled to `rich.Console` — it creates a console internally and passes it to every step via `StepContext`. This makes the pipeline impossible to drive from anything other than a TTY: no Web UI, no watcher service, no headless cron mode with programmatic status polling.
+
+**Blocked by this refactor**: Web Management UI (needs headless pipeline), Watcher Service (needs programmatic trigger), Auto-Download (needs pipeline status from a non-interactive context).
+
+**Goals**
+
+- Define a `PipelineObserver` Protocol with callbacks: `on_step_start(step_name)`, `on_step_end(step_name, report)`, `on_error(step_name, error)`, `on_progress(step_name, item, status)`.
+- The `rich.Console` rendering becomes **one** observer among others (the default when running interactively).
+- Web UI registers a WebSocket observer; the watcher registers a minimal logging observer; tests register a collecting observer.
+- `Pipeline.__init__` accepts `observers: Sequence[PipelineObserver] | None`, keeping backward compatibility.
+- `StepContext` drops the `console: Console` field in favor of `observers` — steps notify observers instead of printing.
+
+**Non-goals**
+
+- Async pipeline execution (deferred to Watcher Service).
+- Real-time step output streaming for the CLI (already works via rich, stays unchanged).
+
+### P1 — Event Bus
+
+No event/signal system exists today. The pipeline runs as a linear sequence with zero hooks for external code to react to: step transitions, item completion, errors, circuit-breaker trips, disk-full conditions, dispatch decisions — all are invisible outside the pipeline process.
+
+**Blocked by this refactor**: Watcher Service (needs "download complete" → trigger), Web UI (needs real-time progress streaming), Auto-Download (needs "recommendation list updated" → search).
+
+**Goals**
+
+- Minimal pub/sub event bus (`EventBus` class with `subscribe(event_type, callback)` and `emit(event)`).
+- Typed event dataclasses: `StepStarted`, `StepCompleted`, `StepErrored`, `ItemDispatched`, `CircuitBreakerOpened`, `DiskFullWarning`, `TrailerDownloaded`, `LibraryScanCompleted`.
+- Events are fire-and-forget (synchronous by default, async variant deferred).
+- CLI `--verbose` flag subscribes a debug event logger.
+- Zero overhead when no subscribers are registered (fast-path).
+
+**Non-goals**
+
+- Persistent event log / event sourcing.
+- Cross-process events (needed later for Watcher Service, but out of scope for v1).
+- Retry/replay semantics.
+
+### P1 — Provider Registry (Scraper Orchestrator Decoupling)
+
+`scraper/orchestrator.py` hardcodes `self._tmdb` and `self._tvdb` with ad-hoc fallback logic ("if TMDB circuit open, skip" — line 151; "if both circuits open, skip" — line 224). Adding a new metadata provider (IMDB, SensCritique from the ROADMAP matrix) requires modifying the orchestrator directly.
+
+**Blocked by this refactor**: Third-Party API Consumer Unification (the unified clients need a registry to plug into), provider matrix expansion.
+
+**Goals**
+
+- `ProviderRegistry` class mapping provider name → `MetadataProvider` instance, ordered by per-use-case priority from config.
+- Orchestrator iterates over the ordered registry instead of referencing `self._tmdb` / `self._tvdb` directly.
+- Circuit-breaker awareness: the registry skips providers whose circuit is open, tries next in priority order.
+- Config-driven: `series_scraping: { tvdb: 1, tmdb: 2, imdb: 3 }` → orchestrator picks TVDB first, falls back to TMDB, then IMDB.
+
+**Non-goals**
+
+- Runtime provider hot-swap.
+- Provider health scoring beyond the existing circuit breaker.
+
+### P1 — Library / Indexer Consolidation
+
+Two scanner subsystems coexist: `library/scanner.py` (726 LOC) and `indexer/scanner/` (4000+ LOC). The library scanner walks disks and writes results to the indexer DB — duplicating walk logic that the indexer scanner already has. The `library/` module totals 4565 LOC with significant overlap against `indexer/` (scanner, analyzer vs enrich mode, validator vs verify, cleaner vs dedup).
+
+This is the largest remaining source of architectural dual-mental-model complexity, a direct remnant noted in the arch-cleanup DESIGN (§4 — "dual mental models that have accumulated: library-scan, media_index.json").
+
+**Goals**
+
+- Deprecate `library/scanner.py` — its functionality is subsumed by `indexer/scanner` (full mode + quick mode).
+- Merge `library/analyzer.py` (ffprobe deep scan) into `indexer/scanner/_modes/enrich.py` as an optional enrich sub-step.
+- Move `library/recommender.py` and `library/reporter.py` to a new `insights/` package — a read-only query layer on top of the indexer DB.
+- Move `library/validator.py` checks into `verify/checker.py` or the verify check plugin system (see P2).
+- Move `library/disk_cleaner.py` into `process/` or `indexer/repair.py`.
+- Remove the `library/` package entirely once all consumers are migrated.
+
+**Non-goals**
+
+- Removing any CLI commands — `library-index`, `library-search`, `library-report`, etc. keep working, they just import from the new locations.
+- Changing the indexer schema.
+
+---
+
+## P2 — Medium Priority (important but not blocking)
+
+### P2 — Web Management UI
+
+Web-based graphical interface to pilot and supervise the whole project from a browser.
+
+- **Pipeline control**: start / pause / resume / kill each step (`ingest`, `sort`, `process`, `dispatch`), view live logs, step status, and per-run history.
+- **Configuration editor**: visual editor for `config/` (paths, categories, disks, thresholds, patterns) with schema validation and safe reload — no shell required.
+- **Maintenance dashboard**: disk usage / free space per disk, orphan files (`_tmp_ingest_*`, `_tmp_dispatch_*`), stale locks, library index health, pipeline-runs history.
+- **Interactive scraping**: front-end for the manual-decision points currently handled via MediaElch / CLI prompts — ambiguous TMDB/TVDB matches, multi-result picks, low-fuzzy-score arbitration, manual override of detected title/year/season.
+- **Future-ready**: UI shell designed to host pages for upcoming roadmap items, notably:
+  - **Auto-Download System** — tracker search, format preferences, subscription list CRUD, override rules editor
+  - **Watcher Service** — live watcher status, trigger history
+  - **Library Indexer** — browse/search indexed media, trigger re-scan, view stale entries
+  - **YoutubeTrailerScraper Integration** — missing-trailer queue, per-item scrape trigger
+- **Architecture pointers** (to decide during brainstorm): FastAPI / Flask + HTMX vs. SPA (Vue/React) + REST/WebSocket; auth (local-only vs. basic auth); reverse-proxy friendly (sub-path deploy behind `iznogoudatall.xyz`).
+- **Out of scope (v1)**: multi-user, remote-agent control, mobile-specific UX.
+
+**Depends on:** Pipeline Observer Protocol (P1), Event Bus (P1), Third-Party API Consumer Unification (P0).
+
+### P2 — Auto-Download System
+
+Automatic torrent download pipeline with tracker API integration.
+
+- Define preferred format + fallback formats.
+- Series subscription list with cron-based new episode checks.
+- Search multiple trackers via their APIs with preference ordering.
+- Connect the library recommendation list to auto-download for library renewal.
+- Override rules by criteria: studio, director, franchise, title, IMDB ID.
+
+**Depends on:** Third-Party API Consumer Unification (P0), Provider Registry (P1).
+
+### P2 — Watcher Service
+
+Replace cron-based pipeline trigger with a real-time watcher service.
+
+- Service that watches either qBittorrent state or the `complete/` directory.
+- Triggers `personalscraper run` automatically on new downloads.
+- More responsive than the current 3am daily cron.
+
+**Depends on:** Event Bus (P1), Pipeline Observer Protocol (P1).
+
+### P2 — Verify Checker Plugin System
+
+`verify/checker.py` (621 LOC) is a monolithic file containing all pre-dispatch validation checks. Adding a new check (e.g., a new media type, a new quality rule) requires modifying the file directly. A plugin architecture makes checks independently testable, extensible, and discoverable by the Web UI.
+
+**Goals**
+
+- `Check` Protocol: `severity: Severity`, `category: str`, `check(item: Path, config: Config) -> CheckResult`.
+- `CheckRegistry` — checks auto-register via a decorator or entry point.
+- Each existing check group (NFO validity, artwork presence, naming conventions, stream details, genre categorization, file size) becomes its own plugin file under `verify/checks/`.
+- Web UI can list available checks, run them individually, and display per-check results.
+- CLI gets `personalscraper verify --check nfo_validity` granular invocation.
+
+**Non-goals**
+
+- Changing existing check logic beyond the extraction itself.
+
+### P2 — Reverse Episode Lookup (Standalone)
+
+Find SXXEXX for episodes missing season/episode numbers via reverse scraping on TVDB (TMDB/other fallback). Standalone command invoked manually when needed.
+
+- **Input**: a video file named without SXXEXX (e.g. `The Return of the King.mkv`).
+- **Reverse lookup**: clean the filename → search the episode name in TVDB (within the already-identified series) → retrieve `airedSeason` and `airedEpisodeNumber`.
+- **Cascading fallback**: TVDB in scraping language → TVDB in fallback language → TMDB → other scrapers.
+- **Output**: rename the file to `SXXEXX - Episode Name.ext` so it flows through the standard pipeline.
+- **CLI**: `personalscraper resolve-episodes <path>` — standalone, not integrated into the automated pipeline.
+- **Codebase**: inspired by the `TVDBNameToNum.py.bak` script (interactive TVDB v3 interface, name cleaning/normalization, fuzzy matching).
+
+**Depends on:** Provider Registry (P1) for clean provider fallback.
+
+---
+
+## P3 — Stretch (nice to have, lower urgency)
+
+### P3 — God-Module Splits (Residual from arch-cleanup)
+
+The arch-cleanup feature completed major decomposition (CLI, scraper, indexer CLI, config models, dispatch), but four modules remain above the 800 LOC advisory ceiling:
+
+| Module                        | LOC  | Issue                                                                                                                                          |
+| ----------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `indexer/scanner/__init__.py` | 1056 | `scan()`, `filter_disks()`, `_finalize_disk_after_walk()` + 15 helpers in one file. `_modes/` split was done but the orchestrator core wasn't. |
+| `trailers/state.py`           | 950  | JSON state store mixing CRUD, `fcntl` locking, retry policy, GC, atomic writes, and composite-key queries in a single module.                  |
+| `trailers/cli.py`             | 752  | Trailer CLI commands live outside the `commands/` pattern adopted by the rest of the project.                                                  |
+| `indexer/db.py`               | 604  | Connection management, WAL PRAGMAs, file locking, migration runner, disk-full guard, and corrupt DB recovery — 6 concerns in one file.         |
+
+**Goals**
+
+- `indexer/scanner/__init__.py` → extract `_orchestrator.py` (scan + filter_disks) + `_finalize.py` (post-walk helpers). Target: `__init__.py` ≤ 300 LOC (re-exports only).
+- `trailers/state.py` → split into `trailers/state/_store.py` (CRUD), `trailers/state/_lock.py` (fcntl), `trailers/state/_policy.py` (retry rules), `trailers/state/_gc.py` (orphan purge). Target: no file ≥ 500 LOC.
+- `trailers/cli.py` → move to `commands/trailers/` following the `commands/library/` pattern (scan.py, download.py, verify.py, purge.py).
+- `indexer/db.py` → extract `_migrations.py` (apply + snapshot), `_disk_guard.py` (disk-full detection + corrupt DB quarantine). Target: db.py ≤ 250 LOC (connection + lock only).
+
+**Non-goals**
+
+- Logic changes during extraction — behaviour-preserving moves only (same approach as arch-cleanup phases 2–5).
+- No new abstractions — these are purely structural splits.
+
+### P3 — Dependency Injection Container
+
+Components directly instantiate their dependencies (e.g., `Scraper.__init__` creates its own `TMDBClient`, `TVDBClient`, `NFOGenerator`, `ArtworkDownloader`). This makes testing harder (requires monkeypatching) and blocks the Web UI from swapping real implementations for mocks.
+
+**Goals**
+
+- Lightweight DI container (no framework — a simple `AppContext` dataclass or `ServiceContainer` with factory functions).
+- All domain services accept their dependencies via `__init__`, never create them internally.
+- CLI wiring creates the production container; tests create a test container; Web UI creates a headless container.
+
+**Non-goals**
+
+- Runtime service hot-swap.
+- Full-blown DI framework (no `dependency-injector`, no decorator-based injection).
+
+---
+
+## ✅ Completed
+
+### YoutubeTrailerScraper Integration (v0.5.0)
+
+Trailer scraping is integrated into the pipeline as step 8 (trailers).
+
+- yt-dlp based download with configurable format selectors
+- State tracking per media item (pending/downloaded/skipped)
+- CLI: `personalscraper trailers scan|download|verify|purge`
+- Pipeline integration: `personalscraper run` (trailers step, skippable via `--skip-trailers`)
+- Archived feature docs: `docs/archive/features/trailer/`
+
+### Config System Overhaul (v0.9.0)
+
+Config is now a directory of JSON5 files with overlay merge.
+
+- Split layout: `config.json5` (master + overlays) + per-topic files (paths, disks, categories, patterns, encoding, scraper, trailers, indexer, thresholds)
+- `personalscraper init-config` creates `config/` from `config.example/` template
+- Optional `local.json5` for machine-specific overrides with last-wins semantics
+- All paths, staging layout, thresholds, and preferences live in `config/` — `.env` is credentials only
+
+### Library Indexer (v0.7.0+)
 
 SQLite-based media index with scanner, query engine, and drift reconciliation.
 
@@ -129,3 +290,19 @@ SQLite-based media index with scanner, query engine, and drift reconciliation.
 - Launchd agents for nightly quick scan + periodic enrich
 - Replaced ad-hoc `library_scan.json` / `library_analysis.json` files
 - Archived feature docs: `docs/archive/features/media-indexer/`
+
+### Architectural Cleanup (v0.9.0 — arch-cleanup)
+
+Decomposition of 4 god modules, `PipelineStep` Protocol, typed `StepReport` payloads, legacy deprecation, and complexity guardrail.
+
+- **CLI decomposition**: `cli.py` 1648 → 106 LOC; commands split into `commands/pipeline.py`, `commands/library/`, `commands/config.py`, `commands/info.py`
+- **Indexer CLI decomposition**: `indexer/cli.py` 1389 → 30 LOC; commands split into `indexer/commands/scan.py`, `query.py`, `repair.py`, `diagnose.py`
+- **Scanner modes split**: `_modes.py` 1900 → `_modes/` package (full, quick, incremental, enrich, verify, backfill — each ≤ 700 LOC)
+- **Scraper decomposition**: `scraper.py` 2159 → orchestrator (267 LOC) + 5 services (movie, tv, rename, existing_validator, classifier)
+- **Config models split**: `conf/models.py` 1451 → `conf/models/` package (config, categories, disks, paths, staging, scraper, trailers, indexer, fuzzy, preferences)
+- **Dispatch decomposition**: `dispatcher.py` 797 → `_movie.py`, `_tv.py`, `_transfer.py`, `_types.py`
+- **PipelineStep Protocol**: declared in `pipeline_protocol.py`; all 9 steps adapted; `DEFAULT_STEPS` registry in `pipeline_steps.py`
+- **StepReport Tier A**: typed `*Details` dataclasses for all 9 steps in `reports/`; `STEP_REPORT_CONTRACT` registry
+- **Complexity guardrail**: `scripts/check-module-size.py` wired into `make check` (advisory in 0.9.0, hard block in 0.10.0)
+- **Module size ceiling**: soft warning at 800 LOC, hard ceiling 1000 LOC
+- Design doc: `docs/features/arch-cleanup/DESIGN.md`
