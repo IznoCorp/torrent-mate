@@ -27,7 +27,7 @@ All 9 pipeline steps are idempotent — re-running produces no changes if everyt
 
 ### Scrape fast-skip
 
-- `_all_nfos_valid()` scans all movie/show dirs before starting
+- `_has_unscraped_items()` scans all movie/show dirs before starting
 - If all have valid NFOs, the entire scrape step is skipped
 - If NFO valid but artwork missing → re-download artwork only (no re-scrape)
 
@@ -60,4 +60,4 @@ The `Dispatcher` class selects the target disk for new items: falls back to any 
 - `nfo_ids` check: both TMDB and IMDB required for a pass
 - Missing one → WARNING (check fails)
 - Missing both → ERROR
-- Some recent films have TMDB but no IMDB yet (acceptable).
+- Missing one → WARNING (check fails but non-blocking); missing both → ERROR (blocking).
