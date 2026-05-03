@@ -489,14 +489,18 @@ def clean_library(
                     if skip_orphans_for_category:
                         continue
                     if _is_orphan_release_dir(media_dir):
+                        db_path = config.indexer.db_path
+                        assert db_path is not None, "indexer.db_path must be resolved"
                         _delete_dir(
                             media_dir,
                             result,
                             not apply,
                             "orphan release",
-                            config.indexer.db_path,
+                            db_path,
                         )
                     continue
+                db_path = config.indexer.db_path
+                assert db_path is not None, "indexer.db_path must be resolved"
                 _clean_media_dir(
                     media_dir,
                     result,
@@ -505,7 +509,7 @@ def clean_library(
                     clean_empty,
                     clean_junk,
                     clean_release,
-                    config.indexer.db_path,
+                    db_path,
                 )
 
     return result

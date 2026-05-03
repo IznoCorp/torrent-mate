@@ -110,10 +110,10 @@ class ClassifierMixin:
         # Fetch TMDB keywords (via cache) only when needed
         tmdb_keywords: list[str] = []
         if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
-            cached = self._keywords_cache.get(tmdb_id, media_type)  # type: ignore[arg-type]
+            cached = self._keywords_cache.get(tmdb_id, media_type)  # type: ignore[arg-type,attr-defined]
             if cached is None:
-                fetched = self._tmdb.get_keywords(tmdb_id, media_type)  # type: ignore[arg-type]
-                self._keywords_cache.set(tmdb_id, media_type, fetched)  # type: ignore[arg-type]
+                fetched = self._tmdb.get_keywords(tmdb_id, media_type)  # type: ignore[arg-type,attr-defined]
+                self._keywords_cache.set(tmdb_id, media_type, fetched)  # type: ignore[arg-type,attr-defined]
                 tmdb_keywords = fetched
             else:
                 tmdb_keywords = cached

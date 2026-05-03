@@ -93,6 +93,7 @@ def run_dispatch(
     # and the outbox publishers.  ``paths.data_dir`` can differ from the
     # indexer storage directory in the split config layout.
     index_path = config.indexer.db_path
+    assert index_path is not None, "indexer.db_path must be resolved"
 
     # Clean orphaned temp dirs from staging area
     cleaned = 0

@@ -405,6 +405,7 @@ class Dispatcher:
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
         if result.action in ("replaced", "moved") and result.destination is not None:
             _db_path = self.config.indexer.db_path
+            assert _db_path is not None, "indexer.db_path must be resolved"
             resolved = disk_id_for_path(result.destination, _db_path)
             if resolved is not None:
                 disk_id, rel_path = resolved
@@ -518,6 +519,7 @@ class Dispatcher:
         # Best-effort outbox publish for the indexer (DESIGN §9.1).
         if result.action in ("merged", "moved") and result.destination is not None:
             _db_path = self.config.indexer.db_path
+            assert _db_path is not None, "indexer.db_path must be resolved"
             resolved = disk_id_for_path(result.destination, _db_path)
             if resolved is not None:
                 disk_id, rel_path = resolved

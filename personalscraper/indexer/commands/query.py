@@ -69,7 +69,8 @@ def library_status_command(config_path: Path | None = None) -> int:
         typer.echo(f"Config error: {exc}", err=True)
         return 1
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     # --- DB drift guard ---
@@ -273,7 +274,8 @@ def library_verify_command(
         typer.echo(f"Config error: {exc}", err=True)
         return 1
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     from contextlib import closing  # noqa: PLC0415
@@ -416,7 +418,8 @@ def library_search_command(
         typer.echo(f"Config error: {exc}", err=True)
         return 1
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     from contextlib import closing  # noqa: PLC0415
@@ -521,7 +524,8 @@ def library_show_command(
         typer.echo(f"Config error: {exc}", err=True)
         return 1
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     from contextlib import closing  # noqa: PLC0415

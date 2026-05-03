@@ -113,7 +113,8 @@ def library_index_command(
         typer.echo(f"Config error: {exc}", err=True)
         return 1
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     # --- Validate mode early (before acquiring the lock) ---
@@ -384,7 +385,8 @@ def library_reconcile_command(
         typer.echo(f"Config error: {exc}", err=True)
         return 1
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     from contextlib import closing  # noqa: PLC0415

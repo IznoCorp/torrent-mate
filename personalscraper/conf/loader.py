@@ -339,7 +339,9 @@ def _check_category_orphans(config: Config) -> None:
         config: Validated Config instance containing ``indexer.db_path`` and
             ``all_category_ids``.
     """
-    db_path = config.indexer.db_path.expanduser()
+    db_path = config.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved before calling _warn_orphan_categories"
+    db_path = db_path.expanduser()
     if not db_path.is_absolute():
         # Relative paths are resolved against CWD at call time — same as the
         # rest of the project's path handling.

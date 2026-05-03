@@ -137,7 +137,7 @@ class LegacyCallableStep:
         self.name = name
         self._fn = fn
 
-    def __call__(self, ctx: StepContext) -> StepReport | tuple[StepReport, Any]:
+    def __call__(self, ctx: StepContext) -> Any:  # noqa: ANN401
         if self.name == "ingest":
             return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
         if self.name == "sort":

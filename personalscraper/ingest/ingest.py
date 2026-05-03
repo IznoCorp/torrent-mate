@@ -413,7 +413,8 @@ def run_ingest(
 
                     # Check disk space
                     source_size = _get_dir_size(source)
-                    if not _check_disk_space(resolved_ingest_dir, source_size, config.thresholds.min_free_space_staging_gb):
+                    min_free = config.thresholds.min_free_space_staging_gb
+                    if not _check_disk_space(resolved_ingest_dir, source_size, min_free):
                         log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
                         report.skip_count += 1
                         report.warnings.append(f"{name}: insufficient disk space")

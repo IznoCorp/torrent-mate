@@ -82,7 +82,8 @@ def config_migrate_category_command(
         )
         return 2
 
-    db_path: Path = cfg.indexer.db_path
+    db_path = cfg.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
     migrations_dir = Path(_migrations_pkg.__file__).parent
 
     from contextlib import closing  # noqa: PLC0415
