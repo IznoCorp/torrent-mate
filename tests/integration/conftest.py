@@ -157,7 +157,20 @@ def integration_config(staging_tree: Path, fake_disks: list[Path], test_config: 
     # into the developer's real library.db via the relative default.
     new_indexer = test_config.indexer.model_copy(update={"db_path": new_paths.data_dir / "library.db"})
 
-    return test_config.model_copy(update={"paths": new_paths, "disks": new_disks, "indexer": new_indexer})
+    # Disable disk-space thresholds so tests never fail on small /tmp partitions
+    # (CI runners often have less than the default 20 GB / 100 GB thresholds).
+    new_thresholds = test_config.thresholds.model_copy(
+        update={"min_free_space_staging_gb": 0, "min_free_space_disk_gb": 0.0}
+    )
+
+    return test_config.model_copy(
+        update={
+            "paths": new_paths,
+            "disks": new_disks,
+            "indexer": new_indexer,
+            "thresholds": new_thresholds,
+        }
+    )
 
 
 @pytest.fixture()

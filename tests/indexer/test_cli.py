@@ -52,6 +52,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from personalscraper.cli import app
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.scanner import ScanRunResult
@@ -651,7 +653,10 @@ class TestConfigMigrateToV2:
         We patch plan_migration to raise MigrationMalformedError which is what
         the real implementation raises when the v1 file has unexpected top-level keys.
         """
-        from personalscraper.conf.migration import MigrationMalformedError
+        try:
+            from personalscraper.conf.migration import MigrationMalformedError  # noqa: F401
+        except ImportError:
+            pytest.skip("conf.migration module removed in arch-cleanup")
 
         # Create a dummy v1 file (content doesn't matter because we patch the function)
         v1_file = tmp_path / "config.json5"
