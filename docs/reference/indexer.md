@@ -73,9 +73,8 @@ preserves the `media_item` row and all linked metadata.
 
 ### OSHash collision handling
 
-If two distinct physical files hash to the same `oshash`, the indexer escalates
-to `xxh3_full` (full file content) to disambiguate. Both files are kept with
-distinct `media_file` rows; the collision is logged as
+If two distinct physical files hash to the same `oshash`, both files are
+kept with distinct `media_file` rows; the collision is logged as
 `indexer.drift.oshash_collision` at WARNING level.
 
 ### N-strikes soft-delete policy
@@ -100,8 +99,8 @@ WARN exit from `library status`.
 ## Scan Modes
 
 The scanner (`personalscraper/indexer/scanner/`) supports four production modes
-plus two utility modes. The mode is chosen with `--mode` on the CLI or via
-`indexer.json5: scan.default_mode`.
+plus one utility mode. The mode is chosen with `--mode` on the CLI or via
+`indexer.json5: scan.nightly_mode`.
 
 | Mode          | What it reads                                                       | Typical use                                      |
 | ------------- | ------------------------------------------------------------------- | ------------------------------------------------ |
@@ -110,7 +109,6 @@ plus two utility modes. The mode is chosen with `--mode` on the CLI or via
 | `enrich`      | Only files where `enriched_at IS NULL` or `enriched_at` is stale.   | Back-fill mediainfo + NFO + artwork after add.   |
 | `full`        | Every file on every disk, regardless of cached mtimes.              | Cold rebuild; after disk replacement.            |
 | `verify`      | Re-stat every file; escalate to tier-2 on mismatch; no soft-delete. | On-demand quality gate (wraps `library verify`). |
-| `repair`      | Only `repair_queue` rows with status `'pending'`.                   | Internal; driven by `library repair`.            |
 
 `--disk LABEL` narrows any mode to a single disk and forces `max_workers=1` to
 prevent accidental parallel I/O on the USB hub.
@@ -302,7 +300,7 @@ personalscraper library-index
 ```
 
 The lock file path is derived from the database path as `<indexer.db_path>.lock`
-(default `.personalscraper/library.db.lock`); it is not separately configurable.
+(default `.data/library.db.lock`); it is not separately configurable.
 
 ### Partial migration recovery
 
@@ -346,4 +344,3 @@ Full option documentation is in `docs/reference/commands.md`.
 | `library repair [--budget S]`                      | 0 ok / 1 err             | Drains repair queue within budget.        |
 | `library show ITEM_ID`                             | 0 ok / 2 not found       | Pretty-prints all stored data.            |
 | `config migrate-category --from OLD --to NEW`      | 0 ok / 2 unknown NEW     | Rewrites category_id in bulk.             |
-| `config migrate-to-v2 [--dry-run]`                 | 0 ok / 2 err             | One-shot v1 → v2 config migration.        |

@@ -6,7 +6,7 @@ the canonical shape and a concrete example for each column.
 
 > **Validation status (2026-05):** `ArtworkInventory` is the only model
 > that is genuinely instantiated at write time (by `library/scanner.py`
-> and `indexer/scanner/_modes.py`). The other models — `OutboxPayload`,
+> and `indexer/scanner/_modes/verify.py`). The other models — `OutboxPayload`,
 > `RepairPayload`, `ScanStats`, `ScanEventPayload`, `DeletedSnapshot`
 > — currently serve as **documentation only**: production writers do
 > `json.dumps` directly from a raw `dict` and readers parse with
@@ -167,21 +167,22 @@ listed above) — it is replayed into the outbox when the disk remounts.
 runtime; each producer dumps its own dict (or `NULL`) into the
 column.
 
-The column is **per-producer free-form**: there is no shared
-`{context, discovered_at, evidence}` envelope. The trigger reason
-is in the sibling `reason` text column on the same `repair_queue`
-row; the discovery time is in the `enqueued_at` column.
-`payload_json` carries detector-specific evidence only.
+The `RepairPayload` Pydantic model defines a `{context, discovered_at,
+evidence}` envelope, but it is **documentation-only** — the runtime
+never instantiates it. Each producer dumps its own dict (or `NULL`)
+directly. The trigger reason is in the sibling `reason` text column on
+the same `repair_queue` row; the discovery time is in the `enqueued_at`
+column. `payload_json` carries detector-specific evidence only.
 
 ### Producer: `library-verify` (scanner `verify` mode)
 
 ```python
-# indexer/scanner/_modes.py:1464 — file missing on disk
+# personalscraper/indexer/scanner/_modes/verify.py — file missing on disk
 payload_json=None
 ```
 
 ```json
-// indexer/scanner/_modes.py:1504 — size or mtime drift detected
+// personalscraper/indexer/scanner/_modes/verify.py — size or mtime drift detected
 {
   "expected_size": 4294967296,
   "actual_size": 4294967100,
@@ -193,7 +194,7 @@ payload_json=None
 ### Producer: `library-reconcile`
 
 ```json
-// indexer/reconcile.py:499 — typical detector payload
+// indexer/reconcile.py:418 — typical detector payload
 {
   "detector": "merkle"
 }
@@ -214,6 +215,13 @@ forward-compatible.
 `UPDATE scan_run SET stats_json` writes); the `ScanStats` Pydantic
 class is documentation, not enforcement.
 
+**Runtime keys differ from model fields.** The `ScanStats` Pydantic
+class declares `files_walked`, `items_added`, `items_updated`,
+`items_deleted`, `bytes_read`, `budget_exhausted` — but the runtime
+writes different keys (`files_visited`, `dirs_visited`,
+`disks_skipped`). The JSON and table below document the **runtime
+shape**; the model fields are listed in the Notes section.
+
 Written at scan completion (or on budget-exhaustion checkpoint). The
 two write sites differ slightly in which counters are populated:
 
@@ -233,11 +241,11 @@ two write sites differ slightly in which counters are populated:
 
 Notes:
 
-- The `ScanStats` Pydantic class declares richer fields
-  (`items_added`, `items_updated`, `items_deleted`, `bytes_read`,
-  `budget_exhausted`). Those are reserved for future runtime
-  bookkeeping; today's writers do not populate them. Reader code
-  treats missing keys as `0`/`False`.
+- The `ScanStats` Pydantic class declares fields
+  (`files_walked`, `items_added`, `items_updated`, `items_deleted`,
+  `bytes_read`, `budget_exhausted`). Those are reserved for future
+  runtime bookkeeping; today's writers do not populate them. Reader
+  code treats missing keys as `0`/`False`.
 - The budget-exhausted path writes `files_visited` + `dirs_visited`
   only (no `disks_skipped`); the post-mortem viewer should default
   the missing key.
@@ -260,7 +268,7 @@ row per scanned disk with `event = "indexer.scan.disk_done"`.
   "label": "Disk1",
   "files_visited": 3140,
   "dirs_visited": 122,
-  "disks_skipped": 0
+  "merkle_root": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
 }
 ```
 
