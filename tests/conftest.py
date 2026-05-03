@@ -10,16 +10,15 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from dotenv import load_dotenv
-
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-
 import pytest
+from dotenv import load_dotenv
 from typer.testing import CliRunner as _RawCliRunner
 
 import personalscraper.logger as _logger_mod
 from personalscraper.config import Settings
 from personalscraper.logger import configure_logging
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 
 def make_cli_runner() -> _RawCliRunner:

@@ -518,7 +518,10 @@ class TestMerge:
         dest.mkdir()
         (source / "S01E01.mkv").write_bytes(b"\x00" * 1024)
 
-        with patch("personalscraper.dispatch._transfer.rsync_merge", return_value=True), patch("personalscraper.dispatch._transfer.verify_transfer", return_value=True):
+        with (
+            patch("personalscraper.dispatch._transfer.rsync_merge", return_value=True),
+            patch("personalscraper.dispatch._transfer.verify_transfer", return_value=True),
+        ):
             result = d._merge(source, dest)
 
         assert result is True
