@@ -45,6 +45,7 @@ staging/
 │   ├── sorter/          # guessit + strategies → category folders
 │   ├── commands/        # Typer command groups (pipeline, library, config, info)
 │   ├── conf/            # Config loader, overlay merger, resolver, classifier, staging
+│   │   ├── models/          # Pydantic sub-models (categories, disks, paths, preferences, etc.)
 │   ├── info/            # info command implementation (run.py)
 │   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle

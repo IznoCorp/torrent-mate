@@ -1,11 +1,13 @@
-"""Advisory module-size guardrail.
+"""Hard-block module-size guardrail (promoted from advisory in 0.10.0).
 
 Walks the personalscraper/ package (or --root) and reports files exceeding
 soft (WARN) and hard (REPORT) thresholds. Excludes __init__.py, tests
 directories, and migration directories.
 
-Exit code in 0.9.0: always 0 unless the root is invalid.
-Exit code in 0.10.0+: use --strict to return 1 on REPORT-level findings.
+Exit code:
+  - 0 when no REPORT-level findings exist (WARN-only is OK)
+  - 1 when one or more REPORT-level findings exist (>= 1000 LOC)
+  - 2 when the root directory is missing
 """
 
 from __future__ import annotations
@@ -69,9 +71,10 @@ def main() -> int:
 
     print(f"check-module-size: {len(findings)} finding(s) (root={root})")
     for level, path, loc in findings:
-        print(f"  [{level}] {path}: {loc} non-blank lines")
+        dest = sys.stderr if level == "WARN" else sys.stdout
+        print(f"  [{level}] {path}: {loc} non-blank lines", file=dest)
 
-    if args.strict and any(level == "REPORT" for level, _, _ in findings):
+    if any(level == "REPORT" for level, _, _ in findings):
         return 1
     return 0
 
