@@ -94,6 +94,7 @@ htmlcov/
 # Logs (structured JSON, non-committed)
 # ===========================================
 logs/
+pytestdebug.log
 
 # ===========================================
 # IDE / Editor
