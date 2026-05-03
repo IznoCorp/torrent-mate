@@ -43,7 +43,8 @@ staging/
 ├── personalscraper/     # Python package
 │   ├── ingest/          # qBittorrent → staging
 │   ├── sorter/          # guessit + strategies → category folders
-│   ├── commands/        # Typer command groups (pipeline, library, config, info, diagnose)
+│   ├── commands/        # Typer command groups (pipeline, library, config, info)
+│   ├── info/            # info command implementation (run.py)
 │   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
 │   │   ├── movie_service.py     # movie scrape flow
@@ -84,6 +85,9 @@ staging/
 │   │   ├── commands/            # indexer CLI command implementations
 │   │   ├── config.py            # IndexerConfig pydantic submodel
 │   │   ├── breaker.py           # per-disk circuit breaker
+│   │   ├── _container_fastpath.py # container format fast path (MKV/MP4)
+│   │   ├── reconcile.py         # drift reconciliation engine
+│   │   ├── release_linker.py    # release-to-item linker
 │   │   ├── _macos_io.py         # macOS-specific I/O helpers (diskutil, volume UUID)
 │   │   ├── _throttle.py         # token-bucket I/O rate limiter
 │   │   ├── migrations/          # numbered .sql files + applier
@@ -104,6 +108,10 @@ staging/
 │   ├── pipeline_steps.py # default step registry + legacy override shim
 │   ├── reports/         # typed StepReport.details_payload contracts
 │   ├── cli.py           # Typer CLI entry point
+│   ├── cli_app.py       # Typer app instance
+│   ├── cli_state.py     # CLI state management
+│   ├── cli_helpers.py   # CLI helper utilities
+│   ├── io_utils.py      # I/O helper functions
 │   ├── config.py        # pydantic-settings
 │   ├── lock.py          # PID-based pipeline lock (configurable data_dir)
 │   ├── logger.py        # structlog dual output (console + JSON)
@@ -112,8 +120,14 @@ staging/
 │   ├── naming_patterns.py # NamingPatterns dataclass (shared across modules)
 │   ├── notifier.py      # Telegram notifications
 ├── tests/               # pytest tests (unit + E2E)
+│   ├── commands/        # CLI command tests
 │   ├── e2e/             # Real torrent E2E (pytest -m e2e_torrent); indexer E2E scenarios
+│   ├── fixtures/        # Shared test fixtures + config
 │   ├── indexer/         # indexer unit + property tests (db, schema, repos, scanner, drift, query, CLI, plists)
+│   ├── info/            # info command tests
+│   ├── reports/         # StepReport payload tests
+│   ├── scripts/         # script-level tests
+│   ├── tools/           # tool-level tests
 │   ├── integration/     # cross-module integration tests (outbox write-through, dispatch merge/replace/new)
 │   ├── conf/            # config-overhaul unit tests (loader, overlay, migration, classifier)
 │   ├── ingest/          # ingest unit tests
@@ -134,7 +148,7 @@ staging/
 ├── Makefile             # make test/lint/format/install-dev
 ├── MANUAL.md            # User manual (French) — shell commands, disk layout, naming
 ├── .env.example         # Config template
-├── com.personalscraper.pipeline.plist  # launchd daily agent (3am)
+├── com.personalscraper.pipeline.plist.template  # launchd daily agent (3am)
 └── logs/                # Structured JSON logs (gitignored)
 ```
 
