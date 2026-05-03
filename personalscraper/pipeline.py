@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rich.console import Console
 
@@ -23,9 +23,8 @@ from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, s
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
-
-if TYPE_CHECKING:
-    from personalscraper.verify.verifier import VerifyResult
+from personalscraper.pipeline_protocol import StepContext
+from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
 
 
 class _CriticalStepError(Exception):
@@ -96,8 +95,8 @@ class Pipeline:
         self.verbose = verbose
         self.console = console or Console()
         self._log = get_logger("pipeline")
-        # Freeze into a plain dict so callers cannot mutate after init.
-        self._step_overrides: dict[str, Callable[..., Any]] = dict(step_overrides or {})
+        # Freeze into a protocol registry so callers cannot mutate after init.
+        self._steps = apply_step_overrides(DEFAULT_STEPS, step_overrides)
         self.skip_trailers = skip_trailers
         self.continue_on_trailer_error = continue_on_trailer_error
 
@@ -190,13 +189,13 @@ class Pipeline:
         """
         from datetime import datetime
 
-        from personalscraper.ingest.ingest import run_ingest
-        from personalscraper.sorter.run import run_sort
-
         # Bootstrap staging tree on first run (idempotent, no-op if already exists)
         ensure_staging_tree(self.config)
 
         report = PipelineReport(started_at=datetime.now())
+        extras: dict[str, Any] = {
+            "skip_trailers": self.skip_trailers,
+        }
 
         # Recover from previous interrupted run (best-effort, never blocks pipeline)
         if not self.dry_run:
@@ -207,16 +206,12 @@ class Pipeline:
         else:
             self._log.info("crash_recovery_skipped", reason="dry_run")
 
-        # Resolve step callables — allow test injection via step_overrides.
-        ingest_fn: Callable[..., Any] = self._step_overrides.get("ingest", run_ingest)
-        sort_fn: Callable[..., Any] = self._step_overrides.get("sort", run_sort)
-
         # Phase 1: INGEST — abort pipeline on fatal crash because
         # sort depends on ingest having deposited files into ingest_dir
         try:
             self._run_step(
                 "ingest",
-                lambda: ingest_fn(self.settings, dry_run=self.dry_run, config=self.config),
+                lambda: self._steps["ingest"](self._step_context(report, extras)),
                 report,
                 critical=True,
             )
@@ -230,12 +225,7 @@ class Pipeline:
         try:
             self._run_step(
                 "sort",
-                lambda: sort_fn(
-                    self.settings,
-                    staging_dir=self.config.paths.staging_dir,
-                    dry_run=self.dry_run,
-                    config=self.config,
-                ),
+                lambda: self._steps["sort"](self._step_context(report, extras)),
                 report,
                 critical=True,
             )
@@ -249,40 +239,30 @@ class Pipeline:
 
         # Phase 3: PROCESS (re-clean + dedup + scrape + cleanup)
         # Returns 3 StepReports added individually
-        self._run_process_phase(report)
+        self._run_process_phase(report, extras)
 
         # Phase 4: ENFORCE (validate and correct conventions)
-        from personalscraper.enforce.run import run_enforce
-
-        enforce_fn: Callable[..., Any] = self._step_overrides.get("enforce", run_enforce)
         self._run_step(
             "enforce",
-            lambda: enforce_fn(self.settings, self.config, dry_run=self.dry_run),
+            lambda: self._steps["enforce"](self._step_context(report, extras)),
             report,
         )
 
         # Phase 5: VERIFY
         verified = self._run_step(
             "verify",
-            lambda: self._run_verify(),
+            lambda: self._steps["verify"](self._step_context(report, extras)),
             report,
         )
+        extras["verified"] = verified or []
 
         # Phase 6: TRAILERS (non-blocking by default -- partial/skipped does not abort dispatch)
         # Runs after verify so items that failed verify are never downloaded.
         # Runs before dispatch so trailers are placed (Plex-conformant) alongside
         # media in staging and moved together in one atomic dispatch operation.
-        from personalscraper.trailers.step import run_trailers
-
-        trailers_fn: Callable[..., Any] = self._step_overrides.get("trailers", run_trailers)
         self._run_step(
             "trailers",
-            lambda: trailers_fn(
-                self.config,
-                staging_dir=self.config.paths.staging_dir,
-                verified=verified or [],
-                skip_trailers=self.skip_trailers,
-            ),
+            lambda: self._steps["trailers"](self._step_context(report, extras)),
             report,
         )
 
@@ -311,17 +291,9 @@ class Pipeline:
 
         # Phase 7: DISPATCH (only if verified items exist)
         if verified:
-            from personalscraper.dispatch.run import run_dispatch
-
-            dispatch_fn: Callable[..., Any] = self._step_overrides.get("dispatch", run_dispatch)
             self._run_step(
                 "dispatch",
-                lambda: dispatch_fn(
-                    self.settings,
-                    config=self.config,
-                    dry_run=self.dry_run,
-                    verified=verified,
-                ),
+                lambda: self._steps["dispatch"](self._step_context(report, extras)),
                 report,
             )
         else:
@@ -342,26 +314,20 @@ class Pipeline:
         report.finished_at = datetime.now()
         return report
 
-    def _run_verify(self) -> tuple[StepReport, list["VerifyResult"]]:
-        """Run verify and return (StepReport, dispatchable list).
-
-        Resolves the verify callable from ``step_overrides`` first so that
-        tests can inject a fake without monkey-patching module globals.
-
-        Returns:
-            Tuple of (StepReport, list of VerifyResult).
-        """
-        from personalscraper.verify.run import run_verify
-
-        verify_fn: Callable[..., Any] = self._step_overrides.get("verify", run_verify)
-        # Cast required because the override map uses Callable[..., Any] for
-        # flexibility while the declared return type is a concrete tuple.
-        result: tuple[StepReport, list[VerifyResult]] = verify_fn(
-            self.settings, self.config, dry_run=self.dry_run, fix=False
+    def _step_context(self, report: PipelineReport, extras: dict[str, Any]) -> StepContext:
+        """Build a StepContext for the current pipeline state."""
+        return StepContext(
+            config=self.config,
+            settings=self.settings,
+            dry_run=self.dry_run,
+            interactive=self.interactive,
+            verbose=self.verbose,
+            console=self.console,
+            upstream=report.steps,
+            extras=extras,
         )
-        return result
 
-    def _run_process_phase(self, report: PipelineReport) -> None:
+    def _run_process_phase(self, report: PipelineReport, extras: dict[str, Any]) -> None:
         """Execute Phase 3: PROCESS as 3 independent steps.
 
         Each sub-step is wrapped in _run_step for individual error
@@ -375,35 +341,23 @@ class Pipeline:
 
         Args:
             report: PipelineReport to add step results to.
+            extras: Mutable artifact map shared by step adapters.
         """
-        from personalscraper.process.run import run_clean, run_cleanup
-        from personalscraper.scraper.run import run_scrape
-
-        # Resolve process sub-step callables — allow test injection via step_overrides.
-        clean_fn: Callable[..., Any] = self._step_overrides.get("clean", run_clean)
-        scrape_fn: Callable[..., Any] = self._step_overrides.get("scrape", run_scrape)
-        cleanup_fn: Callable[..., Any] = self._step_overrides.get("cleanup", run_cleanup)
-
         self._run_step(
             "clean",
-            lambda: clean_fn(self.settings, dry_run=self.dry_run, config=self.config),
+            lambda: self._steps["clean"](self._step_context(report, extras)),
             report,
         )
 
         self._run_step(
             "scrape",
-            lambda: scrape_fn(
-                self.settings,
-                config=self.config,
-                dry_run=self.dry_run,
-                interactive=self.interactive,
-            ),
+            lambda: self._steps["scrape"](self._step_context(report, extras)),
             report,
         )
 
         self._run_step(
             "cleanup",
-            lambda: cleanup_fn(self.settings, dry_run=self.dry_run, config=self.config),
+            lambda: self._steps["cleanup"](self._step_context(report, extras)),
             report,
         )
 
