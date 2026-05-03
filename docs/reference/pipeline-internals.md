@@ -34,7 +34,7 @@ All 9 pipeline steps are idempotent — re-running produces no changes if everyt
 ### Clean fast-skip
 
 - `_has_polluted_folders()` scans category dirs
-- If no polluted names found, skip reclean+dedup entirely
+- If no polluted names found, skip reclean entirely (dedup always runs — lightweight fuzzy comparison)
 
 ## Dispatch
 
@@ -57,7 +57,5 @@ The `Dispatcher` class selects the target disk for new items: falls back to any 
 
 ## Verify
 
-- `nfo_ids` check: both TMDB and IMDB required for a pass
-- Missing one → WARNING (check fails)
-- Missing both → ERROR
-- Missing one → WARNING (check fails but non-blocking); missing both → ERROR (blocking).
+- Movie `nfo_ids` check: both TMDB and IMDB required for a pass. Missing one → WARNING (check fails but non-blocking); missing both → ERROR (blocking).
+- TV show `nfo_ids` check: either TVDB or TMDB required for a pass (IMDB not required).

@@ -332,15 +332,16 @@ personalscraper library-index --mode full --disk Disk2 --confirm-bulk-change
 
 Full option documentation is in `docs/reference/commands.md`.
 
-| Command                                            | Exit codes               | Notes                                     |
-| -------------------------------------------------- | ------------------------ | ----------------------------------------- |
-| `library index [--mode M] [--disk D] [--budget S]` | 0 ok / 1 err / 2 bad arg | Main scan command.                        |
-| `library index --dry-run`                          | 0                        | Suppresses all media\_\* mutations.       |
-| `library index --rebuild`                          | 0 ok / 1 err             | Quarantines old DB, fresh Stage-A scan.   |
-| `library index --confirm-bulk-change`              | 0 ok / 1 err             | Bypasses Merkle-delta freeze.             |
-| `library status`                                   | 0 healthy / 1 warn       | WARN on old/deep repair queue or orphans. |
-| `library verify [--disk D]`                        | 0 ok / 1 err             | No soft-deletes; marks for repair only.   |
-| `library search QUERY [--limit N]`                 | 0 ok / 2 bad query       | Uses flex-attr parser.                    |
-| `library repair [--budget S]`                      | 0 ok / 1 err             | Drains repair queue within budget.        |
-| `library show ITEM_ID`                             | 0 ok / 2 not found       | Pretty-prints all stored data.            |
-| `config migrate-category --from OLD --to NEW`      | 0 ok / 2 unknown NEW     | Rewrites category_id in bulk.             |
+| Command                                             | Exit codes               | Notes                                     |
+| --------------------------------------------------- | ------------------------ | ----------------------------------------- |
+| `library index [--mode M] [--disk D] [--budget S]`  | 0 ok / 1 err / 2 bad arg | Main scan command.                        |
+| `library index --dry-run`                           | 0                        | Suppresses all media\_\* mutations.       |
+| `library index --rebuild`                           | 0 ok / 1 err             | Quarantines old DB, fresh Stage-A scan.   |
+| `library index --confirm-bulk-change`               | 0 ok / 1 err             | Bypasses Merkle-delta freeze.             |
+| `library status`                                    | 0 healthy / 1 warn       | WARN on old/deep repair queue or orphans. |
+| `library verify [--disk D]`                         | 0 ok / 1 err             | No soft-deletes; marks for repair only.   |
+| `library search QUERY [--limit N]`                  | 0 ok / 2 bad query       | Uses flex-attr parser.                    |
+| `library repair [--budget S]`                       | 0 ok / 1 err             | Drains repair queue within budget.        |
+| `library reconcile [--scope S] [--enqueue-repairs]` | 0 ok / 1 err             | DB-only divergence detection.             |
+| `library show ITEM_ID`                              | 0 ok / 2 not found       | Pretty-prints all stored data.            |
+| `config migrate-category --from OLD --to NEW`       | 0 ok / 2 unknown NEW     | Rewrites category_id in bulk.             |

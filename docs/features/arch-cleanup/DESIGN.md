@@ -52,14 +52,14 @@ Decompose by responsibility, not by line count. Each split must be **behaviour-p
 
 The file currently contains: Typer app + global options + 50+ command bodies + helper functions + presentation logic + legacy compatibility branches.
 
-| Extraction target          | Contents                                                                                                                                                                              |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `commands/pipeline.py`     | `run`, `ingest`, `sort`, `process`, `clean`, `scrape`, `cleanup`, `enforce`, `verify`, `trailers`, `dispatch` (each as a Typer command function delegating to its domain entry point) |
-| `commands/library.py`      | `library-scan` (legacy, deprecation warning), `library-index`, `library-search`, `library-clean`, `library-report`, `library-analyze`                                                 |
-| `commands/config.py`       | `init-config`, `validate-config`, `migrate-config`, `show-config`                                                                                                                     |
-| `commands/info.py`         | `info` (paths/disks/version available via CLI global options)                                                                                                                         |
-| ~~`commands/diagnose.py`~~ | Skipped — no `diagnose` (or doctor-style) commands existed in `cli.py` at extraction time                                                                                             |
-| `cli.py`                   | Typer app instance + global options + exception handler shell + sub-app mounting                                                                                                      |
+| Extraction target          | Contents                                                                                                                                                |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commands/pipeline.py`     | `run`, `ingest`, `sort`, `process`, `scrape`, `enforce`, `verify`, `dispatch` (`clean`/`cleanup` bundled in `process`; `trailers` is a mounted sub-app) |
+| `commands/library.py`      | `library-scan` (legacy, deprecation warning), `library-index`, `library-search`, `library-clean`, `library-report`, `library-analyze`                   |
+| `commands/config.py`       | `init-config`, `validate-config`, `migrate-config`, `show-config`                                                                                       |
+| `commands/info.py`         | `info` (paths/disks/version available via CLI global options)                                                                                           |
+| ~~`commands/diagnose.py`~~ | Skipped — no `diagnose` (or doctor-style) commands existed in `cli.py` at extraction time                                                               |
+| `cli.py`                   | Typer app instance + global options + exception handler shell + sub-app mounting                                                                        |
 
 `commands/init_config.py` (already present) is folded into `commands/config.py` or kept as a delegate target — decided during phase 2 based on actual structure.
 
@@ -90,13 +90,13 @@ If the file contains a 5th mode (e.g., spotlight-driven), it gets its own module
 
 #### `personalscraper/indexer/cli.py` (1389 LOC) → `indexer/commands/`
 
-| Extraction target              | Contents                                       |
-| ------------------------------ | ---------------------------------------------- |
-| `indexer/commands/scan.py`     | `scan`, `scan-disk`, mode flags                |
-| `indexer/commands/query.py`    | `search`, `list`, `stats`, `info`              |
-| `indexer/commands/repair.py`   | `repair`, `verify-integrity`, `rebuild-merkle` |
-| `indexer/commands/diagnose.py` | `diagnose`, `config_migrate_category_command`  |
-| `indexer/cli.py`               | Typer sub-app + wiring shell                   |
+| Extraction target              | Contents                                                             |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `indexer/commands/scan.py`     | `scan`, `scan-disk`, mode flags                                      |
+| `indexer/commands/query.py`    | `search`, `list`, `stats`, `info`                                    |
+| `indexer/commands/repair.py`   | `repair`, `verify-integrity`, `rebuild-merkle`                       |
+| `indexer/commands/diagnose.py` | `config_migrate_category_command` (no standalone `diagnose` command) |
+| `indexer/cli.py`               | Typer sub-app + wiring shell                                         |
 
 ### 2.2 Axis 2 — `PipelineStep` Protocol + `StepContext`
 
@@ -220,7 +220,7 @@ Audit method (phase 1): grep `8 step`, `eight steps`, `8 StepReport`, `library_s
 - 0.9.0: exit code 0 always (advisory).
 - 0.10.0: exit code 1 on REPORT level (hard block in `make check`).
 
-Wired into `Makefile`'s `check` target after `pyright` / `ruff`. Output is plain text + a colour-aware summary if running in a TTY.
+Wired into `Makefile`'s `check` target after `ruff`. Output is plain text + a colour-aware summary if running in a TTY.
 
 ## 3. Migration / rollout strategy
 

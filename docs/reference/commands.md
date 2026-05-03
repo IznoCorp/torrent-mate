@@ -47,6 +47,10 @@ personalscraper library-repair --budget 120                  # Drain with explic
 personalscraper library-reconcile                            # Detect index ↔ FS divergences (DB-only, no rescan)
 personalscraper library-reconcile --scope enrich             # Restrict to one detector (repeatable)
 personalscraper library-reconcile --enqueue-repairs          # Push findings into repair_queue (drained by library-repair)
+personalscraper library-ghost-audit                           # Audit disks for NTFS-via-macFUSE ghost directory entries
+personalscraper library-ghost-audit --disk Disk1              # Audit only one disk
+personalscraper library-relink                                # Dry-run: show media_file rows with missing release links
+personalscraper library-relink --apply                        # Persist release link updates
 ```
 
 ### Disk-walking commands
@@ -89,7 +93,7 @@ personalscraper library-report --format json                 # Export as JSON
 personalscraper trailers scan [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level show|season|both] [--season N] [--no-refresh]
 personalscraper trailers download [--dry-run] [--disk D] [--category C] [--since YYYY-MM-DD] [--limit N] [--level season] [--season N] [--no-refresh]
 personalscraper trailers verify [--disk D] [--category C] [--deep] [--since YYYY-MM-DD] [--level show|season|both] [--season N]
-personalscraper trailers purge [--dry-run] [--disk D] [--since YYYY-MM-DD] [--level show|season|both] [--season N]
+personalscraper trailers purge [--dry-run] [--disk D] [--since YYYY-MM-DD] [--level show|season|both] [--season N] [--include-state]
 
 Exit codes: 0 ok, 1 error, 2 bad argument.
 
@@ -110,12 +114,6 @@ personalscraper info                                 # Display version, config p
 
 ```bash
 personalscraper config migrate-category --from OLD --to NEW  # Rename a category id across config + on-disk paths
-```
-
-## Aliases
-
-```bash
-media-ingest                        # → personalscraper ingest
 ```
 
 ## Disk Space Check

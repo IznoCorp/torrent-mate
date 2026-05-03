@@ -50,7 +50,7 @@ Voir [INSTALLATION.md](INSTALLATION.md) pour les instructions détaillées.
 ## Structure du projet
 
 ```
-staging/
+personal-scraper/        # Racine du dépôt git
 ├── personalscraper/     # Package Python (ingest, sorter, scraper, verify, dispatch, indexer, trailers, commands)
 ├── tests/               # Tests unitaires + E2E
 ├── docs/                # Documentation

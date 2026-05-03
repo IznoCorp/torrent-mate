@@ -286,9 +286,12 @@ post-mortem.
 ## `deleted_item.payload_json`
 
 **Shape model (documentation only)**: `DeletedSnapshot`
-(`personalscraper/indexer/schema.py`). Not instantiated by the
-runtime; the writer in `indexer/drift.py` (the n-strikes soft-delete
-path) builds a flat dict with `json.dumps` directly.
+(`personalscraper/indexer/schema.py`). **WARNING**: the Pydantic model
+declares `kind: str` and `snapshot: dict` fields that do NOT match the
+runtime payload (which is a flat dict). `model_validate_json()` on a
+real row WILL fail. The model should be reconciled with the actual
+writer in `indexer/drift.py`. The runtime writer builds a flat dict
+with `json.dumps` directly.
 
 **Current writer:** the only `insert_deleted_item` call site today
 is the n-strikes file-level soft-delete in `indexer/drift.py:530`.

@@ -108,6 +108,43 @@ personalscraper dispatch            # Déplacer vers disques de stockage
 
 Certaines commandes supportent des options de filtrage (`--movies-only`, `--tvshows-only` pour `scrape` et `verify`). Voir `personalscraper <command> --help`.
 
+### Commandes library (maintenance des disques)
+
+```bash
+# Indexer (DB-backed)
+personalscraper library-index                    # Scan complet (tous les disques)
+personalscraper library-index --mode quick       # Mode rapide (Merkle + dir-mtime)
+personalscraper library-index --mode full --disk Disk1  # Rebuild complet d'un disque
+personalscraper library-index --rebuild          # Quarantaine l'ancienne DB et repart de zéro
+personalscraper library-status                   # Résumé du dernier scan
+personalscraper library-verify                   # Re-stat tous les fichiers indexés
+personalscraper library-search "<query>"         # Recherche flex-attr (ex: nfo_status:invalid)
+personalscraper library-show <item_id>           # Détail complet d'un item
+personalscraper library-repair                   # Drainer la file de réparation
+personalscraper library-reconcile                # Détecter divergences index ↔ filesystem
+
+# Disk-walking
+personalscraper library-clean --apply            # Supprimer .actors/, dossiers vides, junk
+personalscraper library-validate                 # Valider conformité NFO/artwork/nommage
+personalscraper library-analyze                  # Scan ffprobe profond (codec, audio, subs)
+personalscraper library-recommend                # Analyse ffprobe + liste de re-téléchargement
+personalscraper library-rescrape                 # Re-scraper ciblé (artwork, NFO, épisodes)
+personalscraper library-report                   # Statistiques de santé de la bibliothèque
+
+# Utilitaires
+personalscraper library-ghost-audit              # Auditer les entrées fantômes NTFS-via-macFUSE
+personalscraper library-relink --apply           # Corriger les liens release manquants
+```
+
+### Commandes trailers (bandes-annonces)
+
+```bash
+personalscraper trailers scan                    # Scanner la bibliothèque pour les BA manquantes
+personalscraper trailers download                # Télécharger les BA (yt-dlp)
+personalscraper trailers verify                  # Vérifier les BA existantes
+personalscraper trailers purge                   # Purger les BA selon critères
+```
+
 **Prérequis :** fichier `.env` configuré (clés API TMDB/TVDB, credentials qBittorrent). Voir `.env.example`.
 
 **Scheduling :** un agent launchd (`com.personalscraper.pipeline.plist`) peut exécuter le pipeline automatiquement à 3h du matin.
@@ -139,9 +176,19 @@ python -m pytest -m e2e_torrent -v -s   # 3 tests pipeline (film, série, CLI mi
 
 # Tests E2E roundtrip (MANUEL — nécessite clés API TMDB/TVDB)
 python -m pytest -m roundtrip -v -s     # 2 tests (matching aller-retour film + série)
+
+# Tests réseau (MANUEL)
+python -m pytest -m network -v -s       # Tests trailers (YouTube, yt-dlp)
+TRAILER_INTEGRATION_TESTS=1 python -m pytest -m network -v -s
+
+# Autres marqueurs
+python -m pytest -m slow -v -s          # Tests lents
+python -m pytest -m darwin_only -v -s   # Tests spécifiques macOS
 ```
 
-**Important :** les tests E2E ne sont **jamais** lancés par `make test` — ils nécessitent un lancement manuel explicite avec `-m e2e_torrent` ou `-m roundtrip`. Ils téléchargent de vrais torrents depuis les fichiers `.torrent` dans `assets/torrents/`, appellent les APIs TMDB/TVDB, et nettoient tout à la fin. Le dispatch tourne toujours en dry-run (les disques de stockage ne sont jamais modifiés).
+**Marqueurs disponibles :** `e2e`, `roundtrip`, `e2e_torrent`, `e2e_idempotence`, `network`, `slow`, `darwin_only`.
+
+**Important :** les tests E2E et réseau ne sont **jamais** lancés par `make test` — ils nécessitent un lancement manuel explicite avec `-m <marqueur>`. Ils téléchargent de vrais torrents depuis les fichiers `.torrent` dans `assets/torrents/`, appellent les APIs TMDB/TVDB, et nettoient tout à la fin. Le dispatch tourne toujours en dry-run (les disques de stockage ne sont jamais modifiés).
 
 ---
 
@@ -278,19 +325,12 @@ Hooks actifs dans `.claude/settings.json` :
 
 ---
 
-## Scripts legacy (099-SCRIPTS/)
-
-Anciens outils, tous renommés en `.bak`. Remplacés par PersonalScraper.
-
-| Script                      | Usage d'origine                               | Statut                    |
-| --------------------------- | --------------------------------------------- | ------------------------- |
-| PackUnpack.py.bak           | Aplatir les sous-dossiers + nettoyer les noms | Archivé (chemins Windows) |
-| Unpack.py.bak               | Variante d'unpack seul                        | Archivé                   |
-| TVDBNameToNum.py.bak        | Matcher les noms d'épisodes via TheTVDB       | Archivé → remplacé par V3 |
-| EpisodesTVDBNamer.py.bak    | Renommage d'épisodes TVDB                     | Archivé → remplacé par V3 |
-| videoCutter.py.bak          | Couper des vidéos                             | Archivé                   |
-| videoMerger.py.bak          | Fusionner des vidéos                          | Archivé                   |
-| SensCritiqueScrapper.py.bak | Scraping SensCritique                         | Archivé                   |
+| Unpack.py.bak | Variante d'unpack seul | Archivé |
+| TVDBNameToNum.py.bak | Matcher les noms d'épisodes via TheTVDB | Archivé → remplacé par V3 |
+| EpisodesTVDBNamer.py.bak | Renommage d'épisodes TVDB | Archivé → remplacé par V3 |
+| videoCutter.py.bak | Couper des vidéos | Archivé |
+| videoMerger.py.bak | Fusionner des vidéos | Archivé |
+| SensCritiqueScrapper.py.bak | Scraping SensCritique | Archivé |
 
 ---
 

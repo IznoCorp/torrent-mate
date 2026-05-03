@@ -74,8 +74,8 @@ Phase milestone commits:
 
 ## Open issues / deferrals
 
-- **`personalscraper/conf/models.py` is 1187 LOC**, above the 1000-line hard ceiling defined by `scripts/check-module-size.py`. Acceptable in 0.9.0 (size script is advisory this version) but must be split before 0.10.0 promotes the guardrail to a hard block. Tracked for the next feature.
-- Three `[WARN]` modules within range of the 1000 ceiling: `commands/library.py` (936), `dispatch/dispatcher.py` (899), `indexer/outbox.py` (898). Watch for growth.
+- **`personalscraper/conf/models.py` is 1500 LOC**, above the 1000-line hard ceiling defined by `scripts/check-module-size.py`. Acceptable in 0.9.0 (size script is advisory this version) but must be split before 0.10.0 promotes the guardrail to a hard block. Tracked for the next feature.
+- **`personalscraper/commands/library.py` is 1089 LOC**, above the 1000-line hard ceiling. Must be split before 0.10.0. Two other `[WARN]` modules close to the ceiling: `dispatch/dispatcher.py` (~899), `indexer/outbox.py` (~898).
 
 ## References
 
