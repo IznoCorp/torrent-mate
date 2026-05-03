@@ -140,41 +140,37 @@ Impact: ~90 import sites across ~45 production files and ~30 test files.
 
 ### 3.1 Target structure
 
+Suit le même pattern que `indexer/commands/` (scan.py, query.py, repair.py, diagnose.py) :
+
 ```
 commands/library/
-├── __init__.py       # Package docstring only
-├── _scan.py          # library_scan, library_index, library_status (~150 LOC)
-├── _search.py        # library_search, library_show (~60 LOC)
-├── _repair.py        # library_repair, library_reconcile, library_verify (~120 LOC)
-├── _audit.py         # library_ghost_audit, library_relink (~160 LOC)
-├── _clean.py         # library_clean, library_validate (~190 LOC)
-├── _analyze.py       # library_analyze, library_recommend (~220 LOC)
-├── _report.py        # library_report, library_rescrape (~140 LOC)
-└── _register.py      # register_library_commands(app: typer.Typer) — attaches all
-                      # commands to the Typer sub-app (~80 LOC)
+├── __init__.py       # Re-exports all 16 functions for convenience
+├── scan.py           # library_scan, library_index (~137 LOC)
+├── query.py          # library_status, library_search, library_show (~74 LOC)
+├── maintenance.py    # library_verify, library_repair, library_clean, library_validate (~260 LOC)
+├── audit.py          # library_ghost_audit, library_relink, library_reconcile (~220 LOC)
+└── analyze.py        # library_analyze, library_recommend, library_report, library_rescrape (~377 LOC)
 ```
 
-### 3.2 Wiring strategy
+Tous les fichiers entre 74 et 377 LOC, bien sous le seuil de 700.
 
-`_register.py` imports all command functions and registers them on a Typer instance:
+### 3.2 Regroupement fonctionnel
 
-```python
-# commands/library/_register.py
-import typer
-from personalscraper.commands.library._scan import library_scan, library_status, library_index
-# ... etc.
+| Groupe      | Fichier          | Fonctions                                                            | LOC |
+| ----------- | ---------------- | -------------------------------------------------------------------- | --- |
+| Scan/Index  | `scan.py`        | library_scan, library_index                                          | 137 |
+| Query       | `query.py`       | library_status, library_search, library_show                         | 74  |
+| Maintenance | `maintenance.py` | library_verify, library_repair, library_clean, library_validate      | 260 |
+| Audit       | `audit.py`       | library_ghost_audit, library_relink, library_reconcile               | 220 |
+| Analyse     | `analyze.py`     | library_analyze, library_recommend, library_report, library_rescrape | 377 |
 
-def register_library_commands(app: typer.Typer) -> None:
-    app.command(name="library-scan")(library_scan)
-    app.command(name="library-status")(library_status)
-    # ... etc.
-```
+### 3.3 Wiring
 
-The top-level CLI wiring in `commands/__init__.py` (or wherever the library sub-app is mounted) calls `register_library_commands(library_app)`.
+`__init__.py` ré-exporte les 16 fonctions. Les décorateurs Typer (`@app.command()`) restent sur chaque fonction — le wiring est fait par l'appelant qui importe les fonctions et les attache au sous-app Typer, comme c'est déjà le cas dans `indexer/commands/`.
 
-### 3.3 Import migration
+### 3.4 Import migration
 
-Any direct imports of `commands/library.py` functions are updated to import from the new submodules. The `commands/library.py` file is deleted (replaced by the package directory).
+Les imports existants de `personalscraper.commands.library import library_scan` continuent de fonctionner via le ré-export dans `__init__.py`. Les imports directs depuis les sous-modules (`from personalscraper.commands.library.scan import library_scan`) sont aussi possibles pour qui veut être explicite.
 
 ---
 
@@ -247,7 +243,104 @@ Find all imports of `indexer.outbox` symbols and update. Likely consumers: `inde
 
 ---
 
-## 6. Hard-block size guardrail
+## 6. Scraper mixins — mypy `attr-defined` fix
+
+### 6.1 Problem
+
+`Scraper` uses 4 mixins via multiple inheritance:
+
+```python
+class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServiceMixin):
+```
+
+The mixins access 14 context attributes defined in `Scraper.__init__`:
+
+| Category    | Attributes                                                                                                                                     |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Config      | `self.config`, `self.patterns`, `self.dry_run`                                                                                                 |
+| Language    | `self._scraper_language`, `self._scraper_fallback_language`, `self._prefer_local_title`, `self._tvdb_language`, `self._tvdb_fallback_language` |
+| API clients | `self._tmdb`, `self._tvdb`                                                                                                                     |
+| Helpers     | `self._nfo`, `self._artwork`, `self._keywords_cache`, `self._needs_keywords`                                                                   |
+
+They also call methods from each other via `self._classify_item(...)`, `self._repair_movie_dir(...)`, etc.
+
+Mypy analyzes each mixin in isolation and sees 112 `attr-defined` errors because it cannot know what `self` will be at runtime.
+
+### 6.2 Solution
+
+Create `scraper/_context.py` with a `ScraperContext` Protocol declaring all shared attributes and cross-mixin methods:
+
+```python
+# scraper/_context.py
+from typing import Protocol, TYPE_CHECKING
+if TYPE_CHECKING:
+    from personalscraper.conf.models import Config
+    from personalscraper.config import Settings
+    from personalscraper.naming_patterns import NamingPatterns
+    from personalscraper.scraper._shared import ScrapeResult
+    ...
+```
+
+```python
+class ScraperContext(Protocol):
+    """Protocol declaring every attribute a scraper mixin can read from self."""
+
+    # --- public config attributes (set in Scraper.__init__) ---
+    config: Config | None
+    patterns: NamingPatterns
+    dry_run: bool
+
+    # --- language ---
+    _scraper_language: str
+    _scraper_fallback_language: str
+    _prefer_local_title: bool
+    _tvdb_language: str
+    _tvdb_fallback_language: str
+
+    # --- API clients ---
+    _tmdb: TMDBClient
+    _tvdb: TVDBClient
+
+    # --- helpers ---
+    _nfo: NFOGenerator
+    _artwork: ArtworkDownloader
+    _keywords_cache: KeywordsCache | None
+    _needs_keywords: bool
+
+    # --- cross-mixin methods ---
+    def _classify_item(self, ...) -> str | None: ...
+    def _resolve_title(self, ...) -> str: ...
+    def _strip_trailing_year(self, ...) -> str: ...
+    def _check_missing_movie_artwork(self, ...) -> list[str]: ...
+    def _check_missing_tvshow_artwork(self, ...) -> list[str]: ...
+    def _recover_movie_artwork(self, ...) -> None: ...
+    def _recover_tvshow_artwork(self, ...) -> None: ...
+    def _repair_movie_dir(self, ...) -> None: ...
+    def _repair_tvshow_dir(self, ...) -> None: ...
+    def _verify_existing_scrape(self, ...) -> bool: ...
+    def _extract_tmdb_id_from_nfo(self, ...) -> str | None: ...
+    def _download_episode_thumb(self, ...) -> None: ...
+    def _generate_episode_nfos(self, ...) -> list[NfoResult]: ...
+```
+
+Each mixin method annotates `self`:
+
+```python
+class MovieServiceMixin:
+    def scrape_movie(self: ScraperContext, movie_dir: Path) -> ScrapeResult:
+        ...
+```
+
+### 6.3 Impact
+
+- New file: `scraper/_context.py` (~70 LOC, Protocol only)
+- Each mixin method signature gets `self: ScraperContext` — purely static, no runtime effect
+- Zero logic changes, zero test impact
+- 112 mypy errors → 0
+
+---
+
+## 7. Hard-block size guardrail
 
 `scripts/check-module-size.py` currently exits 0 always (advisory in 0.9.0). Bump to hard block:
 
@@ -264,31 +357,33 @@ The script already supports the right thresholds. The change is: when REPORT fin
 
 ---
 
-## 7. Order of operations
+## 8. Order of operations
 
-| Step | File                     | Rationale                                                                                  |
-| ---- | ------------------------ | ------------------------------------------------------------------------------------------ |
-| 1    | `conf/models.py`         | Most critical (REPORT). Highest blast radius on imports. Do first while energy is highest. |
-| 2    | `indexer/outbox.py`      | Clear phase-based structure, low coupling to other changes.                                |
-| 3    | `dispatch/dispatcher.py` | Internal to dispatch package, minimal external imports.                                    |
-| 4    | `commands/library.py`    | Typer wiring is the most delicate; do last after patterns are established.                 |
-| 5    | `check-module-size.py`   | Bump to hard block. Should pass since all 4 files are now decomposed.                      |
+| Step | Task                                     | Rationale                                                                                 |
+| ---- | ---------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 1    | `conf/models.py` → package               | Most critical (REPORT). Highest blast radius on imports. Includes Reserved field cleanup. |
+| 2    | `indexer/outbox.py` → package            | Clear phase-based structure, low coupling to other changes.                               |
+| 3    | `dispatch/dispatcher.py` → split         | Internal to dispatch package, minimal external imports.                                   |
+| 4    | `commands/library.py` → package          | Typer wiring is the most delicate; do after patterns are established.                     |
+| 5    | Scraper mixins `ScraperContext` Protocol | Fix 112 mypy attr-defined errors. Purely additive, zero test impact.                      |
+| 6    | `check-module-size.py` hard block        | Bump to exit 1 on REPORT. Must pass since all files are now decomposed.                   |
 
 ---
 
-## 8. Risk register
+## 9. Risk register
 
 | #   | Risk                                                                                        | Likelihood | Impact | Mitigation                                                                                                                             |
 | --- | ------------------------------------------------------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | R1  | Consumer of removed Reserved field in existing `config.json5` → `extra='forbid'` rejects it | Medium     | Medium | `init-config` regenerates clean config; manual config users see a loud error with the exact field name. Acceptable for pre-production. |
-| R2  | Typer decorator wiring breaks after library split                                           | Medium     | Medium | `_register.py` is explicit; test with `personalscraper library-index --help` before committing                                         |
+| R2  | Typer decorator wiring breaks after library split                                           | Medium     | Medium | `__init__.py` re-exports all 16 functions; test with `personalscraper library-index --help` before committing                          |
 | R3  | Import cycle created by new module boundaries                                               | Low        | High   | `ruff check` + `python -c "import personalscraper"` after each step                                                                    |
 | R4  | Coverage drop from tests importing old paths                                                | Medium     | Medium | Coverage report before/after each step; update test imports in same commit                                                             |
 | R5  | Reserved field removal deletes a field that IS consumed but grep missed it                  | Low        | High   | `make test` runs all tests including E2E; any config loading failure will fail tests                                                   |
 | R6  | `Dispatcher` method extraction breaks subtle `self` state coupling                          | Medium     | Medium | Read each method body before extracting; if > 4 `self` attribute accesses, keep as method                                              |
+| R7  | `ScraperContext` Protocol misses an attribute → mypy errors persist                         | Low        | Medium | Grep `self\._*\w+` in all 4 mixins before finalizing the Protocol; verify with `make lint`                                             |
 
 ---
 
-## 9. VERSION bump
+## 10. VERSION bump
 
 0.9.0 → 0.10.0 (minor). Rationale: the hard-block size guardrail promotion is a behavioural change that downstream tooling (`make check` in CI) will feel. The Reserved field removal is a schema change (backward-incompatible for config files containing removed fields).
