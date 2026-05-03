@@ -25,6 +25,7 @@ from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
+from personalscraper.reports import STEP_REPORT_CONTRACT
 
 
 class _CriticalStepError(Exception):
@@ -308,7 +309,10 @@ class Pipeline:
             )
             report.add_step(
                 "dispatch",
-                StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"]),
+                self._with_details_payload(
+                    "dispatch",
+                    StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"]),
+                ),
             )
 
         report.finished_at = datetime.now()
@@ -404,6 +408,14 @@ class Pipeline:
         }
         return icons.get(name, "")
 
+    def _with_details_payload(self, name: str, step_report: StepReport) -> StepReport:
+        """Attach the typed empty payload expected for a pipeline step."""
+        if step_report.details_payload is None:
+            payload_type = STEP_REPORT_CONTRACT.get(name)
+            if payload_type is not None:
+                step_report.details_payload = payload_type()
+        return step_report
+
     def _run_step(
         self,
         name: str,
@@ -446,6 +458,7 @@ class Pipeline:
                 step_report, extra = result
             else:
                 step_report = result
+            step_report = self._with_details_payload(name, step_report)
             report.add_step(name, step_report)
         except Exception as exc:
             crashed = True
@@ -456,6 +469,7 @@ class Pipeline:
                 error_count=1,
                 details=[f"Fatal: {error_msg}"],
             )
+            step_report = self._with_details_payload(name, step_report)
             report.add_step(name, step_report)
             self.console.print(f"   [red]FATAL: {error_msg}[/red]", highlight=False)
 

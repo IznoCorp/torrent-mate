@@ -8,7 +8,7 @@ are defined in their respective modules.
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 SortStatus = Literal["moved", "skipped", "error", "dry-run"]
 
@@ -68,6 +68,8 @@ class StepReport:
             run_process to revert reclean renames so unmatched items keep their
             original torrent name and remain rescrape-eligible. Populated as a
             typed field instead of being parsed back from ``details`` strings.
+        details_payload: Optional typed payload for structured per-step details.
+            See ``personalscraper.reports.STEP_REPORT_CONTRACT``.
     """
 
     name: str
@@ -81,6 +83,7 @@ class StepReport:
     failed_items: list[tuple[str, str, str]] = field(default_factory=list)
     renames: dict[str, str] = field(default_factory=dict)
     unmatched_paths: list[str] = field(default_factory=list)
+    details_payload: Any | None = None
 
 
 @dataclass
