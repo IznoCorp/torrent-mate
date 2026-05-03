@@ -38,30 +38,24 @@ Replace cron-based pipeline trigger with a real-time watcher service.
 - Triggers `personalscraper run` automatically on new downloads
 - More responsive than the current 3am daily cron
 
-### YoutubeTrailerScraper Integration
+### YoutubeTrailerScraper Integration ✅ (completed — v0.5.0)
 
-Integrate existing trailer scraping tool into the pipeline.
+Trailer scraping is integrated into the pipeline as step 8 (trailers).
 
-- Existing dev at `/opt/YoutubeTrailerScraper/`
-- Scrapes missing trailers for movies and series from YouTube
-- Add as optional pipeline step or standalone command
+- yt-dlp based download with configurable format selectors
+- State tracking per media item (pending/downloaded/skipped)
+- CLI: `personalscraper trailers scan|download|verify|purge`
+- Pipeline integration: `personalscraper run` (trailers step, skippable via `--skip-trailers`)
+- Archived feature docs: `docs/archive/features/trailer/`
 
-**Preparation** (not yet implemented):
+### Config System Overhaul ✅ (completed — v0.9.0)
 
-- Codename: `trailer`
-- Design: `docs/superpowers/roadmap/trailer/specs/DESIGN.md`
-- Plan: `docs/superpowers/roadmap/trailer/plan/INDEX.md`
-- Prepared on: 2026-04-23
-- Target version bump: 0.4.0 → 0.5.0 (minor)
+Config is now a directory of JSON5 files with overlay merge.
 
-### Config System Overhaul
-
-Migrate from flat `.env` / pydantic-settings to structured JSON config.
-
-- Dedicated config directory (`./config/`) with split layout
-- JSON files per topic: `encoding.json`, `audio.json`, `paths.json`, `patterns.json`, `disks.json`
-- EVERYTHING configurable: directories, patterns, values, naming conventions, thresholds
-- The existing `encoding_rules.json` is a prototype of this approach
+- Split layout: `config.json5` (master + overlays) + per-topic files (paths, disks, categories, patterns, encoding, scraper, trailers, indexer, thresholds)
+- `personalscraper init-config` creates `config/` from `config.example/` template
+- Optional `local.json5` for machine-specific overrides with last-wins semantics
+- All paths, staging layout, thresholds, and preferences live in `config/` — `.env` is credentials only
 
 ### Third-Party API Consumer Unification
 
@@ -113,15 +107,14 @@ Unify all external API integrations behind a single client abstraction so new pr
 
 **Depends on:** Auto-Download System (consumer of the tracker layer), Watcher Service (downstream trigger).
 
-### Library Indexer
+### Library Indexer ✅ (completed — v0.7.0+)
 
-Persistent index of the media library with cache or database backend.
+SQLite-based media index with scanner, query engine, and drift reconciliation.
 
-- Index all media items across 4 disks (path, title, year, codec, size, NFO IDs, etc.)
-- Cache/BDD layer to avoid full disk scans on every command (library scans are read-heavy but slow on USB)
-- Scheduled nightly update (cron/launchd, 1x per night)
-- Auto-refresh on path error detection (desync between index and filesystem = stale entry)
-- Replaces ad-hoc JSON files (`library_scan.json`, `library_analysis.json`) with a single authoritative source
-- Study the companion `FileMate` tool for potential integration or shared architecture patterns
-
-**Depends on:** Library maintenance commands (scan/analyze data model), Config System Overhaul (configurable paths)
+- SQLite database at `config/indexer.db_path` (default `.data/library.db`)
+- Scanner modes: `quick`, `incremental`, `enrich`, `full`, `verify` + `backfill`
+- CLI: `personalscraper library-index|library-search|library-verify|library-repair|library-reconcile`
+- Outbox writethrough for dispatch, trailer state tracking, repair queue
+- Launchd agents for nightly quick scan + periodic enrich
+- Replaced ad-hoc `library_scan.json` / `library_analysis.json` files
+- Archived feature docs: `docs/archive/features/media-indexer/`

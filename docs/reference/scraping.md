@@ -24,17 +24,16 @@ Never include API keys in documentation or brainstorming files — use `.env` re
 
 ## ffprobe Language Codes
 
-ffprobe returns ISO 639-2/B codes (`fre`), Kodi NFO expects 639-2/T (`fra`). Always convert via `ISO_639_2_B_TO_T` mapping in `mediainfo.py` (20 codes differ).
+ffprobe returns ISO 639-2/B codes (`fre`), Kodi NFO expects 639-2/T (`fra`). Always convert via `ISO_639_2_B_TO_T` mapping in `personalscraper/scraper/mediainfo.py` (20 codes differ).
 
 ## NFO Invariants
 
-- `_is_nfo_complete()` in `scraper.py` validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection.
+- `_is_nfo_complete()` (defined in `nfo_utils.py`, imported as `_is_nfo_complete` in `scraper.py`) validates NFO has parsable XML + at least one `<uniqueid>` with non-empty text — used for fast-skip and corrupt NFO detection.
 - Verify `nfo_ids` check requires at least one of TMDB or IMDB (not both). Missing one is WARNING, missing both is ERROR. Some recent films (e.g. "Libre antenne") have TMDB but no IMDB yet.
 
 ## Artwork Recovery
 
 If NFO is valid but artwork is missing, scraper extracts TMDB ID from the NFO and **re-downloads artwork without re-scraping**.
-
 
 ## TMDB /videos Endpoint
 

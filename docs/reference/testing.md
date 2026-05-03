@@ -112,7 +112,6 @@ make lint            # ruff check
 make format          # ruff format + fix
 ```
 
-
 ### Trailers network marker
 
 The @pytest.mark.network marker gates opt-in network integration tests.
@@ -120,7 +119,7 @@ Registered in pyproject.toml under [tool.pytest.ini_options] markers.
 
 To run: TRAILER_INTEGRATION_TESTS=1 python -m pytest tests/trailers/test_integration_network.py -m network -v
 
-Requires TMDB_READ_ACCESS_TOKEN in environment. Uses a stable Blender Foundation clip (ID aqz-KE-bpKQ).
+Requires TMDB_READ_ACCESS_TOKEN in environment. Uses a stable Blender Foundation clip (ID aqz-KE-bpKQ, also used in tests/scraper/test_ytdlp_downloader.py).
 Skipped automatically without TRAILER_INTEGRATION_TESTS=1 (no explicit -k/-m needed).
 
 Hermetic E2E (tests/trailers/test_integration_hermetic.py) runs by default: yt-dlp is mocked to copy

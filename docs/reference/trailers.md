@@ -16,14 +16,14 @@ All keys under the trailers block in config.json5.
 
 ### Top-level keys
 
-| Key                                   | Type | Default                        | Description                  |
-| ------------------------------------- | ---- | ------------------------------ | ---------------------------- |
-| enabled                               | bool | false                          | Master switch                |
-| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes    |
-| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query       |
-| state_file                            | str  | ".data/trailers_state.json"    | State JSON path              |
-| retry_after_days                      | list | [1,7,30]                       | Days before retry            |
-| bot_detected_max_consecutive_attempts | int  | 5                              | Max consecutive BOT_DETECTED |
+| Key                                   | Type | Default                        | Description                                               |
+| ------------------------------------- | ---- | ------------------------------ | --------------------------------------------------------- |
+| enabled                               | bool | false                          | Master switch                                             |
+| languages                             | list | ["fr-FR","en-US"]              | TMDB video language codes                                 |
+| search_query_format                   | str  | "{title} {year} bande annonce" | YouTube fallback query                                    |
+| state_file                            | str  | ".data/trailers_state.json"    | State JSON path                                           |
+| retry_after_days                      | list | [1,7,30]                       | Days before retry                                         |
+| bot_detected_max_consecutive_attempts | int  | 5                              | Reserved (no production code path reads this field today) |
 
 ### trailers.filters
 
@@ -35,12 +35,12 @@ All keys under the trailers block in config.json5.
 
 ### trailers.ytdlp
 
-| Key                | Type | Default                                | Description            |
-| ------------------ | ---- | -------------------------------------- | ---------------------- |
-| format             | str  | bestvideo[height<=1080]+bestaudio/best | yt-dlp format selector |
-| socket_timeout_sec | int  | 30                                     | Socket timeout         |
-| retries            | int  | 3                                      | Retry count            |
-| default_search     | str  | ytsearch1                              | Search prefix fallback |
+| Key                | Type | Default                                              | Description                                                                     |
+| ------------------ | ---- | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| format             | str  | bestvideo[height<=1080]+bestaudio/best[height<=1080] | yt-dlp format selector                                                          |
+| socket_timeout_sec | int  | 30                                                   | Socket timeout                                                                  |
+| retries            | int  | 3                                                    | Retry count                                                                     |
+| default_search     | str  | ytsearch1                                            | Reserved (youtube_search.py hardcodes ytsearch1; never read by production code) |
 
 ### trailers.step
 
