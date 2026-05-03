@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import tenacity as _tenacity
 from dotenv import load_dotenv
 from typer.testing import CliRunner as _RawCliRunner
 
@@ -32,7 +33,6 @@ load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 #
 # Must run before any test module imports ``personalscraper.scraper.*``,
 # which triggers ``@retry`` decoration on ``TMDBClient._get`` and similar.
-import tenacity as _tenacity
 
 
 def _tenacity_noop_sleep(seconds: float) -> None:
