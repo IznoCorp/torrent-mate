@@ -60,7 +60,7 @@ Unified formula:
 free_space_gb >= max(min_free_gb, item_size_gb * 1.5)
 ```
 
-`choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+The `Dispatcher` class selects the target disk for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
 
 ## 24 TB Operations Guide
 
@@ -101,14 +101,15 @@ Use `budget_seconds` to cap wall-clock time and resume across multiple sessions:
 | Incremental scan, all    | 8–20 min           | 1 800 s (30 min)   |
 | Enrich pass, 1 disk      | 10–30 min          | 1 800 s (30 min)   |
 
-The `budget_seconds` parameter is passed via the CLI flag `--budget-seconds` or
+The `budget_seconds` parameter is passed via the CLI flag `--budget` or
 set in `config.json5` under `indexer.scan.budget_seconds`. When the budget is
 exhausted the scanner writes a checkpoint and exits with `budget_exhausted=True`;
 the next invocation resumes from the last checkpoint automatically.
 
 For nightly scheduled scans (launchd), set the budget to ≤ 3 600 s (1 hour) to
-ensure the job completes before the next wake window. Use `--mode incremental`
-for nightly runs and reserve `--mode full` for weekend maintenance windows.
+ensure the job completes before the next wake window. Use `--mode quick` for
+nightly runs, `--mode incremental` for more frequent scans (e.g. every few hours
+during the day), and reserve `--mode full` for weekend maintenance windows.
 
 ## Indexer Cold-Rebuild Playbook
 

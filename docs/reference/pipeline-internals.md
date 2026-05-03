@@ -49,7 +49,7 @@ Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support
 
 ### Disk selection
 
-`choose_disk(allow_create_category=True)` for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
+The `Dispatcher` class selects the target disk for new items: falls back to any disk with space if no disk has the category. Logs WARNING for overflow (category not in disk config).
 
 ### Standalone invocation
 
@@ -57,7 +57,7 @@ Uses `-a --no-perms --no-owner --no-group` — NTFS via macFUSE does not support
 
 ## Verify
 
-- `nfo_ids` check: at least one of TMDB or IMDB required (not both)
-- Missing one → WARNING
+- `nfo_ids` check: both TMDB and IMDB required for a pass
+- Missing one → WARNING (check fails)
 - Missing both → ERROR
 - Some recent films have TMDB but no IMDB yet (acceptable).
