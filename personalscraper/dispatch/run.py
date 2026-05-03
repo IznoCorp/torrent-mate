@@ -141,6 +141,12 @@ def run_dispatch(
             # Save updated index
             if not dry_run:
                 index.save()
+
+            # Drain the outbox so that write-through events emitted during
+            # dispatch (move/upsert) are applied to the indexer DB immediately
+            # rather than waiting for the next nightly scan.
+            if not dry_run:
+                _drain_dispatch_outbox(config)
         finally:
             if preview_index:
                 index.rollback_preview()
@@ -149,6 +155,43 @@ def run_dispatch(
     if cleaned:
         report.details.insert(0, f"Cleaned {cleaned} staging orphan(s)")
     return report
+
+
+def _drain_dispatch_outbox(config: Config) -> None:
+    """Drain the indexer outbox and refresh Merkle roots after dispatch.
+
+    Opens a short-lived connection to ``config.indexer.db_path``, drains
+    any pending outbox rows, then resets ``disk.merkle_root`` to NULL for
+    every mounted disk.  The next ``library-index --mode quick`` will
+    recompute each root from the current DB state instead of detecting a
+    bulk change and freezing (the dispatch intentionally modifies every
+    disk, so a high delta is expected).
+
+    Args:
+        config: Validated Config with a resolved ``indexer.db_path``.
+    """
+    import sqlite3
+
+    from personalscraper.indexer.outbox import drain_if_present
+    from personalscraper.indexer.repos.disk_repo import update_merkle_root
+
+    db_path = config.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
+    conn = sqlite3.connect(str(db_path))
+    try:
+        applied = drain_if_present(conn, config.indexer)
+        if applied:
+            log.info("dispatch_outbox_drained", applied=applied)
+
+        # Reset Merkle roots so the next quick scan recomputes from the
+        # (now up-to-date) DB rather than detecting a spurious bulk change.
+        disk_ids = conn.execute("SELECT id FROM disk WHERE is_mounted = 1").fetchall()
+        for (disk_id,) in disk_ids:
+            update_merkle_root(conn, disk_id, None)
+        if disk_ids:
+            log.info("dispatch_merkle_reset", disk_count=len(disk_ids))
+    finally:
+        conn.close()
 
 
 def _to_step_report(results: list[DispatchResult]) -> StepReport:

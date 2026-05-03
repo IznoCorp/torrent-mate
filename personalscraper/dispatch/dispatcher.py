@@ -409,6 +409,7 @@ class Dispatcher:
             resolved = disk_id_for_path(result.destination, _db_path)
             if resolved is not None:
                 disk_id, rel_path = resolved
+                size_bytes, max_mtime = self._dir_stats(result.destination)
                 publish_event(
                     disk_id,
                     op="move",
@@ -416,8 +417,8 @@ class Dispatcher:
                         "src_rel_path": "",
                         "dst_rel_path": rel_path,
                         "filename": result.destination.name,
-                        "size_bytes": None,
-                        "mtime_ns": None,
+                        "size_bytes": size_bytes,
+                        "mtime_ns": max_mtime,
                     },
                     db_path=_db_path,
                     source="dispatch",
@@ -523,6 +524,7 @@ class Dispatcher:
             resolved = disk_id_for_path(result.destination, _db_path)
             if resolved is not None:
                 disk_id, rel_path = resolved
+                size_bytes, max_mtime = self._dir_stats(result.destination)
                 publish_event(
                     disk_id,
                     op="move",
@@ -530,8 +532,8 @@ class Dispatcher:
                         "src_rel_path": "",
                         "dst_rel_path": rel_path,
                         "filename": result.destination.name,
-                        "size_bytes": None,
-                        "mtime_ns": None,
+                        "size_bytes": size_bytes,
+                        "mtime_ns": max_mtime,
                     },
                     db_path=_db_path,
                     source="dispatch",
@@ -1037,3 +1039,26 @@ class Dispatcher:
             except OSError:
                 pass  # Broken symlinks, NTFS metadata permission errors
         return total / (1024**3)
+
+    @staticmethod
+    def _dir_stats(directory: Path) -> tuple[int, int]:
+        """Return ``(size_bytes, max_mtime_ns)`` for all files in *directory*.
+
+        Args:
+            directory: Directory to scan.
+
+        Returns:
+            Tuple of total size in bytes and the highest ``st_mtime_ns`` found.
+        """
+        total_size = 0
+        max_mtime = 0
+        for f in directory.rglob("*"):
+            try:
+                if f.is_file():
+                    st = f.stat()
+                    total_size += st.st_size
+                    if st.st_mtime_ns > max_mtime:
+                        max_mtime = st.st_mtime_ns
+            except OSError:
+                pass
+        return total_size, max_mtime
