@@ -1,6 +1,6 @@
 # Architectural Consolidation — Design (`arch-cleanup`)
 
-**Status**: Prepared (not yet implemented). Working tree only — not committed.
+**Status**: Fully implemented (all 8 phases complete). Version bumped to 0.9.0. Merged on branch `refactor/arch-cleanup`.
 **Codename**: `arch-cleanup`
 **Version bump**: 0.8.0 → 0.9.0 (minor)
 **Prepared on**: 2026-05-02
@@ -52,14 +52,14 @@ Decompose by responsibility, not by line count. Each split must be **behaviour-p
 
 The file currently contains: Typer app + global options + 50+ command bodies + helper functions + presentation logic + legacy compatibility branches.
 
-| Extraction target      | Contents                                                                                                                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `commands/pipeline.py` | `run`, `ingest`, `sort`, `process`, `clean`, `scrape`, `cleanup`, `enforce`, `verify`, `trailers`, `dispatch` (each as a Typer command function delegating to its domain entry point) |
-| `commands/library.py`  | `library-scan` (legacy, deprecation warning), `library-index`, `library-search`, `library-clean`, `library-report`, `library-analyze`                                                 |
-| `commands/config.py`   | `init-config`, `validate-config`, `migrate-config`, `show-config`                                                                                                                     |
-| `commands/info.py`     | `version`, `info`, `paths`, `disks`                                                                                                                                                   |
-| `commands/diagnose.py` | `diagnose`, doctor-style commands                                                                                                                                                     |
-| `cli.py`               | Typer app instance + global options + exception handler shell + sub-app mounting                                                                                                      |
+| Extraction target          | Contents                                                                                                                                                                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commands/pipeline.py`     | `run`, `ingest`, `sort`, `process`, `clean`, `scrape`, `cleanup`, `enforce`, `verify`, `trailers`, `dispatch` (each as a Typer command function delegating to its domain entry point) |
+| `commands/library.py`      | `library-scan` (legacy, deprecation warning), `library-index`, `library-search`, `library-clean`, `library-report`, `library-analyze`                                                 |
+| `commands/config.py`       | `init-config`, `validate-config`, `migrate-config`, `show-config`                                                                                                                     |
+| `commands/info.py`         | `version`, `info`, `paths`, `disks`                                                                                                                                                   |
+| ~~`commands/diagnose.py`~~ | Skipped — no `diagnose` (or doctor-style) commands existed in `cli.py` at extraction time                                                                                             |
+| `cli.py`                   | Typer app instance + global options + exception handler shell + sub-app mounting                                                                                                      |
 
 `commands/init_config.py` (already present) is folded into `commands/config.py` or kept as a delegate target — decided during phase 2 based on actual structure.
 
@@ -80,9 +80,11 @@ The file currently contains: Typer app + global options + 50+ command bodies + h
 | ----------------------- | ------------------------------------------------ |
 | `_modes/__init__.py`    | mode registry, dispatcher, shared mode utilities |
 | `_modes/full.py`        | full-scan logic                                  |
+| `_modes/quick.py`       | quick scan (partial / surface-level check)       |
 | `_modes/incremental.py` | incremental / drift-driven scan                  |
-| `_modes/repair.py`      | repair-queue-driven scan                         |
-| `_modes/freeze.py`      | bulk-freeze mode                                 |
+| `_modes/enrich.py`      | enrich scan (fill gaps in existing metadata)     |
+| `_modes/verify.py`      | verify-scan (integrity check)                    |
+| `_modes/backfill.py`    | backfill scan (retroactive data population)      |
 
 If the file contains a 5th mode (e.g., spotlight-driven), it gets its own module. Inventory at start of phase 4.
 

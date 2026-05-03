@@ -4,9 +4,11 @@
 
 **Risk:** High. This module is the execution engine of every `library-index` invocation. Any logic drift surfaces as data corruption in the SQLite index. Mitigated by: (1) inventory-first sub-phase, (2) git-mv-equivalent extraction with zero logic edits per move commit, (3) integration tests under `tests/indexer/` covering each mode.
 
+> **Post-implementation note**: The planned `repair.py` and `freeze.py` files were **never created**. The actual modes extracted (as documented in `phase-04-inventory.md`) were: `full`, `quick`, `incremental`, `enrich`, `verify`, `backfill`. See actual files under `_modes/`.
+
 **Files affected (estimate):**
 
-- Create: `personalscraper/indexer/scanner/_modes/__init__.py`, `_modes/full.py`, `_modes/incremental.py`, `_modes/repair.py`, `_modes/freeze.py` (and any 5th mode discovered in inventory)
+- Create: `personalscraper/indexer/scanner/_modes/__init__.py`, `_modes/full.py`, `_modes/quick.py`, `_modes/incremental.py`, `_modes/enrich.py`, `_modes/verify.py`, `_modes/backfill.py`
 - Delete: `personalscraper/indexer/scanner/_modes.py` (replaced by the package)
 - Modify: any consumer importing from `_modes.py` (`indexer/scanner/__init__.py`, scan workers)
 
@@ -44,12 +46,16 @@ This is sub-phase 4.0 — produce the inventory file before any code change.
 - Create: `docs/superpowers/roadmap/arch-cleanup/plan/phase-04-inventory.md`
 
 - [ ] **Step 1: Run the inventory greps above**, copy output into the file.
+
+  > **Post-implementation note**: The inventory revealed modes: `full`, `quick`, `incremental`, `enrich`, `verify`, `backfill`. No `repair`, `freeze`, or `spotlight` modes existed in the code.
+
 - [ ] **Step 2: For each function in the file, classify**:
   - `full` (full rescan logic)
+  - `quick` (quick / surface-level scan)
   - `incremental` (drift / partial rescan)
-  - `repair` (repair-queue-driven)
-  - `freeze` (bulk freeze)
-  - `spotlight` (macOS Spotlight integration — if present)
+  - `enrich` (metadata enrichment)
+  - `verify` (integrity verification)
+  - `backfill` (retroactive data population)
   - `_shared` (helper used by 2+ modes)
 - [ ] **Step 3: Commit the inventory**
 
@@ -101,6 +107,8 @@ pytest tests/indexer/ -v
 git commit -m "refactor(arch-cleanup): scaffold _modes package + extract shared helpers"
 ```
 
+> **Post-implementation note**: Sub-phases 4.2-4.6 followed the actual mode set from the inventory. The planned `repair` and `freeze` modes were replaced by `quick`, `enrich`, `verify`, and `backfill`.
+
 ### 4.2 — Extract full-scan mode
 
 **Files:**
@@ -142,33 +150,28 @@ Same pattern as 4.2 for incremental / drift logic.
 git commit -m "refactor(arch-cleanup): extract incremental scan mode"
 ```
 
-### 4.4 — Extract repair-scan mode
-
-Same pattern for repair-queue-driven scans.
+### 4.4 — Extract quick-scan mode
 
 ```bash
-git commit -m "refactor(arch-cleanup): extract repair scan mode"
+git commit -m "refactor(arch-cleanup): extract quick scan mode"
 ```
 
-### 4.5 — Extract freeze mode
-
-Same pattern for bulk freeze.
+### 4.5 — Extract enrich mode
 
 ```bash
-git commit -m "refactor(arch-cleanup): extract freeze mode"
+git commit -m "refactor(arch-cleanup): extract enrich mode"
 ```
 
-### 4.6 — Extract any remaining modes
-
-If 4.0 inventory found a 5th mode (e.g., spotlight, drift-only), extract it now.
+### 4.6 — Extract verify and backfill modes
 
 ```bash
-git commit -m "refactor(arch-cleanup): extract <mode> mode"
+git commit -m "refactor(arch-cleanup): extract verify mode"
+git commit -m "refactor(arch-cleanup): extract backfill mode"
 ```
 
 ### 4.7 — Rename `_modes_pkg/` → `_modes/`
 
-After 4.2-4.6 complete and `_modes.py` contains only re-exports:
+After 4.2-4.6 (full, quick, incremental, enrich, verify, backfill) complete and `_modes.py` contains only re-exports:
 
 - [ ] **Step 1: Verify `_modes.py` is now ≤ 50 LOC of re-exports** (no logic).
 - [ ] **Step 2: Delete `_modes.py`**.

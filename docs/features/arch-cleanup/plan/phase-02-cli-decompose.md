@@ -162,6 +162,8 @@ git commit -m "refactor(arch-cleanup): extract library commands into commands/li
 - (a) Rename it to `commands/config.py` and add `config_migrate_category` and any other config commands.
 - (b) Keep `init_config.py` and add a separate `config.py` for non-init operations.
 
+> **Post-implementation note**: Option (a) was planned (`git mv init_config.py → config.py`) but **both files were kept**. `init_config.py` remains as a standalone module that delegates to `config.py` for its logic, avoiding a breaking rename for any external consumers importing `commands.init_config`. See actual layout: `commands/{config,init_config}.py`.
+
 Decision: **(a)** — single module per command group is cleaner. Use `git mv personalscraper/commands/init_config.py personalscraper/commands/config.py` then update imports.
 
 - [ ] **Step 1: `git mv personalscraper/commands/init_config.py personalscraper/commands/config.py`**
@@ -174,6 +176,8 @@ Decision: **(a)** — single module per command group is cleaner. Use `git mv pe
 ```bash
 git commit -m "refactor(arch-cleanup): unify config commands into commands/config.py"
 ```
+
+> **Post-implementation note**: `commands/diagnose.py` was **never created** — audit confirmed zero `diagnose` or doctor-style commands in `cli.py`. Sub-phase 2.4 effectively extracted `commands/info.py` only. See actual extraction targets `commands/{pipeline,library,config,info}.py`.
 
 ### 2.4 — Extract `commands/info.py` and `commands/diagnose.py`
 
