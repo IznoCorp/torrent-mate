@@ -13,8 +13,8 @@ Torrents terminés  →  staging  →  Disques de stockage
 
 **Pipeline automatisé (PersonalScraper) :**
 
-1. **Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers le dossier ingest (par défaut `097-TEMP/`, configurable via `staging_dirs`)
-2. **Sort** — Les fichiers sont triés dans les sous-dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc., définis dans `staging_dirs`)
+1. **Ingest** — Les torrents terminés sont copiés/déplacés depuis qBittorrent vers le dossier ingest configurable via `staging_dirs`
+2. **Sort** — Les fichiers sont triés dans les sous-dossiers de staging définis dans `staging_dirs`
 3. **Clean** — Nettoyage noms (reclean) + dédoublonnage fuzzy (dedup)
 4. **Scrape** — Métadonnées récupérées automatiquement via TMDB/TVDB APIs (.nfo, artwork, rename épisodes)
 5. **Cleanup** — Suppression des dossiers vides
@@ -43,43 +43,6 @@ The on-disk folder name is `{id:03d}-{name.upper()}`, e.g.:
 | 1   | movies  | 001-MOVIES  |
 | 2   | tvshows | 002-TVSHOWS |
 | 97  | temp    | 097-TEMP    |
-
-### Migrating from ≤ 0.3.0
-
-After upgrading, your `config/` directory must be updated to include
-`staging_dirs`. Without it, PersonalScraper will exit with:
-
-> `staging_dirs` missing from config.json5 — see MANUAL.md §Staging layout for migration steps.
-
-**Step 1**: Add `staging_dirs` to your `config/patterns.json5`. Copy the section
-from `config.example/patterns.json5` and adjust if you have custom directory names.
-
-**Step 2**: Set `paths.staging_dir` to the external location. No
-production default — pick a path outside the repository (e.g.
-`/Volumes/<disk>/staging/`).
-
-**Step 3**: Move your existing staging content to the new location.
-Replace `<old_staging>` with the previous in-repo location and
-`<new_staging>` with the new `paths.staging_dir` value; the two paths
-**must** differ. One command per directory:
-
-```bash
-rsync -a "<old_staging>/001-MOVIES/"  "<new_staging>/001-MOVIES/"
-rsync -a "<old_staging>/002-TVSHOWS/" "<new_staging>/002-TVSHOWS/"
-rsync -a "<old_staging>/003-EBOOKS/"  "<new_staging>/003-EBOOKS/"
-rsync -a "<old_staging>/004-AUDIO/"   "<new_staging>/004-AUDIO/"
-rsync -a "<old_staging>/005-APPS/"    "<new_staging>/005-APPS/"
-rsync -a "<old_staging>/006-ANDROID/" "<new_staging>/006-ANDROID/"
-rsync -a "<old_staging>/097-TEMP/"    "<new_staging>/097-TEMP/"
-rsync -a "<old_staging>/098-AUTRES/"  "<new_staging>/098-AUTRES/"
-```
-
-After rsync completes, verify the transfer, then delete the originals from
-the repository directory if desired.
-
-**Note on `099-SCRIPTS/`**: This directory has been removed from git
-tracking but its files remain on disk at their original location. The user
-is responsible for moving or archiving these files separately.
 
 ---
 
@@ -145,9 +108,9 @@ personalscraper trailers verify                  # Vérifier les BA existantes
 personalscraper trailers purge                   # Purger les BA selon critères
 ```
 
-**Prérequis :** fichier `.env` configuré (clés API TMDB/TVDB, credentials qBittorrent). Voir `.env.example`.
+**Prérequis :** fichier `.env` configuré avec les credentials des services). Voir `.env.example`.
 
-**Scheduling :** un agent launchd (`com.personalscraper.pipeline.plist`) peut exécuter le pipeline automatiquement à 3h du matin.
+**Scheduling :** un agent launchd (`com.personalscraper.pipeline.plist`) peut exécuter le pipeline automatiquement à une heure donnée.
 
 ```bash
 # Installer et activer (via le script d'installation)
@@ -202,23 +165,6 @@ df -h /Volumes/Disk{1,2,3,4}
 
 ---
 
-## Commandes Claude Code (archivées)
-
-> **Note :** Les anciennes commandes `/check-staging` et `/move-to-disk` ont été remplacées par le pipeline automatisé (`personalscraper verify` et `personalscraper dispatch`). Elles sont archivées dans `.claude-old/skills/`.
-
----
-
-## Disques de stockage
-
-| Disque | Montage               | Catégories disponibles                                                                                                                        |
-| ------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Disk1  | /Volumes/Disk1/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk2  | /Volumes/Disk2/medias | series, series animes                                                                                                                         |
-| Disk3  | /Volumes/Disk3/medias | films, films animations, films documentaires, livres audios, series, series animations, series documentaires, spectacles, theatres, emissions |
-| Disk4  | /Volumes/Disk4/medias | films, films animations, series, series animations, series documentaires, emissions                                                           |
-
----
-
 ## Structure des dossiers
 
 ### Zone de tri
@@ -243,9 +189,7 @@ df -h /Volumes/Disk{1,2,3,4}
 └── assets/torrents/     Fichiers .torrent pour tests E2E
 ```
 
-Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
-défini par `paths.staging_dir` dans `config/paths.json5` — en dehors du dépôt par défaut.
-Ils ne sont pas suivis par git.
+Les dossiers de staging se trouvent dans le dossier défini par `paths.staging_dir` dans `config/paths.json5`.
 
 ### Nommage des films
 
@@ -282,8 +226,7 @@ Nom de la Série (Année)/
     ...
 ```
 
-- Dossiers de saison en français : `Saison 01`, `Saison 02`, etc.
-- Fichiers d'épisodes : `S{nn}E{nn} - {Titre}.{ext}`
+Voir `config/scraper.json5`
 
 ---
 
@@ -312,19 +255,6 @@ Si l'API ne trouve pas un résultat, MediaElch (application de bureau GUI) peut 
 
 ---
 
-## Protections Claude Code
-
-Hooks actifs dans `.claude/settings.json` :
-
-1. **Blocage attribution AI** (`block_ai_attribution.py`) — Empêche les commits contenant `Co-Authored-By`, Claude, ou Anthropic
-2. **Blocage fichiers sensibles** (`block_sensitive_files.py`) — Empêche l'édition de fichiers sensibles (.env, clés API)
-3. **Auto-format** (`auto_format.py`) — Formate automatiquement après chaque édition
-4. **Loggers** — `bash_logger.py`, `agent_logger.py`, `skill_logger.py` enregistrent les actions
-
-> **Note :** Les hooks `block_media_files.py` et `block_disk_destructive.py` sont actifs dans `.claude/hooks/` et bloquent l'édition de fichiers média et les commandes destructives sur disque. La commande `rm` est également bloquée via la liste `deny` des permissions.
-
----
-
 | Unpack.py.bak | Variante d'unpack seul | Archivé |
 | TVDBNameToNum.py.bak | Matcher les noms d'épisodes via TheTVDB | Archivé → remplacé par V3 |
 | EpisodesTVDBNamer.py.bak | Renommage d'épisodes TVDB | Archivé → remplacé par V3 |
@@ -337,5 +267,3 @@ Hooks actifs dans `.claude/settings.json` :
 ## Notes importantes
 
 - **Espaces dans les chemins** — Toujours mettre les chemins entre guillemets dans le terminal : `"/path/to/staging/"`
-- **Casse des disques** — Les vrais points de montage sont `/Volumes/Disk1` (pas DISK1). Certains vieux scripts utilisent DISK1 en majuscules.
-- **Configuration FileMate** — Les associations dossier-type sont dans `~/dev/FileMate/.env`

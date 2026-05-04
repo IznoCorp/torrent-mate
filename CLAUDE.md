@@ -81,7 +81,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 
 **Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename + SemVer type, create branch, generate plan.
 
-**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` (Sonnet) + `/implement:check` (Opus verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + max-3 fix cycles + squash merge).
+**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` + `/implement:check` (verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + max-3 fix cycles + squash merge).
 
 **Branches**: `feat/{codename}` or `fix/{codename}`
 **Commits**: Conventional Commits with `(codename)` scope
@@ -102,7 +102,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 
 ### Language
 
-The user communicates in **French**. Code comments are a mix of French and English. Respond in French when the user writes in French.
+The user communicates in French or English. Code comments are in English only. Respond in French when the user writes in French.
 
 ## Reference Index (lazy-load when relevant)
 

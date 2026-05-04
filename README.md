@@ -63,9 +63,7 @@ personal-scraper/        # Racine du dépôt git
 └── Makefile             # make test/lint/format/install-dev
 ```
 
-Les dossiers de staging (`001-MOVIES/`, `002-TVSHOWS/`, etc.) se trouvent dans le dossier
-défini par `paths.staging_dir` dans `config/paths.json5` — en dehors du dépôt par défaut.
-Ils ne sont pas suivis par git.
+Les dossiers de staging se trouvent dans le dossier défini par `paths.staging_dir` dans `config/paths.json5` en dehors du dépôt par défaut.
 
 ## Commandes utiles
 
