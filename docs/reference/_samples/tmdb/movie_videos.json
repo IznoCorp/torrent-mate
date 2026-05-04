@@ -1,0 +1,65 @@
+{
+  "id": 550,
+  "results": [
+    {
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "name": "Yeah... no wonder this movie never won an Oscar",
+      "key": "V0Fqdb-smqo",
+      "site": "YouTube",
+      "size": 2160,
+      "type": "Featurette",
+      "official": false,
+      "id": "67c90f7a3dd7da394f24957b",
+      "published_at": "2025-02-14T14:25:16.000Z"
+    },
+    {
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "name": "20th Anniversary Trailer",
+      "key": "dfeUzm6KF4g",
+      "site": "YouTube",
+      "size": 1080,
+      "type": "Trailer",
+      "official": true,
+      "id": "64fb16fbdb4ed610343d72c3",
+      "published_at": "2019-10-15T18:59:47.000Z"
+    },
+    {
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "name": "Mark Kermode introduces Fight Club | Film4 Interview",
+      "key": "tiWCNtGDGEY",
+      "site": "YouTube",
+      "size": 480,
+      "type": "Featurette",
+      "official": true,
+      "id": "65d00d0c57176f017b8fc73d",
+      "published_at": "2015-05-08T15:59:05.000Z"
+    },
+    {
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "name": "Theatrical Trailer (HD Fan Remaster)",
+      "key": "6JnN1DmbqoU",
+      "site": "YouTube",
+      "size": 1080,
+      "type": "Trailer",
+      "official": false,
+      "id": "653b36ba5907de00c4953699",
+      "published_at": "2015-02-26T03:19:25.000Z"
+    },
+    {
+      "iso_639_1": "en",
+      "iso_3166_1": "US",
+      "name": "#TBT Trailer",
+      "key": "BdJKm16Co6M",
+      "site": "YouTube",
+      "size": 1080,
+      "type": "Trailer",
+      "official": true,
+      "id": "5c9294240e0a267cd516835f",
+      "published_at": "2014-10-02T19:20:22.000Z"
+    }
+  ]
+}
