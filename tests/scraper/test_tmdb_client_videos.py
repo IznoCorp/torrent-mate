@@ -10,7 +10,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.scraper.tmdb_client import TMDBClient, TMDBError, Video
+from personalscraper.api._contracts import ApiError
+from personalscraper.api.metadata._base import Video
+from personalscraper.api.metadata.tmdb import TMDBClient
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "tmdb"
 
@@ -61,7 +63,7 @@ class TestFetchMovieVideos:
 
     def test_returns_empty_on_404(self, client):
         """fetch_movie_videos returns [] on HTTP 404 (item not found)."""
-        with patch.object(client, "_get", side_effect=TMDBError(404, 34, "Not Found")):
+        with patch.object(client, "_get", side_effect=ApiError("tmdb", 404, provider_code=34, message="Not Found")):
             result = client.fetch_movie_videos(99999, language="en-US")
         assert result == []
 
@@ -104,7 +106,7 @@ class TestFetchTvVideos:
 
     def test_returns_empty_on_404(self, client):
         """fetch_tv_videos returns [] on HTTP 404."""
-        with patch.object(client, "_get", side_effect=TMDBError(404, 34, "Not Found")):
+        with patch.object(client, "_get", side_effect=ApiError("tmdb", 404, provider_code=34, message="Not Found")):
             result = client.fetch_tv_videos(99999, language="en-US")
         assert result == []
 
@@ -133,7 +135,7 @@ class TestFetchTvSeasonVideos:
 
     def test_fetch_tv_season_videos_404_returns_empty(self, client):
         """Fail-soft on 404 — many shows have no season-level videos on TMDB."""
-        with patch.object(client, "_get", side_effect=TMDBError(404, 34, "Not Found")):
+        with patch.object(client, "_get", side_effect=ApiError("tmdb", 404, provider_code=34, message="Not Found")):
             result = client.fetch_tv_season_videos(99999, season_number=3, language="en-US")
         assert result == []
 
@@ -218,34 +220,34 @@ class TestVideoNormalisation:
 
 
 class TestFetchVideosStrictNonDict:
-    """Sub-phase 11.2 — non-dict JSON response raises TMDBError."""
+    """Sub-phase 11.2 — non-dict JSON response raises ApiError."""
 
     def test_fetch_videos_strict_raises_on_non_dict_response(self, client: TMDBClient) -> None:
-        """_fetch_videos_strict raises TMDBError when _get returns a non-dict value.
+        """_fetch_videos_strict raises ApiError when _get returns a non-dict value.
 
         A proxy or parser-drift condition may cause _get to return a JSON list
         or scalar instead of a dict.  Without a type check, the subsequent
         ``data.get("results")`` raises AttributeError which leaks past find()'s
         except clause and poisons the cache with __no_result__.
 
-        This test patches _get to return a list and asserts TMDBError is raised
+        This test patches _get to return a list and asserts ApiError is raised
         with a message describing the unexpected type.
 
         Args:
             client: TMDBClient fixture with dummy API key.
         """
-        with pytest.raises(TMDBError, match="malformed response"):
+        with pytest.raises(ApiError, match="malformed response"):
             with patch.object(client, "_get", return_value=["not", "a", "dict"]):
                 client._fetch_videos_strict("/movie/550/videos", 550, "movie", "en-US")
 
     def test_fetch_videos_strict_raises_on_scalar_response(self, client: TMDBClient) -> None:
-        """_fetch_videos_strict raises TMDBError when _get returns a bare scalar.
+        """_fetch_videos_strict raises ApiError when _get returns a bare scalar.
 
         Verifies the isinstance guard works for any non-dict type, not just lists.
 
         Args:
             client: TMDBClient fixture with dummy API key.
         """
-        with pytest.raises(TMDBError, match="malformed response.*str"):
+        with pytest.raises(ApiError, match="malformed response.*str"):
             with patch.object(client, "_get", return_value="unexpected string"):
                 client._fetch_videos_strict("/movie/550/videos", 550, "movie", "en-US")

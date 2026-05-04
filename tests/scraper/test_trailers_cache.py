@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from personalscraper.scraper.tmdb_client import Video
+from personalscraper.api.metadata._base import Video
 from personalscraper.scraper.trailers_cache import TrailersCache
 
 UTC = timezone.utc

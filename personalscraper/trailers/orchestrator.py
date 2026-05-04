@@ -605,10 +605,10 @@ class TrailersOrchestrator:
             A TrailerFinder instance, or None when import fails.
         """
         try:
+            from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
             from personalscraper.config import get_settings  # noqa: PLC0415
             from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
             from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
-            from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
             from personalscraper.scraper.trailer_finder import TrailerFinder  # noqa: PLC0415
             from personalscraper.scraper.trailers_cache import TrailersCache  # noqa: PLC0415
             from personalscraper.scraper.youtube_search import (  # noqa: PLC0415

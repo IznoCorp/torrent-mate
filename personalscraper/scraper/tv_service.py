@@ -28,10 +28,10 @@ from personalscraper.sorter.file_type import VIDEO_EXTENSIONS
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
-    from personalscraper.scraper.tmdb_client import TMDBClient
     from personalscraper.scraper.tvdb_client import TVDBClient
 
 log = get_logger("scraper")

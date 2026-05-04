@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.nfo_generator import NFOGenerator
-    from personalscraper.scraper.tmdb_client import TMDBClient
     from personalscraper.scraper.tvdb_client import TVDBClient
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
@@ -556,9 +556,9 @@ def rescrape_library(
     Returns:
         LibraryRescrapeResult with per-item actions.
     """
+    from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
-    from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
     from personalscraper.scraper.tvdb_client import TVDBClient  # noqa: PLC0415
 
     scraper_config = config.scraper

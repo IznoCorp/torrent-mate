@@ -12,8 +12,8 @@ from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
-    from personalscraper.scraper.tmdb_client import TMDBClient
 
 from personalscraper.scraper._shared import ScrapeResult
 from personalscraper.scraper.classifier import _parse_folder_name

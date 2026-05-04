@@ -31,13 +31,13 @@ from typing import TYPE_CHECKING
 import requests
 import yt_dlp.utils
 
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.logger import get_logger
-from personalscraper.api._contracts import CircuitOpenError
-from personalscraper.scraper.tmdb_client import TMDBError
 from personalscraper.scraper.trailers_cache import TrailersCache
 
 if TYPE_CHECKING:
-    from personalscraper.scraper.tmdb_client import TMDBClient, Video
+    from personalscraper.api.metadata._base import Video
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.scraper.youtube_search import YoutubeSearch
 
 logger = get_logger(__name__)
@@ -207,7 +207,7 @@ class TrailerFinder:
                     # here would leave counts["circuit_open"] permanently at zero
                     # (dead observability counter).
                     raise
-                except (TMDBError, requests.RequestException, json.JSONDecodeError) as exc:
+                except (ApiError, requests.RequestException, json.JSONDecodeError) as exc:
                     # TMDB transport / HTTP / decode error — do NOT cache the
                     # empty list.  Log and continue to the next language or fall
                     # through to the YouTube fallback.

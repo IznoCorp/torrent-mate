@@ -29,6 +29,7 @@ from pathlib import Path
 import guessit as guessit_module
 import pytest
 
+from personalscraper.api.metadata.tmdb import TMDBClient
 from personalscraper.config import get_settings
 from personalscraper.scraper.confidence import (
     LOW_CONFIDENCE,
@@ -36,7 +37,6 @@ from personalscraper.scraper.confidence import (
     match_tvshow,
     score_match,
 )
-from personalscraper.scraper.tmdb_client import TMDBClient
 from personalscraper.scraper.tvdb_client import TVDBClient
 from tests.e2e.torrentifier import (
     parse_folder_name,

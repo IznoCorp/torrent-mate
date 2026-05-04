@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import requests
 
-from personalscraper.core.circuit import CircuitBreaker, CircuitState
 from personalscraper.api._contracts import ApiError, CircuitOpenError
+from personalscraper.core.circuit import CircuitBreaker, CircuitState
 
 
 class TestCircuitBreakerStates:

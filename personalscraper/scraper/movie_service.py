@@ -19,12 +19,12 @@ from personalscraper.text_utils import sanitize_filename
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.confidence import MatchResult
     from personalscraper.scraper.nfo_generator import NFOGenerator
-    from personalscraper.scraper.tmdb_client import TMDBClient
 
 log = get_logger("scraper")
 

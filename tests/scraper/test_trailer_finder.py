@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from personalscraper.api.metadata._base import Video
 from personalscraper.core.circuit import CircuitBreaker, CircuitOpenError
-from personalscraper.scraper.tmdb_client import Video
 from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.trailers_cache import TrailersCache
 

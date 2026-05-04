@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import time
 
-from personalscraper.logger import get_logger
 from personalscraper.core.circuit import CircuitBreaker, CircuitState
+from personalscraper.logger import get_logger
 
 log = get_logger("indexer.breaker")
 

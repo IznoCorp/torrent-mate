@@ -906,7 +906,7 @@ class TestScrapeTvshow:
         Reproduces Bug 3 variant: tmdb_id is found in remoteIds, but TMDB
         returns 404 (show deleted / mismatched). Fix: fall back to TVDB-only data.
         """
-        from personalscraper.scraper.tmdb_client import TMDBError
+        from personalscraper.api._contracts import ApiError
 
         show_dir = tmp_path / "Top Chef France (2010)"
         show_dir.mkdir()
@@ -937,7 +937,7 @@ class TestScrapeTvshow:
             patch.object(
                 scraper._tmdb,
                 "get_tv",
-                side_effect=TMDBError(404, 34, "The resource you requested could not be found."),
+                side_effect=ApiError(404, 34, "The resource you requested could not be found."),
             ),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -1172,7 +1172,7 @@ class TestCircuitBreakerFallback:
         tmp_path: Path,
     ) -> None:
         """Movies are skipped when TMDB circuit is OPEN."""
-        from personalscraper.scraper.tmdb_client import TMDBError
+        from personalscraper.api._contracts import ApiError
 
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
@@ -1180,7 +1180,7 @@ class TestCircuitBreakerFallback:
         (movies_dir / "Movie B (2024)").mkdir()
 
         # Force TMDB circuit OPEN
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError(500, 0, "Internal Server Error")
         for _ in range(5):
             scraper._tmdb.circuit.record_failure(error)
 
@@ -1219,7 +1219,7 @@ class TestCircuitBreakerFallback:
         tmp_path: Path,
     ) -> None:
         """TV shows are skipped when both TVDB and TMDB circuits are OPEN."""
-        from personalscraper.scraper.tmdb_client import TMDBError
+        from personalscraper.api._contracts import ApiError
         from personalscraper.scraper.tvdb_client import TVDBError
 
         tvshows_dir = tmp_path / "002-TVSHOWS"
@@ -1227,7 +1227,7 @@ class TestCircuitBreakerFallback:
         (tvshows_dir / "Show A (2024)").mkdir()
 
         # Force both circuits OPEN
-        tmdb_err = TMDBError(500, 0, "Internal Server Error")
+        tmdb_err = ApiError(500, 0, "Internal Server Error")
         tvdb_err = TVDBError(502, "Bad Gateway")
         for _ in range(5):
             scraper._tmdb.circuit.record_failure(tmdb_err)
