@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "data": [],
+  "links": {
+    "prev": null,
+    "self": "https://api4.thetvdb.com/v4/search?query=xyznonexistent12345&type=series&limit=50&page=0",
+    "next": null,
+    "total_items": 0,
+    "page_size": 50
+  }
+}
