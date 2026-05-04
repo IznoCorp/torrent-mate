@@ -5,22 +5,24 @@
   //   omdb  → ["OMDB_API_KEY"]
   //   trakt → ["TRAKT_CLIENT_ID", "TRAKT_CLIENT_SECRET"]
   // Credentials are read from .env — see .env.example for the expected variable names.
-  providers: {
-    tmdb: { enabled: true },
-    tvdb: { enabled: true },
-    omdb: { enabled: false },
-    trakt: { enabled: false },
-  },
-  priorities: {
-    movie_scraping: { tmdb: 1, tvdb: 2 },
-    series_scraping: { tvdb: 1, tmdb: 2 },
-    episode_scraping: { tvdb: 1, tmdb: 2 },
-    recommendations: { trakt: 1, omdb: 2 },
-    notations: { omdb: 1, trakt: 2 },
-  },
-  defaults: {
-    language: "fr-FR",
-    fallback_language: "en-US",
-    prefer_local_title: true,
+  metadata: {
+    providers: {
+      tmdb: { enabled: true },
+      tvdb: { enabled: true },
+      omdb: { enabled: false },
+      trakt: { enabled: false },
+    },
+    priorities: {
+      movie_scraping: { tmdb: 1, tvdb: 2 },
+      series_scraping: { tvdb: 1, tmdb: 2 },
+      episode_scraping: { tvdb: 1, tmdb: 2 },
+      recommendations: { trakt: 1, omdb: 2 },
+      notations: { omdb: 1, trakt: 2 },
+    },
+    defaults: {
+      language: "fr-FR",
+      fallback_language: "en-US",
+      prefer_local_title: true,
+    },
   },
 }

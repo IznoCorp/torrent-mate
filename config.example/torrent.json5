@@ -2,9 +2,11 @@
   // PROVIDER_CREDS hardcoded in api/_activation.py:
   //   qbittorrent  → ["QBIT_USERNAME", "QBIT_PASSWORD"]
   //   transmission → ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"]
-  active: "qbittorrent",
-  clients: {
-    qbittorrent: { enabled: true, host: "localhost", port: 8080 },
-    transmission: { enabled: false, host: "localhost", port: 9091 },
+  torrent: {
+    active: "qbittorrent",
+    clients: {
+      qbittorrent: { enabled: true, host: "localhost", port: 8080 },
+      transmission: { enabled: false, host: "localhost", port: 9091 },
+    },
   },
 }

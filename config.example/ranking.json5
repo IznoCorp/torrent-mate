@@ -1,37 +1,39 @@
 {
-  criteria: [
-    {
-      field: "resolution",
-      weight: 4,
-      values: { "2160p": 20, "1080p": 15, "720p": 10 },
-    },
-    { field: "codec", weight: 3, values: { x265: 10, HEVC: 10, x264: 5 } },
-    { field: "format", weight: 2, values: { MKV: 10, MP4: 5 } },
-    { field: "audio", weight: 2, values: { VFF: 20, VFQ: 15, TrueHD: 10 } },
-    { field: "source", weight: 2, values: { BluRay: 15, "WEB-DL": 10 } },
-    {
-      field: "seeders",
-      weight: 1,
-      prefer: "higher",
-      thresholds: [
-        { at: 0, score: 0 },
-        { at: 5, score: 5 },
-        { at: 20, score: 10 },
-        { at: 100, score: 20 },
-      ],
-    },
-    {
-      field: "size",
-      weight: 1,
-      prefer: "higher",
-      // String literals parsed via ByteSize on load → integer bytes.
-      thresholds: [
-        { at: 0, score: 0 },
-        { at: "1GB", score: 5 },
-        { at: "5GB", score: 10 },
-      ],
-    },
-  ],
-  bonuses: { freeleech: 10, silverleech: 5 },
-  min_seeders: 1,
+  ranking: {
+    criteria: [
+      {
+        field: "resolution",
+        weight: 4,
+        values: { "2160p": 20, "1080p": 15, "720p": 10 },
+      },
+      { field: "codec", weight: 3, values: { x265: 10, HEVC: 10, x264: 5 } },
+      { field: "format", weight: 2, values: { MKV: 10, MP4: 5 } },
+      { field: "audio", weight: 2, values: { VFF: 20, VFQ: 15, TrueHD: 10 } },
+      { field: "source", weight: 2, values: { BluRay: 15, "WEB-DL": 10 } },
+      {
+        field: "seeders",
+        weight: 1,
+        prefer: "higher",
+        thresholds: [
+          { at: 0, score: 0 },
+          { at: 5, score: 5 },
+          { at: 20, score: 10 },
+          { at: 100, score: 20 },
+        ],
+      },
+      {
+        field: "size",
+        weight: 1,
+        prefer: "higher",
+        // String literals parsed via ByteSize on load → integer bytes.
+        thresholds: [
+          { at: 0, score: 0 },
+          { at: "1GB", score: 5 },
+          { at: "5GB", score: 10 },
+        ],
+      },
+    ],
+    bonuses: { freeleech: 10, silverleech: 5 },
+    min_seeders: 1,
+  },
 }
