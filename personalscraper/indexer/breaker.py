@@ -1,6 +1,6 @@
 """Per-disk circuit breaker for the media indexer.
 
-Wraps :class:`~personalscraper.scraper.circuit_breaker.CircuitBreaker` with a
+Wraps :class:`~personalscraper.core.circuit.CircuitBreaker` with a
 dict-keyed-by-disk-UUID interface so the scanner can guard individual disks
 against repeated I/O failures (``EIO``, vanishing mounts) without blocking
 access to healthy disks.
@@ -21,7 +21,7 @@ from __future__ import annotations
 import time
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.circuit_breaker import CircuitBreaker, CircuitState
+from personalscraper.core.circuit import CircuitBreaker, CircuitState
 
 log = get_logger("indexer.breaker")
 
@@ -29,7 +29,7 @@ log = get_logger("indexer.breaker")
 class DiskCircuitBreaker:
     """A per-disk circuit breaker registry backed by :class:`CircuitBreaker`.
 
-    Lazily creates one :class:`~personalscraper.scraper.circuit_breaker.CircuitBreaker`
+    Lazily creates one :class:`~personalscraper.core.circuit.CircuitBreaker`
     instance per disk UUID on first access.  All breakers share the same
     ``failure_threshold`` and ``cooldown_seconds`` configuration.
 

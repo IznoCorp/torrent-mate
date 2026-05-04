@@ -133,7 +133,7 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         Returns:
             List of ScrapeResult for each processed movie.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         results: list[ScrapeResult] = []
 
@@ -207,7 +207,7 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         Returns:
             List of ScrapeResult for each processed show.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         results: list[ScrapeResult] = []
 

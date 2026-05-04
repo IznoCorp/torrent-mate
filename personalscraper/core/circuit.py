@@ -19,6 +19,7 @@ from enum import Enum
 
 import requests
 
+from personalscraper.api._contracts import CircuitOpenError
 from personalscraper.logger import get_logger
 
 log = get_logger("circuit_breaker")
@@ -36,26 +37,6 @@ class CircuitState(Enum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
-
-
-class CircuitOpenError(Exception):
-    """Raised when a call is attempted on an OPEN circuit.
-
-    Attributes:
-        provider: Name of the unavailable provider (e.g. "TMDB", "TVDB").
-        remaining_seconds: Seconds remaining until cooldown expires.
-    """
-
-    def __init__(self, provider: str, remaining_seconds: float) -> None:
-        """Initialize CircuitOpenError.
-
-        Args:
-            provider: Provider name.
-            remaining_seconds: Seconds until the circuit allows a test call.
-        """
-        self.provider = provider
-        self.remaining_seconds = remaining_seconds
-        super().__init__(f"Circuit breaker OPEN for {provider} ({remaining_seconds:.0f}s remaining)")
 
 
 class CircuitBreaker:
@@ -218,14 +199,9 @@ class CircuitBreaker:
         Returns:
             True if the error indicates a provider outage.
         """
-        # Import here to avoid circular imports — TMDBError/TVDBError
-        # are in sibling modules
-        from personalscraper.scraper.tmdb_client import TMDBError
-        from personalscraper.scraper.tvdb_client import TVDBError
+        from personalscraper.api._contracts import ApiError
 
-        # TMDB/TVDB errors with HTTP status
-        if isinstance(exc, (TMDBError, TVDBError)):
-            # 429 = rate limit (tenacity), 4xx = client error → not circuit
+        if isinstance(exc, ApiError):
             return exc.http_status >= 500
 
         # requests HTTP errors

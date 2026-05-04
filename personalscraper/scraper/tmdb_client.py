@@ -33,11 +33,11 @@ from personalscraper.scraper.http_retry import (
 )
 
 if TYPE_CHECKING:
-    from personalscraper.scraper.circuit_breaker import CircuitBreaker
+    from personalscraper.core.circuit import CircuitBreaker
 
 # Module-level alias used by narrow except clauses without paying the import cost
 # inside hot paths. The runtime `from ... import` lives next to the call sites.
-from personalscraper.scraper.circuit_breaker import CircuitOpenError as _CircuitOpenError  # noqa: E402
+from personalscraper.api._contracts import CircuitOpenError as _CircuitOpenError  # noqa: E402
 
 log = get_logger("tmdb_client")
 
@@ -203,7 +203,7 @@ class TMDBClient:
         )
 
         # Circuit breaker for sustained outage detection (above tenacity)
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
 
         self._circuit = CircuitBreaker(
             name="TMDB",
@@ -255,7 +255,7 @@ class TMDBClient:
             requests.exceptions.ConnectionError: On network errors (after retries).
             requests.exceptions.Timeout: On timeout (after retries).
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         # Fail fast if provider is down
         self._circuit.guard()
@@ -569,7 +569,7 @@ class TMDBClient:
             List of keyword name strings. Empty list on any error or when the
             item has no keywords.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError as _CircuitOpenError  # noqa: F401
+        from personalscraper.api._contracts import CircuitOpenError as _CircuitOpenError  # noqa: F401
 
         endpoint = f"/{media_type}/{tmdb_id}/keywords"
         try:

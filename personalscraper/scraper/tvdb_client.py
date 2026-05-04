@@ -36,7 +36,7 @@ from personalscraper.scraper.http_retry import (
 )
 
 if TYPE_CHECKING:
-    from personalscraper.scraper.circuit_breaker import CircuitBreaker
+    from personalscraper.core.circuit import CircuitBreaker
 
 log = get_logger("tvdb_client")
 
@@ -143,7 +143,7 @@ class TVDBClient:
         self._session.headers.update({"Accept": "application/json"})
 
         # Circuit breaker for sustained outage detection (above tenacity)
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
 
         self._circuit = CircuitBreaker(
             name="TVDB",
@@ -224,7 +224,7 @@ class TVDBClient:
             requests.exceptions.HTTPError: On non-TVDB HTTP errors.
             requests.exceptions.ConnectionError: On network errors (after retries).
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         # Fail fast if provider is down
         self._circuit.guard()

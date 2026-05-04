@@ -32,7 +32,7 @@ import requests
 import yt_dlp.utils
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.circuit_breaker import CircuitOpenError
+from personalscraper.api._contracts import CircuitOpenError
 from personalscraper.scraper.tmdb_client import TMDBError
 from personalscraper.scraper.trailers_cache import TrailersCache
 

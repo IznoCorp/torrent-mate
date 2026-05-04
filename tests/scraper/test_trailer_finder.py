@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from personalscraper.scraper.circuit_breaker import CircuitBreaker, CircuitOpenError
+from personalscraper.core.circuit import CircuitBreaker, CircuitOpenError
 from personalscraper.scraper.tmdb_client import Video
 from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.trailers_cache import TrailersCache
@@ -171,7 +171,7 @@ class TestSeasonFallbackQuotaConfig:
         Args:
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
         from personalscraper.scraper.youtube_search import YoutubeSearch
 
@@ -304,7 +304,7 @@ class TestCachePoisoningPrevention:
         yt_breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999)
         # Manually trip the breaker open.
         yt_breaker._failure_count = 1
-        from personalscraper.scraper.circuit_breaker import CircuitState
+        from personalscraper.core.circuit import CircuitState
 
         yt_breaker._state = CircuitState.OPEN
         import time
@@ -422,7 +422,7 @@ class TestCachePoisoningClosure:
 
         import requests as _requests
 
-        from personalscraper.scraper.circuit_breaker import CircuitState
+        from personalscraper.core.circuit import CircuitState
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
         from personalscraper.scraper.youtube_search import YoutubeSearch
 

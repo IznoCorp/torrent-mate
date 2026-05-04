@@ -21,7 +21,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry as Urllib3Retry
 
 from personalscraper.logger import get_logger
-from personalscraper.scraper.circuit_breaker import CircuitBreaker
+from personalscraper.core.circuit import CircuitBreaker
 from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
 log = get_logger(__name__)

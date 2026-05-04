@@ -9,13 +9,8 @@ from unittest.mock import patch
 
 import requests
 
-from personalscraper.scraper.circuit_breaker import (
-    CircuitBreaker,
-    CircuitOpenError,
-    CircuitState,
-)
-from personalscraper.scraper.tmdb_client import TMDBError
-from personalscraper.scraper.tvdb_client import TVDBError
+from personalscraper.core.circuit import CircuitBreaker, CircuitState
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 
 
 class TestCircuitBreakerStates:
@@ -30,7 +25,7 @@ class TestCircuitBreakerStates:
     def test_below_threshold_stays_closed(self):
         """4 failures (below threshold=5) keep the circuit CLOSED."""
         cb = CircuitBreaker(name="test", failure_threshold=5)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         for _ in range(4):
             cb.record_failure(error)
@@ -41,7 +36,7 @@ class TestCircuitBreakerStates:
     def test_threshold_reached_opens_circuit(self):
         """5 consecutive failures open the circuit."""
         cb = CircuitBreaker(name="test", failure_threshold=5)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         for _ in range(5):
             cb.record_failure(error)
@@ -52,7 +47,7 @@ class TestCircuitBreakerStates:
     def test_open_blocks_calls(self):
         """OPEN circuit reports can_proceed() = False."""
         cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=300)
-        error = TMDBError(502, 0, "Bad Gateway")
+        error = ApiError("test", 502, provider_code=0, message="Bad Gateway")
 
         cb.record_failure(error)
         cb.record_failure(error)
@@ -63,14 +58,14 @@ class TestCircuitBreakerStates:
     def test_open_to_half_open_after_cooldown(self):
         """Circuit transitions to HALF_OPEN after cooldown elapsed."""
         cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=1.0)
-        error = TMDBError(503, 0, "Service Unavailable")
+        error = ApiError("test", 503, provider_code=0, message="Service Unavailable")
 
         cb.record_failure(error)
         cb.record_failure(error)
         assert cb.state == CircuitState.OPEN
 
         # Simulate cooldown elapsed by patching monotonic
-        with patch("personalscraper.scraper.circuit_breaker.time") as mock_time:
+        with patch("personalscraper.core.circuit.time") as mock_time:
             mock_time.monotonic.return_value = time.monotonic() + 2.0
             assert cb.state == CircuitState.HALF_OPEN
             assert cb.can_proceed() is True
@@ -78,7 +73,7 @@ class TestCircuitBreakerStates:
     def test_half_open_success_closes_circuit(self):
         """Successful call in HALF_OPEN state closes the circuit."""
         cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=0.01)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
@@ -95,7 +90,7 @@ class TestCircuitBreakerStates:
     def test_half_open_failure_reopens_circuit(self):
         """Failed call in HALF_OPEN state reopens the circuit."""
         cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=0.01)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
@@ -117,7 +112,7 @@ class TestCircuitBreakerErrorClassification:
     def test_429_not_counted(self):
         """429 rate limit errors do NOT count (tenacity handles them)."""
         cb = CircuitBreaker(name="test", failure_threshold=2)
-        rate_limit = TMDBError(429, 25, "Rate limit exceeded")
+        rate_limit = ApiError("test", 429, provider_code=25, message="Rate limit exceeded")
 
         for _ in range(10):
             cb.record_failure(rate_limit)
@@ -130,9 +125,9 @@ class TestCircuitBreakerErrorClassification:
         cb = CircuitBreaker(name="test", failure_threshold=2)
 
         errors_4xx = [
-            TMDBError(401, 7, "Invalid API key"),
-            TMDBError(404, 34, "Not found"),
-            TVDBError(400, "Bad request"),
+            ApiError("test", 401, provider_code=7, message="Invalid API key"),
+            ApiError("test", 404, provider_code=34, message="Not found"),
+            ApiError("test", 400, message="Bad request"),
         ]
 
         for err in errors_4xx:
@@ -144,7 +139,7 @@ class TestCircuitBreakerErrorClassification:
     def test_5xx_tmdb_counted(self):
         """TMDB 5xx errors count toward the circuit."""
         cb = CircuitBreaker(name="test", failure_threshold=3)
-        error = TMDBError(503, 0, "Service Unavailable")
+        error = ApiError("test", 503, provider_code=0, message="Service Unavailable")
 
         for _ in range(3):
             cb.record_failure(error)
@@ -154,7 +149,7 @@ class TestCircuitBreakerErrorClassification:
     def test_5xx_tvdb_counted(self):
         """TVDB 5xx errors count toward the circuit."""
         cb = CircuitBreaker(name="test", failure_threshold=3)
-        error = TVDBError(502, "Bad Gateway")
+        error = ApiError("test", 502, message="Bad Gateway")
 
         for _ in range(3):
             cb.record_failure(error)
@@ -184,7 +179,7 @@ class TestCircuitBreakerErrorClassification:
     def test_success_resets_failure_count(self):
         """A success after partial failures resets the counter."""
         cb = CircuitBreaker(name="test", failure_threshold=5)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         # 4 failures, then a success
         for _ in range(4):
@@ -204,7 +199,7 @@ class TestCircuitBreakerReset:
     def test_reset_from_open(self):
         """reset() returns to CLOSED from OPEN state."""
         cb = CircuitBreaker(name="test", failure_threshold=2)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
@@ -217,7 +212,7 @@ class TestCircuitBreakerReset:
     def test_reset_from_half_open(self):
         """reset() returns to CLOSED from HALF_OPEN state."""
         cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=0.01)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
@@ -242,7 +237,7 @@ class TestCircuitOpenError:
     def test_remaining_cooldown_calculation(self):
         """_remaining_cooldown() reports correct time left."""
         cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=10.0)
-        error = TMDBError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)

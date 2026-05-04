@@ -379,7 +379,7 @@ class TrailersOrchestrator:
                 # I2: circuit-breaker open is a distinct failure mode from a
                 # generic finder error.  Track it separately so operators can
                 # distinguish "TMDB/YouTube circuit tripped" from real errors.
-                from personalscraper.scraper.circuit_breaker import CircuitOpenError
+                from personalscraper.api._contracts import CircuitOpenError
 
                 is_circuit_open = isinstance(exc, CircuitOpenError)
                 if is_circuit_open:
@@ -606,7 +606,7 @@ class TrailersOrchestrator:
         """
         try:
             from personalscraper.config import get_settings  # noqa: PLC0415
-            from personalscraper.scraper.circuit_breaker import CircuitBreaker  # noqa: PLC0415
+            from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
             from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
             from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
             from personalscraper.scraper.trailer_finder import TrailerFinder  # noqa: PLC0415
