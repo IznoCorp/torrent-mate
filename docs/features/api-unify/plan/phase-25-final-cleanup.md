@@ -70,10 +70,10 @@ Archive docs (`docs/archive/`) NOT modified.
 
 ### 25.5 — ROADMAP update
 
-Add to `ROADMAP.md` under P3 (or P2 — tracker expansion):
+Add to `ROADMAP.md` under P3:
 
 ```markdown
-### P? — Additional Trackers (torr9 + digitalcore)
+### P3 — Additional Trackers (torr9 + digitalcore)
 
 Implement `api/tracker/torr9.py` and `api/tracker/digitalcore.py` following
 the established TrackerClient Protocol. Study APIs, write docs in
@@ -106,6 +106,7 @@ make lint test
 python -c "import personalscraper"
 python -c "from personalscraper import __version__; assert __version__ == '0.11.0'"
 python -c "from personalscraper.core.circuit import CircuitBreaker, CircuitState"
+python -c "from personalscraper.core.http_helpers import build_retry_logger, make_retryable_predicate"
 
 # All 7 deleted modules confirmed absent
 for f in \

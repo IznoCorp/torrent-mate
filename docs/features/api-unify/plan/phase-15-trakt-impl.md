@@ -43,6 +43,8 @@ Implementation notes:
 
 Target ≤ 250 LOC. Extract `_trakt_parsers.py` if it grows.
 
+**Commit**: `feat(api-unify): add Trakt metadata client`
+
 ### 15.2 — Tests
 
 `tests/unit/test_trakt_client.py`:
@@ -52,6 +54,8 @@ Target ≤ 250 LOC. Extract `_trakt_parsers.py` if it grows.
 - `get_notations()` mock → `Notations(source="trakt", score=8.5, votes_count=12345)`.
 - `get_recommendations()` mock → list of `Recommendation`.
 - `get_trending()` unwraps `{"watchers": N, "movie": {...}}`.
+
+**Commit**: `test(api-unify): add Trakt client tests`
 
 ### 15.3 — Phase 15 gate
 

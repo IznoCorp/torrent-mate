@@ -70,12 +70,6 @@ Explicit consumer work:
 - Any remaining TVDB imports in tests must move to
   `personalscraper.api.metadata.tvdb`.
 
-Delete:
-
-- `scraper/tvdb_client.py`
-- `scraper/providers.py` (now zero consumers — TMDB and TVDB both use `api/metadata/_base.MetadataProvider`).
-- `scraper/http_retry.py` (last consumers were tmdb_client and tvdb_client).
-
 Remove `_TVDB_LANG_MAP` from `scraper/_shared.py` (already moved into `api/metadata/tvdb.py`). Verify no other consumer:
 
 ```bash
@@ -83,21 +77,61 @@ rg "_TVDB_LANG_MAP" personalscraper/ tests/
 # Expected: only api/metadata/tvdb.py — zero hits in scraper/ or other modules.
 ```
 
+Delete:
+
+- `scraper/tvdb_client.py`
+- `scraper/providers.py` (now zero consumers — TMDB and TVDB both use `api/metadata/_base.MetadataProvider`).
+
 ```bash
 git rm personalscraper/scraper/tvdb_client.py
 git rm personalscraper/scraper/providers.py
+```
+
+**Commit**: `refactor(api-unify): migrate TVDB client and remove tvdb_client / providers`
+
+### 7.4 — Move tenacity helpers to `core/http_helpers.py` + rewire `artwork.py`
+
+`scraper/http_retry.py` exposes two helpers still consumed by
+`scraper/artwork.py`: `build_retry_logger` and `make_retryable_predicate`.
+After this phase, `tmdb_client.py` and `tvdb_client.py` are gone, so the only
+remaining consumer is `artwork.py`. The helpers move to a neutral location so
+`scraper/http_retry.py` can be deleted.
+
+Steps:
+
+1. `git mv personalscraper/scraper/http_retry.py personalscraper/core/http_helpers.py`.
+2. Trim `core/http_helpers.py` to keep ONLY the two helpers (and their direct
+   private dependencies: `_RETRYABLE_STATUS_CODES`, `_retry_after_from_exception`,
+   `RetryAfterAwareWait` if still required by any consumer). Drop everything
+   else (provider-error-types coupling, etc.).
+3. Update `scraper/artwork.py` import:
+   `from personalscraper.scraper.http_retry import ...` →
+   `from personalscraper.core.http_helpers import build_retry_logger, make_retryable_predicate`.
+4. Verify no other consumer of the moved file:
+
+```bash
+rg "from personalscraper\.scraper\.http_retry import|from personalscraper\.scraper import http_retry" personalscraper/ tests/
+# Expected: zero hits.
+```
+
+**Commit**: `refactor(api-unify): move tenacity helpers to core/http_helpers.py and rewire artwork.py`
+
+### 7.5 — Delete `scraper/http_retry.py`
+
+```bash
 git rm personalscraper/scraper/http_retry.py
 ```
 
-**Commit**: `refactor(api-unify): migrate TVDB client and remove tvdb_client / providers / http_retry`
+**Commit**: `refactor(api-unify): delete scraper/http_retry.py`
 
-### 7.4 — Phase 7 gate
+### 7.6 — Phase 7 gate
 
 ```bash
 make check && python3 scripts/check-module-size.py && python3 scripts/check-typed-api.py
 make lint test
 python -c "from personalscraper.api.metadata.tvdb import TVDBClient; assert TVDBClient.REQUIRED_CREDS == ['TVDB_API_KEY']"
-! rg "tvdb_client|providers\.py|http_retry" personalscraper/ tests/ --files-with-matches
+python -c "from personalscraper.core.http_helpers import build_retry_logger, make_retryable_predicate"
+! rg "scraper\.tvdb_client|scraper/providers\.py|scraper\.http_retry" personalscraper/ tests/ --files-with-matches
 ! rg "TVDBError" personalscraper/ tests/
 ```
 

@@ -51,6 +51,8 @@ class TelegramNotifier:
     def _chunk(text: str, max_len: int) -> list[str]: ...
 ```
 
+**Commit**: `feat(api-unify): add Telegram notifier in api/notify/telegram.py`
+
 ### 22.2 — Update consumers + partial removal
 
 ```bash
@@ -70,6 +72,8 @@ Healthchecks migration scheduled in Phase 24.
 This module will be deleted in Phase 24."""
 ```
 
+**Commit**: `refactor(api-unify): rewire Telegram consumers and trim notifier.py`
+
 ### 22.3 — Tests
 
 `tests/unit/test_telegram_notifier.py`:
@@ -78,6 +82,8 @@ This module will be deleted in Phase 24."""
 - `send()` on 400 → returns False (fail-soft), logs warning.
 - Long message chunking at 4096 chars → multiple POSTs.
 - Bot token correctly embedded in URL path.
+
+**Commit**: `test(api-unify): add Telegram notifier tests`
 
 ### 22.4 — Phase 22 gate
 

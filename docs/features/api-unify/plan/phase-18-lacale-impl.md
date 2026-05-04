@@ -47,6 +47,8 @@ Map response fields → `TrackerResult`:
 
 Target ≤ 250 LOC.
 
+**Commit**: `feat(api-unify): add LaCale tracker client`
+
 ### 18.2 — Tests
 
 `tests/unit/test_lacale_client.py`:
@@ -57,6 +59,8 @@ Target ≤ 250 LOC.
 - API key is sent in correct location (header or query) per Phase 17 decision.
 
 Golden response files from Phase 17 samples used in mocks.
+
+**Commit**: `test(api-unify): add LaCale client tests`
 
 ### 18.3 — Phase 18 gate
 

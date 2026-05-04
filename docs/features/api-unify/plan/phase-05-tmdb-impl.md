@@ -87,6 +87,12 @@ This boilerplate likely belongs in a small builder in `personalscraper/scraper/r
 
 Explicit consumer work:
 
+- `personalscraper/scraper/orchestrator.py`: this is the **main** TMDB
+  construction site. Rewrite `TMDBClient(...)` instantiation to use
+  `TMDBClient.policy(api_key, circuit=CircuitPolicy(...))` + `HttpTransport(policy)`,
+  preserving the existing `circuit_breaker_threshold` /
+  `circuit_breaker_cooldown` fields read from `conf/models/scraper.py` as
+  `CircuitPolicy(failure_threshold=..., cooldown_seconds=...)` arguments.
 - `personalscraper/library/rescraper.py`: update type imports and construction.
 - `personalscraper/trailers/orchestrator.py`: preserve the trailers-specific
   TMDB circuit configuration from `config.trailers.circuit_breakers.tmdb_videos`

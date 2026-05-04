@@ -127,11 +127,14 @@ Update `personalscraper init-config` command:
 
 - Generate the 5 new files from `config.example/` if missing.
 - Idempotent: existing files NOT overwritten.
-- Directly adapt the active project `config/` for this feature branch: set the
-  providers intentionally exercised by the rollout to `enabled: true` there
-  even if their `config.example` default is `false`. This local adaptation is
-  separate from `config.example` so new users do not get missing-credential
-  warnings for integrations they have not opted into.
+
+**Local-only step (NOT committed)**: directly adapt the active project `config/`
+for this feature branch by setting providers intentionally exercised by the
+rollout to `enabled: true` there, even if their `config.example` default is
+`false`. `config/` is gitignored — these files are personal/machine-local and
+must NOT be staged. This adaptation is separate from `config.example` so new
+users do not get missing-credential warnings for integrations they have not
+opted into.
 
 **Commit**: `feat(api-unify): wire api config into Config loader and init-config`
 

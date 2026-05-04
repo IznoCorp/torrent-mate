@@ -43,6 +43,8 @@ Key implementation rules:
 
 Target ≤ 200 LOC. Extract `_omdb_parsers.py` if it grows.
 
+**Commit**: `feat(api-unify): add OMDB metadata client`
+
 ### 13.2 — Tests
 
 `tests/unit/test_omdb_client.py`:
@@ -52,6 +54,8 @@ Target ≤ 200 LOC. Extract `_omdb_parsers.py` if it grows.
 - `get_notations()` returns IMDB + RT + Metacritic from `Ratings[]`.
 - `Response:False` raises `ApiError`.
 - `apikey` query param appears on every request (use `responses` library to assert URL).
+
+**Commit**: `test(api-unify): add OMDB client tests`
 
 ### 13.3 — Phase 13 gate
 

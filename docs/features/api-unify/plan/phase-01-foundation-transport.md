@@ -7,7 +7,7 @@ phase is the architectural spine: every later phase depends on it.
 
 ## Gate (prereq)
 
-`feat/api-unify` branch exists. `docs/features/api-unify/DESIGN.md` v2 present. No prior `api/` directory.
+`feat/api-unify` branch exists. `docs/features/api-unify/DESIGN.md` present. No prior `api/` directory.
 
 ## Sub-phases
 
@@ -99,21 +99,36 @@ rg "from personalscraper.scraper import circuit_breaker" personalscraper/ --file
 
 All importers update to `from personalscraper.core.circuit import CircuitBreaker, CircuitState`. `CircuitOpenError` consumers re-import from `personalscraper.api._contracts`.
 
-Explicit call sites to update in this sub-phase:
+The grep above is the **authoritative source of truth** for this rewrite — every match must be updated. The list below is illustrative, not exhaustive:
 
-- `personalscraper/indexer/breaker.py` imports and docstrings.
-- `personalscraper/trailers/orchestrator.py` lazy imports for `CircuitBreaker` / `CircuitOpenError`.
+- `personalscraper/indexer/breaker.py` (imports + docstrings).
+- `personalscraper/trailers/orchestrator.py` (lazy imports for `CircuitBreaker` / `CircuitOpenError`).
+- `personalscraper/scraper/youtube_search.py` (`CircuitBreaker`).
+- `personalscraper/scraper/trailer_finder.py` (`CircuitOpenError`).
+- `personalscraper/scraper/orchestrator.py` (two `CircuitOpenError` imports).
+- `personalscraper/scraper/tmdb_client.py` and `personalscraper/scraper/tvdb_client.py` (still alive — will be deleted in Phases 5/7; update imports here so they keep working in the meantime).
 
 Existing circuit-breaker tests: update import paths in same commit.
 
 **Commit**: `refactor(api-unify): move circuit breaker to core/circuit.py`
 
-### 1.7 — `api/transport/_http.py` — HttpTransport
+### 1.7 — Add `xmltodict` dependency
+
+Add `xmltodict` to `pyproject.toml` `[project.dependencies]`. XML parsing is
+part of the stable Phase 1 transport contract (`response_format="xml"`), so
+the dependency lands before the implementation that uses it.
+
+```bash
+pip install -e .[dev]
+python -c "import xmltodict; print(xmltodict.__version__)"
+```
+
+**Commit**: `chore(api-unify): add xmltodict dependency`
+
+### 1.8 — `api/transport/_http.py` — HttpTransport
 
 Implement DESIGN §3.7. Key invariants:
 
-- Add `xmltodict` to `pyproject.toml` dependencies because XML parsing is part
-  of the stable Phase 1 transport contract.
 - Constructor takes a single `policy: TransportPolicy` argument.
 - `Accept: application/json` set by default; `policy.extra_headers` overlaid.
 - Tenacity built dynamically from `policy.retry`:
@@ -142,10 +157,11 @@ def _build_retry(policy: TransportPolicy):
 - No `get_raw()` (YAGNI — DESIGN §1.2).
 - No `objects_pairs_hook` typo. Use `resp.json()` default.
 
-`scraper/http_retry.py` stays in place during Phase 1 because the legacy
-`tmdb_client.py` and `tvdb_client.py` still depend on it. Deletion happens in
-Phase 7, after the last legacy consumer disappears. Grep current importers for
-awareness only:
+`scraper/http_retry.py` stays in place during Phase 1. Its consumers
+(`tmdb_client.py`, `tvdb_client.py`, and `scraper/artwork.py`) still depend on
+it. Deletion happens in Phase 7, after `tmdb_client.py` / `tvdb_client.py` are
+gone and after `artwork.py` has been rewired to import the surviving helpers
+from `core/http_helpers.py`. Grep current importers for awareness only:
 
 ```bash
 rg "from personalscraper.scraper.http_retry import" personalscraper/ --files-with-matches
@@ -153,7 +169,7 @@ rg "from personalscraper.scraper.http_retry import" personalscraper/ --files-wit
 
 **Commit**: `feat(api-unify): add HttpTransport consuming TransportPolicy`
 
-### 1.8 — `scripts/check-typed-api.py` (new guardrail)
+### 1.9 — `scripts/check-typed-api.py` (new guardrail)
 
 Tiny script (~30 LOC) — greps for `dict[str, Any]` in `personalscraper/api/` non-`_*.py` files (public modules). Exits non-zero on hit. Wired into `make check`.
 
@@ -183,7 +199,7 @@ Add to Makefile `check` target.
 
 **Commit**: `chore(api-unify): add check-typed-api guardrail`
 
-### 1.9 — Reference integration test
+### 1.10 — Reference integration test
 
 Create `tests/integration/test_transport_policy.py` — single test using a fake `responses` mock:
 
@@ -196,7 +212,7 @@ Create `tests/integration/test_transport_policy.py` — single test using a fake
 
 **Commit**: `test(api-unify): add TransportPolicy reference integration test`
 
-### 1.10 — Phase 1 gate
+### 1.11 — Phase 1 gate
 
 ```bash
 make check && python3 scripts/check-module-size.py && python3 scripts/check-typed-api.py

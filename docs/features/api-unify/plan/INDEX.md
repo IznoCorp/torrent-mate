@@ -2,10 +2,6 @@
 
 > Auto-generated from DESIGN.md by /implement:plan. Do not edit manually.
 
-> **Revision v3** (2026-05-04): plan includes neutral circuit breaker location,
-> stable transport response formats, optional-provider config defaults, and
-> explicit existing-consumer migration notes. See DESIGN §15 for revision notes.
-
 ## Phase types
 
 - **infra** — package skeleton, contracts, foundation modules.

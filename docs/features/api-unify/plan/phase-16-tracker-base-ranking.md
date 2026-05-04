@@ -27,7 +27,7 @@ Extend the existing `api/tracker/_ranking.py` created in Phase 2 with runtime ra
 
 - `rank(results, ranking) -> list[tuple[TrackerResult, int]]`.
 
-Keep `ThresholdEntry`, `RankingCriterion`, `RankingBonuses`, and `TorrentRanking` / `RankingConfig` as the same objects consumed by `personalscraper/conf/models/api_config.py`. Do not duplicate ranking Pydantic models in config modules.
+Keep `ThresholdEntry`, `RankingCriterion`, `RankingBonuses`, and `RankingConfig` as the same objects consumed by `personalscraper/conf/models/api_config.py`. Do not duplicate ranking Pydantic models in config modules.
 
 **Commit**: `feat(api-unify): add tracker ranking engine + ThresholdEntry`
 
@@ -36,7 +36,7 @@ Keep `ThresholdEntry`, `RankingCriterion`, `RankingBonuses`, and `TorrentRanking
 ```python
 class TrackerRegistry:
     def __init__(self, trackers: dict[str, TrackerClient],
-                 priority: list[str], ranking: TorrentRanking) -> None:
+                 priority: list[str], ranking: RankingConfig) -> None:
         self._trackers = trackers
         self._priority = priority
         self._ranking = ranking
@@ -82,7 +82,7 @@ class TrackerRegistry:
 make check && python3 scripts/check-module-size.py && python3 scripts/check-typed-api.py
 make lint test
 python -c "from personalscraper.api.tracker._base import TrackerClient, TrackerResult"
-python -c "from personalscraper.api.tracker._ranking import rank, ThresholdEntry, RankingCriterion, TorrentRanking"
+python -c "from personalscraper.api.tracker._ranking import rank, ThresholdEntry, RankingCriterion, RankingConfig"
 python -c "from personalscraper.api.tracker._registry import TrackerRegistry"
 ```
 

@@ -3,14 +3,8 @@
 **Status**: Prepared (not yet implemented)
 **Codename**: `api-unify`
 **Version bump**: 0.10.0 → 0.11.0 (minor — new `api/` package, 5 new third-party integrations: 2 metadata providers, 1 torrent client, 2 trackers)
-**Design date**: 2026-05-03 (revision: 2026-05-04 — v3)
+**Design date**: 2026-05-04
 **Trigger**: ROADMAP P0 — unify all external API integrations behind shared client infrastructure.
-
-> **Revision v3 (2026-05-04)** — addresses second pre-implementation review:
-> move the reusable circuit breaker to a neutral `core/` package, stabilize
-> `response_format` (`json`/`xml`/`text`) in Phase 1, make new optional
-> providers disabled in `config.example`, and add explicit consumer migration
-> notes for trailers, ingest, and indexer call sites. See §15.
 
 ---
 
@@ -24,7 +18,8 @@
 - Provider-specific subclasses implement only differential surface (endpoint paths, response parsing, auth flow).
 - Typed response models replace all `dict[str, Any]` return types.
 - Custom domain types where types resolve invariants (`ByteSize` for disk units, comparable + parseable from strings like `"1GB"`).
-- All in-scope third-party API consumers migrate to the new infrastructure: TMDB, TVDB, qBittorrent pre-check, Telegram, and healthchecks. Other HTTP consumers (`youtube_search.py`, `artwork.py`, service-level catches of `requests` exceptions) are explicitly out of scope unless a phase names them.
+- All in-scope third-party API consumers migrate to the new infrastructure: TMDB, TVDB, qBittorrent pre-check, Telegram, and healthchecks.
+- Adjacent modules that consume the deleted shared infrastructure (`circuit_breaker.py`, `http_retry.py`) are also touched, **but only at the import-path / helper-relocation level** — their HTTP logic is NOT migrated to `HttpTransport` in this feature. Concerned: `scraper/youtube_search.py`, `scraper/artwork.py`, `scraper/trailer_finder.py`, `scraper/orchestrator.py`. The tenacity helpers `build_retry_logger` and `make_retryable_predicate` (used by `artwork.py`) move to `core/http_helpers.py` so they survive the deletion of `scraper/http_retry.py`.
 - 5 new third-party integrations: 2 metadata providers (OMDB, Trakt), 1 torrent client (Transmission), 2 trackers (LaCale, C411).
 - 1 new torrent client (Transmission) **with its own implementation phase**.
 - 2 new trackers (LaCale, C411) **each with its own implementation phase**.
@@ -92,7 +87,7 @@ api/
 ├── tracker/
 │   ├── __init__.py
 │   ├── _base.py              # TrackerClient Protocol + TrackerResult
-│   ├── _ranking.py           # RankingCriterion + ThresholdEntry + TorrentRanking + rank()
+│   ├── _ranking.py           # RankingCriterion + ThresholdEntry + RankingConfig + rank()
 │   ├── _registry.py          # TrackerRegistry
 │   ├── lacale.py             # New
 │   └── c411.py               # New
@@ -108,7 +103,8 @@ Shared non-HTTP infrastructure moves outside `api/`:
 ```
 core/
 ├── __init__.py
-└── circuit.py                # Moved from scraper/circuit_breaker.py — reusable by API transport and indexer disk breaker
+├── circuit.py                # Moved from scraper/circuit_breaker.py — reusable by API transport and indexer disk breaker
+└── http_helpers.py           # Tenacity helpers (build_retry_logger, make_retryable_predicate) — kept for non-API HTTP consumers (artwork.py)
 ```
 
 ### 2.2 Layer model
@@ -459,7 +455,7 @@ class MetadataProvider(Protocol):
 
 ### 4.2 Typed response models
 
-(Identical to v1 — see fields below for reference; full code in phase plan.)
+(Field reference below; full code in phase plan.)
 
 ```python
 @dataclass class SearchResult:    provider, provider_id, title, year, media_type, overview, poster_url
@@ -600,14 +596,14 @@ class RankingBonuses(BaseModel):
     silverleech: int = 5
 
 
-class TorrentRanking(BaseModel):
+class RankingConfig(BaseModel):
     criteria: list[RankingCriterion] = []
     bonuses: RankingBonuses = RankingBonuses()
     min_seeders: int = 1
 
 
 def rank(results: list[TrackerResult],
-         ranking: TorrentRanking) -> list[tuple[TrackerResult, int]]:
+         ranking: RankingConfig) -> list[tuple[TrackerResult, int]]:
     """Score each TrackerResult, apply bonuses, drop sub-min-seeders, return sorted desc.
 
     For numeric thresholds, comparison uses int(value). For ByteSize fields, ByteSize.bytes.
@@ -646,7 +642,7 @@ def rank(results: list[TrackerResult],
 ```python
 class TrackerRegistry:
     def __init__(self, trackers: dict[str, TrackerClient],
-                 priority: list[str], ranking: TorrentRanking) -> None: ...
+                 priority: list[str], ranking: RankingConfig) -> None: ...
 
     def search_all(self, query: str, media_type: str = "movie",
                    year: int | None = None) -> list[tuple[TrackerResult, int]]:
@@ -802,7 +798,7 @@ class HealthChecker(Protocol):
 }
 ```
 
-`config.example/` intentionally keeps new optional integrations disabled to avoid warning noise for users who have not configured those credentials. Phase 2 also adapts the active project `config/` for this feature branch: providers intentionally exercised by the rollout can be set to `enabled: true` there, while the reusable examples stay conservative for new installations.
+`config.example/` intentionally keeps new optional integrations disabled to avoid warning noise for users who have not configured those credentials. Phase 2 also adapts the active project `config/` for this feature branch — providers intentionally exercised by the rollout can be set to `enabled: true` there — but `config/` is gitignored, so this local adaptation is **NOT committed**. The reusable examples stay conservative for new installations.
 
 ### 8.7 `api/_activation.py` — Provider activation
 
@@ -866,15 +862,15 @@ For **every** API (existing and new), before writing implementation:
 
 ### 10.1 Modules removed
 
-| Module                       | Migrated to                                             |
-| ---------------------------- | ------------------------------------------------------- |
-| `scraper/tmdb_client.py`     | `api/metadata/tmdb.py`                                  |
-| `scraper/tvdb_client.py`     | `api/metadata/tvdb.py`                                  |
-| `scraper/circuit_breaker.py` | `core/circuit.py`                                       |
-| `scraper/http_retry.py`      | Absorbed into `api/transport/_http.py` (RetryPolicy)    |
-| `scraper/providers.py`       | Replaced by `api/metadata/_base.py` (typed Protocol)    |
-| `ingest/qbit_client.py`      | `api/torrent/qbittorrent.py`                            |
-| `notifier.py`                | `api/notify/telegram.py` + `api/notify/healthchecks.py` |
+| Module                       | Migrated to                                                                                                                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scraper/tmdb_client.py`     | `api/metadata/tmdb.py`                                                                                                                                                          |
+| `scraper/tvdb_client.py`     | `api/metadata/tvdb.py`                                                                                                                                                          |
+| `scraper/circuit_breaker.py` | `core/circuit.py`                                                                                                                                                               |
+| `scraper/http_retry.py`      | Retry logic absorbed into `api/transport/_http.py` (RetryPolicy). Surviving tenacity helpers (`build_retry_logger`, `make_retryable_predicate`) move to `core/http_helpers.py`. |
+| `scraper/providers.py`       | Replaced by `api/metadata/_base.py` (typed Protocol)                                                                                                                            |
+| `ingest/qbit_client.py`      | `api/torrent/qbittorrent.py`                                                                                                                                                    |
+| `notifier.py`                | `api/notify/telegram.py` + `api/notify/healthchecks.py`                                                                                                                         |
 
 ### 10.2 Exception types removed
 
@@ -886,9 +882,13 @@ For **every** API (existing and new), before writing implementation:
 
 - `scraper/_shared.py` — only `_TVDB_LANG_MAP` migrates with TVDB. Rest stays.
 - `indexer/breaker.py` — updated in Phase 1 to import `CircuitBreaker` from `core/circuit.py` because disk circuit breaking is not API-specific.
+- `scraper/youtube_search.py` — updated in Phase 1 to import `CircuitBreaker` from `core/circuit.py`. HTTP logic NOT migrated (out of API scope).
+- `scraper/trailer_finder.py` — updated in Phase 1 to import `CircuitOpenError` from `api/_contracts.py`. HTTP logic NOT migrated.
+- `scraper/orchestrator.py` — updated in Phase 1 to import `CircuitOpenError` from `api/_contracts.py`. Updated again in Phase 5 to build the migrated TMDB client, preserving the `circuit_breaker_threshold` / `circuit_breaker_cooldown` fields from `conf/models/scraper.py` as `CircuitPolicy` arguments to `TMDBClient.policy(...)`.
+- `scraper/artwork.py` — updated in Phase 7 to import `build_retry_logger` and `make_retryable_predicate` from `core/http_helpers.py` instead of the deleted `scraper/http_retry.py`. HTTP logic NOT migrated.
 - `trailers/orchestrator.py` — updated in Phase 5 to build the migrated TMDB client while preserving the trailers-specific circuit threshold/cooldown from `config.trailers.circuit_breakers`.
 - `ingest/ingest.py` — updated in Phase 9 to consume the torrent factory and preserve existing qBittorrent exception handling/report messages.
-- `scraper/orchestrator.py`, `confidence.py`, `nfo_generator.py`, etc. — import sites updated; logic untouched.
+- `confidence.py`, `nfo_generator.py`, etc. — import sites updated by grep-and-replace in the relevant migration phase; logic untouched.
 
 ### 10.4 Import migration
 
@@ -950,22 +950,22 @@ Every doc phase ends with: "Doc complete. Particularities found: [list]. Propose
 
 ## 12. Risk register
 
-| #   | Risk                                                              | Likelihood | Impact | Mitigation                                                                                                                    |
-| --- | ----------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| #   | Risk                                                              | Likelihood | Impact | Mitigation                                                                                                                                                                            |
+| --- | ----------------------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | R1  | Import breakage after module deletion                             | High       | High   | `ruff check` + `python -c "import personalscraper"` after each migration commit. Phase gate has a residual-import grep and explicit consumer lists for trailers, ingest, and indexer. |
-| R2  | `ApiError` replacement breaks error handling in consumers         | Medium     | High   | Grep for `TMDBError`, `TVDBError` in all try/except blocks during the migration phase commit (NOT a separate later phase).    |
-| R3  | Circuit breaker over-trips because retries each count as failures | Medium     | Medium | `CircuitPolicy.count_retries=False` by default (mirrors current behavior). Tested in Phase 1 with a flaky-endpoint fixture.   |
-| R4  | Query-param auth (OMDB) silently unauthenticated                  | Medium     | High   | `AuthMethod.auth_params()` Protocol member is non-optional. HttpTransport always merges. Phase 1 test covers OMDB-style auth. |
-| R5  | TVDB token bootstrap fails at init                                | Low        | High   | Bootstrap done with a one-shot `HttpTransport(NoAuth)` in `TVDBClient.__init__`; on failure raises `ApiError` cleanly.        |
-| R6  | Typed model mismatch with real API response                       | Medium     | Medium | Doc phase makes real API calls before code. Golden-response files captured in tests. User checkpoint confirms scope.          |
-| R7  | Coverage drop from test imports using old paths                   | Medium     | Medium | Coverage report before/after each migration phase. Test imports updated in same commit as module move.                        |
-| R8  | Config loading fails on first run (new files)                     | Medium     | High   | `init-config` updated in Phase 2 to generate all 5 new config files. Defaults match current behavior.                         |
-| R9  | Tracker credential format differs from TorrentMaker .env          | Medium     | Medium | Doc phase 17 / 19 includes credential format from TorrentMaker `.env`; user checkpoint confirms format before coding.         |
-| R10 | OMDB / Trakt API limitations discovered during impl               | Low        | Medium | Doc phases 12 / 14 include real test calls; user checkpoint adjusts scope. Implementation phase has nothing to discover.      |
-| R11 | Transmission RPC fundamentally different from qBit                | Low        | Medium | Doc phase 10 surfaces RPC mechanics before impl. `TorrentClient` Protocol kept thin for compatibility.                        |
-| R12 | LOC budget overflow → readability hit                             | Medium     | Low    | At 600 LOC, MUST extract `_parsers.py`. Phase gate runs `check-module-size.py` (warn 800 / block 1000).                       |
-| R13 | `RankingCriterion` thresholds parsing of size strings             | Low        | Medium | `ThresholdEntry.at` Pydantic validator parses via `ByteSize.parse()`. Unit tests cover `"1GB"`, `"500MiB"`, raw int.          |
-| R14 | TransportPolicy dataclass shape change late in the feature        | Low        | High   | Phase 1 ships the full policy, including stable `response_format` values, plus 1 reference provider integration test (`tests/api/test_transport_policy.py`). |
+| R2  | `ApiError` replacement breaks error handling in consumers         | Medium     | High   | Grep for `TMDBError`, `TVDBError` in all try/except blocks during the migration phase commit (NOT a separate later phase).                                                            |
+| R3  | Circuit breaker over-trips because retries each count as failures | Medium     | Medium | `CircuitPolicy.count_retries=False` by default (mirrors current behavior). Tested in Phase 1 with a flaky-endpoint fixture.                                                           |
+| R4  | Query-param auth (OMDB) silently unauthenticated                  | Medium     | High   | `AuthMethod.auth_params()` Protocol member is non-optional. HttpTransport always merges. Phase 1 test covers OMDB-style auth.                                                         |
+| R5  | TVDB token bootstrap fails at init                                | Low        | High   | Bootstrap done with a one-shot `HttpTransport(NoAuth)` in `TVDBClient.__init__`; on failure raises `ApiError` cleanly.                                                                |
+| R6  | Typed model mismatch with real API response                       | Medium     | Medium | Doc phase makes real API calls before code. Golden-response files captured in tests. User checkpoint confirms scope.                                                                  |
+| R7  | Coverage drop from test imports using old paths                   | Medium     | Medium | Coverage report before/after each migration phase. Test imports updated in same commit as module move.                                                                                |
+| R8  | Config loading fails on first run (new files)                     | Medium     | High   | `init-config` updated in Phase 2 to generate all 5 new config files. Defaults match current behavior.                                                                                 |
+| R9  | Tracker credential format differs from TorrentMaker .env          | Medium     | Medium | Doc phase 17 / 19 includes credential format from TorrentMaker `.env`; user checkpoint confirms format before coding.                                                                 |
+| R10 | OMDB / Trakt API limitations discovered during impl               | Low        | Medium | Doc phases 12 / 14 include real test calls; user checkpoint adjusts scope. Implementation phase has nothing to discover.                                                              |
+| R11 | Transmission RPC fundamentally different from qBit                | Low        | Medium | Doc phase 10 surfaces RPC mechanics before impl. `TorrentClient` Protocol kept thin for compatibility.                                                                                |
+| R12 | LOC budget overflow → readability hit                             | Medium     | Low    | At 600 LOC, MUST extract `_parsers.py`. Phase gate runs `check-module-size.py` (warn 800 / block 1000).                                                                               |
+| R13 | `RankingCriterion` thresholds parsing of size strings             | Low        | Medium | `ThresholdEntry.at` Pydantic validator parses via `ByteSize.parse()`. Unit tests cover `"1GB"`, `"500MiB"`, raw int.                                                                  |
+| R14 | TransportPolicy dataclass shape change late in the feature        | Low        | High   | Phase 1 ships the full policy, including stable `response_format` values, plus 1 reference provider integration test (`tests/api/test_transport_policy.py`).                          |
 
 ---
 
@@ -986,10 +986,10 @@ Phase 1 adds `scripts/check-typed-api.py` (small ruff-style ad-hoc checker — ~
 
 ## 14. ROADMAP update
 
-Add under P3 (or P2 — tracker expansion):
+Add under P3:
 
 ```markdown
-### P? — Additional Trackers (torr9 + digitalcore)
+### P3 — Additional Trackers (torr9 + digitalcore)
 
 Implement `api/tracker/torr9.py` and `api/tracker/digitalcore.py` following
 the established TrackerClient Protocol. Study APIs, write docs in
@@ -1001,49 +1001,6 @@ Depends on: Third-Party API Consumer Unification (P0).
 
 ---
 
-## 15. Revision history
-
-### v3 — 2026-05-04
-
-Second pre-implementation review changes:
-
-- Move reusable circuit breaker to `personalscraper/core/circuit.py` instead of `api/transport/_circuit.py`; update `indexer/breaker.py` in Phase 1.
-- Stabilize `TransportPolicy.response_format` as `Literal["json", "xml", "text"]` in Phase 1 so C411/healthchecks do not reshape the transport contract later.
-- Remove the blanket claim that every in-scope provider returns JSON; JSON remains the default, with provider overrides for XML/text.
-- Make new optional integrations disabled in `config.example` (`omdb`, `trakt`, `transmission`, `lacale`, `c411`, `telegram`, `healthchecks`) while Phase 2 adapts the active project config for providers intentionally exercised by the rollout.
-- Add explicit migration notes for `trailers/orchestrator.py`, `ingest/ingest.py`, and `indexer/breaker.py`.
-- Fix API doc phase numbering for TMDB/TVDB.
-- Require explicit `ApiError.__str__` behavior to preserve readable logs.
-
-### v2 — 2026-05-04
-
-Pre-implementation review surfaced 13 issues. v2 addresses them all:
-
-| #   | v1 issue                                      | v2 resolution                                                                                                |
-| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1   | Transmission goaled but no phase              | Phases 10 + 11 added.                                                                                        |
-| 2   | `ApiKeyAuth(location="query")` not enforced   | `AuthMethod.auth_params()` mandatory; `HttpTransport` merges per-request. OMDB uses query param.             |
-| 3   | TVDB token refresh                            | Confirmed not needed (TTL = 1 month). Bootstrap login at `__init__`, no `refresh()` in Protocol.             |
-| 4   | Retry × circuit double-counting               | `CircuitPolicy.count_retries` flag (default False). Retry counted only on final exhaustion.                  |
-| 5   | `objects_pairs_hook` typo                     | Removed; default `resp.json()` is sufficient.                                                                |
-| 6   | `RankingCriterion` thresholds typing          | `ThresholdEntry` model + `ByteSize` custom type + Pydantic validator parses size literals.                   |
-| 7   | LOC budgets too aggressive                    | Aspirational targets, not gates. 600 LOC = mandatory extraction. Hard ceilings 800 (warn) / 1000 (block).    |
-| 8   | `scraper/_shared.py` + `providers.py` ignored | Explicitly addressed in §10.3 + §10.1. `providers.py` deleted; `_shared.py` keeps non-API helpers.           |
-| 9   | Cross-phase circuit-breaker inconsistency     | Phase 1 makes circuit `ApiError`-aware; old `*Error` types still trigger >=500 path via `HTTPError` branch.  |
-| 10  | Phase 11 too heavy (base+ranking+2 trackers)  | Split into Phase 16 (base+ranking) + Phase 17/18 (LaCale doc+impl) + Phase 19/20 (C411 doc+impl).            |
-| 11  | `get_raw()` inconsistent with retry           | Removed (YAGNI). Add when an HTML-scraping provider lands, behind its own design discussion.                 |
-| 12  | `Accept: application/json` global             | Confirmed for all 10 in-scope APIs. Documented as default; per-provider override via `policy.extra_headers`. |
-| 13  | Success-criteria miscount                     | Updated: 7 modules removed, 10 docs (incl. Telegram + healthchecks), 5 config files.                         |
-
-Plus structural changes:
-
-- New §3.3 `TransportPolicy` contract.
-- New §3.2 `ByteSize` custom type.
-- New §13 guardrails / coherence checks.
-- Phase table redesigned around "1 phase per API: doc OR impl".
-
----
-
-## 16. VERSION bump
+## 15. VERSION bump
 
 0.10.0 → 0.11.0 (minor). Rationale: new `api/` package, 7 modules migrated, 5 new third-party integrations (OMDB, Trakt, Transmission torrent client, LaCale, C411), 5 new config files, new `TransportPolicy` contract, new `ByteSize` custom type. No breaking change to pipeline behavior — all migrations are behavior-preserving.

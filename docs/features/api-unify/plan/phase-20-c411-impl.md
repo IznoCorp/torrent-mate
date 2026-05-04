@@ -34,11 +34,15 @@ If extraction makes sense:
 
 This may amend Phase 18's `lacale.py` — do it in the same commit.
 
+**Commit**: `feat(api-unify): add C411 tracker client` (or `refactor(api-unify): extract _title_parser shared between LaCale and C411` if extraction is taken)
+
 ### 20.2 — Tests
 
 `tests/unit/test_c411_client.py` — same shape as LaCale tests.
 
 If `_title_parser.py` extracted, add `tests/unit/test_title_parser.py` covering edge cases.
+
+**Commit**: `test(api-unify): add C411 client tests`
 
 ### 20.3 — Phase 20 gate
 

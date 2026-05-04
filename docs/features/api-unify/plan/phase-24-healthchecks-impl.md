@@ -49,6 +49,8 @@ class HealthcheckClient:
             # fail-soft — never raise
 ```
 
+**Commit**: `feat(api-unify): add Healthcheck client in api/notify/healthchecks.py`
+
 ### 24.2 — Delete `notifier.py`
 
 ```bash
@@ -62,6 +64,8 @@ Rewrite all remaining imports. Then:
 git rm personalscraper/notifier.py
 ```
 
+**Commit**: `refactor(api-unify): rewire healthcheck consumers and delete notifier.py`
+
 ### 24.3 — Tests
 
 `tests/unit/test_healthcheck_client.py`:
@@ -70,6 +74,8 @@ git rm personalscraper/notifier.py
 - `ping_success()` → GET to base URL.
 - `ping_fail()` → GET to `/fail`.
 - All three on connection error → no exception raised, warning logged.
+
+**Commit**: `test(api-unify): add Healthcheck client tests`
 
 ### 24.4 — Phase 24 gate
 
