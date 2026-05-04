@@ -51,6 +51,7 @@ Should return zero hits.
 Update `docs/reference/architecture.md`:
 
 - New `api/` package tree (DESIGN §2.1).
+- New neutral `core/circuit.py` location for reusable circuit breaking.
 - Updated module map.
 - New `TransportPolicy` contract reference.
 - Old modules removed from documentation.
@@ -104,6 +105,7 @@ make check && python3 scripts/check-module-size.py && python3 scripts/check-type
 make lint test
 python -c "import personalscraper"
 python -c "from personalscraper import __version__; assert __version__ == '0.11.0'"
+python -c "from personalscraper.core.circuit import CircuitBreaker, CircuitState"
 
 # All 7 deleted modules confirmed absent
 for f in \

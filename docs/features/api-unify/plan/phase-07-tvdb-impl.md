@@ -63,6 +63,13 @@ rg "from personalscraper\.scraper\.tvdb_client import|TVDBError" personalscraper
 
 Rewrite imports + `TVDBError` → `ApiError`.
 
+Explicit consumer work:
+
+- `personalscraper/library/rescraper.py`: update type imports, construction,
+  and any dict-shaped TVDB result access to typed attributes.
+- Any remaining TVDB imports in tests must move to
+  `personalscraper.api.metadata.tvdb`.
+
 Delete:
 
 - `scraper/tvdb_client.py`

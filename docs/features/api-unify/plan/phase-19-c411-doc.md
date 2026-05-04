@@ -43,11 +43,8 @@ Sections:
 
 ### 19.5 — Particularities checklist
 
-- Newznab/Torznab response is XML (RSS-style) — may require XML parsing instead of JSON.
-- If XML: decision needed on transport layer. Options:
-  - Add XML support to `HttpTransport` (returns `dict` from XML parsing — adds dependency `xmltodict`).
-  - Override `_do_request` per-client (one-off).
-  - Decision pending user input in checkpoint.
+- Newznab/Torznab response is XML (RSS-style) — use `TransportPolicy.response_format="xml"` if the documented responses confirm this.
+- Decision still needed on provider scope: use the shared XML transport path (preferred) or bypass transport if C411 requires non-standard raw handling beyond XML parsing.
 - Category mapping standardized via Newznab IDs.
 - Some fields embedded in title only (similar to LaCale — `_parse_title` reusable).
 
@@ -58,11 +55,11 @@ Sections:
 >
 > Architectural decision needed:
 >
-> - C411 returns XML (Newznab/Torznab). HttpTransport currently assumes JSON.
-> - Option A: Extend HttpTransport with content-type negotiation + xmltodict parsing.
+> - C411 returns XML (Newznab/Torznab). HttpTransport supports `response_format="xml"` from Phase 1.
+> - Option A: Use shared `HttpTransport` XML parsing.
 > - Option B: C411-specific override that uses HttpTransport.get raw via session, parses XML in client.
 >
-> Recommendation: Option A IF the transport is XML-aware (lighter on the provider), Option B if XML is one-off.
+> Recommendation: Option A unless the doc phase finds C411-specific raw handling needs that the shared transport cannot express.
 >
 > Proposed scope (Phase 20):
 >

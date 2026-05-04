@@ -38,6 +38,16 @@ class QBitClient:
 
 Implements `TorrentClient` Protocol with: `get_completed`, `get_all_hashes`, `is_seeding`, `get_content_path`, `pause`, `resume`, `delete`.
 
+Legacy compatibility decisions for this migration commit:
+
+- Rewrite `get_completed_torrents()` call sites to `get_completed()`.
+- Rewrite `get_all_torrent_hashes()` call sites to `get_all_hashes()`.
+- Keep provider-specific qBit exceptions where they carry actionable user
+  guidance: `QBitAuthLockoutError`, `qbittorrentapi.LoginFailed`,
+  `qbittorrentapi.Forbidden403Error`, and `qbittorrentapi.APIConnectionError`.
+  The ingest step already turns these into specific report messages; preserve
+  those messages during the factory migration.
+
 Keep `QBitAuthLockoutError` as a qBit-specific exception (NOT folded into `ApiError`). Document in `_base.py` as the only allowed provider-specific exception escape hatch.
 
 ### 9.2 — Wire factory
@@ -59,7 +69,11 @@ if cfg.active == "qbittorrent":
 rg "from personalscraper\.ingest\.qbit_client import" personalscraper/ tests/
 ```
 
-Rewrite imports to `from personalscraper.api.torrent.qbittorrent import QBitClient`. Pipeline entry points (e.g. `ingest/ingest.py`) instead call `build_active_torrent_client(cfg.torrent, os.environ)`.
+Rewrite imports to `from personalscraper.api.torrent.qbittorrent import QBitClient`. Pipeline entry points (especially `personalscraper/ingest/ingest.py`) instead call `build_active_torrent_client(cfg.torrent, os.environ)`.
+
+`ingest/ingest.py` must keep the same operator-facing error details for qBit
+auth lockout, bad credentials, IP ban, and unreachable Web UI after switching
+to the factory.
 
 ```bash
 git rm personalscraper/ingest/qbit_client.py

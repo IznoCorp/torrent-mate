@@ -3,13 +3,14 @@
 **Status**: Prepared (not yet implemented)
 **Codename**: `api-unify`
 **Version bump**: 0.10.0 → 0.11.0 (minor — new `api/` package, 5 new third-party integrations: 2 metadata providers, 1 torrent client, 2 trackers)
-**Design date**: 2026-05-03 (revision: 2026-05-04 — v2)
+**Design date**: 2026-05-03 (revision: 2026-05-04 — v3)
 **Trigger**: ROADMAP P0 — unify all external API integrations behind shared client infrastructure.
 
-> **Revision v2 (2026-05-04)** — addresses pre-implementation review:
-> introduce `TransportPolicy` contract, `ByteSize` custom type, query-param auth,
-> split circuit-breaker counting from retry, add Transmission phase, redefine
-> phase granularity (1 phase per API: doc + impl). See §15 (revision notes).
+> **Revision v3 (2026-05-04)** — addresses second pre-implementation review:
+> move the reusable circuit breaker to a neutral `core/` package, stabilize
+> `response_format` (`json`/`xml`/`text`) in Phase 1, make new optional
+> providers disabled in `config.example`, and add explicit consumer migration
+> notes for trailers, ingest, and indexer call sites. See §15.
 
 ---
 
@@ -28,7 +29,7 @@
 - 1 new torrent client (Transmission) **with its own implementation phase**.
 - 2 new trackers (LaCale, C411) **each with its own implementation phase**.
 - Per-use-case provider priority in config files.
-- Credentials stay in `.env` — activation via `enabled` toggle (default `true`) with credential presence check (missing → warning log, treated as disabled).
+- Credentials stay in `.env` — activation via `enabled` toggle with credential presence check (missing → warning log, treated as disabled). Existing behavior-equivalent providers are enabled in generated local config; new optional integrations are disabled in `config.example` and only enabled in the active user config when the feature rollout intentionally opts into them.
 - API documentation written for every provider before implementation, **with an interactive review checkpoint with the user** to surface API particularities early.
 
 ### 1.2 Non-goals
@@ -74,7 +75,6 @@ api/
 │   ├── _policy.py            # TransportPolicy + RetryPolicy + CircuitPolicy + RateLimitPolicy + AuthMethod Protocol
 │   ├── _auth.py              # BearerAuth, ApiKeyAuth (header OR query), LoginAuth, NoAuth
 │   ├── _rate.py              # RateLimiter: token-bucket throttle (used by HttpTransport when policy.rate_limit.rps > 0)
-│   ├── _circuit.py           # Moved from scraper/circuit_breaker.py — pure module move, ApiError-aware
 │   └── _http.py              # HttpTransport: consumes a TransportPolicy
 ├── metadata/
 │   ├── __init__.py
@@ -101,6 +101,14 @@ api/
     ├── _base.py              # Notifier Protocol + HealthChecker Protocol
     ├── telegram.py           # Migrated from notifier.py
     └── healthchecks.py       # Migrated from notifier.py
+```
+
+Shared non-HTTP infrastructure moves outside `api/`:
+
+```
+core/
+├── __init__.py
+└── circuit.py                # Moved from scraper/circuit_breaker.py — reusable by API transport and indexer disk breaker
 ```
 
 ### 2.2 Layer model
@@ -162,6 +170,14 @@ class ApiError(Exception):
 
 class CircuitOpenError(Exception):
     def __init__(self, provider: str, remaining_seconds: float) -> None: ...
+```
+
+`ApiError` must implement explicit display behavior so user-facing logs stay as readable as the legacy provider errors:
+
+```python
+def __str__(self) -> str:
+    code = f" provider_code={self.provider_code}" if self.provider_code else ""
+    return f"{self.provider} API {self.http_status}{code}: {self.message}"
 ```
 
 ### 3.2 `api/_units.py` — ByteSize
@@ -297,9 +313,9 @@ class NoAuth:
 
 **TVDB note**: TVDB requires `POST /login` with API key → returns Bearer token. This is **not** an `AuthMethod` — it's an init-time bootstrap done inside `TVDBClient.__init__()` using a small one-shot `HttpTransport` with `NoAuth`. Once the bearer is obtained, the main `TVDBClient` uses `BearerAuth(token)`. No runtime refresh needed (TTL = 1 month).
 
-### 3.5 `api/transport/_circuit.py`
+### 3.5 `core/circuit.py`
 
-Pure move from `scraper/circuit_breaker.py` (240 LOC). Logic unchanged. Only the error-classification helper is updated:
+Pure move from `scraper/circuit_breaker.py` (240 LOC) to a neutral package because the breaker is used by HTTP API clients and by the media indexer disk breaker. Logic unchanged. Only the error-classification helper is updated:
 
 ```python
 @staticmethod
@@ -312,6 +328,8 @@ def _is_circuit_error(exc: BaseException) -> bool:
         return exc.response.status_code >= 500
     return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
 ```
+
+`HttpTransport` imports `CircuitBreaker` from `personalscraper.core.circuit`. Existing non-API consumers such as `personalscraper/indexer/breaker.py` are updated to the same neutral import path.
 
 ### 3.6 `api/transport/_rate.py` — RateLimiter
 
@@ -338,10 +356,10 @@ class HttpTransport:
         )
         self._rate_limiter = RateLimiter(policy.rate_limit.requests_per_second)
 
-    def get(self, path: str = "", params: dict | None = None) -> dict[str, Any]:
+    def get(self, path: str = "", params: dict | None = None) -> dict[str, Any] | str:
         return self._request_outer("GET", path, params=params)
 
-    def post(self, path: str = "", data: dict | None = None) -> dict[str, Any]:
+    def post(self, path: str = "", data: dict | None = None) -> dict[str, Any] | str:
         return self._request_outer("POST", path, data=data)
 
     def _request_outer(self, method, path, *, params=None, data=None) -> dict:
@@ -410,8 +428,8 @@ class HttpTransport:
 - Circuit breaker counts retries only when `policy.circuit.count_retries=True` (default `False`).
 - Auth query params are merged into every request (fixes OMDB-style apikey).
 - Tenacity is configured from `policy.retry` (no global hardcoded retry config).
-- `Accept: application/json` is the global default — **confirmed** by every API doc in scope (TMDB, TVDB, OMDB, Trakt, qBit WebUI, Transmission RPC, LaCale, C411, Telegram, healthchecks all return JSON). Override per-provider via `policy.extra_headers`.
-- `response_format` controls response body parsing: `"json"` (default), `"xml"` (via `xmltodict`), `"text"` (raw string). Added incrementally: `"json"` in Phase 1, `"xml"` in Phase 20, `"text"` in Phase 24.
+- `Accept: application/json` is the global default for JSON APIs. Providers with XML or text responses set `policy.response_format` and may override `Accept` via `policy.extra_headers`.
+- `response_format` controls response body parsing and is stable from Phase 1: `"json"` (default), `"xml"` (via `xmltodict`), `"text"` (raw string). C411 and healthchecks use the non-JSON branches when their doc phases confirm the exact response format.
 - No `get_raw()` (YAGNI).
 - `HttpTransport` is a context manager (`with HttpTransport(policy) as transport:`) so bootstrap flows can close sessions deterministically.
 
@@ -688,8 +706,8 @@ class HealthChecker(Protocol):
   providers: {
     tmdb: { enabled: true },
     tvdb: { enabled: true },
-    omdb: { enabled: true },
-    trakt: { enabled: true },
+    omdb: { enabled: false },
+    trakt: { enabled: false },
   },
   priorities: {
     movie_scraping: { tmdb: 1, tvdb: 2 },
@@ -723,8 +741,8 @@ class HealthChecker(Protocol):
 ```json5
 {
   providers: {
-    lacale: { enabled: true }, // .env: LACALE_API_KEY
-    c411: { enabled: true }, // .env: C411_API_KEY
+    lacale: { enabled: false }, // .env: LACALE_API_KEY
+    c411: { enabled: false }, // .env: C411_API_KEY
   },
   priority: ["lacale", "c411"],
   max_total_results: 50,
@@ -779,10 +797,12 @@ class HealthChecker(Protocol):
 
 ```json5
 {
-  telegram: { enabled: true }, // .env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-  healthchecks: { enabled: true }, // .env: HEALTHCHECK_PING_URL
+  telegram: { enabled: false }, // .env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+  healthchecks: { enabled: false }, // .env: HEALTHCHECK_PING_URL
 }
 ```
+
+`config.example/` intentionally keeps new optional integrations disabled to avoid warning noise for users who have not configured those credentials. Phase 2 also adapts the active project `config/` for this feature branch: providers intentionally exercised by the rollout can be set to `enabled: true` there, while the reusable examples stay conservative for new installations.
 
 ### 8.7 `api/_activation.py` — Provider activation
 
@@ -829,8 +849,8 @@ For **every** API (existing and new), before writing implementation:
 
 | Provider     | Doc                                  | Source                                         | Phase |
 | ------------ | ------------------------------------ | ---------------------------------------------- | ----- |
-| TMDB         | `docs/reference/tmdb-api.md`         | `docs/TMDB-API.md` (existing, verify+complete) | 3     |
-| TVDB         | `docs/reference/tvdb-api.md`         | `docs/TVDB-API.md` (existing, verify+complete) | 5     |
+| TMDB         | `docs/reference/tmdb-api.md`         | `docs/TMDB-API.md` (existing, verify+complete) | 4     |
+| TVDB         | `docs/reference/tvdb-api.md`         | `docs/TVDB-API.md` (existing, verify+complete) | 6     |
 | qBittorrent  | `docs/reference/qbittorrent-api.md`  | qBit WebUI API                                 | 8     |
 | Transmission | `docs/reference/transmission-api.md` | Transmission RPC                               | 10    |
 | OMDB         | `docs/reference/omdb-api.md`         | https://www.omdbapi.com/                       | 12    |
@@ -850,7 +870,7 @@ For **every** API (existing and new), before writing implementation:
 | ---------------------------- | ------------------------------------------------------- |
 | `scraper/tmdb_client.py`     | `api/metadata/tmdb.py`                                  |
 | `scraper/tvdb_client.py`     | `api/metadata/tvdb.py`                                  |
-| `scraper/circuit_breaker.py` | `api/transport/_circuit.py`                             |
+| `scraper/circuit_breaker.py` | `core/circuit.py`                                       |
 | `scraper/http_retry.py`      | Absorbed into `api/transport/_http.py` (RetryPolicy)    |
 | `scraper/providers.py`       | Replaced by `api/metadata/_base.py` (typed Protocol)    |
 | `ingest/qbit_client.py`      | `api/torrent/qbittorrent.py`                            |
@@ -865,6 +885,9 @@ For **every** API (existing and new), before writing implementation:
 ### 10.3 Adjacent modules audited (kept, partially modified)
 
 - `scraper/_shared.py` — only `_TVDB_LANG_MAP` migrates with TVDB. Rest stays.
+- `indexer/breaker.py` — updated in Phase 1 to import `CircuitBreaker` from `core/circuit.py` because disk circuit breaking is not API-specific.
+- `trailers/orchestrator.py` — updated in Phase 5 to build the migrated TMDB client while preserving the trailers-specific circuit threshold/cooldown from `config.trailers.circuit_breakers`.
+- `ingest/ingest.py` — updated in Phase 9 to consume the torrent factory and preserve existing qBittorrent exception handling/report messages.
 - `scraper/orchestrator.py`, `confidence.py`, `nfo_generator.py`, etc. — import sites updated; logic untouched.
 
 ### 10.4 Import migration
@@ -883,7 +906,7 @@ Phases 1–3 build infrastructure. Each subsequent API has **two** phases: a doc
 
 | #   | Phase                                 | Type  | Content                                                                                                                                                                  | Commit scope          |
 | --- | ------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- |
-| 1   | Foundation: contracts + transport     | infra | `api/_contracts.py`, `api/_units.py`, `api/transport/` (policy, auth, rate, circuit, http).                                                                              | `feat(api-unify)`     |
+| 1   | Foundation: contracts + transport     | infra | `api/_contracts.py`, `api/_units.py`, `api/transport/` (policy, auth, rate, http) + neutral `core/circuit.py`.                                                           | `feat(api-unify)`     |
 | 2   | Config infra + activation             | infra | Pydantic models, `api/_activation.py`, 5 `config.example/*.json5` templates, `Config` wiring.                                                                            | `feat(api-unify)`     |
 | 3   | Metadata family base                  | infra | `api/metadata/_base.py` — Protocol + typed models (SearchResult, MediaDetails, …) + `MetadataClient`.                                                                    | `feat(api-unify)`     |
 | 4   | TMDB API doc (interactive)            | doc   | `docs/reference/tmdb-api.md` + user checkpoint.                                                                                                                          | `docs(api-unify)`     |
@@ -929,7 +952,7 @@ Every doc phase ends with: "Doc complete. Particularities found: [list]. Propose
 
 | #   | Risk                                                              | Likelihood | Impact | Mitigation                                                                                                                    |
 | --- | ----------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| R1  | Import breakage after module deletion                             | High       | High   | `ruff check` + `python -c "import personalscraper"` after each migration commit. Phase gate has a residual-import grep.       |
+| R1  | Import breakage after module deletion                             | High       | High   | `ruff check` + `python -c "import personalscraper"` after each migration commit. Phase gate has a residual-import grep and explicit consumer lists for trailers, ingest, and indexer. |
 | R2  | `ApiError` replacement breaks error handling in consumers         | Medium     | High   | Grep for `TMDBError`, `TVDBError` in all try/except blocks during the migration phase commit (NOT a separate later phase).    |
 | R3  | Circuit breaker over-trips because retries each count as failures | Medium     | Medium | `CircuitPolicy.count_retries=False` by default (mirrors current behavior). Tested in Phase 1 with a flaky-endpoint fixture.   |
 | R4  | Query-param auth (OMDB) silently unauthenticated                  | Medium     | High   | `AuthMethod.auth_params()` Protocol member is non-optional. HttpTransport always merges. Phase 1 test covers OMDB-style auth. |
@@ -942,7 +965,7 @@ Every doc phase ends with: "Doc complete. Particularities found: [list]. Propose
 | R11 | Transmission RPC fundamentally different from qBit                | Low        | Medium | Doc phase 10 surfaces RPC mechanics before impl. `TorrentClient` Protocol kept thin for compatibility.                        |
 | R12 | LOC budget overflow → readability hit                             | Medium     | Low    | At 600 LOC, MUST extract `_parsers.py`. Phase gate runs `check-module-size.py` (warn 800 / block 1000).                       |
 | R13 | `RankingCriterion` thresholds parsing of size strings             | Low        | Medium | `ThresholdEntry.at` Pydantic validator parses via `ByteSize.parse()`. Unit tests cover `"1GB"`, `"500MiB"`, raw int.          |
-| R14 | TransportPolicy dataclass shape change late in the feature        | Low        | High   | Phase 1 ships the full policy + 1 reference provider integration test (`tests/api/test_transport_policy.py`).                 |
+| R14 | TransportPolicy dataclass shape change late in the feature        | Low        | High   | Phase 1 ships the full policy, including stable `response_format` values, plus 1 reference provider integration test (`tests/api/test_transport_policy.py`). |
 
 ---
 
@@ -979,6 +1002,18 @@ Depends on: Third-Party API Consumer Unification (P0).
 ---
 
 ## 15. Revision history
+
+### v3 — 2026-05-04
+
+Second pre-implementation review changes:
+
+- Move reusable circuit breaker to `personalscraper/core/circuit.py` instead of `api/transport/_circuit.py`; update `indexer/breaker.py` in Phase 1.
+- Stabilize `TransportPolicy.response_format` as `Literal["json", "xml", "text"]` in Phase 1 so C411/healthchecks do not reshape the transport contract later.
+- Remove the blanket claim that every in-scope provider returns JSON; JSON remains the default, with provider overrides for XML/text.
+- Make new optional integrations disabled in `config.example` (`omdb`, `trakt`, `transmission`, `lacale`, `c411`, `telegram`, `healthchecks`) while Phase 2 adapts the active project config for providers intentionally exercised by the rollout.
+- Add explicit migration notes for `trailers/orchestrator.py`, `ingest/ingest.py`, and `indexer/breaker.py`.
+- Fix API doc phase numbering for TMDB/TVDB.
+- Require explicit `ApiError.__str__` behavior to preserve readable logs.
 
 ### v2 — 2026-05-04
 

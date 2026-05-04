@@ -44,7 +44,7 @@ Sections:
 
 ### 23.4 — Particularities checklist
 
-- Plain-text response (NOT JSON). `HttpTransport._do_request` would call `resp.json()` and fail. Decision needed: extend transport with `response_format` (already added if Phase 20 chose Option A) OR custom client-side handling.
+- Plain-text response (NOT JSON). `HttpTransport` supports `response_format="text"` from Phase 1; confirm whether healthchecks should use that path or bypass transport entirely.
 - URL contains the UUID — `base_url` from env, suffixes constructed per call.
 - Self-hosted healthchecks: URL pattern differs. Treat the env var as the full prefix.
 
@@ -56,10 +56,10 @@ Sections:
 > Architectural decision needed:
 >
 > - Plain-text response handling.
-> - Option A: Use TransportPolicy.response_format="text" (if XML support already added in Phase 20, generalize to text).
+> - Option A: Use TransportPolicy.response_format="text".
 > - Option B: HealthCheckClient calls a thin wrapper over self.\_transport.\_session directly (bypass \_do_request) — lighter, but breaks the "all calls via HttpTransport" rule.
 >
-> Recommendation: Option A — generalize content type handling once. If Phase 20 added "xml" support, add "text" too.
+> Recommendation: Option A — uses the stable Phase 1 transport contract and preserves common logging/retry/circuit behavior.
 >
 > Proposed scope (Phase 24):
 >

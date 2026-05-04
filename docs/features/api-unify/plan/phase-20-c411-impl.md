@@ -1,28 +1,16 @@
 # Phase 20 — C411 Implementation
 
 **Type**: impl
-**Goal**: Implement `api/tracker/c411.py`. If Phase 19 chose Option A (XML in transport), retrofit `HttpTransport` first.
+**Goal**: Implement `api/tracker/c411.py` using the response-format decision captured in Phase 19.
 
 ## Gate (prereq)
 
-Phase 19 complete. User chose Option A or B.
+Phase 19 complete. User chose Option A or B. `HttpTransport` already supports
+`response_format="xml"` from Phase 1.
 
 ## Sub-phases
 
-### 20.1 (conditional) — XML support in HttpTransport (if Option A)
-
-If user chose Option A:
-
-- Add `xmltodict` dependency.
-- Extend `TransportPolicy.response_format` type from `Literal["json"]` to `Literal["json", "xml"]` (the field already exists since Phase 1).
-- In `HttpTransport._do_request`, add branch: `if self._policy.response_format == "xml": return xmltodict.parse(resp.text)`.
-- Update Phase 1 reference test to also cover XML parsing path.
-
-**Commit**: `feat(api-unify): add XML response support to HttpTransport`
-
-If Option B chosen, skip this sub-phase.
-
-### 20.2 — Build `api/tracker/c411.py`
+### 20.1 — Build `api/tracker/c411.py`
 
 ```python
 class C411Client:
@@ -46,13 +34,13 @@ If extraction makes sense:
 
 This may amend Phase 18's `lacale.py` — do it in the same commit.
 
-### 20.3 — Tests
+### 20.2 — Tests
 
 `tests/unit/test_c411_client.py` — same shape as LaCale tests.
 
 If `_title_parser.py` extracted, add `tests/unit/test_title_parser.py` covering edge cases.
 
-### 20.4 — Phase 20 gate
+### 20.3 — Phase 20 gate
 
 ```bash
 make check && python3 scripts/check-module-size.py && python3 scripts/check-typed-api.py

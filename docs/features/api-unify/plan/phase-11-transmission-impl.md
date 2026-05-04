@@ -76,7 +76,7 @@ Implements `TorrentClient`:
 
 - `tests/unit/test_transmission_client.py` — mock `transmission_rpc.Client`, verify `TorrentItem` mapping (status enum, percentDone × 100, etc.).
 - `tests/integration/test_transport_factory.py` — switch active=transmission via config, verify factory returns `TransmissionClient`.
-- Pre-check test mirrors the endpoint/status-code decision captured in Phase 10 doc. If the chosen pre-check endpoint returns HTML/text, set `TransportPolicy.response_format` accordingly and add the parser branch before this phase gate.
+- Pre-check test mirrors the endpoint/status-code decision captured in Phase 10 doc. If the chosen pre-check endpoint returns HTML/text, set `TransportPolicy.response_format` accordingly; the parser branches already exist from Phase 1.
 
 ### 11.5 — Phase 11 gate
 

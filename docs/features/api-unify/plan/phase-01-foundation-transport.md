@@ -1,9 +1,9 @@
 # Phase 1 — Foundation: Contracts + Transport
 
 **Type**: infra
-**Goal**: Build the `api/` package skeleton, contracts, custom types, and the
-`HttpTransport` consuming a `TransportPolicy`. This phase is the architectural
-spine: every later phase depends on it.
+**Goal**: Build the `api/` package skeleton, contracts, custom types, neutral
+`core/circuit.py`, and the `HttpTransport` consuming a `TransportPolicy`. This
+phase is the architectural spine: every later phase depends on it.
 
 ## Gate (prereq)
 
@@ -18,7 +18,9 @@ Create:
 - `personalscraper/api/__init__.py` (empty re-export-free).
 - `personalscraper/api/_contracts.py` — `AuthMode`, `ApiError`, `CircuitOpenError` (from DESIGN §3.1).
 
-`ApiError` is a `@dataclass` Exception. `CircuitOpenError(provider, remaining_seconds)`.
+`ApiError` is a `@dataclass` Exception with an explicit `__str__` preserving readable logs:
+`"<provider> API <status> provider_code=<code>: <message>"` when a provider code exists,
+or `"<provider> API <status>: <message>"` otherwise. `CircuitOpenError(provider, remaining_seconds)`.
 
 **Commit**: `feat(api-unify): add api package with shared contracts`
 
@@ -44,7 +46,7 @@ Implement DESIGN §3.3 verbatim:
 - `CircuitPolicy` (frozen dataclass) — `failure_threshold`, `cooldown_seconds`, `count_retries: bool = False`.
 - `RateLimitPolicy` (frozen dataclass) — `requests_per_second: float = 0.0`.
 - `AuthMethod` Protocol with `apply(session)` AND `auth_params() -> dict[str, str]`.
-- `TransportPolicy` (mutable dataclass) — `provider_name`, `base_url`, `auth`, `timeout_seconds`, `retry`, `circuit`, `rate_limit`, `extra_headers`, `response_format: Literal["json"] = "json"` (extended to `"xml"` in Phase 20 and `"text"` in Phase 24).
+- `TransportPolicy` (mutable dataclass) — `provider_name`, `base_url`, `auth`, `timeout_seconds`, `retry`, `circuit`, `rate_limit`, `extra_headers`, `response_format: Literal["json", "xml", "text"] = "json"`.
 
 No imports from concrete providers (foundation must stay decoupled).
 
@@ -74,13 +76,19 @@ Unit test: rate-limited at 10 rps, 20 calls take ≥ 1.9s (allow some jitter).
 
 **Commit**: `feat(api-unify): add RateLimiter token-bucket`
 
-### 1.6 — `api/transport/_circuit.py`
+### 1.6 — `core/circuit.py`
 
-`git mv personalscraper/scraper/circuit_breaker.py personalscraper/api/transport/_circuit.py`.
+Create `personalscraper/core/__init__.py`.
+
+`git mv personalscraper/scraper/circuit_breaker.py personalscraper/core/circuit.py`.
+
+Rationale: the circuit breaker is shared infrastructure, not API-only. It is
+used by HTTP clients and by `personalscraper/indexer/breaker.py` for per-disk
+I/O protection.
 
 Update `_is_circuit_error` per DESIGN §3.5 — drop `TMDBError`/`TVDBError` references, add `ApiError` branch.
 
-Update `CircuitOpenError` import: it now lives in `api/_contracts.py`. Replace any inline class definition in `_circuit.py` with `from personalscraper.api._contracts import CircuitOpenError`.
+Update `CircuitOpenError` import: it now lives in `api/_contracts.py`. Replace any inline class definition in `core/circuit.py` with `from personalscraper.api._contracts import CircuitOpenError`.
 
 Grep for existing importers and rewrite them:
 
@@ -89,16 +97,23 @@ rg "from personalscraper.scraper.circuit_breaker import" personalscraper/ --file
 rg "from personalscraper.scraper import circuit_breaker" personalscraper/ --files-with-matches
 ```
 
-All importers update to `from personalscraper.api.transport._circuit import CircuitBreaker, CircuitState`. `CircuitOpenError` consumers re-import from `personalscraper.api._contracts`.
+All importers update to `from personalscraper.core.circuit import CircuitBreaker, CircuitState`. `CircuitOpenError` consumers re-import from `personalscraper.api._contracts`.
+
+Explicit call sites to update in this sub-phase:
+
+- `personalscraper/indexer/breaker.py` imports and docstrings.
+- `personalscraper/trailers/orchestrator.py` lazy imports for `CircuitBreaker` / `CircuitOpenError`.
 
 Existing circuit-breaker tests: update import paths in same commit.
 
-**Commit**: `refactor(api-unify): move circuit breaker to api/transport/_circuit.py`
+**Commit**: `refactor(api-unify): move circuit breaker to core/circuit.py`
 
 ### 1.7 — `api/transport/_http.py` — HttpTransport
 
 Implement DESIGN §3.7. Key invariants:
 
+- Add `xmltodict` to `pyproject.toml` dependencies because XML parsing is part
+  of the stable Phase 1 transport contract.
 - Constructor takes a single `policy: TransportPolicy` argument.
 - `Accept: application/json` set by default; `policy.extra_headers` overlaid.
 - Tenacity built dynamically from `policy.retry`:
@@ -122,22 +137,19 @@ def _build_retry(policy: TransportPolicy):
   - `count_retries=True`: each `_do_request` failure records inside the tenacity loop.
 - `_do_request` merges `policy.auth.auth_params()` with caller params **before** every request.
 - On non-2xx, raise `ApiError` populated from response JSON if available, else from `resp.reason`.
-- `_do_request` body parsing branches on `policy.response_format`: `"json"` → `resp.json()`. Future formats (`"xml"`, `"text"`) added in Phase 20/24 with their own branches.
+- `_do_request` body parsing branches on `policy.response_format`: `"json"` → `resp.json()`, `"xml"` → `xmltodict.parse(resp.text)`, `"text"` → `resp.text`.
 - `HttpTransport` implements `__enter__` / `__exit__` and calls `close()` on exit. Bootstrap flows (TVDB login, pre-checks) may use `with HttpTransport(policy) as transport:`.
 - No `get_raw()` (YAGNI — DESIGN §1.2).
 - No `objects_pairs_hook` typo. Use `resp.json()` default.
 
-Delete `scraper/http_retry.py`. Grep importers, rewrite:
+`scraper/http_retry.py` stays in place during Phase 1 because the legacy
+`tmdb_client.py` and `tvdb_client.py` still depend on it. Deletion happens in
+Phase 7, after the last legacy consumer disappears. Grep current importers for
+awareness only:
 
 ```bash
 rg "from personalscraper.scraper.http_retry import" personalscraper/ --files-with-matches
 ```
-
-`scraper/http_retry.py` exposes utility functions used by `tmdb_client.py` and `tvdb_client.py`. Those imports stay in the OLD modules (which still exist) until Phase 5/7 migrations replace the entire client. **Therefore**: this sub-phase keeps `http_retry.py` for now and DOES NOT delete it. Deletion happens in Phase 5 (TMDB migration is the last consumer's first move).
-
-**Wait** — that creates a cross-phase orphan. Better approach: leave `http_retry.py` in place but route the new `HttpTransport` independently. `tmdb_client.py` and `tvdb_client.py` still use `http_retry.py` until they're replaced (Phases 5, 7). Delete `http_retry.py` in Phase 7 (after TVDB).
-
-**Adjust**: `scraper/http_retry.py` deletion is moved to Phase 7 (the last legacy consumer disappears there). This phase only adds `_http.py` without touching the legacy file.
 
 **Commit**: `feat(api-unify): add HttpTransport consuming TransportPolicy`
 
@@ -179,6 +191,8 @@ Create `tests/integration/test_transport_policy.py` — single test using a fake
 - Verifies query auth param is sent on every request.
 - Verifies retry attempts on 503 then success on 3rd call (within max_attempts).
 - Verifies circuit opens after 2 final failures (NOT 2 attempts inside one call).
+- Verifies `"text"` response format returns `resp.text`.
+- Verifies `"xml"` response format parses XML into a dict.
 
 **Commit**: `test(api-unify): add TransportPolicy reference integration test`
 
@@ -192,6 +206,7 @@ python -c "from personalscraper.api._units import ByteSize; assert ByteSize.pars
 python -c "from personalscraper.api.transport._http import HttpTransport"
 python -c "from personalscraper.api.transport._policy import TransportPolicy, RetryPolicy, CircuitPolicy, RateLimitPolicy, AuthMethod"
 python -c "from personalscraper.api.transport._auth import BearerAuth, ApiKeyAuth, LoginAuth, NoAuth"
+python -c "from personalscraper.core.circuit import CircuitBreaker, CircuitState"
 ! rg "from personalscraper.scraper.circuit_breaker" personalscraper/ tests/
 ```
 

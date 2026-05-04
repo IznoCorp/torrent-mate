@@ -9,7 +9,10 @@ Phase 15 complete. `ByteSize` is stable from Phase 1. Ranking Pydantic models al
 
 ## Sub-phases
 
-### 16.1 — `api/tracker/__init__.py` + `_base.py`
+### 16.1 — `api/tracker/_base.py`
+
+`personalscraper/api/tracker/__init__.py` already exists from Phase 2 because
+config validation imports `_ranking.py` early.
 
 `_base.py`:
 

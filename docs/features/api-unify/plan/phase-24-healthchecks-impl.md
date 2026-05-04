@@ -5,21 +5,12 @@
 
 ## Gate (prereq)
 
-Phase 23 complete. Transport option decided.
+Phase 23 complete. Transport option decided. `HttpTransport` already supports
+`response_format="text"` from Phase 1.
 
 ## Sub-phases
 
-### 24.1 (conditional) — Text-response support in HttpTransport (if Option A from Phase 23)
-
-Extend `TransportPolicy.response_format` type to `Literal["json", "xml", "text"]` (adds `"text"` to the existing Literal; `"json"` is always present since Phase 1, `"xml"` was added in Phase 20 if Option A was chosen). Add `text` branch returning `resp.text` directly in `_do_request`. Update reference test to cover.
-
-If Phase 20 chose Option B (no `"xml"`), the Literal goes from `Literal["json"]` to `Literal["json", "text"]` — same process, just one less member.
-
-If Option B chosen (bypass transport entirely), skip this sub-phase.
-
-**Commit**: `feat(api-unify): add text-response support to HttpTransport`
-
-### 24.2 — Build `api/notify/healthchecks.py`
+### 24.1 — Build `api/notify/healthchecks.py`
 
 ```python
 class HealthcheckClient:
@@ -58,7 +49,7 @@ class HealthcheckClient:
             # fail-soft — never raise
 ```
 
-### 24.3 — Delete `notifier.py`
+### 24.2 — Delete `notifier.py`
 
 ```bash
 rg "from personalscraper\.notifier import" personalscraper/ tests/
@@ -71,7 +62,7 @@ Rewrite all remaining imports. Then:
 git rm personalscraper/notifier.py
 ```
 
-### 24.4 — Tests
+### 24.3 — Tests
 
 `tests/unit/test_healthcheck_client.py`:
 
@@ -80,7 +71,7 @@ git rm personalscraper/notifier.py
 - `ping_fail()` → GET to `/fail`.
 - All three on connection error → no exception raised, warning logged.
 
-### 24.5 — Phase 24 gate
+### 24.4 — Phase 24 gate
 
 ```bash
 make check && python3 scripts/check-module-size.py && python3 scripts/check-typed-api.py

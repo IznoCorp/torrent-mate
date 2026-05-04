@@ -14,17 +14,17 @@ Phase 4 complete. `docs/reference/tmdb-api.md` exists. User checkpoint captured.
 Rewrite `tmdb_client.py` against the new contract:
 
 1. Class `TMDBClient(MetadataClient)`. `REQUIRED_CREDS = ["TMDB_API_KEY"]`.
-2. Class method `policy(cls, api_key: str) -> TransportPolicy`:
+2. Class method `policy(cls, api_key: str, *, circuit: CircuitPolicy | None = None) -> TransportPolicy`:
    ```python
    @classmethod
-   def policy(cls, api_key: str) -> TransportPolicy:
+   def policy(cls, api_key: str, *, circuit: CircuitPolicy | None = None) -> TransportPolicy:
        return TransportPolicy(
            provider_name="tmdb",
            base_url="https://api.themoviedb.org/3",
            auth=BearerAuth(api_key),
            timeout_seconds=10,
            retry=RetryPolicy(max_attempts=4),
-           circuit=CircuitPolicy(failure_threshold=5, cooldown_seconds=300),
+           circuit=circuit or CircuitPolicy(failure_threshold=5, cooldown_seconds=300),
            rate_limit=RateLimitPolicy(requests_per_second=40),  # below 50 rps cap
        )
    ```
@@ -84,6 +84,17 @@ client = TMDBClient(transport=transport, language=cfg.metadata.defaults.language
 ```
 
 This boilerplate likely belongs in a small builder in `personalscraper/scraper/run.py` or `orchestrator.py`.
+
+Explicit consumer work:
+
+- `personalscraper/library/rescraper.py`: update type imports and construction.
+- `personalscraper/trailers/orchestrator.py`: preserve the trailers-specific
+  TMDB circuit configuration from `config.trailers.circuit_breakers.tmdb_videos`
+  by passing a custom `CircuitPolicy` to `TMDBClient.policy(...)` before
+  constructing the `HttpTransport`. Do not collapse this into the main scraper
+  TMDB circuit; trailer lookup intentionally has separate outage tolerance.
+- Any consumer still using dict-shaped TMDB results must be converted to typed
+  attributes in the same commit.
 
 Update test files in the same commit.
 

@@ -19,7 +19,11 @@ Create models for the 5 config files (DESIGN §8.2–§8.6). Implement:
 - `ThresholdEntry`, `RankingCriterion`, `RankingBonuses`, `RankingConfig`.
 - `NotifyProviderConfig`, `NotifyConfig`.
 
-Ranking models are created in `personalscraper/api/tracker/_ranking.py` in this phase even though tracker providers land later. `personalscraper/conf/models/api_config.py` imports and re-exports them so config validation and runtime ranking share one source of truth.
+Create `personalscraper/api/tracker/__init__.py` and
+`personalscraper/api/tracker/_ranking.py` in this phase even though tracker
+providers land later. `personalscraper/conf/models/api_config.py` imports and
+re-exports the ranking models so config validation and runtime ranking share one
+source of truth.
 
 `api/tracker/_ranking.py` validator:
 
@@ -98,6 +102,11 @@ Create 5 new files under `config.example/`:
 
 Each file has top-of-file comments documenting which `.env` vars are required (mirroring DESIGN tables).
 
+Default enablement in `config.example/`:
+
+- Existing behavior-equivalent providers stay enabled: `tmdb`, `tvdb`, `qbittorrent`.
+- New optional integrations stay disabled to avoid warning noise before credentials exist: `omdb`, `trakt`, `transmission`, `lacale`, `c411`, `telegram`, `healthchecks`.
+
 **Commit**: `feat(api-unify): add config.example templates for api`
 
 ### 2.4 — Wire into top-level `Config`
@@ -118,6 +127,11 @@ Update `personalscraper init-config` command:
 
 - Generate the 5 new files from `config.example/` if missing.
 - Idempotent: existing files NOT overwritten.
+- Directly adapt the active project `config/` for this feature branch: set the
+  providers intentionally exercised by the rollout to `enabled: true` there
+  even if their `config.example` default is `false`. This local adaptation is
+  separate from `config.example` so new users do not get missing-credential
+  warnings for integrations they have not opted into.
 
 **Commit**: `feat(api-unify): wire api config into Config loader and init-config`
 
