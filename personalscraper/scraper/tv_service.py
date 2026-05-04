@@ -29,10 +29,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.naming_patterns import NamingPatterns
     from personalscraper.scraper.artwork import ArtworkDownloader
-    from personalscraper.scraper.tvdb_client import TVDBClient
 
 log = get_logger("scraper")
 
@@ -151,7 +151,7 @@ def _tvdb_series_to_show_data(
 
     raw_name = tvdb_data.get("name", "")
     lang_code = preferred_language.split("-", 1)[0].lower()
-    tvdb_lang_code = _TVDB_LANG_MAP.get(lang_code, lang_code)
+    tvdb_lang_code = _TVDB_LANG_MAP(lang_code, lang_code)
     translations = tvdb_data.get("translations") or {}
     translated_overview: str | None = None
     translated_name = None
@@ -159,7 +159,7 @@ def _tvdb_series_to_show_data(
         translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
     if not translated_name and tvdb_client is not None:
         fallback_code = fallback_language.split("-", 1)[0].lower()
-        fallback_tvdb_code = _TVDB_LANG_MAP.get(fallback_code, fallback_code)
+        fallback_tvdb_code = _TVDB_LANG_MAP(fallback_code, fallback_code)
         for candidate_lang in (tvdb_lang_code, fallback_tvdb_code):
             try:
                 translation = tvdb_client.get_series_translation(tvdb_id, candidate_lang)
@@ -223,7 +223,7 @@ class TvServiceMixin:
     def _to_tvdb_language(language: str) -> str:
         """Convert configured scraper language to TVDB's 3-letter code."""
         code = language.split("-", 1)[0].lower()
-        return _TVDB_LANG_MAP.get(code, code)
+        return _TVDB_LANG_MAP(code, code)
 
     def scrape_tvshow(self, show_dir: Path) -> ScrapeResult:
         """Scrape a TV show: match → NFO → artwork → seasons → episodes.

@@ -2,7 +2,7 @@
 
 Bootstrap login at init: one-shot HttpTransport(NoAuth) → POST /login → JWT.
 Main client uses BearerAuth(jwt). All responses unwrapped via _tvdb_parsers.unwrap().
-Returns typed models from _base.py. Zero dict[str, Any] in public signatures.
+Returns typed models from _base.py. Zero untyped dicts in public signatures.
 """
 
 from __future__ import annotations
@@ -127,7 +127,7 @@ class TVDBClient(MetadataClient):
 
     # -- Helpers ------------------------------------------------------------
 
-    def _get(self, path: str, params: dict[str, object] | None = None) -> dict[str, Any] | list[Any]:
+    def _get(self, path: str, params: dict[str, object] | None = None) -> Any:
         """GET request with envelope unwrapping.
 
         Args:
@@ -142,7 +142,7 @@ class TVDBClient(MetadataClient):
             raise TypeError(f"Expected dict response from TVDB, got {type(raw).__name__}")
         return unwrap(raw)
 
-    def _get_dict(self, path: str, params: dict[str, object] | None = None) -> dict[str, Any]:
+    def _get_dict(self, path: str, params: dict[str, object] | None = None) -> Any:
         """GET request returning unwrapped dict.
 
         Args:
@@ -321,7 +321,7 @@ class TVDBClient(MetadataClient):
         Returns:
             SeasonDetails.
         """
-        all_episodes: list[dict[str, Any]] = []
+        all_episodes: list[dict[str, object]] = []
         page = 0
         while True:
             params: dict[str, object] = {"season": season, "page": page}

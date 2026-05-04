@@ -25,11 +25,11 @@ from tenacity import (
     wait_fixed,
 )
 
+from personalscraper.core.http_helpers import build_retry_logger, make_retryable_predicate
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import NamingPatterns
-from personalscraper.scraper.http_retry import build_retry_logger, make_retryable_predicate
 
 log = get_logger("artwork")
 

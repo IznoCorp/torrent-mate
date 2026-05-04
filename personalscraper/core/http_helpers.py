@@ -1,10 +1,11 @@
 """Shared HTTP retry predicates and callbacks for tenacity.
 
-Provides factories to create retry predicates that handle provider-specific
-errors (TMDBError, TVDBError) alongside standard requests exceptions, and
-a shared before_sleep callback factory for structured warning logs.
-Used by tmdb_client, tvdb_client, and artwork modules.
+Provides retry logger and retryable predicate factories used by
+non-API HTTP consumers (artwork.py). Provider-specific error coupling
+has been removed — these helpers are now provider-agnostic.
 """
+
+from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -60,7 +61,7 @@ def _retry_after_from_exception(exc: BaseException | None) -> float | None:
     Looks up the header on:
     - ``exc.response`` (requests.HTTPError carrying a Response).
     - ``exc.headers`` (provider-specific error type that surfaces headers
-      directly, e.g. TMDBError / TVDBError).
+      directly).
 
     Returns ``None`` for exceptions that do not carry header information.
     """
@@ -166,7 +167,7 @@ def make_retryable_predicate(*provider_error_types: type) -> Callable[[BaseExcep
 
     Args:
         *provider_error_types: Exception classes with an http_status attribute
-            (e.g., TMDBError, TVDBError). Pass none for generic HTTP retry.
+            (built-in HTTP error types).
 
     Returns:
         A callable(BaseException) -> bool for retry_if_exception().

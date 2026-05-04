@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from guessit.api import GuessitException
 
+from personalscraper.api._contracts import ApiError
 from personalscraper.conf.models.scraper import ScraperConfig
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
@@ -906,8 +907,6 @@ class TestScrapeTvshow:
         Reproduces Bug 3 variant: tmdb_id is found in remoteIds, but TMDB
         returns 404 (show deleted / mismatched). Fix: fall back to TVDB-only data.
         """
-        from personalscraper.api._contracts import ApiError
-
         show_dir = tmp_path / "Top Chef France (2010)"
         show_dir.mkdir()
 
@@ -937,7 +936,7 @@ class TestScrapeTvshow:
             patch.object(
                 scraper._tmdb,
                 "get_tv",
-                side_effect=ApiError(404, 34, "The resource you requested could not be found."),
+                side_effect=ApiError("tmdb", 404, provider_code=34, message="Resource not found"),
             ),
             patch.object(scraper._artwork, "download_tvshow_artwork", return_value=[]),
         ):
@@ -1172,15 +1171,13 @@ class TestCircuitBreakerFallback:
         tmp_path: Path,
     ) -> None:
         """Movies are skipped when TMDB circuit is OPEN."""
-        from personalscraper.api._contracts import ApiError
-
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()
         (movies_dir / "Movie A (2024)").mkdir()
         (movies_dir / "Movie B (2024)").mkdir()
 
         # Force TMDB circuit OPEN
-        error = ApiError(500, 0, "Internal Server Error")
+        error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
         for _ in range(5):
             scraper._tmdb.circuit.record_failure(error)
 
@@ -1219,16 +1216,13 @@ class TestCircuitBreakerFallback:
         tmp_path: Path,
     ) -> None:
         """TV shows are skipped when both TVDB and TMDB circuits are OPEN."""
-        from personalscraper.api._contracts import ApiError
-        from personalscraper.scraper.tvdb_client import TVDBError
-
         tvshows_dir = tmp_path / "002-TVSHOWS"
         tvshows_dir.mkdir()
         (tvshows_dir / "Show A (2024)").mkdir()
 
         # Force both circuits OPEN
-        tmdb_err = ApiError(500, 0, "Internal Server Error")
-        tvdb_err = TVDBError(502, "Bad Gateway")
+        tmdb_err = ApiError("test", 500, provider_code=0, message="Internal Server Error")
+        tvdb_err = ApiError("tvdb", 502, message="Bad Gateway")
         for _ in range(5):
             scraper._tmdb.circuit.record_failure(tmdb_err)
             scraper._tvdb.circuit.record_failure(tvdb_err)
@@ -1245,14 +1239,12 @@ class TestCircuitBreakerFallback:
         tmp_path: Path,
     ) -> None:
         """TV shows still process when only TVDB is OPEN (TMDB fallback)."""
-        from personalscraper.scraper.tvdb_client import TVDBError
-
         tvshows_dir = tmp_path / "002-TVSHOWS"
         tvshows_dir.mkdir()
         (tvshows_dir / "Show A (2024)").mkdir()
 
         # Force only TVDB circuit OPEN — TMDB is still available
-        tvdb_err = TVDBError(502, "Bad Gateway")
+        tvdb_err = ApiError("tvdb", 502, message="Bad Gateway")
         for _ in range(5):
             scraper._tvdb.circuit.record_failure(tvdb_err)
 

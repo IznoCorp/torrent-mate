@@ -223,7 +223,7 @@ class TestConfiguredLanguageRespected:
         to English without raising. Documented here as a sanity check;
         the real enforcement lives in the language-mapping helpers.
         """
-        from personalscraper.scraper.tvdb_client import TVDBClient
+        from personalscraper.api.metadata.tvdb import TVDBClient
 
         client = TVDBClient(api_key="placeholder")
         # The 3-char mapping must include FR → fra (used by the TV

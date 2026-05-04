@@ -10,7 +10,7 @@ from unittest.mock import Mock
 import pytest
 from tenacity import RetryCallState
 
-from personalscraper.scraper.http_retry import build_retry_logger
+from personalscraper.core.http_helpers import build_retry_logger
 
 
 class TestBuildRetryLogger:

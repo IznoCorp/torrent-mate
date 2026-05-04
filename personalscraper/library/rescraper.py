@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.nfo_generator import NFOGenerator
-    from personalscraper.scraper.tvdb_client import TVDBClient
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
@@ -557,9 +557,9 @@ def rescrape_library(
         LibraryRescrapeResult with per-item actions.
     """
     from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+    from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
-    from personalscraper.scraper.tvdb_client import TVDBClient  # noqa: PLC0415
 
     scraper_config = config.scraper
     tmdb_client = TMDBClient(settings.tmdb_api_key, language=scraper_config.language)

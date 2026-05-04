@@ -7,6 +7,7 @@ historic import and monkeypatch surface used by callers and tests.
 from __future__ import annotations
 
 from personalscraper.api.metadata.tmdb import TMDBClient
+from personalscraper.api.metadata.tvdb import TVDBClient
 from personalscraper.conf import classifier as _classifier
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
@@ -26,7 +27,6 @@ from personalscraper.scraper.rename_service import (
     _rename_dir_case_safe,
 )
 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
-from personalscraper.scraper.tvdb_client import TVDBClient
 
 __all__ = [
     "LOW_CONFIDENCE",
