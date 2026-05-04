@@ -2,7 +2,7 @@
 
 Implements MetadataClient + MetadataProvider Protocol. All HTTP calls go
 through HttpTransport consuming a TransportPolicy. Returns typed models
-from _base.py via _tmdb_parsers.py. Zero dict[str, Any] in public signatures.
+from _base.py via _tmdb_parsers.py. Zero untyped dicts in public signatures.
 """
 
 from __future__ import annotations
@@ -181,7 +181,7 @@ class TMDBClient(MetadataClient):
         Returns:
             List of SearchResult, sorted by TMDB relevance.
         """
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "query": title,
             "language": language or self._language,
         }
@@ -208,7 +208,7 @@ class TMDBClient(MetadataClient):
         Returns:
             List of SearchResult, sorted by TMDB relevance.
         """
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "query": title,
             "language": language or self._language,
         }
@@ -227,7 +227,7 @@ class TMDBClient(MetadataClient):
         Returns:
             Populated MediaDetails.
         """
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "language": self._language,
             "append_to_response": "videos,images,keywords,external_ids",
             "include_image_language": f"{self._language},{self._fallback_language},en,null",
@@ -246,7 +246,7 @@ class TMDBClient(MetadataClient):
         Returns:
             Populated MediaDetails.
         """
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "language": self._language,
             "append_to_response": "videos,images,keywords,external_ids",
             "include_image_language": f"{self._language},{self._fallback_language},en,null",
@@ -266,7 +266,7 @@ class TMDBClient(MetadataClient):
         Returns:
             SeasonDetails with episodes parsed.
         """
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "language": self._language,
             "append_to_response": "images",
             "include_image_language": f"{self._language},{self._fallback_language},en,null",
@@ -296,7 +296,7 @@ class TMDBClient(MetadataClient):
         Returns:
             List of ArtworkItem (posters, backdrops, logos).
         """
-        params: dict[str, Any] = {
+        params: dict[str, object] = {
             "language": self._language,
             "include_image_language": f"{self._language},{self._fallback_language},en,null",
         }
@@ -357,7 +357,7 @@ class TMDBClient(MetadataClient):
         Returns:
             List of Video objects.
         """
-        params: dict[str, Any] = {"language": language}
+        params: dict[str, object] = {"language": language}
         raw = self._transport.get(endpoint, params=params)
         if not isinstance(raw, dict):
             return []
@@ -416,7 +416,7 @@ class TMDBClient(MetadataClient):
     def _search_paginated(
         self,
         endpoint: str,
-        params: dict[str, Any],
+        params: dict[str, object],
         max_pages: int = 5,
     ) -> list[SearchResult]:
         """Paginated search helper.
