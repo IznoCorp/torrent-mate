@@ -632,7 +632,7 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
 def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
     """Monkeypatch TVDBClient with an in-memory FakeTVDB stub.
 
-    Patches ``personalscraper.scraper.tvdb_client.TVDBClient`` so that any
+    Patches ``personalscraper.api.metadata.tvdb.TVDBClient`` so that any
     code constructing a TVDBClient receives a FakeTVDB instance instead.
     Preloads canned responses from ``tests/integration/fixtures/tvdb/``.
 
@@ -649,7 +649,7 @@ def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
         stub.seed(json_file.stem, payload)
 
     monkeypatch.setattr(
-        "personalscraper.scraper.tvdb_client.TVDBClient",
+        "personalscraper.api.metadata.tvdb.TVDBClient",
         lambda *args, **kwargs: stub,
     )
     # Also patch the already-imported name in scraper.py (same rationale as fake_tmdb).
