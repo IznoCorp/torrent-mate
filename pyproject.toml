@@ -37,6 +37,7 @@ dependencies = [
     "rich>=14.0.0",
     "structlog>=25.0.0",
     "json5>=0.9.14",
+    "xmltodict>=0.13.0",
     "yt-dlp>=2026.1.1,<2027",
     "pymediainfo>=6.1.0",
     "enzyme>=0.5.2",
