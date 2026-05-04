@@ -36,6 +36,7 @@ lint-logging:
 
 check: lint test
 	python3 scripts/check-module-size.py
+	python3 scripts/check-typed-api.py
 
 format:
 	@echo "Formatting code..."
