@@ -4,4 +4,4 @@ Automates the full media workflow: ingest from qBittorrent, sort by type,
 scrape metadata from TMDB/TVDB, verify quality, and dispatch to storage disks.
 """
 
-__version__ = "0.9.0"
+__version__ = "0.11.0"
