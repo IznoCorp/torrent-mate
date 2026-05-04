@@ -31,7 +31,7 @@ def build_active_torrent_client(cfg: TorrentConfig,
     """
 ```
 
-For now, factory only knows `qbittorrent` (Phase 9 wires it). `transmission` branch raises `NotImplementedError` until Phase 11.
+For now, factory only knows `qbittorrent` (Phase 9 wires it). `transmission` branch raises `NotImplementedError("Transmission client not yet implemented (Phase 11)")` — a temporary stub resolved in Phase 11. No code path can trigger it before Transmission exists.
 
 Unit tests: `cfg.active="qbittorrent"` + creds → returns instance (mocked); missing cred → raises; `cfg.active="unknown"` → ValueError.
 

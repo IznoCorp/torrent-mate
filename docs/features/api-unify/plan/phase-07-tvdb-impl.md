@@ -99,15 +99,16 @@ remaining consumer is `artwork.py`. The helpers move to a neutral location so
 
 Steps:
 
-1. `git mv personalscraper/scraper/http_retry.py personalscraper/core/http_helpers.py`.
-2. Trim `core/http_helpers.py` to keep ONLY the two helpers (and their direct
-   private dependencies: `_RETRYABLE_STATUS_CODES`, `_retry_after_from_exception`,
-   `RetryAfterAwareWait` if still required by any consumer). Drop everything
-   else (provider-error-types coupling, etc.).
-3. Update `scraper/artwork.py` import:
+1. Create `personalscraper/core/http_helpers.py` with ONLY the two helpers
+   (and their direct private dependencies: `_RETRYABLE_STATUS_CODES`,
+   `_retry_after_from_exception`, `RetryAfterAwareWait` if still required by
+   `artwork.py`). Drop everything else (provider-error-types coupling, etc.).
+   The content is extracted from `scraper/http_retry.py`, which still exists
+   at this point — it will be deleted in the next sub-phase.
+2. Update `scraper/artwork.py` import:
    `from personalscraper.scraper.http_retry import ...` →
    `from personalscraper.core.http_helpers import build_retry_logger, make_retryable_predicate`.
-4. Verify no other consumer of the moved file:
+3. Verify no other consumer of the moved file:
 
 ```bash
 rg "from personalscraper\.scraper\.http_retry import|from personalscraper\.scraper import http_retry" personalscraper/ tests/

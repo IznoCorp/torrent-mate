@@ -24,6 +24,7 @@ Per user-chosen option from Phase 10:
 ```python
 class TransmissionClient:
     REQUIRED_CREDS: ClassVar[list[str]] = ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"]
+    provider_name = "transmission"
 
     @classmethod
     def policy(cls, host: str, port: int, username: str, password: str) -> TransportPolicy:

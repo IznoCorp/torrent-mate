@@ -171,25 +171,37 @@ rg "from personalscraper.scraper.http_retry import" personalscraper/ --files-wit
 
 ### 1.9 — `scripts/check-typed-api.py` (new guardrail)
 
-Tiny script (~30 LOC) — greps for `dict[str, Any]` in `personalscraper/api/` non-`_*.py` files (public modules). Exits non-zero on hit. Wired into `make check`.
+Tiny script (~40 LOC) — two checks:
+
+1. Greps for `dict[str, Any]` in `personalscraper/api/` non-`_*.py` files (public modules).
+2. Greps for `HttpTransport(` with keyword args in `api/` — forbids bypassing `TransportPolicy`.
+
+Exits non-zero on hit. Wired into `make check`.
 
 ```python
 #!/usr/bin/env python3
-"""Forbid dict[str, Any] in public api/ surface."""
+"""Forbid dict[str, Any] in public api/ surface and direct HttpTransport construction."""
 from pathlib import Path
 import re, sys
 
 ROOT = Path(__file__).parent.parent / "personalscraper" / "api"
-PATTERN = re.compile(r"dict\[\s*str\s*,\s*Any\s*\]")
+DICT_PATTERN = re.compile(r"dict\[\s*str\s*,\s*Any\s*\]")
+TRANSPORT_PATTERN = re.compile(r"HttpTransport\(\s*.*provider_name\s*=")
+
 violations = []
 for py in ROOT.rglob("*.py"):
     if py.name.startswith("_") or py.parent.name.startswith("_"):
         continue
     for i, line in enumerate(py.read_text().splitlines(), 1):
-        if PATTERN.search(line) and not line.lstrip().startswith("#"):
-            violations.append(f"{py}:{i}: {line.strip()}")
+        if line.lstrip().startswith("#"):
+            continue
+        if DICT_PATTERN.search(line):
+            violations.append(f"{py}:{i}: dict[str, Any] — {line.strip()}")
+        if TRANSPORT_PATTERN.search(line):
+            violations.append(f"{py}:{i}: HttpTransport constructed without TransportPolicy — {line.strip()}")
+
 if violations:
-    print("dict[str, Any] forbidden in api/ public surface:", file=sys.stderr)
+    print("api/ guardrail violations:", file=sys.stderr)
     for v in violations:
         print(f"  {v}", file=sys.stderr)
     sys.exit(1)
@@ -224,6 +236,8 @@ python -c "from personalscraper.api.transport._policy import TransportPolicy, Re
 python -c "from personalscraper.api.transport._auth import BearerAuth, ApiKeyAuth, LoginAuth, NoAuth"
 python -c "from personalscraper.core.circuit import CircuitBreaker, CircuitState"
 ! rg "from personalscraper.scraper.circuit_breaker" personalscraper/ tests/
+# Guardrail: no HttpTransport construction bypassing TransportPolicy
+! rg "HttpTransport\(\s*.*provider_name\s*=" personalscraper/api/
 ```
 
 **Commit**: `chore(api-unify): phase 1 gate — foundation + transport done`

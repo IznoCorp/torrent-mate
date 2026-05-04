@@ -819,8 +819,19 @@ PROVIDER_CREDS: dict[str, list[str]] = {
 def resolve_active(providers: dict, family: str,
                    env: Mapping[str, str] | None = None) -> list[str]:
     """Active = enabled=True AND all PROVIDER_CREDS[name] present in env.
+
     Missing creds → WARNING log, treat as disabled.
+
+    Args:
+        providers: A single family's provider config dict (e.g. cfg.metadata.providers).
+        family: Logging-only — attached to structured log records so operators can
+                filter warnings by family (\"metadata\", \"torrent\", \"tracker\", \"notify\").
+                The resolution logic itself is family-agnostic — PROVIDER_CREDS is a
+                flat global dict and the providers dict already scopes the check.
+        env: Credential source (defaults to os.environ; pass-through for testability).
+
     Returns names sorted by config order."""
+    ...
 ```
 
 | enabled | Credentials | Result                |
@@ -1001,6 +1012,6 @@ Depends on: Third-Party API Consumer Unification (P0).
 
 ---
 
-## 15. VERSION bump
+## 15. VERSION
 
-0.10.0 → 0.11.0 (minor). Rationale: new `api/` package, 7 modules migrated, 5 new third-party integrations (OMDB, Trakt, Transmission torrent client, LaCale, C411), 5 new config files, new `TransportPolicy` contract, new `ByteSize` custom type. No breaking change to pipeline behavior — all migrations are behavior-preserving.
+0.11.0 (already bumped at branch creation, `b41a231`). Rationale for minor bump: new `api/` package, 7 modules migrated, 5 new third-party integrations (OMDB, Trakt, Transmission torrent client, LaCale, C411), 5 new config files, new `TransportPolicy` contract, new `ByteSize` custom type. No breaking change to pipeline behavior — all migrations are behavior-preserving.

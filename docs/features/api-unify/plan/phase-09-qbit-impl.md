@@ -16,6 +16,7 @@ Per DESIGN §5 + qBit doc:
 ```python
 class QBitClient:
     REQUIRED_CREDS: ClassVar[list[str]] = ["QBIT_USERNAME", "QBIT_PASSWORD"]
+    provider_name = "qbittorrent"
 
     @classmethod
     def policy(cls, host: str, port: int) -> TransportPolicy:

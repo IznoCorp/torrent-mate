@@ -79,6 +79,8 @@ Unit tests in `tests/unit/test_api_config_models.py`:
 
 Implement DESIGN §8.7. `PROVIDER_CREDS` hardcoded dict (10 entries). `resolve_active(providers, family, env=None)` returns list of active provider names with WARNING-on-missing-creds behavior.
 
+`family` is a logging-only parameter: attached to structured log records so operators can filter warnings by family (`"metadata"`, `"torrent"`, `"tracker"`, `"notify"`). Example: `log.warning("provider_disabled", family="metadata", provider="omdb", missing=["OMDB_API_KEY"])`. The resolution logic itself is family-agnostic — `PROVIDER_CREDS` is a flat global dict and the `providers` dict already scopes the check to one family.
+
 Default `env=None` → `os.environ`. Pass-through via parameter for testability.
 
 Unit tests:
