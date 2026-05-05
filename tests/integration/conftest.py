@@ -590,7 +590,7 @@ class FakeQBitClient:
 def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
     """Monkeypatch TMDBClient with an in-memory FakeTMDB stub.
 
-    Patches ``personalscraper.scraper.tmdb_client.TMDBClient`` so that any
+    Patches ``personalscraper.api.metadata.tmdb.TMDBClient`` so that any
     code constructing a TMDBClient receives a FakeTMDB instance instead.
     Preloads canned responses from ``tests/integration/fixtures/tmdb/``.
 

@@ -953,6 +953,10 @@ Phases 1–3 build infrastructure. Each subsequent API has **two** phases: a doc
 - **21–24 (notify)**: smallest migration last; allows leaving `notifier.py` until everything else is in place.
 - **25 (cleanup)**: only when every consumer has migrated.
 
+#### Advance-shipped artifacts
+
+- **`api/tracker/_ranking.py`** is created in Phase 2 (not Phase 16) because the Pydantic models for `config/ranking.json5` (§8.5) are required by the `Config` loader wiring in Phase 2. Phase 16 still owns the rest of the tracker family base (`_base.py`, `_registry.py`, the `rank()` function).
+
 ### Per-doc-phase user checkpoint (interactive)
 
 Every doc phase ends with: "Doc complete. Particularities found: [list]. Proposed implementation scope: [scope]. Confirm or adjust before next phase." This lets the user catch API quirks (rate limits, undocumented fields, auth subtleties, response variants) before code is written.

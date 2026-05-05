@@ -1,4 +1,4 @@
-"""Tests for build_retry_logger in personalscraper.scraper.http_retry.
+"""Tests for build_retry_logger in personalscraper.core.http_helpers.
 
 Verifies the before_sleep callback factory produces correct structured log
 output in the three key scenarios: exception present, no exception, and
