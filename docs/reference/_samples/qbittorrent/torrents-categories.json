@@ -1,0 +1,10 @@
+{
+    "Sonarr": {
+        "name": "Sonarr",
+        "savePath": ""
+    },
+    "e2e-test": {
+        "name": "e2e-test",
+        "savePath": ""
+    }
+}

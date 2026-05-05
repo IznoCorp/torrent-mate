@@ -1,120 +1,227 @@
-# qBittorrent Web API Reference
+# qBittorrent WebUI API Reference
 
-Third-party torrent client API used by the ingest pipeline.
-Home: <https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.x)>
+Official reference: <https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)>
+Base path: `/api/v2/`
+Auth: cookie-based (SID). All endpoints require auth except `POST /api/v2/auth/login`.
+Convention: `GET` for reads, `POST` for mutations. Since v4.4.4, wrong method → `405`.
 
-## Auth
+## Auth (`/api/v2/auth/`)
 
-- **Method**: Cookie-based session via `POST /api/v2/auth/login`.
-- **Parameters**: `username` (form field), `password` (form field).
-- **Response**: Sets `SID` cookie on success (200). Returns 403 on bad credentials.
-- **Logout**: `POST /api/v2/auth/logout` (ends session, clears SID).
+### Login
 
-### Auth lockout (qBit-specific)
+`POST /api/v2/auth/login`
+
+| Parameter  | Type   | Required |
+| ---------- | ------ | -------- |
+| `username` | string | yes      |
+| `password` | string | yes      |
+
+Returns `200` + `SID` cookie on success. Returns `403` on bad credentials (counts toward IP ban).
+**Header requirement**: set `Referer` or `Origin` to the same domain+port as the request `Host`.
+
+### Logout
+
+`POST /api/v2/auth/logout` — no parameters. Returns `200`.
+
+## Torrent info (`/api/v2/torrents/`)
+
+### List torrents
+
+`GET /api/v2/torrents/info`
+
+| Parameter  | Type   | Required | Description                                                                                                                                                       |
+| ---------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `filter`   | string | no       | One of: `all`, `downloading`, `seeding`, `completed`, `paused`, `active`, `inactive`, `resumed`, `stalled`, `stalled_uploading`, `stalled_downloading`, `errored` |
+| `category` | string | no       | Empty string = no category; absent = any                                                                                                                          |
+| `tag`      | string | no       | Filter by tag (since API 2.8.3)                                                                                                                                   |
+| `sort`     | string | no       | Field name to sort by                                                                                                                                             |
+| `reverse`  | bool   | no       | Reverse sort order                                                                                                                                                |
+| `limit`    | int    | no       | Max results                                                                                                                                                       |
+| `offset`   | int    | no       | Pagination offset                                                                                                                                                 |
+| `hashes`   | string | no       | Pipe-separated hashes to filter by                                                                                                                                |
+
+Returns `200` — JSON array of torrent objects. Field reference:
+
+| Field                | Type   | Description                                |
+| -------------------- | ------ | ------------------------------------------ |
+| `hash`               | string | Torrent info hash (v1)                     |
+| `name`               | string | Torrent display name                       |
+| `size`               | int    | Bytes **selected** for download            |
+| `total_size`         | int    | Total bytes of all files in the torrent    |
+| `progress`           | float  | 0.0–1.0                                    |
+| `state`              | string | Current state (see table below)            |
+| `content_path`       | string | Absolute path (empty until move completes) |
+| `save_path`          | string | Data storage directory                     |
+| `category`           | string | Category label (empty string if none)      |
+| `tags`               | string | Comma-concatenated tag list                |
+| `added_on`           | int    | Unix epoch when added                      |
+| `completion_on`      | int    | Unix epoch when completed (0 if not)       |
+| `amount_left`        | int    | Bytes remaining to download                |
+| `completed`          | int    | Bytes completed so far                     |
+| `dlspeed`            | int    | Current download speed (bytes/s)           |
+| `upspeed`            | int    | Current upload speed (bytes/s)             |
+| `eta`                | int    | Seconds until completion                   |
+| `ratio`              | float  | Share ratio (capped at 9999)               |
+| `num_seeds`          | int    | Connected seeds                            |
+| `num_leechs`         | int    | Connected leechers                         |
+| `num_complete`       | int    | Seeds in swarm                             |
+| `num_incomplete`     | int    | Leechers in swarm                          |
+| `tracker`            | string | First working tracker URL                  |
+| `dl_limit`           | int    | Download limit (bytes/s, -1 = unlimited)   |
+| `up_limit`           | int    | Upload limit (bytes/s, -1 = unlimited)     |
+| `downloaded`         | int    | Total bytes downloaded                     |
+| `uploaded`           | int    | Total bytes uploaded                       |
+| `downloaded_session` | int    | Bytes downloaded this session              |
+| `uploaded_session`   | int    | Bytes uploaded this session                |
+| `availability`       | float  | Fraction of pieces available (0.0–1.0)     |
+| `auto_tmm`           | bool   | Managed by Automatic Torrent Management    |
+| `force_start`        | bool   | Force start enabled                        |
+| `isPrivate`          | bool   | Private tracker (since API 5.0.0)          |
+| `last_activity`      | int    | Unix epoch of last chunk activity          |
+| `magnet_uri`         | string | Magnet URI                                 |
+| `max_ratio`          | float  | Maximum share ratio                        |
+| `max_seeding_time`   | int    | Max seeding time (seconds)                 |
+| `priority`           | int    | Queue position (-1 = disabled)             |
+| `ratio_limit`        | float  | Per-torrent ratio limit                    |
+| `seeding_time`       | int    | Seconds spent as seed                      |
+| `seeding_time_limit` | int    | Per-torrent seeding time limit (seconds)   |
+| `seen_complete`      | int    | Unix epoch last seen complete              |
+| `seq_dl`             | bool   | Sequential download enabled                |
+| `super_seeding`      | bool   | Super seeding enabled                      |
+| `time_active`        | int    | Total seconds active                       |
+| `f_l_piece_prio`     | bool   | First/last piece prioritized               |
+
+**`state` values** (all possible):
+
+| Category    | States                                                                                 |
+| ----------- | -------------------------------------------------------------------------------------- |
+| Error       | `error`, `missingFiles`, `unknown`                                                     |
+| Uploading   | `uploading`, `pausedUP`, `queuedUP`, `stalledUP`, `checkingUP`, `forcedUP`             |
+| Downloading | `downloading`, `metaDL`, `pausedDL`, `queuedDL`, `stalledDL`, `checkingDL`, `forcedDL` |
+| Other       | `allocating`, `checkingResumeData`, `moving`                                           |
+
+The `qbittorrentapi` library exposes `state_enum.is_uploading` (covers all 6 uploading states).
+The pipeline uses this to decide copy-vs-move: seeding torrents → copy, completed+paused/stopped → move.
+
+**Important**: the `completed` filter returns torrents with `progress == 1.0`, which includes
+`pausedUP` and `stalledUP` (both are "complete but not actively transferring"). We want both
+— paused completed torrents are safe to move; stalled ones are seeding.
+
+### Torrent properties
+
+`GET /api/v2/torrents/properties?hash=<hash>`
+
+Returns `200` — single torrent details including `save_path`, `creation_date`, `comment`,
+`total_uploaded`, `total_downloaded`, `share_ratio`, `seeding_time`, `time_elapsed`,
+`nb_connections`, `total_size`, `peers`, `seeds`, `isPrivate`, etc.
+Returns `404` if hash not found.
+
+### Torrent contents (files)
+
+`GET /api/v2/torrents/files?hash=<hash>`
+
+Returns `200` — JSON array with `index`, `name`, `size`, `progress`, `priority`, `is_seed`, `piece_range`, `availability`.
+
+## Torrent actions (`/api/v2/torrents/`)
+
+All actions accept `hashes` parameter as pipe-separated hash list or literal `all`.
+Return `200` on success (even if no torrents matched).
+
+| Action       | Method | Parameters                         | Notes                                   |
+| ------------ | ------ | ---------------------------------- | --------------------------------------- |
+| Pause        | POST   | `hashes`                           |                                         |
+| Resume       | POST   | `hashes`                           |                                         |
+| Delete       | POST   | `hashes`, `deleteFiles` (bool)     | `deleteFiles` also removes data on disk |
+| Recheck      | POST   | `hashes`                           |                                         |
+| Reannounce   | POST   | `hashes`                           |                                         |
+| Set category | POST   | `hashes`, `category` (string)      | 409 if category not created             |
+| Add tags     | POST   | `hashes`, `tags` (comma-separated) |                                         |
+| Remove tags  | POST   | `hashes`, `tags` (comma-separated) | Empty `tags` = clear all                |
+
+### Add torrent
+
+`POST /api/v2/torrents/add` (multipart/form-data)
+
+Key parameters: `urls` (newline-separated), `torrents` (file data, repeatable), `savepath`,
+`category`, `tags`, `paused`, `skip_checking`, `root_folder`, `rename`,
+`upLimit`/`dlLimit` (bytes/s), `ratioLimit` (float), `seedingTimeLimit` (int minutes).
+
+Supports `http://`, `https://`, `magnet:`, `bc://bt/` links. Returns `415` on invalid torrent file.
+
+## Sync (`/api/v2/sync/`)
+
+### Main data (incremental)
+
+`GET /api/v2/sync/maindata?rid=<int>`
+
+Returns `200` — JSON with `rid` (int), `full_update` (bool), `torrents` (object keyed by hash),
+`torrents_removed` (array), `categories`, `tags`, `server_state`.
+
+If the `rid` differs from the server's last reply, `full_update` is `true`.
+Useful for incremental polling (feed `rid` from the last response to get only changes).
+
+## Transfer info (`/api/v2/transfer/`)
+
+`GET /api/v2/transfer/info` — global transfer stats: `dl_info_speed`, `up_info_speed`,
+`dl_rate_limit`, `up_rate_limit`, `connection_status` (`connected`/`firewalled`/`disconnected`).
+
+## Categories (`/api/v2/torrents/categories`)
+
+`GET /api/v2/torrents/categories` → `200` — JSON object: `"name": {name, savePath}`.
+`POST /api/v2/torrents/createCategory` → `category` (string), `savePath` (optional).
+
+## Tags (`/api/v2/torrents/tags`)
+
+`GET /api/v2/torrents/tags` → `200` — JSON array of strings.
+`POST /api/v2/torrents/createTags` → `tags` (comma-separated).
+`POST /api/v2/torrents/deleteTags` → `tags` (comma-separated).
+
+## Auth lockout (qBit-specific)
 
 After **3 failed login attempts per IP**, qBittorrent blocks that IP for **~30 minutes**.
-This is a brute-force protection in the WebUI server — not configurable.
+This is the WebUI server's brute-force protection — not configurable.
 
-**Pre-check mechanism** (anti-ban):
+Even hitting API endpoints that return `403` when unauthenticated (e.g. `GET /api/v2/app/version`)
+**counts as a failed login attempt**. Our pre-check therefore hits the qBit WebUI root page
+(`GET /`) which always returns `200` regardless of auth state — a safe reachability check
+that does NOT increment the ban counter.
 
-The qBit WebUI root page (`GET /`) always returns 200 regardless of auth state.
-API endpoints like `GET /api/v2/app/version` return **403** when unauthenticated,
-and those 403s **count as failed login attempts** toward the ban threshold.
+Our client wrapper maintains a lockout file (`~/.cache/personalscraper/qbit_auth_lockout`,
+1-hour TTL) to short-circuit further attempts after a credential failure, preventing
+cron/launchd from accumulating attempts across scheduled runs.
 
-Our client therefore hits `/` (not an API endpoint) as a reachability pre-check
-before attempting `auth_log_in`.
+## `qbittorrentapi` library coverage
 
-**Lockout file**: `~/.cache/personalscraper/qbit_auth_lockout`
+The `qbittorrentapi` Python package wraps all endpoints listed above. It handles:
 
-On auth failure, a lockout file is written with a 1-hour TTL. All subsequent
-attempts during that window raise `QBitAuthLockoutError` immediately — no
-HTTP call is made. This prevents cron/launchd from accumulating failed attempts
-and triggering the IP ban.
-
-Fix procedure: correct `.env` credentials, then delete the lockout file.
-
-## Endpoints used
-
-| Method | Endpoint                             | Purpose                          | Via                         |
-| ------ | ------------------------------------ | -------------------------------- | --------------------------- |
-| GET    | `/`                                  | Reachability pre-check (no auth) | `requests.get()`            |
-| POST   | `/api/v2/auth/login`                 | Session login                    | `qbittorrentapi`            |
-| POST   | `/api/v2/auth/logout`                | Session logout                   | `qbittorrentapi`            |
-| GET    | `/api/v2/torrents/info`              | List all torrents (hash set)     | `qbittorrentapi`            |
-| GET    | `/api/v2/torrents/info?filter=...`   | List completed torrents          | `qbittorrentapi`            |
-| GET    | `/api/v2/torrents/properties?hash=X` | Per-torrent properties           | `qbittorrentapi` (indirect) |
-| POST   | `/api/v2/torrents/pause`             | Pause torrent                    | Not yet used (Phase 9)      |
-| POST   | `/api/v2/torrents/resume`            | Resume torrent                   | Not yet used (Phase 9)      |
-| POST   | `/api/v2/torrents/delete`            | Delete torrent                   | Not yet used (Phase 9)      |
-
-## Response formats
-
-### `GET /api/v2/torrents/info`
-
-Returns `list[TorrentDictionary]`. Each dict has at minimum:
-
-| Field          | Type  | Description                                         |
-| -------------- | ----- | --------------------------------------------------- |
-| `hash`         | str   | Torrent info hash (v1)                              |
-| `name`         | str   | Torrent display name                                |
-| `size`         | int   | Total size in bytes                                 |
-| `progress`     | float | 0.0–1.0                                             |
-| `state`        | str   | Current state (see State field below)               |
-| `content_path` | str   | Filesystem path (may be empty until move completes) |
-| `category`     | str   | Category label (empty string if none)               |
-| `added_on`     | int   | Unix timestamp when added                           |
-
-The `qbittorrentapi` library also exposes `state_enum` (`TorrentState` enum)
-and convenience methods like `state_enum.is_uploading`.
-
-### `GET /api/v2/torrents/properties?hash=X`
-
-Returns a single `TorrentProperties` dict with additional fields:
-`save_path`, `creation_date`, `comment`, `total_uploaded`, `total_downloaded`,
-`share_ratio`, etc.
-
-## State field
-
-The `state` field has 16+ possible values. The ones relevant to the pipeline:
-
-| State       | Meaning                | `is_uploading` |
-| ----------- | ---------------------- | -------------- |
-| `uploading` | Actively seeding       | True           |
-| `stalledUP` | Seeding, no peers      | True           |
-| `forcedUP`  | Force-started, seeding | True           |
-| `queuedUP`  | Queued for seeding     | True           |
-| `pausedUP`  | Completed but paused   | **False**      |
-| `stoppedUP` | Completed but stopped  | **False**      |
-
-The pipeline uses `is_uploading` to decide move vs copy: seeding torrents
-are copied (leave the original in place), non-seeding completed torrents
-are moved.
-
-"Completed" filter (`status_filter="completed"`) returns torrents with
-`progress == 1.0`, which includes `pausedUP` and `stalledUP` — we want both.
-
-## qbittorrentapi library
-
-The `qbittorrentapi` Python package handles:
-
-- CSRF token extraction (qBit v4.x used custom header; v5.0+ dropped it)
-- SID cookie management
-- Automatic `host:port` URL construction
-- Response JSON → typed objects (`TorrentDictionary`, `TorrentProperties`)
+- CSRF token extraction (qBit v4.x `X-QBITTORRENT-CSRF` header; dropped in v5.0+)
+- SID cookie management and automatic re-login
+- `host:port` → URL construction
+- Response JSON → typed Python objects (`TorrentDictionary`, `TorrentProperties`, etc.)
 
 What we still need raw HTTP for:
 
-- The pre-check (`GET /`) — must NOT go through the API client because
-  `qbittorrentapi` automatically adds auth, which can trigger the ban counter.
-- Future: pause/resume/delete hashes in batch operations not covered by
-  `qbittorrentapi` convenience methods (if any).
+- **Pre-check**: `GET /` on the qBit host — must bypass `qbittorrentapi` to avoid the
+  auth layer triggering the ban counter before we're ready to log in.
+- Batch operations not covered by `qbittorrentapi` convenience methods (if any).
 
-## Version differences
+## Version compatibility
 
-- **qBit 4.x**: CSRF token required in `X-QBITTORRENT-CSRF` header for
-  state-changing requests (pause/resume/delete). The `qbittorrentapi`
-  library handles this transparently.
-- **qBit 5.x**: CSRF requirement removed. Payload shapes are identical.
+- **qBit 4.x**: CSRF token required in `X-QBITTORRENT-CSRF` header for state-changing requests.
+- **qBit 5.x**: CSRF requirement removed. `content_path` and `isPrivate` added to torrent info.
+- **API version**: Separate from qBit version (e.g. qBit 4.6 ships API 2.8.3).
+  Check via `GET /api/v2/app/webapiVersion`.
+- `qbittorrentapi` detects version on first call and adapts transparently.
 
-The library detects the version on first API call and adapts automatically.
-No version-specific code is needed in our wrapper.
+## Endpoints used by the pipeline
+
+| Method | Endpoint                                 | Purpose                      | Via            |
+| ------ | ---------------------------------------- | ---------------------------- | -------------- |
+| GET    | `/`                                      | Pre-check (no auth)          | `requests`     |
+| POST   | `/api/v2/auth/login`                     | Session login                | qbittorrentapi |
+| POST   | `/api/v2/auth/logout`                    | Session logout               | qbittorrentapi |
+| GET    | `/api/v2/torrents/info`                  | List all torrents (hash set) | qbittorrentapi |
+| GET    | `/api/v2/torrents/info?filter=completed` | List completed               | qbittorrentapi |
+| POST   | `/api/v2/torrents/pause`                 | Pause by hash                | qbittorrentapi |
+| POST   | `/api/v2/torrents/resume`                | Resume by hash               | qbittorrentapi |
+| POST   | `/api/v2/torrents/delete`                | Delete by hash               | qbittorrentapi |
