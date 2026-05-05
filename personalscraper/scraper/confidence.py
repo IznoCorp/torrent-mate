@@ -443,9 +443,9 @@ def get_episode_titles(
 ) -> dict[int, str]:
     """Get episode titles for a season from the matched provider.
 
-    For TVDB matches: fetches episodes, then translates each one.
-    For TMDB matches: episodes are already in the requested language.
-    Falls back from French to English, then to the original title.
+    Both TMDB and TVDB now return typed ``SeasonDetails`` (via ``get_tv_season``
+    / ``get_season_episodes``). Episode titles are taken directly from the API
+    response — TVDB v4 has no per-episode translation endpoint.
 
     Args:
         match: MatchResult from match_tvshow() or match_movie().
@@ -461,38 +461,24 @@ def get_episode_titles(
     titles: dict[int, str] = {}
 
     if match.source == "tvdb":
-        episodes = tvdb_client.get_season_episodes(match.api_id, season)  # type: ignore[attr-defined]
-        if not episodes:
+        season_details = tvdb_client.get_season_episodes(match.api_id, season)  # type: ignore[attr-defined]
+        if not season_details or not season_details.episodes:
             log.warning("season_not_found_tvdb", season=season, title=match.api_title)
             return titles
 
-        for ep in episodes:
-            ep_num = ep.get("number", 0)
-            ep_id = ep.get("id", 0)
-            # Try French translation first
-            translation = tvdb_client.get_episode_translation(ep_id, lang)  # type: ignore[attr-defined]
-            if translation and translation.get("name"):
-                titles[ep_num] = translation["name"]
-            else:
-                # Fallback to English translation
-                en_trans = tvdb_client.get_episode_translation(ep_id, "eng")  # type: ignore[attr-defined]
-                if en_trans and en_trans.get("name"):
-                    titles[ep_num] = en_trans["name"]
-                else:
-                    # Final fallback: original name from episode data
-                    titles[ep_num] = ep.get("name", f"Episode {ep_num}")
+        for ep in season_details.episodes:
+            ep_num = ep.episode_number
+            titles[ep_num] = ep.title or f"Episode {ep_num}"
 
     elif match.source == "tmdb":
-        season_data = tmdb_client.get_tv_season(match.api_id, season)  # type: ignore[attr-defined]
-        episodes = season_data.get("episodes", [])
-        if not episodes:
+        season_details = tmdb_client.get_tv_season(match.api_id, season)  # type: ignore[attr-defined]
+        if not season_details or not season_details.episodes:
             log.warning("season_not_found_tmdb", season=season, title=match.api_title)
             return titles
 
-        for ep in episodes:
-            ep_num = ep.get("episode_number", 0)
-            # TMDB episodes are already in the requested language (fr-FR)
-            titles[ep_num] = ep.get("name", f"Episode {ep_num}")
+        for ep in season_details.episodes:
+            ep_num = ep.episode_number
+            titles[ep_num] = ep.title or f"Episode {ep_num}"
 
     return titles
 

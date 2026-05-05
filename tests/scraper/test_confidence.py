@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     LOW_CONFIDENCE,
@@ -442,45 +443,51 @@ class TestGetEpisodeTitles:
     """Tests for episode title fetching."""
 
     def test_tvdb_episodes_with_translation(self) -> None:
-        """TVDB episodes should be translated to French."""
+        """TVDB episodes use typed SeasonDetails — titles come from EpisodeInfo.title."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = [
-            {"id": 100, "name": "Pilot", "number": 1},
-            {"id": 101, "name": "Cat's in the Bag", "number": 2},
-        ]
-        tvdb.get_episode_translation.side_effect = [
-            {"name": "Épisode pilote", "language": "fra"},
-            {"name": "Le Chat dans le sac", "language": "fra"},
-        ]
+        tvdb.get_season_episodes.return_value = SeasonDetails(
+            provider="tvdb",
+            tv_id="81189",
+            season_number=1,
+            episodes=[
+                EpisodeInfo(episode_number=1, title="Pilot", overview="", air_date="", runtime_minutes=None),
+                EpisodeInfo(episode_number=2, title="Cat's in the Bag", overview="", air_date="", runtime_minutes=None),
+            ],
+        )
 
         match_r = MatchResult(api_id=81189, api_title="Breaking Bad", api_year=2008, confidence=0.95, source="tvdb")
         titles = get_episode_titles(match_r, 1, tvdb, MagicMock())
 
-        assert titles == {1: "Épisode pilote", 2: "Le Chat dans le sac"}
+        assert titles == {1: "Pilot", 2: "Cat's in the Bag"}
 
     def test_tvdb_fallback_to_english(self) -> None:
-        """Should fall back to English if French translation is missing."""
+        """Episode titles fall back to placeholder when title is empty."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = [
-            {"id": 100, "name": "Pilot", "number": 1},
-        ]
-        tvdb.get_episode_translation.side_effect = [
-            None,
-            {"name": "The Pilot", "language": "eng"},
-        ]
+        tvdb.get_season_episodes.return_value = SeasonDetails(
+            provider="tvdb",
+            tv_id="1",
+            season_number=1,
+            episodes=[
+                EpisodeInfo(episode_number=1, title="", overview="", air_date="", runtime_minutes=None),
+            ],
+        )
 
         match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
         titles = get_episode_titles(match_r, 1, tvdb, MagicMock())
 
-        assert titles == {1: "The Pilot"}
+        assert titles == {1: "Episode 1"}
 
     def test_tvdb_fallback_to_original(self) -> None:
-        """Should use original name if no translations available."""
+        """Episode title is used directly from the typed API response."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = [
-            {"id": 100, "name": "Original Title", "number": 1},
-        ]
-        tvdb.get_episode_translation.return_value = None
+        tvdb.get_season_episodes.return_value = SeasonDetails(
+            provider="tvdb",
+            tv_id="1",
+            season_number=1,
+            episodes=[
+                EpisodeInfo(episode_number=1, title="Original Title", overview="", air_date="", runtime_minutes=None),
+            ],
+        )
 
         match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
         titles = get_episode_titles(match_r, 1, tvdb, MagicMock())
@@ -488,14 +495,17 @@ class TestGetEpisodeTitles:
         assert titles == {1: "Original Title"}
 
     def test_tmdb_episodes(self) -> None:
-        """TMDB episodes should already be in French."""
+        """TMDB episodes use typed SeasonDetails from get_tv_season."""
         tmdb = MagicMock()
-        tmdb.get_tv_season.return_value = {
-            "episodes": [
-                {"episode_number": 1, "name": "Chapitre 1"},
-                {"episode_number": 2, "name": "Chapitre 2"},
+        tmdb.get_tv_season.return_value = SeasonDetails(
+            provider="tmdb",
+            tv_id="67195",
+            season_number=1,
+            episodes=[
+                EpisodeInfo(episode_number=1, title="Chapitre 1", overview="", air_date="", runtime_minutes=None),
+                EpisodeInfo(episode_number=2, title="Chapitre 2", overview="", air_date="", runtime_minutes=None),
             ],
-        }
+        )
 
         match_r = MatchResult(api_id=67195, api_title="Lupin", api_year=2021, confidence=0.9, source="tmdb")
         titles = get_episode_titles(match_r, 1, MagicMock(), tmdb)
@@ -505,7 +515,9 @@ class TestGetEpisodeTitles:
     def test_empty_season(self) -> None:
         """Should return empty dict for non-existent season."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = []
+        tvdb.get_season_episodes.return_value = SeasonDetails(
+            provider="tvdb", tv_id="1", season_number=99, episodes=[]
+        )
 
         match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
         titles = get_episode_titles(match_r, 99, tvdb, MagicMock())

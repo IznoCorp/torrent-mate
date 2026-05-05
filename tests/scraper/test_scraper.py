@@ -145,21 +145,24 @@ class TestScraperLanguage:
         assert show_data["original_name"] == "INVINCIBLE (2021)"
 
     def test_tvdb_series_fetches_configured_translation(self) -> None:
-        """TVDB show data should fetch series translation if extended lacks it."""
+        """TVDB show data uses translations embedded in the extended response."""
         tvdb = MagicMock()
-        tvdb.get_series_artworks.return_value = []
-        tvdb.get_series_translation.return_value = {"name": "Invincible", "overview": "Résumé FR"}
+        tvdb.get_artwork_urls.return_value = []
 
         show_data = _tvdb_series_to_show_data(
-            {"name": "INVINCIBLE (2021)", "year": "2021", "overview": "English overview"},
+            {
+                "name": "INVINCIBLE (2021)",
+                "year": "2021",
+                "overview": "English overview",
+                "translations": {"fr": "Invincible", "fra": "Invincible"},
+            },
             tvdb_id=368207,
             tvdb_client=tvdb,
             preferred_language="fr-FR",
         )
 
         assert show_data["name"] == "Invincible"
-        assert show_data["overview"] == "Résumé FR"
-        tvdb.get_series_translation.assert_called_once_with(368207, "fra")
+        tvdb.get_artwork_urls.assert_called_once()
 
     def test_config_language_overrides_settings_for_tmdb_client(
         self,

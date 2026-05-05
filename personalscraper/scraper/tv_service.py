@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
+from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
@@ -35,21 +36,6 @@ if TYPE_CHECKING:
     from personalscraper.scraper.artwork import ArtworkDownloader
 
 log = get_logger("scraper")
-
-_TVDB_LANG_MAP: dict[str, str] = {
-    "fr": "fra",
-    "en": "eng",
-    "es": "spa",
-    "de": "deu",
-    "it": "ita",
-    "ja": "jpn",
-    "ko": "kor",
-    "pt": "por",
-    "ru": "rus",
-    "zh": "zho",
-    "ar": "ara",
-    "nl": "nld",
-}
 
 
 def _tvdb_series_to_show_data(
@@ -116,29 +102,27 @@ def _tvdb_series_to_show_data(
         if s_num and s_num > 0:
             seasons.append({"season_number": s_num, "poster_path": ""})
 
-    # Fetch TVDB artworks (posters type=2, backgrounds type=3) when a client
-    # is provided. TVDB returns absolute URLs in the ``image`` field — we map
-    # them into TMDB-like ``{file_path, iso_639_1}`` entries so
+    # Fetch TVDB artworks via the typed API when a client is provided.
+    # ArtworkItem.type: "poster" (old type_id=2), "backdrop" (old type_id=3).
+    # Map into TMDB-like ``{file_path, iso_639_1}`` entries so
     # download_tvshow_artwork() can consume them unchanged.
     posters: list[dict[str, Any]] = []
     backdrops: list[dict[str, Any]] = []
     if tvdb_client is not None:
         try:
-            poster_artworks = tvdb_client.get_series_artworks(tvdb_id, type_id=2)
+            all_artworks = tvdb_client.get_artwork_urls(str(tvdb_id), media_type="tv")
             posters = [
-                {"file_path": a["image"], "iso_639_1": a.get("language") or ""}
-                for a in poster_artworks
-                if a.get("image")
+                {"file_path": a.url, "iso_639_1": a.language or ""}
+                for a in all_artworks
+                if a.type == "poster" and a.url
             ]
-        except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
-            log.warning("tvdb_poster_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
-        try:
-            bg_artworks = tvdb_client.get_series_artworks(tvdb_id, type_id=3)
             backdrops = [
-                {"file_path": a["image"], "iso_639_1": a.get("language") or ""} for a in bg_artworks if a.get("image")
+                {"file_path": a.url, "iso_639_1": a.language or ""}
+                for a in all_artworks
+                if a.type == "backdrop" and a.url
             ]
         except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
-            log.warning("tvdb_background_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
+            log.warning("tvdb_artwork_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
 
     # first_air_date: TVDB uses firstAired ("YYYY-MM-DD"); fallback to year field.
     first_air = tvdb_data.get("firstAired") or ""
@@ -151,26 +135,17 @@ def _tvdb_series_to_show_data(
 
     raw_name = tvdb_data.get("name", "")
     lang_code = preferred_language.split("-", 1)[0].lower()
-    tvdb_lang_code = _TVDB_LANG_MAP.get(lang_code, lang_code)
+    tvdb_lang_code = map_language(lang_code)
     translations = tvdb_data.get("translations") or {}
     translated_overview: str | None = None
     translated_name = None
     if isinstance(translations, dict):
         translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
-    if not translated_name and tvdb_client is not None:
+    if not translated_name:
         fallback_code = fallback_language.split("-", 1)[0].lower()
-        fallback_tvdb_code = _TVDB_LANG_MAP.get(fallback_code, fallback_code)
-        for candidate_lang in (tvdb_lang_code, fallback_tvdb_code):
-            try:
-                translation = tvdb_client.get_series_translation(tvdb_id, candidate_lang)
-            except Exception as exc:  # noqa: BLE001 — translation is best-effort metadata
-                log.debug("tvdb_series_translation_fetch_failed", tvdb_id=tvdb_id, lang=candidate_lang, error=str(exc))
-                translation = None
-            if isinstance(translation, dict) and isinstance(translation.get("name"), str):
-                translated_name = translation["name"]
-                overview = translation.get("overview")
-                translated_overview = overview if isinstance(overview, str) else None
-                break
+        fallback_tvdb_code = map_language(fallback_code)
+        if isinstance(translations, dict):
+            translated_name = translations.get(fallback_code) or translations.get(fallback_tvdb_code)
     display_name = translated_name or raw_name
 
     return {
@@ -223,7 +198,7 @@ class TvServiceMixin:
     def _to_tvdb_language(language: str) -> str:
         """Convert configured scraper language to TVDB's 3-letter code."""
         code = language.split("-", 1)[0].lower()
-        return _TVDB_LANG_MAP.get(code, code)
+        return map_language(code)
 
     def scrape_tvshow(self, show_dir: Path) -> ScrapeResult:
         """Scrape a TV show: match → NFO → artwork → seasons → episodes.

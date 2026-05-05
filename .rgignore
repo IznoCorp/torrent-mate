@@ -1,0 +1,20 @@
+# rgignore — prevents ripgrep from searching large/binary fixture directories.
+# rg always respects this file regardless of git tracking state.
+# If a directory is missing below, add it BEFORE running rg without --type.
+
+# E2E performance fixture (14GB of media samples)
+tests/e2e/perf/.fixture/
+
+# E2E parity fixture filesystem (generated on demand)
+tests/fixtures/parity/v0.7-fs/
+
+# Any __pycache__ (binary .pyc files)
+__pycache__/
+
+# Git objects (should already be skipped by rg's default gitignore respect,
+# but listed here for defense-in-depth)
+.git/
+
+# Log files
+logs/
+*.log

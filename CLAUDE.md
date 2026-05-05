@@ -21,6 +21,32 @@ Run `personalscraper init-config` to create `config/` from the `config.example/`
 
 ## Critical Rules
 
+### Search Safety (MANDATORY — machine crash prevention)
+
+`tests/e2e/perf/.fixture/` is **14 GB** of binary media files. `rg` without type
+filters WILL consume all RAM and crash the machine (PID 39685 incident).
+
+**Every `rg` command MUST include one of:**
+
+- `--type py` (Python files only)
+- `-g '*.py'` (glob filter)
+- `-g '*.md'` or `-g '*.json5'` etc. for non-Python targets
+
+**Examples:**
+
+```bash
+# CORRECT
+rg "pattern" --type py personalscraper/ tests/
+rg "pattern" -g '*.py' -g '*.md' .
+
+# WRONG — will crash the machine
+rg "pattern" personalscraper/ tests/
+rg "pattern" .
+```
+
+`.rgignore` at the repo root excludes known heavy dirs as defense-in-depth,
+but new fixtures can appear — the type filter is the primary safeguard.
+
 ### Commit Convention
 
 Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
