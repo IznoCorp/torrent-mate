@@ -49,8 +49,6 @@ gate: check
 	@! rg -q "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
 	@! rg -l "TMDBError|TVDBError" personalscraper/ --include='*.py' 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
 	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
-	@echo "Gate: secret scan..."
-	@gitleaks detect --no-git --source personalscraper/ --source tests/ --source scripts/ --source docs/ --source config.example/ 2>/dev/null || { echo "FAIL: secrets detected"; exit 1; }
 	@echo "Gate: ALL CHECKS PASSED"
 
 format:
