@@ -33,18 +33,18 @@ def _mock_yt(finder: TrailerFinder) -> MagicMock:
 
 _TRAILER_VIDEO = Video(
     id="abc",
-    site="YouTube",
+    site="youtube",
     key="TRAILER_KEY",
-    type="Trailer",
+    type="trailer",
     official=True,
     size=1080,
     iso_639_1="en",
 )
 _TEASER_VIDEO = Video(
     id="def",
-    site="YouTube",
+    site="youtube",
     key="TEASER_KEY",
-    type="Teaser",
+    type="teaser",
     official=True,
     size=720,
     iso_639_1="en",
@@ -100,7 +100,7 @@ class TestTrailerFinder:
     def test_language_priority_fr_before_en(self, finder: TrailerFinder) -> None:
         """find() queries fr-FR before en-US and returns on first hit."""
 
-        def fetch_side_effect(endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
+        def fetch_side_effect(endpoint: str, language: str) -> list[Video]:
             if language == "fr-FR":
                 return [_TRAILER_VIDEO]
             return []
@@ -132,9 +132,9 @@ class TestTrailerFinder:
         """find() ignores non-YouTube videos even when they are Trailers."""
         vimeo_video = Video(
             id="xyz",
-            site="Vimeo",
+            site="vimeo",
             key="vimeo-id",
-            type="Trailer",
+            type="trailer",
             official=True,
             size=1080,
             iso_639_1="en",

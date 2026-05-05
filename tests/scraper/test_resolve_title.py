@@ -1,6 +1,6 @@
 """Tests for Scraper._resolve_title() — local FR title preference."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from personalscraper.scraper.scraper import Scraper
 
@@ -21,7 +21,13 @@ def _make_scraper(prefer_local: bool = True) -> Scraper:
     config.thresholds.circuit_breaker_threshold = 5
     config.thresholds.circuit_breaker_cooldown = 300
 
-    return Scraper(settings, MagicMock(), dry_run=True, config=config, interactive=False)
+    with (
+        patch("personalscraper.api.transport._http.HttpTransport"),
+        patch("personalscraper.api.metadata.tvdb.HttpTransport"),
+        patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+        patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+    ):
+        return Scraper(settings, MagicMock(), dry_run=True, config=config, interactive=False)
 
 
 class TestResolveTitle:

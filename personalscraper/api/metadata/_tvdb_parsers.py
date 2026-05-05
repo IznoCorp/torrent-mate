@@ -49,12 +49,16 @@ _LANG_MAP: dict[str, str] = {
 def map_language(pipeline_code: str) -> str:
     """Map a 2-char pipeline language code to a 3-char TVDB code.
 
+    3-char codes pass through unchanged.
+
     Args:
-        pipeline_code: 2-char ISO code (e.g. "fr", "en").
+        pipeline_code: 2-char ISO code (e.g. "fr", "en") or 3-char code.
 
     Returns:
         3-char TVDB code, falling back to "eng" for unknown codes.
     """
+    if len(pipeline_code) == 3:
+        return pipeline_code
     return _LANG_MAP.get(pipeline_code, "eng")
 
 

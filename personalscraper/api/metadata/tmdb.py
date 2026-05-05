@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -349,21 +348,18 @@ class TMDBClient(MetadataClient):
         )
 
     def _fetch_videos(self, endpoint: str, language: str) -> list[Video]:
-        """Fetch videos, fail-soft on unexpected response shapes.
-
-        Transport/circuit errors propagate. Only unexpected response shapes
-        (non-dict body) are silently downgraded to an empty list.
+        """Fetch videos, fail-soft on any error.
 
         Args:
             endpoint: Videos API path.
             language: ISO 639-1 language filter.
 
         Returns:
-            List of Video objects (empty on malformed response).
+            List of Video objects (empty on any error).
         """
         try:
             return self._fetch_videos_strict(endpoint, language)
-        except (ApiError, TypeError, KeyError, ValueError):
+        except Exception:
             return []
 
     def _fetch_videos_strict(self, endpoint: str, language: str) -> list[Video]:

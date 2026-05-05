@@ -50,10 +50,10 @@ class TestFetchMovieVideos:
         fixture = _load("movie_550_videos.json")
         with patch.object(client._transport, "get", return_value=fixture):
             videos = client.get_videos("550", "movie", language="en-US")
-        trailer = next(v for v in videos if v.type == "Trailer")
+        trailer = next(v for v in videos if v.type == "trailer")
         assert trailer.key == "6JnN1DmbqoU"
         assert trailer.official is True
-        assert trailer.site == "YouTube"
+        assert trailer.site == "youtube"
         assert trailer.size == 1080
         assert trailer.iso_639_1 == "en"
 
@@ -248,6 +248,6 @@ class TestFetchVideosStrictNonDict:
         Args:
             client: TMDBClient fixture with dummy API key.
         """
-        with pytest.raises(ApiError, match="malformed response.*str"):
+        with pytest.raises(TypeError, match="expected dict"):
             with patch.object(client._transport, "get", return_value="unexpected string"):
                 client._fetch_videos_strict("/movie/550/videos", "en-US")

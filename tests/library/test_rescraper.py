@@ -292,6 +292,7 @@ class TestRescrapeLibraryConfig:
 
         with (
             patch("personalscraper.library.rescraper._collect_rescrape_candidates", return_value=[]),
+            patch("personalscraper.api.transport._http.HttpTransport"),
             patch("personalscraper.api.metadata.tmdb.TMDBClient") as tmdb_client_cls,
             patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),

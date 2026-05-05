@@ -612,17 +612,33 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
         # Key by stem (e.g. "movie_shrinking", "tv_fallout", "search_empty")
         stub.seed(json_file.stem, payload)
 
-    # Patch the class so instantiation returns the stub directly.
-    # The lambda ignores constructor args (api_key, language, …).
-    # Patch the new module path and the re-export facade so any
-    # construction returns the stub regardless of import path.
+    # Build a mock TMDBClient class that accepts the new constructor
+    # (transport=HttpTransport(...), language=...) and also supports
+    # the .policy() classmethod used by orchestrator/rescraper.
+    mock_cls = MagicMock()
+    mock_cls.policy.return_value = MagicMock()  # TransportPolicy mock
+    mock_cls.return_value = stub  # TMDBClient(transport=...) returns the stub
+
     monkeypatch.setattr(
         "personalscraper.api.metadata.tmdb.TMDBClient",
-        lambda *args, **kwargs: stub,
+        mock_cls,
     )
     monkeypatch.setattr(
         "personalscraper.scraper.scraper.TMDBClient",
-        lambda *args, **kwargs: stub,
+        mock_cls,
+    )
+    # Mock HttpTransport so Scraper.__init__ doesn't build real sessions.
+    mock_instance = MagicMock()
+    mock_instance.__enter__.return_value = mock_instance
+    mock_instance.post.return_value = {"data": {"token": "mock-jwt"}}
+
+    monkeypatch.setattr(
+        "personalscraper.api.transport._http.HttpTransport",
+        lambda *a, **kw: mock_instance,
+    )
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.tvdb.HttpTransport",
+        lambda *a, **kw: mock_instance,
     )
     return stub
 
