@@ -25,9 +25,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
+from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 from personalscraper.core.circuit import CircuitBreaker
 from personalscraper.ingest.ingest import run_ingest
-from personalscraper.ingest.qbit_client import QBitAuthLockoutError
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -225,7 +225,7 @@ class TestIngestQbitAuthLockoutEvent:
     pattern used in ``tests/ingest/test_ingest.py`` for the other auth-error arms.
     """
 
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_ingest_qbit_auth_lockout_event_name(
         self,
         mock_qbit_cls: MagicMock,

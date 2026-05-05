@@ -527,7 +527,7 @@ class FakeQBitClient:
         """
         self._all_torrents = list(self._all_torrents) + list(torrent_list)
 
-    def get_completed_torrents(self) -> list[Any]:
+    def get_completed(self) -> list[Any]:
         """Return the seeded list of completed torrents.
 
         Returns:
@@ -535,7 +535,7 @@ class FakeQBitClient:
         """
         return list(self._torrents)
 
-    def get_all_torrent_hashes(self) -> set[str]:
+    def get_all_hashes(self) -> set[str]:
         """Return hashes of all torrents (completed + incomplete).
 
         Returns:
@@ -564,6 +564,12 @@ class FakeQBitClient:
             Always False.
         """
         return False
+
+    def login(self) -> None:
+        """No-op login (stub)."""
+
+    def logout(self) -> None:
+        """No-op logout (stub)."""
 
     def __enter__(self) -> "FakeQBitClient":
         """Return self as context manager.
@@ -680,8 +686,8 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     """Monkeypatch qbittorrentapi.Client and QBitClient with an in-memory stub.
 
     Patches both the underlying ``qbittorrentapi.Client`` (used in
-    ``personalscraper.ingest.qbit_client``) and the ``QBitClient`` class
-    imported in ``personalscraper.ingest.ingest`` so that no real qBittorrent
+    ``personalscraper.api.torrent.qbittorrent``) and the ``build_active_torrent_client``
+    factory imported in ``personalscraper.ingest.ingest`` so that no real qBittorrent
     connection is attempted.  The stub starts with an empty torrent list;
     call ``stub.seed([...])`` to inject test torrents before running ingest.
 
@@ -693,17 +699,17 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     """
     stub = FakeQBitClient()
 
-    # Patch the high-level QBitClient used in ingest.py so the pipeline
-    # receives the stub without any network calls.
+    # Patch the factory used in ingest.py so the pipeline receives the stub
+    # without any network calls.
     monkeypatch.setattr(
-        "personalscraper.ingest.ingest.QBitClient",
+        "personalscraper.ingest.ingest.build_active_torrent_client",
         lambda *args, **kwargs: stub,
     )
     # Also patch qbittorrentapi.Client to guard against direct instantiation
-    # in qbit_client.py (belt-and-suspenders: QBitClient wraps it).
+    # in qbittorrent.py (belt-and-suspenders: QBitClient wraps it).
     mock_qbit_cls = MagicMock()
     mock_qbit_cls.return_value = MagicMock()
-    monkeypatch.setattr("personalscraper.ingest.qbit_client.qbittorrentapi.Client", mock_qbit_cls)
+    monkeypatch.setattr("personalscraper.api.torrent.qbittorrent.qbittorrentapi.Client", mock_qbit_cls)
 
     return stub
 

@@ -253,7 +253,7 @@ class TestRunIngest:
     """Tests for run_ingest orchestrator."""
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_no_completed_torrents(
         self,
         mock_qbit_cls: MagicMock,
@@ -277,7 +277,7 @@ class TestRunIngest:
         assert report.error_count == 0
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_already_ingested_skip(
         self,
         mock_qbit_cls: MagicMock,
@@ -307,7 +307,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_copy_seeding(
         self,
         mock_qbit_cls: MagicMock,
@@ -346,7 +346,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_move_done(
         self,
         mock_qbit_cls: MagicMock,
@@ -385,7 +385,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest._check_disk_space", return_value=False)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_disk_space_fail(
         self,
         mock_qbit_cls: MagicMock,
@@ -424,7 +424,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=False)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_transfer_fail(
         self,
         mock_qbit_cls: MagicMock,
@@ -460,7 +460,7 @@ class TestRunIngest:
         assert report.success_count == 0
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_dry_run(
         self,
         mock_qbit_cls: MagicMock,
@@ -495,7 +495,7 @@ class TestRunIngest:
         mock_tracker.mark_ingested.assert_not_called()
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_step_report_counts(
         self,
         mock_qbit_cls: MagicMock,
@@ -522,7 +522,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True)
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_multiple_torrents(
         self,
         mock_qbit_cls: MagicMock,
@@ -563,7 +563,7 @@ class TestRunIngest:
         assert report.success_count == 2
         assert report.skip_count == 1
 
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_qbit_init_failure(
         self,
         mock_qbit_cls: MagicMock,
@@ -580,7 +580,7 @@ class TestRunIngest:
         assert "init failed" in report.details[0].lower()
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_content_path_missing(
         self,
         mock_qbit_cls: MagicMock,
@@ -614,7 +614,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_one_torrent_failure_does_not_block_others(
         self,
         mock_qbit_cls: MagicMock,
@@ -663,7 +663,7 @@ class TestRunIngest:
 
     @patch("personalscraper.ingest.ingest.transfer_torrent")
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_consecutive_errors_abort_loop(
         self,
         mock_qbit_cls: MagicMock,
@@ -713,7 +713,7 @@ class TestRunIngest:
         # Transfer was only called twice (3rd torrent never reached)
         assert mock_transfer.call_count == 2
 
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_forbidden_403_actionable_message(
         self,
         mock_qbit_cls: MagicMock,
@@ -738,7 +738,7 @@ class TestRunIngest:
         assert "banned" in combined or "blocked" in combined
         assert "unreachable" not in combined
 
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_login_failed_actionable_message(
         self,
         mock_qbit_cls: MagicMock,
@@ -761,7 +761,7 @@ class TestRunIngest:
         combined = " ".join(report.details).lower()
         assert "auth" in combined or "login" in combined
 
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_api_connection_error_actionable_message(
         self,
         mock_qbit_cls: MagicMock,
@@ -785,7 +785,7 @@ class TestRunIngest:
         assert "unreachable" in combined or "running" in combined
 
     @patch("personalscraper.ingest.ingest.IngestTracker")
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_dest_already_exists_skip(
         self,
         mock_qbit_cls: MagicMock,
@@ -822,7 +822,7 @@ class TestRunIngest:
         assert report.skip_count == 1
         mock_tracker.mark_ingested.assert_called_once()
 
-    @patch("personalscraper.ingest.ingest.QBitClient")
+    @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     def test_ingest_unexpected_error_logs_and_increments(
         self,
         mock_qbit_cls: MagicMock,
