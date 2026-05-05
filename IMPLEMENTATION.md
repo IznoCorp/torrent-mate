@@ -22,7 +22,7 @@
 | 5   | TMDB migration                     | impl  | [phase-05-tmdb-impl.md](docs/features/api-unify/plan/phase-05-tmdb-impl.md)                               | [x]    |
 | 6   | TVDB API doc                       | doc   | [phase-06-tvdb-doc.md](docs/features/api-unify/plan/phase-06-tvdb-doc.md)                                 | [x]    |
 | 7   | TVDB migration                     | impl  | [phase-07-tvdb-impl.md](docs/features/api-unify/plan/phase-07-tvdb-impl.md)                               | [x]    |
-| 8   | Torrent base + qBittorrent doc     | mixed | [phase-08-torrent-base-qbit-doc.md](docs/features/api-unify/plan/phase-08-torrent-base-qbit-doc.md)       | [ ]    |
+| 8   | Torrent base + qBittorrent doc     | mixed | [phase-08-torrent-base-qbit-doc.md](docs/features/api-unify/plan/phase-08-torrent-base-qbit-doc.md)       | [x]    |
 | 9   | qBittorrent migration              | impl  | [phase-09-qbit-impl.md](docs/features/api-unify/plan/phase-09-qbit-impl.md)                               | [ ]    |
 | 10  | Transmission API doc               | doc   | [phase-10-transmission-doc.md](docs/features/api-unify/plan/phase-10-transmission-doc.md)                 | [ ]    |
 | 11  | Transmission implementation        | impl  | [phase-11-transmission-impl.md](docs/features/api-unify/plan/phase-11-transmission-impl.md)               | [ ]    |
@@ -151,6 +151,17 @@ All commits use scope `api-unify`:
 
 > **Audit note**: gate `a93b286` was structurally invalid — `make lint` was missing mypy (since phase 1) so 20+ type errors went unnoticed; tests were broken. The four corrective sub-phases (7.5–7.8) closed the gap. Phase gate checklist now codified in `CLAUDE.md` (commit `8398570`) to prevent repeats.
 
+### Phase 8 — Torrent base + qBittorrent doc
+
+| Sub-phase | Description                                                   | SHA       |
+| --------- | ------------------------------------------------------------- | --------- |
+| 8.1       | `api/torrent/_base.py` — TorrentItem + TorrentClient Protocol | `1a0ef30` |
+| 8.2       | `api/torrent/_factory.py` — active client resolver + tests    | `ee960e6` |
+| 8.3–8.6   | Audit qBit usage + API doc + particularities                  | `851e48c` |
+| 8.4–8.5   | Real test calls (qBit 5.0.4) + doc rewrite from official spec | `31b832f` |
+| —         | Phase 9 plan adaptation from real API findings                | `957076a` |
+| —         | **Phase 8 gate**                                              | _(next)_  |
+
 ### Cross-cutting infrastructure (post-phase-7)
 
 These commits live on `feat/api-unify` and stay on the branch (decision: kept inline; no `chore/dev-infra` split). They formalize the gate hygiene that the phase 7 incident exposed.
@@ -171,7 +182,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 7 closed (with corrective sub-phases). **Run `/implement:phase` to start Phase 8** (Torrent base + qBittorrent doc).
+Phase 8 complete. **Run `/implement:phase` to start Phase 9** (qBittorrent migration).
 
 Pre-phase-8 checklist:
 
