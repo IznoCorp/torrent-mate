@@ -387,7 +387,7 @@ def match_tvshow(
     tvdb_match: MatchResult | None = None
     try:
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year, local_seasons=local_seasons)
-    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of TVDBError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
+    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of ApiError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
     if tvdb_match is not None:

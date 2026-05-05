@@ -348,7 +348,28 @@ class TMDBClient(MetadataClient):
         )
 
     def _fetch_videos(self, endpoint: str, language: str) -> list[Video]:
-        """Fetch videos from a TMDB videos endpoint.
+        """Fetch videos, fail-soft on unexpected response shapes.
+
+        Transport/circuit errors propagate. Only unexpected response shapes
+        (non-dict body) are silently downgraded to an empty list.
+
+        Args:
+            endpoint: Videos API path.
+            language: ISO 639-1 language filter.
+
+        Returns:
+            List of Video objects (empty on malformed response).
+        """
+        try:
+            return self._fetch_videos_strict(endpoint, language)
+        except (TypeError, KeyError, ValueError):
+            return []
+
+    def _fetch_videos_strict(self, endpoint: str, language: str) -> list[Video]:
+        """Fetch videos with full error propagation.
+
+        Unlike ``_fetch_videos``, this method does not catch parser errors.
+        Transport errors, circuit-open, and API errors propagate to the caller.
 
         Args:
             endpoint: Videos API path.
@@ -356,11 +377,16 @@ class TMDBClient(MetadataClient):
 
         Returns:
             List of Video objects.
+
+        Raises:
+            ApiError: On TMDB HTTP errors.
+            CircuitOpenError: If the TMDB circuit breaker is OPEN.
+            TypeError: On unexpected response shape.
         """
         params: dict[str, object] = {"language": language}
         raw = self._transport.get(endpoint, params=params)
         if not isinstance(raw, dict):
-            return []
+            raise TypeError(f"TMDB videos: expected dict, got {type(raw).__name__}")
         results = raw.get("results", []) or []
         return [parse_video(v) for v in results]
 

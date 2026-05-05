@@ -209,11 +209,11 @@ def _fetch_season_episodes(
             continue
         try:
             s_detail = tmdb.get_tv_season(tmdb_id, s_num)
-            for ep in s_detail.get("episodes", []):
-                e_num = ep.get("episode_number", 0)
+            for ep in s_detail.episodes:
+                e_num = ep.episode_number
                 api_episodes[(s_num, e_num)] = {
-                    "title": ep.get("name", f"Episode {e_num}"),
-                    "still_path": ep.get("still_path", ""),
+                    "title": ep.title or f"Episode {e_num}",
+                    "still_path": "",
                 }
         except (OSError, ConnectionError, TimeoutError) as e:
             log.warning("repair_season_fetch_failed", season=s_num, error=str(e))
@@ -490,7 +490,16 @@ class ExistingValidatorMixin:
 
         try:
             show_data = self._tmdb.get_tv(tmdb_id)
-            season_nums = [s["season_number"] for s in show_data.get("seasons", []) if s.get("season_number", 0) > 0]
+            # Discover season numbers from local filesystem (typed MediaDetails
+            # does not carry the TMDB "seasons" array).
+            season_nums = sorted(
+                {
+                    int(m.group(1))
+                    for d in show_dir.iterdir()
+                    if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
+                    if int(m.group(1)) > 0
+                }
+            )
             api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
             if not api_episodes:
@@ -607,13 +616,14 @@ class ExistingValidatorMixin:
         tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
         if not tmdb_id:
             return
-        # Broad catch: get_movie() can raise TMDBError, CircuitOpenError, or requests
+        # Broad catch: get_movie() can raise ApiError, CircuitOpenError, or requests
         # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
             movie_data = self._tmdb.get_movie(tmdb_id)
+            # TODO(api-unify): migrate ArtworkDownloader to accept MediaDetails
             downloaded = self._artwork.download_movie_artwork(
-                movie_data,
+                movie_data,  # type: ignore[arg-type]
                 movie_dir,
                 self.patterns,
             )
@@ -644,13 +654,14 @@ class ExistingValidatorMixin:
         tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
         if not tmdb_id:
             return
-        # Broad catch: get_tv() can raise TMDBError, CircuitOpenError, or requests
+        # Broad catch: get_tv() can raise ApiError, CircuitOpenError, or requests
         # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
             show_data = self._tmdb.get_tv(tmdb_id)
+            # TODO(api-unify): migrate ArtworkDownloader to accept MediaDetails
             downloaded = self._artwork.download_tvshow_artwork(
-                show_data,
+                show_data,  # type: ignore[arg-type]
                 show_dir,
                 self.patterns,
             )

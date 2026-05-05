@@ -151,7 +151,7 @@ def _tvdb_series_to_show_data(
 
     raw_name = tvdb_data.get("name", "")
     lang_code = preferred_language.split("-", 1)[0].lower()
-    tvdb_lang_code = _TVDB_LANG_MAP(lang_code, lang_code)
+    tvdb_lang_code = _TVDB_LANG_MAP.get(lang_code, lang_code)
     translations = tvdb_data.get("translations") or {}
     translated_overview: str | None = None
     translated_name = None
@@ -159,7 +159,7 @@ def _tvdb_series_to_show_data(
         translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
     if not translated_name and tvdb_client is not None:
         fallback_code = fallback_language.split("-", 1)[0].lower()
-        fallback_tvdb_code = _TVDB_LANG_MAP(fallback_code, fallback_code)
+        fallback_tvdb_code = _TVDB_LANG_MAP.get(fallback_code, fallback_code)
         for candidate_lang in (tvdb_lang_code, fallback_tvdb_code):
             try:
                 translation = tvdb_client.get_series_translation(tvdb_id, candidate_lang)
@@ -223,7 +223,7 @@ class TvServiceMixin:
     def _to_tvdb_language(language: str) -> str:
         """Convert configured scraper language to TVDB's 3-letter code."""
         code = language.split("-", 1)[0].lower()
-        return _TVDB_LANG_MAP(code, code)
+        return _TVDB_LANG_MAP.get(code, code)
 
     def scrape_tvshow(self, show_dir: Path) -> ScrapeResult:
         """Scrape a TV show: match → NFO → artwork → seasons → episodes.
@@ -410,7 +410,7 @@ class TvServiceMixin:
             # episodes with empty names and post-facto fallbacks share the same
             # user-configurable wording (default "Episode").
             episode_default_name = self.config.scraper.episode_default_name if self.config is not None else "Episode"
-            api_episodes = self._build_episode_map(show_data, match, tmdb_id, episode_default_name)
+            api_episodes = self._build_episode_map(show_dir, match, tmdb_id, episode_default_name)
 
             total_renamed = self._match_seasons(video_files, api_episodes, show_dir, show_data, episode_default_name)
 
@@ -508,14 +508,16 @@ class TvServiceMixin:
         try:
             if match.source == "tvdb":
                 tvdb_data = self._tvdb.get_series(match.api_id)
-                remote_ids = self._tvdb.get_remote_ids(tvdb_data)
+                # Use MediaDetails.external_ids (replaces get_remote_ids)
+                remote_ids = tvdb_data.external_ids
                 raw_tmdb = remote_ids.get("tmdb_id")
                 tmdb_id = int(raw_tmdb) if raw_tmdb else None
                 imdb_id = remote_ids.get("imdb_id") or ""
                 if not tmdb_id:
                     log.info("show_tvdb_only", tvdb_id=match.api_id)
+                # TODO(api-unify): migrate _tvdb_series_to_show_data to accept MediaDetails
                 show_data = _tvdb_series_to_show_data(
-                    tvdb_data,
+                    tvdb_data,  # type: ignore[arg-type]
                     match.api_id,
                     self._tvdb,
                     tmdb_id=tmdb_id or 0,
@@ -525,7 +527,7 @@ class TvServiceMixin:
                 )
             else:
                 tmdb_id = match.api_id
-                show_data = self._tmdb.get_tv(tmdb_id)
+                show_data = self._tmdb.get_tv(tmdb_id)  # type: ignore[assignment]
         except Exception as e:
             result.error = f"Get details failed: {e}"
             log.error("show_details_failed", error=str(e), exc_info=True)
@@ -535,20 +537,19 @@ class TvServiceMixin:
 
     def _build_episode_map(
         self,
-        show_data: dict[str, Any],
+        show_dir: Path,
         match: Any,
         tmdb_id: int | None,
         episode_default_name: str,
     ) -> dict[tuple[int, int], dict[str, Any]]:
         """Fetch episode data from TVDB or TMDB keyed by (season, episode).
 
-        Iterates every season returned by the show match, fetching episode
-        titles and artwork paths from the authoritative source (TVDB when
-        ``match.source == "tvdb"``, TMDB otherwise). Episodes with missing
-        titles receive a synthetic ``"{episode_default_name} {number}"``.
+        Discovers seasons from local filesystem directories (Saison XX/).
+        Episodes with missing titles receive a synthetic
+        ``"{episode_default_name} {number}"``.
 
         Args:
-            show_data: Full show data dict (used to enumerate seasons).
+            show_dir: Path to the TV show directory.
             match: MatchResult from the scrape step.
             tmdb_id: TMDB ID for the show (required when match.source == "tmdb").
             episode_default_name: Fallback title prefix for unnamed episodes.
@@ -557,44 +558,37 @@ class TvServiceMixin:
             Dict mapping ``(season, episode)`` to ``{"title", "still_path"}``.
             May be empty when all seasons failed to fetch or had no episodes.
         """
+        season_nums = sorted(
+            {
+                int(m.group(1))
+                for d in show_dir.iterdir()
+                if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
+                if int(m.group(1)) > 0
+            }
+        )
+        if not season_nums:
+            return {}
+
         api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
-        for season in show_data.get("seasons", []):
-            s_num = season.get("season_number", 0)
-            if s_num == 0:
-                continue
+        for s_num in season_nums:
             try:
                 if match.source == "tvdb":
-                    tvdb_eps = self._tvdb.get_season_episodes(match.api_id, s_num)
-                    for ep in tvdb_eps:
-                        e_num = ep.get("number", ep.get("episode_number", 0))
-                        ep_id = ep.get("id", 0)
-                        title = ep.get("name") or f"{episode_default_name} {e_num}"
-                        if ep_id:
-                            trans = self._tvdb.get_episode_translation(
-                                ep_id,
-                                self._tvdb_language,
-                            )
-                            if trans and trans.get("name"):
-                                title = trans["name"]
-                            else:
-                                en_trans = self._tvdb.get_episode_translation(
-                                    ep_id,
-                                    self._tvdb_fallback_language,
-                                )
-                                if en_trans and en_trans.get("name"):
-                                    title = en_trans["name"]
+                    season_detail = self._tvdb.get_series_episodes(match.api_id, s_num)
+                    for ep in season_detail.episodes:
+                        e_num = ep.episode_number
+                        title = ep.title or f"{episode_default_name} {e_num}"
                         api_episodes[(s_num, e_num)] = {
                             "title": title,
                             "still_path": "",
                         }
                 else:
                     assert tmdb_id is not None
-                    s_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
-                    for ep in s_detail.get("episodes", []):
-                        e_num = ep.get("episode_number", 0)
+                    season_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
+                    for ep in season_detail.episodes:
+                        e_num = ep.episode_number
                         api_episodes[(s_num, e_num)] = {
-                            "title": ep.get("name") or f"{episode_default_name} {e_num}",
-                            "still_path": ep.get("still_path", ""),
+                            "title": ep.title or f"{episode_default_name} {e_num}",
+                            "still_path": "",
                         }
             except Exception as e:
                 log.warning(

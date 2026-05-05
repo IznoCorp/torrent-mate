@@ -28,21 +28,6 @@ if TYPE_CHECKING:
 
 log = get_logger("scraper")
 
-_TVDB_LANG_MAP: dict[str, str] = {
-    "fr": "fra",
-    "en": "eng",
-    "es": "spa",
-    "de": "deu",
-    "it": "ita",
-    "ja": "jpn",
-    "ko": "kor",
-    "pt": "por",
-    "ru": "rus",
-    "zh": "zho",
-    "ar": "ara",
-    "nl": "nld",
-}
-
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
@@ -303,7 +288,8 @@ class MovieServiceMixin:
 
         # Generate and write NFO
         try:
-            xml = self._nfo.generate_movie_nfo(movie_data, stream_info, category_id=category_id)
+            # TODO(api-unify): migrate NFOGenerator to accept MediaDetails
+            xml = self._nfo.generate_movie_nfo(movie_data, stream_info, category_id=category_id)  # type: ignore[arg-type]
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True
@@ -317,8 +303,9 @@ class MovieServiceMixin:
 
         # Download artwork
         try:
+            # TODO(api-unify): migrate ArtworkDownloader to accept MediaDetails
             downloaded = self._artwork.download_movie_artwork(
-                movie_data,
+                movie_data,  # type: ignore[arg-type]
                 movie_dir,
                 self.patterns,
             )

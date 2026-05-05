@@ -25,11 +25,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
+from personalscraper.core.circuit import CircuitBreaker
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.ingest.qbit_client import QBitAuthLockoutError
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
-from personalscraper.scraper.circuit_breaker import CircuitBreaker
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 # ---------------------------------------------------------------------------

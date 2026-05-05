@@ -292,12 +292,13 @@ class TestRescrapeLibraryConfig:
 
         with (
             patch("personalscraper.library.rescraper._collect_rescrape_candidates", return_value=[]),
-            patch("personalscraper.scraper.tmdb_client.TMDBClient") as tmdb_client_cls,
-            patch("personalscraper.scraper.tvdb_client.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient") as tmdb_client_cls,
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
             result = rescrape_library(config, settings, dry_run=True)
 
         assert result.items == []
-        tmdb_client_cls.assert_called_once_with("tmdb-key", language="fr-FR")
+        assert tmdb_client_cls.call_count == 1
+        assert tmdb_client_cls.call_args[1]["language"] == "fr-FR"

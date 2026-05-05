@@ -614,13 +614,12 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
 
     # Patch the class so instantiation returns the stub directly.
     # The lambda ignores constructor args (api_key, language, …).
+    # Patch the new module path and the re-export facade so any
+    # construction returns the stub regardless of import path.
     monkeypatch.setattr(
-        "personalscraper.scraper.tmdb_client.TMDBClient",
+        "personalscraper.api.metadata.tmdb.TMDBClient",
         lambda *args, **kwargs: stub,
     )
-    # Also patch the already-imported name in scraper.py so that
-    # Scraper.__init__ (which does `from … import TMDBClient` at module level)
-    # receives the stub rather than the real client.
     monkeypatch.setattr(
         "personalscraper.scraper.scraper.TMDBClient",
         lambda *args, **kwargs: stub,

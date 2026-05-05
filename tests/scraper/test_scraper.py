@@ -1150,7 +1150,7 @@ class TestCircuitBreakerFallback:
     @pytest.fixture
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with real CircuitBreaker instances."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
 
         with (
             patch("personalscraper.scraper.scraper.TMDBClient"),
@@ -1193,7 +1193,7 @@ class TestCircuitBreakerFallback:
         tmp_path: Path,
     ) -> None:
         """CircuitOpenError during scrape_movie is caught gracefully."""
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         movies_dir = tmp_path / "001-MOVIES"
         movies_dir.mkdir()

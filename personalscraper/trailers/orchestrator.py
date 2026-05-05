@@ -606,6 +606,8 @@ class TrailersOrchestrator:
         """
         try:
             from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+            from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
             from personalscraper.config import get_settings  # noqa: PLC0415
             from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
             from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
@@ -630,11 +632,14 @@ class TrailersOrchestrator:
             # TMDBClient builds its own breaker internally; pass the trailers-specific
             # threshold/cooldown so a YouTube outage does not trip the main TMDB breaker
             # used elsewhere in the scraper.
-            tmdb_client = TMDBClient(
-                api_key=tmdb_key,
-                circuit_breaker_threshold=int(cb_cfg.tmdb_videos.errors_threshold),
-                circuit_breaker_cooldown=int(cb_cfg.tmdb_videos.cooldown_sec),
+            tmdb_policy = TMDBClient.policy(
+                tmdb_key,
+                circuit=CircuitPolicy(
+                    failure_threshold=int(cb_cfg.tmdb_videos.errors_threshold),
+                    cooldown_seconds=int(cb_cfg.tmdb_videos.cooldown_sec),
+                ),
             )
+            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy))
             youtube_breaker = CircuitBreaker(
                 name="trailers_youtube",
                 failure_threshold=int(cb_cfg.youtube.errors_threshold),

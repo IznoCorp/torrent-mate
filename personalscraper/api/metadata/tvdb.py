@@ -59,15 +59,23 @@ class TVDBClient(MetadataClient):
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TVDB_API_KEY"]
 
-    def __init__(self, api_key: str, *, language: str = "fr-FR") -> None:
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        language: str = "fr-FR",
+        circuit: CircuitPolicy | None = None,
+    ) -> None:
         """Initialize TVDB client with bootstrap login.
 
         Args:
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
             language: Default language for API queries (2-char pipeline code, e.g. "fr").
+            circuit: Optional custom CircuitPolicy override for bootstrap + main transport.
         """
         self._api_key = api_key
         self._tvdb_lang = map_language(language)
+        _cb = circuit or _DEFAULT_CIRCUIT
 
         # Bootstrap login with NoAuth
         bootstrap_policy = TransportPolicy(
@@ -76,7 +84,7 @@ class TVDBClient(MetadataClient):
             auth=NoAuth(),
             timeout_seconds=15.0,
             retry=_DEFAULT_RETRY,
-            circuit=_DEFAULT_CIRCUIT,
+            circuit=_cb,
             rate_limit=_DEFAULT_RATE,
         )
         with HttpTransport(bootstrap_policy) as bootstrap:
@@ -86,7 +94,7 @@ class TVDBClient(MetadataClient):
         jwt = resp["data"]["token"]
 
         # Main transport with JWT
-        main_policy = TVDBClient.policy(jwt)
+        main_policy = TVDBClient.policy(jwt, circuit=_cb)
         super().__init__(transport=HttpTransport(main_policy), language=language)
 
     @property
