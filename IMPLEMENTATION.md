@@ -24,7 +24,7 @@
 | 7   | TVDB migration                     | impl  | [phase-07-tvdb-impl.md](docs/features/api-unify/plan/phase-07-tvdb-impl.md)                               | [x]    |
 | 8   | Torrent base + qBittorrent doc     | mixed | [phase-08-torrent-base-qbit-doc.md](docs/features/api-unify/plan/phase-08-torrent-base-qbit-doc.md)       | [x]    |
 | 9   | qBittorrent migration              | impl  | [phase-09-qbit-impl.md](docs/features/api-unify/plan/phase-09-qbit-impl.md)                               | [x]    |
-| 10  | Transmission API doc               | doc   | [phase-10-transmission-doc.md](docs/features/api-unify/plan/phase-10-transmission-doc.md)                 | [ ]    |
+| 10  | Transmission API doc               | doc   | [phase-10-transmission-doc.md](docs/features/api-unify/plan/phase-10-transmission-doc.md)                 | [x]    |
 | 11  | Transmission implementation        | impl  | [phase-11-transmission-impl.md](docs/features/api-unify/plan/phase-11-transmission-impl.md)               | [ ]    |
 | 12  | OMDB API doc                       | doc   | [phase-12-omdb-doc.md](docs/features/api-unify/plan/phase-12-omdb-doc.md)                                 | [ ]    |
 | 13  | OMDB implementation                | impl  | [phase-13-omdb-impl.md](docs/features/api-unify/plan/phase-13-omdb-impl.md)                               | [ ]    |
@@ -191,7 +191,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 9 complete. **Run `/implement:phase` to start Phase 10** (Transmission API doc).
+Phase 10 complete. **Run `/implement:phase` to start Phase 11** (Transmission implementation).
 
 Pre-phase-8 checklist:
 
