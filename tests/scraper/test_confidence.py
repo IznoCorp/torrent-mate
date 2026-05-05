@@ -515,9 +515,7 @@ class TestGetEpisodeTitles:
     def test_empty_season(self) -> None:
         """Should return empty dict for non-existent season."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = SeasonDetails(
-            provider="tvdb", tv_id="1", season_number=99, episodes=[]
-        )
+        tvdb.get_season_episodes.return_value = SeasonDetails(provider="tvdb", tv_id="1", season_number=99, episodes=[])
 
         match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
         titles = get_episode_titles(match_r, 99, tvdb, MagicMock())
