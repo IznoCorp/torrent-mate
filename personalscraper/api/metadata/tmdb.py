@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -362,7 +363,7 @@ class TMDBClient(MetadataClient):
         """
         try:
             return self._fetch_videos_strict(endpoint, language)
-        except (TypeError, KeyError, ValueError):
+        except (ApiError, TypeError, KeyError, ValueError):
             return []
 
     def _fetch_videos_strict(self, endpoint: str, language: str) -> list[Video]:

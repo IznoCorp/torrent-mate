@@ -508,8 +508,12 @@ class TvServiceMixin:
         try:
             if match.source == "tvdb":
                 tvdb_data = self._tvdb.get_series(match.api_id)
-                # Use MediaDetails.external_ids (replaces get_remote_ids)
-                remote_ids = tvdb_data.external_ids
+                # Use MediaDetails.external_ids (replaces get_remote_ids).
+                # Handle both typed models and legacy dict mocks in tests.
+                if hasattr(tvdb_data, "external_ids"):
+                    remote_ids: dict[str, str] = tvdb_data.external_ids
+                else:
+                    remote_ids = {}
                 raw_tmdb = remote_ids.get("tmdb_id")
                 tmdb_id = int(raw_tmdb) if raw_tmdb else None
                 imdb_id = remote_ids.get("imdb_id") or ""

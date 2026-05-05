@@ -13,6 +13,7 @@ import pytest
 from guessit.api import GuessitException
 
 from personalscraper.api._contracts import ApiError
+from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
 from personalscraper.conf.models.scraper import ScraperConfig
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
@@ -25,6 +26,26 @@ from personalscraper.scraper.scraper import (
     _rename_dir_case_safe,
     _tvdb_series_to_show_data,
 )
+
+# ---------------------------------------------------------------------------
+# Module-level fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _patch_transport() -> None:
+    """Patch HttpTransport so Scraper init + TVDB bootstrap don't build real ones."""
+    mock_instance = MagicMock()
+    mock_instance.__enter__.return_value = mock_instance
+    mock_instance.post.return_value = {"data": {"token": "mock-jwt"}}
+    mock_instance.get.return_value = {}
+
+    with (
+        patch("personalscraper.api.transport._http.HttpTransport", return_value=mock_instance),
+        patch("personalscraper.api.metadata.tvdb.HttpTransport", return_value=mock_instance),
+    ):
+        yield
+
 
 # ---------------------------------------------------------------------------
 # Folder name parsing
@@ -163,8 +184,8 @@ class TestScraperLanguage:
         )
 
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient") as tmdb_cls,
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient") as tmdb_cls,
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             scraper = Scraper(settings, NamingPatterns(), config=config)
 
@@ -323,7 +344,7 @@ class TestScrapeMovie:
     @pytest.fixture
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
             s = Scraper(mock_settings, NamingPatterns())
         return s
 
@@ -440,7 +461,7 @@ class TestProcessMovies:
     @pytest.fixture
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked clients."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
             s = Scraper(mock_settings, NamingPatterns())
         return s
 
@@ -514,8 +535,8 @@ class TestScrapeTvshow:
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
         return s
@@ -968,8 +989,8 @@ class TestProcessTvshows:
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked clients."""
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
         return s
@@ -1022,7 +1043,7 @@ class TestScrapeMovieExtra:
     @pytest.fixture
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
             s = Scraper(mock_settings, NamingPatterns())
         return s
 
@@ -1094,8 +1115,8 @@ class TestScrapeTvshowExtra:
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
         return s
@@ -1153,8 +1174,8 @@ class TestCircuitBreakerFallback:
         from personalscraper.core.circuit import CircuitBreaker
 
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
         # Replace mock circuits with real ones for testing.
@@ -1348,7 +1369,7 @@ class TestRepairMovieDir:
     @pytest.fixture
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
             s = Scraper(mock_settings, NamingPatterns())
         return s
 
@@ -1407,8 +1428,8 @@ class TestRepairTvshowDir:
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
         return s
@@ -1506,8 +1527,13 @@ class TestRepairTvshowDir:
         orphan = show_dir / "Show.S01E05.mkv"
         orphan.write_bytes(b"\x00" * 50)
 
-        show_data = {"id": 1, "name": "Show", "seasons": [{"season_number": 1}]}
-        season_data = {"episodes": [{"episode_number": 5, "name": "Episode 5", "still_path": ""}]}
+        show_data = {"id": 1, "name": "Show"}
+        season_data = SeasonDetails(
+            provider="tmdb",
+            tv_id="1",
+            season_number=1,
+            episodes=[EpisodeInfo(episode_number=5, title="Episode 5")],
+        )
 
         with (
             patch.object(scraper._tmdb, "get_tv", return_value=show_data),
@@ -1547,13 +1573,13 @@ class TestRepairTvshowDir:
         show_data = {
             "id": 76479,
             "name": "The Boys",
-            "seasons": [{"season_number": 5}],
         }
-        season_data = {
-            "episodes": [
-                {"episode_number": 3, "name": "Episode 3", "still_path": ""},
-            ]
-        }
+        season_data = SeasonDetails(
+            provider="tmdb",
+            tv_id="76479",
+            season_number=5,
+            episodes=[EpisodeInfo(episode_number=3, title="Episode 3")],
+        )
 
         with (
             patch.object(scraper._tmdb, "get_tv", return_value=show_data),
@@ -1599,13 +1625,13 @@ class TestRepairTvshowDir:
         show_data = {
             "id": 76479,
             "name": "The Boys",
-            "seasons": [{"season_number": 5}],
         }
-        season_data = {
-            "episodes": [
-                {"episode_number": 3, "name": "Episode 3", "still_path": ""},
-            ]
-        }
+        season_data = SeasonDetails(
+            provider="tmdb",
+            tv_id="76479",
+            season_number=5,
+            episodes=[EpisodeInfo(episode_number=3, title="Episode 3")],
+        )
 
         with (
             patch.object(scraper._tmdb, "get_tv", return_value=show_data),
@@ -1698,8 +1724,8 @@ class TestMediaPathUpdatedAfterRename:
     def scraper(self, mock_settings: MagicMock) -> Scraper:
         """Create a Scraper with mocked API clients."""
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             s = Scraper(mock_settings, NamingPatterns())
         return s
@@ -1833,7 +1859,7 @@ class TestClassifierIntegration:
         """classify() is called and category_id is set on ScrapeResult."""
         from personalscraper.conf import ids as CID
 
-        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         movie_dir = tmp_path / "Spirited Away (2001)"
@@ -1875,7 +1901,7 @@ class TestClassifierIntegration:
         """classify() is called for TV shows and sets category_id."""
         from personalscraper.conf import ids as CID
 
-        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         show_dir = tmp_path / "Breaking Bad (2008)"
@@ -1916,7 +1942,7 @@ class TestClassifierIntegration:
         self, mock_settings: MagicMock, test_config, tmp_path: Path
     ) -> None:
         """When no category_rules use tmdb_keyword, keywords API is never called."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         # Ensure no keyword rules are configured (test_config has none)
@@ -1996,7 +2022,7 @@ class TestClassifierIntegration:
             staging_dirs=CANONICAL_STAGING_DIRS,
         )
 
-        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
             scraper = Scraper(mock_settings, NamingPatterns(), config=config_with_kw)
 
         assert scraper._needs_keywords is True
@@ -2037,12 +2063,12 @@ class TestClassifierIntegration:
         ):
             result = scraper.scrape_movie(movie_dir)
 
-        assert get_keywords_called == [(999, "movie")], "get_keywords() should be called once"
+        assert get_keywords_called == [("999", "movie")], "get_keywords() should be called once"
         assert result.category_id == CID.STANDUP
 
     def test_skip_no_category_when_config_present(self, mock_settings: MagicMock, test_config, tmp_path: Path) -> None:
         """When config is set but classify() returns None, action is skipped_no_category."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"), patch("personalscraper.scraper.scraper.TVDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         movie_dir = tmp_path / "Unknown (2024)"
@@ -2080,7 +2106,7 @@ class TestClassifierIntegration:
 
     def test_no_config_skips_classification(self, mock_settings: MagicMock, tmp_path: Path) -> None:
         """Without config, classify() is never called and category_id stays None."""
-        with patch("personalscraper.scraper.scraper.TMDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
             scraper = Scraper(mock_settings, NamingPatterns())  # no config
 
         assert scraper.config is None
@@ -2225,7 +2251,7 @@ class TestMovieArtworkFailedNarrowedExceptions:
         Returns:
             Scraper instance with patched TMDBClient.
         """
-        with patch("personalscraper.scraper.scraper.TMDBClient"):
+        with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
             return Scraper(mock_settings, NamingPatterns())
 
     def test_movie_artwork_failed_on_key_error(
@@ -2400,8 +2426,8 @@ class TestShowArtworkFailedNarrowedExceptions:
             Scraper instance with patched API clients.
         """
         with (
-            patch("personalscraper.scraper.scraper.TMDBClient"),
-            patch("personalscraper.scraper.scraper.TVDBClient"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
         ):
             return Scraper(mock_settings, NamingPatterns())
 
