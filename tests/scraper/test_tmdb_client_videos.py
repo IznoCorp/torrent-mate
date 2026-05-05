@@ -67,7 +67,8 @@ class TestFetchMovieVideos:
 
     def test_returns_empty_on_404(self, client):
         """get_videos returns [] on HTTP 404 (item not found)."""
-        with patch.object(client._transport, "get", side_effect=ApiError("tmdb", 404, provider_code=34, message="Not Found")):
+        err = ApiError("tmdb", 404, provider_code=34, message="Not Found")
+        with patch.object(client._transport, "get", side_effect=err):
             result = client.get_videos("99999", "movie", language="en-US")
         assert result == []
 
@@ -110,7 +111,8 @@ class TestFetchTvVideos:
 
     def test_returns_empty_on_404(self, client):
         """get_videos returns [] on HTTP 404."""
-        with patch.object(client._transport, "get", side_effect=ApiError("tmdb", 404, provider_code=34, message="Not Found")):
+        err = ApiError("tmdb", 404, provider_code=34, message="Not Found")
+        with patch.object(client._transport, "get", side_effect=err):
             result = client.get_videos("99999", "movie", language="en-US")
         assert result == []
 
@@ -139,7 +141,8 @@ class TestFetchTvSeasonVideos:
 
     def test_fetch_tv_season_videos_404_returns_empty(self, client):
         """Fail-soft on 404 — many shows have no season-level videos on TMDB."""
-        with patch.object(client._transport, "get", side_effect=ApiError("tmdb", 404, provider_code=34, message="Not Found")):
+        err = ApiError("tmdb", 404, provider_code=34, message="Not Found")
+        with patch.object(client._transport, "get", side_effect=err):
             result = client.fetch_tv_season_videos(99999, 3, language="en-US")
         assert result == []
 
@@ -192,8 +195,13 @@ class TestVideoNormalisation:
     def test_unknown_type_passed_through(self):
         """An unrecognised type is preserved verbatim."""
         v = Video(
-            id="x", site="YouTube", key="k", type="Custom Promo",
-            official=False, size=720, iso_639_1="en",
+            id="x",
+            site="YouTube",
+            key="k",
+            type="Custom Promo",
+            official=False,
+            size=720,
+            iso_639_1="en",
         )
         assert v.type == "Custom Promo"
 

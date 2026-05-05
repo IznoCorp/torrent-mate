@@ -1859,7 +1859,10 @@ class TestClassifierIntegration:
         """classify() is called and category_id is set on ScrapeResult."""
         from personalscraper.conf import ids as CID
 
-        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
+        with (
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+        ):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         movie_dir = tmp_path / "Spirited Away (2001)"
@@ -1901,7 +1904,10 @@ class TestClassifierIntegration:
         """classify() is called for TV shows and sets category_id."""
         from personalscraper.conf import ids as CID
 
-        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
+        with (
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+        ):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         show_dir = tmp_path / "Breaking Bad (2008)"
@@ -1942,7 +1948,10 @@ class TestClassifierIntegration:
         self, mock_settings: MagicMock, test_config, tmp_path: Path
     ) -> None:
         """When no category_rules use tmdb_keyword, keywords API is never called."""
-        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
+        with (
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+        ):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         # Ensure no keyword rules are configured (test_config has none)
@@ -2022,7 +2031,10 @@ class TestClassifierIntegration:
             staging_dirs=CANONICAL_STAGING_DIRS,
         )
 
-        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
+        with (
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+        ):
             scraper = Scraper(mock_settings, NamingPatterns(), config=config_with_kw)
 
         assert scraper._needs_keywords is True
@@ -2068,7 +2080,10 @@ class TestClassifierIntegration:
 
     def test_skip_no_category_when_config_present(self, mock_settings: MagicMock, test_config, tmp_path: Path) -> None:
         """When config is set but classify() returns None, action is skipped_no_category."""
-        with patch("personalscraper.api.metadata.tmdb.TMDBClient"), patch("personalscraper.api.metadata.tvdb.TVDBClient"):
+        with (
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+        ):
             scraper = Scraper(mock_settings, NamingPatterns(), config=test_config)
 
         movie_dir = tmp_path / "Unknown (2024)"
