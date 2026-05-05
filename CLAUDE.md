@@ -53,8 +53,7 @@ but new fixtures can appear — the type filter is the primary safeguard.
 
 - **Each sub-phase / logical unit of work → one commit**, made by Claude without further user prompting.
 - **Before every commit**: run `make check` (lint + test + module-size + typed-api). Zero errors required. If anything fails, fix the underlying issue then commit. Never `--no-verify`.
-- **Before every push**: run `make gate` (`make check` + secret scan + residual-import audit).
-- **Push cadence**: after each phase gate (i.e. once a phase is closed end-to-end and its gate sub-phase committed).
+- **Push cadence**: after each phase gate (i.e. once a phase is closed end-to-end and its gate sub-phase committed). The pre-push hook (`scripts/pre-push`, installed at `.git/hooks/pre-push`) runs the gate equivalent automatically — do NOT run `make gate` beforehand, it would be redundant.
 - **Still requires explicit user authorization**: force-push, destructive git ops (reset --hard, branch -D, etc.), and any push to `main`. The autonomous policy applies only to feature branches.
 
 ### Commit Convention
