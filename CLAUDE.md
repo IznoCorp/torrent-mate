@@ -47,15 +47,6 @@ rg "pattern" .
 `.rgignore` at the repo root excludes known heavy dirs as defense-in-depth,
 but new fixtures can appear — the type filter is the primary safeguard.
 
-### Commit & Push Policy
-
-**Override the default "ask before commit" rule** — on this project we commit and push as we go, gated by quality checks.
-
-- **Each sub-phase / logical unit of work → one commit**, made by Claude without further user prompting.
-- **Before every commit**: run `make check` (lint + test + module-size + typed-api). Zero errors required. If anything fails, fix the underlying issue then commit. Never `--no-verify`.
-- **Push cadence**: after each phase gate (i.e. once a phase is closed end-to-end and its gate sub-phase committed). The pre-push hook (`scripts/pre-push`, installed at `.git/hooks/pre-push`) runs the gate equivalent automatically — do NOT run `make gate` beforehand, it would be redundant.
-- **Still requires explicit user authorization**: force-push, destructive git ops (reset --hard, branch -D, etc.), and any push to `main`. The autonomous policy applies only to feature branches.
-
 ### Commit Convention
 
 Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
