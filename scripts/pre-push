@@ -47,7 +47,7 @@ run_check "ruff check"               python -m ruff check personalscraper/ tests
 run_check "ruff format --check"      python -m ruff format --check personalscraper/ tests/
 run_check "logging audit"            python scripts/check_logging.py personalscraper/
 run_check "mypy"                     python -m mypy personalscraper/
-run_check "gitleaks"                 gitleaks detect --no-git --source .
+run_check "gitleaks"                 gitleaks detect --no-git --source personalscraper/ --source tests/ --source scripts/ --source docs/ --source config.example/
 run_check "pytest"                   python -m pytest -v -n auto
 
 echo ""

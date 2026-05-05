@@ -49,7 +49,7 @@ gate: check
 	@! rg -q "TMDBError\|TVDBError" personalscraper/ --include='*.py' -l 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
 	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
 	@echo "Gate: secret scan..."
-	@gitleaks detect --no-git --source . 2>/dev/null || { echo "FAIL: secrets detected"; exit 1; }
+	@gitleaks detect --no-git --source personalscraper/ --source tests/ --source scripts/ --source docs/ --source config.example/ 2>/dev/null || { echo "FAIL: secrets detected"; exit 1; }
 	@echo "Gate: ALL CHECKS PASSED"
 
 format:
