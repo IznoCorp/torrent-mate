@@ -75,6 +75,22 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC. Run `python3 scripts/check-module-size.py` (also wired into `make check`). Advisory in 0.9.0; promoted to hard block in 0.10.0.
 
+### Phase Gate Checklist (MANDATORY before every phase gate commit)
+
+Every `chore(scope): phase N gate` commit MUST pass all of:
+
+1. **`make lint`** — ruff + mypy (both wired in Makefile). Zero errors.
+2. **`make test`** — all 2642+ tests pass. Check the summary line: `NNNN passed` with 0 failed/errors.
+3. **`make check`** — lint + test + module-size + typed-api guardrails.
+4. **Residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path. Zero matches.
+5. **`python -c "import personalscraper"`** — smoke test.
+
+**If `make test` shows any ERROR (not just FAILED)**: the test COLLECTION crashed — all tests after that point are skipped. Fix imports before proceeding.
+
+**After any module deletion**: grep `tests/` for the old path. `rg "old.module.path" tests/` must return zero matches.
+
+**After any constructor signature change**: grep `tests/` for the old call pattern and update all test fixtures/mocks.
+
 ### Implementation Workflow (feature-oriented)
 
 10 `implement:*` skills managing the full feature lifecycle with Opus/Sonnet/Haiku allocation. See details in `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
