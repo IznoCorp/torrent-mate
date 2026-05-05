@@ -59,15 +59,20 @@ class TestBuildActiveTorrentClient:
         with pytest.raises(ValueError, match="Unknown torrent client"):
             build_active_torrent_client(cfg, env=_make_env())
 
-    def test_transmission_raises_not_implemented(self) -> None:
-        """cfg.active="transmission" → NotImplementedError (Phase 11)."""
+    def test_transmission_returns_client(self) -> None:
+        """cfg.active="transmission" + creds → returns TorrentClient instance."""
         cfg = TorrentConfig(
             active="transmission",
             clients={"transmission": TorrentClientEntry(enabled=True)},
         )
         env = {"TRANSMISSION_USERNAME": "u", "TRANSMISSION_PASSWORD": "p"}
-        with pytest.raises(NotImplementedError, match="Transmission client"):
-            build_active_torrent_client(cfg, env=env)
+        mock_client = MagicMock(spec=TorrentClient)
+        mock_mod = MagicMock()
+        mock_mod.build_client.return_value = mock_client
+
+        with patch("importlib.import_module", return_value=mock_mod):
+            result = build_active_torrent_client(cfg, env=env)
+        assert result is mock_client
 
     def test_qbittorrent_returns_client(self) -> None:
         """cfg.active="qbittorrent" + creds → returns TorrentClient instance."""
