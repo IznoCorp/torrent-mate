@@ -23,7 +23,7 @@
 | 6   | TVDB API doc                       | doc   | [phase-06-tvdb-doc.md](docs/features/api-unify/plan/phase-06-tvdb-doc.md)                                 | [x]    |
 | 7   | TVDB migration                     | impl  | [phase-07-tvdb-impl.md](docs/features/api-unify/plan/phase-07-tvdb-impl.md)                               | [x]    |
 | 8   | Torrent base + qBittorrent doc     | mixed | [phase-08-torrent-base-qbit-doc.md](docs/features/api-unify/plan/phase-08-torrent-base-qbit-doc.md)       | [x]    |
-| 9   | qBittorrent migration              | impl  | [phase-09-qbit-impl.md](docs/features/api-unify/plan/phase-09-qbit-impl.md)                               | [ ]    |
+| 9   | qBittorrent migration              | impl  | [phase-09-qbit-impl.md](docs/features/api-unify/plan/phase-09-qbit-impl.md)                               | [x]    |
 | 10  | Transmission API doc               | doc   | [phase-10-transmission-doc.md](docs/features/api-unify/plan/phase-10-transmission-doc.md)                 | [ ]    |
 | 11  | Transmission implementation        | impl  | [phase-11-transmission-impl.md](docs/features/api-unify/plan/phase-11-transmission-impl.md)               | [ ]    |
 | 12  | OMDB API doc                       | doc   | [phase-12-omdb-doc.md](docs/features/api-unify/plan/phase-12-omdb-doc.md)                                 | [ ]    |
@@ -160,7 +160,16 @@ All commits use scope `api-unify`:
 | 8.3–8.6   | Audit qBit usage + API doc + particularities                  | `851e48c` |
 | 8.4–8.5   | Real test calls (qBit 5.0.4) + doc rewrite from official spec | `31b832f` |
 | —         | Phase 9 plan adaptation from real API findings                | `957076a` |
-| —         | **Phase 8 gate**                                              | _(next)_  |
+| —         | **Phase 8 gate**                                              | `c53eae3` |
+
+### Phase 9 — qBittorrent migration
+
+| Sub-phase | Description                                       | SHA       |
+| --------- | ------------------------------------------------- | --------- |
+| 9.1       | `api/torrent/qbittorrent.py` + tests              | `d3b8085` |
+| 9.2       | Wire factory (verification — already wired)       | `51bc81c` |
+| 9.3       | Delete old module + update consumers + test paths | `ebcc84c` |
+| —         | **Phase 9 gate**                                  | _(next)_  |
 
 ### Cross-cutting infrastructure (post-phase-7)
 
@@ -182,7 +191,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 8 complete. **Run `/implement:phase` to start Phase 9** (qBittorrent migration).
+Phase 9 complete. **Run `/implement:phase` to start Phase 10** (Transmission API doc).
 
 Pre-phase-8 checklist:
 
