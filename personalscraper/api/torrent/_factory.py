@@ -17,6 +17,7 @@ from personalscraper.conf.models.api_config import TorrentConfig
 
 _CLIENT_IMPL: dict[str, str] = {
     "qbittorrent": "personalscraper.api.torrent.qbittorrent",
+    "transmission": "personalscraper.api.torrent.transmission",
 }
 
 
@@ -59,9 +60,6 @@ def build_active_torrent_client(
             http_status=0,
             message=f"Missing required credentials: {', '.join(missing)}",
         )
-
-    if cfg.active == "transmission":
-        raise NotImplementedError("Transmission client not yet implemented (Phase 11)")
 
     module_path = _CLIENT_IMPL.get(cfg.active)
     if module_path is None:
