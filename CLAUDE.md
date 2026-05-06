@@ -47,6 +47,31 @@ rg "pattern" .
 `.rgignore` at the repo root excludes known heavy dirs as defense-in-depth,
 but new fixtures can appear — the type filter is the primary safeguard.
 
+### Network Timeout Safety (MANDATORY — machine hang prevention)
+
+**curl, wget, and fetch can hang indefinitely** when a server accepts the TCP
+connection but never sends an HTTP response (omdbapi.com/swagger.json incident,
+11+ hours). A `block_curl_without_timeout` PreToolUse hook enforces this rule.
+
+**Every network command MUST include both:**
+
+- `--connect-timeout N` (TCP handshake timeout, recommended 10s)
+- `--max-time N` (total transfer timeout, recommended 30s)
+
+**Examples:**
+
+```bash
+# CORRECT
+curl --connect-timeout 10 --max-time 30 "https://api.example.com/data"
+wget --timeout 30 "https://example.com/file"
+
+# WRONG — will hang indefinitely if server accepts TCP but never responds
+curl "https://api.example.com/data"
+```
+
+**WebFetch caveat**: WebFetch has no configurable timeout. Prefer `Bash(curl)` with
+explicit timeouts for API calls to hosts that may be slow or unreachable.
+
 ### Commit Convention
 
 Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
