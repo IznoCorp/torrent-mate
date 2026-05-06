@@ -247,7 +247,7 @@ class MetadataProvider(Protocol):
         self,
         media_id: str,
         media_type: str,
-    ) -> Notations | None: ...
+    ) -> list[Notations] | None: ...
 
     def get_recommendations(
         self,
@@ -292,7 +292,7 @@ class MetadataClient:
     def get_season(self, tv_id: str, season: int) -> SeasonDetails:
         raise NotImplementedError(f"{self.provider_name} does not support season details")
 
-    def get_notations(self, media_id: str, media_type: str) -> Notations | None:
+    def get_notations(self, media_id: str, media_type: str) -> list[Notations] | None:
         raise NotImplementedError(f"{self.provider_name} does not support notations")
 
     def get_recommendations(self, media_id: str, media_type: str) -> list[Recommendation]:
