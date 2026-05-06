@@ -67,9 +67,19 @@ class TransmissionClient:
         """
         torrents = self._client.get_torrents(
             arguments=[
-                "id", "hashString", "name", "totalSize", "percentDone", "status",
-                "downloadDir", "addedDate", "rateUpload", "uploadRatio",
-                "labels", "error", "errorString",
+                "id",
+                "hashString",
+                "name",
+                "totalSize",
+                "percentDone",
+                "status",
+                "downloadDir",
+                "addedDate",
+                "rateUpload",
+                "uploadRatio",
+                "labels",
+                "error",
+                "errorString",
             ]
         )
         return [_torrent_item(t) for t in torrents if t.status in _COMPLETED_STATES]
@@ -117,7 +127,8 @@ class TransmissionClient:
             t = self._client.get_torrent(torrent.hash, arguments=["downloadDir", "name", "files"])
         except transmission_rpc.TransmissionError as exc:
             raise ApiError(
-                provider="transmission", http_status=404,
+                provider="transmission",
+                http_status=404,
                 message=f"Torrent {torrent.hash} not found: {exc}",
             ) from exc
         files = t.get_files()
@@ -175,26 +186,32 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
     password = env.get("TRANSMISSION_PASSWORD", "")
     if not username or not password:
         raise ApiError(
-            provider="transmission", http_status=0,
+            provider="transmission",
+            http_status=0,
             message="Missing TRANSMISSION_USERNAME or TRANSMISSION_PASSWORD",
         )
 
     base_url = f"http://{entry.host}:{entry.port}"
-    transport = HttpTransport(TransportPolicy(
-        provider_name="transmission-precheck",
-        base_url=base_url,
-        auth=LoginAuth(username, password),
-        timeout_seconds=5,
-    ))
+    transport = HttpTransport(
+        TransportPolicy(
+            provider_name="transmission-precheck",
+            base_url=base_url,
+            auth=LoginAuth(username, password),
+            timeout_seconds=5,
+        )
+    )
 
     # Pre-check: POST a lightweight session_get to exercise auth + RPC stack.
     # 200 = reachable, 401 = bad creds, 409 = CSRF dance needed (normal).
     try:
-        transport.post("/transmission/rpc", data={
-            "method": "session_get",
-            "params": {"fields": ["version"]},
-            "id": 1,
-        })
+        transport.post(
+            "/transmission/rpc",
+            data={
+                "method": "session_get",
+                "params": {"fields": ["version"]},
+                "id": 1,
+            },
+        )
     except ApiError as e:
         if e.http_status == 401:
             raise

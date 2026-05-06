@@ -206,9 +206,7 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
         resp = requests.get(f"http://{entry.host}:{entry.port}/", timeout=5)
         log.debug("qbit_pre_check_ok", status=resp.status_code)
     except (requests.ConnectionError, requests.Timeout) as exc:
-        raise qbittorrentapi.APIConnectionError(
-            f"qBittorrent unreachable at {entry.host}:{entry.port}: {exc}"
-        ) from exc
+        raise qbittorrentapi.APIConnectionError(f"qBittorrent unreachable at {entry.host}:{entry.port}: {exc}") from exc
 
     client = QBitClient(entry.host, entry.port, username, password)
     client.login()
@@ -247,8 +245,7 @@ def _check_lockout() -> None:
                 lockout_file=str(_LOCKOUT_FILE),
             )
             raise QBitAuthLockoutError(
-                f"Auth lockout active ({remaining}s remaining). "
-                f"Fix credentials and delete {_LOCKOUT_FILE} to retry."
+                f"Auth lockout active ({remaining}s remaining). Fix credentials and delete {_LOCKOUT_FILE} to retry."
             )
         _LOCKOUT_FILE.unlink(missing_ok=True)
     except OSError as e:
