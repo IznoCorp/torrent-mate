@@ -229,8 +229,10 @@ def _parse_rating_value(raw: str) -> float:
     """
     raw = raw.strip()
     if "/" in raw:
-        score, _, _scale = raw.partition("/")
-        return float(score.strip())
+        score_str, _, scale_str = raw.partition("/")
+        score = float(score_str.strip())
+        scale = float(scale_str.strip()) if scale_str.strip() else 10.0
+        return score * 10.0 / scale if scale != 10.0 else score
     if raw.endswith("%"):
         return float(raw[:-1]) / 10.0
     return float(raw)
@@ -252,14 +254,16 @@ def _parse_search_results(data: dict[str, Any], *, provider: str) -> list[Search
         year = _parse_year(item.get("Year"))
         omdb_type = item.get("Type", "movie")
         media_type = _OMDB_TYPE_MAP.get(omdb_type, "movie")
-        results.append(SearchResult(
-            provider=provider,
-            provider_id=item.get("imdbID", ""),
-            title=item.get("Title", ""),
-            year=year,
-            media_type=media_type,
-            poster_url=item.get("Poster", ""),
-        ))
+        results.append(
+            SearchResult(
+                provider=provider,
+                provider_id=item.get("imdbID", ""),
+                title=item.get("Title", ""),
+                year=year,
+                media_type=media_type,
+                poster_url=item.get("Poster", ""),
+            )
+        )
     return results
 
 
@@ -339,10 +343,12 @@ def _parse_notations(data: dict[str, Any], *, provider: str) -> list[Notations] 
             log.warning("omdb_unparseable_rating", source=source_label, value=raw_value)
             continue
 
-        notations.append(Notations(
-            provider=provider,
-            source=source,
-            score=score,
-        ))
+        notations.append(
+            Notations(
+                provider=provider,
+                source=source,
+                score=score,
+            )
+        )
 
     return notations if notations else None
