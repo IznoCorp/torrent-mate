@@ -35,7 +35,7 @@
 | 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [x]    |
 | 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [x]    |
 | 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [x]    |
-| 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [ ]    |
+| 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [x]    |
 | 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [ ]    |
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [ ]    |
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [ ]    |
@@ -272,11 +272,26 @@ Major drifts captured:
 
 ### Phase 20 — C411 implementation
 
-| Sub-phase | Description                                                      | SHA             |
-| --------- | ---------------------------------------------------------------- | --------------- |
-| 20.1      | `api/tracker/c411.py` — Torznab XML client (263 LOC)             | `6ecb26a`       |
-| 20.2      | `tests/unit/test_c411_client.py` (18 tests against real samples) | `c272985`       |
-| 20.3      | **Phase 20 gate**                                                | _(this commit)_ |
+| Sub-phase | Description                                                      | SHA       |
+| --------- | ---------------------------------------------------------------- | --------- |
+| 20.1      | `api/tracker/c411.py` — Torznab XML client (263 LOC)             | `6ecb26a` |
+| 20.2      | `tests/unit/test_c411_client.py` (18 tests against real samples) | `c272985` |
+| 20.3      | **Phase 20 gate**                                                | `c7fbf12` |
+
+### Phase 21 — Notify base + Telegram doc
+
+| Sub-phase | Description                                                                                  | SHA             |
+| --------- | -------------------------------------------------------------------------------------------- | --------------- |
+| 21.1      | `api/notify/_base.py` — Notifier + HealthChecker Protocols (DESIGN §7.1)                     | `b2fe5fd`       |
+| 21.2–21.5 | `docs/reference/telegram-api.md` + 5 real samples (success, malformed HTML, 401, 400, getMe) | `abbb5ab`       |
+| 21.6      | User checkpoint — defaults stand (see "Open decisions for Phase 22" in doc)                  | _(in doc)_      |
+| 21.7      | **Phase 21 gate**                                                                            | _(this commit)_ |
+
+> **Phase 21 user checkpoint decisions** (defaults from `telegram-api.md` §"Open decisions"):
+> token-in-URL with `auth = NoAuth()`; `ok:false` → fail-soft (`send()` returns `False`); no
+> chunking (YAGNI, reports < 4096 chars today); `parse_mode="HTML"` default; default
+> `RetryPolicy` (5xx + 429 only); `max_requests_per_second = 1.0`; healthchecks half stays in
+> `notifier.py` until Phase 24 — only the Telegram half is migrated in Phase 22.
 
 ### Post-phase-15 corrective gate (audit cleanup)
 
@@ -316,9 +331,9 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 20 complete. **Run `/implement:phase` to start Phase 21** (Notify base + Telegram doc).
+Phase 21 complete. **Run `/implement:phase` to start Phase 22** (Telegram migration).
 
-Pre-phase-8 checklist:
+Pre-phase-22 checklist:
 
 1. Verify `make check` exits 0 (currently green).
-2. Confirm `python -c "import personalscraper"` works.
+2. Confirm `python -c "from personalscraper.api.notify._base import Notifier, HealthChecker"` works.
