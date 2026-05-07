@@ -31,7 +31,7 @@
 | 14  | Trakt API doc                      | doc   | [phase-14-trakt-doc.md](docs/features/api-unify/plan/phase-14-trakt-doc.md)                               | [x]    |
 | 15  | Trakt implementation               | impl  | [phase-15-trakt-impl.md](docs/features/api-unify/plan/phase-15-trakt-impl.md)                             | [x]    |
 | 16  | Tracker base + ranking engine      | infra | [phase-16-tracker-base-ranking.md](docs/features/api-unify/plan/phase-16-tracker-base-ranking.md)         | [x]    |
-| 17  | LaCale API doc                     | doc   | [phase-17-lacale-doc.md](docs/features/api-unify/plan/phase-17-lacale-doc.md)                             | [ ]    |
+| 17  | LaCale API doc                     | doc   | [phase-17-lacale-doc.md](docs/features/api-unify/plan/phase-17-lacale-doc.md)                             | [x]    |
 | 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [ ]    |
 | 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [ ]    |
 | 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [ ]    |
@@ -222,13 +222,21 @@ All commits use scope `api-unify`:
 
 ### Phase 16 — Tracker base + ranking engine
 
-| Sub-phase | Description                                                     | SHA             |
-| --------- | --------------------------------------------------------------- | --------------- |
-| 16.1      | `api/tracker/_base.py` — TrackerResult + TrackerClient Protocol | `2f1c9cc`       |
-| 16.2      | `api/tracker/_ranking.py` — `rank()` engine                     | `b2862ba`       |
-| 16.3      | `api/tracker/_registry.py` — TrackerRegistry                    | `4f79402`       |
-| 16.4      | Ranking engine + ThresholdEntry tests (15 tests)                | `b7e982f`       |
-| 16.5      | **Phase 16 gate**                                               | _(this commit)_ |
+| Sub-phase | Description                                                     | SHA       |
+| --------- | --------------------------------------------------------------- | --------- |
+| 16.1      | `api/tracker/_base.py` — TrackerResult + TrackerClient Protocol | `2f1c9cc` |
+| 16.2      | `api/tracker/_ranking.py` — `rank()` engine                     | `b2862ba` |
+| 16.3      | `api/tracker/_registry.py` — TrackerRegistry                    | `4f79402` |
+| 16.4      | Ranking engine + ThresholdEntry tests (15 tests)                | `b7e982f` |
+| 16.5      | **Phase 16 gate**                                               | `54f29a3` |
+
+### Phase 17 — LaCale API doc
+
+| Sub-phase | Description                                                                       | SHA       |
+| --------- | --------------------------------------------------------------------------------- | --------- |
+| 17.1–17.5 | `docs/reference/lacale-api.md` from TorrentMaker source (search + meta endpoints) | `403d145` |
+| 17.6      | User checkpoint baked into doc as "Open decisions" (defaults stand for Phase 18)  | `403d145` |
+| 17.7      | **Phase 17 gate** (single-commit phase)                                           | `403d145` |
 
 ### Post-phase-15 corrective gate (audit cleanup)
 
@@ -268,7 +276,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 16 complete. **Run `/implement:phase` to start Phase 17** (LaCale API doc).
+Phase 17 complete. **Run `/implement:phase` to start Phase 18** (LaCale implementation).
 
 Pre-phase-8 checklist:
 
