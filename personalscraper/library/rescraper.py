@@ -329,13 +329,9 @@ def _rescrape_item(
                 )
 
                 if media_type == "movie":
-                    artwork_dl.download_movie_artwork(
-                        _coerce_to_movie_data(api_data), media_dir, patterns
-                    )
+                    artwork_dl.download_movie_artwork(_coerce_to_movie_data(api_data), media_dir, patterns)
                 else:
-                    artwork_dl.download_tvshow_artwork(
-                        _coerce_to_show_data(api_data), media_dir, patterns
-                    )
+                    artwork_dl.download_tvshow_artwork(_coerce_to_show_data(api_data), media_dir, patterns)
             actions.append(ACTION_ARTWORK_DOWNLOADED)
             log.info("library_rescrape_artwork", title=title, dry_run=dry_run)
         except Exception as exc:

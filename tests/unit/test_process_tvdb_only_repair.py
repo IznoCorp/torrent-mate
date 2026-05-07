@@ -78,8 +78,7 @@ class TestExtractTvdbIdFromNfo:
         """Non-numeric value is rejected (regression against silent int() crashes)."""
         nfo = tmp_path / "tvshow.nfo"
         nfo.write_text(
-            '<?xml version="1.0"?>\n<tvshow>\n'
-            '<uniqueid type="tvdb">abc</uniqueid>\n</tvshow>',
+            '<?xml version="1.0"?>\n<tvshow>\n<uniqueid type="tvdb">abc</uniqueid>\n</tvshow>',
             encoding="utf-8",
         )
 
@@ -181,24 +180,21 @@ class TestRepairTvshowDirTvdbPrimary:
         from personalscraper.scraper.existing_validator import ExistingValidatorMixin
 
         source = inspect.getsource(ExistingValidatorMixin._repair_artwork)
-        assert "_extract_tvdb_id_from_nfo" in source, (
-            "Bug B regression: _repair_artwork must read TVDB id from NFO."
-        )
+        assert "_extract_tvdb_id_from_nfo" in source, "Bug B regression: _repair_artwork must read TVDB id from NFO."
         assert "_fetch_season_episodes_tvdb" in source, (
             "Bug B regression: _repair_artwork TVDB branch must call _fetch_season_episodes_tvdb."
         )
 
 
 class TestExternalIdsKeyContract:
-    """Bug #3 regression: ``MediaDetails.external_ids`` uses plain provider keys.
+    r"""Bug #3 regression: ``MediaDetails.external_ids`` uses plain provider keys.
 
     Both TVDB and TMDB parsers populate ``external_ids`` with plain provider
     names ("imdb", "tmdb", "tvdb") as keys — not "_id"-suffixed variants. The
     docstring on ``MediaDetails.external_ids`` documents this contract:
-    "External identifiers keyed by source (e.g. \\"imdb\\" → \\"tt1234567\\")".
+    "External identifiers keyed by source (e.g. \"imdb\" → \"tt1234567\")".
 
-    Before the fix, ``tv_service`` and ``existing_validator`` read
-    ``remote_ids.get("tmdb_id")`` / ``.get("imdb_id")`` from the raw
+    Before the fix, the consumer code read suffixed keys from the raw
     MediaDetails, which always returned None — silently dropping IMDB and
     TMDB cross-references on every TVDB-resolved series and producing
     empty ``<uniqueid type="imdb"/>`` in NFOs.
@@ -221,9 +217,7 @@ class TestExternalIdsKeyContract:
         }
         details = parse_media_details(raw, "tvdb")
 
-        assert "imdb" in details.external_ids, (
-            "TVDB parser must use plain 'imdb' key, not 'imdb_id'."
-        )
+        assert "imdb" in details.external_ids, "TVDB parser must use plain 'imdb' key, not 'imdb_id'."
         assert details.external_ids["imdb"] == "tt1190634"
         assert details.external_ids["tmdb"] == "76479"
         assert "imdb_id" not in details.external_ids, (
@@ -247,9 +241,7 @@ class TestExternalIdsKeyContract:
             "Bug #3 regression: remote_ids comes from MediaDetails.external_ids "
             "which uses plain 'tmdb' key. Reading 'tmdb_id' silently returns None."
         )
-        assert 'remote_ids.get("imdb_id")' not in source, (
-            "Bug #3 regression: same as above for 'imdb' key."
-        )
+        assert 'remote_ids.get("imdb_id")' not in source, "Bug #3 regression: same as above for 'imdb' key."
 
     def test_existing_validator_repair_reads_correct_keys(self) -> None:
         """The repair path must read external_ids using plain keys."""

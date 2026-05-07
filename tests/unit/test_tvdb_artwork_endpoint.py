@@ -50,9 +50,7 @@ class TestGetArtworkUrlsEndpoint:
         assert captured["path"] == "/series/355567/extended", (
             f"TV artwork must use /series/ endpoint; got {captured.get('path')!r}"
         )
-        assert "/tvs/" not in captured["path"], (
-            "Regression: /tvs/ is not a valid TVDB v4 endpoint and returns 400."
-        )
+        assert "/tvs/" not in captured["path"], "Regression: /tvs/ is not a valid TVDB v4 endpoint and returns 400."
 
     def test_movie_uses_movies_endpoint(self) -> None:
         """``media_type='movie'`` must request ``/movies/{id}/extended``."""

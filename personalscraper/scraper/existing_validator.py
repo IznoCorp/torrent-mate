@@ -13,6 +13,7 @@ from personalscraper.naming_patterns import SEASON_DIR_RE, NamingPatterns
 
 if TYPE_CHECKING:
     from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
 
 from personalscraper.scraper._shared import ScrapeResult
@@ -479,9 +480,7 @@ class ExistingValidatorMixin:
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
 
                 tvdb_data = self._tvdb.get_series(tvdb_id)
-                external_ids = (
-                    tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
-                )
+                external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
                 imdb_id = external_ids.get("imdb") or ""
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
@@ -495,7 +494,9 @@ class ExistingValidatorMixin:
                 root_api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
-                show_data = self._tmdb.get_tv(tmdb_id)
+                from personalscraper.scraper.movie_service import _coerce_to_show_data
+
+                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
                 root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
             for (s_num, e_num), candidates in root_new.items():
@@ -569,21 +570,13 @@ class ExistingValidatorMixin:
             )
             if not season_nums:
                 season_nums = sorted(
-                    {
-                        s
-                        for s in (
-                            _extract_season_episode(f.name)[0] for f in unorganized
-                        )
-                        if s is not None and s > 0
-                    }
+                    {s for s in (_extract_season_episode(f.name)[0] for f in unorganized) if s is not None and s > 0}
                 )
             if tvdb_id:
                 from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
 
                 tvdb_data = self._tvdb.get_series(tvdb_id)
-                external_ids = (
-                    tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
-                )
+                external_ids = tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
                 imdb_id = external_ids.get("imdb") or ""
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
@@ -597,7 +590,9 @@ class ExistingValidatorMixin:
                 api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
             else:
                 assert tmdb_id is not None
-                show_data = self._tmdb.get_tv(tmdb_id)
+                from personalscraper.scraper.movie_service import _coerce_to_show_data
+
+                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
                 api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
             if not api_episodes:
