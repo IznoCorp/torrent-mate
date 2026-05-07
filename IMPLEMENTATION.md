@@ -30,7 +30,7 @@
 | 13  | OMDB implementation                | impl  | [phase-13-omdb-impl.md](docs/features/api-unify/plan/phase-13-omdb-impl.md)                               | [x]    |
 | 14  | Trakt API doc                      | doc   | [phase-14-trakt-doc.md](docs/features/api-unify/plan/phase-14-trakt-doc.md)                               | [x]    |
 | 15  | Trakt implementation               | impl  | [phase-15-trakt-impl.md](docs/features/api-unify/plan/phase-15-trakt-impl.md)                             | [x]    |
-| 16  | Tracker base + ranking engine      | infra | [phase-16-tracker-base-ranking.md](docs/features/api-unify/plan/phase-16-tracker-base-ranking.md)         | [ ]    |
+| 16  | Tracker base + ranking engine      | infra | [phase-16-tracker-base-ranking.md](docs/features/api-unify/plan/phase-16-tracker-base-ranking.md)         | [x]    |
 | 17  | LaCale API doc                     | doc   | [phase-17-lacale-doc.md](docs/features/api-unify/plan/phase-17-lacale-doc.md)                             | [ ]    |
 | 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [ ]    |
 | 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [ ]    |
@@ -220,6 +220,16 @@ All commits use scope `api-unify`:
 | 15.2      | Ruff formatting fixup on torrent modules     | `734f806` |
 | 15.3      | **Phase 15 gate**                            | `15cb47e` |
 
+### Phase 16 — Tracker base + ranking engine
+
+| Sub-phase | Description                                                     | SHA             |
+| --------- | --------------------------------------------------------------- | --------------- |
+| 16.1      | `api/tracker/_base.py` — TrackerResult + TrackerClient Protocol | `2f1c9cc`       |
+| 16.2      | `api/tracker/_ranking.py` — `rank()` engine                     | `b2862ba`       |
+| 16.3      | `api/tracker/_registry.py` — TrackerRegistry                    | `4f79402`       |
+| 16.4      | Ranking engine + ThresholdEntry tests (15 tests)                | `b7e982f`       |
+| 16.5      | **Phase 16 gate**                                               | _(this commit)_ |
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -258,7 +268,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 15 complete. **Run `/implement:phase` to start Phase 16** (Tracker base + ranking engine).
+Phase 16 complete. **Run `/implement:phase` to start Phase 17** (LaCale API doc).
 
 Pre-phase-8 checklist:
 
