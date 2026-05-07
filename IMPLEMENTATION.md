@@ -169,7 +169,74 @@ All commits use scope `api-unify`:
 | 9.1       | `api/torrent/qbittorrent.py` + tests              | `d3b8085` |
 | 9.2       | Wire factory (verification — already wired)       | `51bc81c` |
 | 9.3       | Delete old module + update consumers + test paths | `ebcc84c` |
-| —         | **Phase 9 gate**                                  | _(next)_  |
+| 9.4       | **Phase 9 gate**                                  | `e9d2d78` |
+
+### Phase 10 — Transmission API doc
+
+| Sub-phase | Description                                                      | SHA       |
+| --------- | ---------------------------------------------------------------- | --------- |
+| 10.1      | `docs/reference/transmission-api.md` from official RPC spec      | `f0f0edc` |
+| 10.2      | **Phase 10 gate** — option A confirmed (HttpTransport pre-check) | `78ce2af` |
+
+### Phase 11 — Transmission implementation
+
+| Sub-phase | Description                                                                                                                            | SHA       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| 11.1      | `chore(api-unify): add transmission-rpc dependency`                                                                                    | `e263fcf` |
+| 11.2      | `api/torrent/transmission.py` + factory wiring (pre-check moved from `__init__` to `build_client()` factory — cleaner than plan §11.2) | `895ef24` |
+| 11.3      | Update factory test for transmission resolution                                                                                        | `4eda132` |
+| 11.4      | **Phase 11 gate**                                                                                                                      | `6efd66b` |
+
+> **Audit note**: dedicated `tests/unit/test_transmission_client.py` was missing (Plan §11.4 required it). Backfilled in the post-phase-15 corrective sub-phase (see "Cross-cutting infrastructure" below).
+
+### Phase 12 — OMDB API doc
+
+| Sub-phase | Description                                                                               | SHA       |
+| --------- | ----------------------------------------------------------------------------------------- | --------- |
+| 12.1      | `chore: add network timeout safety guardrails` (curl `--connect-timeout` block_curl hook) | `d118952` |
+| 12.2      | **Phase 12 gate** — `docs/reference/omdb-api.md` + samples + user checkpoint captured     | `2481d9a` |
+
+> **Audit note**: `d118952` is a cross-cutting safety hook landing during Phase 12 (omdbapi.com hung 11+ hours during doc study — see hook docstring). Co-shipped with the gate commit.
+
+### Phase 13 — OMDB implementation
+
+| Sub-phase | Description                                             | SHA       |
+| --------- | ------------------------------------------------------- | --------- |
+| 13.1      | `api/metadata/omdb.py` (354 LOC, well under 800 budget) | `967e4c4` |
+| 13.2      | `tests/unit/test_omdb_client.py` (26 tests)             | `a36c440` |
+| 13.3      | **Phase 13 gate**                                       | `c08ffa3` |
+
+### Phase 14 — Trakt API doc
+
+| Sub-phase | Description                                                                     | SHA       |
+| --------- | ------------------------------------------------------------------------------- | --------- |
+| 14.1      | **Phase 14 gate** — `docs/reference/trakt-api.md` + 4 samples + user checkpoint | `7f554e4` |
+
+### Phase 15 — Trakt implementation
+
+| Sub-phase | Description                                  | SHA       |
+| --------- | -------------------------------------------- | --------- |
+| 15.1      | `api/metadata/trakt.py` (367 LOC) + 11 tests | `18a0cab` |
+| 15.2      | Ruff formatting fixup on torrent modules     | `734f806` |
+| 15.3      | **Phase 15 gate**                            | `15cb47e` |
+
+### Post-phase-15 corrective gate (audit cleanup)
+
+Triggered by audit dated 2026-05-07 — 4 issues surfaced:
+
+1. **Trakt creds inconsistency** — `_activation.py` required `[CLIENT_ID, CLIENT_SECRET]` but `TraktClient.REQUIRED_CREDS = [CLIENT_ID]` only. Trakt app-only auth needs only CLIENT_ID; CLIENT_SECRET is OAuth-only (out of scope per DESIGN §1.2 + Phase 14 doc decision). DESIGN §8.7 + `_activation.py` aligned to single-cred. Test `test_multiple_required_missing` re-purposed to `telegram` (still has 2 creds).
+2. **`make test` parallel pollution** — `pytest -v -n auto` produced flaky 0–9 failures from `tests/scraper/test_ytdlp_downloader.py::TestCookieConfig`. Root cause: `CookieConfig.from_env()` calls `get_settings()` (`@lru_cache`), so tests sharing an xdist worker saw a Settings cached from a prior test's monkeypatched env. Fix: autouse fixture in `TestCookieConfig` clearing `get_settings.cache_clear()` before each test. Verified stable across 4 consecutive `pytest -n auto` runs.
+3. **`scripts/check-typed-api.py` exit 1** — script naively flagged `dict[str, Any]` in private parsers (`_parse_*`) and local variable annotations inside public files (omdb.py, trakt.py). DESIGN §13.3 only forbids it in **public API surface**. Refined script to flag only on `def <public_name>(...)` signature lines (multi-line signatures handled).
+4. **Missing `tests/unit/test_transmission_client.py`** — Plan §11.4 demanded TorrentItem mapping + status enum + factory pre-check tests. Backfilled with 25 tests covering single/multi-file content_path, SEEDING vs SEED_PENDING filtering, CSRF 409 tolerance, 401/500 abort.
+
+### Documented design drifts (deliberate, kept)
+
+| DESIGN ref | Original spec                                  | Reality + rationale                                                                                                                                                                                      |
+| ---------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §4.1       | `get_notations() -> Notations \| None`         | Implemented as `list[Notations] \| None`. OMDB returns 3 sources at once (IMDB + RT + Metacritic) — list is the only honest shape. Trakt/TVDB return single-source list with len 1.                      |
+| §5.1       | `TorrentItem.content_path: Path`               | `Path \| None`. Transmission may have no `download_dir` until torrent fully renamed (Phase 10 doc §10.4). qBit also surfaces empty `content_path` for incomplete torrents.                               |
+| §8.7       | `trakt: [CLIENT_ID, CLIENT_SECRET]`            | `trakt: [CLIENT_ID]`. App-only auth (search/details/ratings/related/trending) — CLIENT_SECRET is OAuth user-flow only (out of scope per §1.2).                                                           |
+| Plan §11.2 | Pre-check inside `TransmissionClient.__init__` | Pre-check moved to `build_client()` factory. Cleaner separation: client takes pure credentials, factory owns reachability check. Same observability via dedicated `transmission-precheck` provider name. |
 
 ### Cross-cutting infrastructure (post-phase-7)
 

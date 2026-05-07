@@ -449,7 +449,10 @@ class MetadataProvider(Protocol):
     def get_keywords(self, media_id: str, media_type: str) -> list[str]: ...
     def get_videos(self, media_id: str, media_type: str, language: str) -> list[Video]: ...
     def get_season(self, tv_id: str, season: int) -> SeasonDetails: ...
-    def get_notations(self, media_id: str, media_type: str) -> Notations | None: ...
+    def get_notations(self, media_id: str, media_type: str) -> list[Notations] | None: ...
+    # NOTE: returns a LIST because OMDB exposes 3 sources at once (IMDB + RT +
+    # Metacritic) via Ratings[]. Single-source providers (Trakt, TVDB) return
+    # a list of length 1 for shape uniformity. Returns None when no rating data.
     def get_recommendations(self, media_id: str, media_type: str) -> list[Recommendation]: ...
 ```
 
@@ -500,7 +503,9 @@ class TorrentClient(Protocol):
 @dataclass
 class TorrentItem:
     hash: str; name: str; size_bytes: int; progress: float; state: str
-    content_path: Path; category: str | None; added_on: datetime | None
+    # content_path optional: Transmission has no download_dir until rename completes;
+    # qBit also surfaces empty content_path for incomplete torrents.
+    content_path: Path | None; category: str | None; added_on: datetime | None
 ```
 
 ### 5.2 Implementations
@@ -807,7 +812,7 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "tmdb":         ["TMDB_API_KEY"],
     "tvdb":         ["TVDB_API_KEY"],
     "omdb":         ["OMDB_API_KEY"],
-    "trakt":        ["TRAKT_CLIENT_ID", "TRAKT_CLIENT_SECRET"],
+    "trakt":        ["TRAKT_CLIENT_ID"],  # app-only auth — CLIENT_SECRET is OAuth-only (out of scope)
     "qbittorrent":  ["QBIT_USERNAME", "QBIT_PASSWORD"],
     "transmission": ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"],
     "lacale":       ["LACALE_API_KEY"],
