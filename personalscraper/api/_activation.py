@@ -27,7 +27,7 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "lacale": ["LACALE_API_KEY"],
     "c411": ["C411_API_KEY"],
     "telegram": ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"],
-    "healthchecks": ["HEALTHCHECK_PING_URL"],
+    "healthchecks": ["HEALTHCHECK_URL"],
 }
 
 
