@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from personalscraper.api.metadata._base import EpisodeInfo, SearchResult, SeasonDetails
+from personalscraper.api.metadata._base import EpisodeInfo, MediaDetails, SearchResult, SeasonDetails, SeasonInfo
 from personalscraper.scraper.confidence import (
     HIGH_CONFIDENCE,
     LOW_CONFIDENCE,
@@ -72,6 +72,21 @@ def _sr_tvdb(d: dict[str, Any]) -> SearchResult:
         title=d.get("name", ""),
         year=int(y) if y.isdigit() else None,
         media_type="tv",
+    )
+
+
+def _md_tvdb_series(tvdb_id: int, season_numbers: list[int]) -> MediaDetails:
+    """Build a typed MediaDetails for a TVDB series with the given season catalog.
+
+    Phase-27 helper: replaces the legacy ``tvdb.get_series.return_value =
+    {"seasons": [{"number": 1}, ...]}`` shape with a real MediaDetails
+    instance whose ``seasons`` field carries SeasonInfo entries — the
+    actual contract that ``_candidate_has_any_season`` consumes.
+    """
+    return MediaDetails(
+        provider="tvdb",
+        provider_id=str(tvdb_id),
+        seasons=[SeasonInfo(season_number=n) for n in season_numbers],
     )
 
 
@@ -423,12 +438,12 @@ class TestMatchTvshow:
             _sr_tvdb({"tvdb_id": "77081", "name": "Top Chef", "year": "2010"}),
         ]
 
-        def fake_get_series(tvdb_id: int) -> dict:
+        def fake_get_series(tvdb_id: int) -> MediaDetails:
             if tvdb_id == 346368:
-                return {"seasons": [{"number": 1}, {"number": 2}]}
+                return _md_tvdb_series(346368, [1, 2])
             if tvdb_id == 77081:
-                return {"seasons": [{"number": s} for s in range(1, 18)]}
-            return {}
+                return _md_tvdb_series(77081, list(range(1, 18)))
+            return _md_tvdb_series(tvdb_id, [])
 
         tvdb.get_series.side_effect = fake_get_series
 
@@ -465,7 +480,7 @@ class TestMatchTvshow:
             _sr_tvdb({"tvdb_id": "1", "name": "Test Show", "year": "2020"}),
             _sr_tvdb({"tvdb_id": "2", "name": "Test Show B", "year": "2021"}),
         ]
-        tvdb.get_series.return_value = {"seasons": [{"number": 1}]}  # Only S01 everywhere
+        tvdb.get_series.return_value = _md_tvdb_series(0, [1])  # Only S01 everywhere
 
         result = match_tvshow_tvdb(tvdb, "Test Show", 2020, local_seasons={99})
 
@@ -486,7 +501,7 @@ class TestMatchTvshow:
             # Weak match, would normally be the second choice
             _sr_tvdb({"tvdb_id": "999", "name": "Unrelated", "year": "2020"}),
         ]
-        tvdb.get_series.return_value = {"seasons": [{"number": 1}, {"number": 2}]}
+        tvdb.get_series.return_value = _md_tvdb_series(0, [1, 2])
 
         result = match_tvshow_tvdb(tvdb, "Top Chef Le Concours Parallèle", 2023, local_seasons={17})
 

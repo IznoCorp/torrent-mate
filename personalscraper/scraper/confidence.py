@@ -221,11 +221,10 @@ def _candidate_has_any_season(
     except Exception:  # noqa: BLE001 — transient fetch failure; don't veto on infra
         log.warning("show_tvdb_candidate_seasons_fetch_failed", tvdb_id=tvdb_id)
         return True
-    available: set[int] = set()
-    for season in series.get("seasons", []) or []:
-        s_num = season.get("number", season.get("season_number", 0))
-        if isinstance(s_num, int) and s_num > 0:
-            available.add(s_num)
+    # api-unify: get_series returns a typed MediaDetails whose ``seasons``
+    # field is list[SeasonInfo]. The phase-27 TVDB parser populates each
+    # entry from the raw extended response.
+    available = {s.season_number for s in series.seasons if s.season_number > 0}
     return bool(available & wanted_seasons)
 
 
