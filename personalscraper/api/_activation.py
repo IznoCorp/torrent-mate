@@ -18,7 +18,10 @@ PROVIDER_CREDS: dict[str, list[str]] = {
     "tmdb": ["TMDB_API_KEY"],
     "tvdb": ["TVDB_API_KEY"],
     "omdb": ["OMDB_API_KEY"],
-    "trakt": ["TRAKT_CLIENT_ID", "TRAKT_CLIENT_SECRET"],
+    # Trakt app-only auth (search/details/ratings/related/trending) needs only CLIENT_ID
+    # in the trakt-api-key header. CLIENT_SECRET is OAuth-only and out of scope for this
+    # feature (per DESIGN S1.2 + Phase 14 doc decision: OAuth user endpoints deferred).
+    "trakt": ["TRAKT_CLIENT_ID"],
     "qbittorrent": ["QBIT_USERNAME", "QBIT_PASSWORD"],
     "transmission": ["TRANSMISSION_USERNAME", "TRANSMISSION_PASSWORD"],
     "lacale": ["LACALE_API_KEY"],

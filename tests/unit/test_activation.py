@@ -45,14 +45,14 @@ class TestResolveActive:
     def test_multiple_required_missing(self, caplog: pytest.LogCaptureFixture) -> None:
         """Multiple required creds, partial missing → not active, all missing listed."""
         caplog.set_level(logging.WARNING)
-        providers = {"trakt": _FakeProvider(enabled=True)}
-        result = resolve_active(providers, "metadata", env={"TRAKT_CLIENT_ID": "id123"})
+        providers = {"telegram": _FakeProvider(enabled=True)}
+        result = resolve_active(providers, "notify", env={"TELEGRAM_BOT_TOKEN": "tok"})
         assert result == []
-        assert "TRAKT_CLIENT_SECRET" in caplog.text
+        assert "TELEGRAM_CHAT_ID" in caplog.text
 
     def test_all_creds_present(self) -> None:
-        """All required creds present → active."""
-        env = {"TRAKT_CLIENT_ID": "id", "TRAKT_CLIENT_SECRET": "secret"}
+        """All required creds present → active. Trakt app-only needs only CLIENT_ID."""
+        env = {"TRAKT_CLIENT_ID": "id"}
         providers = {"trakt": _FakeProvider(enabled=True)}
         result = resolve_active(providers, "metadata", env=env)
         assert result == ["trakt"]
