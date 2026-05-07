@@ -262,10 +262,10 @@ def run(
     from rich.panel import Panel
     from rich.table import Table
 
+    from personalscraper.api.notify.healthchecks import HealthcheckClient
     from personalscraper.api.notify.telegram import TelegramNotifier
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
-    from personalscraper.notifier import ping_healthcheck
     from personalscraper.pipeline import Pipeline
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
@@ -280,8 +280,12 @@ def run(
     try:
         settings = cli_compat.get_settings()
 
-        # Healthcheck start ping
-        ping_healthcheck(settings.healthcheck_url, "/start")
+        # Healthcheck client (None if not configured — pings short-circuit at the call site).
+        healthcheck: HealthcheckClient | None = None
+        if HealthcheckClient.is_configured(settings):
+            hc_transport = HttpTransport(HealthcheckClient.policy(settings.healthcheck_url))
+            healthcheck = HealthcheckClient(hc_transport)
+            healthcheck.ping_start()
 
         # Clean old logs and bind run context
         cleanup_old_logs()
@@ -355,10 +359,11 @@ def run(
             notifier.send_report(report)
 
         # Healthcheck end ping
-        ping_healthcheck(
-            settings.healthcheck_url,
-            "" if not report.has_errors() else "/fail",
-        )
+        if healthcheck is not None:
+            if report.has_errors():
+                healthcheck.ping_fail()
+            else:
+                healthcheck.ping_success()
 
         if report.has_errors():
             raise typer.Exit(1)
