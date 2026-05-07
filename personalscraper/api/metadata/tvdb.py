@@ -299,7 +299,10 @@ class TVDBClient(MetadataClient):
         Returns:
             List of ArtworkItem.
         """
-        raw = self._get_dict(f"/{media_type}s/{media_id}/extended")
+        # TVDB v4 endpoints: /movies/{id}/extended and /series/{id}/extended.
+        # "tv" → "series" — naive pluralization (/tvs/) returns 400.
+        endpoint = "series" if media_type == "tv" else "movies"
+        raw = self._get_dict(f"/{endpoint}/{media_id}/extended")
         return parse_artworks(raw.get("artworks", []) or [])
 
     # -- Protocol: get_season -----------------------------------------------
