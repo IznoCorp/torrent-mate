@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+import qbittorrentapi
 
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.torrent._base import TorrentItem
@@ -102,12 +103,14 @@ class TestBuildClient:
 
     @patch("personalscraper.api.torrent.qbittorrent.requests.get")
     def test_unreachable_raises(self, mock_get: MagicMock) -> None:
-        """Connection error during pre-check → APIConnectionError."""
+        """Connection error during pre-check → ApiError(http_status=0) per DESIGN §1.1."""
         import requests as req
 
         mock_get.side_effect = req.ConnectionError("boom")
-        with pytest.raises(Exception):
+        with pytest.raises(ApiError, match="unreachable") as exc_info:
             build_client("qbittorrent", self._entry(), self._env())
+        assert exc_info.value.http_status == 0
+        assert exc_info.value.provider == "qbittorrent"
 
     @patch("personalscraper.api.torrent.qbittorrent.requests.get")
     @patch("personalscraper.api.torrent.qbittorrent._LOCKOUT_FILE")
@@ -201,3 +204,33 @@ class TestQBitClient:
 
         client.logout()
         client._client.auth_log_out.assert_called_once()  # type: ignore[attr-defined]
+
+    def test_login_failed_raises_apierror_401(self) -> None:
+        """qbittorrentapi.LoginFailed → ApiError(http_status=401) per DESIGN §1.1."""
+        from personalscraper.api.torrent.qbittorrent import _LOCKOUT_FILE  # noqa: PLC0415
+
+        client = self._client()
+        client._client.auth_log_in.side_effect = qbittorrentapi.LoginFailed("bad creds")  # type: ignore[attr-defined]
+
+        # Ensure no stale lockout file from a prior test
+        if _LOCKOUT_FILE.exists():
+            _LOCKOUT_FILE.unlink()
+
+        try:
+            with pytest.raises(ApiError, match="login failed") as exc_info:
+                client.login()
+            assert exc_info.value.http_status == 401
+            assert exc_info.value.provider == "qbittorrent"
+        finally:
+            if _LOCKOUT_FILE.exists():
+                _LOCKOUT_FILE.unlink()
+
+    def test_forbidden_raises_apierror_403(self) -> None:
+        """qbittorrentapi.Forbidden403Error → ApiError(http_status=403)."""
+        client = self._client()
+        client._client.auth_log_in.side_effect = qbittorrentapi.Forbidden403Error("ip banned")  # type: ignore[attr-defined]
+
+        with pytest.raises(ApiError, match="IP banned") as exc_info:
+            client.login()
+        assert exc_info.value.http_status == 403
+        assert exc_info.value.provider == "qbittorrent"

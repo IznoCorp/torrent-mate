@@ -155,18 +155,26 @@ class QBitClient:
 
         Raises:
             QBitAuthLockoutError: Recent auth failure lockout is active.
-            qbittorrentapi.LoginFailed: Credentials are invalid.
-            qbittorrentapi.Forbidden403Error: IP is already banned.
+            ApiError: Provider-uniform error per DESIGN §1.1. http_status=401 for invalid
+                credentials (`LoginFailed`), 403 for IP-ban (`Forbidden403Error`).
         """
         _check_lockout()
         try:
             self._client.auth_log_in()
-        except qbittorrentapi.LoginFailed:
+        except qbittorrentapi.LoginFailed as exc:
             _set_lockout("login_failed")
-            raise
-        except qbittorrentapi.Forbidden403Error:
+            raise ApiError(
+                provider="qbittorrent",
+                http_status=401,
+                message=f"qBittorrent login failed: {exc}",
+            ) from exc
+        except qbittorrentapi.Forbidden403Error as exc:
             log.error("qbit_ip_banned", hint="Unban IP in qBit > Preferences > Web UI, or restart qBit")
-            raise
+            raise ApiError(
+                provider="qbittorrent",
+                http_status=403,
+                message=f"qBittorrent IP banned: {exc}",
+            ) from exc
         log.debug("qbit_connected", host=self._host, port=self._port)
 
     def logout(self) -> None:
@@ -192,9 +200,8 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
         An authenticated QBitClient instance.
 
     Raises:
-        ApiError: Missing required credentials.
-        qbittorrentapi.APIConnectionError: qBittorrent unreachable.
-        qbittorrentapi.LoginFailed: Bad credentials.
+        ApiError: Provider-uniform error per DESIGN §1.1. http_status=0 for missing creds
+            or unreachable host (network), 401 for bad credentials, 403 for IP-ban.
         QBitAuthLockoutError: Auth lockout active from prior failure.
     """
     username = env.get("QBIT_USERNAME", "")
@@ -206,7 +213,11 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
         resp = requests.get(f"http://{entry.host}:{entry.port}/", timeout=5)
         log.debug("qbit_pre_check_ok", status=resp.status_code)
     except (requests.ConnectionError, requests.Timeout) as exc:
-        raise qbittorrentapi.APIConnectionError(f"qBittorrent unreachable at {entry.host}:{entry.port}: {exc}") from exc
+        raise ApiError(
+            provider="qbittorrent",
+            http_status=0,
+            message=f"qBittorrent unreachable at {entry.host}:{entry.port}: {exc}",
+        ) from exc
 
     client = QBitClient(entry.host, entry.port, username, password)
     client.login()
