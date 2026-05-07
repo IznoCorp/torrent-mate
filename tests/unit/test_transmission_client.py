@@ -182,12 +182,14 @@ class TestTransmissionClient:
         item = TorrentItem(hash="abc", name="t", size_bytes=1, progress=1.0, state="seed_pending")
         assert client.is_seeding(item) is False
 
-    def test_is_seeding_handles_transmission_error(self) -> None:
-        """TransmissionError during is_seeding is swallowed → False."""
+    def test_is_seeding_handles_transmission_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        """TransmissionError during is_seeding is swallowed → False AND logs warning."""
         client = self._client()
         client._client.get_torrent.side_effect = transmission_rpc.TransmissionError("boom")
         item = TorrentItem(hash="abc", name="t", size_bytes=1, progress=1.0, state="?")
-        assert client.is_seeding(item) is False
+        with caplog.at_level("WARNING", logger="api.torrent.transmission"):
+            assert client.is_seeding(item) is False
+        assert any("transmission_is_seeding_failed" in rec.message for rec in caplog.records)
 
     def test_get_content_path_single_file(self) -> None:
         """Single-file torrent path: download_dir / files[0].name."""

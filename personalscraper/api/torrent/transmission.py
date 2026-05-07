@@ -105,7 +105,13 @@ class TransmissionClient:
         try:
             t = self._client.get_torrent(torrent.hash, arguments=["status"])
             return t.status == transmission_rpc.Status.SEEDING
-        except transmission_rpc.TransmissionError:
+        except transmission_rpc.TransmissionError as exc:
+            log.warning(
+                "transmission_is_seeding_failed",
+                hash=torrent.hash,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
             return False
 
     def get_content_path(self, torrent: TorrentItem) -> Path:
