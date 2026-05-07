@@ -37,7 +37,7 @@
 | 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [x]    |
 | 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [x]    |
 | 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [x]    |
-| 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [ ]    |
+| 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [x]    |
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [ ]    |
 | 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [ ]    |
 
@@ -307,6 +307,24 @@ Major drifts captured:
 > test, so the implementation supports chunking but the production reports remain well under
 > the 4096-char cap. Net: harmless, plan-compliant, and ready if a future report grows.
 
+### Phase 23 — Healthchecks API doc
+
+| Sub-phase | Description                                                                              | SHA             |
+| --------- | ---------------------------------------------------------------------------------------- | --------------- |
+| 23.1–23.4 | `docs/reference/healthchecks-api.md` from official ping protocol (lifecycle, plain-text) | _(this commit)_ |
+| 23.5      | User checkpoint — defaults stand (Option A: `response_format="text"` via HttpTransport)  | _(in doc)_      |
+| 23.6      | **Phase 23 gate** (single-commit phase)                                                  | _(this commit)_ |
+
+> **Phase 23 user checkpoint decisions** (defaults from `healthchecks-api.md` §"Open decisions"):
+> Option A (plain-text via `TransportPolicy.response_format="text"`); `base_url` = env var
+> verbatim with `/start`/`/fail` as path suffixes; fail-soft `None`-returning Protocol;
+> `RateLimitPolicy(0.0)` (disabled, 2 pings/run); default `RetryPolicy`; `notifier.py` deleted
+> in Phase 24.
+>
+> **Sample limitation**: `200 OK` and `404 (not found)` not captured — public hc-ping.com
+> will not respond `OK` without a registered UUID and the project's real URL is a secret. The
+> single `400 invalid url format` sample is sufficient to validate the parser path.
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -345,9 +363,9 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 22 complete. **Run `/implement:phase` to start Phase 23** (Healthchecks API doc).
+Phase 23 complete. **Run `/implement:phase` to start Phase 24** (Healthchecks migration).
 
-Pre-phase-23 checklist:
+Pre-phase-24 checklist:
 
 1. Verify `make check` exits 0 (currently green).
-2. Confirm `python -c "from personalscraper.api.notify.telegram import TelegramNotifier"` works.
+2. Confirm `ls docs/reference/healthchecks-api.md` works.
