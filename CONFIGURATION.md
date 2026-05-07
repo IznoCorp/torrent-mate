@@ -375,14 +375,36 @@ Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker dé
 
 ---
 
+## Migration depuis pré-0.11 (api-unify)
+
+À partir de 0.11.0 (api-unify), la configuration des **clients torrent** (qBittorrent,
+Transmission) est éclatée en deux endroits :
+
+| Avant 0.11 (legacy `Settings`) | Depuis 0.11 (api-unify)                             |
+| ------------------------------ | --------------------------------------------------- |
+| `.env` : `QBIT_HOST`           | `config/torrent.json5` : `clients.qbittorrent.host` |
+| `.env` : `QBIT_PORT`           | `config/torrent.json5` : `clients.qbittorrent.port` |
+| `.env` : `QBIT_USERNAME`       | inchangé (cred reste dans `.env`)                   |
+| `.env` : `QBIT_PASSWORD`       | inchangé (cred reste dans `.env`)                   |
+
+Si vous mettez à jour depuis 0.10 ou antérieur :
+
+1. Vérifiez `config/torrent.json5` (créé par `personalscraper init-config`) et
+   ajustez `clients.qbittorrent.host` + `.port` à vos valeurs.
+2. Retirez `QBIT_HOST` et `QBIT_PORT` de `.env`.
+3. Si vous utilisez Transmission, faites de même avec `TRANSMISSION_HOST` /
+   `TRANSMISSION_PORT`.
+
+Le loader émet un `warning` au démarrage si ces variables sont encore présentes
+dans l'environnement (elles sont silencieusement ignorées par le code api-unify).
+
 ## Exemple complet
 
 ### .env (credentials uniquement)
 
 ```ini
 # ── qBittorrent ──────────────────────────────
-QBIT_HOST=localhost
-QBIT_PORT=8081
+# Host et port → config/torrent.json5 (pas dans .env)
 QBIT_USERNAME=admin
 QBIT_PASSWORD=mon_mot_de_passe
 

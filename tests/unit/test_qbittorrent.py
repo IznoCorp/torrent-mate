@@ -77,8 +77,8 @@ class TestBuildClient:
     """build_client() factory function."""
 
     def _entry(self) -> TorrentClientEntry:
-        """Build a default TorrentClientEntry for testing."""
-        return TorrentClientEntry(host="localhost", port=8081)
+        """Build a default TorrentClientEntry matching the production template defaults."""
+        return TorrentClientEntry()
 
     def _env(self) -> dict[str, str]:
         """Build an env dict with valid credentials."""
