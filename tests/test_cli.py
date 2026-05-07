@@ -44,6 +44,10 @@ _PATCH_CLI_RUN_INGEST = "personalscraper.cli.run_ingest"
 # Patches for the `run` command (delegates to Pipeline)
 _PATCH_PIPELINE_RUN = "personalscraper.pipeline.Pipeline.run"
 _PATCH_NOTIFIER_CONFIGURED = "personalscraper.api.notify.telegram.TelegramNotifier.is_configured"
+_PATCH_HC_CONFIGURED = "personalscraper.api.notify.healthchecks.HealthcheckClient.is_configured"
+_PATCH_HC_PING_FAIL = "personalscraper.api.notify.healthchecks.HealthcheckClient.ping_fail"
+_PATCH_HC_PING_SUCCESS = "personalscraper.api.notify.healthchecks.HealthcheckClient.ping_success"
+_PATCH_HC_PING_START = "personalscraper.api.notify.healthchecks.HealthcheckClient.ping_start"
 
 
 def _make_pipeline_report(has_errors: bool = False) -> PipelineReport:
@@ -260,6 +264,64 @@ def test_run_no_telegram_when_not_configured():
     """No Telegram call when not configured (no error)."""
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
+
+
+@patch(_PATCH_HC_CONFIGURED, return_value=True)
+@patch(_PATCH_HC_PING_START)
+@patch(_PATCH_HC_PING_SUCCESS)
+@patch(_PATCH_HC_PING_FAIL)
+def test_run_pings_healthcheck_success_on_clean_run(
+    mock_fail, mock_success, mock_start, mock_cfg
+):
+    """Clean pipeline → ping_start + ping_success, no ping_fail."""
+    result = runner.invoke(app, ["run"])
+    assert result.exit_code == 0
+    mock_start.assert_called_once()
+    mock_success.assert_called_once()
+    mock_fail.assert_not_called()
+
+
+@patch(_PATCH_HC_CONFIGURED, return_value=True)
+@patch(_PATCH_HC_PING_START)
+@patch(_PATCH_HC_PING_SUCCESS)
+@patch(_PATCH_HC_PING_FAIL)
+@patch(_PATCH_PIPELINE_RUN, side_effect=RuntimeError("pipeline crash"))
+@patch("personalscraper.cli.release_lock")
+def test_run_pings_healthcheck_fail_on_exception(
+    mock_release,
+    mock_pipeline_run,
+    mock_fail,
+    mock_success,
+    mock_start,
+    mock_cfg,
+):
+    """Pipeline.run() raising → ping_start + ping_fail (dead-man's-switch contract)."""
+    result = runner.invoke(app, ["run"])
+    assert result.exit_code != 0  # crash propagated
+    mock_start.assert_called_once()
+    mock_fail.assert_called_once()
+    mock_success.assert_not_called()
+
+
+@patch(_PATCH_HC_CONFIGURED, return_value=True)
+@patch(_PATCH_HC_PING_START)
+@patch(_PATCH_HC_PING_SUCCESS)
+@patch(_PATCH_HC_PING_FAIL)
+@patch(_PATCH_PIPELINE_RUN)
+def test_run_pings_healthcheck_fail_on_report_errors(
+    mock_pipeline_run,
+    mock_fail,
+    mock_success,
+    mock_start,
+    mock_cfg,
+):
+    """Report with has_errors() → ping_fail (not ping_success)."""
+    mock_pipeline_run.return_value = _make_pipeline_report(has_errors=True)
+    result = runner.invoke(app, ["run"])
+    assert result.exit_code == 1
+    mock_start.assert_called_once()
+    mock_fail.assert_called_once()
+    mock_success.assert_not_called()
 
 
 @patch(_PATCH_PIPELINE_RUN)
