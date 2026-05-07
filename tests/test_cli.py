@@ -270,9 +270,7 @@ def test_run_no_telegram_when_not_configured():
 @patch(_PATCH_HC_PING_START)
 @patch(_PATCH_HC_PING_SUCCESS)
 @patch(_PATCH_HC_PING_FAIL)
-def test_run_pings_healthcheck_success_on_clean_run(
-    mock_fail, mock_success, mock_start, mock_cfg
-):
+def test_run_pings_healthcheck_success_on_clean_run(mock_fail, mock_success, mock_start, mock_cfg):
     """Clean pipeline → ping_start + ping_success, no ping_fail."""
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0

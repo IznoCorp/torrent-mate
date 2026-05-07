@@ -40,7 +40,7 @@
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [x]    |
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [x]    |
 | 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [x]    |
-| 26  | PR fixes cycle 1                   | fix   | [phase-26-pr-fixes-cycle-1.md](docs/features/api-unify/plan/phase-26-pr-fixes-cycle-1.md)                 | [ ]    |
+| 26  | PR fixes cycle 1                   | fix   | [phase-26-pr-fixes-cycle-1.md](docs/features/api-unify/plan/phase-26-pr-fixes-cycle-1.md)                 | [x]    |
 
 ## Quality gate (every commit)
 
@@ -443,7 +443,20 @@ User-requested full PR review (4 reviewers in parallel, scope `main...HEAD` cove
 - Polish: rename `RateLimiter._tokens` → `_next_at`, c411 → lacale `_parse_title` cross-class
   private call, error-body log level on non-OK responses, `TVDBClient.circuit` typed `Any`.
 
+### Phase 26 — PR fixes cycle 1
+
+| Sub-phase | Description                                                                                      | SHA             |
+| --------- | ------------------------------------------------------------------------------------------------ | --------------- |
+| 26.1      | `_activation.py` healthchecks: `HEALTHCHECK_PING_URL` → `HEALTHCHECK_URL`                        | `53f5502`       |
+| 26.2      | `tmdb._fetch_videos` log warning on swallowed errors (+2 tests)                                  | `80ed6a0`       |
+| 26.3      | `transmission.is_seeding` log warning on swallowed `TransmissionError` (+1 test assertion)       | `9e6b236`       |
+| 26.4      | `qbittorrent.py` wrap `LoginFailed`/`Forbidden403`/`APIConnectionError` in `ApiError` (+2 tests) | `efcc5b4`       |
+| 26.5      | `_ranking.py` honor `RankingCriterion.prefer="lower"` (+2 tests)                                 | `d1a8e79`       |
+| 26.6      | `pipeline.py` ensure `healthcheck.ping_fail()` on `pipeline.run()` exception (+3 tests)          | `b33080b`       |
+| 26.7      | **Phase 26 gate** (2795 tests pass, +9 new; `make check` clean; both residual greps zero)        | _(this commit)_ |
+
 ## Next action
 
-Phase 26 dispatched (PR review cycle 1 fixes). **Run `/implement:phase` to execute** — the
-6 retained MAJOR/MEDIUM findings will be fixed in 6 sub-phases + gate.
+Phase 26 complete (PR review cycle 1 fixes applied + gate green). **Run
+`/implement:feature-pr`** to push the new commits, re-poll CI, and (on green) re-enter
+`/implement:pr-review` cycle 2 to re-validate the fixes.
