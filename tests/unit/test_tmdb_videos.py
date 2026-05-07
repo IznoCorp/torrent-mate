@@ -251,3 +251,44 @@ class TestFetchVideosStrictNonDict:
         with pytest.raises(TypeError, match="expected dict"):
             with patch.object(client._transport, "get", return_value="unexpected string"):
                 client._fetch_videos_strict("/movie/550/videos", "en-US")
+
+
+# ── _fetch_videos fail-soft logging ──────────────────────────────────────────
+
+
+class TestFetchVideosFailSoftLogging:
+    """Tests for TMDBClient._fetch_videos fail-soft warning emission."""
+
+    def test_fetch_videos_logs_warning_on_apierror(
+        self,
+        client: TMDBClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """_fetch_videos returns [] AND logs `tmdb_fetch_videos_failed` on ApiError."""
+        with patch.object(
+            client,
+            "_fetch_videos_strict",
+            side_effect=ApiError(provider="tmdb", http_status=503, message="upstream"),
+        ):
+            with caplog.at_level("WARNING", logger="api.tmdb"):
+                result = client._fetch_videos("/movie/550/videos", "en-US")
+
+        assert result == []
+        assert any("tmdb_fetch_videos_failed" in rec.message for rec in caplog.records)
+
+    def test_fetch_videos_logs_warning_on_unexpected_exception(
+        self,
+        client: TMDBClient,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """_fetch_videos returns [] AND logs warning on any unexpected exception."""
+        with patch.object(
+            client,
+            "_fetch_videos_strict",
+            side_effect=RuntimeError("boom"),
+        ):
+            with caplog.at_level("WARNING", logger="api.tmdb"):
+                result = client._fetch_videos("/movie/550/videos", "en-US")
+
+        assert result == []
+        assert any("tmdb_fetch_videos_failed" in rec.message for rec in caplog.records)

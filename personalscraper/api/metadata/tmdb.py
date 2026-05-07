@@ -350,6 +350,11 @@ class TMDBClient(MetadataClient):
     def _fetch_videos(self, endpoint: str, language: str) -> list[Video]:
         """Fetch videos, fail-soft on any error.
 
+        Trailer scrape is a best-effort feature: any transport, circuit, parser, or
+        unexpected error is logged at WARNING level and converted to an empty list so
+        the caller cannot distinguish "TMDB down" from "no videos" without consulting
+        the log channel `api.tmdb`.
+
         Args:
             endpoint: Videos API path.
             language: ISO 639-1 language filter.
@@ -359,7 +364,14 @@ class TMDBClient(MetadataClient):
         """
         try:
             return self._fetch_videos_strict(endpoint, language)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001 — fail-soft trailer fetch; observability via log.warning
+            log.warning(
+                "tmdb_fetch_videos_failed",
+                endpoint=endpoint,
+                language=language,
+                error=str(exc),
+                error_type=type(exc).__name__,
+            )
             return []
 
     def _fetch_videos_strict(self, endpoint: str, language: str) -> list[Video]:
