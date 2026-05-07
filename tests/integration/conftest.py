@@ -25,6 +25,7 @@ from unittest.mock import MagicMock  # noqa: E402
 
 import pytest  # noqa: E402
 
+from personalscraper.api.metadata._base import SearchResult  # noqa: E402
 from personalscraper.conf import ids as CID  # noqa: E402
 from personalscraper.conf.models.config import Config  # noqa: E402
 from personalscraper.conf.models.disks import DiskConfig  # noqa: E402
@@ -198,6 +199,48 @@ def integration_config_path(integration_config: Config, tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Helpers — convert legacy dict-shaped TMDB/TVDB canned responses to typed
+# SearchResult instances (api-unify TMDBClient / TVDBClient now emit these).
+# ---------------------------------------------------------------------------
+
+
+def _dict_to_movie_search_result(d: dict[str, Any]) -> SearchResult:
+    """Reshape ``{"id", "title", "release_date"}`` → ``SearchResult``."""
+    rd = d.get("release_date") or ""
+    return SearchResult(
+        provider="tmdb",
+        provider_id=str(d.get("id", "")),
+        title=d.get("title", ""),
+        year=int(rd[:4]) if rd[:4].isdigit() else None,
+        media_type="movie",
+    )
+
+
+def _dict_to_tv_search_result(d: dict[str, Any]) -> SearchResult:
+    """Reshape ``{"id", "name", "first_air_date"}`` → ``SearchResult``."""
+    fad = d.get("first_air_date") or ""
+    return SearchResult(
+        provider="tmdb",
+        provider_id=str(d.get("id", "")),
+        title=d.get("name", ""),
+        year=int(fad[:4]) if fad[:4].isdigit() else None,
+        media_type="tv",
+    )
+
+
+def _dict_to_tvdb_search_result(d: dict[str, Any]) -> SearchResult:
+    """Reshape ``{"tvdb_id", "name", "year"}`` → ``SearchResult``."""
+    y = str(d.get("year") or "")
+    return SearchResult(
+        provider="tvdb",
+        provider_id=str(d.get("tvdb_id", "")),
+        title=d.get("name", ""),
+        year=int(y) if y.isdigit() else None,
+        media_type="tv",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Fake API client stubs
 # ---------------------------------------------------------------------------
 
@@ -286,33 +329,37 @@ class FakeTMDB:
 
     # Minimal protocol surface so callers of search/get_movie/get_tv work.
 
-    def search_movie(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
-        """Return canned movie search results.
+    def search_movie(self, title: str, year: int | None = None) -> list[SearchResult]:
+        """Return canned movie search results as typed SearchResult instances.
+
+        Reshapes the legacy ``{"id", "title", "release_date"}`` dicts the canned
+        responses use into the api-unify ``SearchResult`` model that the real
+        TMDBClient now emits.
 
         Args:
             title: Movie title query (unused by stub).
             year: Optional release year filter (unused by stub).
 
         Returns:
-            List of result dicts from the ``search/movie`` canned response.
+            List of ``SearchResult`` instances built from canned dicts.
         """
         data = self._get("/search/movie")
-        return data.get("results", [])
+        return [_dict_to_movie_search_result(r) for r in data.get("results", [])]
 
-    def search_tv(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
-        """Return canned TV search results.
+    def search_tv(self, title: str, year: int | None = None) -> list[SearchResult]:
+        """Return canned TV search results as typed SearchResult instances.
 
         Args:
             title: Series title query (unused by stub).
             year: Optional first-air-year filter (unused by stub).
 
         Returns:
-            List of result dicts from the ``search/tv`` canned response.
+            List of ``SearchResult`` instances built from canned dicts.
         """
         data = self._get("/search/tv")
-        return data.get("results", [])
+        return [_dict_to_tv_search_result(r) for r in data.get("results", [])]
 
-    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict[str, Any]]:
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[SearchResult]:
         """Dispatch to search_movie or search_tv based on media_type.
 
         Args:
@@ -404,22 +451,26 @@ class FakeTVDB:
                 return payload
         return self._default
 
-    def search_series(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
-        """Return canned series search results.
+    def search_series(self, title: str, year: int | None = None) -> list[SearchResult]:
+        """Return canned series search results as typed SearchResult instances.
+
+        Reshapes the legacy ``{"tvdb_id", "name", "year"}`` dicts the canned
+        responses use into the api-unify ``SearchResult`` model.
 
         Args:
             title: Series title query (unused by stub).
             year: Optional year filter (unused by stub).
 
         Returns:
-            List of result dicts from the ``search`` canned response.
+            List of ``SearchResult`` instances built from canned dicts.
         """
         data = self._get("/search")
         if isinstance(data, dict):
-            return data.get("data", []) if isinstance(data.get("data"), list) else []
+            payload = data.get("data", []) if isinstance(data.get("data"), list) else []
+            return [_dict_to_tvdb_search_result(r) for r in payload]
         return []
 
-    def search(self, title: str, year: int | None = None, media_type: str = "tv") -> list[dict[str, Any]]:
+    def search(self, title: str, year: int | None = None, media_type: str = "tv") -> list[SearchResult]:
         """MetadataProvider protocol dispatch — delegates to search_series.
 
         Args:

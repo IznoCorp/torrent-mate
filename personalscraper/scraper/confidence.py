@@ -13,11 +13,11 @@ See docs/rapidfuzz-reference.md for scorer details.
 
 import re
 from dataclasses import dataclass
-from typing import Any
 
 import typer
 from rapidfuzz import fuzz
 
+from personalscraper.api.metadata._base import SearchResult
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import media_processor
 
@@ -149,22 +149,19 @@ def match_movie(
     best_score = -1.0
 
     for result in results:
-        api_title = result.get("title", "")
-        # Extract year from release_date (format: "2024-06-28")
-        release_date = result.get("release_date", "")
-        api_year = int(release_date[:4]) if release_date and len(release_date) >= 4 else None
+        # api-unify: TMDB/TVDB clients now return typed SearchResult instances.
+        # Title/year are pre-normalized; provider_id is a str that we coerce to int
+        # for MatchResult.api_id (legacy contract — both providers expose numeric ids).
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
-        candidate_titles = [api_title]
-        original_title = result.get("original_title", "")
-        if original_title and original_title not in candidate_titles:
-            candidate_titles.append(original_title)
-
-        score = max(score_match(title, year, candidate_title, api_year) for candidate_title in candidate_titles)
+        score = score_match(title, year, api_title, api_year)
 
         if score > best_score:
             best_score = score
             best_match = MatchResult(
-                api_id=result["id"],
+                api_id=api_id,
                 api_title=api_title,
                 api_year=api_year,
                 confidence=score,
@@ -270,16 +267,14 @@ def match_tvshow_tvdb(
     # First pass: score every candidate.
     scored: list[tuple[float, MatchResult]] = []
     for result in results:
-        api_title = result.get("name", "")
-        # TVDB search returns year as string in the "year" field
-        year_str = result.get("year", "")
-        api_year = int(year_str) if year_str and str(year_str).isdigit() else None
+        # api-unify: typed SearchResult — title/year/provider_id replace the
+        # old TVDB-specific name/year/tvdb_id fields.
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
         score = score_match(title, year, api_title, api_year)
 
-        # TVDB search uses tvdb_id (string), not id
-        tvdb_id_str = result.get("tvdb_id", "")
-        api_id = int(tvdb_id_str) if tvdb_id_str and str(tvdb_id_str).isdigit() else 0
         scored.append(
             (
                 score,
@@ -399,7 +394,7 @@ def match_tvshow(
     # French documentary releases are localised as "Les secrets de
     # <subject>" while TMDB indexes the original title under the subject
     # name, so try a narrow subject-only query as well.
-    tmdb_results: list[tuple[str, dict[str, Any]]] = []
+    tmdb_results: list[tuple[str, SearchResult]] = []
     for query_title in _tv_fallback_title_variants(title):
         results = tmdb_client.search_tv(query_title, year)  # type: ignore[attr-defined]
         tmdb_results.extend((query_title, result) for result in results)
@@ -407,15 +402,17 @@ def match_tvshow(
     best_score = -1.0
 
     for query_title, result in tmdb_results:
-        api_title = result.get("name", "")
-        first_air = result.get("first_air_date", "")
-        api_year = int(first_air[:4]) if first_air and len(first_air) >= 4 else None
+        # api-unify: SearchResult.title is unified across movie ("title") and
+        # tv ("name") TMDB endpoints; year is pre-extracted.
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
         score = score_match(query_title, year, api_title, api_year)
         if score > best_score:
             best_score = score
             tmdb_match = MatchResult(
-                api_id=result["id"],
+                api_id=api_id,
                 api_title=api_title,
                 api_year=api_year,
                 confidence=score,
