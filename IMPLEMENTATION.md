@@ -41,6 +41,7 @@
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [x]    |
 | 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [x]    |
 | 26  | PR fixes cycle 1                   | fix   | [phase-26-pr-fixes-cycle-1.md](docs/features/api-unify/plan/phase-26-pr-fixes-cycle-1.md)                 | [x]    |
+| 27  | E2E pipeline audit fixes (added)   | fix   | _(no plan file — surfaced by 2026-05-08 audit)_                                                           | [x]    |
 
 ## Quality gate (every commit)
 
@@ -473,9 +474,36 @@ in-process by:
 - Retained: 0 critical / 0 major / 0 medium / 0 minor
 - Status: clean — proceeding to manual merge
 
+### Phase 27 — End-to-end pipeline audit fixes (2026-05-08)
+
+User-driven end-to-end run on real qBittorrent + real disks (5 in-flight TV shows in staging)
+exposed a chain of api-unify regressions that the per-phase gates missed because test fixtures
+used the legacy dict shape. Each was reproduced in a regression test pinning the contract.
+Full audit report: `docs/features/api-unify/audit-implementation-2026-05-08.md`.
+
+| Sub-phase | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                            | SHA             |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 27.1      | TVDB `get_artwork_urls` builds `/series/{id}/extended` for TV (TVDB v4 endpoint), not `/tvs/...` (HTTP 400). +3 regression tests in `tests/unit/test_tvdb_artwork_endpoint.py`.                                                                                                                                                                                                                                                                                        | `1bbff6d`       |
+| 27.2      | PROCESS reorganize fired on TVDB-only shows: bootstrap season discovery from SxxEyy filenames when no `Saison NN/` exists yet (Bug A in `tv_service._build_episode_map`); repair pass reads TVDB id first (primary scraper for series) and falls back to TMDB only if absent (Bug B in `existing_validator._repair_*`). New helper `_fetch_season_episodes_tvdb` + `_extract_tvdb_id_from_nfo`. +12 regression tests in `tests/unit/test_process_tvdb_only_repair.py`. | `1dbaa5d`       |
+| 27.3      | `MediaDetails.external_ids` consumers read plain provider keys (`"imdb"`, `"tmdb"`) — not `"_id"`-suffixed names. Empty `<uniqueid type="imdb"/>` in every NFO + lost TMDB cross-references on TVDB-resolved series. +3 regression tests in `TestExternalIdsKeyContract`.                                                                                                                                                                                              | `1ec05e8`       |
+| 27.4      | New `_media_details_to_show_data` + `_coerce_to_show_data` shim mirroring the movie equivalents (with TV-only `seasons` summary array). 6 `# type: ignore[arg-type]` markers + their TODO notes dropped from the TMDB repair path (`existing_validator._recover_movie_artwork`, `_recover_tvshow_artwork`, `library/rescraper` NFO + artwork blocks). +4 regression tests in `TestMediaDetailsToShowData` + `TestCoerceToShowData`.                                    | `b526e40`       |
+| 27.5      | Lint cleanup after fixes: ruff format on 4 files, `TVDBClient` added to `TYPE_CHECKING` block, 2 mypy assignment errors closed via `_coerce_to_show_data` on TMDB repair branches, test docstring escape fixed.                                                                                                                                                                                                                                                        | `899c39b`       |
+| 27.6      | **Phase 27 gate**: `make lint` + `make test` (2879 passed / 1 skipped) + `make check` (module-size + typed-api) all green.                                                                                                                                                                                                                                                                                                                                             | _(this commit)_ |
+
+> **Phase 27 rationale**: this phase wasn't in the original 25-phase plan. It was triggered
+> by the user-driven 2026-05-07 audit (`audit-real-readiness-2026-05-07.md`) that flagged
+> "tests masquent les régressions" and recommended a fresh-shell pipeline smoke test +
+> consumer migration. Phase 27 base work landed in `66b3565` (smoke tests) +
+> `88eb815`/`37e0561` (typed model extensions) + `60ca5d8`/`32c290f`/`7cf1944`/`905f012`
+> (consumer shims). Sub-phases 27.1-27.5 above close the residual production bugs that the
+> shim work missed because they only manifested on real API responses, not on the dict
+> fixtures used by the test suite.
+
 ## Next action
 
-**Cycle 1 fixes applied + cycle 2 verified by gates.** PR #19 is mergeable.
-Per `/implement:feature` merge mode = `manual`: review the new fix commits and
-squash-merge when ready. Then run `/implement:archive` to file the feature into
-`docs/archive/features/api-unify/`.
+**Phase 26 + Phase 27 complete.** Full audit captured in
+`docs/features/api-unify/audit-implementation-2026-05-08.md`. Quality gate green
+(2879 tests / 1 skipped, mypy + ruff + typed-api + module-size all clean).
+PR #19 is mergeable. Per `/implement:feature` merge mode = `manual`: review the new
+fix commits and squash-merge when ready. Then run `/implement:archive` to file the
+feature into `docs/archive/features/api-unify/`.
