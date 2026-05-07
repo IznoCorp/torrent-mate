@@ -34,7 +34,7 @@
 | 17  | LaCale API doc                     | doc   | [phase-17-lacale-doc.md](docs/features/api-unify/plan/phase-17-lacale-doc.md)                             | [x]    |
 | 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [x]    |
 | 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [x]    |
-| 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [ ]    |
+| 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [x]    |
 | 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [ ]    |
 | 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [ ]    |
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [ ]    |
@@ -254,6 +254,30 @@ All commits use scope `api-unify`:
 | 19.6      | User checkpoint baked into doc as "Open decisions" (defaults stand) | `4879ffe` |
 | 19.7      | **Phase 19 gate** (single-commit phase)                             | `4879ffe` |
 
+### Phase 17/18/19/20 revisit — real API samples (2026-05-07)
+
+User-driven revisit: capture real API responses, store as samples, reconcile docs + tests against reality.
+
+| Step                                                                                             | SHA       |
+| ------------------------------------------------------------------------------------------------ | --------- |
+| C411 samples (caps, search, tvsearch, movie, empty, error-auth) + doc reconciliation             | `4104adf` |
+| LaCale rebuild (5 samples + impl rewrite + tests against real fixtures + qbit passkey redaction) | `e650e30` |
+
+Major drifts captured:
+
+- **C411**: `<guid>` is the 40-char infohash (not a URL); `<size>` element duplicates `enclosure[@length]` and `torznab:attr[size]`; caps does NOT advertise `cat` (narrowing via `t=movie`/`t=tvsearch` only); `category[@name]` is the Newznab class, `[@description]` is the human label; subcat `@id` collides across parents; `enclosure[@url]` embeds the apikey; `peers == seeders` when no leechers (clamp).
+- **LaCale**: `category` is the human label, **not** a slug; `downloadLink` is `/api/download/<infoHash>?token=<JWT>` (per-request signed JWT, sensitive); `guid` is a short opaque ID, distinct from `infoHash`; `pubDate` carries milliseconds; `leechers` is exposed directly; meta returns ONLY `{categories: [...]}` (no `tagGroups`/`ungroupedTags`); **no freeleech indicator exists** (neither title prefix nor JSON flag) — `is_freeleech`/`is_silverleech` hardcoded `False`.
+- **LACALE_API_KEY ≠ LACALE_PASSKEY**: separate secrets; the BT announce passkey is rejected by the API.
+- **Side fix**: redact LaCale passkey + C411 passkey leaked into `docs/reference/_samples/qbittorrent/torrents-info-{all,completed}.json` (introduced in `31b832f`). Current snapshot only — history rewrite deferred to user.
+
+### Phase 20 — C411 implementation
+
+| Sub-phase | Description                                                      | SHA             |
+| --------- | ---------------------------------------------------------------- | --------------- |
+| 20.1      | `api/tracker/c411.py` — Torznab XML client (263 LOC)             | `3750487`       |
+| 20.2      | `tests/unit/test_c411_client.py` (18 tests against real samples) | `ddbc09f`       |
+| 20.3      | **Phase 20 gate**                                                | _(this commit)_ |
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -292,7 +316,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 19 complete. **Run `/implement:phase` to start Phase 20** (C411 implementation).
+Phase 20 complete. **Run `/implement:phase` to start Phase 21** (Notify base + Telegram doc).
 
 Pre-phase-8 checklist:
 
