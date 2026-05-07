@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
+from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
 from personalscraper.naming_patterns import SEASON_DIR_RE
@@ -39,7 +40,7 @@ log = get_logger("scraper")
 
 
 def _tvdb_series_to_show_data(
-    tvdb_data: dict[str, Any],
+    tvdb_data: "MediaDetails | dict[str, Any]",
     tvdb_id: int,
     tvdb_client: Any = None,
     tmdb_id: int = 0,
@@ -56,18 +57,28 @@ def _tvdb_series_to_show_data(
     embedded as a secondary uniqueid cross-reference and never queried
     for content.
 
-    TVDB field mapping:
-    - name / originalName → name / original_name
-    - overview → overview
-    - status.name → status
-    - genres[{name}] → genres[{name}]
-    - contentRatings[{name}] → content_ratings.results[{rating}]
-    - seasons[{number}] → seasons[{season_number}]
-    - If tvdb_client is provided: posters (type=2) + backgrounds (type=3) are
-      fetched and injected into ``images`` as absolute URLs (``{file_path}``).
+    Phase 27: ``tvdb_data`` is now ``MediaDetails`` in production
+    (api-unify ``TVDBClient.get_series`` returns the typed model). The
+    function preserves backward compatibility by also accepting the raw
+    TVDB extended dict — useful for tests that have not migrated and for
+    rare callers that still hold the unparsed payload. Internally, the
+    typed branch derives the same TMDB-flavoured output by reading
+    ``MediaDetails`` fields populated by ``_tvdb_parsers.parse_media_details``.
+
+    Lossy fields when the input is ``MediaDetails``:
+    - ``status`` (TVDB extended ``status.name``) — not in MediaDetails;
+      empty string in the output. Affects only the NFO ``<status>`` tag.
+    - ``contentRatings`` — not in MediaDetails; empty list in the output.
+      Affects only the NFO ``<mpaa>`` tag.
+    - language-specific translations — MediaDetails carries the
+      provider-default name + ``original_title``; per-locale translations
+      are not preserved. ``preferred_language`` / ``fallback_language``
+      become no-ops in the typed branch.
 
     Args:
-        tvdb_data: TVDB extended series dict (from get_series()).
+        tvdb_data: Either the typed ``MediaDetails`` from
+            ``TVDBClient.get_series`` (api-unify) or the raw TVDB extended
+            series dict (legacy callers / fixtures).
         tvdb_id: TVDB series ID (embedded in external_ids for NFO generation).
         tvdb_client: Optional TVDB client used to fetch artworks. When None, the
             returned dict has empty ``images`` (legacy call sites that don't
@@ -77,35 +88,87 @@ def _tvdb_series_to_show_data(
             cross-linking, never used to fetch content.
         imdb_id: Optional IMDB cross-reference id (same rationale as tmdb_id).
         preferred_language: Configured scraping language. Used to select TVDB
-            translated titles when available.
-        fallback_language: Fallback scraping language when preferred
-            translation is unavailable.
+            translated titles when available (legacy dict path only).
+        fallback_language: Fallback scraping language (legacy dict path only).
 
     Returns:
         Dict with TMDB-compatible fields for NFO/artwork generation.
     """
-    status_raw = tvdb_data.get("status", {})
-    status_name = status_raw.get("name", "") if isinstance(status_raw, dict) else str(status_raw)
+    if isinstance(tvdb_data, MediaDetails):
+        # api-unify path — read the typed model directly.
+        display_name = tvdb_data.title
+        original_name = tvdb_data.original_title or tvdb_data.title
+        overview_text = tvdb_data.overview
+        status_name = ""  # MediaDetails does not preserve TVDB ``status.name``.
+        content_ratings_results: list[dict[str, str]] = []
+        seasons = [
+            {"season_number": s.season_number, "poster_path": s.poster_url}
+            for s in tvdb_data.seasons
+            if s.season_number > 0
+        ]
+        # Genre names are available; IDs are dropped at this boundary because
+        # the legacy dict shape only exposes ``[{"name": ...}]``.
+        genres = [{"name": g} for g in tvdb_data.genres if g]
+        # first_air_date built from MediaDetails.year when present.
+        first_air = f"{tvdb_data.year}-01-01" if tvdb_data.year else ""
+        # MediaDetails.external_ids is already the {"imdb": ..., "tmdb": ..., "tvdb": ...} dict.
+        # Override with the explicit tmdb_id / imdb_id args when callers provide them.
+        external_ids_typed: dict[str, str | int] = {"tvdb_id": tvdb_id}
+        if tmdb_id:
+            external_ids_typed["tmdb_id"] = tmdb_id
+        if imdb_id:
+            external_ids_typed["imdb_id"] = imdb_id
+    else:
+        # Legacy dict path — preserved for tests + rare callers.
+        status_raw = tvdb_data.get("status", {})
+        status_name = status_raw.get("name", "") if isinstance(status_raw, dict) else str(status_raw)
 
-    # Build content_ratings in TMDB format: {results: [{rating, iso_3166_1}]}
-    content_ratings_results: list[dict[str, str]] = []
-    for cr in tvdb_data.get("contentRatings", []) or []:
-        rating = cr.get("name", "")
-        country = cr.get("country", "")
-        if rating:
-            content_ratings_results.append({"rating": rating, "iso_3166_1": country})
+        # Build content_ratings in TMDB format: {results: [{rating, iso_3166_1}]}
+        content_ratings_results = []
+        for cr in tvdb_data.get("contentRatings", []) or []:
+            rating = cr.get("name", "")
+            country = cr.get("country", "")
+            if rating:
+                content_ratings_results.append({"rating": rating, "iso_3166_1": country})
 
-    # Build seasons list in TMDB format: [{season_number, poster_path}]
-    seasons: list[dict[str, Any]] = []
-    for s in tvdb_data.get("seasons", []) or []:
-        s_num = s.get("number", s.get("season_number", 0))
-        if s_num and s_num > 0:
-            seasons.append({"season_number": s_num, "poster_path": ""})
+        # Build seasons list in TMDB format: [{season_number, poster_path}]
+        seasons = []
+        for s in tvdb_data.get("seasons", []) or []:
+            s_num = s.get("number", s.get("season_number", 0))
+            if s_num and s_num > 0:
+                seasons.append({"season_number": s_num, "poster_path": ""})
+
+        # Genres in legacy dict shape (already TVDB-style)
+        genres = [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])]
+
+        # first_air_date: TVDB uses firstAired ("YYYY-MM-DD"); fallback to year field.
+        first_air = tvdb_data.get("firstAired") or ""
+        if not first_air:
+            year_val = tvdb_data.get("year")
+            if isinstance(year_val, int) and year_val > 0:
+                first_air = f"{year_val}-01-01"
+            elif isinstance(year_val, str) and year_val.isdigit():
+                first_air = f"{year_val}-01-01"
+
+        raw_name = tvdb_data.get("name", "")
+        lang_code = preferred_language.split("-", 1)[0].lower()
+        tvdb_lang_code = map_language(lang_code)
+        translations = tvdb_data.get("translations") or {}
+        translated_overview: str | None = None
+        translated_name = None
+        if isinstance(translations, dict):
+            translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
+        if not translated_name:
+            fallback_code = fallback_language.split("-", 1)[0].lower()
+            fallback_tvdb_code = map_language(fallback_code)
+            if isinstance(translations, dict):
+                translated_name = translations.get(fallback_code) or translations.get(fallback_tvdb_code)
+        display_name = translated_name or raw_name
+        original_name = tvdb_data.get("originalName") or raw_name
+        overview_text = translated_overview or tvdb_data.get("overview", "")
+        external_ids_typed = {"tvdb_id": tvdb_id, "imdb_id": imdb_id}
 
     # Fetch TVDB artworks via the typed API when a client is provided.
-    # ArtworkItem.type: "poster" (old type_id=2), "backdrop" (old type_id=3).
-    # Map into TMDB-like ``{file_path, iso_639_1}`` entries so
-    # download_tvshow_artwork() can consume them unchanged.
     posters: list[dict[str, Any]] = []
     backdrops: list[dict[str, Any]] = []
     if tvdb_client is not None:
@@ -124,47 +187,20 @@ def _tvdb_series_to_show_data(
         except Exception as exc:  # noqa: BLE001 — artwork fetch is best-effort
             log.warning("tvdb_artwork_fetch_failed", tvdb_id=tvdb_id, error=str(exc))
 
-    # first_air_date: TVDB uses firstAired ("YYYY-MM-DD"); fallback to year field.
-    first_air = tvdb_data.get("firstAired") or ""
-    if not first_air:
-        year_val = tvdb_data.get("year")
-        if isinstance(year_val, int) and year_val > 0:
-            first_air = f"{year_val}-01-01"
-        elif isinstance(year_val, str) and year_val.isdigit():
-            first_air = f"{year_val}-01-01"
-
-    raw_name = tvdb_data.get("name", "")
-    lang_code = preferred_language.split("-", 1)[0].lower()
-    tvdb_lang_code = map_language(lang_code)
-    translations = tvdb_data.get("translations") or {}
-    translated_overview: str | None = None
-    translated_name = None
-    if isinstance(translations, dict):
-        translated_name = translations.get(lang_code) or translations.get(tvdb_lang_code)
-    if not translated_name:
-        fallback_code = fallback_language.split("-", 1)[0].lower()
-        fallback_tvdb_code = map_language(fallback_code)
-        if isinstance(translations, dict):
-            translated_name = translations.get(fallback_code) or translations.get(fallback_tvdb_code)
-    display_name = translated_name or raw_name
-
     return {
         "id": tmdb_id,  # Cross-ref TMDB id (0 when none) — NFO-only, never queried
         "name": display_name,
-        "original_name": tvdb_data.get("originalName") or raw_name,
-        "overview": translated_overview or tvdb_data.get("overview", ""),
+        "original_name": original_name,
+        "overview": overview_text,
         "status": status_name,
-        "genres": [{"name": g.get("name", "")} for g in (tvdb_data.get("genres") or [])],
+        "genres": genres,
         "networks": [],
         "first_air_date": first_air,
         "vote_average": 0.0,
         "vote_count": 0,
         "number_of_episodes": 0,
         "number_of_seasons": len(seasons),
-        "external_ids": {
-            "tvdb_id": tvdb_id,
-            "imdb_id": imdb_id,
-        },
+        "external_ids": external_ids_typed,
         "content_ratings": {"results": content_ratings_results},
         "seasons": seasons,
         "images": {"posters": posters, "backdrops": backdrops},
@@ -494,9 +530,11 @@ class TvServiceMixin:
                 imdb_id = remote_ids.get("imdb_id") or ""
                 if not tmdb_id:
                     log.info("show_tvdb_only", tvdb_id=match.api_id)
-                # TODO(api-unify): migrate _tvdb_series_to_show_data to accept MediaDetails
+                # api-unify phase 27: _tvdb_series_to_show_data now accepts
+                # MediaDetails directly (typed branch). The TODO + type:ignore
+                # left from cycle-1 review have been resolved.
                 show_data = _tvdb_series_to_show_data(
-                    tvdb_data,  # type: ignore[arg-type]
+                    tvdb_data,
                     match.api_id,
                     self._tvdb,
                     tmdb_id=tmdb_id or 0,
