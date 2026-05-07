@@ -3,14 +3,20 @@
 Implements TrackerClient Protocol against the LaCale tracker JSON API.
 See ``docs/reference/lacale-api.md`` for endpoint and field reference.
 
-LaCale particularities:
+Field shapes are validated against live samples captured 2026-05-07 in
+``docs/reference/_samples/lacale/``.
+
+LaCale particularities (live-confirmed):
 - API key sent as ``X-Api-Key`` header (preferred) or ``apikey=`` query.
 - Search returns at most 20 items, sorted by pubDate desc, server-cached ~30s.
 - Quality fields (codec/source/audio/resolution/format) are NOT in the JSON;
-  they are encoded in the torrent ``title`` and must be regex-extracted.
-- Freeleech / silverleech indicators are encoded as ``[FreeLeech]`` /
-  ``[SilverLeech]`` title prefixes — also extracted by the title parser.
-- ``size`` is raw bytes (int).
+  they are encoded in the torrent ``title`` and regex-extracted.
+- **No** freeleech / silverleech indicator exists — neither title prefix
+  nor JSON flag. ``is_freeleech`` and ``is_silverleech`` are always ``False``.
+- ``size`` is raw bytes (int). ``leechers`` is a direct int field.
+- ``guid`` is a short opaque ID (~20 chars), distinct from ``infoHash``.
+- ``downloadLink`` is ``/api/download/<infoHash>?token=<JWT>``; the JWT is
+  per-request and time-bound — treat as sensitive.
 """
 
 from __future__ import annotations
@@ -44,14 +50,11 @@ _TITLE_PATTERNS: dict[str, re.Pattern[str]] = {
         re.IGNORECASE,
     ),
     "audio": re.compile(
-        r"\b(truehd|atmos|dts[- ]hd|dts|ddp?5\.1|aac|ac3|flac|mp3)\b",
+        r"\b(truehd|atmos|dts[- ]?hd|dts|ddp?5\.1|aac|ac3|flac|mp3)\b",
         re.IGNORECASE,
     ),
     "format": re.compile(r"\.(mkv|mp4|avi|m4v|wmv|mov)$", re.IGNORECASE),
 }
-
-_FREELEECH_RE = re.compile(r"\[FreeLeech\]", re.IGNORECASE)
-_SILVERLEECH_RE = re.compile(r"\[SilverLeech\]", re.IGNORECASE)
 
 
 class LaCaleClient:
@@ -69,7 +72,8 @@ class LaCaleClient:
         """Build a TransportPolicy for LaCale.
 
         Args:
-            api_key: LaCale API key (``LACALE_API_KEY`` env var).
+            api_key: LaCale API key (``LACALE_API_KEY`` env var) — distinct
+                from the BitTorrent announce passkey.
 
         Returns:
             TransportPolicy with header-based ApiKeyAuth, defensive rate limit,
@@ -106,15 +110,14 @@ class LaCaleClient:
         Args:
             query: Free-text search query (max 200 chars enforced server-side).
             media_type: Reserved for registry-level category routing — not
-                forwarded as ``cat`` here (caller supplies category slugs via
-                the registry layer if narrowing is required).
-            year: Optional release year. LaCale's search has no year parameter,
-                so this is appended to the query string when provided.
+                forwarded as ``cat`` here (callers narrow via the registry).
+            year: Optional release year. LaCale's search has no dedicated year
+                parameter, so this is appended to the query string when given.
 
         Returns:
             List of TrackerResult ordered as returned by the API (pubDate desc).
         """
-        del media_type  # Unused — category narrowing happens at registry level.
+        del media_type  # Unused — narrowing happens at registry level.
 
         q = f"{query} {year}" if year is not None else query
         params: dict[str, Any] = {"q": q}
@@ -124,19 +127,19 @@ class LaCaleClient:
         return [self._parse_item(item) for item in items]
 
     def get_categories(self) -> dict[str, str]:
-        """Fetch the LaCale category taxonomy as a flat slug → name map.
+        """Fetch the LaCale category taxonomy as a flat slug → human label map.
 
-        Walks ``categories[].children[]`` recursively. ``tagGroups`` and
-        ``ungroupedTags`` (upload-only) are ignored.
+        Walks ``categories[].children[]`` recursively. ``children`` is ``null``
+        on leaf nodes — treated as empty.
 
         Returns:
-            Mapping of category slug → display name.
+            Mapping of category slug → display name (e.g. ``"films": "Films"``).
         """
         raw = self._transport.get(path="/api/external/meta")
         data = cast("dict[str, Any]", raw)
 
         result: dict[str, str] = {}
-        for cat in data.get("categories", []):
+        for cat in data.get("categories", []) or []:
             self._collect_category(cat, result)
         return result
 
@@ -148,7 +151,7 @@ class LaCaleClient:
         name = node.get("name")
         if isinstance(slug, str) and isinstance(name, str):
             out[slug] = name
-        for child in node.get("children", []) or []:
+        for child in node.get("children") or []:
             LaCaleClient._collect_category(child, out)
 
     def _parse_item(self, item: dict[str, Any]) -> TrackerResult:
@@ -172,46 +175,37 @@ class LaCaleClient:
             download_url=item.get("downloadLink"),
             info_hash=item.get("infoHash"),
             source_url=item.get("link"),
-            is_freeleech=bool(parsed.get("is_freeleech", False)),
-            is_silverleech=bool(parsed.get("is_silverleech", False)),
+            is_freeleech=False,
+            is_silverleech=False,
             upload_date=upload_date,
-            format=cast("str | None", parsed.get("format")),
-            codec=cast("str | None", parsed.get("codec")),
-            source=cast("str | None", parsed.get("source")),
-            resolution=cast("str | None", parsed.get("resolution")),
-            audio=cast("str | None", parsed.get("audio")),
+            format=parsed.get("format"),
+            codec=parsed.get("codec"),
+            source=parsed.get("source"),
+            resolution=parsed.get("resolution"),
+            audio=parsed.get("audio"),
         )
 
     @staticmethod
-    def _parse_title(title: str) -> dict[str, str | bool | None]:
-        """Extract quality fields and freeleech flags from a torrent title.
+    def _parse_title(title: str) -> dict[str, str | None]:
+        """Extract quality fields from a torrent title.
 
         Args:
-            title: Raw torrent title (may include ``[FreeLeech]`` / ``[SilverLeech]`` prefix).
+            title: Raw torrent title.
 
         Returns:
-            Dict with keys: resolution, codec, source, audio, format,
-            is_freeleech, is_silverleech. Quality fields are None when no
-            pattern matches.
+            Dict with keys: resolution, codec, source, audio, format. Values
+            are None when no pattern matches. Freeleech/silverleech flags are
+            NOT included — LaCale exposes no signal for them in search responses.
         """
-        is_freeleech = bool(_FREELEECH_RE.search(title))
-        is_silverleech = bool(_SILVERLEECH_RE.search(title))
-
-        cleaned = _FREELEECH_RE.sub("", title)
-        cleaned = _SILVERLEECH_RE.sub("", cleaned)
-
-        out: dict[str, str | bool | None] = {
-            "is_freeleech": is_freeleech,
-            "is_silverleech": is_silverleech,
-        }
+        out: dict[str, str | None] = {}
         for field, pattern in _TITLE_PATTERNS.items():
-            match = pattern.search(cleaned)
+            match = pattern.search(title)
             out[field] = match.group(1) if match else None
         return out
 
 
 def _parse_iso(value: Any) -> datetime | None:
-    """Parse an ISO 8601 string. Returns None for missing/invalid input."""
+    """Parse an ISO 8601 string with optional milliseconds and ``Z`` suffix."""
     if not isinstance(value, str):
         return None
     s = value.replace("Z", "+00:00")
