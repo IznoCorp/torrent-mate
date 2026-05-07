@@ -3,7 +3,7 @@
   //   tmdb  → ["TMDB_API_KEY"]
   //   tvdb  → ["TVDB_API_KEY"]
   //   omdb  → ["OMDB_API_KEY"]
-  //   trakt → ["TRAKT_CLIENT_ID", "TRAKT_CLIENT_SECRET"]
+  //   trakt → ["TRAKT_CLIENT_ID"]   # OAuth user endpoints (CLIENT_SECRET) are out of scope per DESIGN §1.2
   // Credentials are read from .env — see .env.example for the expected variable names.
   metadata: {
     providers: {

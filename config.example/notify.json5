@@ -1,7 +1,7 @@
 {
   // PROVIDER_CREDS hardcoded in api/_activation.py:
   //   telegram     → ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]
-  //   healthchecks → ["HEALTHCHECK_PING_URL"]
+  //   healthchecks → ["HEALTHCHECK_URL"]
   notify: {
     telegram: { enabled: false },
     healthchecks: { enabled: false },
