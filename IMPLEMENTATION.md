@@ -40,6 +40,7 @@
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [x]    |
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [x]    |
 | 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [x]    |
+| 26  | PR fixes cycle 1                   | fix   | [phase-26-pr-fixes-cycle-1.md](docs/features/api-unify/plan/phase-26-pr-fixes-cycle-1.md)                 | [ ]    |
 
 ## Quality gate (every commit)
 
@@ -402,18 +403,47 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ### Cycle 1
 
-- Findings received: 1 (from `pr-review-toolkit:code-reviewer` on phases 21-25 scope, c7fbf12..HEAD)
-- Retained: 0 critical, 0 major, 0 medium, 1 minor
-- Ignored: 0
-- Fix phase created: none
-- Status: clean — proceeding to manual merge
+User-requested full PR review (4 reviewers in parallel, scope `main...HEAD` covering all
+25 phases): code-reviewer, silent-failure-hunter, type-design-analyzer, pr-test-analyzer.
 
-> Reviewer verdict: "ready to merge". Fail-soft contract preserved end-to-end, no test
-> references to deleted `personalscraper.notifier` module, patch-path migration consistent.
-> Single minor suggestion (pre-existing dead-man's-switch behavior on pipeline.run() crash —
-> not a regression introduced by this PR).
+- Findings received: ~30 raw across all 4 reviewers
+- Retained (in-scope vs DESIGN.md): 0 critical, 4 major, 2 medium, ~10 minor
+- Ignored (out-of-scope / pre-existing / polish): rest
+- Fix phase created: phase-26-pr-fixes-cycle-1.md
+- Status: fix phase dispatched → awaiting `/implement:phase`
+
+**Major retained findings** (must fix before merge):
+
+1. `_activation.py:30` declares `HEALTHCHECK_PING_URL` but `HealthcheckClient.REQUIRED_CREDS` is
+   `HEALTHCHECK_URL` — silent disable hazard for any future caller using `resolve_active("notify")`.
+2. `transmission.py:108` `is_seeding()` swallows `TransmissionError` and returns False with no
+   log — daemon outage indistinguishable from "torrent finished seeding"; could cause deletion
+   of still-seeding torrents.
+3. `qbittorrent.py:164,167,208` re-raises native `qbittorrentapi.{LoginFailed,Forbidden403,APIConnectionError}`
+   instead of wrapping in `ApiError` — DESIGN §1.1 contract violation.
+4. `_ranking.py:122` ignores `RankingCriterion.prefer="lower"` — config field accepted and
+   advertised in `config.example/ranking.json5` but silently scored backwards.
+
+**Medium retained findings**:
+
+5. `tmdb.py:360` `_fetch_videos` bare `except Exception: return []` with no log — observability gap.
+6. `pipeline.py` `healthcheck.ping_fail()` not called when `pipeline.run()` raises — DESIGN §7.1
+   dead-man's-switch contract violated on crash. Pre-existing, but the right time to close is now.
+
+**Deferred to follow-up** (post-merge polish, not blocking):
+
+- Type-design hygiene: `TorrentItem`/`TransportPolicy` not frozen, `progress`/`Notations.score`
+  range invariants not enforced, `ApiError` exception plumbing (`Exception.__init__` not called),
+  `@runtime_checkable` inconsistent across Protocols, `ThresholdEntry.at` loses `ByteSize` type.
+- Test gaps: `count_retries=True` not tested, `_is_retryable` only `ApiError` branch tested,
+  LaCale JWT preservation not pinned, C411 download_url mapping not asserted, `_chunk` exact
+  4096\*N boundary not tested.
+- Dead config: `TrackerConfig.{max_total_results,max_per_tracker,timeout_per_tracker}`
+  declared and tested for defaults but no runtime consumer in `_registry.py`.
+- Polish: rename `RateLimiter._tokens` → `_next_at`, c411 → lacale `_parse_title` cross-class
+  private call, error-body log level on non-OK responses, `TVDBClient.circuit` typed `Any`.
 
 ## Next action
 
-**All 25 phases complete + review cycle 1 clean.** PR #19 is mergeable. CI green at +188s.
-Per `/implement:feature` merge mode = `manual`: review and squash-merge the PR when ready.
+Phase 26 dispatched (PR review cycle 1 fixes). **Run `/implement:phase` to execute** — the
+6 retained MAJOR/MEDIUM findings will be fixed in 6 sub-phases + gate.
