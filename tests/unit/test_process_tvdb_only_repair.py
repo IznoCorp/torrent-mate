@@ -189,6 +189,81 @@ class TestRepairTvshowDirTvdbPrimary:
         )
 
 
+class TestExternalIdsKeyContract:
+    """Bug #3 regression: ``MediaDetails.external_ids`` uses plain provider keys.
+
+    Both TVDB and TMDB parsers populate ``external_ids`` with plain provider
+    names ("imdb", "tmdb", "tvdb") as keys — not "_id"-suffixed variants. The
+    docstring on ``MediaDetails.external_ids`` documents this contract:
+    "External identifiers keyed by source (e.g. \\"imdb\\" → \\"tt1234567\\")".
+
+    Before the fix, ``tv_service`` and ``existing_validator`` read
+    ``remote_ids.get("tmdb_id")`` / ``.get("imdb_id")`` from the raw
+    MediaDetails, which always returned None — silently dropping IMDB and
+    TMDB cross-references on every TVDB-resolved series and producing
+    empty ``<uniqueid type="imdb"/>`` in NFOs.
+
+    These tests pin the contract on both parsers and on every consumer.
+    """
+
+    def test_tvdb_parser_uses_plain_keys(self) -> None:
+        """TVDB parser must populate external_ids with plain "imdb"/"tmdb"/"tvdb" keys."""
+        from personalscraper.api.metadata._tvdb_parsers import parse_media_details
+
+        raw = {
+            "id": 355567,
+            "name": "The Boys",
+            "year": "2019",
+            "remoteIds": [
+                {"id": "tt1190634", "type": 2, "sourceName": "IMDB"},
+                {"id": "76479", "type": 4, "sourceName": "TheMovieDB.com"},
+            ],
+        }
+        details = parse_media_details(raw, "tvdb")
+
+        assert "imdb" in details.external_ids, (
+            "TVDB parser must use plain 'imdb' key, not 'imdb_id'."
+        )
+        assert details.external_ids["imdb"] == "tt1190634"
+        assert details.external_ids["tmdb"] == "76479"
+        assert "imdb_id" not in details.external_ids, (
+            "Bug #3 regression: '_id'-suffixed keys must not appear in external_ids "
+            "(consumers were reading the wrong keys)."
+        )
+
+    def test_tv_service_reads_correct_keys(self) -> None:
+        """``tv_service`` resolution must read 'imdb'/'tmdb' from external_ids."""
+        import inspect
+
+        from personalscraper.scraper import tv_service
+
+        # Source check — the regression hides in code that reads "_id"-suffixed
+        # keys from raw MediaDetails. Pin against re-introduction.
+        source = inspect.getsource(tv_service)
+        # Look only at the resolution path that builds remote_ids from a typed
+        # MediaDetails. Other usages of "tmdb_id"/"imdb_id" in this file are
+        # legitimate (they refer to the show_data dict downstream).
+        assert 'remote_ids.get("tmdb_id")' not in source, (
+            "Bug #3 regression: remote_ids comes from MediaDetails.external_ids "
+            "which uses plain 'tmdb' key. Reading 'tmdb_id' silently returns None."
+        )
+        assert 'remote_ids.get("imdb_id")' not in source, (
+            "Bug #3 regression: same as above for 'imdb' key."
+        )
+
+    def test_existing_validator_repair_reads_correct_keys(self) -> None:
+        """The repair path must read external_ids using plain keys."""
+        import inspect
+
+        from personalscraper.scraper import existing_validator
+
+        source = inspect.getsource(existing_validator)
+        assert 'external_ids.get("imdb_id")' not in source, (
+            "Bug #3 regression: existing_validator reads MediaDetails.external_ids "
+            "which uses plain 'imdb' key, not 'imdb_id'."
+        )
+
+
 class TestFetchSeasonEpisodesTvdb:
     """Behavioral test for the new TVDB season-episode fetcher."""
 

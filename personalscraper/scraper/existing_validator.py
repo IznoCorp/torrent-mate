@@ -482,7 +482,7 @@ class ExistingValidatorMixin:
                 external_ids = (
                     tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
                 )
-                imdb_id = external_ids.get("imdb_id") or ""
+                imdb_id = external_ids.get("imdb") or ""
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
                     tvdb_id,
@@ -584,7 +584,7 @@ class ExistingValidatorMixin:
                 external_ids = (
                     tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
                 )
-                imdb_id = external_ids.get("imdb_id") or ""
+                imdb_id = external_ids.get("imdb") or ""
                 show_data = _tvdb_series_to_show_data(
                     tvdb_data,
                     tvdb_id,

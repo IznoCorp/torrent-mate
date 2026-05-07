@@ -525,9 +525,13 @@ class TvServiceMixin:
                     remote_ids: dict[str, str] = tvdb_data.external_ids
                 else:
                     remote_ids = {}
-                raw_tmdb = remote_ids.get("tmdb_id")
+                # MediaDetails.external_ids uses plain provider names as keys
+                # ("imdb", "tmdb", "tvdb"). Earlier code read suffixed key names
+                # here and always got None, which silently dropped IMDB/TMDB
+                # cross-references on every TVDB-resolved series.
+                raw_tmdb = remote_ids.get("tmdb")
                 tmdb_id = int(raw_tmdb) if raw_tmdb else None
-                imdb_id = remote_ids.get("imdb_id") or ""
+                imdb_id = remote_ids.get("imdb") or ""
                 if not tmdb_id:
                     log.info("show_tvdb_only", tvdb_id=match.api_id)
                 # api-unify phase 27: _tvdb_series_to_show_data now accepts
