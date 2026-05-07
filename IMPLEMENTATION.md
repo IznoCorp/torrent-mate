@@ -36,7 +36,7 @@
 | 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [x]    |
 | 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [x]    |
 | 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [x]    |
-| 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [ ]    |
+| 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [x]    |
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [ ]    |
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [ ]    |
 | 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [ ]    |
@@ -293,6 +293,20 @@ Major drifts captured:
 > `RetryPolicy` (5xx + 429 only); `max_requests_per_second = 1.0`; healthchecks half stays in
 > `notifier.py` until Phase 24 — only the Telegram half is migrated in Phase 22.
 
+### Phase 22 — Telegram migration
+
+| Sub-phase | Description                                                                                          | SHA             |
+| --------- | ---------------------------------------------------------------------------------------------------- | --------------- |
+| 22.1      | `api/notify/telegram.py` — `TelegramNotifier` on `HttpTransport` + `_chunk()` (193 LOC)              | `3c7a4af`       |
+| 22.2      | Rewire consumer (`commands/pipeline.py`); trim `notifier.py` to healthchecks only; update test stubs | `6084abd`       |
+| 22.3      | `tests/unit/test_telegram_notifier.py` (20 tests: policy, send, chunking, fail-soft, is_configured)  | `7fac2fd`       |
+| 22.4      | **Phase 22 gate**                                                                                    | _(this commit)_ |
+
+> **Phase 22 deviation from plan**: chunking was implemented despite the doc saying "do NOT
+> add chunking (YAGNI)". Plan §22.1 still mandated `_chunk()` and §22.3 mandated a chunking
+> test, so the implementation supports chunking but the production reports remain well under
+> the 4096-char cap. Net: harmless, plan-compliant, and ready if a future report grows.
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -331,9 +345,9 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 21 complete. **Run `/implement:phase` to start Phase 22** (Telegram migration).
+Phase 22 complete. **Run `/implement:phase` to start Phase 23** (Healthchecks API doc).
 
-Pre-phase-22 checklist:
+Pre-phase-23 checklist:
 
 1. Verify `make check` exits 0 (currently green).
-2. Confirm `python -c "from personalscraper.api.notify._base import Notifier, HealthChecker"` works.
+2. Confirm `python -c "from personalscraper.api.notify.telegram import TelegramNotifier"` works.
