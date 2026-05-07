@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "result": {
+    "message_id": 4153,
+    "from": {
+      "id": 8266923011,
+      "is_bot": true,
+      "first_name": "<bot-first-name>",
+      "username": "<bot-username>"
+    },
+    "chat": {
+      "id": 1234567890,
+      "first_name": "<user-first-name>",
+      "username": "<user-username>",
+      "type": "private"
+    },
+    "date": 1778170892,
+    "text": "Phase 21 sample — telegram-api.md study",
+    "entities": [
+      { "offset": 0, "length": 15, "type": "bold" },
+      { "offset": 18, "length": 15, "type": "url" }
+    ]
+  }
+}
