@@ -1,8 +1,10 @@
-"""Ranking models for tracker results.
+"""Ranking models and engine for tracker results.
 
-Implements DESIGN S8.5: RankingCriterion, ThresholdEntry, RankingBonuses,
-and RankingConfig. ByteSize-aware threshold parsing so config authors can
-write ``at: "1GB"`` and get the integer byte value at validation time.
+Implements DESIGN §6.3 / §8.5: RankingCriterion, ThresholdEntry, RankingBonuses,
+RankingConfig (Pydantic models consumed by config validation) and the runtime
+``rank()`` engine that scores TrackerResult instances. ByteSize-aware threshold
+parsing lets config authors write ``at: "1GB"`` and get the integer byte value
+at validation time.
 """
 
 from typing import Literal
@@ -10,6 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 from personalscraper.api._units import ByteSize
+from personalscraper.api.tracker._base import TrackerResult
 
 
 class ThresholdEntry(BaseModel):
@@ -75,3 +78,54 @@ class RankingConfig(BaseModel):
     criteria: list[RankingCriterion] = Field(default_factory=list)
     bonuses: RankingBonuses = Field(default_factory=RankingBonuses)
     min_seeders: int = 1
+
+
+def rank(
+    results: list[TrackerResult],
+    ranking: RankingConfig,
+) -> list[tuple[TrackerResult, int]]:
+    """Score tracker results, apply bonuses, drop sub-min-seeders, sort desc.
+
+    For each result:
+      - Skip if ``seeders < ranking.min_seeders``.
+      - For each criterion, look up the field on the result. If ``values``
+        is set (categorical), score = values.get(str(value), 0). Otherwise
+        if ``thresholds`` is set (numeric), score = highest ``score`` whose
+        ``at`` is ≤ the numeric value (ByteSize uses ``.bytes``, others
+        coerced via ``int()``).
+      - Multiply by ``weight`` and add to total.
+      - Add ``bonuses.freeleech`` / ``bonuses.silverleech`` if applicable.
+    Returns a list of ``(result, score)`` sorted by score descending; ties
+    keep input order (Python's sort is stable).
+
+    Args:
+        results: Tracker results to score.
+        ranking: Ranking configuration.
+
+    Returns:
+        Sorted list of (result, score) pairs, highest score first.
+    """
+    scored: list[tuple[TrackerResult, int]] = []
+    for r in results:
+        if r.seeders < ranking.min_seeders:
+            continue
+        total = 0
+        for c in ranking.criteria:
+            v = getattr(r, c.field, None)
+            if v is None:
+                continue
+            pts = 0
+            if c.values is not None:
+                pts = c.values.get(str(v), 0)
+            elif c.thresholds:
+                numeric = v.bytes if isinstance(v, ByteSize) else int(v)
+                applicable = [t for t in c.thresholds if numeric >= t.at]
+                pts = max((t.score for t in applicable), default=0)
+            total += int(pts * c.weight)
+        if r.is_freeleech:
+            total += ranking.bonuses.freeleech
+        if r.is_silverleech:
+            total += ranking.bonuses.silverleech
+        scored.append((r, total))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
