@@ -39,7 +39,7 @@
 | 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [x]    |
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [x]    |
 | 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [x]    |
-| 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [ ]    |
+| 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [x]    |
 
 ## Quality gate (every commit)
 
@@ -340,6 +340,28 @@ Major drifts captured:
 > `HEALTHCHECK_URL` set; renaming would have been a silent breakage. Plan was a forward-design
 > sketch, not the contract.
 
+### Phase 25 — Final cleanup + ROADMAP
+
+| Sub-phase | Description                                                                                                                                           | SHA             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 25.1–25.3 | Residual audits: 7 deleted modules absent, 0 `TMDBError`/`TVDBError` refs, 0 dead config refs (docstring scrubs only)                                 | `3ae1ca4`       |
+| 25.4–25.5 | `architecture.md` (api/+core/ subtree), `CLAUDE.md` ref index (5 new rows), `ROADMAP.md` (P0 marked done, P3 trackers added, completed entry written) | `c267076`       |
+| 25.6      | Version verified: `personalscraper.__version__ == "0.11.0"` ✓                                                                                         | _(verified)_    |
+| 25.7      | Smoke checks: `import personalscraper`, `core.circuit`, `core.http_helpers` all OK                                                                    | _(verified)_    |
+| 25.8      | **Phase 25 gate (FINAL)**                                                                                                                             | _(this commit)_ |
+
+> **Final feature summary**:
+>
+> - **2786 tests pass** (started at 2768 pre-phase-21).
+> - **7 modules deleted**: `tmdb_client.py`, `tvdb_client.py`, `circuit_breaker.py`,
+>   `http_retry.py`, `providers.py`, `qbit_client.py`, `notifier.py`.
+> - **10 reference docs** under `docs/reference/<provider>-api.md` with real samples in
+>   `_samples/<provider>/`.
+> - **5 config files** in `config.example/` (`metadata`, `torrent`, `tracker`, `ranking`,
+>   `notify`).
+> - **All 5 family Protocols** live: `MetadataClient`, `TorrentClient`, `TrackerClient`,
+>   `Notifier`, `HealthChecker`.
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -378,10 +400,5 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 24 complete. **Run `/implement:phase` to start Phase 25** (Final cleanup + ROADMAP).
-
-Pre-phase-25 checklist:
-
-1. Verify `make check` exits 0 (currently green).
-2. Confirm `python -c "from personalscraper.api.notify.healthchecks import HealthcheckClient"` works.
-3. Confirm `personalscraper/notifier.py` is gone.
+**All 25 phases complete.** Feature ready for PR — run `/implement:feature-pr` to push the
+branch, open the PR against `main`, and poll CI to green.
