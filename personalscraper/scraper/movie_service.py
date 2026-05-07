@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
+from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import requests
 
+from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.logger import get_logger
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
 from personalscraper.scraper._shared import ScrapeResult, _find_video_file
@@ -27,6 +29,97 @@ if TYPE_CHECKING:
     from personalscraper.scraper.nfo_generator import NFOGenerator
 
 log = get_logger("scraper")
+
+
+def _media_details_to_movie_data(details: MediaDetails) -> dict[str, Any]:
+    """Adapt typed MediaDetails into the legacy movie_data dict shape.
+
+    Phase 27 transitional shim — mirrors the TV equivalent
+    (``_tvdb_series_to_show_data``) for movies. The downstream NFO
+    generator and artwork downloader still expect the historical
+    TMDB-flavoured raw dict, so this helper renders the typed model
+    into that dict at the boundary, leaving the consumers untouched
+    until they migrate.
+
+    Mapping:
+    - title / original_title / overview / year → top-level fields
+    - genres + genre_ids → ``genres: [{"id", "name"}]`` zipped
+    - rating → ``vote_average``
+    - runtime_minutes → ``runtime``
+    - origin_countries / production_countries → both lists, dict shape
+    - external_ids → ``external_ids: {"imdb_id", "tvdb_id", ...}``
+    - images (curated ArtworkItem list) split by type into ``posters``
+      and ``backdrops`` arrays under ``images: {posters, backdrops}``
+    - primary_backdrop_url surfaces as top-level ``backdrop_path`` for
+      the legacy fallback path in ``ArtworkDownloader``.
+
+    Args:
+        details: Typed metadata payload from a TMDB ``get_movie`` call.
+
+    Returns:
+        Dict whose keys match the legacy TMDB movie response shape used
+        by NFO + artwork consumers.
+    """
+    posters = [
+        {"file_path": a.url, "iso_639_1": a.language, "vote_average": a.vote_average}
+        for a in details.images
+        if a.type == "poster" and a.url
+    ]
+    backdrops = [
+        {"file_path": a.url, "iso_639_1": a.language, "vote_average": a.vote_average}
+        for a in details.images
+        if a.type == "backdrop" and a.url
+    ]
+    logos = [
+        {"file_path": a.url, "iso_639_1": a.language, "vote_average": a.vote_average}
+        for a in details.images
+        if a.type == "landscape" and a.url
+    ]
+
+    # Provider id is a string in the typed model; downstream often expects int
+    # for ``id`` (TMDB numeric). Coerce when it parses cleanly.
+    raw_id = details.provider_id
+    pid: int | str = int(raw_id) if raw_id.isdigit() else raw_id
+
+    return {
+        "id": pid,
+        "title": details.title,
+        "original_title": details.original_title,
+        "name": details.title,  # alias for code paths that branch on TV-style "name"
+        "original_name": details.original_title,
+        "overview": details.overview,
+        "release_date": f"{details.year}-01-01" if details.year else "",
+        "first_air_date": f"{details.year}-01-01" if details.year else "",
+        "runtime": details.runtime_minutes,
+        "vote_average": details.rating or 0.0,
+        "vote_count": 0,
+        "genres": [
+            {"id": gid, "name": gname}
+            for gid, gname in zip_longest(details.genre_ids, details.genres, fillvalue=None)
+            if gid is not None or gname
+        ],
+        "origin_country": list(details.origin_countries),
+        "production_countries": [{"iso_3166_1": c} for c in details.production_countries],
+        "production_companies": [],
+        "external_ids": {f"{k}_id": v for k, v in details.external_ids.items()},
+        "imdb_id": details.external_ids.get("imdb", ""),
+        "images": {"posters": posters, "backdrops": backdrops, "logos": logos},
+        "backdrop_path": details.primary_backdrop_url,
+        "credits": {"cast": [], "crew": []},
+        "release_dates": {"results": []},
+    }
+
+
+def _coerce_to_movie_data(data: MediaDetails | dict[str, Any]) -> dict[str, Any]:
+    """Return ``data`` as a movie_data-shaped dict.
+
+    Accepts the typed MediaDetails emitted by api-unify clients or a
+    legacy raw-dict from older callers / test fixtures.
+    """
+    if isinstance(data, MediaDetails):
+        return _media_details_to_movie_data(data)
+    return data
+
 
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
@@ -286,10 +379,15 @@ class MovieServiceMixin:
             result.action = "skipped_no_category"
             return result
 
+        # api-unify phase 27: movie_data arrives as MediaDetails from
+        # ``self._tmdb.get_movie``. Adapt to the legacy raw-dict shape the
+        # NFO generator + artwork downloader still consume. Once those two
+        # consumers migrate to MediaDetails, this conversion can be deleted.
+        movie_data_dict = _coerce_to_movie_data(movie_data)
+
         # Generate and write NFO
         try:
-            # TODO(api-unify): migrate NFOGenerator to accept MediaDetails
-            xml = self._nfo.generate_movie_nfo(movie_data, stream_info, category_id=category_id)  # type: ignore[arg-type]
+            xml = self._nfo.generate_movie_nfo(movie_data_dict, stream_info, category_id=category_id)
             if not self.dry_run:
                 self._nfo.write_nfo(xml, nfo_path)
                 result.nfo_written = True
@@ -303,9 +401,8 @@ class MovieServiceMixin:
 
         # Download artwork
         try:
-            # TODO(api-unify): migrate ArtworkDownloader to accept MediaDetails
             downloaded = self._artwork.download_movie_artwork(
-                movie_data,  # type: ignore[arg-type]
+                movie_data_dict,
                 movie_dir,
                 self.patterns,
             )
