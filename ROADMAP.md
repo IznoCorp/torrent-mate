@@ -7,58 +7,7 @@
 
 ## P0 — Critical Path (do next, unblocks multiple downstream items)
 
-### P0 — Third-Party API Consumer Unification
-
-Unify all external API integrations behind a single client abstraction so new providers plug in without touching the rest of the codebase. Today each provider is wired ad hoc (`scraper/tmdb_client.py`, `scraper/tvdb_client.py`, `ingest/qbit_client.py`, `scraper/youtube_search.py`, `scraper/artwork.py`, `notifier.py`) and shares no contract — adding a new tracker means re-inventing retry, auth, rate-limiting, and result normalisation each time.
-
-**Blocked by this refactor**: Auto-Download System (needs 4 tracker clients), Web Management UI (needs mockable API clients), provider matrix expansion (IMDB, SensCritique, Transmission).
-
-**Goals**
-
-- One `ApiClient` base contract per family (metadata / torrent client / tracker) with shared retry, throttle, auth renewal, circuit breaker, structured logging, and a typed response model.
-- Provider-specific subclasses implement only the differential surface (endpoint paths, response parsing, auth flow).
-- Integration test fixtures shared across providers (golden response files, replay harness).
-- All 6 modules currently using `requests` directly migrate to the new base client.
-
-**Activation via credentials**
-
-- Each provider declares its credential shape in config: API key, or login/password, depending on the provider.
-- A provider is **active** as soon as its credentials are supplied; absent credentials = provider disabled, no boolean toggle to maintain.
-
-**Torrent-client selection**
-
-- All active torrent clients (qBittorrent, Transmission) coexist in the codebase.
-- A dedicated config field designates the **single** client used by the pipeline — only one can be active in the download path at a time, even when multiple are credentialed.
-
-**Preference / priority system**
-
-- Lower number = higher priority across all priority configurations.
-- **Per-use-case provider priority**: priorities are defined per use case, not per family, so the same provider can rank differently depending on what is being fetched.
-  - Movie scraping
-  - Series scraping
-  - Episode scraping
-  - Recommendations
-  - Torrent retrieval from trackers
-- Preferences extracted from existing code into the new config layer (e.g. current series-scraping order: TVDB > TMDB → encoded as `series_scraping: { tvdb: 1, tmdb: 2 }`).
-- **Torrent-result priority** (separate, second-stage ranking): once trackers have returned candidates, a per-criterion priority list orders them by format, encoding type, torrent size, and any additional torrent attributes the user wants to weight.
-
-**Provider matrix**
-
-| Family                    | Existing                            | To add                                    |
-| ------------------------- | ----------------------------------- | ----------------------------------------- |
-| Metadata scraping         | TMDB, TVDB, IMDB                    | SensCritique (notations, in particular)   |
-| Recommendations           | —                                   | SensCritique + IMDB                       |
-| Torrent client            | qBittorrent (via `qbittorrent-api`) | Transmission (via `transmission-rpc`)     |
-| Tracker search + download | —                                   | LaCale, C411, torr9.net, digitalcore.club |
-
-**Workflow once unified**
-
-1. Recommender pulls cross-provider notations (SensCritique + IMDB) → priority list.
-2. Auto-Download System feeds priority list to the tracker layer; tracker abstraction queries every enabled tracker, ranks results, picks best match.
-3. Selected torrent is sent to the configured torrent-client provider (qBittorrent or Transmission).
-4. Existing pipeline picks up the completed download via the watcher service.
-
-**Depends on:** nothing (this is the foundation refactor).
+> _All P0 items completed in 0.11.0. See "Completed" section for the api-unify summary._
 
 ---
 
@@ -269,6 +218,31 @@ Components directly instantiate their dependencies (e.g., `Scraper.__init__` cre
 - Runtime service hot-swap.
 - Full-blown DI framework (no `dependency-injector`, no decorator-based injection).
 
+### P3 — Additional Trackers (torr9 + digitalcore)
+
+Implement `api/tracker/torr9.py` and `api/tracker/digitalcore.py` following the
+`TrackerClient` Protocol established in 0.11.0. Study each tracker's API
+(Torznab/RSS/REST), capture real-response samples, write reference docs in
+`docs/reference/torr9-api.md` and `docs/reference/digitalcore-api.md`, then
+implement using the unified `HttpTransport` infrastructure.
+
+**Goals**
+
+- Two new `TrackerClient` providers, plug-compatible with the existing
+  `TrackerRegistry` and `rank()` engine.
+- Reference docs + sample fixtures so future updates can replay against
+  captured responses.
+- Activation through the existing `ProviderActivation` mechanism — no new
+  config schema.
+
+**Non-goals**
+
+- New ranking criteria (the engine landed in 0.11.0 already supports
+  arbitrary providers).
+- Auto-Download System integration — that lands in its own P2 feature.
+
+**Depends on**: Third-Party API Consumer Unification (P0) — completed in 0.11.0.
+
 ---
 
 ## ✅ Completed
@@ -303,6 +277,37 @@ SQLite-based media index with scanner, query engine, and drift reconciliation.
 - Launchd agents for nightly quick scan + periodic enrich
 - Replaced ad-hoc `library_scan.json` / `library_analysis.json` files
 - Archived feature docs: `docs/archive/features/media-indexer/`
+
+### Third-Party API Consumer Unification (v0.11.0 — api-unify)
+
+All external API consumers run on a unified HttpTransport with declarative
+TransportPolicy, bringing retry, circuit breaker, rate limiting, auth, and
+typed responses under one contract.
+
+- **Family Protocols**: `MetadataClient`, `TorrentClient`, `TrackerClient`,
+  `Notifier`, `HealthChecker` (in `api/{metadata,torrent,tracker,notify}/_base.py`).
+- **Shared transport**: `HttpTransport` consumes a `TransportPolicy` —
+  every provider declares its retry, circuit, rate-limit, and auth strategy
+  via dataclass; transport enforces them uniformly.
+- **Reusable infrastructure**: `core/circuit.py` (CircuitBreaker reused by
+  indexer disk breaker), `core/http_helpers.py` (tenacity retry helpers).
+- **10 providers migrated**: TMDB, TVDB, OMDB, Trakt (metadata);
+  qBittorrent, Transmission (torrent client); LaCale, C411 (trackers);
+  Telegram (notify); healthchecks.io (health).
+- **7 modules deleted**: `tmdb_client.py`, `tvdb_client.py`,
+  `circuit_breaker.py`, `http_retry.py`, `qbit_client.py`, `notifier.py`,
+  `scraper/providers.py`.
+- **10 reference docs** with real captured samples in
+  `docs/reference/_samples/<provider>/`.
+- **5 new config files**: `metadata.json5`, `torrent.json5`, `tracker.json5`,
+  `ranking.json5`, `notify.json5`.
+- **Activation via creds**: each provider declares `REQUIRED_CREDS`;
+  presence in `.env` enables the provider, absence disables it silently.
+- **Per-use-case provider priority + tracker ranking engine** with
+  `ThresholdEntry` config models.
+- **Phase gate hygiene**: full `make check` (lint+test+module-size+typed-api)
+  - secret scan + residual-import audit codified in CLAUDE.md.
+- Design doc: `docs/features/api-unify/DESIGN.md`
 
 ### Architectural Cleanup (v0.9.0 — arch-cleanup)
 

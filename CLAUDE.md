@@ -189,12 +189,17 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder) | `docs/reference/trailers.md`            |
 | Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                 | `docs/reference/indexer.md`             |
 | JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic model references and examples                | `docs/reference/indexer-json-shapes.md` |
+| API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)              | `docs/reference/architecture.md` (api/) |
+| TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                             | `docs/reference/<provider>-api.md`      |
+| qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                         | `docs/reference/<provider>-api.md`      |
+| LaCale / C411 trackers (search, ranking, samples, freeleech, passkey)                                               | `docs/reference/<tracker>-api.md`       |
+| Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                       | `docs/reference/<provider>-api.md`      |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
 ## Current Feature
 
-**Feature**: arch-cleanup
-**Branch**: refactor/arch-cleanup
-**Design**: docs/features/arch-cleanup/DESIGN.md
-**Plan**: docs/features/arch-cleanup/plan/
+**Feature**: api-unify
+**Branch**: feat/api-unify
+**Design**: docs/features/api-unify/DESIGN.md
+**Plan**: docs/features/api-unify/plan/
