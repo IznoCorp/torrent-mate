@@ -33,7 +33,7 @@
 | 16  | Tracker base + ranking engine      | infra | [phase-16-tracker-base-ranking.md](docs/features/api-unify/plan/phase-16-tracker-base-ranking.md)         | [x]    |
 | 17  | LaCale API doc                     | doc   | [phase-17-lacale-doc.md](docs/features/api-unify/plan/phase-17-lacale-doc.md)                             | [x]    |
 | 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [x]    |
-| 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [ ]    |
+| 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [x]    |
 | 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [ ]    |
 | 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [ ]    |
 | 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [ ]    |
@@ -240,11 +240,19 @@ All commits use scope `api-unify`:
 
 ### Phase 18 — LaCale implementation
 
-| Sub-phase | Description                                                                | SHA             |
-| --------- | -------------------------------------------------------------------------- | --------------- |
-| 18.1      | `api/tracker/lacale.py` — LaCaleClient + policy + `_parse_title` (221 LOC) | `0e24348`       |
-| 18.2      | `tests/unit/test_lacale_client.py` (17 tests)                              | `aba43c0`       |
-| 18.3      | **Phase 18 gate**                                                          | _(this commit)_ |
+| Sub-phase | Description                                                                | SHA       |
+| --------- | -------------------------------------------------------------------------- | --------- |
+| 18.1      | `api/tracker/lacale.py` — LaCaleClient + policy + `_parse_title` (221 LOC) | `0e24348` |
+| 18.2      | `tests/unit/test_lacale_client.py` (17 tests)                              | `aba43c0` |
+| 18.3      | **Phase 18 gate**                                                          | `68bf1a6` |
+
+### Phase 19 — C411 API doc
+
+| Sub-phase | Description                                                         | SHA       |
+| --------- | ------------------------------------------------------------------- | --------- |
+| 19.1–19.5 | `docs/reference/c411-api.md` from TorrentMaker source (Torznab/XML) | `4879ffe` |
+| 19.6      | User checkpoint baked into doc as "Open decisions" (defaults stand) | `4879ffe` |
+| 19.7      | **Phase 19 gate** (single-commit phase)                             | `4879ffe` |
 
 ### Post-phase-15 corrective gate (audit cleanup)
 
@@ -284,7 +292,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 18 complete. **Run `/implement:phase` to start Phase 19** (C411 API doc).
+Phase 19 complete. **Run `/implement:phase` to start Phase 20** (C411 implementation).
 
 Pre-phase-8 checklist:
 
