@@ -90,9 +90,14 @@ def rank(
       - Skip if ``seeders < ranking.min_seeders``.
       - For each criterion, look up the field on the result. If ``values``
         is set (categorical), score = values.get(str(value), 0). Otherwise
-        if ``thresholds`` is set (numeric), score = highest ``score`` whose
-        ``at`` is ≤ the numeric value (ByteSize uses ``.bytes``, others
-        coerced via ``int()``).
+        if ``thresholds`` is set (numeric):
+          - ``prefer = "higher"`` (default and ``None``): score = highest
+            ``score`` of any threshold whose ``at`` is ≤ the numeric value
+            (i.e. higher-is-better — bigger torrents score more).
+          - ``prefer = "lower"``: score = highest ``score`` of any threshold
+            whose ``at`` is ≥ the numeric value (i.e. lower-is-better — for
+            criteria like episode-size where smaller is preferable).
+        ByteSize values use ``.bytes``; other numerics are coerced via ``int()``.
       - Multiply by ``weight`` and add to total.
       - Add ``bonuses.freeleech`` / ``bonuses.silverleech`` if applicable.
     Returns a list of ``(result, score)`` sorted by score descending; ties
@@ -119,7 +124,10 @@ def rank(
                 pts = c.values.get(str(v), 0)
             elif c.thresholds:
                 numeric = v.bytes if isinstance(v, ByteSize) else int(v)
-                applicable = [t for t in c.thresholds if numeric >= t.at]
+                if c.prefer == "lower":
+                    applicable = [t for t in c.thresholds if numeric <= t.at]
+                else:
+                    applicable = [t for t in c.thresholds if numeric >= t.at]
                 pts = max((t.score for t in applicable), default=0)
             total += int(pts * c.weight)
         if r.is_freeleech:

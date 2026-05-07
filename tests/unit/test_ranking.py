@@ -97,6 +97,55 @@ class TestRankThresholds:
         )
         assert rank(results, cfg)[0][1] == 10
 
+    def test_prefer_lower_inverts_threshold_direction(self) -> None:
+        """`prefer="lower"` makes smaller-is-better — 700MB ranks higher than 7GB."""
+        small = _result(size=700_000_000, seeders=10)
+        large = _result(size=7_000_000_000, seeders=10)
+        cfg = RankingConfig(
+            criteria=[
+                RankingCriterion(
+                    field="size",
+                    prefer="lower",
+                    thresholds=[
+                        ThresholdEntry(at="1GB", score=10),  # type: ignore[arg-type]
+                        ThresholdEntry(at="3GB", score=5),  # type: ignore[arg-type]
+                    ],
+                ),
+            ],
+            min_seeders=0,
+        )
+        scored = rank([large, small], cfg)
+        # Smaller result wins, with the lowest threshold score (10).
+        assert scored[0][0] is small
+        assert scored[0][1] == 10
+        # 7GB is above the highest "lower" threshold (3GB) → 0 points.
+        assert scored[1][0] is large
+        assert scored[1][1] == 0
+
+    def test_prefer_higher_default_unchanged(self) -> None:
+        """`prefer="higher"` (and the default `None`) keeps the existing semantics."""
+        small = _result(size=500_000_000, seeders=10)
+        large = _result(size=10_000_000_000, seeders=10)
+        cfg = RankingConfig(
+            criteria=[
+                RankingCriterion(
+                    field="size",
+                    prefer="higher",
+                    thresholds=[
+                        ThresholdEntry(at="1GB", score=5),  # type: ignore[arg-type]
+                        ThresholdEntry(at="5GB", score=10),  # type: ignore[arg-type]
+                    ],
+                ),
+            ],
+            min_seeders=0,
+        )
+        scored = rank([small, large], cfg)
+        assert scored[0][0] is large
+        assert scored[0][1] == 10
+        # 500MB below 1GB → no threshold applies → 0 points.
+        assert scored[1][0] is small
+        assert scored[1][1] == 0
+
 
 class TestRankFilters:
     """min_seeders cutoff."""
