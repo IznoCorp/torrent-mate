@@ -29,6 +29,9 @@ class SearchResult:
         media_type: "movie" or "tv".
         overview: Short plot summary.
         poster_url: URL to poster image, if available.
+        original_title: Original-language title (for matching localised
+            releases against their original-name folders, e.g. matching
+            'The Butterfly Effect' against 'L'Effet papillon').
     """
 
     provider: str
@@ -38,6 +41,7 @@ class SearchResult:
     media_type: Literal["movie", "tv"] = "movie"
     overview: str = ""
     poster_url: str = ""
+    original_title: str = ""
 
 
 @dataclass(frozen=True)
@@ -49,12 +53,43 @@ class ArtworkItem:
         url: Full URL to the image.
         language: ISO 639-1 language code, if known.
         season: Season number (only for season_poster type).
+        vote_average: Provider-side popularity / quality score (0.0-10.0
+            range, semantics differ per provider). Used by ArtworkSelector
+            as a tie-breaker when multiple candidates share the top
+            language priority.
     """
 
     type: Literal["poster", "landscape", "season_poster", "backdrop"]
     url: str
     language: str = ""
     season: int | None = None
+    vote_average: float = 0.0
+
+
+@dataclass(frozen=True)
+class SeasonInfo:
+    """Summary of a single season in a TV show catalog.
+
+    Lightweight per-season summary attached to MediaDetails for content-
+    aware operations that need the season list without paying for the
+    full episode breakdown — e.g. the matching-stage candidate veto
+    (rejecting a candidate whose catalog does not cover the locally
+    present seasons) and season-poster selection.
+
+    Episode-level details still come from
+    :class:`SeasonDetails` via :meth:`MetadataProvider.get_season`.
+
+    Attributes:
+        season_number: Season number (1-based; 0 for specials).
+        episode_count: Number of episodes in this season, when known.
+        overview: Per-season summary, when provided.
+        poster_url: Pre-resolved season poster URL, when provided.
+    """
+
+    season_number: int
+    episode_count: int = 0
+    overview: str = ""
+    poster_url: str = ""
 
 
 @dataclass(frozen=True)
@@ -73,6 +108,21 @@ class MediaDetails:
         rating: Average rating (0-10 scale).
         images: List of associated artwork items.
         external_ids: External identifiers keyed by source (e.g. "imdb" → "tt1234567").
+        seasons: For TV shows, the season catalog summary (season number,
+            episode count, optional poster). Empty for movies.
+        genre_ids: Provider-specific genre identifiers (TMDB IDs). Used by
+            classifier rules that match on numeric genre IDs rather than
+            localised genre names.
+        origin_countries: ISO 3166-1 alpha-2 codes from the production
+            origin (typically TMDB's ``origin_country`` for TV, single-
+            element list for movies). Used by classifier country-rules
+            (e.g. anime detection).
+        production_countries: ISO 3166-1 alpha-2 codes for production
+            countries (TMDB's ``production_countries`` block, broader
+            than origin_countries on movies).
+        primary_backdrop_url: Provider's top-level backdrop URL, used as
+            a last-resort fallback when ``images`` contains no
+            ``backdrop`` entries.
     """
 
     provider: str
@@ -86,6 +136,11 @@ class MediaDetails:
     rating: float | None = None
     images: list[ArtworkItem] = field(default_factory=list)
     external_ids: dict[str, str] = field(default_factory=dict)
+    seasons: list[SeasonInfo] = field(default_factory=list)
+    genre_ids: list[int] = field(default_factory=list)
+    origin_countries: list[str] = field(default_factory=list)
+    production_countries: list[str] = field(default_factory=list)
+    primary_backdrop_url: str = ""
 
 
 @dataclass(frozen=True)
@@ -159,6 +214,14 @@ class EpisodeInfo:
         overview: Episode plot summary.
         air_date: Original air date as ISO-8601 string.
         runtime_minutes: Episode runtime in minutes.
+        season_number: Season this episode belongs to (1-based; 0 for
+            specials). Mirrors the parent ``SeasonDetails.season_number``
+            but is duplicated here so callers that flatten episodes from
+            multiple seasons still know each episode's season without
+            tracking the source separately.
+        still_url: Pre-resolved still-frame image URL for the episode,
+            when provided. Used by the NFO writer to embed an
+            ``<thumb>`` tag.
     """
 
     episode_number: int
@@ -166,6 +229,8 @@ class EpisodeInfo:
     overview: str = ""
     air_date: str = ""
     runtime_minutes: int | None = None
+    season_number: int = 0
+    still_url: str = ""
 
 
 @dataclass(frozen=True)
