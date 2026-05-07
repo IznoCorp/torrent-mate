@@ -398,7 +398,22 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 - **Asymmetric client construction**: `TMDBClient(transport, ...)` vs `TVDBClient(api_key, ...)`. The TVDB shape is forced by bootstrap login. A future factory layer (Phase 8 torrent factory groundwork) will need to handle both.
 - **`tracker/_ranking.py` advance-shipped in Phase 2**: justified by Pydantic config validation; documented in DESIGN.md §10 (phase ordering rationale). Phase 16 still owns `_base.py` + `_registry.py` + `rank()` function.
 
+## Review cycles
+
+### Cycle 1
+
+- Findings received: 1 (from `pr-review-toolkit:code-reviewer` on phases 21-25 scope, c7fbf12..HEAD)
+- Retained: 0 critical, 0 major, 0 medium, 1 minor
+- Ignored: 0
+- Fix phase created: none
+- Status: clean — proceeding to manual merge
+
+> Reviewer verdict: "ready to merge". Fail-soft contract preserved end-to-end, no test
+> references to deleted `personalscraper.notifier` module, patch-path migration consistent.
+> Single minor suggestion (pre-existing dead-man's-switch behavior on pipeline.run() crash —
+> not a regression introduced by this PR).
+
 ## Next action
 
-**All 25 phases complete.** Feature ready for PR — run `/implement:feature-pr` to push the
-branch, open the PR against `main`, and poll CI to green.
+**All 25 phases complete + review cycle 1 clean.** PR #19 is mergeable. CI green at +188s.
+Per `/implement:feature` merge mode = `manual`: review and squash-merge the PR when ready.
