@@ -147,3 +147,91 @@ class TestCoerceToMovieData:
         out = _coerce_to_movie_data(md)
         assert isinstance(out, dict)
         assert out["title"] == "X"
+
+
+class TestMediaDetailsToShowData:
+    """``_media_details_to_show_data`` — phase 27 TV-show shim.
+
+    Used by the artwork downloader and NFO generator on the TMDB-resolved
+    TV path (existing_validator repair, library/rescraper). Removing the
+    ``# type: ignore[arg-type]`` markers required this shim to avoid
+    silent ``AttributeError`` when consumers do ``show_data.get(...)`` on
+    a typed ``MediaDetails``.
+    """
+
+    def test_includes_seasons_array(self) -> None:
+        """The seasons array (TV-specific) must be present and shaped correctly."""
+        from personalscraper.api.metadata._base import SeasonInfo
+        from personalscraper.scraper.movie_service import _media_details_to_show_data
+
+        md = MediaDetails(
+            provider="tmdb",
+            provider_id="76479",
+            title="The Boys",
+            seasons=[
+                SeasonInfo(season_number=1, episode_count=8, poster_url="/s1.jpg"),
+                SeasonInfo(season_number=2, episode_count=8, poster_url="/s2.jpg"),
+            ],
+        )
+        d = _media_details_to_show_data(md)
+
+        assert d["seasons"] == [
+            {
+                "season_number": 1,
+                "episode_count": 8,
+                "poster_path": "/s1.jpg",
+                "name": "",
+                "overview": "",
+            },
+            {
+                "season_number": 2,
+                "episode_count": 8,
+                "poster_path": "/s2.jpg",
+                "name": "",
+                "overview": "",
+            },
+        ]
+
+    def test_inherits_movie_fields(self) -> None:
+        """Top-level fields (title, overview, etc.) come from movie shim."""
+        from personalscraper.scraper.movie_service import _media_details_to_show_data
+
+        md = MediaDetails(
+            provider="tmdb",
+            provider_id="76479",
+            title="The Boys",
+            overview="Superheroes gone bad.",
+        )
+        d = _media_details_to_show_data(md)
+        assert d["title"] == "The Boys"
+        assert d["overview"] == "Superheroes gone bad."
+        # name alias for TV consumers
+        assert d["name"] == "The Boys"
+
+
+class TestCoerceToShowData:
+    """``_coerce_to_show_data`` accepts MediaDetails or dict for TV consumers."""
+
+    def test_passthrough_for_dict(self) -> None:
+        """Dict input is returned unchanged."""
+        from personalscraper.scraper.movie_service import _coerce_to_show_data
+
+        d = {"id": 1, "name": "Show", "seasons": []}
+        assert _coerce_to_show_data(d) is d
+
+    def test_converts_media_details_with_seasons(self) -> None:
+        """MediaDetails input is converted with seasons array populated."""
+        from personalscraper.api.metadata._base import SeasonInfo
+        from personalscraper.scraper.movie_service import _coerce_to_show_data
+
+        md = MediaDetails(
+            provider="tmdb",
+            provider_id="1",
+            title="X",
+            seasons=[SeasonInfo(season_number=1, episode_count=10, poster_url="")],
+        )
+        out = _coerce_to_show_data(md)
+        assert isinstance(out, dict)
+        assert out["title"] == "X"
+        assert out["seasons"][0]["season_number"] == 1
+        assert out["seasons"][0]["episode_count"] == 10

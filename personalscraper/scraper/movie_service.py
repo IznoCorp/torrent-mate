@@ -121,6 +121,43 @@ def _coerce_to_movie_data(data: MediaDetails | dict[str, Any]) -> dict[str, Any]
     return data
 
 
+def _media_details_to_show_data(details: MediaDetails) -> dict[str, Any]:
+    """Adapt typed MediaDetails into the legacy show_data dict for TV shows.
+
+    Phase 27 transitional shim — extension of ``_media_details_to_movie_data``
+    that also surfaces the ``seasons`` summary array. The artwork downloader
+    uses ``show_data["seasons"]`` to find per-season posters keyed on
+    ``season_number``; without this the season-poster path silently degrades
+    to "show poster only" on every TMDB-resolved TV show repair.
+
+    Args:
+        details: Typed metadata from a TMDB ``get_tv`` call.
+
+    Returns:
+        Dict whose keys match the legacy TMDB TV-show response shape used by
+        NFO + artwork consumers.
+    """
+    base = _media_details_to_movie_data(details)
+    base["seasons"] = [
+        {
+            "season_number": s.season_number,
+            "episode_count": s.episode_count,
+            "poster_path": s.poster_url,
+            "name": "",
+            "overview": "",
+        }
+        for s in details.seasons
+    ]
+    return base
+
+
+def _coerce_to_show_data(data: MediaDetails | dict[str, Any]) -> dict[str, Any]:
+    """Return ``data`` as a show_data-shaped dict for TV consumers."""
+    if isinstance(data, MediaDetails):
+        return _media_details_to_show_data(data)
+    return data
+
+
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")

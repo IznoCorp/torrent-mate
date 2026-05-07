@@ -747,10 +747,11 @@ class ExistingValidatorMixin:
         # exceptions; download_movie_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
+            from personalscraper.scraper.movie_service import _coerce_to_movie_data
+
             movie_data = self._tmdb.get_movie(tmdb_id)
-            # TODO(api-unify): migrate ArtworkDownloader to accept MediaDetails
             downloaded = self._artwork.download_movie_artwork(
-                movie_data,  # type: ignore[arg-type]
+                _coerce_to_movie_data(movie_data),
                 movie_dir,
                 self.patterns,
             )
@@ -785,10 +786,11 @@ class ExistingValidatorMixin:
         # exceptions; download_tvshow_artwork() adds OSError. CircuitOpenError needs
         # a lazy import — narrowing this mixed path is not worthwhile here.
         try:
+            from personalscraper.scraper.movie_service import _coerce_to_show_data
+
             show_data = self._tmdb.get_tv(tmdb_id)
-            # TODO(api-unify): migrate ArtworkDownloader to accept MediaDetails
             downloaded = self._artwork.download_tvshow_artwork(
-                show_data,  # type: ignore[arg-type]
+                _coerce_to_show_data(show_data),
                 show_dir,
                 self.patterns,
             )

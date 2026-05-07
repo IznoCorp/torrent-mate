@@ -295,6 +295,11 @@ def _rescrape_item(
     # Fix NFO
     if needs_nfo:
         try:
+            from personalscraper.scraper.movie_service import (
+                _coerce_to_movie_data,
+                _coerce_to_show_data,
+            )
+
             if media_type == "movie":
                 nfo_name = patterns.format("movie_nfo", Title=title)
                 nfo_path = media_dir / nfo_name
@@ -302,10 +307,10 @@ def _rescrape_item(
 
                 video_file = _find_largest_video(media_dir)
                 stream_info = extract_stream_info(video_file) if video_file else None
-                xml = nfo_gen.generate_movie_nfo(api_data, stream_info)  # type: ignore[arg-type]
+                xml = nfo_gen.generate_movie_nfo(_coerce_to_movie_data(api_data), stream_info)
             else:
                 nfo_path = media_dir / "tvshow.nfo"
-                xml = nfo_gen.generate_tvshow_nfo(api_data)  # type: ignore[arg-type]
+                xml = nfo_gen.generate_tvshow_nfo(_coerce_to_show_data(api_data))
             if not dry_run:
                 nfo_gen.write_nfo(xml, nfo_path)
             actions.append(ACTION_NFO_REGENERATED)
@@ -318,10 +323,19 @@ def _rescrape_item(
     if needs_artwork:
         try:
             if not dry_run:
+                from personalscraper.scraper.movie_service import (
+                    _coerce_to_movie_data,
+                    _coerce_to_show_data,
+                )
+
                 if media_type == "movie":
-                    artwork_dl.download_movie_artwork(api_data, media_dir, patterns)  # type: ignore[arg-type]
+                    artwork_dl.download_movie_artwork(
+                        _coerce_to_movie_data(api_data), media_dir, patterns
+                    )
                 else:
-                    artwork_dl.download_tvshow_artwork(api_data, media_dir, patterns)  # type: ignore[arg-type]
+                    artwork_dl.download_tvshow_artwork(
+                        _coerce_to_show_data(api_data), media_dir, patterns
+                    )
             actions.append(ACTION_ARTWORK_DOWNLOADED)
             log.info("library_rescrape_artwork", title=title, dry_run=dry_run)
         except Exception as exc:
