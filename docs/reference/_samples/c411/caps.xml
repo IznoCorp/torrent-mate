@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<caps>
+  <server version="1.0" title="Torrent C411" strapline="Private Torrent Tracker" email="" url="https://c411.org" />
+  <limits max="100" default="25" />
+  <retention days="3650" />
+  <registration available="no" open="no" />
+  <searching>
+    <search available="yes" supportedParams="q" />
+    <tv-search available="yes" supportedParams="q,season,ep,tmdbid,imdbid" />
+    <movie-search available="yes" supportedParams="q,imdbid,tmdbid" />
+    <audio-search available="yes" supportedParams="q" />
+    <book-search available="yes" supportedParams="q" />
+  </searching>
+  <categories>
+    <category id="2000" name="Movies" description="Films &amp; Vidéos">
+      <subcat id="2060" name="Movies/Anime" description="Animation" />
+      <subcat id="5070" name="TV/Anime" description="Animation Série" />
+      <subcat id="2090" name="Movies/Other" description="Concert" />
+      <subcat id="2070" name="Movies/Documentary" description="Documentaire" />
+      <subcat id="2000" name="Movies" description="Série Documentaire" />
+      <subcat id="5080" name="TV/Documentary" description="Emission TV" />
+      <subcat id="2030" name="Movies/Foreign" description="Film" />
+      <subcat id="5000" name="TV" description="Série TV" />
+      <subcat id="2080" name="Movies/Other" description="Spectacle" />
+      <subcat id="5060" name="TV/Sport" description="Sport" />
+      <subcat id="2050" name="Movies/Other" description="Vidéo-clips" />
+      <subcat id="2010" name="Movies/Other" description="Collection" />
+    </category>
+    <category id="7000" name="Books" description="Ebook">
+      <subcat id="3030" name="Audio/Audiobook" description="Audio" />
+      <subcat id="7030" name="Books/Comics" description="BDs" />
+      <subcat id="7030" name="Books/Comics" description="Comics" />
+      <subcat id="7020" name="Books/Ebook" description="Livres" />
+      <subcat id="7030" name="Books/Comics" description="Manga" />
+      <subcat id="7010" name="Books/Mags" description="Presse" />
+    </category>
+    <category id="3000" name="Audio" description="Audio">
+      <subcat id="3050" name="Audio/Other" description="Karaoké" />
+      <subcat id="3010" name="Audio/MP3" description="Musique" />
+      <subcat id="3050" name="Audio/Other" description="Podcast Radio" />
+      <subcat id="3050" name="Audio/Other" description="Samples" />
+    </category>
+    <category id="4000" name="PC" description="Applications">
+      <subcat id="4050" name="PC/Other" description="Autre" />
+      <subcat id="4040" name="PC/Other" description="Formation" />
+      <subcat id="4030" name="PC/0day" description="Linux" />
+      <subcat id="4030" name="PC/Mac" description="MacOS" />
+      <subcat id="4060" name="PC/Mobile-Android" description="Smartphone" />
+      <subcat id="4060" name="PC/Mobile-Android" description="Tablette" />
+      <subcat id="4000" name="PC" description="Windows" />
+    </category>
+    <category id="1000" name="Console" description="Jeux Vidéo">
+      <subcat id="1090" name="Console/Other" description="Autre" />
+      <subcat id="4050" name="PC/Games" description="Linux" />
+      <subcat id="4050" name="PC/Games" description="MacOS" />
+      <subcat id="1040" name="Console/Xbox" description="Microsoft" />
+      <subcat id="1030" name="Console/Wii" description="Nintendo" />
+      <subcat id="4070" name="PC/Mobile-iOS" description="Smartphone" />
+      <subcat id="1080" name="Console/PS4" description="Sony" />
+      <subcat id="4070" name="PC/Mobile-iOS" description="Tablette" />
+      <subcat id="4050" name="PC/Games" description="Windows" />
+      <subcat id="1000" name="Console" description="VR" />
+    </category>
+    <category id="1000" name="Console" description="Emulation">
+      <subcat id="4050" name="PC/Games" description="Émulateur" />
+      <subcat id="1090" name="Console/Other" description="ROM/ISO" />
+    </category>
+    <category id="4050" name="PC/Mobile-Other" description="GPS">
+      <subcat id="4060" name="PC/Mobile-Android" description="Applications" />
+      <subcat id="4060" name="PC/Mobile-Android" description="Cartes" />
+      <subcat id="4050" name="PC/Other" description="Divers" />
+    </category>
+    <category id="6000" name="XXX" description="XXX">
+      <subcat id="6050" name="XXX/Other" description="Ebooks" />
+      <subcat id="6010" name="XXX/DVD" description="Films" />
+      <subcat id="6070" name="XXX/Anime" description="Hentai" />
+      <subcat id="6060" name="XXX/Imageset" description="Images" />
+      <subcat id="6080" name="XXX/Other" description="Jeux" />
+      <subcat id="6000" name="XXX" description="VR" />
+    </category>
+    <category id="4000" name="PC" description="Nulled">
+      <subcat id="4050" name="PC/Other" description="Divers" />
+      <subcat id="4060" name="PC/Mobile-Android" description="Mobile" />
+      <subcat id="4050" name="PC/Other" description="Scripts PHP &amp; CMS" />
+      <subcat id="4050" name="PC/Other" description="Wordpress" />
+    </category>
+    <category id="8010" name="Other/Misc" description="Imprimante 3D">
+      <subcat id="8010" name="Other/Misc" description="Objets" />
+      <subcat id="8010" name="Other/Misc" description="Personnages" />
+      <subcat id="8010" name="Other/Misc" description="Pack" />
+    </category>
+  </categories>
+  <tags>
+    <tag name="freeleech" description="Freeleech torrents" />
+  </tags>
+</caps>

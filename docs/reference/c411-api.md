@@ -79,62 +79,87 @@ GET /api?t=tvsearch&q=<query>&apikey=<key>       (tv scope)
 - ETag support for conditional requests.
 - Recommended RSS sync interval: 15–60 min (informative — search calls are not RSS).
 
-### Response — RSS-style XML
+### Response — RSS-style XML (captured live, see `_samples/c411/search-inception.xml`)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:torznab="http://torznab.com/schemas/2015/feed">
   <channel>
-    <title>C411</title>
+    <title>Torrent C411</title>
+    <description>Private Torrent Tracker - RSS Feed</description>
+    <link>https://c411.org</link>
+    <language>fr-fr</language>
+    <lastBuildDate>Thu, 07 May 2026 14:43:49 GMT</lastBuildDate>
     <item>
-      <title>Inception.2010.2160p.UHD.BluRay.x265.HDR.TrueHD-NCmt</title>
-      <guid>https://c411.org/torrents/12345</guid>
-      <link>https://c411.org/api/torrents/download/12345?apikey=...</link>
-      <comments>https://c411.org/torrents/12345</comments>
-      <pubDate>Sun, 12 Jan 2025 10:00:00 +0000</pubDate>
-      <category>2000</category>
-      <enclosure url="https://c411.org/api/torrents/download/12345?apikey=..."
-                 length="2147483648"
-                 type="application/x-bittorrent" />
-      <torznab:attr name="seeders" value="42"/>
-      <torznab:attr name="peers" value="45"/>
-      <torznab:attr name="size" value="2147483648"/>
-      <torznab:attr name="category" value="2000"/>
-      <torznab:attr name="infohash" value="abcdef..."/>
-      <torznab:attr name="downloadvolumefactor" value="0"/>
-      <torznab:attr name="uploadvolumefactor" value="1"/>
+      <title>Inception.2010.MULTi.VFF.2160p.BluRay.4KLight.HDR.10bit.DTS.5.1.x265-QTZ</title>
+      <guid>b08b70d0855318efa71aeccce0ae42b3e4493113</guid>
+      <link>https://c411.org/torrents/b08b70d0855318efa71aeccce0ae42b3e4493113</link>
+      <comments>https://c411.org/torrents/b08b70d0855318efa71aeccce0ae42b3e4493113</comments>
+      <pubDate>Tue, 13 Jan 2026 13:35:54 +0000</pubDate>
+      <size>7396633907</size>
+      <description></description>
+      <enclosure url="https://c411.org/api?t=get&amp;id=...&amp;apikey=REDACTED"
+                 length="7396633907" type="application/x-bittorrent" />
+      <torznab:attr name="category" value="2030" />
+      <torznab:attr name="size" value="7396633907" />
+      <torznab:attr name="seeders" value="141" />
+      <torznab:attr name="peers" value="141" />
+      <torznab:attr name="grabs" value="1" />
+      <torznab:attr name="infohash" value="b08b70d0855318efa71aeccce0ae42b3e4493113" />
+      <torznab:attr name="imdbid" value="tt1375666" />
+      <torznab:attr name="tmdbid" value="27205" />
+      <torznab:attr name="downloadvolumefactor" value="1" />
+      <torznab:attr name="uploadvolumefactor" value="1" />
     </item>
   </channel>
 </rss>
 ```
 
-Notes:
+#### Reality vs initial spec (captured 2026-05-07)
+
+| Initial assumption                                | Reality                                                                                                                                                              |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<guid>` is the torrent detail URL                | `<guid>` is the **infohash** (40-char hex). Same value also in `torznab:attr name="infohash"`                                                                        |
+| `<category>` element on each item                 | **No** `<category>` element on items — only `torznab:attr name="category"`                                                                                           |
+| Item has only `enclosure[@length]`                | Item has both `<size>` element (top-level) **and** `enclosure[@length]` (and `torznab:attr[size]`) — three duplicates                                                |
+| Empty result is `<channel/>` empty                | Empty result is `<channel>` containing only metadata (`title`, `description`, `link`, `language`, `lastBuildDate`) — no `<item>` elements                            |
+| Categories `name` field is "Movies" / "TV"        | `category[@name]` is the Newznab class label ("Movies", "TV", "Console" …); the human label is in `category[@description]` (e.g. "Films & Vidéos"). Same for subcats |
+| `enclosure[@url]` is a clean download URL         | URL contains the apikey inline (`?t=get&id=...&apikey=...`). **Sensitive** — must be redacted in logs and samples                                                    |
+| `peers = seeders + leechers`                      | In samples, `peers == seeders` always when there are no leechers. Treat `leechers = max(0, peers - seeders)`                                                         |
+| Search response uses `<error>` body for auth fail | Auth failure returns **HTTP 401** with body `<error code="100" description="Invalid API Key"/>` (see `_samples/c411/error-auth.xml`)                                 |
+
+#### Notes
 
 - `torznab:attr` repeated elements carry typed metadata. With `xmltodict`,
   repeated `<torznab:attr>` becomes a list of dicts each with `@name` and `@value`.
-- `enclosure` carries the download URL and total size.
-- `seeders` / `peers` come via `torznab:attr` (peers = seeders + leechers in Torznab spec; leechers = peers − seeders).
-- `downloadvolumefactor=0` ⇒ **freeleech**. `downloadvolumefactor=0.5` ⇒ partial / silver-leech.
-- `uploadvolumefactor=2` ⇒ double upload bonus (informative).
+  When only one attr is present (rare), it is a single dict — clients must coerce.
+- `enclosure` carries the download URL and total size — **but the URL contains
+  the apikey** as a query parameter. Treat it as sensitive (redact before logging).
+- `seeders` and `peers` come via `torznab:attr`. `leechers` is derived: `max(0, peers - seeders)`.
+- `downloadvolumefactor=0` ⇒ **freeleech**. `downloadvolumefactor=0.5` ⇒ silver-leech (partial).
+  `uploadvolumefactor=2` ⇒ double upload bonus (informative, not stored on `TrackerResult`).
+- C411 also surfaces `imdbid` and `tmdbid` as `torznab:attr` — useful for cross-referencing
+  with metadata providers, but `TrackerResult` has no field for these (extension deferred).
 
 ### Field mapping → `TrackerResult`
 
-| C411 / Torznab field                         | `TrackerResult` field                              | Notes                                                                                        |
-| -------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| —                                            | `provider`                                         | Constant `"c411"`                                                                            |
-| `<guid>`                                     | `tracker_id`                                       | URL or numeric ID after stripping host/path                                                  |
-| `<title>`                                    | `title`                                            | Used as input for `_parse_title()` (shared helper)                                           |
-| `enclosure[@length]` or `torznab:attr[size]` | `size` (`ByteSize`)                                | Bytes (string in XML) → `ByteSize.parse(int(value))`                                         |
-| `torznab:attr[seeders]`                      | `seeders`                                          | Direct int                                                                                   |
-| `torznab:attr[peers] - seeders`              | `leechers`                                         | Torznab spec: peers = seeders + leechers                                                     |
-| `torznab:attr[category]` or `<category>`     | `category`                                         | Newznab numeric ID — keep as-is (e.g. `"2000"`)                                              |
-| `enclosure[@url]` or `<link>`                | `download_url`                                     | Direct                                                                                       |
-| `torznab:attr[infohash]`                     | `info_hash`                                        | Lowercase hex                                                                                |
-| `<comments>` or `<guid>`                     | `source_url`                                       | Detail page URL (prefer `comments` when present)                                             |
-| `<pubDate>`                                  | `upload_date`                                      | RFC 2822 (`Sun, 12 Jan 2025 10:00:00 +0000`); parse with `email.utils.parsedate_to_datetime` |
-| `torznab:attr[downloadvolumefactor]`         | `is_freeleech`                                     | `True` if `value == "0"`                                                                     |
-| `torznab:attr[downloadvolumefactor]`         | `is_silverleech`                                   | `True` if `value == "0.5"`                                                                   |
-| _(derived from title)_                       | `format`, `codec`, `source`, `resolution`, `audio` | Reuse LaCale's `_parse_title` (titles encode same fields)                                    |
+| C411 / Torznab field                         | `TrackerResult` field                              | Notes                                                                                                        |
+| -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| —                                            | `provider`                                         | Constant `"c411"`                                                                                            |
+| `<guid>`                                     | `tracker_id`                                       | **40-char infohash** (confirmed live). Equal to `torznab:attr[infohash]` and to the path segment in `<link>` |
+| `<title>`                                    | `title`                                            | Used as input for `_parse_title()` (shared helper)                                                           |
+| `enclosure[@length]` or `torznab:attr[size]` | `size` (`ByteSize`)                                | Bytes (string in XML) → `ByteSize.parse(int(value))`                                                         |
+| `torznab:attr[seeders]`                      | `seeders`                                          | Direct int                                                                                                   |
+| `max(0, peers - seeders)`                    | `leechers`                                         | C411 emits `peers == seeders` when no leechers; clamp to 0                                                   |
+| `torznab:attr[category]`                     | `category`                                         | Newznab numeric ID — keep as-is (e.g. `"2030"`). No item-level `<category>` element exists                   |
+| `enclosure[@url]` or `<link>`                | `download_url`                                     | Direct                                                                                                       |
+| `torznab:attr[infohash]`                     | `info_hash`                                        | Lowercase hex                                                                                                |
+| `<comments>` or `<guid>`                     | `source_url`                                       | Detail page URL (prefer `comments` when present)                                                             |
+| `<pubDate>`                                  | `upload_date`                                      | RFC 2822 (`Sun, 12 Jan 2025 10:00:00 +0000`); parse with `email.utils.parsedate_to_datetime`                 |
+| `torznab:attr[downloadvolumefactor]`         | `is_freeleech`                                     | `True` if `value == "0"`                                                                                     |
+| `torznab:attr[downloadvolumefactor]`         | `is_silverleech`                                   | `True` if `value == "0.5"`                                                                                   |
+| _(derived from title)_                       | `format`, `codec`, `source`, `resolution`, `audio` | Reuse LaCale's `_parse_title` (titles encode same fields)                                                    |
 
 ---
 
@@ -144,29 +169,52 @@ Notes:
 GET /api?t=caps&apikey=<key>
 ```
 
-### Response shape
+### Response shape (captured live, see `_samples/c411/caps.xml`)
 
 ```xml
 <caps>
-  <server title="C411" />
+  <server version="1.0" title="Torrent C411" strapline="Private Torrent Tracker"
+          email="" url="https://c411.org" />
+  <limits max="100" default="25" />
+  <retention days="3650" />
+  <registration available="no" open="no" />
   <searching>
-    <search available="yes" supportedParams="q,cat,limit,offset,apikey,o" />
-    <movie-search available="yes" supportedParams="q,imdbid,tmdbid,cat,limit,offset,apikey,o" />
-    <tv-search available="yes" supportedParams="q,tvdbid,season,ep,cat,limit,offset,apikey,o" />
-    ...
+    <search available="yes" supportedParams="q" />
+    <tv-search available="yes" supportedParams="q,season,ep,tmdbid,imdbid" />
+    <movie-search available="yes" supportedParams="q,imdbid,tmdbid" />
+    <audio-search available="yes" supportedParams="q" />
+    <book-search available="yes" supportedParams="q" />
   </searching>
   <categories>
-    <category id="2000" name="Movies">
-      <subcat id="2060" name="Anime" />
-      <subcat id="2070" name="Documentary" />
+    <category id="2000" name="Movies" description="Films &amp; Vidéos">
+      <subcat id="2060" name="Movies/Anime" description="Animation" />
+      <subcat id="5070" name="TV/Anime" description="Animation Série" />
+      <subcat id="2030" name="Movies/Foreign" description="Film" />
+      <subcat id="5000" name="TV" description="Série TV" />
+      <!-- … 12 subcats total under id=2000 (see sample file) … -->
     </category>
-    <category id="5000" name="TV">
-      <subcat id="5070" name="Anime" />
-    </category>
-    ...
+    <category id="7000" name="Books" description="Ebook">…</category>
+    <category id="3000" name="Audio" description="Audio">…</category>
+    <category id="4000" name="PC" description="Applications">…</category>
+    <category id="1000" name="Console" description="Jeux Vidéo">…</category>
+    <category id="6000" name="XXX" description="XXX">…</category>
+    <!-- … and Emulation, GPS, Nulled, "Imprimante 3D" -->
   </categories>
+  <tags>
+    <tag name="freeleech" description="Freeleech torrents" />
+  </tags>
 </caps>
 ```
+
+#### Reality vs initial spec (captured 2026-05-07)
+
+| Initial assumption                         | Reality                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Searching `supportedParams` includes `cat` | C411 caps **does NOT advertise `cat`** for any of `search`/`movie-search`/`tv-search`. Category narrowing is not honored — Phase 20 must not pass `cat`. ID-based narrowing uses `imdbid`/`tmdbid` (and `tvdbid` for tv-search) only                                                      |
+| `category[@name]` is the human label       | `category[@name]` is the Newznab class label ("Movies", "TV", "Console", "PC", "Books", "Audio", "XXX", "Other/Misc"). The human label is in `category[@description]`                                                                                                                     |
+| Subcat IDs are unique per parent           | Many subcats share a Newznab `id` across categories (e.g. multiple `id="4050"`, multiple `id="3030"`) because Newznab IDs are a fixed taxonomy and several native C411 subcats map to the same Newznab class. Treat the `(parent, description)` pair as the canonical key, not `id` alone |
+| One server-side limit field                | `<limits max="100" default="25" />` — pagination caps for `limit` query param. Retention is 3650 days                                                                                                                                                                                     |
+| No tags surface                            | `<tags><tag name="freeleech"/></tags>` — a top-level tag taxonomy. Currently only `freeleech`. Items don't carry tags directly in samples — only via `downloadvolumefactor`                                                                                                               |
 
 ### Newznab category map (per `ArrStack.md`)
 
@@ -257,24 +305,31 @@ at Phase 20 start, defaults stand.
    `personalscraper.api.tracker.lacale` to avoid premature abstraction; promote to a
    shared `_title_parser.py` only if a third tracker reuses it).
 
-3. **Category normalization**: `get_categories()` returns flat
-   `numeric_id_str → display_name` map (matches LaCale shape modulo string-vs-slug).
-   Mapping `media_type` → Newznab category ID happens at the registry level, not
-   inside `C411Client.search()`. Search invocation passes the resolved category(ies)
-   via the `cat` query parameter.
-
-4. **Search endpoint selection**: `t=search` (general). The specialized `t=movie` /
-   `t=tvsearch` endpoints offer ID-based search (`imdbid`, `tmdbid`, `tvdbid`) which
-   the registry doesn't currently exploit. Phase 20 starts with `t=search` + `cat`
-   filtering; `t=movie` / `t=tvsearch` lookup helpers can land in a follow-up if
-   the indexer/orchestrator wants ID-based queries.
-
-5. **Default rate limit**: `rps=0.5`, `burst=2` (defensive, same as LaCale).
-
-6. **Sample fixtures**: not captured in Phase 19 (no `C411_API_KEY` in local `.env`).
-   Phase 20 unit tests will rely on hand-crafted XML fixtures derived from the
-   shapes documented here. If real samples become available later, they go in
-   `docs/reference/_samples/c411/`.
+3. **Category normalization**: `get_categories()` returns a flat
+   `description (slug) → human label` map. Because Newznab `id` collides across native
+   subcats (multiple subcats map to e.g. `4050`), keying by `id` alone loses
+   information. Phase 20 keys the dict by the `description` attribute (the actual
+   French native label, unique within parent) and surfaces the Newznab class via
+   a parallel `_id_for(slug) -> str` lookup. Confirm key strategy on first review.
+4. **`cat` parameter REMOVED**: live caps confirms C411 does not advertise `cat`
+   in `supportedParams`. Phase 20 will **not** send `cat=` — narrowing to a media
+   type relies on `t=movie` / `t=tvsearch` only, or post-filter on `category`
+   torznab attr. The earlier "registry passes resolved slug via cat" decision is
+   void.
+5. **Search endpoint selection**: use `t=search` for free-text queries and
+   `t=movie` / `t=tvsearch` when `media_type` is supplied (the latter accept
+   `imdbid`/`tmdbid`/`tvdbid` for ID-based lookups in a follow-up). Phase 20
+   wires a `media_type → endpoint` decision at the top of `search()`.
+6. **Default rate limit**: `rps=0.5`, `burst=2` (defensive, same as LaCale).
+7. **Sample fixtures**: live samples captured 2026-05-07 in
+   `docs/reference/_samples/c411/`:
+   - `caps.xml` — Torznab capabilities + categories
+   - `search-inception.xml` — `t=search&q=Inception` (multiple items, all VFF/Multi quality variants)
+   - `search-empty.xml` — `t=search&q=zzzz_no_match_xyz` (channel with no items)
+   - `tvsearch.xml` — `t=tvsearch&q=Breaking%20Bad`
+   - `movie-imdbid.xml` — `t=movie&imdbid=tt1375666`
+   - `error-auth.xml` — HTTP 401 + `<error code="100" description="Invalid API Key"/>`
+     API keys redacted (`apikey=REDACTED_API_KEY` placeholder).
 
 ---
 

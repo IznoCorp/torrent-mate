@@ -212,7 +212,16 @@ The following defaults are baked into this doc and will drive Phase 18; flagged 
 1. **Title parsing strategy**: regex on `title` (no fallback to API fields — none are provided for codec/source/audio/resolution). Decision: **regex-based `_parse_title()`** as outlined above.
 2. **Category normalization**: `get_categories()` returns flat `slug → name` map. Mapping `media_type` (`"movie"` / `"tv"`) → LaCale slug list happens at the registry level, not inside `LaCaleClient`. Search invocation passes the resolved slug(s) via the repeatable `cat` parameter.
 3. **Default rate limit**: `rps=0.5`, `burst=2` (defensive). Override via `config/tracker.json5` `lacale.rate_limit` block.
-4. **Sample fixtures**: not captured in Phase 17 (no `LACALE_API_KEY` in local `.env`). Phase 18 unit tests will rely on hand-crafted fixtures derived from the response shapes documented here. If real samples become available later, they go in `docs/reference/_samples/lacale/`.
+4. **Sample fixtures — BLOCKED on real `LACALE_API_KEY`**: revisit attempt
+   2026-05-07 with the BT tracker `LACALE_PASSKEY` rejected (HTTP 401 "Invalid
+   API key") in both `X-Api-Key` header and `apikey=` query forms — the LaCale
+   API key is **distinct** from the BitTorrent announce passkey. Phase 18 unit
+   tests still rely on hand-crafted fixtures derived from the TorrentMaker
+   docs (`docs/LaCale/api/`); endpoint shapes here are unverified against a
+   live response. When a real `LACALE_API_KEY` is provided, capture
+   `meta.json`, `search-inception.json`, `search-empty.json`, and an auth-error
+   sample into `docs/reference/_samples/lacale/`, then re-validate the field
+   mapping table against actual JSON.
 
 ---
 
