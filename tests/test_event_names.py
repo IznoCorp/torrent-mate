@@ -67,11 +67,14 @@ def _make_config(tmp_path: Path) -> MagicMock:
         tmp_path: Temporary directory used as the staging root.
 
     Returns:
-        MagicMock with staging_dirs and paths.staging_dir configured.
+        MagicMock with staging_dirs, paths, and torrent configured.
     """
     c = MagicMock()
     c.staging_dirs = CANONICAL_STAGING_DIRS
     c.paths.staging_dir = tmp_path
+    c.paths.data_dir = tmp_path / "data"
+    c.paths.data_dir.mkdir(parents=True, exist_ok=True)
+    c.torrent.active = True
     return c
 
 
@@ -234,11 +237,11 @@ class TestIngestQbitAuthLockoutEvent:
     ) -> None:
         """ingest_qbit_auth_lockout event name is pinned via a real run_ingest call.
 
-        Injects ``QBitAuthLockoutError`` on ``QBitClient.__enter__`` so the
+        Injects ``QBitAuthLockoutError`` on ``get_completed()`` so the
         handler in ``run_ingest`` is exercised, not a synthetic logger emit.
 
         Args:
-            mock_qbit_cls: Patched QBitClient class.
+            mock_qbit_cls: Patched build_active_torrent_client factory.
             tmp_path: Pytest temporary directory fixture.
             caplog: Pytest log capture fixture.
         """
@@ -246,8 +249,7 @@ class TestIngestQbitAuthLockoutEvent:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(side_effect=QBitAuthLockoutError("lockout detected"))
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get_completed.side_effect = QBitAuthLockoutError("lockout detected")
         mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):

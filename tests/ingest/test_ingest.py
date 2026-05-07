@@ -239,13 +239,16 @@ def _make_config(tmp_path: Path) -> MagicMock:
         tmp_path: Temporary directory used as the staging root.
 
     Returns:
-        MagicMock with staging_dirs and paths.staging_dir configured.
+        MagicMock with staging_dirs, paths, torrent, and ingest configured.
     """
     c = MagicMock()
     c.staging_dirs = CANONICAL_STAGING_DIRS
     c.paths.staging_dir = tmp_path
+    c.paths.data_dir = tmp_path / "data"
+    c.paths.data_dir.mkdir(parents=True, exist_ok=True)
     c.ingest.min_ratio = 0.0  # disable ratio guard — matches IngestConfig default
     c.thresholds.min_free_space_staging_gb = 0  # disable disk-space guard in tests
+    c.torrent.active = True
     return c
 
 
@@ -265,8 +268,8 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = []
-        mock_client.get_all_torrent_hashes.return_value = set()
+        mock_client.get_completed.return_value = []
+        mock_client.get_all_hashes.return_value = set()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
@@ -290,8 +293,8 @@ class TestRunIngest:
 
         mock_client = MagicMock()
         torrent = _make_torrent("Movie (2024)", "abc123")
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"abc123"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"abc123"}
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
@@ -325,8 +328,8 @@ class TestRunIngest:
         (source / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash1"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash1"}
         mock_client.get_content_path.return_value = source
         mock_client.is_seeding.return_value = True
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -364,8 +367,8 @@ class TestRunIngest:
         (source / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash2"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash2"}
         mock_client.get_content_path.return_value = source
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -406,8 +409,8 @@ class TestRunIngest:
         (source / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash3"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash3"}
         mock_client.get_content_path.return_value = source
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
@@ -442,8 +445,8 @@ class TestRunIngest:
         (source / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash4"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash4"}
         mock_client.get_content_path.return_value = source
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -477,8 +480,8 @@ class TestRunIngest:
         (source / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash5"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash5"}
         mock_client.get_content_path.return_value = source
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -507,8 +510,8 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = []
-        mock_client.get_all_torrent_hashes.return_value = set()
+        mock_client.get_completed.return_value = []
+        mock_client.get_all_hashes.return_value = set()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
         mock_qbit_cls.return_value = mock_client
@@ -545,8 +548,8 @@ class TestRunIngest:
             (s / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [t1, t2, t3]
-        mock_client.get_all_torrent_hashes.return_value = {"h1", "h2", "h3"}
+        mock_client.get_completed.return_value = [t1, t2, t3]
+        mock_client.get_all_hashes.return_value = {"h1", "h2", "h3"}
         mock_client.get_content_path.side_effect = [src1, src2]
         mock_client.is_seeding.side_effect = [True, False]
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -594,8 +597,8 @@ class TestRunIngest:
         torrent = _make_torrent("Ghost", "hash6")
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash6"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash6"}
         mock_client.get_content_path.return_value = tmp_path / "nonexistent"
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
@@ -640,8 +643,8 @@ class TestRunIngest:
         src3 = tmp_path / "complete" / "Good2"
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [t1, t2, t3]
-        mock_client.get_all_torrent_hashes.return_value = {"h1", "h2", "h3"}
+        mock_client.get_completed.return_value = [t1, t2, t3]
+        mock_client.get_all_hashes.return_value = {"h1", "h2", "h3"}
         mock_client.get_content_path.side_effect = [src1, src2, src3]
         mock_client.is_seeding.return_value = False
         mock_client.__enter__ = MagicMock(return_value=mock_client)
@@ -685,8 +688,8 @@ class TestRunIngest:
             (src / "file.mkv").write_bytes(b"\x00" * 100)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [t1, t2, t3]
-        mock_client.get_all_torrent_hashes.return_value = {"h1", "h2", "h3"}
+        mock_client.get_completed.return_value = [t1, t2, t3]
+        mock_client.get_all_hashes.return_value = {"h1", "h2", "h3"}
         mock_client.get_content_path.side_effect = [
             tmp_path / "complete" / "Fail1",
             tmp_path / "complete" / "Fail2",
@@ -726,8 +729,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(side_effect=qbittorrentapi.Forbidden403Error())
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get_completed.side_effect = qbittorrentapi.Forbidden403Error()
         mock_qbit_cls.return_value = mock_client
 
         report = run_ingest(settings, config=_make_config(tmp_path))
@@ -751,8 +753,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(side_effect=qbittorrentapi.LoginFailed())
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get_completed.side_effect = qbittorrentapi.LoginFailed()
         mock_qbit_cls.return_value = mock_client
 
         report = run_ingest(settings, config=_make_config(tmp_path))
@@ -774,8 +775,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(side_effect=qbittorrentapi.APIConnectionError("Connection refused"))
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get_completed.side_effect = qbittorrentapi.APIConnectionError("Connection refused")
         mock_qbit_cls.return_value = mock_client
 
         report = run_ingest(settings, config=_make_config(tmp_path))
@@ -806,8 +806,8 @@ class TestRunIngest:
         dest.mkdir(parents=True)
 
         mock_client = MagicMock()
-        mock_client.get_completed_torrents.return_value = [torrent]
-        mock_client.get_all_torrent_hashes.return_value = {"hash7"}
+        mock_client.get_completed.return_value = [torrent]
+        mock_client.get_all_hashes.return_value = {"hash7"}
         mock_client.get_content_path.return_value = source
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)
@@ -829,14 +829,14 @@ class TestRunIngest:
         tmp_path: Path,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Unexpected exception on QBitClient.__enter__ emits ingest_unexpected_error and increments error_count.
+        """Unexpected exception in get_completed() emits ingest_unexpected_error and increments error_count.
 
         The catch-all ``except Exception`` handler in ``run_ingest`` must emit
         the ``ingest_unexpected_error`` event with ``error_type`` set to the
         exception class name and must increment ``report.error_count``.
 
         Args:
-            mock_qbit_cls: Patched QBitClient class.
+            mock_qbit_cls: Patched build_active_torrent_client factory.
             tmp_path: Pytest temporary directory fixture.
             caplog: Pytest log capture fixture.
         """
@@ -844,8 +844,7 @@ class TestRunIngest:
         settings.ingest_dir = tmp_path / "097-TEMP"
 
         mock_client = MagicMock()
-        mock_client.__enter__ = MagicMock(side_effect=RuntimeError("boom"))
-        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client.get_completed.side_effect = RuntimeError("boom")
         mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):

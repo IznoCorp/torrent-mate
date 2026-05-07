@@ -488,14 +488,14 @@ class FakeQBitClient:
     can model incomplete torrents (present in qBittorrent but not yet done).
 
     - ``seed(torrent_list)`` sets the completed list (returned by
-      ``get_completed_torrents``). The all-torrent list is set to the same
+      ``get_completed``). The all-torrent list is set to the same
       value unless ``seed_all`` was also called.
     - ``seed_all(torrent_list)`` sets the broader all-torrent list used by
-      ``get_all_torrent_hashes``.  Call this **after** ``seed()`` to add
+      ``get_all_hashes``.  Call this **after** ``seed()`` to add
       incomplete torrents without including them in the completed list.
 
     Attributes:
-        _torrents: Completed torrents returned by get_completed_torrents.
+        _torrents: Completed torrents returned by get_completed.
         _all_torrents: All torrents (completed + incomplete) used for hash lookup.
     """
 
@@ -519,7 +519,7 @@ class FakeQBitClient:
         """Extend the all-torrent list with additional (e.g. incomplete) torrents.
 
         The completed list is unaffected.  Duplicates (same objects as in the
-        completed list) are harmless — ``get_all_torrent_hashes`` uses a set.
+        completed list) are harmless — ``get_all_hashes`` uses a set.
 
         Args:
             torrent_list: Additional torrent-like objects to add to the
@@ -703,6 +703,12 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     # without any network calls.
     monkeypatch.setattr(
         "personalscraper.ingest.ingest.build_active_torrent_client",
+        lambda *args, **kwargs: stub,
+    )
+    # Also patch QBitClient directly in ingest.py for the fallback path
+    # (torrent.active="" → else branch that instantiates QBitClient directly).
+    monkeypatch.setattr(
+        "personalscraper.ingest.ingest.QBitClient",
         lambda *args, **kwargs: stub,
     )
     # Also patch qbittorrentapi.Client to guard against direct instantiation
