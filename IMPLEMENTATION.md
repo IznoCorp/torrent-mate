@@ -32,7 +32,7 @@
 | 15  | Trakt implementation               | impl  | [phase-15-trakt-impl.md](docs/features/api-unify/plan/phase-15-trakt-impl.md)                             | [x]    |
 | 16  | Tracker base + ranking engine      | infra | [phase-16-tracker-base-ranking.md](docs/features/api-unify/plan/phase-16-tracker-base-ranking.md)         | [x]    |
 | 17  | LaCale API doc                     | doc   | [phase-17-lacale-doc.md](docs/features/api-unify/plan/phase-17-lacale-doc.md)                             | [x]    |
-| 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [ ]    |
+| 18  | LaCale implementation              | impl  | [phase-18-lacale-impl.md](docs/features/api-unify/plan/phase-18-lacale-impl.md)                           | [x]    |
 | 19  | C411 API doc                       | doc   | [phase-19-c411-doc.md](docs/features/api-unify/plan/phase-19-c411-doc.md)                                 | [ ]    |
 | 20  | C411 implementation                | impl  | [phase-20-c411-impl.md](docs/features/api-unify/plan/phase-20-c411-impl.md)                               | [ ]    |
 | 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [ ]    |
@@ -238,6 +238,14 @@ All commits use scope `api-unify`:
 | 17.6      | User checkpoint baked into doc as "Open decisions" (defaults stand for Phase 18)  | `403d145` |
 | 17.7      | **Phase 17 gate** (single-commit phase)                                           | `403d145` |
 
+### Phase 18 — LaCale implementation
+
+| Sub-phase | Description                                                                | SHA             |
+| --------- | -------------------------------------------------------------------------- | --------------- |
+| 18.1      | `api/tracker/lacale.py` — LaCaleClient + policy + `_parse_title` (221 LOC) | `0e24348`       |
+| 18.2      | `tests/unit/test_lacale_client.py` (17 tests)                              | `aba43c0`       |
+| 18.3      | **Phase 18 gate**                                                          | _(this commit)_ |
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -276,7 +284,7 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 17 complete. **Run `/implement:phase` to start Phase 18** (LaCale implementation).
+Phase 18 complete. **Run `/implement:phase` to start Phase 19** (C411 API doc).
 
 Pre-phase-8 checklist:
 
