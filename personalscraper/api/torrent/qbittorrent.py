@@ -236,6 +236,7 @@ def _torrent_item(t: qbittorrentapi.TorrentDictionary) -> TorrentItem:
         size_bytes=t.total_size,
         progress=float(t.progress),
         state=t.state,
+        ratio=float(t.ratio or 0.0),
         content_path=Path(content_path) if content_path else None,
         category=t.category if t.category else None,
         added_on=datetime.fromtimestamp(t.added_on) if t.added_on else None,

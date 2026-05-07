@@ -40,6 +40,7 @@ def _mock_torrent(
     total_size: int = 1_000_000,
     percent_done: float = 1.0,
     status: str = transmission_rpc.Status.SEEDING,
+    ratio: float = 0.0,
     download_dir: str = "/data",
     added_date: datetime | int | None = 1712345678,
     files: list[MagicMock] | None = None,
@@ -52,6 +53,7 @@ def _mock_torrent(
     t.total_size = total_size
     t.percent_done = percent_done
     t.status = status
+    t.ratio = ratio
     t.download_dir = download_dir
     t.added_date = added_date
     t.labels = labels
@@ -113,6 +115,18 @@ class TestTorrentItemMapping:
         t = _mock_torrent(labels=["movies", "1080p"])
         item = _torrent_item(t)
         assert item.category == "movies"
+
+    def test_ratio_field_present_on_item(self) -> None:
+        """Regression for BUG #8: TorrentItem must carry a `ratio` attribute.
+
+        Same parity check as test_qbittorrent.py — both adapters must populate
+        the `ratio` field that the ingest min_ratio gate relies on.
+        """
+        t = _mock_torrent(ratio=2.5)
+        item = _torrent_item(t)
+        assert hasattr(item, "ratio")
+        assert isinstance(item.ratio, float)
+        assert item.ratio == 2.5
 
     def test_no_download_dir_yields_none_content_path(self) -> None:
         """Empty download_dir → content_path is None."""

@@ -29,6 +29,7 @@ class TestTorrentItemMapping:
         mock.total_size = 5000000000
         mock.progress = 1
         mock.state = "uploading"
+        mock.ratio = 1.5
         mock.content_path = "/data/movie"
         mock.category = "movies"
         mock.added_on = 1712345678
@@ -39,9 +40,43 @@ class TestTorrentItemMapping:
         assert item.size_bytes == 5000000000
         assert item.progress == 1.0
         assert item.state == "uploading"
+        assert item.ratio == 1.5
         assert item.content_path == Path("/data/movie")
         assert item.category == "movies"
         assert item.added_on == datetime.fromtimestamp(1712345678)
+
+    def test_ratio_field_present_on_item(self) -> None:
+        """Regression for BUG #8: every TorrentItem must carry a `ratio` attribute.
+
+        Pre-fix, TorrentItem did not declare a `ratio` field and `_torrent_item()`
+        did not populate one, so `getattr(item, 'ratio', None)` returned None for
+        every qBit torrent in production. The min_ratio gate in ingest.py treated
+        None as 0.0, silently bypassing the seeding-ratio check (fail-open).
+
+        The integration test fixture `FakeTorrent` had its own `ratio` field with
+        a default of 0.0, masking the missing mapping in real `TorrentItem`.
+        This test exercises the real mapping with a non-default ratio value.
+        """
+        mock = MagicMock()
+        mock.ratio = 2.5
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        item = _torrent_item(mock)
+        assert hasattr(item, "ratio")
+        assert isinstance(item.ratio, float)
+        assert item.ratio == 2.5
+
+    def test_ratio_falls_back_to_zero_when_missing(self) -> None:
+        """When qBit returns ratio=None (rare), TorrentItem.ratio is 0.0 (not None)."""
+        mock = MagicMock()
+        mock.ratio = None
+        mock.content_path = "/x"
+        mock.category = ""
+        mock.added_on = 0
+        item = _torrent_item(mock)
+        assert item.ratio == 0.0
+        assert isinstance(item.ratio, float)
 
     def test_progress_casts_int_to_float(self) -> None:
         """Progress int (qBit 5.x) is cast to float."""

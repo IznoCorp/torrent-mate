@@ -257,6 +257,7 @@ def _torrent_item(t: transmission_rpc.Torrent) -> TorrentItem:
         size_bytes=t.total_size,
         progress=float(t.percent_done),
         state=str(t.status),
+        ratio=float(getattr(t, "ratio", 0.0) or 0.0),
         content_path=Path(content_path) if content_path else None,
         category=category,
         added_on=added_on,

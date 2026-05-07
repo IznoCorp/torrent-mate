@@ -24,6 +24,8 @@ class TorrentItem:
         content_path: Filesystem path to torrent content.
         category: Torrent category label, if any.
         added_on: Timestamp when the torrent was added.
+        ratio: Seed ratio (uploaded / downloaded). 0.0 if never seeded.
+            Used by ``ingest`` to enforce ``config.ingest.min_ratio``.
     """
 
     hash: str
@@ -34,6 +36,7 @@ class TorrentItem:
     content_path: Path | None = None
     category: str | None = None
     added_on: datetime | None = None
+    ratio: float = 0.0
 
 
 @runtime_checkable
