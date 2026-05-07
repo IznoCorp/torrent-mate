@@ -1652,16 +1652,22 @@ class TestRepairTvshowDir:
         organized = list(s05.glob("S05E03*"))
         assert len(organized) >= 1
 
-    def test_root_new_episode_skipped_when_no_tmdb_id(
+    def test_root_new_episode_skipped_when_no_id(
         self,
         tmp_path: Path,
         scraper: Scraper,
     ) -> None:
-        """Root new episodes are left intact when tvshow.nfo has no TMDB ID."""
+        """Root new episodes are left intact only when the NFO has no usable id.
+
+        With the TVDB-primary repair fix, a TVDB id alone is sufficient to
+        organize the episode (via the TVDB API path) — TMDB id is no longer
+        required. The bail-out path now triggers only when both ids are
+        missing from the NFO.
+        """
         show_dir = tmp_path / "Show (2025)"
         show_dir.mkdir()
-        # NFO without TMDB ID (TVDB-only show)
-        (show_dir / "tvshow.nfo").write_text('<tvshow><uniqueid type="tvdb">9999</uniqueid></tvshow>')
+        # NFO without ANY id (neither TMDB nor TVDB) — repair has nothing to query
+        (show_dir / "tvshow.nfo").write_text("<tvshow><title>Show</title></tvshow>")
         s01 = show_dir / "Saison 01"
         s01.mkdir()
         (s01 / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
@@ -1671,8 +1677,8 @@ class TestRepairTvshowDir:
 
         scraper._repair_tvshow_dir(show_dir)
 
-        # Nothing should be done for new root episodes without TMDB ID
-        assert root_new.exists(), "Root new episode should NOT be deleted when no TMDB ID"
+        # Nothing should be done for new root episodes without any id
+        assert root_new.exists(), "Root new episode should NOT be moved when NFO has no usable id"
 
 
 class TestStripTrailingYear:

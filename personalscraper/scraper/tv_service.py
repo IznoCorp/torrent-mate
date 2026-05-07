@@ -583,6 +583,12 @@ class TvServiceMixin:
                 if int(m.group(1)) > 0
             }
         )
+        # Bootstrap: when the show has no Saison NN/ dirs yet (fresh torrent
+        # layout), discover seasons from SxxEyy patterns in nested video files
+        # so the API episode map can still be built — otherwise the rescrape
+        # path silently bails out and never reorganizes the show.
+        if not season_nums:
+            season_nums = sorted(s for s in _local_show_seasons(show_dir) if s > 0)
         if not season_nums:
             return {}
 

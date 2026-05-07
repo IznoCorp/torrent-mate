@@ -220,6 +220,41 @@ def _fetch_season_episodes(
     return api_episodes
 
 
+def _fetch_season_episodes_tvdb(
+    tvdb: "TVDBClient",
+    tvdb_id: int,
+    season_numbers: list[int],
+) -> dict[tuple[int, int], dict[str, Any]]:
+    """Fetch TVDB episode data for one or more seasons.
+
+    TVDB-primary mirror of :func:`_fetch_season_episodes`. Used by the repair
+    pass when a show was scraped via TVDB-only (no TMDB id in NFO).
+
+    Args:
+        tvdb: TVDBClient instance.
+        tvdb_id: TVDB series ID.
+        season_numbers: List of season numbers to fetch.
+
+    Returns:
+        Dict mapping ``(season, episode)`` to ``{"title", "still_path"}``.
+    """
+    api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
+    for s_num in season_numbers:
+        if s_num == 0:
+            continue
+        try:
+            s_detail = tvdb.get_series_episodes(tvdb_id, s_num)
+            for ep in s_detail.episodes:
+                e_num = ep.episode_number
+                api_episodes[(s_num, e_num)] = {
+                    "title": ep.title or f"Episode {e_num}",
+                    "still_path": "",
+                }
+        except (OSError, ConnectionError, TimeoutError) as e:
+            log.warning("repair_season_fetch_failed_tvdb", season=s_num, error=str(e))
+    return api_episodes
+
+
 def _dedup_and_move_root_episode(
     show_dir: Path,
     s_num: int,
@@ -340,6 +375,7 @@ class ExistingValidatorMixin:
     patterns: "NamingPatterns"
     dry_run: bool
     _tmdb: "TMDBClient"
+    _tvdb: "TVDBClient"
     _artwork: "ArtworkDownloader"
     _generate_episode_nfos: Any  # from TvServiceMixin
 
@@ -423,16 +459,44 @@ class ExistingValidatorMixin:
             return False
 
         nfo_path = show_dir / "tvshow.nfo"
+        # TV-show repair must read TVDB id first (primary scraper for series per
+        # series_scraping priority); TMDB is the fallback when the NFO carries
+        # no TVDB id. Bailing out on a missing TMDB id alone would block every
+        # TVDB-only show from being repaired.
+        tvdb_id = self._extract_tvdb_id_from_nfo(nfo_path)
         tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
-        if not tmdb_id:
-            log.warning("repair_root_episodes_no_tmdb_id", show=show_dir.name)
+        if not tvdb_id and not tmdb_id:
+            log.warning("repair_root_episodes_no_id", show=show_dir.name)
             return False
 
         repaired = False
         try:
-            show_data = self._tmdb.get_tv(tmdb_id)
             season_nums = sorted({s for s, _ in root_new if s > 0})
-            root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
+            if tvdb_id:
+                # Lazy import: tv_service imports from this module, so a top-level
+                # import would be circular. The conversion is needed because
+                # ``_generate_episode_nfos`` consumes show_data as a dict.
+                from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
+
+                tvdb_data = self._tvdb.get_series(tvdb_id)
+                external_ids = (
+                    tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
+                )
+                imdb_id = external_ids.get("imdb_id") or ""
+                show_data = _tvdb_series_to_show_data(
+                    tvdb_data,
+                    tvdb_id,
+                    self._tvdb,
+                    tmdb_id=tmdb_id or 0,
+                    imdb_id=imdb_id,
+                    preferred_language="fr-FR",
+                    fallback_language="en-US",
+                )
+                root_api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
+            else:
+                assert tmdb_id is not None
+                show_data = self._tmdb.get_tv(tmdb_id)
+                root_api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
             for (s_num, e_num), candidates in root_new.items():
                 if _dedup_and_move_root_episode(
@@ -483,15 +547,18 @@ class ExistingValidatorMixin:
             return False
 
         nfo_path = show_dir / "tvshow.nfo"
+        # TVDB-primary repair (see ``_repair_episode_files`` for the rationale).
+        tvdb_id = self._extract_tvdb_id_from_nfo(nfo_path)
         tmdb_id = self._extract_tmdb_id_from_nfo(nfo_path)
-        if not tmdb_id:
-            log.warning("repair_organize_episodes_no_tmdb_id", show=show_dir.name)
+        if not tvdb_id and not tmdb_id:
+            log.warning("repair_organize_episodes_no_id", show=show_dir.name)
             return False
 
         try:
-            show_data = self._tmdb.get_tv(tmdb_id)
-            # Discover season numbers from local filesystem (typed MediaDetails
-            # does not carry the TMDB "seasons" array).
+            # Discover season numbers from the local filesystem. Saison NN/ dirs
+            # are the canonical source; when the show is still in raw torrent
+            # layout (no Saison NN/ yet), infer seasons from SxxEyy patterns in
+            # the unorganized files so the repair can bootstrap the structure.
             season_nums = sorted(
                 {
                     int(m.group(1))
@@ -500,7 +567,38 @@ class ExistingValidatorMixin:
                     if int(m.group(1)) > 0
                 }
             )
-            api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
+            if not season_nums:
+                season_nums = sorted(
+                    {
+                        s
+                        for s in (
+                            _extract_season_episode(f.name)[0] for f in unorganized
+                        )
+                        if s is not None and s > 0
+                    }
+                )
+            if tvdb_id:
+                from personalscraper.scraper.tv_service import _tvdb_series_to_show_data
+
+                tvdb_data = self._tvdb.get_series(tvdb_id)
+                external_ids = (
+                    tvdb_data.external_ids if hasattr(tvdb_data, "external_ids") else {}
+                )
+                imdb_id = external_ids.get("imdb_id") or ""
+                show_data = _tvdb_series_to_show_data(
+                    tvdb_data,
+                    tvdb_id,
+                    self._tvdb,
+                    tmdb_id=tmdb_id or 0,
+                    imdb_id=imdb_id,
+                    preferred_language="fr-FR",
+                    fallback_language="en-US",
+                )
+                api_episodes = _fetch_season_episodes_tvdb(self._tvdb, tvdb_id, season_nums)
+            else:
+                assert tmdb_id is not None
+                show_data = self._tmdb.get_tv(tmdb_id)
+                api_episodes = _fetch_season_episodes(self._tmdb, tmdb_id, season_nums)
 
             if not api_episodes:
                 return False
@@ -595,6 +693,35 @@ class ExistingValidatorMixin:
                     log.warning("nfo_tmdb_id_non_numeric", tmdb_id=uid.text, path=str(nfo_path))
                     return None
         log.debug("nfo_no_tmdb_id", path=str(nfo_path))
+        return None
+
+    @staticmethod
+    def _extract_tvdb_id_from_nfo(nfo_path: Path) -> int | None:
+        """Extract TVDB ID from a valid NFO file.
+
+        TVDB is the primary scraper for TV shows (per ``metadata.json5``
+        ``series_scraping`` priority), so the repair pass must read the TVDB
+        ``<uniqueid>`` first and only fall back to TMDB when absent.
+
+        Args:
+            nfo_path: Path to the NFO file (must exist and be valid XML).
+
+        Returns:
+            TVDB ID as int, or None if not found or not numeric.
+        """
+        try:
+            root = ET.parse(nfo_path).getroot()  # noqa: S314
+        except (ET.ParseError, OSError) as exc:
+            log.warning("nfo_parse_failed", filename=nfo_path.name, error=str(exc))
+            return None
+        for uid in root.findall("uniqueid"):
+            if uid.get("type") == "tvdb" and uid.text:
+                try:
+                    return int(uid.text)
+                except ValueError:
+                    log.warning("nfo_tvdb_id_non_numeric", tvdb_id=uid.text, path=str(nfo_path))
+                    return None
+        log.debug("nfo_no_tvdb_id", path=str(nfo_path))
         return None
 
     def _recover_movie_artwork(
