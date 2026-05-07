@@ -193,7 +193,7 @@ def _stub_pipeline_steps(request, monkeypatch):
     * ``personalscraper.pipeline.Pipeline.run``  → returns a minimal ``PipelineReport``
     * ``personalscraper.notifier.ping_healthcheck``             → no-op
     * ``personalscraper.logger.cleanup_old_logs``               → returns ``0``
-    * ``personalscraper.notifier.TelegramNotifier.is_configured`` → returns ``False``
+    * ``personalscraper.api.notify.telegram.TelegramNotifier.is_configured`` → returns ``False``
 
     Per-test ``@patch`` decorators override these defaults where a test must
     assert on specific call arguments or return values (wiring tests).
@@ -251,8 +251,8 @@ def _stub_pipeline_steps(request, monkeypatch):
     monkeypatch.setattr("personalscraper.notifier.ping_healthcheck", lambda *a, **kw: None)
     monkeypatch.setattr("personalscraper.logger.cleanup_old_logs", lambda *a, **kw: 0)
     monkeypatch.setattr(
-        "personalscraper.notifier.TelegramNotifier.is_configured",
-        classmethod(lambda cls, *a, **kw: False),
+        "personalscraper.api.notify.telegram.TelegramNotifier.is_configured",
+        staticmethod(lambda *a, **kw: False),
     )
 
     yield

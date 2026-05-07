@@ -262,8 +262,10 @@ def run(
     from rich.panel import Panel
     from rich.table import Table
 
+    from personalscraper.api.notify.telegram import TelegramNotifier
+    from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
-    from personalscraper.notifier import TelegramNotifier, ping_healthcheck
+    from personalscraper.notifier import ping_healthcheck
     from personalscraper.pipeline import Pipeline
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
@@ -348,7 +350,8 @@ def run(
 
         # Telegram notification (if configured)
         if TelegramNotifier.is_configured(settings):
-            notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+            transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+            notifier = TelegramNotifier(transport, settings.telegram_chat_id)
             notifier.send_report(report)
 
         # Healthcheck end ping

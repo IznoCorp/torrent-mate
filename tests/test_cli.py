@@ -43,7 +43,7 @@ _PATCH_CLI_RUN_INGEST = "personalscraper.cli.run_ingest"
 
 # Patches for the `run` command (delegates to Pipeline)
 _PATCH_PIPELINE_RUN = "personalscraper.pipeline.Pipeline.run"
-_PATCH_NOTIFIER_CONFIGURED = "personalscraper.notifier.TelegramNotifier.is_configured"
+_PATCH_NOTIFIER_CONFIGURED = "personalscraper.api.notify.telegram.TelegramNotifier.is_configured"
 
 
 def _make_pipeline_report(has_errors: bool = False) -> PipelineReport:
@@ -247,13 +247,13 @@ def test_run_lock_blocked(mock_lock):
 
 
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
-@patch("personalscraper.notifier.requests.post")
-def test_run_sends_telegram_when_configured(mock_post, mock_notifier_cfg):
+@patch("personalscraper.api.notify.telegram.TelegramNotifier.send_report")
+def test_run_sends_telegram_when_configured(mock_send_report, mock_notifier_cfg):
     """Telegram notification is sent when configured."""
-    mock_post.return_value = MagicMock(ok=True)
+    mock_send_report.return_value = True
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
-    mock_post.assert_called_once()
+    mock_send_report.assert_called_once()
 
 
 def test_run_no_telegram_when_not_configured():
