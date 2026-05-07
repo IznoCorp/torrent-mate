@@ -1,4 +1,4 @@
-"""TVDB v4 metadata provider — migrated from scraper/tvdb_client.py.
+"""TVDB v4 metadata provider.
 
 Bootstrap login at init: one-shot HttpTransport(NoAuth) → POST /login → JWT.
 Main client uses BearerAuth(jwt). All responses unwrapped via _tvdb_parsers.unwrap().

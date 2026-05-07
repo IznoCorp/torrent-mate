@@ -1,9 +1,8 @@
 """Healthchecks ping client — `HealthChecker` Protocol implementation.
 
-Migrates `ping_healthcheck` from the legacy `personalscraper.notifier` module
-onto the unified `HttpTransport` infrastructure (DESIGN §7.2). Responses are
-plain text — `TransportPolicy.response_format = "text"` (Phase 1 §3.7) is
-used so the call still flows through retry/circuit/logging.
+Implements DESIGN §7.2 on top of the unified `HttpTransport` infrastructure.
+Responses are plain text — `TransportPolicy.response_format = "text"`
+(Phase 1 §3.7) is used so the call still flows through retry/circuit/logging.
 
 Healthchecks particularities (see `docs/reference/healthchecks-api.md`):
 

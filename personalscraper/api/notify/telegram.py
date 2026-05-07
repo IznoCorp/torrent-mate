@@ -1,7 +1,6 @@
 """Telegram notifier — `Notifier` Protocol implementation.
 
-Migrates `TelegramNotifier` from the legacy `personalscraper.notifier` module
-onto the unified `HttpTransport` infrastructure (DESIGN §7.2).
+Implements DESIGN §7.2 on top of the unified `HttpTransport` infrastructure.
 
 Telegram particularities (see `docs/reference/telegram-api.md`):
 

@@ -137,7 +137,7 @@ class TestIngestTorrentMarkedEvent:
 
 
 # ---------------------------------------------------------------------------
-# scraper.tvdb_client — tvdb_login_ok
+# api.tvdb — tvdb_login_ok
 # ---------------------------------------------------------------------------
 
 
@@ -162,7 +162,7 @@ class TestTvdbLoginOkEvent:
 
 
 # ---------------------------------------------------------------------------
-# scraper.circuit_breaker — circuit_opened
+# core.circuit — circuit_opened
 # ---------------------------------------------------------------------------
 
 

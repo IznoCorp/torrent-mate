@@ -1,4 +1,4 @@
-"""TMDB metadata provider — migrated from scraper/tmdb_client.py.
+"""TMDB metadata provider.
 
 Implements MetadataClient + MetadataProvider Protocol. All HTTP calls go
 through HttpTransport consuming a TransportPolicy. Returns typed models

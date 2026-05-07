@@ -20,7 +20,7 @@ class AuthMode(Enum):
 
 @dataclass
 class ApiError(Exception):
-    """Unified API error. Replaces TMDBError / TVDBError / etc.
+    """Unified API error raised by every provider on transport or response failure.
 
     Attributes:
         provider: Provider name (e.g. "TMDB", "TVDB").
