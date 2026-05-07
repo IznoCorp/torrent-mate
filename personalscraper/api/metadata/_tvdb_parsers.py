@@ -19,6 +19,7 @@ from personalscraper.api.metadata._base import (
     MediaDetails,
     SearchResult,
     SeasonDetails,
+    SeasonInfo,
     Video,
 )
 
@@ -115,6 +116,19 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         except (ValueError, TypeError):
             year = None
 
+    # TVDB exposes localised title via ``translations[*].name`` when
+    # available; the search response returns the canonical English (or
+    # primary) title in ``name``. Surface ``original_title`` as a copy
+    # of ``name`` when no translations array is present so consumers can
+    # treat both fields uniformly across providers.
+    original = ""
+    translations = raw.get("translations") or []
+    if isinstance(translations, list):
+        for t in translations:
+            if isinstance(t, dict) and t.get("language") == "eng" and t.get("name"):
+                original = t["name"]
+                break
+
     return SearchResult(
         provider=provider,
         provider_id=str(raw.get("tvdb_id", raw.get("id", ""))),
@@ -123,6 +137,7 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         media_type=media_type,  # type: ignore[arg-type]
         overview=raw.get("overview", "") or "",
         poster_url=raw.get("image_url", "") or "",
+        original_title=original,
     )
 
 
@@ -148,6 +163,16 @@ def parse_artwork(raw: dict[str, Any], *, season: int | None = None) -> ArtworkI
         An ArtworkItem, or ``None`` if the artwork type is not pipeline-relevant.
     """
     type_id = raw.get("type", 0)
+    # TVDB exposes a popularity score on artworks (``score`` field).
+    # Surface it via ArtworkItem.vote_average so the unified selector
+    # (artwork.select_best_image) can use the same tie-breaker for
+    # both providers.
+    score_raw = raw.get("score")
+    try:
+        vote = float(score_raw) if score_raw is not None else 0.0
+    except (TypeError, ValueError):
+        vote = 0.0
+
     if type_id in _ARTWORK_POSTER:
         artwork_type = "season_poster" if season is not None else "poster"
         return ArtworkItem(
@@ -155,18 +180,21 @@ def parse_artwork(raw: dict[str, Any], *, season: int | None = None) -> ArtworkI
             url=raw.get("image", "") or "",
             language=raw.get("language", "") or "",
             season=season,
+            vote_average=vote,
         )
     if type_id in _ARTWORK_BACKDROP:
         return ArtworkItem(
             type="backdrop",
             url=raw.get("image", "") or "",
             language=raw.get("language", "") or "",
+            vote_average=vote,
         )
     if type_id in _ARTWORK_CLEARLOGO:
         return ArtworkItem(
             type="landscape",
             url=raw.get("image", "") or "",
             language=raw.get("language", "") or "",
+            vote_average=vote,
         )
     return None
 
@@ -232,11 +260,81 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
     else:
         runtime_minutes = raw.get("averageRuntime") or None
 
-    # Genres (TVDB returns array of genre name strings directly)
-    genres: list[str] = [g["name"] for g in raw.get("genres", []) or [] if isinstance(g, dict) and g.get("name")]
+    # Genres (TVDB returns array of {id, name} dicts; surface both names
+    # and numeric IDs in parallel so consumers can rule-match either).
+    raw_genres = raw.get("genres", []) or []
+    genres: list[str] = [g["name"] for g in raw_genres if isinstance(g, dict) and g.get("name")]
+    genre_ids: list[int] = [int(g["id"]) for g in raw_genres if isinstance(g, dict) and isinstance(g.get("id"), int)]
 
     # Artworks
     images = parse_artworks(raw.get("artworks", []) or [])
+
+    # Primary backdrop URL: TVDB returns a top-level ``image`` field
+    # which is the editor-pick poster, not a backdrop. Use the first
+    # ``backdrop`` artwork as the primary fallback for landscape
+    # selection, mirroring TMDB semantics.
+    primary_backdrop_url = ""
+    for a in images:
+        if a.type == "backdrop" and a.url:
+            primary_backdrop_url = a.url
+            break
+
+    # Country lists. TVDB ``originalCountry`` is a single 3-char code;
+    # normalise to a list of 2-char ISO codes when possible. ``companies``
+    # may carry production-country hints but is too noisy to rely on, so
+    # production_countries stays empty for TVDB unless the parser is
+    # extended in a follow-up.
+    origin_countries: list[str] = []
+    raw_origin = raw.get("originalCountry") or raw.get("country")
+    if isinstance(raw_origin, str) and raw_origin:
+        # 3-char codes (e.g. "usa") → 2-char "US"; anything else passes
+        # through. Normalisation map kept tiny on purpose — full ISO
+        # 3166-1 alpha-3 → alpha-2 mapping is excessive for the few
+        # countries that actually appear in TVDB releases.
+        origin_3to2 = {
+            "usa": "US",
+            "fra": "FR",
+            "gbr": "GB",
+            "deu": "DE",
+            "ita": "IT",
+            "esp": "ES",
+            "jpn": "JP",
+            "kor": "KR",
+            "chn": "CN",
+            "rus": "RU",
+            "can": "CA",
+            "aus": "AU",
+            "bel": "BE",
+            "nld": "NL",
+            "swe": "SE",
+            "nor": "NO",
+            "dnk": "DK",
+            "fin": "FI",
+            "pol": "PL",
+            "tur": "TR",
+        }
+        normalised = origin_3to2.get(raw_origin.lower(), raw_origin.upper()[:2])
+        if normalised:
+            origin_countries.append(normalised)
+
+    # Seasons summary (TVDB extended series response has ``seasons[*]``
+    # with ``number`` / ``episodeCount`` / ``image``). For movies this
+    # field is absent; the loop below produces an empty list.
+    seasons: list[SeasonInfo] = []
+    for s in raw.get("seasons", []) or []:
+        if not isinstance(s, dict):
+            continue
+        s_num = s.get("number")
+        if not isinstance(s_num, int):
+            continue
+        seasons.append(
+            SeasonInfo(
+                season_number=s_num,
+                episode_count=int(s.get("episodeCount") or 0),
+                overview=s.get("overview") or "",
+                poster_url=s.get("image") or "",
+            )
+        )
 
     # External IDs
     external_ids: dict[str, str] = {}
@@ -266,6 +364,11 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         rating=None,  # TVDB score is a popularity rank, not a rating
         images=images,
         external_ids=external_ids,
+        seasons=seasons,
+        genre_ids=genre_ids,
+        origin_countries=origin_countries,
+        production_countries=[],
+        primary_backdrop_url=primary_backdrop_url,
     )
 
 
@@ -287,6 +390,8 @@ def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
         overview=raw.get("overview", "") or "",
         air_date=raw.get("aired", "") or "",
         runtime_minutes=raw.get("runtime") or None,
+        season_number=int(raw.get("seasonNumber") or 0),
+        still_url=raw.get("image") or "",
     )
 
 

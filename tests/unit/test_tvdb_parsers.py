@@ -174,6 +174,88 @@ class TestParseMediaDetails:
         assert md.runtime_minutes == 100
         assert md.rating is None
 
+    def test_series_extended_phase27_fields(self) -> None:
+        """Phase 27: seasons + genre_ids + origin_countries + primary_backdrop_url."""
+        data = _load("series_extended.json")
+        raw = unwrap(data)
+        assert isinstance(raw, dict)
+        md = parse_media_details(raw, "tvdb")
+        # Genres come as {id, name} dicts on TVDB; both lists are filled.
+        if raw.get("genres"):
+            assert len(md.genre_ids) <= len(md.genres)  # only int IDs make it
+            assert all(isinstance(gid, int) for gid in md.genre_ids)
+        # Seasons summary (lightweight per-season catalog)
+        if raw.get("seasons"):
+            assert all(s.season_number >= 0 for s in md.seasons)
+            assert all(isinstance(s.episode_count, int) for s in md.seasons)
+        # primary_backdrop_url is the first backdrop ArtworkItem.url, when any
+        backdrops = [a for a in md.images if a.type == "backdrop"]
+        if backdrops:
+            assert md.primary_backdrop_url == backdrops[0].url
+        # origin_countries normalised to 2-char ISO codes when known
+        if raw.get("originalCountry") or raw.get("country"):
+            assert all(len(c) == 2 for c in md.origin_countries)
+
+
+class TestParseSearchResultPhase27Tvdb:
+    """Phase 27: TVDB search result original_title from translations."""
+
+    def test_translations_eng_becomes_original_title(self) -> None:
+        """When ``translations`` contains an English entry, surface it as original."""
+        result = parse_search_result(
+            {
+                "tvdb_id": "123",
+                "name": "Le Mystère",
+                "type": "series",
+                "translations": [{"language": "fra", "name": "Le Mystère"}, {"language": "eng", "name": "The Mystery"}],
+            },
+            "tvdb",
+        )
+        assert result.original_title == "The Mystery"
+
+    def test_no_eng_translation_empty_original(self) -> None:
+        """Absent English translation → empty original_title (not None)."""
+        result = parse_search_result(
+            {
+                "tvdb_id": "1",
+                "name": "Show",
+                "type": "series",
+                "translations": [{"language": "fra", "name": "Émission"}],
+            },
+            "tvdb",
+        )
+        assert result.original_title == ""
+
+
+class TestParseArtworkPhase27Tvdb:
+    """Phase 27: TVDB ArtworkItem.vote_average from ``score`` field."""
+
+    def test_score_propagates_to_vote_average(self) -> None:
+        """TVDB's ``score`` ends up in vote_average (same selector contract)."""
+        item = parse_artwork({"type": 2, "image": "http://example.com/p.jpg", "score": 12.5})
+        assert item is not None
+        assert item.vote_average == 12.5
+
+    def test_score_invalid_falls_back_to_zero(self) -> None:
+        """Non-numeric ``score`` does not crash; vote_average defaults to 0.0."""
+        item = parse_artwork({"type": 2, "image": "http://x", "score": "n/a"})
+        assert item is not None
+        assert item.vote_average == 0.0
+
+
+class TestParseEpisodePhase27Tvdb:
+    """Phase 27: TVDB EpisodeInfo.season_number + still_url."""
+
+    def test_episode_carries_season_number(self) -> None:
+        """``seasonNumber`` from TVDB raw response is preserved."""
+        ep = parse_episode({"number": 5, "seasonNumber": 3, "name": "T"})
+        assert ep.season_number == 3
+
+    def test_episode_still_url_from_image(self) -> None:
+        """TVDB ``image`` field becomes ``still_url`` (already absolute URL)."""
+        ep = parse_episode({"number": 1, "image": "https://artworks.thetvdb.com/x.jpg", "name": "T"})
+        assert ep.still_url == "https://artworks.thetvdb.com/x.jpg"
+
 
 class TestParseEpisode:
     """Episode parsing."""

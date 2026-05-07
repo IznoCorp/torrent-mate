@@ -141,6 +141,105 @@ class TestParseMediaDetails:
         assert md.title
         assert md.images == []
 
+    def test_movie_details_genre_ids_origin_production_backdrop(self) -> None:
+        """Phase 27 fields: genre_ids, origin_countries, production_countries, primary_backdrop_url."""
+        data = _load("movie_details.json")
+        md = parse_media_details(data, "tmdb")
+        # Genre IDs surface alongside genre names — same length, all int.
+        assert len(md.genre_ids) == len(md.genres)
+        assert all(isinstance(gid, int) for gid in md.genre_ids)
+        # production_countries from production_countries[*].iso_3166_1
+        assert isinstance(md.production_countries, list)
+        assert all(isinstance(c, str) and len(c) == 2 for c in md.production_countries)
+        # backdrop fallback URL is non-empty when raw has backdrop_path
+        if data.get("backdrop_path"):
+            assert md.primary_backdrop_url.startswith("https://image.tmdb.org/t/p/")
+            assert md.primary_backdrop_url.endswith(data["backdrop_path"])
+        # Movies have no seasons.
+        assert md.seasons == []
+
+    def test_tv_details_seasons_origin_country(self) -> None:
+        """Phase 27: TV responses populate seasons + origin_countries."""
+        data = _load("tv_details.json")
+        md = parse_media_details(data, "tmdb")
+        # If the golden has a seasons[] block, SeasonInfo must be populated
+        # for each integer season_number entry (not via .get() shape).
+        if data.get("seasons"):
+            assert len(md.seasons) >= 1
+            assert all(s.season_number >= 0 for s in md.seasons)
+            assert all(isinstance(s.episode_count, int) for s in md.seasons)
+        # origin_country for TV is a list[str] at top-level.
+        if data.get("origin_country"):
+            assert md.origin_countries == data["origin_country"]
+
+
+class TestParseSearchResultPhase27:
+    """Phase 27: SearchResult.original_title for localised matching."""
+
+    def test_search_movie_includes_original_title(self) -> None:
+        """``original_title`` is populated from the TMDB response."""
+        result = parse_search_result(
+            {"id": 1954, "title": "L'Effet papillon", "original_title": "The Butterfly Effect"},
+            "tmdb",
+        )
+        assert result.original_title == "The Butterfly Effect"
+
+    def test_search_tv_includes_original_name(self) -> None:
+        """For TV results TMDB uses ``original_name`` — surfaced as original_title."""
+        result = parse_search_result(
+            {"id": 100, "name": "La Casa de Papel", "original_name": "Money Heist"},
+            "tmdb",
+        )
+        assert result.original_title == "Money Heist"
+
+    def test_search_no_original_title_defaults_empty(self) -> None:
+        """Absent original_title becomes empty string, not None."""
+        result = parse_search_result({"id": 1, "title": "X"}, "tmdb")
+        assert result.original_title == ""
+
+
+class TestParseArtworkPhase27:
+    """Phase 27: ArtworkItem.vote_average for tie-breaker selection."""
+
+    def test_vote_average_propagates(self) -> None:
+        """Each image's ``vote_average`` is preserved on the typed item."""
+        items = parse_artwork(
+            {
+                "posters": [
+                    {"file_path": "/a.jpg", "iso_639_1": "fr", "vote_average": 7.2},
+                    {"file_path": "/b.jpg", "iso_639_1": "en", "vote_average": 0},
+                ],
+                "backdrops": [
+                    {"file_path": "/x.jpg", "iso_639_1": None, "vote_average": 5.5},
+                ],
+            }
+        )
+        # Just sanity check that nonzero vote_averages survive parsing.
+        nonzero = [i.vote_average for i in items if i.vote_average > 0]
+        assert 7.2 in nonzero
+        assert 5.5 in nonzero
+        # Zero vote also OK (typed default).
+        assert any(i.vote_average == 0.0 for i in items)
+
+
+class TestParseEpisodePhase27:
+    """Phase 27: EpisodeInfo.season_number + still_url."""
+
+    def test_episode_carries_season_number(self) -> None:
+        """``season_number`` from raw response is preserved."""
+        ep = parse_episode({"episode_number": 5, "season_number": 3, "name": "T"})
+        assert ep.season_number == 3
+
+    def test_episode_still_url_built_from_path(self) -> None:
+        """``still_path`` becomes a CDN-prefixed ``still_url``."""
+        ep = parse_episode({"episode_number": 1, "still_path": "/abc.jpg", "name": "T"})
+        assert ep.still_url == "https://image.tmdb.org/t/p/w300/abc.jpg"
+
+    def test_episode_no_still_path_empty_url(self) -> None:
+        """No still_path means empty still_url, never a malformed URL."""
+        ep = parse_episode({"episode_number": 1, "name": "T"})
+        assert ep.still_url == ""
+
 
 class TestParseVideo:
     """Video parsing from golden samples."""

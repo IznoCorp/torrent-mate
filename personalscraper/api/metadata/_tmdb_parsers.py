@@ -17,6 +17,7 @@ from personalscraper.api.metadata._base import (
     MediaDetails,
     SearchResult,
     SeasonDetails,
+    SeasonInfo,
     Video,
 )
 
@@ -53,6 +54,7 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
     """
     is_tv = "name" in raw and "title" not in raw
     title = raw.get("name" if is_tv else "title", "")
+    original_title = raw.get("original_name" if is_tv else "original_title", "")
     date_str = raw.get("first_air_date" if is_tv else "release_date", "")
 
     year: int | None = None
@@ -70,6 +72,7 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         media_type="tv" if is_tv else "movie",
         overview=raw.get("overview", "") or "",
         poster_url=_build_image_url(raw.get("poster_path"), "w500"),
+        original_title=original_title or "",
     )
 
 
@@ -97,6 +100,7 @@ def parse_artwork(images_raw: dict[str, Any], *, season: int | None = None) -> l
                 type="backdrop",
                 url=_build_image_url(img.get("file_path"), "w1280"),
                 language=img.get("iso_639_1") or "",
+                vote_average=float(img.get("vote_average") or 0.0),
             )
         )
 
@@ -108,6 +112,7 @@ def parse_artwork(images_raw: dict[str, Any], *, season: int | None = None) -> l
                 url=_build_image_url(img.get("file_path"), "w780"),
                 language=img.get("iso_639_1") or "",
                 season=season,
+                vote_average=float(img.get("vote_average") or 0.0),
             )
         )
 
@@ -117,6 +122,7 @@ def parse_artwork(images_raw: dict[str, Any], *, season: int | None = None) -> l
                 type="landscape",
                 url=_build_image_url(img.get("file_path"), "w500"),
                 language=img.get("iso_639_1") or "",
+                vote_average=float(img.get("vote_average") or 0.0),
             )
         )
 
@@ -150,11 +156,51 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
     else:
         runtime_minutes = raw.get("runtime") or None
 
-    # Genres
-    genres = [g["name"] for g in raw.get("genres", []) or []]
+    # Genres (names + IDs in parallel — classifier rules consume IDs).
+    raw_genres = raw.get("genres", []) or []
+    genres = [g["name"] for g in raw_genres if isinstance(g, dict) and g.get("name")]
+    genre_ids = [int(g["id"]) for g in raw_genres if isinstance(g, dict) and isinstance(g.get("id"), int)]
 
-    # Images
+    # Images (curated artwork list)
     images = parse_artwork(raw.get("images", {}) or {})
+
+    # Primary backdrop URL fallback (top-level ``backdrop_path`` is the
+    # provider's editor-pick; consumers fall back to it when ``images``
+    # carries no ``backdrop`` entries).
+    primary_backdrop_url = _build_image_url(raw.get("backdrop_path"), "w1280")
+
+    # Country lists. Movies: ``production_countries[*].iso_3166_1``.
+    # TV: ``origin_country: [<code>, ...]`` (top-level) and optionally
+    # ``production_countries`` too (newer TMDB responses include both).
+    origin_countries: list[str] = []
+    raw_origin = raw.get("origin_country") or []
+    if isinstance(raw_origin, list):
+        origin_countries = [c for c in raw_origin if isinstance(c, str)]
+    production_countries: list[str] = []
+    for pc in raw.get("production_countries", []) or []:
+        if isinstance(pc, dict):
+            code = pc.get("iso_3166_1")
+            if isinstance(code, str):
+                production_countries.append(code)
+
+    # Seasons (TV only). Provider responses give a ``seasons[*]`` block on
+    # ``/tv/{id}`` with ``season_number``, ``episode_count``, ``overview``,
+    # ``poster_path``. Empty for movies.
+    seasons: list[SeasonInfo] = []
+    for s in raw.get("seasons", []) or []:
+        if not isinstance(s, dict):
+            continue
+        s_num = s.get("season_number")
+        if not isinstance(s_num, int):
+            continue
+        seasons.append(
+            SeasonInfo(
+                season_number=s_num,
+                episode_count=int(s.get("episode_count") or 0),
+                overview=s.get("overview") or "",
+                poster_url=_build_image_url(s.get("poster_path"), "w500"),
+            )
+        )
 
     # External IDs
     external_ids: dict[str, str] = {}
@@ -191,6 +237,11 @@ def parse_media_details(raw: dict[str, Any], provider: str) -> MediaDetails:
         rating=raw.get("vote_average"),
         images=images,
         external_ids=external_ids,
+        seasons=seasons,
+        genre_ids=genre_ids,
+        origin_countries=origin_countries,
+        production_countries=production_countries,
+        primary_backdrop_url=primary_backdrop_url,
     )
 
 
@@ -237,6 +288,8 @@ def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
         overview=raw.get("overview", "") or "",
         air_date=raw.get("air_date", "") or "",
         runtime_minutes=raw.get("runtime") or None,
+        season_number=int(raw.get("season_number") or 0),
+        still_url=_build_image_url(raw.get("still_path"), "w300"),
     )
 
 
