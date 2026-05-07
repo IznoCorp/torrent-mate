@@ -38,7 +38,7 @@
 | 21  | Notify base + Telegram doc         | mixed | [phase-21-notify-base-telegram-doc.md](docs/features/api-unify/plan/phase-21-notify-base-telegram-doc.md) | [x]    |
 | 22  | Telegram migration                 | impl  | [phase-22-telegram-impl.md](docs/features/api-unify/plan/phase-22-telegram-impl.md)                       | [x]    |
 | 23  | Healthchecks API doc               | doc   | [phase-23-healthchecks-doc.md](docs/features/api-unify/plan/phase-23-healthchecks-doc.md)                 | [x]    |
-| 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [ ]    |
+| 24  | Healthchecks migration             | impl  | [phase-24-healthchecks-impl.md](docs/features/api-unify/plan/phase-24-healthchecks-impl.md)               | [x]    |
 | 25  | Final cleanup + ROADMAP            | infra | [phase-25-final-cleanup.md](docs/features/api-unify/plan/phase-25-final-cleanup.md)                       | [ ]    |
 
 ## Quality gate (every commit)
@@ -325,6 +325,21 @@ Major drifts captured:
 > will not respond `OK` without a registered UUID and the project's real URL is a secret. The
 > single `400 invalid url format` sample is sufficient to validate the parser path.
 
+### Phase 24 — Healthchecks migration
+
+| Sub-phase | Description                                                                                                                   | SHA             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 24.1      | `api/notify/healthchecks.py` — `HealthcheckClient` with `response_format="text"` (133 LOC)                                    | `1c00df5`       |
+| 24.2      | Rewire `commands/pipeline.py` (start/end pings via client); delete `personalscraper/notifier.py` and `tests/test_notifier.py` | `283c3d9`       |
+| 24.3      | `tests/unit/test_healthcheck_client.py` (15 tests: policy, lifecycle, fail-soft, is_configured)                               | `987c6fe`       |
+| 24.4      | **Phase 24 gate**                                                                                                             | _(this commit)_ |
+
+> **Phase 24 deviation from plan**: `REQUIRED_CREDS` aligns with the existing config field
+> `Settings.healthcheck_url` (env var `HEALTHCHECK_URL`) — not `HEALTHCHECK_PING_URL` as the
+> plan's pseudo-code suggested. Keeps the env contract stable for users who already have a
+> `HEALTHCHECK_URL` set; renaming would have been a silent breakage. Plan was a forward-design
+> sketch, not the contract.
+
 ### Post-phase-15 corrective gate (audit cleanup)
 
 Triggered by audit dated 2026-05-07 — 4 issues surfaced:
@@ -363,9 +378,10 @@ These commits live on `feat/api-unify` and stay on the branch (decision: kept in
 
 ## Next action
 
-Phase 23 complete. **Run `/implement:phase` to start Phase 24** (Healthchecks migration).
+Phase 24 complete. **Run `/implement:phase` to start Phase 25** (Final cleanup + ROADMAP).
 
-Pre-phase-24 checklist:
+Pre-phase-25 checklist:
 
 1. Verify `make check` exits 0 (currently green).
-2. Confirm `ls docs/reference/healthchecks-api.md` works.
+2. Confirm `python -c "from personalscraper.api.notify.healthchecks import HealthcheckClient"` works.
+3. Confirm `personalscraper/notifier.py` is gone.
