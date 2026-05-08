@@ -182,7 +182,15 @@ class QBitClient:
         try:
             self._client.auth_log_out()
         except (qbittorrentapi.APIConnectionError, OSError) as e:
-            log.debug("qbit_logout_failed", error=str(e))
+            # Server-side context: the qBittorrent daemon is a long-running
+            # service that does not stop in normal operation, so a logout
+            # failure here is always abnormal (network drop, daemon crashed,
+            # or admin manually killed it). ``warning`` is the correct level —
+            # do NOT lower to ``debug`` to silence "PM2 restart noise" in
+            # other deployments: this codebase targets a server where the
+            # daemon never restarts, so every occurrence is an event worth
+            # surfacing.
+            log.warning("qbit_logout_failed", error=str(e))
 
 
 # -- Factory entry point -----------------------------------------------------
@@ -277,4 +285,12 @@ def _set_lockout(reason: str) -> None:
             hint=f"Fix credentials in .env, then delete {_LOCKOUT_FILE} to retry",
         )
     except OSError as e:
-        log.warning("qbit_lockout_write_failed", error=str(e))
+        # Lockout file write failure is a security-control regression: the next
+        # caller will retry and may trip the IP-ban path again. Log loudly with
+        # the actionable hint so operators see it in alerting.
+        log.error(
+            "qbit_lockout_write_failed",
+            error=str(e),
+            hint="Cannot enforce auth lockout — credentials may keep retrying. Check filesystem permissions on "
+            f"{_LOCKOUT_FILE.parent}.",
+        )

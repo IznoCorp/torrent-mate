@@ -5,7 +5,15 @@ LoginAuth (Basic Auth), and NoAuth. Each class satisfies the
 AuthMethod Protocol from _policy.py.
 """
 
+from typing import Literal
+
 import requests
+
+from personalscraper.logger import get_logger
+
+ApiKeyLocation = Literal["header", "query"]
+
+log = get_logger("api.auth")
 
 
 class BearerAuth:
@@ -31,12 +39,22 @@ class ApiKeyAuth:
     at init. Query mode returns the key as a per-request param.
     """
 
-    def __init__(self, key: str, *, param: str = "api_key", location: str = "header") -> None:
-        if location not in ("header", "query"):
-            raise ValueError(f"location must be 'header' or 'query', got {location!r}")
+    def __init__(self, key: str, *, param: str = "api_key", location: ApiKeyLocation = "header") -> None:
         self._key = key
         self._param = param
-        self._location = location
+        self._location: ApiKeyLocation = location
+        # ``location`` is statically constrained to Literal["header","query"], but
+        # JSON-driven config or # type: ignore callers can still pass arbitrary
+        # strings. A typo would silently authenticate as NoAuth and every request
+        # would 401 with no breadcrumb — log a warning so the misconfiguration
+        # surfaces immediately.
+        if location not in ("header", "query"):
+            log.warning(
+                "api_key_auth_unrecognised_location",
+                param=param,
+                location=location,
+                hint="location must be 'header' or 'query'; this auth will behave as no-op.",
+            )
 
     def apply(self, session: requests.Session) -> None:
         if self._location == "header":

@@ -127,3 +127,15 @@ class TestResponseFormats:
         transport.close()
 
         assert result == {"root": {"item": "value"}}
+
+
+class TestPolicyImmutability:
+    """``TransportPolicy`` is frozen — accidental mutation must raise."""
+
+    def test_policy_is_frozen(self) -> None:
+        """Reassigning a ``TransportPolicy`` field must raise ``FrozenInstanceError``."""
+        from dataclasses import FrozenInstanceError
+
+        policy = _make_policy()
+        with pytest.raises(FrozenInstanceError):
+            policy.timeout_seconds = 99.0  # type: ignore[misc]

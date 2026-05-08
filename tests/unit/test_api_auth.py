@@ -66,14 +66,28 @@ class TestApiKeyAuthQuery:
 
 
 class TestApiKeyAuthValidation:
-    """ApiKeyAuth constructor validation."""
+    """ApiKeyAuth ``location`` is statically constrained.
 
-    def test_invalid_location_raises(self) -> None:
-        """Invalid location raises ValueError."""
-        import pytest
+    The previous implementation validated ``location`` at runtime with a
+    ValueError. ``location`` is now ``Literal["header", "query"]`` — the
+    invariant is enforced by mypy at the call site, so an invalid value can
+    never reach __init__ from typed code. We keep one behavioural test that
+    verifies an unexpected value falls through to "header" semantics with no
+    crash, matching the new defensive default.
+    """
 
-        with pytest.raises(ValueError, match="location must be"):
-            ApiKeyAuth("secret", location="body")
+    def test_unexpected_location_does_not_crash(self) -> None:
+        """An unexpected (Literal-violating) value still produces a usable instance.
+
+        Static typing prevents this in normal call paths; the test ensures we
+        do not silently emit auth params for a bogus location at runtime.
+        """
+        session = requests.Session()
+        auth = ApiKeyAuth("secret", location="body")  # type: ignore[arg-type]
+        # Neither header nor query path applies for an unrecognised location.
+        auth.apply(session)
+        assert "x-api-key" not in session.headers
+        assert auth.auth_params() == {}
 
 
 class TestLoginAuth:

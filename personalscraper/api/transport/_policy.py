@@ -72,7 +72,7 @@ class AuthMethod(Protocol):
     def auth_params(self) -> dict[str, str]: ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransportPolicy:
     """Provider-declared transport behavior.
 

@@ -171,7 +171,19 @@ class HttpTransport:
             try:
                 err = resp.json()
             except ValueError:
+                # Body is not JSON (often HTML from a proxy/gateway on 5xx). Without
+                # this preview the resulting ApiError carries only resp.reason and
+                # callers lose all context for upstream debugging. Logged at warning
+                # because it only fires after a request has already failed — volume
+                # is bounded by the failure rate, and prod log tiers usually drop
+                # debug-level events.
                 err = {}
+                self._log.warning(
+                    "api_error_body_unparsable",
+                    provider=self._policy.provider_name,
+                    status=resp.status_code,
+                    body_preview=resp.text[:200],
+                )
             raise ApiError(
                 provider=self._policy.provider_name,
                 http_status=resp.status_code,
