@@ -13,7 +13,11 @@ Phase 14 complete.
 
 ```python
 class TraktClient(MetadataClient):
-    REQUIRED_CREDS: ClassVar[list[str]] = ["TRAKT_CLIENT_ID", "TRAKT_CLIENT_SECRET"]
+    # App-only auth (search/details/ratings/related/trending) requires only
+    # CLIENT_ID. CLIENT_SECRET belongs to the OAuth user-flow which is out
+    # of scope per DESIGN §1.2 + Phase 14 doc decision; do NOT add it.
+    # `_activation.py` PROVIDER_CREDS["trakt"] mirrors this single-entry list.
+    REQUIRED_CREDS: ClassVar[list[str]] = ["TRAKT_CLIENT_ID"]
 
     @classmethod
     def policy(cls, client_id: str) -> TransportPolicy:

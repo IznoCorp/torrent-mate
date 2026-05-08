@@ -63,7 +63,10 @@ Implements `TorrentClient`:
 
 - `get_completed()` — `self._client.get_torrents(...)` filtered by status in {5, 6}; map to `TorrentItem`.
 - `get_all_hashes()` — set of hashStrings.
-- `is_seeding(t)` — status == 6.
+- `is_seeding(t)` — status == 6. **Fail-soft on `TransmissionError`**: return `False` and
+  log a warning (`transmission_is_seeding_failed`). Daemon outage is otherwise
+  indistinguishable from "torrent finished seeding" and could trigger deletion of a
+  still-seeding torrent. Codified in commit `9e6b236` (PR review cycle 1, sub-phase 26.3).
 - `get_content_path(t)` — `Path(t.download_dir) / t.name`.
 - `pause(hash)` → `stop_torrent`.
 - `resume(hash)` → `start_torrent`.

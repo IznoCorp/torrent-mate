@@ -83,3 +83,12 @@ User checkpoint captured:
 
 - HttpTransport option: <A|B>
 - <decisions>`
+
+> **User checkpoint outcome (Phase 11 implementation, commit `b119cd5`)**:
+> **Option A confirmed** — `HttpTransport(LoginAuth)` pre-check via `POST /transmission/rpc`
+> with body `{"method": "session-get"}`, accepting CSRF 409 as a healthy response (the daemon
+> is up and the next call will carry the X-Transmission-Session-Id header). Library
+> `transmission-rpc` owns operations after the pre-check. Pre-check moved from
+> `TransmissionClient.__init__` to the `build_client()` factory (DESIGN drift documented in
+> `IMPLEMENTATION.md` "Documented design drifts" — cleaner separation: client takes pure
+> credentials, factory owns reachability).
