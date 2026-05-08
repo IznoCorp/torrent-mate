@@ -140,3 +140,34 @@ jobs:
       # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip ships a fix.
       #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219
+
+  coverage-monotonic:
+    name: coverage-monotonic
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tomli for older Pythons
+        run: pip install 'tomli; python_version < "3.11"'
+      - name: Verify fail_under is monotonic against base ref
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          head_threshold=$(python3 scripts/get_coverage_threshold.py)
+          main_threshold=$(git show "origin/${BASE_REF}:pyproject.toml" | python3 scripts/get_coverage_threshold.py --stdin)
+          echo "HEAD: ${head_threshold} | base (${BASE_REF}): ${main_threshold}"
+          if [ "${head_threshold}" -lt "${main_threshold}" ]; then
+            if echo ",${PR_LABELS}," | grep -q ',coverage-rollback,'; then
+              echo "::warning::fail_under decreased (${main_threshold} → ${head_threshold}) — rollback acknowledged via label."
+              exit 0
+            fi
+            echo "::error::fail_under decreased (${main_threshold} → ${head_threshold}). Add 'coverage-rollback' label to override."
+            exit 1
+          fi
