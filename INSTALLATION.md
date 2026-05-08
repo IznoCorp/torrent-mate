@@ -29,17 +29,6 @@ brew install media-info
 - Un compte **TVDB** avec clé API v4 — [inscription](https://thetvdb.com/dashboard/account/apikeys)
 - _(Optionnel)_ Un bot **Telegram** pour les notifications — [créer un bot](https://core.telegram.org/bots#how-do-i-create-a-bot)
 
-### Disques de stockage
-
-Les 4 disques doivent être montés pour que le dispatch fonctionne :
-
-```
-/Volumes/Disk1/medias
-/Volumes/Disk2/medias
-/Volumes/Disk3/medias
-/Volumes/Disk4/medias
-```
-
 ## Installation
 
 ```bash
@@ -67,7 +56,7 @@ Cela installe :
 cp .env.example .env
 ```
 
-Ouvrir `.env` et remplir au minimum les clés API et le mot de passe qBittorrent :
+Ouvrir `.env` et remplir au minimum les clés API et login/password des différents service :
 
 ```ini
 QBIT_PASSWORD=votre_mot_de_passe

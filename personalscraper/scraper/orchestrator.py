@@ -20,21 +20,6 @@ from personalscraper.scraper.tv_service import TvServiceMixin
 
 log = get_logger("scraper")
 
-_TVDB_LANG_MAP: dict[str, str] = {
-    "fr": "fra",
-    "en": "eng",
-    "es": "spa",
-    "de": "deu",
-    "it": "ita",
-    "ja": "jpn",
-    "ko": "kor",
-    "pt": "por",
-    "ru": "rus",
-    "zh": "zho",
-    "ar": "ara",
-    "nl": "nld",
-}
-
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
 _EPISODE_STRICT_RE = re.compile(r"^S\d{2}E\d{2} - .+\.\w+$")
@@ -81,21 +66,23 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         self._tvdb_fallback_language = self._to_tvdb_language(self._scraper_fallback_language)
 
         # Initialize API clients with circuit breaker config from thresholds
-        from personalscraper.scraper import scraper as scraper_api  # noqa: PLC0415
+        from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+        from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
+        from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+        from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
 
         cb_threshold = thresholds_config.circuit_breaker_threshold if thresholds_config is not None else 5
         cb_cooldown = thresholds_config.circuit_breaker_cooldown if thresholds_config is not None else 300
+        cb_policy = CircuitPolicy(failure_threshold=cb_threshold, cooldown_seconds=cb_cooldown)
 
-        self._tmdb = scraper_api.TMDBClient(
-            api_key=settings.tmdb_api_key,
+        tmdb_policy = TMDBClient.policy(settings.tmdb_api_key, circuit=cb_policy)
+        self._tmdb = TMDBClient(
+            transport=HttpTransport(tmdb_policy),
             language=self._scraper_language,
-            circuit_breaker_threshold=cb_threshold,
-            circuit_breaker_cooldown=cb_cooldown,
         )
-        self._tvdb = scraper_api.TVDBClient(
+        self._tvdb = TVDBClient(
             api_key=settings.tvdb_api_key,
-            circuit_breaker_threshold=cb_threshold,
-            circuit_breaker_cooldown=cb_cooldown,
+            circuit=cb_policy,
         )
 
         # Initialize helpers.  Pass db_path so write-through outbox publishes
@@ -133,7 +120,7 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         Returns:
             List of ScrapeResult for each processed movie.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         results: list[ScrapeResult] = []
 
@@ -207,7 +194,7 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         Returns:
             List of ScrapeResult for each processed show.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         results: list[ScrapeResult] = []
 

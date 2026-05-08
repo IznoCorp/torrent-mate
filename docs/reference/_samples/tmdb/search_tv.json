@@ -1,0 +1,117 @@
+{
+  "page": 1,
+  "results": [
+    {
+      "adult": false,
+      "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+      "genre_ids": [
+        18,
+        80
+      ],
+      "id": 1396,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Breaking Bad",
+      "overview": "Un professeur de chimie atteint d'un cancer s'associe à un ancien élève pour fabriquer et vendre de la méthamphétamine afin d'assurer l'avenir financier de sa famille.",
+      "popularity": 129.7929,
+      "poster_path": "/hVVxgGZFR3JaXmkstnG1IR9Qbt6.jpg",
+      "first_air_date": "2008-01-20",
+      "softcore": false,
+      "name": "Breaking Bad",
+      "vote_average": 8.942,
+      "vote_count": 17631
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        35,
+        80,
+        18
+      ],
+      "id": 297997,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Breaking Bad: Original Minisodes",
+      "overview": "",
+      "popularity": 0.2163,
+      "poster_path": "/fFNbRUleJQ9GkCfJunU4yXuNbma.jpg",
+      "first_air_date": "2009-02-17",
+      "softcore": false,
+      "name": "Breaking Bad: Original Minisodes",
+      "vote_average": 6.0,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [],
+      "id": 308197,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "Breaking Bad - E01-dj smith",
+      "overview": "",
+      "popularity": 0.1597,
+      "poster_path": null,
+      "first_air_date": "",
+      "softcore": false,
+      "name": "Breaking Bad - E01-dj smith",
+      "vote_average": 0.0,
+      "vote_count": 0
+    },
+    {
+      "adult": false,
+      "backdrop_path": null,
+      "genre_ids": [
+        18,
+        9648
+      ],
+      "id": 232533,
+      "origin_country": [
+        "CN"
+      ],
+      "original_language": "zh",
+      "original_name": "绝命卦师",
+      "overview": "",
+      "popularity": 0.5534,
+      "poster_path": "/n8dKkbPkdEPFCFmjNvrUl1gUAYr.jpg",
+      "first_air_date": "2016-04-11",
+      "softcore": false,
+      "name": "绝命卦师",
+      "vote_average": 7.5,
+      "vote_count": 1
+    },
+    {
+      "adult": false,
+      "backdrop_path": "/pXdkJvhBcPf8oEj831ASMkLPXKT.jpg",
+      "genre_ids": [
+        16,
+        80,
+        35,
+        10751
+      ],
+      "id": 302540,
+      "origin_country": [
+        "US"
+      ],
+      "original_language": "en",
+      "original_name": "The Bad Guys: The Series",
+      "overview": "Comment les Bad Guys sont-ils devenus des bandits de haut vol ? Toutes les réponses se trouvent dans cette série hilarante, située avant les films à succès.",
+      "popularity": 13.6855,
+      "poster_path": "/1F19BFivPc2N3sXJ4461cWsrK33.jpg",
+      "first_air_date": "2025-11-06",
+      "softcore": false,
+      "name": "Les Bad Guys cassent la baraque",
+      "vote_average": 6.6,
+      "vote_count": 36
+    }
+  ],
+  "total_pages": 1,
+  "total_results": 5
+}

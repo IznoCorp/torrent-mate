@@ -48,24 +48,31 @@ staging/
 │   ├── conf/            # Config loader, overlay merger, resolver, classifier, staging
 │   │   ├── models/          # Pydantic sub-models (categories, disks, paths, preferences, etc.)
 │   ├── info/            # info command implementation (run.py)
-│   ├── scraper/         # TMDB/TVDB matching, NFO, artwork, episodes + circuit breaker
+│   ├── api/             # Unified third-party API consumers (api-unify, 0.11.0)
+│   │   ├── _contracts.py        # ApiError, AuthMode
+│   │   ├── _activation.py       # ProviderActivation (cred presence check)
+│   │   ├── _units.py            # ByteSize (parseable + comparable disk-size type)
+│   │   ├── transport/           # HttpTransport + TransportPolicy + auth/retry/circuit/rate
+│   │   ├── metadata/            # MetadataClient family — tmdb, tvdb, omdb, trakt
+│   │   ├── torrent/             # TorrentClient family — qbittorrent, transmission
+│   │   ├── tracker/             # TrackerClient + ranking engine — lacale, c411
+│   │   └── notify/              # Notifier + HealthChecker — telegram, healthchecks
+│   ├── core/            # Reusable cross-cutting infrastructure (post-api-unify)
+│   │   ├── circuit.py           # CircuitBreaker (reused by API transport + indexer disk breaker)
+│   │   └── http_helpers.py      # tenacity helpers (retry logger, retryable predicate)
+│   ├── scraper/         # NFO/artwork orchestration consuming api/metadata providers
 │   │   ├── orchestrator.py      # Scraper composition and shared lifecycle
 │   │   ├── movie_service.py     # movie scrape flow
 │   │   ├── tv_service.py        # TV show/episode scrape flow
-│   │   ├── tmdb_client.py       # TMDB API v3 client (Bearer token auth)
-│   │   ├── tvdb_client.py       # TVDB API v4 client (Negotiated Contract auth)
 │   │   ├── nfo_generator.py     # NFO file writer (Kodi-compliant XML)
 │   │   ├── artwork.py           # poster + background download (TMDB/TVDB)
 │   │   ├── confidence.py        # fuzzy match confidence scoring
 │   │   ├── mediainfo.py         # ffprobe wrapper + ISO 639-2 codec/lang mapping
-│   │   ├── circuit_breaker.py   # TMDB/TVDB circuit breaker (5 failures → 5 min open)
 │   │   ├── rename_service.py    # rename helpers
 │   │   ├── existing_validator.py # existing NFO/artwork validation
 │   │   ├── classifier.py        # media item classification adapter
 │   │   ├── episode_manager.py   # episode renumber + phantom-season remap
-│   │   ├── http_retry.py        # tenacity retry logger builder
 │   │   ├── keywords_cache.py    # TMDB keyword lookup cache
-│   │   ├── providers.py         # API provider enum + routing helpers
 │   │   ├── run.py               # scrape step entry point
 │   │   ├── scraper.py           # legacy scraper compositor (post-decomposition thin wrapper)
 │   │   ├── _shared.py           # internal shared helpers

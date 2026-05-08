@@ -11,13 +11,13 @@ import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.tvdb import TVDBClient
     from personalscraper.scraper.artwork import ArtworkDownloader
     from personalscraper.scraper.nfo_generator import NFOGenerator
-    from personalscraper.scraper.tmdb_client import TMDBClient
-    from personalscraper.scraper.tvdb_client import TVDBClient
 
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
@@ -295,6 +295,11 @@ def _rescrape_item(
     # Fix NFO
     if needs_nfo:
         try:
+            from personalscraper.scraper.movie_service import (
+                _coerce_to_movie_data,
+                _coerce_to_show_data,
+            )
+
             if media_type == "movie":
                 nfo_name = patterns.format("movie_nfo", Title=title)
                 nfo_path = media_dir / nfo_name
@@ -302,10 +307,10 @@ def _rescrape_item(
 
                 video_file = _find_largest_video(media_dir)
                 stream_info = extract_stream_info(video_file) if video_file else None
-                xml = nfo_gen.generate_movie_nfo(api_data, stream_info)
+                xml = nfo_gen.generate_movie_nfo(_coerce_to_movie_data(api_data), stream_info)
             else:
                 nfo_path = media_dir / "tvshow.nfo"
-                xml = nfo_gen.generate_tvshow_nfo(api_data)
+                xml = nfo_gen.generate_tvshow_nfo(_coerce_to_show_data(api_data))
             if not dry_run:
                 nfo_gen.write_nfo(xml, nfo_path)
             actions.append(ACTION_NFO_REGENERATED)
@@ -318,10 +323,15 @@ def _rescrape_item(
     if needs_artwork:
         try:
             if not dry_run:
+                from personalscraper.scraper.movie_service import (
+                    _coerce_to_movie_data,
+                    _coerce_to_show_data,
+                )
+
                 if media_type == "movie":
-                    artwork_dl.download_movie_artwork(api_data, media_dir, patterns)
+                    artwork_dl.download_movie_artwork(_coerce_to_movie_data(api_data), media_dir, patterns)
                 else:
-                    artwork_dl.download_tvshow_artwork(api_data, media_dir, patterns)
+                    artwork_dl.download_tvshow_artwork(_coerce_to_show_data(api_data), media_dir, patterns)
             actions.append(ACTION_ARTWORK_DOWNLOADED)
             log.info("library_rescrape_artwork", title=title, dry_run=dry_run)
         except Exception as exc:
@@ -364,7 +374,7 @@ def _rescrape_item(
 
 def _rescrape_episodes(
     show_dir: Path,
-    show_data: dict[str, Any],
+    show_data: object,
     tmdb_id: int,
     tmdb_client: TMDBClient,
     patterns: NamingPatterns,
@@ -375,7 +385,7 @@ def _rescrape_episodes(
 
     Args:
         show_dir: Path to TV show directory.
-        show_data: TMDB show data dict.
+        show_data: TMDB MediaDetails (typed model, not a raw dict).
         tmdb_id: TMDB show ID.
         tmdb_client: TMDB API client.
         patterns: NamingPatterns instance.
@@ -383,25 +393,34 @@ def _rescrape_episodes(
         episode_default_name: Prefix used when the provider has no episode
             title in the configured scraper language.
     """
+    from personalscraper.naming_patterns import SEASON_DIR_RE
     from personalscraper.scraper.episode_manager import (
         create_season_dirs,
         match_episode_files,
         rename_episodes,
     )
 
-    seasons = show_data.get("seasons", [])
+    # Discover season numbers from local filesystem (MediaDetails has no seasons array).
+    season_nums = sorted(
+        {
+            int(m.group(1))
+            for d in show_dir.iterdir()
+            if d.is_dir() and (m := SEASON_DIR_RE.match(d.name))
+            if int(m.group(1)) > 0
+        }
+    )
+    if not season_nums:
+        return
+
     all_episodes = {}
-    for season in seasons:
-        season_num = season.get("season_number", 0)
-        if season_num == 0:
-            continue  # Skip specials
+    for season_num in season_nums:
         try:
             season_data = tmdb_client.get_tv_season(tmdb_id, season_num)
-            for ep in season_data.get("episodes", []):
-                ep_num = ep.get("episode_number", 0)
+            for ep in season_data.episodes:
+                ep_num = ep.episode_number
                 all_episodes[(season_num, ep_num)] = {
-                    "title": ep.get("name") or f"{episode_default_name} {ep_num}",
-                    "still_path": ep.get("still_path"),
+                    "title": ep.title or f"{episode_default_name} {ep_num}",
+                    "still_path": "",
                 }
         except Exception as exc:
             log.warning(
@@ -556,13 +575,18 @@ def rescrape_library(
     Returns:
         LibraryRescrapeResult with per-item actions.
     """
+    from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+    from personalscraper.api.metadata.tvdb import TVDBClient  # noqa: PLC0415
+    from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
     from personalscraper.scraper.artwork import ArtworkDownloader  # noqa: PLC0415
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
-    from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
-    from personalscraper.scraper.tvdb_client import TVDBClient  # noqa: PLC0415
 
     scraper_config = config.scraper
-    tmdb_client = TMDBClient(settings.tmdb_api_key, language=scraper_config.language)
+    tmdb_policy = TMDBClient.policy(settings.tmdb_api_key)
+    tmdb_client = TMDBClient(
+        transport=HttpTransport(tmdb_policy),
+        language=scraper_config.language,
+    )
     tvdb_client = TVDBClient(settings.tvdb_api_key)
     # Pass db_path so write-through outbox publishes land in the user-configured
     # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).

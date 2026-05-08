@@ -11,15 +11,22 @@ does NOT strip accents.
 See docs/rapidfuzz-reference.md for scorer details.
 """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING
 
 import typer
 from rapidfuzz import fuzz
 
+from personalscraper.api.metadata._base import SearchResult
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import media_processor
+
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.tvdb import TVDBClient
 
 log = get_logger("confidence")
 
@@ -149,22 +156,19 @@ def match_movie(
     best_score = -1.0
 
     for result in results:
-        api_title = result.get("title", "")
-        # Extract year from release_date (format: "2024-06-28")
-        release_date = result.get("release_date", "")
-        api_year = int(release_date[:4]) if release_date and len(release_date) >= 4 else None
+        # api-unify: TMDB/TVDB clients now return typed SearchResult instances.
+        # Title/year are pre-normalized; provider_id is a str that we coerce to int
+        # for MatchResult.api_id (legacy contract — both providers expose numeric ids).
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
-        candidate_titles = [api_title]
-        original_title = result.get("original_title", "")
-        if original_title and original_title not in candidate_titles:
-            candidate_titles.append(original_title)
-
-        score = max(score_match(title, year, candidate_title, api_year) for candidate_title in candidate_titles)
+        score = score_match(title, year, api_title, api_year)
 
         if score > best_score:
             best_score = score
             best_match = MatchResult(
-                api_id=result["id"],
+                api_id=api_id,
                 api_title=api_title,
                 api_year=api_year,
                 confidence=score,
@@ -224,11 +228,10 @@ def _candidate_has_any_season(
     except Exception:  # noqa: BLE001 — transient fetch failure; don't veto on infra
         log.warning("show_tvdb_candidate_seasons_fetch_failed", tvdb_id=tvdb_id)
         return True
-    available: set[int] = set()
-    for season in series.get("seasons", []) or []:
-        s_num = season.get("number", season.get("season_number", 0))
-        if isinstance(s_num, int) and s_num > 0:
-            available.add(s_num)
+    # api-unify: get_series returns a typed MediaDetails whose ``seasons``
+    # field is list[SeasonInfo]. The phase-27 TVDB parser populates each
+    # entry from the raw extended response.
+    available = {s.season_number for s in series.seasons if s.season_number > 0}
     return bool(available & wanted_seasons)
 
 
@@ -270,16 +273,14 @@ def match_tvshow_tvdb(
     # First pass: score every candidate.
     scored: list[tuple[float, MatchResult]] = []
     for result in results:
-        api_title = result.get("name", "")
-        # TVDB search returns year as string in the "year" field
-        year_str = result.get("year", "")
-        api_year = int(year_str) if year_str and str(year_str).isdigit() else None
+        # api-unify: typed SearchResult — title/year/provider_id replace the
+        # old TVDB-specific name/year/tvdb_id fields.
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
         score = score_match(title, year, api_title, api_year)
 
-        # TVDB search uses tvdb_id (string), not id
-        tvdb_id_str = result.get("tvdb_id", "")
-        api_id = int(tvdb_id_str) if tvdb_id_str and str(tvdb_id_str).isdigit() else 0
         scored.append(
             (
                 score,
@@ -387,7 +388,7 @@ def match_tvshow(
     tvdb_match: MatchResult | None = None
     try:
         tvdb_match = match_tvshow_tvdb(tvdb_client, title, year, local_seasons=local_seasons)
-    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of TVDBError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
+    except Exception as e:  # noqa: BLE001 — TVDB adapter raises a mix of ApiError, CircuitOpenError, and requests exceptions; narrowing requires lazy imports
         log.warning("show_tvdb_fallback_tmdb", title=title, exc_info=True, error=str(e))
 
     if tvdb_match is not None:
@@ -399,7 +400,7 @@ def match_tvshow(
     # French documentary releases are localised as "Les secrets de
     # <subject>" while TMDB indexes the original title under the subject
     # name, so try a narrow subject-only query as well.
-    tmdb_results: list[tuple[str, dict[str, Any]]] = []
+    tmdb_results: list[tuple[str, SearchResult]] = []
     for query_title in _tv_fallback_title_variants(title):
         results = tmdb_client.search_tv(query_title, year)  # type: ignore[attr-defined]
         tmdb_results.extend((query_title, result) for result in results)
@@ -407,15 +408,17 @@ def match_tvshow(
     best_score = -1.0
 
     for query_title, result in tmdb_results:
-        api_title = result.get("name", "")
-        first_air = result.get("first_air_date", "")
-        api_year = int(first_air[:4]) if first_air and len(first_air) >= 4 else None
+        # api-unify: SearchResult.title is unified across movie ("title") and
+        # tv ("name") TMDB endpoints; year is pre-extracted.
+        api_title = result.title
+        api_year = result.year
+        api_id = int(result.provider_id) if result.provider_id.isdigit() else 0
 
         score = score_match(query_title, year, api_title, api_year)
         if score > best_score:
             best_score = score
             tmdb_match = MatchResult(
-                api_id=result["id"],
+                api_id=api_id,
                 api_title=api_title,
                 api_year=api_year,
                 confidence=score,
@@ -437,15 +440,15 @@ def match_tvshow(
 def get_episode_titles(
     match: MatchResult,
     season: int,
-    tvdb_client: object,
-    tmdb_client: object,
+    tvdb_client: TVDBClient,
+    tmdb_client: TMDBClient,
     lang: str = "fra",
 ) -> dict[int, str]:
     """Get episode titles for a season from the matched provider.
 
-    For TVDB matches: fetches episodes, then translates each one.
-    For TMDB matches: episodes are already in the requested language.
-    Falls back from French to English, then to the original title.
+    Both TMDB and TVDB now return typed ``SeasonDetails`` (via ``get_tv_season``
+    / ``get_series_episodes``). Episode titles are taken directly from the API
+    response — TVDB v4 has no per-episode translation endpoint.
 
     Args:
         match: MatchResult from match_tvshow() or match_movie().
@@ -461,38 +464,24 @@ def get_episode_titles(
     titles: dict[int, str] = {}
 
     if match.source == "tvdb":
-        episodes = tvdb_client.get_season_episodes(match.api_id, season)  # type: ignore[attr-defined]
-        if not episodes:
+        season_details = tvdb_client.get_series_episodes(match.api_id, season)
+        if not season_details or not season_details.episodes:
             log.warning("season_not_found_tvdb", season=season, title=match.api_title)
             return titles
 
-        for ep in episodes:
-            ep_num = ep.get("number", 0)
-            ep_id = ep.get("id", 0)
-            # Try French translation first
-            translation = tvdb_client.get_episode_translation(ep_id, lang)  # type: ignore[attr-defined]
-            if translation and translation.get("name"):
-                titles[ep_num] = translation["name"]
-            else:
-                # Fallback to English translation
-                en_trans = tvdb_client.get_episode_translation(ep_id, "eng")  # type: ignore[attr-defined]
-                if en_trans and en_trans.get("name"):
-                    titles[ep_num] = en_trans["name"]
-                else:
-                    # Final fallback: original name from episode data
-                    titles[ep_num] = ep.get("name", f"Episode {ep_num}")
+        for ep in season_details.episodes:
+            ep_num = ep.episode_number
+            titles[ep_num] = ep.title or f"Episode {ep_num}"
 
     elif match.source == "tmdb":
-        season_data = tmdb_client.get_tv_season(match.api_id, season)  # type: ignore[attr-defined]
-        episodes = season_data.get("episodes", [])
-        if not episodes:
+        season_details = tmdb_client.get_tv_season(match.api_id, season)
+        if not season_details or not season_details.episodes:
             log.warning("season_not_found_tmdb", season=season, title=match.api_title)
             return titles
 
-        for ep in episodes:
-            ep_num = ep.get("episode_number", 0)
-            # TMDB episodes are already in the requested language (fr-FR)
-            titles[ep_num] = ep.get("name", f"Episode {ep_num}")
+        for ep in season_details.episodes:
+            ep_num = ep.episode_number
+            titles[ep_num] = ep.title or f"Episode {ep_num}"
 
     return titles
 

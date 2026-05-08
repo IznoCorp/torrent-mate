@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <title>Torrent C411</title>
+    <description>Private Torrent Tracker - RSS Feed</description>
+    <link>https://c411.org</link>
+    <language>fr-fr</language>
+    <lastBuildDate>Thu, 07 May 2026 14:44:59 GMT</lastBuildDate>
+  <item>
+    <title>Inception.2010.MULTi.VFF.1080p.BluRay.BDMV.DTS.HD.MA.5.1.VC1-V4MP1R35</title>
+    <guid>c79d87aab5df20d3b13ca74e98ce35b4f612e8ac</guid>
+    <link>https://c411.org/torrents/c79d87aab5df20d3b13ca74e98ce35b4f612e8ac</link>
+    <comments>https://c411.org/torrents/c79d87aab5df20d3b13ca74e98ce35b4f612e8ac</comments>
+    <pubDate>Wed, 22 Apr 2026 00:59:34 +0000</pubDate>
+    <size>42483168315</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=c79d87aab5df20d3b13ca74e98ce35b4f612e8ac&amp;apikey=REDACTED_API_KEY" length="42483168315" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="42483168315" />
+    <torznab:attr name="seeders" value="1" />
+    <torznab:attr name="peers" value="1" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="c79d87aab5df20d3b13ca74e98ce35b4f612e8ac" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTi.VFF.2160p.BluRay.4KLight.DV.HDR10Plus.EAC3.5.1.x265-TTK</title>
+    <guid>7b6ce0789abea858dc2e01d11295ee3ae8a15e2c</guid>
+    <link>https://c411.org/torrents/7b6ce0789abea858dc2e01d11295ee3ae8a15e2c</link>
+    <comments>https://c411.org/torrents/7b6ce0789abea858dc2e01d11295ee3ae8a15e2c</comments>
+    <pubDate>Mon, 20 Apr 2026 06:17:57 +0000</pubDate>
+    <size>7184602039</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=7b6ce0789abea858dc2e01d11295ee3ae8a15e2c&amp;apikey=REDACTED_API_KEY" length="7184602039" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="7184602039" />
+    <torznab:attr name="seeders" value="21" />
+    <torznab:attr name="peers" value="21" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="7b6ce0789abea858dc2e01d11295ee3ae8a15e2c" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTI.VF2.1080p.BluRay.Remux.DTS.HD.MA.5.1.AVC-HYPERION</title>
+    <guid>f9ea074a42b12df5bdd7486e1fe39fb4e6560d1a</guid>
+    <link>https://c411.org/torrents/f9ea074a42b12df5bdd7486e1fe39fb4e6560d1a</link>
+    <comments>https://c411.org/torrents/f9ea074a42b12df5bdd7486e1fe39fb4e6560d1a</comments>
+    <pubDate>Wed, 08 Apr 2026 13:05:30 +0000</pubDate>
+    <size>34035446489</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=f9ea074a42b12df5bdd7486e1fe39fb4e6560d1a&amp;apikey=REDACTED_API_KEY" length="34035446489" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="34035446489" />
+    <torznab:attr name="seeders" value="9" />
+    <torznab:attr name="peers" value="10" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="f9ea074a42b12df5bdd7486e1fe39fb4e6560d1a" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTI.VF2.2160p.UHD.BluRay.Remux.DV.HDR.DTS.HD.MA.5.1.HEVC-HYPERION</title>
+    <guid>0dfb044f39ced5b6f832b5647b0b4f6fd85b909e</guid>
+    <link>https://c411.org/torrents/0dfb044f39ced5b6f832b5647b0b4f6fd85b909e</link>
+    <comments>https://c411.org/torrents/0dfb044f39ced5b6f832b5647b0b4f6fd85b909e</comments>
+    <pubDate>Wed, 08 Apr 2026 13:05:26 +0000</pubDate>
+    <size>73343803089</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0dfb044f39ced5b6f832b5647b0b4f6fd85b909e&amp;apikey=REDACTED_API_KEY" length="73343803089" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="73343803089" />
+    <torznab:attr name="seeders" value="8" />
+    <torznab:attr name="peers" value="8" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="0dfb044f39ced5b6f832b5647b0b4f6fd85b909e" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTi.VFF.2160p.UHD.BluRay.REMUX.HYBRiD.DV.HDR10Plus.DTS.HD.MA.5.1.HEVC-R3DUCT0</title>
+    <guid>7b14f88fbb866eb2ed2fb93393596f02e98dca8d</guid>
+    <link>https://c411.org/torrents/7b14f88fbb866eb2ed2fb93393596f02e98dca8d</link>
+    <comments>https://c411.org/torrents/7b14f88fbb866eb2ed2fb93393596f02e98dca8d</comments>
+    <pubDate>Tue, 07 Apr 2026 20:24:36 +0000</pubDate>
+    <size>72638537837</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=7b14f88fbb866eb2ed2fb93393596f02e98dca8d&amp;apikey=REDACTED_API_KEY" length="72638537837" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="72638537837" />
+    <torznab:attr name="seeders" value="14" />
+    <torznab:attr name="peers" value="14" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="7b14f88fbb866eb2ed2fb93393596f02e98dca8d" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.Multi.VFF.2160P.UHD.BLURAY.ISO.DV.HDR10.DTS.HD.MA.5.1.HEVC-COASTER</title>
+    <guid>ba8cec52cca901abbec0ced1f283411f2ad1f9d1</guid>
+    <link>https://c411.org/torrents/ba8cec52cca901abbec0ced1f283411f2ad1f9d1</link>
+    <comments>https://c411.org/torrents/ba8cec52cca901abbec0ced1f283411f2ad1f9d1</comments>
+    <pubDate>Sun, 05 Apr 2026 12:45:45 +0000</pubDate>
+    <size>92469198848</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=ba8cec52cca901abbec0ced1f283411f2ad1f9d1&amp;apikey=REDACTED_API_KEY" length="92469198848" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="92469198848" />
+    <torznab:attr name="seeders" value="2" />
+    <torznab:attr name="peers" value="2" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="ba8cec52cca901abbec0ced1f283411f2ad1f9d1" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.BONUS.VOSTFR.1080p.BluRay.DTS.HD.MA.5.1.x265-ZEKEY</title>
+    <guid>762432313933854aca6b64b4875de1bd8fe3c159</guid>
+    <link>https://c411.org/torrents/762432313933854aca6b64b4875de1bd8fe3c159</link>
+    <comments>https://c411.org/torrents/762432313933854aca6b64b4875de1bd8fe3c159</comments>
+    <pubDate>Mon, 30 Mar 2026 17:46:17 +0000</pubDate>
+    <size>4981664096</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=762432313933854aca6b64b4875de1bd8fe3c159&amp;apikey=REDACTED_API_KEY" length="4981664096" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="4981664096" />
+    <torznab:attr name="seeders" value="14" />
+    <torznab:attr name="peers" value="14" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="762432313933854aca6b64b4875de1bd8fe3c159" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.VOSTFR.1080p.Hybrid.BluRay.DV.HDR.DDP.5.1.x265-HiDt</title>
+    <guid>d40570f14b8d34de27e73d8b0149e271445a85b6</guid>
+    <link>https://c411.org/torrents/d40570f14b8d34de27e73d8b0149e271445a85b6</link>
+    <comments>https://c411.org/torrents/d40570f14b8d34de27e73d8b0149e271445a85b6</comments>
+    <pubDate>Sat, 28 Mar 2026 11:42:45 +0000</pubDate>
+    <size>17048151843</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=d40570f14b8d34de27e73d8b0149e271445a85b6&amp;apikey=REDACTED_API_KEY" length="17048151843" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="17048151843" />
+    <torznab:attr name="seeders" value="13" />
+    <torznab:attr name="peers" value="13" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="d40570f14b8d34de27e73d8b0149e271445a85b6" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTi.VFF.1080p.BluRay.DTS.5.1.x264-THENiGHTMAREiNHD</title>
+    <guid>17d4145811a02254c1c25d061e92138d41ce119b</guid>
+    <link>https://c411.org/torrents/17d4145811a02254c1c25d061e92138d41ce119b</link>
+    <comments>https://c411.org/torrents/17d4145811a02254c1c25d061e92138d41ce119b</comments>
+    <pubDate>Thu, 26 Mar 2026 07:17:41 +0000</pubDate>
+    <size>11834629336</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=17d4145811a02254c1c25d061e92138d41ce119b&amp;apikey=REDACTED_API_KEY" length="11834629336" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="11834629336" />
+    <torznab:attr name="seeders" value="69" />
+    <torznab:attr name="peers" value="69" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="17d4145811a02254c1c25d061e92138d41ce119b" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTI.VFF.2160p.BluRay.HDR10.AAC.5.1.x265-QTZ</title>
+    <guid>0450af2b81eb8885befb1f2a92e33f72a8d9e93e</guid>
+    <link>https://c411.org/torrents/0450af2b81eb8885befb1f2a92e33f72a8d9e93e</link>
+    <comments>https://c411.org/torrents/0450af2b81eb8885befb1f2a92e33f72a8d9e93e</comments>
+    <pubDate>Thu, 12 Mar 2026 21:43:50 +0000</pubDate>
+    <size>4677887384</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0450af2b81eb8885befb1f2a92e33f72a8d9e93e&amp;apikey=REDACTED_API_KEY" length="4677887384" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="4677887384" />
+    <torznab:attr name="seeders" value="110" />
+    <torznab:attr name="peers" value="110" />
+    <torznab:attr name="grabs" value="3" />
+    <torznab:attr name="infohash" value="0450af2b81eb8885befb1f2a92e33f72a8d9e93e" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTI.VFF.2160p.BluRay.HDR.DTS.HD.MA.5.1.x265-baron</title>
+    <guid>e8c43c139da78e856374654aa9a390ef737e3ee4</guid>
+    <link>https://c411.org/torrents/e8c43c139da78e856374654aa9a390ef737e3ee4</link>
+    <comments>https://c411.org/torrents/e8c43c139da78e856374654aa9a390ef737e3ee4</comments>
+    <pubDate>Thu, 12 Mar 2026 08:19:54 +0000</pubDate>
+    <size>10610350106</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=e8c43c139da78e856374654aa9a390ef737e3ee4&amp;apikey=REDACTED_API_KEY" length="10610350106" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="10610350106" />
+    <torznab:attr name="seeders" value="22" />
+    <torznab:attr name="peers" value="22" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="e8c43c139da78e856374654aa9a390ef737e3ee4" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.VFF.1080p.BluRay.10bit.AC3.5.1.x265-KPORAL</title>
+    <guid>bae7e580d2aedd08ef949db1ba50073c7c52e429</guid>
+    <link>https://c411.org/torrents/bae7e580d2aedd08ef949db1ba50073c7c52e429</link>
+    <comments>https://c411.org/torrents/bae7e580d2aedd08ef949db1ba50073c7c52e429</comments>
+    <pubDate>Fri, 06 Mar 2026 17:44:41 +0000</pubDate>
+    <size>17199232171</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=bae7e580d2aedd08ef949db1ba50073c7c52e429&amp;apikey=REDACTED_API_KEY" length="17199232171" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="17199232171" />
+    <torznab:attr name="seeders" value="28" />
+    <torznab:attr name="peers" value="28" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="bae7e580d2aedd08ef949db1ba50073c7c52e429" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.VFF.1080p.BluRay.HDLight.AC3.5.1.x264-ROMKENT</title>
+    <guid>90b1b10cf6470bbfe72238adec8ef0921f192ba0</guid>
+    <link>https://c411.org/torrents/90b1b10cf6470bbfe72238adec8ef0921f192ba0</link>
+    <comments>https://c411.org/torrents/90b1b10cf6470bbfe72238adec8ef0921f192ba0</comments>
+    <pubDate>Sat, 21 Feb 2026 20:28:04 +0000</pubDate>
+    <size>4976458849</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=90b1b10cf6470bbfe72238adec8ef0921f192ba0&amp;apikey=REDACTED_API_KEY" length="4976458849" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="4976458849" />
+    <torznab:attr name="seeders" value="35" />
+    <torznab:attr name="peers" value="35" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="90b1b10cf6470bbfe72238adec8ef0921f192ba0" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTI.VFF.2160p.BluRay.4KLight.DV.HDR10.DTS.HD.MA.5.1.x265-XANDER</title>
+    <guid>a3f35e4d027f0b1f06c8e8da2902ccb9530181b0</guid>
+    <link>https://c411.org/torrents/a3f35e4d027f0b1f06c8e8da2902ccb9530181b0</link>
+    <comments>https://c411.org/torrents/a3f35e4d027f0b1f06c8e8da2902ccb9530181b0</comments>
+    <pubDate>Fri, 30 Jan 2026 20:27:42 +0000</pubDate>
+    <size>10785303609</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=a3f35e4d027f0b1f06c8e8da2902ccb9530181b0&amp;apikey=REDACTED_API_KEY" length="10785303609" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="10785303609" />
+    <torznab:attr name="seeders" value="48" />
+    <torznab:attr name="peers" value="48" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="a3f35e4d027f0b1f06c8e8da2902ccb9530181b0" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.CUSTOM.HYBRID.MULTI.VFF.2160p.UHD.BluRay.DV.HDR.DTS.HD.MA.5.1.x265-FLOP</title>
+    <guid>786c5f561bc6dc4ec2811cdc255fbc98db1a6aeb</guid>
+    <link>https://c411.org/torrents/786c5f561bc6dc4ec2811cdc255fbc98db1a6aeb</link>
+    <comments>https://c411.org/torrents/786c5f561bc6dc4ec2811cdc255fbc98db1a6aeb</comments>
+    <pubDate>Sun, 18 Jan 2026 15:33:46 +0000</pubDate>
+    <size>30695037538</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=786c5f561bc6dc4ec2811cdc255fbc98db1a6aeb&amp;apikey=REDACTED_API_KEY" length="30695037538" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="30695037538" />
+    <torznab:attr name="seeders" value="32" />
+    <torznab:attr name="peers" value="32" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="786c5f561bc6dc4ec2811cdc255fbc98db1a6aeb" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Inception.2010.MULTi.VFF.2160p.BluRay.4KLight.HDR.10bit.DTS.5.1.x265-QTZ</title>
+    <guid>b08b70d0855318efa71aeccce0ae42b3e4493113</guid>
+    <link>https://c411.org/torrents/b08b70d0855318efa71aeccce0ae42b3e4493113</link>
+    <comments>https://c411.org/torrents/b08b70d0855318efa71aeccce0ae42b3e4493113</comments>
+    <pubDate>Tue, 13 Jan 2026 13:35:54 +0000</pubDate>
+    <size>7396633907</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=b08b70d0855318efa71aeccce0ae42b3e4493113&amp;apikey=REDACTED_API_KEY" length="7396633907" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="2030" />
+    <torznab:attr name="size" value="7396633907" />
+    <torznab:attr name="seeders" value="141" />
+    <torznab:attr name="peers" value="141" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="b08b70d0855318efa71aeccce0ae42b3e4493113" />
+    <torznab:attr name="imdbid" value="tt1375666" />
+    <torznab:attr name="tmdbid" value="27205" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  </channel>
+</rss>

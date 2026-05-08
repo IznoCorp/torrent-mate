@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from personalscraper.scraper.circuit_breaker import CircuitBreaker, CircuitOpenError
-from personalscraper.scraper.tmdb_client import Video
+from personalscraper.api.metadata._base import Video
+from personalscraper.core.circuit import CircuitBreaker, CircuitOpenError
 from personalscraper.scraper.trailer_finder import TrailerFinder
 from personalscraper.scraper.trailers_cache import TrailersCache
 
@@ -33,18 +33,18 @@ def _mock_yt(finder: TrailerFinder) -> MagicMock:
 
 _TRAILER_VIDEO = Video(
     id="abc",
-    site="YouTube",
+    site="youtube",
     key="TRAILER_KEY",
-    type="Trailer",
+    type="trailer",
     official=True,
     size=1080,
     iso_639_1="en",
 )
 _TEASER_VIDEO = Video(
     id="def",
-    site="YouTube",
+    site="youtube",
     key="TEASER_KEY",
-    type="Teaser",
+    type="teaser",
     official=True,
     size=720,
     iso_639_1="en",
@@ -100,7 +100,7 @@ class TestTrailerFinder:
     def test_language_priority_fr_before_en(self, finder: TrailerFinder) -> None:
         """find() queries fr-FR before en-US and returns on first hit."""
 
-        def fetch_side_effect(endpoint: str, tmdb_id: int, media_type: str, language: str) -> list[Video]:
+        def fetch_side_effect(endpoint: str, language: str) -> list[Video]:
             if language == "fr-FR":
                 return [_TRAILER_VIDEO]
             return []
@@ -132,9 +132,9 @@ class TestTrailerFinder:
         """find() ignores non-YouTube videos even when they are Trailers."""
         vimeo_video = Video(
             id="xyz",
-            site="Vimeo",
+            site="vimeo",
             key="vimeo-id",
-            type="Trailer",
+            type="trailer",
             official=True,
             size=1080,
             iso_639_1="en",
@@ -171,7 +171,7 @@ class TestSeasonFallbackQuotaConfig:
         Args:
             tmp_path: Pytest tmp_path fixture.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
         from personalscraper.scraper.youtube_search import YoutubeSearch
 
@@ -304,7 +304,7 @@ class TestCachePoisoningPrevention:
         yt_breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999)
         # Manually trip the breaker open.
         yt_breaker._failure_count = 1
-        from personalscraper.scraper.circuit_breaker import CircuitState
+        from personalscraper.core.circuit import CircuitState
 
         yt_breaker._state = CircuitState.OPEN
         import time
@@ -422,7 +422,7 @@ class TestCachePoisoningClosure:
 
         import requests as _requests
 
-        from personalscraper.scraper.circuit_breaker import CircuitState
+        from personalscraper.core.circuit import CircuitState
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
         from personalscraper.scraper.youtube_search import YoutubeSearch
 

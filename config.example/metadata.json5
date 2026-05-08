@@ -1,0 +1,28 @@
+{
+  // PROVIDER_CREDS hardcoded in api/_activation.py:
+  //   tmdb  → ["TMDB_API_KEY"]
+  //   tvdb  → ["TVDB_API_KEY"]
+  //   omdb  → ["OMDB_API_KEY"]
+  //   trakt → ["TRAKT_CLIENT_ID"]   # OAuth user endpoints (CLIENT_SECRET) are out of scope per DESIGN §1.2
+  // Credentials are read from .env — see .env.example for the expected variable names.
+  metadata: {
+    providers: {
+      tmdb: { enabled: true },
+      tvdb: { enabled: true },
+      omdb: { enabled: false },
+      trakt: { enabled: false },
+    },
+    priorities: {
+      movie_scraping: { tmdb: 1, tvdb: 2 },
+      series_scraping: { tvdb: 1, tmdb: 2 },
+      episode_scraping: { tvdb: 1, tmdb: 2 },
+      recommendations: { trakt: 1, omdb: 2 },
+      notations: { omdb: 1, trakt: 2 },
+    },
+    defaults: {
+      language: "fr-FR",
+      fallback_language: "en-US",
+      prefer_local_title: true,
+    },
+  },
+}

@@ -818,7 +818,7 @@ class TestCircuitOpenCounter:
         Args:
             orchestrator: Orchestrator fixture.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
 
         with (
             patch.object(orchestrator._scanner, "scan_staging", return_value=[_SCAN_ITEM]),
@@ -851,7 +851,8 @@ class TestCircuitOpenCounter:
         """
         from unittest.mock import MagicMock
 
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker, CircuitOpenError
+        from personalscraper.api._contracts import CircuitOpenError
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
         from personalscraper.scraper.trailer_finder import TrailerFinder
         from personalscraper.scraper.trailers_cache import TrailersCache

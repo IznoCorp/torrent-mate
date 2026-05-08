@@ -79,8 +79,9 @@ def init_config(
         "Next steps:\n"
         f"  1. Edit {output}/paths.json5 to set your paths\n"
         f"  2. Edit {output}/disks.json5 to configure your storage disks\n"
-        f"  3. Edit .env to set your API keys (see .env.example)\n"
-        f"  4. Run `personalscraper run` to start the pipeline"
+        f"  3. Review {output}/metadata.json5 and {output}/torrent.json5 for API config\n"
+        f"  4. Edit .env to set your API keys (see .env.example)\n"
+        f"  5. Run `personalscraper run` to start the pipeline"
     )
 
 

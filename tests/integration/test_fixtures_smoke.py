@@ -39,4 +39,4 @@ def test_fixtures_compose(
         "integration_config.paths.staging_dir must equal staging_tree"
     )
     assert integration_config_path.exists(), "serialised config.json5 must exist on disk"
-    assert fake_qbit.get_completed_torrents() == [], "fake_qbit must start with an empty torrent list"
+    assert fake_qbit.get_completed() == [], "fake_qbit must start with an empty torrent list"

@@ -26,47 +26,10 @@ Le fichier `.env` est chargé automatiquement par le pipeline via [pydantic-sett
 
 ---
 
-## qBittorrent
-
-Variables de connexion à l'interface Web de qBittorrent (Ingest).
-
-| Variable        | Défaut      | Description                                             |
-| --------------- | ----------- | ------------------------------------------------------- |
-| `QBIT_HOST`     | `localhost` | Hostname ou IP du serveur qBittorrent                   |
-| `QBIT_PORT`     | `8081`      | Port de l'interface Web API (qBittorrent défaut : 8080) |
-| `QBIT_USERNAME` | `""`        | Nom d'utilisateur Web UI                                |
-| `QBIT_PASSWORD` | _(vide)_    | Mot de passe Web UI                                     |
-
-### Comment configurer
-
-1. Ouvrir qBittorrent > **Preferences** > **Web UI**
-2. Cocher **"Enable the Web User Interface (Remote control)"**
-3. Configurer le port (par défaut `8080`, ici `8081`)
-4. Définir un nom d'utilisateur et un mot de passe
-5. Reporter ces valeurs dans `.env`
-
-```ini
-QBIT_HOST=localhost
-QBIT_PORT=8081
-QBIT_USERNAME=admin
-QBIT_PASSWORD=mon_mot_de_passe
-```
-
-> **Accès distant :** si qBittorrent tourne sur une autre machine, utiliser son IP (ex: `QBIT_HOST=192.168.1.100`).
-
----
-
 ## Chemins
 
-> **Depuis la version 0.9.0**, tous les chemins du pipeline
-> (`torrent_complete_dir`, `staging_dir`, `data_dir`, disques de stockage)
-> sont définis dans `config/`. Les anciennes variables d'environnement
-> `TORRENT_COMPLETE_DIR`, `STAGING_DIR`, `DISK1_DIR`…`DISK4_DIR` **ont été
-> retirées** — les positionner dans `.env` n'a plus aucun effet.
->
 > Voir la section [Configuration config/](#configuration-config)
-> ci-dessous pour la nouvelle disposition (`paths:` et `disks:`).
-
+>
 > **Attention aux espaces** dans les chemins définis dans `config.json5` :
 > json5 accepte les espaces dans les valeurs de chaîne sans quoting
 > supplémentaire, mais chaque invocation shell qui consomme ces chemins
@@ -76,8 +39,8 @@ QBIT_PASSWORD=mon_mot_de_passe
 
 ## Configuration config/
 
-Depuis la version 0.9.0, les chemins, la disposition du staging et les seuils
-sont définis dans le dossier `config/` (format v2 split). Le `.env` ne contient
+Les chemins, la disposition du staging et les seuils
+sont définis dans le dossier `config/`. Le `.env` ne contient
 que les credentials.
 
 ### `paths.staging_dir`
@@ -94,10 +57,7 @@ Chemin vers le répertoire de staging racine où les médias arrivent pour trait
 Chemin vers le répertoire d'état du pipeline (index, locks, cache d'analyse).
 
 - **Défaut :** `./.data` (résolu relativement à la racine de la config au chargement).
-- **Exemple** : peut être déplacé vers `<staging_dir>/.data` ou tout autre emplacement via `config.json5`.
-- Cette valeur est **explicite** dans `config.json5` — elle peut être déplacée avec
-  une seule modification de config.
-- Différent de `staging_dir`.
+- **Exemple** : peut être déplacé vers `<staging_dir>/.data` ou tout autre emplacement via la config.
 
 ### `staging_dirs`
 
@@ -415,14 +375,36 @@ Protection contre les pannes durables des APIs TMDB/TVDB. Le circuit breaker dé
 
 ---
 
+## Migration depuis pré-0.11 (api-unify)
+
+À partir de 0.11.0 (api-unify), la configuration des **clients torrent** (qBittorrent,
+Transmission) est éclatée en deux endroits :
+
+| Avant 0.11 (legacy `Settings`) | Depuis 0.11 (api-unify)                             |
+| ------------------------------ | --------------------------------------------------- |
+| `.env` : `QBIT_HOST`           | `config/torrent.json5` : `clients.qbittorrent.host` |
+| `.env` : `QBIT_PORT`           | `config/torrent.json5` : `clients.qbittorrent.port` |
+| `.env` : `QBIT_USERNAME`       | inchangé (cred reste dans `.env`)                   |
+| `.env` : `QBIT_PASSWORD`       | inchangé (cred reste dans `.env`)                   |
+
+Si vous mettez à jour depuis 0.10 ou antérieur :
+
+1. Vérifiez `config/torrent.json5` (créé par `personalscraper init-config`) et
+   ajustez `clients.qbittorrent.host` + `.port` à vos valeurs.
+2. Retirez `QBIT_HOST` et `QBIT_PORT` de `.env`.
+3. Si vous utilisez Transmission, faites de même avec `TRANSMISSION_HOST` /
+   `TRANSMISSION_PORT`.
+
+Le loader émet un `warning` au démarrage si ces variables sont encore présentes
+dans l'environnement (elles sont silencieusement ignorées par le code api-unify).
+
 ## Exemple complet
 
 ### .env (credentials uniquement)
 
 ```ini
 # ── qBittorrent ──────────────────────────────
-QBIT_HOST=localhost
-QBIT_PORT=8081
+# Host et port → config/torrent.json5 (pas dans .env)
 QBIT_USERNAME=admin
 QBIT_PASSWORD=mon_mot_de_passe
 

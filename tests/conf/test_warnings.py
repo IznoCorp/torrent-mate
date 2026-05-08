@@ -197,3 +197,61 @@ class TestDiskUnmountedWarning:
             load_config(cfg_dir)
 
         assert any("not mounted/present" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# Warning 4 — legacy torrent host/port env vars
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyTorrentEnvWarning:
+    """Tests for the legacy QBIT_HOST/PORT, TRANSMISSION_HOST/PORT deprecation warning.
+
+    These env vars existed pre-api-unify (read by Settings(BaseSettings)). After
+    api-unify (0.11.0), host/port live in config/torrent.json5 and the env vars
+    are silently ignored. The warning surfaces them so users know to migrate.
+    """
+
+    def test_qbit_host_in_env_warns(self, tmp_path, monkeypatch):
+        """QBIT_HOST set in env must produce a legacy-env-vars warning."""
+        monkeypatch.setenv("QBIT_HOST", "localhost")
+        monkeypatch.delenv("QBIT_PORT", raising=False)
+        monkeypatch.delenv("TRANSMISSION_HOST", raising=False)
+        monkeypatch.delenv("TRANSMISSION_PORT", raising=False)
+        cfg = _base_config(tmp_path)
+        warnings = collect_warnings(cfg)
+        assert any("QBIT_HOST" in w and "legacy env vars ignored" in w for w in warnings)
+
+    def test_qbit_port_in_env_warns(self, tmp_path, monkeypatch):
+        """QBIT_PORT set in env must produce a legacy-env-vars warning."""
+        monkeypatch.delenv("QBIT_HOST", raising=False)
+        monkeypatch.setenv("QBIT_PORT", "8081")
+        monkeypatch.delenv("TRANSMISSION_HOST", raising=False)
+        monkeypatch.delenv("TRANSMISSION_PORT", raising=False)
+        cfg = _base_config(tmp_path)
+        warnings = collect_warnings(cfg)
+        assert any("QBIT_PORT" in w and "legacy env vars ignored" in w for w in warnings)
+
+    def test_multiple_legacy_vars_in_env_warns_once_with_all(self, tmp_path, monkeypatch):
+        """Multiple legacy env vars must produce a single warning listing all of them."""
+        monkeypatch.setenv("QBIT_HOST", "localhost")
+        monkeypatch.setenv("QBIT_PORT", "8081")
+        monkeypatch.setenv("TRANSMISSION_HOST", "localhost")
+        monkeypatch.delenv("TRANSMISSION_PORT", raising=False)
+        cfg = _base_config(tmp_path)
+        warnings = collect_warnings(cfg)
+        legacy = [w for w in warnings if "legacy env vars ignored" in w]
+        assert len(legacy) == 1
+        assert "QBIT_HOST" in legacy[0]
+        assert "QBIT_PORT" in legacy[0]
+        assert "TRANSMISSION_HOST" in legacy[0]
+
+    def test_no_legacy_env_no_warning(self, tmp_path, monkeypatch):
+        """Clean env (no legacy vars) must not produce the warning."""
+        monkeypatch.delenv("QBIT_HOST", raising=False)
+        monkeypatch.delenv("QBIT_PORT", raising=False)
+        monkeypatch.delenv("TRANSMISSION_HOST", raising=False)
+        monkeypatch.delenv("TRANSMISSION_PORT", raising=False)
+        cfg = _base_config(tmp_path)
+        warnings = collect_warnings(cfg)
+        assert not any("legacy env vars ignored" in w for w in warnings)

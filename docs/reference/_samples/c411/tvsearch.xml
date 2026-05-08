@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:torznab="http://torznab.com/schemas/2015/feed">
+  <channel>
+    <title>Torrent C411</title>
+    <description>Private Torrent Tracker - RSS Feed</description>
+    <link>https://c411.org</link>
+    <language>fr-fr</language>
+    <lastBuildDate>Thu, 07 May 2026 14:44:55 GMT</lastBuildDate>
+  <item>
+    <title>Breaking.Bad.S01.MULTI.VFF.2160p.WEBRip.EAC3.5.1.x265-SQUEEZE</title>
+    <guid>8ab571be948bc72a44bba462208a23a88c5d4cbb</guid>
+    <link>https://c411.org/torrents/8ab571be948bc72a44bba462208a23a88c5d4cbb</link>
+    <comments>https://c411.org/torrents/8ab571be948bc72a44bba462208a23a88c5d4cbb</comments>
+    <pubDate>Tue, 13 Jan 2026 01:15:45 +0000</pubDate>
+    <size>14178038373</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=8ab571be948bc72a44bba462208a23a88c5d4cbb&amp;apikey=REDACTED_API_KEY" length="14178038373" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="14178038373" />
+    <torznab:attr name="seeders" value="170" />
+    <torznab:attr name="peers" value="172" />
+    <torznab:attr name="grabs" value="3" />
+    <torznab:attr name="infohash" value="8ab571be948bc72a44bba462208a23a88c5d4cbb" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S02.MULTI.VFF.2160p.WEBRip.EAC3.5.1.x265-SQUEEZE</title>
+    <guid>d0764f5baeade083b8c83c8e6a8e02675c5425f9</guid>
+    <link>https://c411.org/torrents/d0764f5baeade083b8c83c8e6a8e02675c5425f9</link>
+    <comments>https://c411.org/torrents/d0764f5baeade083b8c83c8e6a8e02675c5425f9</comments>
+    <pubDate>Tue, 13 Jan 2026 01:23:23 +0000</pubDate>
+    <size>21348581511</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=d0764f5baeade083b8c83c8e6a8e02675c5425f9&amp;apikey=REDACTED_API_KEY" length="21348581511" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="21348581511" />
+    <torznab:attr name="seeders" value="135" />
+    <torznab:attr name="peers" value="135" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="d0764f5baeade083b8c83c8e6a8e02675c5425f9" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S03.MULTI.VFF.2160p.BluRay.AC3.5.1.x265-NOTAG</title>
+    <guid>817116f108343d331dce0fa23b3cd3d46824d3e8</guid>
+    <link>https://c411.org/torrents/817116f108343d331dce0fa23b3cd3d46824d3e8</link>
+    <comments>https://c411.org/torrents/817116f108343d331dce0fa23b3cd3d46824d3e8</comments>
+    <pubDate>Tue, 13 Jan 2026 01:29:41 +0000</pubDate>
+    <size>22288183445</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=817116f108343d331dce0fa23b3cd3d46824d3e8&amp;apikey=REDACTED_API_KEY" length="22288183445" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="22288183445" />
+    <torznab:attr name="seeders" value="124" />
+    <torznab:attr name="peers" value="124" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="817116f108343d331dce0fa23b3cd3d46824d3e8" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S04.MULTI.VFF.2160p.WEBRip.AC3.5.1.x265-NOTAG</title>
+    <guid>0f47b911d5d52b38a4533ecee038ce3001f13a6c</guid>
+    <link>https://c411.org/torrents/0f47b911d5d52b38a4533ecee038ce3001f13a6c</link>
+    <comments>https://c411.org/torrents/0f47b911d5d52b38a4533ecee038ce3001f13a6c</comments>
+    <pubDate>Tue, 13 Jan 2026 01:33:37 +0000</pubDate>
+    <size>22169567067</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0f47b911d5d52b38a4533ecee038ce3001f13a6c&amp;apikey=REDACTED_API_KEY" length="22169567067" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="22169567067" />
+    <torznab:attr name="seeders" value="125" />
+    <torznab:attr name="peers" value="125" />
+    <torznab:attr name="grabs" value="4" />
+    <torznab:attr name="infohash" value="0f47b911d5d52b38a4533ecee038ce3001f13a6c" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S05.MULTI.VFF.2160p.WEBRip.AC3.5.1.x265-NOTAG</title>
+    <guid>fce15b28b1951d7d4c622f50f459687931781652</guid>
+    <link>https://c411.org/torrents/fce15b28b1951d7d4c622f50f459687931781652</link>
+    <comments>https://c411.org/torrents/fce15b28b1951d7d4c622f50f459687931781652</comments>
+    <pubDate>Tue, 13 Jan 2026 01:35:53 +0000</pubDate>
+    <size>28194874640</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=fce15b28b1951d7d4c622f50f459687931781652&amp;apikey=REDACTED_API_KEY" length="28194874640" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="28194874640" />
+    <torznab:attr name="seeders" value="122" />
+    <torznab:attr name="peers" value="122" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="fce15b28b1951d7d4c622f50f459687931781652" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>BREAKING.BAD.INTEGRALE.MULTI.VFF.WEBRiP.1080p.AC3.x265-NOTAG</title>
+    <guid>9b961d67ee7339a945f88055be0bba08f12c28f6</guid>
+    <link>https://c411.org/torrents/9b961d67ee7339a945f88055be0bba08f12c28f6</link>
+    <comments>https://c411.org/torrents/9b961d67ee7339a945f88055be0bba08f12c28f6</comments>
+    <pubDate>Wed, 14 Jan 2026 09:15:47 +0000</pubDate>
+    <size>60708114915</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=9b961d67ee7339a945f88055be0bba08f12c28f6&amp;apikey=REDACTED_API_KEY" length="60708114915" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="60708114915" />
+    <torznab:attr name="seeders" value="220" />
+    <torznab:attr name="peers" value="224" />
+    <torznab:attr name="grabs" value="4" />
+    <torznab:attr name="infohash" value="9b961d67ee7339a945f88055be0bba08f12c28f6" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S01.REPACK.MULTI.VFF.1080p.WEB.DDP.5.1.x264-TFA</title>
+    <guid>d337faa6685e72af23301e118c78e90d454ad3fe</guid>
+    <link>https://c411.org/torrents/d337faa6685e72af23301e118c78e90d454ad3fe</link>
+    <comments>https://c411.org/torrents/d337faa6685e72af23301e118c78e90d454ad3fe</comments>
+    <pubDate>Fri, 16 Jan 2026 01:31:40 +0000</pubDate>
+    <size>16205337595</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=d337faa6685e72af23301e118c78e90d454ad3fe&amp;apikey=REDACTED_API_KEY" length="16205337595" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="16205337595" />
+    <torznab:attr name="seeders" value="68" />
+    <torznab:attr name="peers" value="68" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="d337faa6685e72af23301e118c78e90d454ad3fe" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S02.REPACK.MULTI.VFF.1080p.WEB.DDP.5.1.x264-TFA</title>
+    <guid>ce04c33811bd94975968b40d1018589b509dbcb7</guid>
+    <link>https://c411.org/torrents/ce04c33811bd94975968b40d1018589b509dbcb7</link>
+    <comments>https://c411.org/torrents/ce04c33811bd94975968b40d1018589b509dbcb7</comments>
+    <pubDate>Fri, 16 Jan 2026 01:34:20 +0000</pubDate>
+    <size>28818286551</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=ce04c33811bd94975968b40d1018589b509dbcb7&amp;apikey=REDACTED_API_KEY" length="28818286551" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="28818286551" />
+    <torznab:attr name="seeders" value="71" />
+    <torznab:attr name="peers" value="71" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="ce04c33811bd94975968b40d1018589b509dbcb7" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S03.REPACK.MULTI.VFF.1080p.WEB.DDP.5.1.x264-TFA</title>
+    <guid>0823e8fcad9bf70fdb73d32b783b077f9f6a1cfd</guid>
+    <link>https://c411.org/torrents/0823e8fcad9bf70fdb73d32b783b077f9f6a1cfd</link>
+    <comments>https://c411.org/torrents/0823e8fcad9bf70fdb73d32b783b077f9f6a1cfd</comments>
+    <pubDate>Fri, 16 Jan 2026 01:39:06 +0000</pubDate>
+    <size>28707243797</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0823e8fcad9bf70fdb73d32b783b077f9f6a1cfd&amp;apikey=REDACTED_API_KEY" length="28707243797" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="28707243797" />
+    <torznab:attr name="seeders" value="64" />
+    <torznab:attr name="peers" value="64" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="0823e8fcad9bf70fdb73d32b783b077f9f6a1cfd" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S04.MULTI.VFF.1080p.WEB.DDP.5.1.x264-TFA</title>
+    <guid>0704a4d3b37e94a6ea74cd2aa530c4bf4edda4c1</guid>
+    <link>https://c411.org/torrents/0704a4d3b37e94a6ea74cd2aa530c4bf4edda4c1</link>
+    <comments>https://c411.org/torrents/0704a4d3b37e94a6ea74cd2aa530c4bf4edda4c1</comments>
+    <pubDate>Fri, 16 Jan 2026 01:43:46 +0000</pubDate>
+    <size>28595588662</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0704a4d3b37e94a6ea74cd2aa530c4bf4edda4c1&amp;apikey=REDACTED_API_KEY" length="28595588662" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="28595588662" />
+    <torznab:attr name="seeders" value="63" />
+    <torznab:attr name="peers" value="63" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="0704a4d3b37e94a6ea74cd2aa530c4bf4edda4c1" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S05.MULTI.VFF.1080p.WEB.DDP.5.1.x264-TFA</title>
+    <guid>42e1dbf83b082f0614a5443f59d88ba5a8334794</guid>
+    <link>https://c411.org/torrents/42e1dbf83b082f0614a5443f59d88ba5a8334794</link>
+    <comments>https://c411.org/torrents/42e1dbf83b082f0614a5443f59d88ba5a8334794</comments>
+    <pubDate>Fri, 16 Jan 2026 01:56:01 +0000</pubDate>
+    <size>35855171084</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=42e1dbf83b082f0614a5443f59d88ba5a8334794&amp;apikey=REDACTED_API_KEY" length="35855171084" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="35855171084" />
+    <torznab:attr name="seeders" value="54" />
+    <torznab:attr name="peers" value="54" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="42e1dbf83b082f0614a5443f59d88ba5a8334794" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>BREAKING.BAD.INTEGRALE.MULTI.VFF.BluRay.1080p.AC3.5.1.x265-TigersClassics</title>
+    <guid>cab60b3cc8157b440a626142621c251c4bb5e15f</guid>
+    <link>https://c411.org/torrents/cab60b3cc8157b440a626142621c251c4bb5e15f</link>
+    <comments>https://c411.org/torrents/cab60b3cc8157b440a626142621c251c4bb5e15f</comments>
+    <pubDate>Mon, 19 Jan 2026 18:28:49 +0000</pubDate>
+    <size>152443622077</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=cab60b3cc8157b440a626142621c251c4bb5e15f&amp;apikey=REDACTED_API_KEY" length="152443622077" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="152443622077" />
+    <torznab:attr name="seeders" value="45" />
+    <torznab:attr name="peers" value="45" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="cab60b3cc8157b440a626142621c251c4bb5e15f" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.INTEGRALE.MULTI.VFF.1080p.WEB.EAC3.5.1.H265-BTT</title>
+    <guid>3e54ee361235352d6f7b1f7b76796d2c888fdcf7</guid>
+    <link>https://c411.org/torrents/3e54ee361235352d6f7b1f7b76796d2c888fdcf7</link>
+    <comments>https://c411.org/torrents/3e54ee361235352d6f7b1f7b76796d2c888fdcf7</comments>
+    <pubDate>Wed, 04 Feb 2026 17:29:36 +0000</pubDate>
+    <size>143888183217</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=3e54ee361235352d6f7b1f7b76796d2c888fdcf7&amp;apikey=REDACTED_API_KEY" length="143888183217" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="143888183217" />
+    <torznab:attr name="seeders" value="47" />
+    <torznab:attr name="peers" value="47" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="3e54ee361235352d6f7b1f7b76796d2c888fdcf7" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.2008.INTEGRALE.MULTI.VFI.1080p.WEB.EAC3.AV1-BTT</title>
+    <guid>0e7066079bdeae2075e81618e24b76a3c3accf83</guid>
+    <link>https://c411.org/torrents/0e7066079bdeae2075e81618e24b76a3c3accf83</link>
+    <comments>https://c411.org/torrents/0e7066079bdeae2075e81618e24b76a3c3accf83</comments>
+    <pubDate>Fri, 13 Feb 2026 10:58:01 +0000</pubDate>
+    <size>94178105972</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0e7066079bdeae2075e81618e24b76a3c3accf83&amp;apikey=REDACTED_API_KEY" length="94178105972" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="94178105972" />
+    <torznab:attr name="seeders" value="73" />
+    <torznab:attr name="peers" value="73" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="0e7066079bdeae2075e81618e24b76a3c3accf83" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S01.MULTI.VFF.1080p.BluRay.AC3.5.1.x265-RamirouHD</title>
+    <guid>ca0b72f16c71cbab034c3866624f14d3652592c7</guid>
+    <link>https://c411.org/torrents/ca0b72f16c71cbab034c3866624f14d3652592c7</link>
+    <comments>https://c411.org/torrents/ca0b72f16c71cbab034c3866624f14d3652592c7</comments>
+    <pubDate>Mon, 16 Feb 2026 08:05:53 +0000</pubDate>
+    <size>6182931731</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=ca0b72f16c71cbab034c3866624f14d3652592c7&amp;apikey=REDACTED_API_KEY" length="6182931731" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="6182931731" />
+    <torznab:attr name="seeders" value="160" />
+    <torznab:attr name="peers" value="160" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="ca0b72f16c71cbab034c3866624f14d3652592c7" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S02.MULTI.VFF.1080p.BluRay.AC3.5.1.x265-RamirouHD</title>
+    <guid>0cffcbf0b358187400c71ba2ac75b7959ecd2755</guid>
+    <link>https://c411.org/torrents/0cffcbf0b358187400c71ba2ac75b7959ecd2755</link>
+    <comments>https://c411.org/torrents/0cffcbf0b358187400c71ba2ac75b7959ecd2755</comments>
+    <pubDate>Mon, 16 Feb 2026 08:08:17 +0000</pubDate>
+    <size>10985025981</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=0cffcbf0b358187400c71ba2ac75b7959ecd2755&amp;apikey=REDACTED_API_KEY" length="10985025981" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="10985025981" />
+    <torznab:attr name="seeders" value="153" />
+    <torznab:attr name="peers" value="154" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="0cffcbf0b358187400c71ba2ac75b7959ecd2755" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S03.MULTI.VFF.1080p.BluRay.AC3.5.1.x265-RamirouHD</title>
+    <guid>b2fe50d9c8ed3c934850d3e54bee870611b6bbd3</guid>
+    <link>https://c411.org/torrents/b2fe50d9c8ed3c934850d3e54bee870611b6bbd3</link>
+    <comments>https://c411.org/torrents/b2fe50d9c8ed3c934850d3e54bee870611b6bbd3</comments>
+    <pubDate>Mon, 16 Feb 2026 08:10:02 +0000</pubDate>
+    <size>10939672908</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=b2fe50d9c8ed3c934850d3e54bee870611b6bbd3&amp;apikey=REDACTED_API_KEY" length="10939672908" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="10939672908" />
+    <torznab:attr name="seeders" value="149" />
+    <torznab:attr name="peers" value="149" />
+    <torznab:attr name="grabs" value="1" />
+    <torznab:attr name="infohash" value="b2fe50d9c8ed3c934850d3e54bee870611b6bbd3" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S04.MULTI.VFF.1080p.BluRay.AC3.5.1.x265-RamirouHD</title>
+    <guid>887994fa5436a532000b5f09ab5cbe0f8306b149</guid>
+    <link>https://c411.org/torrents/887994fa5436a532000b5f09ab5cbe0f8306b149</link>
+    <comments>https://c411.org/torrents/887994fa5436a532000b5f09ab5cbe0f8306b149</comments>
+    <pubDate>Mon, 16 Feb 2026 08:11:31 +0000</pubDate>
+    <size>10897445163</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=887994fa5436a532000b5f09ab5cbe0f8306b149&amp;apikey=REDACTED_API_KEY" length="10897445163" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="10897445163" />
+    <torznab:attr name="seeders" value="149" />
+    <torznab:attr name="peers" value="150" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="887994fa5436a532000b5f09ab5cbe0f8306b149" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S05.MULTI.VFF.1080p.BluRay.AC3.5.1.x265-RamirouHD</title>
+    <guid>9ffca837e37607349b3a5d258bcf6ca50e2e3a90</guid>
+    <link>https://c411.org/torrents/9ffca837e37607349b3a5d258bcf6ca50e2e3a90</link>
+    <comments>https://c411.org/torrents/9ffca837e37607349b3a5d258bcf6ca50e2e3a90</comments>
+    <pubDate>Mon, 16 Feb 2026 08:12:54 +0000</pubDate>
+    <size>13672835447</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=9ffca837e37607349b3a5d258bcf6ca50e2e3a90&amp;apikey=REDACTED_API_KEY" length="13672835447" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="13672835447" />
+    <torznab:attr name="seeders" value="154" />
+    <torznab:attr name="peers" value="155" />
+    <torznab:attr name="grabs" value="2" />
+    <torznab:attr name="infohash" value="9ffca837e37607349b3a5d258bcf6ca50e2e3a90" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.INTEGRALE.MULTI.VFI.2160p.WEBRip.AC3.5.1.x264-GLaDOS</title>
+    <guid>d9fcd86a5cf5c8cad9ec74e5b64378d0c71b588f</guid>
+    <link>https://c411.org/torrents/d9fcd86a5cf5c8cad9ec74e5b64378d0c71b588f</link>
+    <comments>https://c411.org/torrents/d9fcd86a5cf5c8cad9ec74e5b64378d0c71b588f</comments>
+    <pubDate>Mon, 16 Feb 2026 09:51:36 +0000</pubDate>
+    <size>1675278131719</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=d9fcd86a5cf5c8cad9ec74e5b64378d0c71b588f&amp;apikey=REDACTED_API_KEY" length="1675278131719" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="1675278131719" />
+    <torznab:attr name="seeders" value="23" />
+    <torznab:attr name="peers" value="24" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="d9fcd86a5cf5c8cad9ec74e5b64378d0c71b588f" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.INTEGRALE.MULTI.2160p.WEBRip.AC3.5.1.x265-DWS</title>
+    <guid>bc46c9048a12a0d4ff3b5cf1797ca92e1d678b2f</guid>
+    <link>https://c411.org/torrents/bc46c9048a12a0d4ff3b5cf1797ca92e1d678b2f</link>
+    <comments>https://c411.org/torrents/bc46c9048a12a0d4ff3b5cf1797ca92e1d678b2f</comments>
+    <pubDate>Mon, 16 Feb 2026 12:27:39 +0000</pubDate>
+    <size>322218949621</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=bc46c9048a12a0d4ff3b5cf1797ca92e1d678b2f&amp;apikey=REDACTED_API_KEY" length="322218949621" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="322218949621" />
+    <torznab:attr name="seeders" value="36" />
+    <torznab:attr name="peers" value="36" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="bc46c9048a12a0d4ff3b5cf1797ca92e1d678b2f" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.2008.INTEGRALE.MULTI.VFF.2160p.WEB.EAC3.5.1.H265-R3DUCT0</title>
+    <guid>76dab5ca28703a78fa027718cbfd347bb1268b75</guid>
+    <link>https://c411.org/torrents/76dab5ca28703a78fa027718cbfd347bb1268b75</link>
+    <comments>https://c411.org/torrents/76dab5ca28703a78fa027718cbfd347bb1268b75</comments>
+    <pubDate>Fri, 06 Mar 2026 12:54:30 +0000</pubDate>
+    <size>324041798876</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=76dab5ca28703a78fa027718cbfd347bb1268b75&amp;apikey=REDACTED_API_KEY" length="324041798876" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="324041798876" />
+    <torznab:attr name="seeders" value="213" />
+    <torznab:attr name="peers" value="215" />
+    <torznab:attr name="grabs" value="11" />
+    <torznab:attr name="infohash" value="76dab5ca28703a78fa027718cbfd347bb1268b75" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S02.MULTI.VFF.1080p.BLURAY.REMUX.DTS.HD.MA.5.1.AVC-MANOFSTYLE</title>
+    <guid>bf912b7be22358a50c799f27f60635290c71f3d3</guid>
+    <link>https://c411.org/torrents/bf912b7be22358a50c799f27f60635290c71f3d3</link>
+    <comments>https://c411.org/torrents/bf912b7be22358a50c799f27f60635290c71f3d3</comments>
+    <pubDate>Thu, 26 Mar 2026 18:50:08 +0000</pubDate>
+    <size>118323438297</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=bf912b7be22358a50c799f27f60635290c71f3d3&amp;apikey=REDACTED_API_KEY" length="118323438297" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="118323438297" />
+    <torznab:attr name="seeders" value="3" />
+    <torznab:attr name="peers" value="3" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="bf912b7be22358a50c799f27f60635290c71f3d3" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S01.MULTI.VFF.2160p.WEB.AC3.5.1.x265-DWS</title>
+    <guid>c56bbf7a0dc9af7880e195315e27770478811eac</guid>
+    <link>https://c411.org/torrents/c56bbf7a0dc9af7880e195315e27770478811eac</link>
+    <comments>https://c411.org/torrents/c56bbf7a0dc9af7880e195315e27770478811eac</comments>
+    <pubDate>Sat, 28 Mar 2026 15:35:56 +0000</pubDate>
+    <size>59998770678</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=c56bbf7a0dc9af7880e195315e27770478811eac&amp;apikey=REDACTED_API_KEY" length="59998770678" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="59998770678" />
+    <torznab:attr name="seeders" value="38" />
+    <torznab:attr name="peers" value="38" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="c56bbf7a0dc9af7880e195315e27770478811eac" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  <item>
+    <title>Breaking.Bad.S02.MULTI.VFF.2160p.WEB.AC3.5.1.x265-DWS</title>
+    <guid>96d0e420646174c575f48d4e24798bf77591a33b</guid>
+    <link>https://c411.org/torrents/96d0e420646174c575f48d4e24798bf77591a33b</link>
+    <comments>https://c411.org/torrents/96d0e420646174c575f48d4e24798bf77591a33b</comments>
+    <pubDate>Sat, 28 Mar 2026 15:50:43 +0000</pubDate>
+    <size>82182494949</size>
+    <description></description>
+    <enclosure url="https://c411.org/api?t=get&amp;id=96d0e420646174c575f48d4e24798bf77591a33b&amp;apikey=REDACTED_API_KEY" length="82182494949" type="application/x-bittorrent" />
+    <torznab:attr name="category" value="5000" />
+    <torznab:attr name="size" value="82182494949" />
+    <torznab:attr name="seeders" value="56" />
+    <torznab:attr name="peers" value="56" />
+    <torznab:attr name="grabs" value="0" />
+    <torznab:attr name="infohash" value="96d0e420646174c575f48d4e24798bf77591a33b" />
+    <torznab:attr name="imdbid" value="tt0903747" />
+    <torznab:attr name="tmdbid" value="1396" />
+    <torznab:attr name="downloadvolumefactor" value="1" />
+    <torznab:attr name="uploadvolumefactor" value="1" />
+  </item>
+  </channel>
+</rss>

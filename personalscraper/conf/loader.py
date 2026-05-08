@@ -204,14 +204,30 @@ def load_config(path: Path | None = None) -> Config:
     return load_config_dir(resolved)
 
 
+#: Legacy env var names that were migrated to torrent.json5 in api-unify (0.11.0).
+#: Their presence in ``os.environ`` after a migration is silently ignored by the
+#: new code path, which would surprise users who haven't updated their ``.env``.
+_LEGACY_TORRENT_ENV_VARS = (
+    "QBIT_HOST",
+    "QBIT_PORT",
+    "TRANSMISSION_HOST",
+    "TRANSMISSION_PORT",
+)
+
+
 def collect_warnings(config: Config) -> list[str]:
     """Collect non-fatal configuration warnings.
 
-    Three warning types (acceptance criterion #12):
+    Four warning types:
     1. A custom_category ID has no disk accepting it -> likely dead config.
     2. A category ID is referenced by disks/rules/mappings but not in
        ``config.categories`` -> default label will be used.
     3. A disk path does not exist on the filesystem -> disk unmounted.
+    4. Legacy torrent host/port env vars (``QBIT_HOST``, ``QBIT_PORT``,
+       ``TRANSMISSION_HOST``, ``TRANSMISSION_PORT``) are still present in
+       ``os.environ`` -> they were migrated to ``config/torrent.json5`` in
+       api-unify and are no longer read; the user should remove them from
+       ``.env`` and verify the json5 values.
 
     Args:
         config: Validated Config instance to inspect.
@@ -253,6 +269,14 @@ def collect_warnings(config: Config) -> list[str]:
     for disk in config.disks:
         if not disk.path.exists():
             warnings.append(f"disk '{disk.id}' path '{disk.path}' not mounted/present")
+
+    # Warning 4: legacy torrent host/port env vars still present in os.environ
+    legacy_env = [name for name in _LEGACY_TORRENT_ENV_VARS if os.environ.get(name)]
+    if legacy_env:
+        warnings.append(
+            f"legacy env vars ignored by api-unify code path: {', '.join(legacy_env)}. "
+            "Remove from .env and configure host/port in config/torrent.json5 instead."
+        )
 
     return warnings
 

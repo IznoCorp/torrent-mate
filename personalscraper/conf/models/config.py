@@ -7,6 +7,13 @@ from pydantic import Field, field_validator, model_validator
 
 from personalscraper.conf.ids import BUILTIN_CATEGORY_IDS
 from personalscraper.conf.models._base import _StrictModel
+from personalscraper.conf.models.api_config import (
+    MetadataConfig,
+    NotifyConfig,
+    RankingConfig,
+    TorrentConfig,
+    TrackerConfig,
+)
 from personalscraper.conf.models.categories import (
     AnimeRule,
     CategoryConfig,
@@ -88,6 +95,12 @@ class Config(_StrictModel):
     thresholds: ThresholdsConfig = Field(default_factory=ThresholdsConfig)
 
     indexer: IndexerConfig = Field(default_factory=IndexerConfig)
+
+    metadata: MetadataConfig = Field(default_factory=MetadataConfig)
+    torrent: TorrentConfig = Field(default_factory=TorrentConfig)
+    tracker: TrackerConfig = Field(default_factory=TrackerConfig)
+    ranking: RankingConfig = Field(default_factory=RankingConfig)
+    notify: NotifyConfig = Field(default_factory=NotifyConfig)
 
     @model_validator(mode="after")
     def _resolve_derived_paths(self) -> "Config":

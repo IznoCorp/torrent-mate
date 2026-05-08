@@ -26,6 +26,18 @@ from personalscraper.scraper.ytdlp_downloader import (
 class TestCookieConfig:
     """Tests for CookieConfig.from_env() env-var loading and permission checks."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_settings_cache(self) -> None:
+        """Bust the get_settings() lru_cache before each test.
+
+        from_env() goes through get_settings() which is @lru_cache. Without this
+        clear, monkeypatch.setenv() has no effect for tests sharing a worker
+        with a previous test that already populated the cache (xdist races).
+        """
+        from personalscraper.config import get_settings
+
+        get_settings.cache_clear()
+
     def test_no_cookies_when_env_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """CookieConfig.from_env() returns None when no env vars are set."""
         monkeypatch.delenv("YOUTUBE_COOKIES_FILE", raising=False)

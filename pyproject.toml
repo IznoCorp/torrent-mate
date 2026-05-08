@@ -31,12 +31,14 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "requests>=2.31.0",
     "qbittorrent-api>=2025.1.0",
+    "transmission-rpc>=7.0.0",
     "guessit>=3.8.0",
     "rapidfuzz>=3.14.0",
     "tenacity>=9.1.0",
     "rich>=14.0.0",
     "structlog>=25.0.0",
     "json5>=0.9.14",
+    "xmltodict>=0.13.0",
     "yt-dlp>=2026.1.1,<2027",
     "pymediainfo>=6.1.0",
     "enzyme>=0.5.2",
@@ -57,6 +59,8 @@ dev = [
     "pyfakefs>=5.4.0",
     "hypothesis>=6.100.0",
     "pytest-xdist>=3.8.0",
+    "responses>=0.25.0",
+    "tomli>=2.0.0; python_version < '3.11'",
 ]
 
 [project.scripts]

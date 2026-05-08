@@ -21,6 +21,57 @@ Run `personalscraper init-config` to create `config/` from the `config.example/`
 
 ## Critical Rules
 
+### Search Safety (MANDATORY — machine crash prevention)
+
+`tests/e2e/perf/.fixture/` is **14 GB** of binary media files. `rg` without type
+filters WILL consume all RAM and crash the machine (PID 39685 incident).
+
+**Every `rg` command MUST include one of:**
+
+- `--type py` (Python files only)
+- `-g '*.py'` (glob filter)
+- `-g '*.md'` or `-g '*.json5'` etc. for non-Python targets
+
+**Examples:**
+
+```bash
+# CORRECT
+rg "pattern" --type py personalscraper/ tests/
+rg "pattern" -g '*.py' -g '*.md' .
+
+# WRONG — will crash the machine
+rg "pattern" personalscraper/ tests/
+rg "pattern" .
+```
+
+`.rgignore` at the repo root excludes known heavy dirs as defense-in-depth,
+but new fixtures can appear — the type filter is the primary safeguard.
+
+### Network Timeout Safety (MANDATORY — machine hang prevention)
+
+**curl, wget, and fetch can hang indefinitely** when a server accepts the TCP
+connection but never sends an HTTP response (omdbapi.com/swagger.json incident,
+11+ hours). A `block_curl_without_timeout` PreToolUse hook enforces this rule.
+
+**Every network command MUST include both:**
+
+- `--connect-timeout N` (TCP handshake timeout, recommended 10s)
+- `--max-time N` (total transfer timeout, recommended 30s)
+
+**Examples:**
+
+```bash
+# CORRECT
+curl --connect-timeout 10 --max-time 30 "https://api.example.com/data"
+wget --timeout 30 "https://example.com/file"
+
+# WRONG — will hang indefinitely if server accepts TCP but never responds
+curl "https://api.example.com/data"
+```
+
+**WebFetch caveat**: WebFetch has no configurable timeout. Prefer `Bash(curl)` with
+explicit timeouts for API calls to hosts that may be slow or unreachable.
+
 ### Commit Convention
 
 Follows [Conventional Commits](https://www.conventionalcommits.org/) — globally enforced for all projects using this `.claude/` config.
@@ -75,13 +126,29 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 - New tests: choose unit / integration / manual E2E — see `docs/reference/testing.md`.
 - **Module size**: soft warning at 800 non-blank LOC, hard ceiling 1000 LOC. Run `python3 scripts/check-module-size.py` (also wired into `make check`). Advisory in 0.9.0; promoted to hard block in 0.10.0.
 
+### Phase Gate Checklist (MANDATORY before every phase gate commit)
+
+Every `chore(scope): phase N gate` commit MUST pass all of:
+
+1. **`make lint`** — ruff + mypy (both wired in Makefile). Zero errors.
+2. **`make test`** — all 2642+ tests pass. Check the summary line: `NNNN passed` with 0 failed/errors.
+3. **`make check`** — lint + test + module-size + typed-api guardrails.
+4. **Residual import grep** — for every module deleted in this phase, grep both `personalscraper/` AND `tests/` for the old import path. Zero matches.
+5. **`python -c "import personalscraper"`** — smoke test.
+
+**If `make test` shows any ERROR (not just FAILED)**: the test COLLECTION crashed — all tests after that point are skipped. Fix imports before proceeding.
+
+**After any module deletion**: grep `tests/` for the old path. `rg "old.module.path" tests/` must return zero matches.
+
+**After any constructor signature change**: grep `tests/` for the old call pattern and update all test fixtures/mocks.
+
 ### Implementation Workflow (feature-oriented)
 
 10 `implement:*` skills managing the full feature lifecycle with Opus/Sonnet/Haiku allocation. See details in `docs/superpowers/specs/2026-04-22-implement-skills-refactor-design.md`.
 
 **Entry point**: `/implement:feature` — archive prev, brainstorm, derive codename + SemVer type, create branch, generate plan.
 
-**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` (Sonnet) + `/implement:check` (Opus verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + max-3 fix cycles + squash merge).
+**Per phase**: `/implement:phase` — loop on sub-phases, dispatching `/implement:sub-phase` + `/implement:check` (verification). Auto-invokes `/implement:feature-pr` at last phase (gate + push + PR + CI poll), then `/implement:pr-review` (review + max-3 fix cycles + squash merge).
 
 **Branches**: `feat/{codename}` or `fix/{codename}`
 **Commits**: Conventional Commits with `(codename)` scope
@@ -102,7 +169,7 @@ Alternative: run steps individually (`personalscraper ingest`, then `personalscr
 
 ### Language
 
-The user communicates in **French**. Code comments are a mix of French and English. Respond in French when the user writes in French.
+The user communicates in French or English. Code comments are in English only. Respond in French when the user writes in French.
 
 ## Reference Index (lazy-load when relevant)
 
@@ -122,12 +189,17 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder) | `docs/reference/trailers.md`            |
 | Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                 | `docs/reference/indexer.md`             |
 | JSON column shapes (artwork_json, payload_json, stats_json) — Pydantic model references and examples                | `docs/reference/indexer-json-shapes.md` |
+| API contracts, HttpTransport, TransportPolicy, family Protocols (`MetadataClient`, `TorrentClient`, …)              | `docs/reference/architecture.md` (api/) |
+| TMDB / TVDB / OMDB / Trakt providers (auth, endpoints, response shape, particularities)                             | `docs/reference/<provider>-api.md`      |
+| qBittorrent / Transmission torrent clients (auth, endpoints, content_path, particularities)                         | `docs/reference/<provider>-api.md`      |
+| LaCale / C411 trackers (search, ranking, samples, freeleech, passkey)                                               | `docs/reference/<tracker>-api.md`       |
+| Telegram notifier / healthchecks (lifecycle, auth-in-URL, fail-soft contract)                                       | `docs/reference/<provider>-api.md`      |
 
 Also check archived alpha versions under `docs/archive/legacy-alpha/` and archived features under `docs/archive/features/`.
 
 ## Current Feature
 
-**Feature**: arch-cleanup
-**Branch**: refactor/arch-cleanup
-**Design**: docs/features/arch-cleanup/DESIGN.md
-**Plan**: docs/features/arch-cleanup/plan/
+**Feature**: api-unify
+**Branch**: feat/api-unify
+**Design**: docs/features/api-unify/DESIGN.md
+**Plan**: docs/features/api-unify/plan/

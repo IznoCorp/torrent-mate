@@ -3,34 +3,68 @@
 from __future__ import annotations
 
 import re
+from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any
 
 from guessit.api import GuessitException
 
+from personalscraper.api._contracts import MediaType
+from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.conf.models.config import Config
     from personalscraper.scraper.keywords_cache import KeywordsCache
-    from personalscraper.scraper.tmdb_client import TMDBClient
+
+
+def _media_details_to_classifier_dict(details: MediaDetails) -> dict[str, Any]:
+    """Adapt typed MediaDetails into the legacy dict shape the classifier expects.
+
+    Phase 27 transitional shim: ``_classify_item`` and ``_resolve_title`` still
+    consume the raw provider-style dict (``{"title", "original_title",
+    "genres": [{"id", "name"}], "origin_country": [...], ...}``) so that
+    downstream consumers (NFO generator, artwork downloader) that have not
+    yet been migrated keep their dict-based signatures unchanged. As soon as
+    a consumer is migrated to MediaDetails, it should bypass this adapter.
+
+    Args:
+        details: Typed metadata payload from a provider client.
+
+    Returns:
+        Dict whose keys match the historical TMDB-flavoured shape used by
+        every classifier path. ``name`` aliases ``title`` and
+        ``original_name`` aliases ``original_title`` so TV-style lookups
+        keep working.
+    """
+    return {
+        "title": details.title,
+        "name": details.title,
+        "original_title": details.original_title,
+        "original_name": details.original_title,
+        "genres": [
+            {"id": gid, "name": gname}
+            for gid, gname in zip_longest(details.genre_ids, details.genres, fillvalue=None)
+            if gid is not None or gname
+        ],
+        "origin_country": list(details.origin_countries) or list(details.production_countries),
+        "production_countries": [{"iso_3166_1": c} for c in details.production_countries],
+    }
+
+
+def _coerce_to_classifier_dict(data: MediaDetails | dict[str, Any]) -> dict[str, Any]:
+    """Return ``data`` as a classifier-readable dict.
+
+    Accepts either the typed model emitted by api-unify clients or the
+    legacy raw-dict shape some test fixtures still pass.
+    """
+    if isinstance(data, MediaDetails):
+        return _media_details_to_classifier_dict(data)
+    return data
+
 
 log = get_logger("scraper")
-
-_TVDB_LANG_MAP: dict[str, str] = {
-    "fr": "fra",
-    "en": "eng",
-    "es": "spa",
-    "de": "deu",
-    "it": "ita",
-    "ja": "jpn",
-    "ko": "kor",
-    "pt": "por",
-    "ru": "rus",
-    "zh": "zho",
-    "ar": "ara",
-    "nl": "nld",
-}
 
 _FOLDER_PATTERN = re.compile(r"^(.+?)\s*\((\d{4})\)\s*$")
 _SXXEXX_RE = re.compile(r"S(\d+)E(\d+)", re.IGNORECASE)
@@ -87,10 +121,10 @@ class ClassifierMixin:
 
     def _classify_item(
         self,
-        media_type: Literal["movie", "tv"],
+        media_type: MediaType,
         path: Path,
         title: str,
-        api_data: dict[str, Any],
+        api_data: MediaDetails | dict[str, Any],
         tmdb_id: int | None,
         nfo_path: Path | None = None,
     ) -> str | None:
@@ -107,7 +141,10 @@ class ClassifierMixin:
             media_type: ``"movie"`` or ``"tv"`` (TMDB API convention).
             path: Source path of the media item.
             title: Resolved media title string.
-            api_data: Full TMDB movie/show details dict.
+            api_data: Either a typed ``MediaDetails`` (from api-unify clients)
+                or a raw provider-shaped dict (legacy callers / test fixtures).
+                The two are reconciled internally via
+                :func:`_coerce_to_classifier_dict`.
             tmdb_id: TMDB numeric ID (used for /keywords fetch).
             nfo_path: Optional path to an existing NFO for priority-1 override.
 
@@ -123,20 +160,26 @@ class ClassifierMixin:
         if self._needs_keywords and tmdb_id is not None and self._keywords_cache is not None:
             cached = self._keywords_cache.get(tmdb_id, media_type)
             if cached is None:
-                fetched = self._tmdb.get_keywords(tmdb_id, media_type)
+                fetched = self._tmdb.get_keywords(str(tmdb_id), media_type)
                 self._keywords_cache.set(tmdb_id, media_type, fetched)
                 tmdb_keywords = fetched
             else:
                 tmdb_keywords = cached
 
-        # Extract genre data from TMDB API response
-        genres_raw = api_data.get("genres", [])
+        # api-unify: api_data may arrive as a typed MediaDetails. Coerce to
+        # the legacy dict shape so the rest of this method keeps using the
+        # historical key access pattern. Once NFO + artwork consumers are
+        # migrated to MediaDetails too, this shim can move further upstream.
+        data = _coerce_to_classifier_dict(api_data)
+
+        # Extract genre data from TMDB-flavoured response shape
+        genres_raw = data.get("genres", [])
         tmdb_genres = [g["name"] for g in genres_raw if isinstance(g, dict) and g.get("name")]
         tmdb_genre_ids = [g["id"] for g in genres_raw if isinstance(g, dict) and g.get("id") is not None]
 
         # Origin country (list for movies, list for TV shows)
         origin_country: list[str] = []
-        raw_oc = api_data.get("origin_country") or api_data.get("production_countries") or []
+        raw_oc = data.get("origin_country") or data.get("production_countries") or []
         if isinstance(raw_oc, list):
             for item in raw_oc:
                 if isinstance(item, str):
@@ -170,19 +213,20 @@ class ClassifierMixin:
     def _resolve_title(
         self,
         match_title: str,
-        api_data: dict[str, Any],
+        api_data: MediaDetails | dict[str, Any],
         media_type: str,
     ) -> str:
         """Pick the best title for folder renaming.
 
         When config.scraper.prefer_local_title is True and the API data
-        contains a local (FR) title, uses it. Falls back to
-        match_title if the local title is empty or identical
-        to the original title.
+        contains a local (FR) title, uses it. Falls back to match_title
+        if the local title is empty or identical to the original title.
 
         Args:
             match_title: Title from the match result (API default).
-            api_data: Full movie/show data from TMDB API.
+            api_data: Either a typed ``MediaDetails`` (from api-unify
+                clients) or a raw provider-shaped dict (legacy callers /
+                test fixtures).
             media_type: "movie" or "tvshow".
 
         Returns:
@@ -191,22 +235,26 @@ class ClassifierMixin:
         if not self._prefer_local_title:
             return match_title
 
-        # TMDB movies use "title", TV shows use "name"
+        data = _coerce_to_classifier_dict(api_data)
+
+        # TMDB movies use "title", TV shows use "name". The classifier-dict
+        # shape exposes both fields (``name`` aliases ``title`` after
+        # coercion) so either lookup hits the localised value.
         key = "title" if media_type == "movie" else "name"
-        local_title = api_data.get(key, "")
+        local_title = data.get(key, "")
 
         if not local_title:
             log.debug("title_no_local", match_title=match_title)
             return match_title
 
         # If local title is the same as original_title, it means
-        # there's no translation — use match_title instead
-        original = api_data.get("original_title" if media_type == "movie" else "original_name", "")
+        # there's no translation — use match_title instead.
+        original = data.get("original_title" if media_type == "movie" else "original_name", "")
         if local_title == original and local_title != match_title:
             log.debug("title_no_translation", local_title=local_title, match_title=match_title)
             return match_title
 
-        return cast(str, local_title)
+        return str(local_title)
 
     @staticmethod
     def _strip_trailing_year(title: str) -> str:

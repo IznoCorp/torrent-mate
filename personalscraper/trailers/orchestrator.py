@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.indexer.db import open_db as _open_indexer_db
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
@@ -248,7 +249,7 @@ class TrailersOrchestrator:
 
         for item in items:
             ids: dict[str, str | int | None] = {"tmdb": item.tmdb_id, "tvdb": None}
-            key_media_type = "tv" if item.media_type == "tvshow" else item.media_type
+            key_media_type = MediaType.from_legacy(item.media_type)
             try:
                 key = make_state_key(
                     media_type=key_media_type,
@@ -367,7 +368,7 @@ class TrailersOrchestrator:
             url: str | None = None
             try:
                 tmdb_id_int: int | None = int(item.tmdb_id) if item.tmdb_id else None
-                find_media_type = "tv" if item.media_type == "tvshow" else item.media_type
+                find_media_type = MediaType.from_legacy(item.media_type)
                 url = self._finder.find(
                     tmdb_id_int,  # type: ignore[arg-type]
                     find_media_type,
@@ -379,7 +380,7 @@ class TrailersOrchestrator:
                 # I2: circuit-breaker open is a distinct failure mode from a
                 # generic finder error.  Track it separately so operators can
                 # distinguish "TMDB/YouTube circuit tripped" from real errors.
-                from personalscraper.scraper.circuit_breaker import CircuitOpenError
+                from personalscraper.api._contracts import CircuitOpenError
 
                 is_circuit_open = isinstance(exc, CircuitOpenError)
                 if is_circuit_open:
@@ -605,10 +606,12 @@ class TrailersOrchestrator:
             A TrailerFinder instance, or None when import fails.
         """
         try:
+            from personalscraper.api.metadata.tmdb import TMDBClient  # noqa: PLC0415
+            from personalscraper.api.transport._http import HttpTransport  # noqa: PLC0415
+            from personalscraper.api.transport._policy import CircuitPolicy  # noqa: PLC0415
             from personalscraper.config import get_settings  # noqa: PLC0415
-            from personalscraper.scraper.circuit_breaker import CircuitBreaker  # noqa: PLC0415
+            from personalscraper.core.circuit import CircuitBreaker  # noqa: PLC0415
             from personalscraper.scraper.json_ttl_cache import JsonTTLCache  # noqa: PLC0415
-            from personalscraper.scraper.tmdb_client import TMDBClient  # noqa: PLC0415
             from personalscraper.scraper.trailer_finder import TrailerFinder  # noqa: PLC0415
             from personalscraper.scraper.trailers_cache import TrailersCache  # noqa: PLC0415
             from personalscraper.scraper.youtube_search import (  # noqa: PLC0415
@@ -630,11 +633,14 @@ class TrailersOrchestrator:
             # TMDBClient builds its own breaker internally; pass the trailers-specific
             # threshold/cooldown so a YouTube outage does not trip the main TMDB breaker
             # used elsewhere in the scraper.
-            tmdb_client = TMDBClient(
-                api_key=tmdb_key,
-                circuit_breaker_threshold=int(cb_cfg.tmdb_videos.errors_threshold),
-                circuit_breaker_cooldown=int(cb_cfg.tmdb_videos.cooldown_sec),
+            tmdb_policy = TMDBClient.policy(
+                tmdb_key,
+                circuit=CircuitPolicy(
+                    failure_threshold=int(cb_cfg.tmdb_videos.errors_threshold),
+                    cooldown_seconds=int(cb_cfg.tmdb_videos.cooldown_sec),
+                ),
             )
+            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy))
             youtube_breaker = CircuitBreaker(
                 name="trailers_youtube",
                 failure_threshold=int(cb_cfg.youtube.errors_threshold),

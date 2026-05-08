@@ -4,7 +4,7 @@ help:
 	@echo "PersonalScraper — Available commands:"
 	@echo "  make clean           - Remove build artifacts and cache files"
 	@echo "  make test            - Run all tests with pytest"
-	@echo "  make lint            - Run ruff linter + logging convention audit"
+	@echo "  make lint            - Run ruff check + ruff format --check + mypy + logging audit"
 	@echo "  make lint-logging    - Run logging convention audit (fails on errors)"
 	@echo "  make check           - Run lint, tests, and advisory module-size check"
 	@echo "  make format          - Format code with ruff"
@@ -28,6 +28,8 @@ test:
 lint:
 	@echo "Running linter..."
 	python -m ruff check personalscraper/ tests/
+	python -m ruff format --check personalscraper/ tests/
+	python -m mypy personalscraper/
 	$(MAKE) lint-logging
 
 lint-logging:
@@ -36,6 +38,18 @@ lint-logging:
 
 check: lint test
 	python3 scripts/check-module-size.py
+	python3 scripts/check-typed-api.py
+
+gate: check
+	@echo "Gate: residual import audit..."
+	@! rg -q "from personalscraper\.scraper\.circuit_breaker" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.circuit_breaker import"; exit 1; }
+	@! rg -q "from personalscraper\.scraper\.tmdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tmdb_client import"; exit 1; }
+	@! rg -q "from personalscraper\.scraper\.tvdb_client" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.tvdb_client import"; exit 1; }
+	@! rg -q "from personalscraper\.scraper\.http_retry" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.http_retry import"; exit 1; }
+	@! rg -q "from personalscraper\.scraper\.providers" personalscraper/ tests/ 2>/dev/null || { echo "FAIL: residual scraper.providers import"; exit 1; }
+	@! rg -l "TMDBError|TVDBError" personalscraper/ --include='*.py' 2>/dev/null | grep -v "_contracts.py" > /dev/null || { echo "FAIL: residual TMDBError/TVDBError references"; exit 1; }
+	@python3 -c "import personalscraper" || { echo "FAIL: import personalscraper"; exit 1; }
+	@echo "Gate: ALL CHECKS PASSED"
 
 format:
 	@echo "Formatting code..."

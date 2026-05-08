@@ -1,0 +1,445 @@
+{
+  "status": "success",
+  "data": {
+    "id": 290,
+    "name": "Askeladden - I Dovregubbens hall",
+    "slug": "the-ash-lad-in-the-hall-of-the-mountain-king",
+    "image": "https://artworks.thetvdb.com/banners/movies/290/posters/290.jpg",
+    "nameTranslations": [
+      "ita",
+      "kor",
+      "ces",
+      "deu",
+      "nld",
+      "fra",
+      "spa",
+      "tur",
+      "por",
+      "dan",
+      "zho",
+      "swe",
+      "nor",
+      "rus",
+      "eng"
+    ],
+    "overviewTranslations": [
+      "ita",
+      "kor",
+      "ces",
+      "deu",
+      "nld",
+      "fra",
+      "spa",
+      "tur",
+      "por",
+      "dan",
+      "zho",
+      "swe",
+      "nor",
+      "rus",
+      "eng",
+      "eng"
+    ],
+    "aliases": [],
+    "score": 3434,
+    "runtime": 100,
+    "status": {
+      "id": 5,
+      "name": "Released",
+      "recordType": "movie",
+      "keepUpdated": true
+    },
+    "lastUpdated": "2019-03-26 19:25:45",
+    "year": "2018",
+    "trailers": [
+      {
+        "id": 36405,
+        "name": "ESPEN - LE GARDIEN DE LA PROPHETIE - Bande-annonce",
+        "url": "https://www.youtube.com/watch?v=u82ZdgCadKs",
+        "language": "fra",
+        "runtime": 94
+      }
+    ],
+    "genres": [
+      {
+        "id": 18,
+        "name": "Adventure",
+        "slug": "adventure"
+      },
+      {
+        "id": 10,
+        "name": "Fantasy",
+        "slug": "fantasy"
+      }
+    ],
+    "releases": [
+      {
+        "country": "fra",
+        "date": "2018-08-20",
+        "detail": null
+      },
+      {
+        "country": "deu",
+        "date": "2018-12-04",
+        "detail": null
+      },
+      {
+        "country": "esp",
+        "date": "2020-11-27",
+        "detail": null
+      }
+    ],
+    "artworks": [
+      {
+        "id": 2551054,
+        "image": "https://artworks.thetvdb.com/banners/movies/290/backgrounds/290.jpg",
+        "thumbnail": "https://artworks.thetvdb.com/banners/movies/290/backgrounds/290_t.jpg",
+        "language": null,
+        "type": 15,
+        "score": 100000,
+        "width": 1920,
+        "height": 1080,
+        "includesText": false
+      },
+      {
+        "id": 2443504,
+        "image": "https://artworks.thetvdb.com/banners/movies/290/posters/290.jpg",
+        "thumbnail": "https://artworks.thetvdb.com/banners/movies/290/posters/290_t.jpg",
+        "language": "nor",
+        "type": 14,
+        "score": 100000,
+        "width": 680,
+        "height": 1000,
+        "includesText": true
+      }
+    ],
+    "remoteIds": [
+      {
+        "id": "http://www.maipo.no/films#/ash-lad-in-the-hall-of-the-mountain-king/",
+        "type": 4,
+        "sourceName": "Official Website"
+      },
+      {
+        "id": "tt5628418",
+        "type": 2,
+        "sourceName": "IMDB"
+      },
+      {
+        "id": "444090",
+        "type": 10,
+        "sourceName": "TheMovieDB.com"
+      }
+    ],
+    "characters": [
+      {
+        "id": 12145703,
+        "name": "Pål",
+        "peopleId": 647944,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 3,
+        "image": "",
+        "sort": 0,
+        "isFeatured": true,
+        "url": "647944-elias-holmen-sorensen",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Actor",
+        "personName": "Elias Holmen Sørensen",
+        "tagOptions": null,
+        "personImgURL": ""
+      },
+      {
+        "id": 12145704,
+        "name": "Prince Fredrik",
+        "peopleId": 465388,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 3,
+        "image": "",
+        "sort": 0,
+        "isFeatured": true,
+        "url": "465388-allan-hyde",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Actor",
+        "personName": "Allan Hyde",
+        "tagOptions": null,
+        "personImgURL": "https://artworks.thetvdb.com/banners/v4/actor/465388/photo/64d918c2b4d0b.jpg"
+      },
+      {
+        "id": 12145705,
+        "name": "Father",
+        "peopleId": 294201,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 3,
+        "image": "",
+        "sort": 0,
+        "isFeatured": true,
+        "url": "294201-thorbjorn-harr",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Actor",
+        "personName": "Thorbjørn Harr",
+        "tagOptions": null,
+        "personImgURL": "https://artworks.thetvdb.com/banners/v4/actor/294201/photo/6776a7ffcde90.jpg"
+      },
+      {
+        "id": 12145706,
+        "name": "King Erik",
+        "peopleId": 645106,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 3,
+        "image": "",
+        "sort": 0,
+        "isFeatured": true,
+        "url": "645106-gard-b-eidsvold",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Actor",
+        "personName": "Gard B. Eidsvold",
+        "tagOptions": null,
+        "personImgURL": "https://artworks.thetvdb.com/banners/v4/actor/645106/photo/638e3ebf04f03.jpg"
+      },
+      {
+        "id": 12145707,
+        "name": "Queen Victoria",
+        "peopleId": 488480,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 3,
+        "image": "",
+        "sort": 0,
+        "isFeatured": true,
+        "url": "488480-synnove-macody-lund",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Actor",
+        "personName": "Synnøve Macody Lund",
+        "tagOptions": null,
+        "personImgURL": "https://artworks.thetvdb.com/banners/v4/actor/488480/photo/65024a30b0eff.jpg"
+      },
+      {
+        "id": 12145708,
+        "name": "Christian",
+        "peopleId": 532182,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 3,
+        "image": "",
+        "sort": 5,
+        "isFeatured": true,
+        "url": "532182-robert-skjarstad",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Actor",
+        "personName": "Robert Skjærstad",
+        "tagOptions": null,
+        "personImgURL": "https://artworks.thetvdb.com/banners/v4/actor/532182/photo/61e5ca49c8775.jpg"
+      },
+      {
+        "id": 66027533,
+        "name": null,
+        "peopleId": 8174741,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 1,
+        "image": "",
+        "sort": 0,
+        "isFeatured": false,
+        "url": "8174741-mikkel-braenne-sandemose",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Director",
+        "personName": "Mikkel Braenne Sandemose",
+        "tagOptions": null,
+        "personImgURL": ""
+      },
+      {
+        "id": 66027534,
+        "name": null,
+        "peopleId": 8182848,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 2,
+        "image": "",
+        "sort": 0,
+        "isFeatured": false,
+        "url": "8182848-espen-enger",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Writer",
+        "personName": "Espen Enger",
+        "tagOptions": null,
+        "personImgURL": ""
+      },
+      {
+        "id": 66027536,
+        "name": null,
+        "peopleId": 8287323,
+        "seriesId": null,
+        "series": null,
+        "movie": null,
+        "movieId": 290,
+        "episodeId": null,
+        "type": 2,
+        "image": "",
+        "sort": 0,
+        "isFeatured": false,
+        "url": "8287323-aleksander-kirkwood-brown",
+        "nameTranslations": null,
+        "overviewTranslations": null,
+        "aliases": null,
+        "peopleType": "Writer",
+        "personName": "Aleksander Kirkwood Brown",
+        "tagOptions": null,
+        "personImgURL": ""
+      }
+    ],
+    "budget": "0.00",
+    "boxOffice": "0.00",
+    "boxOfficeUS": "",
+    "originalCountry": "nor",
+    "originalLanguage": "nor",
+    "audioLanguages": null,
+    "subtitleLanguages": null,
+    "studios": null,
+    "awards": null,
+    "tagOptions": null,
+    "lists": [],
+    "contentRatings": null,
+    "companies": {
+      "studio": [],
+      "network": [],
+      "production": [
+        {
+          "id": 27196,
+          "name": "Maipo Film",
+          "slug": "maipo-film",
+          "nameTranslations": null,
+          "overviewTranslations": null,
+          "aliases": null,
+          "country": null,
+          "primaryCompanyType": 3,
+          "activeDate": null,
+          "inactiveDate": null,
+          "companyType": {
+            "companyTypeId": 3,
+            "companyTypeName": "Production Company"
+          },
+          "parentCompany": {
+            "id": null,
+            "name": null,
+            "relation": {
+              "id": null,
+              "typeName": null
+            }
+          },
+          "tagOptions": null
+        },
+        {
+          "id": 38975,
+          "name": "Sirena Film",
+          "slug": "sirena-film",
+          "nameTranslations": null,
+          "overviewTranslations": null,
+          "aliases": null,
+          "country": null,
+          "primaryCompanyType": 3,
+          "activeDate": null,
+          "inactiveDate": null,
+          "companyType": {
+            "companyTypeId": 3,
+            "companyTypeName": "Production Company"
+          },
+          "parentCompany": {
+            "id": null,
+            "name": null,
+            "relation": {
+              "id": null,
+              "typeName": null
+            }
+          },
+          "tagOptions": null
+        },
+        {
+          "id": 40980,
+          "name": "Subotica Productions Limited",
+          "slug": "subotica-productions-limited",
+          "nameTranslations": null,
+          "overviewTranslations": null,
+          "aliases": null,
+          "country": null,
+          "primaryCompanyType": 3,
+          "activeDate": null,
+          "inactiveDate": null,
+          "companyType": {
+            "companyTypeId": 3,
+            "companyTypeName": "Production Company"
+          },
+          "parentCompany": {
+            "id": null,
+            "name": null,
+            "relation": {
+              "id": null,
+              "typeName": null
+            }
+          },
+          "tagOptions": null
+        }
+      ],
+      "distributor": [],
+      "special_effects": []
+    },
+    "production_countries": [
+      {
+        "id": 175753,
+        "country": "nor",
+        "name": "Norway"
+      }
+    ],
+    "inspirations": [],
+    "spoken_languages": [
+      "nor"
+    ],
+    "first_release": {
+      "country": "fra",
+      "date": "2018-08-20",
+      "detail": null
+    }
+  }
+}

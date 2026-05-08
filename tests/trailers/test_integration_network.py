@@ -24,9 +24,9 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     api_key = os.environ.get("TMDB_READ_ACCESS_TOKEN") or os.environ.get("TMDB_API_KEY")
     assert api_key is not None  # guarded by skipif, here for type narrowing
 
-    from personalscraper.scraper.circuit_breaker import CircuitBreaker
+    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.core.circuit import CircuitBreaker
     from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-    from personalscraper.scraper.tmdb_client import TMDBClient
     from personalscraper.scraper.trailer_finder import TrailerFinder
     from personalscraper.scraper.trailers_cache import TrailersCache
     from personalscraper.scraper.youtube_search import YoutubeSearch
@@ -41,7 +41,12 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     MIN_SIZE = 100 * 1024  # 100 KiB
 
     # Wire up the discovery stack.
-    client = TMDBClient(api_key=api_key, language="en-US")
+    from personalscraper.api.transport._http import HttpTransport
+
+    client = TMDBClient(
+        transport=HttpTransport(TMDBClient.policy(api_key)),
+        language="en-US",
+    )
     cache = TrailersCache(tmp_path / "test_trailers_cache.json")
     searcher = YoutubeSearch(
         query_format="{title} {year} trailer",

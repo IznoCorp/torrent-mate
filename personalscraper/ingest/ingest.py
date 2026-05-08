@@ -12,10 +12,11 @@ from pathlib import Path
 import qbittorrentapi
 import requests
 
+from personalscraper.api.torrent._factory import build_active_torrent_client
+from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitClient
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
-from personalscraper.ingest.qbit_client import QBitAuthLockoutError, QBitClient
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
@@ -286,12 +287,16 @@ def run_ingest(
         _cleanup_orphan_temps(resolved_ingest_dir)
 
     try:
-        client = QBitClient(
-            host=settings.qbit_host,
-            port=settings.qbit_port,
-            username=settings.qbit_username,
-            password=settings.qbit_password,
-        )
+        if config.torrent.active:
+            client = build_active_torrent_client(config.torrent, os.environ)
+        else:
+            client = QBitClient(
+                host=settings.qbit_host,
+                port=settings.qbit_port,
+                username=settings.qbit_username,
+                password=settings.qbit_password,
+            )
+            client.login()
     except Exception as e:
         log.error("qbit_init_failed", error=str(e), exc_info=True)
         report.error_count = 1
@@ -299,9 +304,9 @@ def run_ingest(
         return report
 
     try:
-        with client:
-            torrents = client.get_completed_torrents()
-            active_hashes = client.get_all_torrent_hashes()
+        try:
+            torrents = client.get_completed()
+            active_hashes = client.get_all_hashes()
             log.info("torrents_found", completed=len(torrents), total=len(active_hashes))
 
             tracker = IngestTracker(config.paths.data_dir / "ingested_torrents.json")
@@ -474,6 +479,12 @@ def run_ingest(
                 report.details.append(
                     f"ALL {content_missing_count} torrents have missing content. Check: is the source volume mounted?"
                 )
+        finally:
+            if hasattr(client, "logout"):
+                try:
+                    client.logout()
+                except Exception:
+                    pass
 
     except QBitAuthLockoutError as e:
         log.exception("ingest_qbit_auth_lockout", error=str(e))

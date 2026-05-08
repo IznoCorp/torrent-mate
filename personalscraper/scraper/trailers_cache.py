@@ -14,9 +14,9 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from personalscraper.api.metadata._base import Video
 from personalscraper.logger import get_logger
 from personalscraper.scraper.json_ttl_cache import JsonTTLCache
-from personalscraper.scraper.tmdb_client import Video
 
 logger = get_logger(__name__)
 

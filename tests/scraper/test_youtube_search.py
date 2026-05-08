@@ -74,7 +74,7 @@ class TestYoutubeSearch:
     @pytest.fixture()
     def searcher(self, tmp_path: Path) -> YoutubeSearch:
         """YoutubeSearch instance backed by a tmp quota cache."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         return YoutubeSearch(
@@ -169,7 +169,7 @@ class TestYoutubeSearch:
 
     def test_custom_query_format(self, tmp_path: Path) -> None:
         """YoutubeSearch respects a custom query format string."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         s = YoutubeSearch(
@@ -185,7 +185,7 @@ class TestYoutubeSearch:
 
     def test_skips_primary_when_no_api_key(self, tmp_path: Path) -> None:
         """search() skips primary entirely when api_key is empty."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         s = YoutubeSearch(
@@ -202,7 +202,7 @@ class TestYoutubeSearch:
         """search() skips primary when the circuit breaker is open."""
         import requests as _requests
 
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999)
@@ -223,7 +223,7 @@ class TestYoutubeSearch:
 
     def test_quota_exhaustion_skips_primary(self, tmp_path: Path) -> None:
         """search() skips primary when quota is exhausted for the day."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         quota = JsonTTLCache(tmp_path / "quota.json")
@@ -245,7 +245,7 @@ class TestYoutubeSearch:
 
     def test_yt_dlp_fallback_returns_url(self, tmp_path: Path) -> None:
         """search() uses yt-dlp fallback when api_key is empty and yt_dlp is available."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         s = YoutubeSearch(
@@ -278,7 +278,7 @@ class TestYoutubeSearch:
 
     def test_yt_dlp_fallback_returns_none_on_empty_entries(self, tmp_path: Path) -> None:
         """search() returns None when yt-dlp finds no entries."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         s = YoutubeSearch(
@@ -320,7 +320,7 @@ class TestFallbackExceptionSplit:
         Returns:
             A YoutubeSearch with no API key configured.
         """
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         return YoutubeSearch(
@@ -410,7 +410,7 @@ class TestPrimarySearchRetry:
     @pytest.fixture()
     def searcher(self, tmp_path: Path) -> YoutubeSearch:
         """YoutubeSearch instance backed by a tmp quota cache."""
-        from personalscraper.scraper.circuit_breaker import CircuitBreaker
+        from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
         return YoutubeSearch(

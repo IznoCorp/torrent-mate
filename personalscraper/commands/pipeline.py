@@ -262,8 +262,10 @@ def run(
     from rich.panel import Panel
     from rich.table import Table
 
+    from personalscraper.api.notify.healthchecks import HealthcheckClient
+    from personalscraper.api.notify.telegram import TelegramNotifier
+    from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
-    from personalscraper.notifier import TelegramNotifier, ping_healthcheck
     from personalscraper.pipeline import Pipeline
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
@@ -278,87 +280,105 @@ def run(
     try:
         settings = cli_compat.get_settings()
 
-        # Healthcheck start ping
-        ping_healthcheck(settings.healthcheck_url, "/start")
+        # Healthcheck client (None if not configured — pings short-circuit at the call site).
+        healthcheck: HealthcheckClient | None = None
+        if HealthcheckClient.is_configured(settings):
+            hc_transport = HttpTransport(HealthcheckClient.policy(settings.healthcheck_url))
+            healthcheck = HealthcheckClient(hc_transport)
+            healthcheck.ping_start()
 
-        # Clean old logs and bind run context
-        cleanup_old_logs()
-        structlog.contextvars.clear_contextvars()
-        run_id = datetime.now().isoformat(timespec="seconds")
-        structlog.contextvars.bind_contextvars(run_id=run_id)
-
-        mode = "[yellow]DRY-RUN[/yellow]" if dry_run else "[green]LIVE[/green]"
-        console.print(
-            f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
-            highlight=False,
-        )
-        _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
-
-        # Resolve flag defaults from config when not explicitly set by the caller.
-        # config.trailers.pipeline.skip / continue_on_error act as persistent
-        # operator-level defaults; CLI flags take precedence when provided.
-        effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
-        effective_continue_on_trailer_error = continue_on_trailer_error or config.trailers.pipeline.continue_on_error
-
-        from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
-        # Delegate to Pipeline orchestrator (9-step sequential flow)
-        pipeline = Pipeline(
-            config,
-            settings,
-            dry_run=dry_run,
-            interactive=interactive,
-            verbose=verbose,
-            console=console,
-            skip_trailers=effective_skip_trailers,
-            continue_on_trailer_error=effective_continue_on_trailer_error,
-        )
+        # Pipeline outcome is set to "success" only on the clean-completion path; any other
+        # exit (typer.Exit, TrailerStepFailed, unhandled exception) leaves it None and the
+        # finally block fires healthcheck.ping_fail() — preserves the dead-man's-switch
+        # contract per DESIGN §7.1.
+        pipeline_outcome: str | None = None
         try:
-            report = pipeline.run()
-        except TrailerStepFailed as exc:
-            # Trailers step failed and --continue-on-trailer-error was not set.
-            # Exit with code 2 (distinct from generic pipeline error exit 1) so
-            # scripts / launchd jobs can handle this case explicitly.
-            console.print(f"[red]ABORTED: {exc}[/red]", highlight=False)
-            _run_log.error("pipeline_aborted_trailer_step_failed", reason=str(exc))
-            raise typer.Exit(code=2) from exc
+            # Clean old logs and bind run context
+            cleanup_old_logs()
+            structlog.contextvars.clear_contextvars()
+            run_id = datetime.now().isoformat(timespec="seconds")
+            structlog.contextvars.bind_contextvars(run_id=run_id)
 
-        dur = report.duration()
-        minutes = int(dur.total_seconds()) // 60
-        seconds = int(dur.total_seconds()) % 60
-        dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
-        _run_log.info("pipeline_finished", duration=dur_str)
-
-        # Final summary table (9 steps)
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("Step")
-        table.add_column("OK", justify="right")
-        table.add_column("Skip", justify="right")
-        table.add_column("Err", justify="right")
-        for name, step in report.steps.items():
-            err_style = "red" if step.error_count else ""
-            table.add_row(
-                name.capitalize(),
-                str(step.success_count),
-                str(step.skip_count),
-                f"[{err_style}]{step.error_count}[/{err_style}]" if err_style else str(step.error_count),
+            mode = "[yellow]DRY-RUN[/yellow]" if dry_run else "[green]LIVE[/green]"
+            console.print(
+                f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
+                highlight=False,
             )
-        status_text = "[green]OK[/green]" if not report.has_errors() else "[red]ERRORS[/red]"
-        console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
+            _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
 
-        # Telegram notification (if configured)
-        if TelegramNotifier.is_configured(settings):
-            notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
-            notifier.send_report(report)
+            # Resolve flag defaults from config when not explicitly set by the caller.
+            # config.trailers.pipeline.skip / continue_on_error act as persistent
+            # operator-level defaults; CLI flags take precedence when provided.
+            effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
+            effective_continue_on_trailer_error = (
+                continue_on_trailer_error or config.trailers.pipeline.continue_on_error
+            )
 
-        # Healthcheck end ping
-        ping_healthcheck(
-            settings.healthcheck_url,
-            "" if not report.has_errors() else "/fail",
-        )
+            from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-        if report.has_errors():
-            raise typer.Exit(1)
+            # Delegate to Pipeline orchestrator (9-step sequential flow)
+            pipeline = Pipeline(
+                config,
+                settings,
+                dry_run=dry_run,
+                interactive=interactive,
+                verbose=verbose,
+                console=console,
+                skip_trailers=effective_skip_trailers,
+                continue_on_trailer_error=effective_continue_on_trailer_error,
+            )
+            try:
+                report = pipeline.run()
+            except TrailerStepFailed as exc:
+                # Trailers step failed and --continue-on-trailer-error was not set.
+                # Exit with code 2 (distinct from generic pipeline error exit 1) so
+                # scripts / launchd jobs can handle this case explicitly.
+                console.print(f"[red]ABORTED: {exc}[/red]", highlight=False)
+                _run_log.error("pipeline_aborted_trailer_step_failed", reason=str(exc))
+                raise typer.Exit(code=2) from exc
+
+            dur = report.duration()
+            minutes = int(dur.total_seconds()) // 60
+            seconds = int(dur.total_seconds()) % 60
+            dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
+            _run_log.info("pipeline_finished", duration=dur_str)
+
+            # Final summary table (9 steps)
+            table = Table(show_header=True, header_style="bold")
+            table.add_column("Step")
+            table.add_column("OK", justify="right")
+            table.add_column("Skip", justify="right")
+            table.add_column("Err", justify="right")
+            for name, step in report.steps.items():
+                err_style = "red" if step.error_count else ""
+                table.add_row(
+                    name.capitalize(),
+                    str(step.success_count),
+                    str(step.skip_count),
+                    f"[{err_style}]{step.error_count}[/{err_style}]" if err_style else str(step.error_count),
+                )
+            status_text = "[green]OK[/green]" if not report.has_errors() else "[red]ERRORS[/red]"
+            console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
+
+            # Telegram notification (if configured)
+            if TelegramNotifier.is_configured(settings):
+                transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+                notifier = TelegramNotifier(transport, settings.telegram_chat_id)
+                notifier.send_report(report)
+
+            # Mark outcome BEFORE the typer.Exit so the finally block pings the right state.
+            pipeline_outcome = "fail" if report.has_errors() else "success"
+            if report.has_errors():
+                raise typer.Exit(1)
+        finally:
+            # Dead-man's-switch: ping_fail on any non-clean exit (TrailerStepFailed, unexpected
+            # exception, typer.Exit due to report errors). HealthcheckClient is itself fail-soft
+            # so an unreachable hc-ping.com will not abort the lock release below.
+            if healthcheck is not None:
+                if pipeline_outcome == "success":
+                    healthcheck.ping_success()
+                else:
+                    healthcheck.ping_fail()
 
     finally:
         cli_compat.release_lock(lock_file=config.paths.data_dir / "pipeline.lock")

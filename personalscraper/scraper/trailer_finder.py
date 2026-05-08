@@ -31,13 +31,13 @@ from typing import TYPE_CHECKING
 import requests
 import yt_dlp.utils
 
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.logger import get_logger
-from personalscraper.scraper.circuit_breaker import CircuitOpenError
-from personalscraper.scraper.tmdb_client import TMDBError
 from personalscraper.scraper.trailers_cache import TrailersCache
 
 if TYPE_CHECKING:
-    from personalscraper.scraper.tmdb_client import TMDBClient, Video
+    from personalscraper.api.metadata._base import Video
+    from personalscraper.api.metadata.tmdb import TMDBClient
     from personalscraper.scraper.youtube_search import YoutubeSearch
 
 logger = get_logger(__name__)
@@ -70,7 +70,7 @@ def _best_video(videos: list[Video]) -> Video | None:
     Returns:
         The best matching Video instance, or None when no YouTube video exists.
     """
-    youtube_only = [v for v in videos if v.site == "YouTube"]
+    youtube_only = [v for v in videos if v.site == "youtube"]
     if not youtube_only:
         return None
 
@@ -207,7 +207,7 @@ class TrailerFinder:
                     # here would leave counts["circuit_open"] permanently at zero
                     # (dead observability counter).
                     raise
-                except (TMDBError, requests.RequestException, json.JSONDecodeError) as exc:
+                except (ApiError, requests.RequestException, json.JSONDecodeError) as exc:
                     # TMDB transport / HTTP / decode error — do NOT cache the
                     # empty list.  Log and continue to the next language or fall
                     # through to the YouTube fallback.
@@ -315,10 +315,9 @@ class TrailerFinder:
     ) -> list[Video]:
         """Dispatch to the correct TMDBClient strict fetch method.
 
-        Calls ``_fetch_videos_strict`` indirectly via the per-type public
-        wrappers re-routed through the strict path so the caller (``find()``)
-        receives transport / circuit-open / JSON errors instead of a silent
-        empty list.
+        Calls ``_fetch_videos_strict`` on the TMDB client so the caller
+        (``find()``) receives transport / circuit-open / API errors instead
+        of a silent empty list.
 
         Args:
             tmdb_id: TMDB ID.
@@ -330,20 +329,16 @@ class TrailerFinder:
             List of Video instances (may be empty for a genuine no-result).
 
         Raises:
-            TMDBError: On non-404 TMDB HTTP errors.
+            ApiError: On non-404 TMDB HTTP errors.
             CircuitOpenError: If the TMDB circuit breaker is OPEN.
-            requests.RequestException: On transport / connection errors.
-            json.JSONDecodeError: If the response body is not valid JSON.
         """
-        endpoint: str
         if media_type == "movie":
             endpoint = f"/movie/{tmdb_id}/videos"
-            return self._tmdb_client._fetch_videos_strict(endpoint, tmdb_id, "movie", language)
-        if season_number is not None:
+        elif season_number is not None:
             endpoint = f"/tv/{tmdb_id}/season/{season_number}/videos"
-            return self._tmdb_client._fetch_videos_strict(endpoint, tmdb_id, f"tv-season-{season_number}", language)
-        endpoint = f"/tv/{tmdb_id}/videos"
-        return self._tmdb_client._fetch_videos_strict(endpoint, tmdb_id, "tv", language)
+        else:
+            endpoint = f"/tv/{tmdb_id}/videos"
+        return self._tmdb_client._fetch_videos_strict(endpoint, language)
 
     def _youtube_fallback_strict(
         self,

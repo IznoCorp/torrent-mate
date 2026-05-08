@@ -24,7 +24,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from personalscraper.conf.classifier import MediaType
+from personalscraper.api._contracts import MediaType
 from personalscraper.logger import get_logger
 from personalscraper.scraper.json_ttl_cache import UTC, check_ttl
 

@@ -25,6 +25,7 @@ from unittest.mock import MagicMock  # noqa: E402
 
 import pytest  # noqa: E402
 
+from personalscraper.api.metadata._base import SearchResult  # noqa: E402
 from personalscraper.conf import ids as CID  # noqa: E402
 from personalscraper.conf.models.config import Config  # noqa: E402
 from personalscraper.conf.models.disks import DiskConfig  # noqa: E402
@@ -198,6 +199,48 @@ def integration_config_path(integration_config: Config, tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Helpers — convert legacy dict-shaped TMDB/TVDB canned responses to typed
+# SearchResult instances (api-unify TMDBClient / TVDBClient now emit these).
+# ---------------------------------------------------------------------------
+
+
+def _dict_to_movie_search_result(d: dict[str, Any]) -> SearchResult:
+    """Reshape ``{"id", "title", "release_date"}`` → ``SearchResult``."""
+    rd = d.get("release_date") or ""
+    return SearchResult(
+        provider="tmdb",
+        provider_id=str(d.get("id", "")),
+        title=d.get("title", ""),
+        year=int(rd[:4]) if rd[:4].isdigit() else None,
+        media_type="movie",
+    )
+
+
+def _dict_to_tv_search_result(d: dict[str, Any]) -> SearchResult:
+    """Reshape ``{"id", "name", "first_air_date"}`` → ``SearchResult``."""
+    fad = d.get("first_air_date") or ""
+    return SearchResult(
+        provider="tmdb",
+        provider_id=str(d.get("id", "")),
+        title=d.get("name", ""),
+        year=int(fad[:4]) if fad[:4].isdigit() else None,
+        media_type="tv",
+    )
+
+
+def _dict_to_tvdb_search_result(d: dict[str, Any]) -> SearchResult:
+    """Reshape ``{"tvdb_id", "name", "year"}`` → ``SearchResult``."""
+    y = str(d.get("year") or "")
+    return SearchResult(
+        provider="tvdb",
+        provider_id=str(d.get("tvdb_id", "")),
+        title=d.get("name", ""),
+        year=int(y) if y.isdigit() else None,
+        media_type="tv",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Fake API client stubs
 # ---------------------------------------------------------------------------
 
@@ -286,33 +329,37 @@ class FakeTMDB:
 
     # Minimal protocol surface so callers of search/get_movie/get_tv work.
 
-    def search_movie(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
-        """Return canned movie search results.
+    def search_movie(self, title: str, year: int | None = None) -> list[SearchResult]:
+        """Return canned movie search results as typed SearchResult instances.
+
+        Reshapes the legacy ``{"id", "title", "release_date"}`` dicts the canned
+        responses use into the api-unify ``SearchResult`` model that the real
+        TMDBClient now emits.
 
         Args:
             title: Movie title query (unused by stub).
             year: Optional release year filter (unused by stub).
 
         Returns:
-            List of result dicts from the ``search/movie`` canned response.
+            List of ``SearchResult`` instances built from canned dicts.
         """
         data = self._get("/search/movie")
-        return data.get("results", [])
+        return [_dict_to_movie_search_result(r) for r in data.get("results", [])]
 
-    def search_tv(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
-        """Return canned TV search results.
+    def search_tv(self, title: str, year: int | None = None) -> list[SearchResult]:
+        """Return canned TV search results as typed SearchResult instances.
 
         Args:
             title: Series title query (unused by stub).
             year: Optional first-air-year filter (unused by stub).
 
         Returns:
-            List of result dicts from the ``search/tv`` canned response.
+            List of ``SearchResult`` instances built from canned dicts.
         """
         data = self._get("/search/tv")
-        return data.get("results", [])
+        return [_dict_to_tv_search_result(r) for r in data.get("results", [])]
 
-    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[dict[str, Any]]:
+    def search(self, title: str, year: int | None = None, media_type: str = "movie") -> list[SearchResult]:
         """Dispatch to search_movie or search_tv based on media_type.
 
         Args:
@@ -404,22 +451,26 @@ class FakeTVDB:
                 return payload
         return self._default
 
-    def search_series(self, title: str, year: int | None = None) -> list[dict[str, Any]]:
-        """Return canned series search results.
+    def search_series(self, title: str, year: int | None = None) -> list[SearchResult]:
+        """Return canned series search results as typed SearchResult instances.
+
+        Reshapes the legacy ``{"tvdb_id", "name", "year"}`` dicts the canned
+        responses use into the api-unify ``SearchResult`` model.
 
         Args:
             title: Series title query (unused by stub).
             year: Optional year filter (unused by stub).
 
         Returns:
-            List of result dicts from the ``search`` canned response.
+            List of ``SearchResult`` instances built from canned dicts.
         """
         data = self._get("/search")
         if isinstance(data, dict):
-            return data.get("data", []) if isinstance(data.get("data"), list) else []
+            payload = data.get("data", []) if isinstance(data.get("data"), list) else []
+            return [_dict_to_tvdb_search_result(r) for r in payload]
         return []
 
-    def search(self, title: str, year: int | None = None, media_type: str = "tv") -> list[dict[str, Any]]:
+    def search(self, title: str, year: int | None = None, media_type: str = "tv") -> list[SearchResult]:
         """MetadataProvider protocol dispatch — delegates to search_series.
 
         Args:
@@ -446,7 +497,7 @@ class FakeTVDB:
             return raw.get("data", raw)
         return {}
 
-    def get_season_episodes(self, series_id: int, season: int) -> list[dict[str, Any]]:
+    def get_series_episodes(self, series_id: int, season: int) -> list[dict[str, Any]]:
         """Return an empty episode list (stub — episodes not exercised here).
 
         Args:
@@ -488,14 +539,14 @@ class FakeQBitClient:
     can model incomplete torrents (present in qBittorrent but not yet done).
 
     - ``seed(torrent_list)`` sets the completed list (returned by
-      ``get_completed_torrents``). The all-torrent list is set to the same
+      ``get_completed``). The all-torrent list is set to the same
       value unless ``seed_all`` was also called.
     - ``seed_all(torrent_list)`` sets the broader all-torrent list used by
-      ``get_all_torrent_hashes``.  Call this **after** ``seed()`` to add
+      ``get_all_hashes``.  Call this **after** ``seed()`` to add
       incomplete torrents without including them in the completed list.
 
     Attributes:
-        _torrents: Completed torrents returned by get_completed_torrents.
+        _torrents: Completed torrents returned by get_completed.
         _all_torrents: All torrents (completed + incomplete) used for hash lookup.
     """
 
@@ -519,7 +570,7 @@ class FakeQBitClient:
         """Extend the all-torrent list with additional (e.g. incomplete) torrents.
 
         The completed list is unaffected.  Duplicates (same objects as in the
-        completed list) are harmless — ``get_all_torrent_hashes`` uses a set.
+        completed list) are harmless — ``get_all_hashes`` uses a set.
 
         Args:
             torrent_list: Additional torrent-like objects to add to the
@@ -527,7 +578,7 @@ class FakeQBitClient:
         """
         self._all_torrents = list(self._all_torrents) + list(torrent_list)
 
-    def get_completed_torrents(self) -> list[Any]:
+    def get_completed(self) -> list[Any]:
         """Return the seeded list of completed torrents.
 
         Returns:
@@ -535,7 +586,7 @@ class FakeQBitClient:
         """
         return list(self._torrents)
 
-    def get_all_torrent_hashes(self) -> set[str]:
+    def get_all_hashes(self) -> set[str]:
         """Return hashes of all torrents (completed + incomplete).
 
         Returns:
@@ -565,6 +616,12 @@ class FakeQBitClient:
         """
         return False
 
+    def login(self) -> None:
+        """No-op login (stub)."""
+
+    def logout(self) -> None:
+        """No-op logout (stub)."""
+
     def __enter__(self) -> "FakeQBitClient":
         """Return self as context manager.
 
@@ -590,7 +647,7 @@ class FakeQBitClient:
 def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
     """Monkeypatch TMDBClient with an in-memory FakeTMDB stub.
 
-    Patches ``personalscraper.scraper.tmdb_client.TMDBClient`` so that any
+    Patches ``personalscraper.api.metadata.tmdb.TMDBClient`` so that any
     code constructing a TMDBClient receives a FakeTMDB instance instead.
     Preloads canned responses from ``tests/integration/fixtures/tmdb/``.
 
@@ -612,18 +669,33 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
         # Key by stem (e.g. "movie_shrinking", "tv_fallout", "search_empty")
         stub.seed(json_file.stem, payload)
 
-    # Patch the class so instantiation returns the stub directly.
-    # The lambda ignores constructor args (api_key, language, …).
+    # Build a mock TMDBClient class that accepts the new constructor
+    # (transport=HttpTransport(...), language=...) and also supports
+    # the .policy() classmethod used by orchestrator/rescraper.
+    mock_cls = MagicMock()
+    mock_cls.policy.return_value = MagicMock()  # TransportPolicy mock
+    mock_cls.return_value = stub  # TMDBClient(transport=...) returns the stub
+
     monkeypatch.setattr(
-        "personalscraper.scraper.tmdb_client.TMDBClient",
-        lambda *args, **kwargs: stub,
+        "personalscraper.api.metadata.tmdb.TMDBClient",
+        mock_cls,
     )
-    # Also patch the already-imported name in scraper.py so that
-    # Scraper.__init__ (which does `from … import TMDBClient` at module level)
-    # receives the stub rather than the real client.
     monkeypatch.setattr(
         "personalscraper.scraper.scraper.TMDBClient",
-        lambda *args, **kwargs: stub,
+        mock_cls,
+    )
+    # Mock HttpTransport so Scraper.__init__ doesn't build real sessions.
+    mock_instance = MagicMock()
+    mock_instance.__enter__.return_value = mock_instance
+    mock_instance.post.return_value = {"data": {"token": "mock-jwt"}}
+
+    monkeypatch.setattr(
+        "personalscraper.api.transport._http.HttpTransport",
+        lambda *a, **kw: mock_instance,
+    )
+    monkeypatch.setattr(
+        "personalscraper.api.metadata.tvdb.HttpTransport",
+        lambda *a, **kw: mock_instance,
     )
     return stub
 
@@ -632,7 +704,7 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
 def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
     """Monkeypatch TVDBClient with an in-memory FakeTVDB stub.
 
-    Patches ``personalscraper.scraper.tvdb_client.TVDBClient`` so that any
+    Patches ``personalscraper.api.metadata.tvdb.TVDBClient`` so that any
     code constructing a TVDBClient receives a FakeTVDB instance instead.
     Preloads canned responses from ``tests/integration/fixtures/tvdb/``.
 
@@ -649,7 +721,7 @@ def fake_tvdb(monkeypatch: pytest.MonkeyPatch) -> FakeTVDB:
         stub.seed(json_file.stem, payload)
 
     monkeypatch.setattr(
-        "personalscraper.scraper.tvdb_client.TVDBClient",
+        "personalscraper.api.metadata.tvdb.TVDBClient",
         lambda *args, **kwargs: stub,
     )
     # Also patch the already-imported name in scraper.py (same rationale as fake_tmdb).
@@ -665,8 +737,8 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     """Monkeypatch qbittorrentapi.Client and QBitClient with an in-memory stub.
 
     Patches both the underlying ``qbittorrentapi.Client`` (used in
-    ``personalscraper.ingest.qbit_client``) and the ``QBitClient`` class
-    imported in ``personalscraper.ingest.ingest`` so that no real qBittorrent
+    ``personalscraper.api.torrent.qbittorrent``) and the ``build_active_torrent_client``
+    factory imported in ``personalscraper.ingest.ingest`` so that no real qBittorrent
     connection is attempted.  The stub starts with an empty torrent list;
     call ``stub.seed([...])`` to inject test torrents before running ingest.
 
@@ -678,17 +750,23 @@ def fake_qbit(monkeypatch: pytest.MonkeyPatch) -> FakeQBitClient:
     """
     stub = FakeQBitClient()
 
-    # Patch the high-level QBitClient used in ingest.py so the pipeline
-    # receives the stub without any network calls.
+    # Patch the factory used in ingest.py so the pipeline receives the stub
+    # without any network calls.
+    monkeypatch.setattr(
+        "personalscraper.ingest.ingest.build_active_torrent_client",
+        lambda *args, **kwargs: stub,
+    )
+    # Also patch QBitClient directly in ingest.py for the fallback path
+    # (torrent.active="" → else branch that instantiates QBitClient directly).
     monkeypatch.setattr(
         "personalscraper.ingest.ingest.QBitClient",
         lambda *args, **kwargs: stub,
     )
     # Also patch qbittorrentapi.Client to guard against direct instantiation
-    # in qbit_client.py (belt-and-suspenders: QBitClient wraps it).
+    # in qbittorrent.py (belt-and-suspenders: QBitClient wraps it).
     mock_qbit_cls = MagicMock()
     mock_qbit_cls.return_value = MagicMock()
-    monkeypatch.setattr("personalscraper.ingest.qbit_client.qbittorrentapi.Client", mock_qbit_cls)
+    monkeypatch.setattr("personalscraper.api.torrent.qbittorrent.qbittorrentapi.Client", mock_qbit_cls)
 
     return stub
 

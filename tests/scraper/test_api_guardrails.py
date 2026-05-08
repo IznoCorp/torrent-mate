@@ -223,12 +223,22 @@ class TestConfiguredLanguageRespected:
         to English without raising. Documented here as a sanity check;
         the real enforcement lives in the language-mapping helpers.
         """
-        from personalscraper.scraper.tvdb_client import TVDBClient
+        from unittest.mock import MagicMock, patch
 
-        client = TVDBClient(api_key="placeholder")
+        from personalscraper.api.metadata.tvdb import TVDBClient
+
+        mock_instance = MagicMock()
+        mock_instance.__enter__.return_value = mock_instance
+        mock_instance.post.return_value = {"data": {"token": "mock-jwt"}}
+
+        with (
+            patch("personalscraper.api.transport._http.HttpTransport", return_value=mock_instance),
+            patch("personalscraper.api.metadata.tvdb.HttpTransport", return_value=mock_instance),
+        ):
+            client = TVDBClient(api_key="placeholder")
         # The 3-char mapping must include FR → fra (used by the TV
         # episode translation fetcher when the primary language is FR).
-        assert client._map_lang("fr") == "fra"
-        assert client._map_lang("en") == "eng"
+        assert client.map_language("fr") == "fra"
+        assert client.map_language("en") == "eng"
         # 3-char codes pass through unchanged.
-        assert client._map_lang("fra") == "fra"
+        assert client.map_language("fra") == "fra"
