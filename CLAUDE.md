@@ -199,7 +199,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: api-unify
-**Branch**: feat/api-unify
-**Design**: docs/features/api-unify/DESIGN.md
-**Plan**: docs/features/api-unify/plan/
+**Feature**: test-coverage
+**Branch**: feat/test-coverage
+**Design**: docs/features/test-coverage/DESIGN.md
+**Plan**: docs/features/test-coverage/plan/
