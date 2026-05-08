@@ -4,7 +4,7 @@
 **Codename**: `test-coverage`
 **Version bump**: 0.11.0 → 0.12.0 (minor — new `tests/feature_map/` artifact, new scripts, new Makefile/CI surface)
 **Design date**: 2026-05-08
-**Trigger**: ROADMAP — raise coverage from 44 % to 90 % branch with documentation traceability before scaling new features.
+**Trigger**: ROADMAP — raise branch coverage to 90 % with documentation traceability before scaling new features (originally framed against a 44 % line-coverage entry point; rescaled at Phase 1 to start from the actual 80.48 % branch baseline measured on `feat/test-coverage`).
 
 ## Changelog
 
@@ -29,7 +29,7 @@
 
 ### 1.1 Goals
 
-- Raise unit + integration **branch** coverage from the rebaselined value to 90 %, enforced in CI.
+- Raise unit + integration **branch** coverage from the rebaselined value (80 %) to 90 %, enforced in CI.
 - Every integration test under `tests/integration/test_design_*.py` traces to a documented behavior in a `DESIGN.md` or reference doc via stable docstring markers.
 - Per-feature JSON map files at `tests/feature_map/<codename>.json` — eliminates merge conflicts.
 - Two scripts: `scripts/update_feature_map.py` (scan + regenerate) and `scripts/audit_design_coverage.py` (orphan section detection, both directions).
@@ -55,7 +55,7 @@
 | `make test-cov`                                          | green at the current `fail_under`, branch coverage on                                                     |
 | `make check` (lint + test-cov + module-size + typed-api) | green                                                                                                     |
 | `make lint`                                              | green (ruff + mypy)                                                                                       |
-| `python3 scripts/audit_design_coverage.py --strict`      | green at end of cycle 6 (post-`fail_under = 80`)                                                          |
+| `python3 scripts/audit_design_coverage.py --strict`      | green at end of cycle 4 (post-Phase 8 — `fail_under = 87`, design-gaps promoted to hard error)            |
 | Final `fail_under`                                       | 90                                                                                                        |
 | Threshold ratchet                                        | monotonic; CI rejects PRs that lower `fail_under`                                                         |
 | Scripts test coverage                                    | `tests/unit/test_update_feature_map.py` + `tests/unit/test_audit_design_coverage.py` cover the algorithms |
@@ -190,7 +190,17 @@ Files use the `.json` extension and standard JSON content. JSON5 was considered 
 
 `fail_under` in `pyproject.toml` lowered to the rebaselined value, then bumped progressively. Branch coverage is enabled from the start so we don't need to re-baseline later.
 
-Progression: `baseline → 50 → 60 → 70 → 80 → 85 → 90`.
+Progression: `baseline (80) → 82 → 85 → 87 → 90`.
+
+> **Baseline note (2026-05-08).** The original DESIGN assumed a ~44 % line-coverage
+> entry point. Actual measured _branch_ coverage on `feat/test-coverage` (after
+> the api-unify merge) is **80.48 %**, so Phase 1 set `fail_under = 80`. The
+> ratchet was rescaled to `80 → 82 → 85 → 87 → 90` and the bumps were assigned
+> to the cycles that ship the most new tests (scraper / dispatch+verify /
+> trailers / indexer). Phase 5 (api-unify) keeps its role as the marker-format
+> bootstrap and does **not** bump the threshold; Phase 10 (cleanup) remains at
+> 90 for audit + skip_audit review. The `design-gaps` promotion still happens
+> at the cycle-4 boundary (Phase 8 — trailers).
 
 **Monotonic enforcement.** A CI job `coverage-monotonic` reads `fail_under` from `pyproject.toml` on the PR's HEAD and from `main`, and fails if HEAD `<` main. Prevents accidental revert regressions and a malicious / mistaken PR that lowers the gate.
 
@@ -274,7 +284,7 @@ Initially `continue-on-error: true`. **Promoted to hard error** in cycle 4 (trai
 1. One test = one contract clause. 3 clauses → 3 tests.
 2. Test name encodes behavior, not section number. `test_circuit_breaker_opens_after_3_failures`, NOT `test_s3_2_1`.
 3. Mandatory `Design:` and `Contract:` markers in the **function** docstring.
-4. Prefer integration tier with mocked external services (mock_api_server, dependency injection). Contracts that _require_ live services live in `tests/e2e/` and are excluded from the `fail_under` gate.
+4. Prefer integration tier with mocked external services (mock*api_server, dependency injection). Contracts that \_require* live services live in `tests/e2e/` and are excluded from the `fail_under` gate.
 
 ### 6.3 Test quality criteria
 

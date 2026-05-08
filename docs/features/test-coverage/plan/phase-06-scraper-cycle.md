@@ -1,14 +1,14 @@
-# Phase 6 — Scraper cycle → `fail_under = 60`
+# Phase 6 — Scraper cycle → `fail_under = 82`
 
 **Type**: cycle
 **Effort**: L (~1.5 day)
-**Entry**: Phase 5 done. `fail_under = 50`. CI green.
+**Entry**: Phase 5 done. `fail_under = 80` (no Phase-5 bump). CI green.
 **Exit**:
 
-- Coverage of `personalscraper/scraper/` lifts global to ≥ 60.
+- Coverage of `personalscraper/scraper/` lifts global to ≥ 82.
 - Critical gaps closed: `tv_service.py` (15 → ≥ 70 %), `trailer_finder.py` (27 → ≥ 70 %), `confidence.py`, `keywords_cache.py`, `youtube_search.py`, `ytdlp_downloader.py`.
 - Design-contract tests for sections of `docs/reference/scraping.md` (codename: `scraper`).
-- `fail_under` bumped 50 → 60.
+- `fail_under` bumped 80 → 82 (first ratchet bump of the cycle phases).
 
 ## Detail-at-phase-start
 
@@ -29,23 +29,23 @@
 
 Same as Phase 5: contract tests against `docs/reference/scraping.md` sections, unit tests filling the worst branches, then bump.
 
-## Task 6.X — Bump `fail_under` to 60
+## Task 6.X — Bump `fail_under` to 82
 
-- [ ] `make test-cov` passes at ≥ 60.
-- [ ] Edit `pyproject.toml`: `fail_under = 60`.
+- [ ] `make test-cov` passes at ≥ 82 (current baseline ~80.5; need +1.5 from new tests).
+- [ ] Edit `pyproject.toml`: `fail_under = 82`.
 - [ ] Commit:
 
 ```
-chore(test-coverage): cycle 2 — scraper, bump fail_under to 60
+chore(test-coverage): cycle 2 — scraper, bump fail_under to 82
 ```
 
 ## Task 6.Y — Phase 6 gate
 
-- [ ] `make check` green at `fail_under = 60`.
+- [ ] `make check` green at `fail_under = 82`.
 - [ ] Audit script: scraper orphan count reduced to `skip_audit` entries.
 - [ ] Map `--check` clean.
 - [ ] Milestone commit:
 
 ```
-chore(test-coverage): phase 6 gate — scraper cycle done (fail_under=60)
+chore(test-coverage): phase 6 gate — scraper cycle done (fail_under=82)
 ```

@@ -1,23 +1,25 @@
-# Phase 10 — Remaining modules cleanup → `fail_under = 90`
+# Phase 10 — Remaining modules cleanup (stay at `fail_under = 90`)
 
 **Type**: cycle
-**Effort**: L (~1 day) — most targets already 60-80 %, fill the tail.
-**Entry**: Phase 9 done. `fail_under = 85`. CI green.
+**Effort**: M (~5 h) — tail of low-coverage modules + skip_audit hygiene.
+**Entry**: Phase 9 done. `fail_under = 90`. CI green.
 **Exit**:
 
-- Coverage of `personalscraper/sorter/`, `ingest/`, `process/`, `library/`, `conf/` lifts global to ≥ 90.
+- Coverage of `personalscraper/sorter/`, `ingest/`, `process/`, `library/`, `conf/` solid at the 90 % global target — no regression below 90 in any future cycle.
 - Design-contract tests for the relevant sections of `docs/reference/architecture.md` (codename: `architecture`) and any provider docs not already covered (TMDB / TVDB / OMDB / Trakt / etc., codenames per override table).
-- `fail_under` bumped 85 → 90 (the end target).
-- `[tool.coverage.report].omit` list reviewed and minimized.
+- `[tool.coverage.report].omit` list reviewed and minimized — every entry has a `# reason:` comment.
+- `skip_audit` entries reviewed across all map files — anchors that can now be tested are converted to real tests; expired entries are renewed or removed.
+- **No `fail_under` bump** — Phase 9 already reached the end target. This phase consolidates and removes hidden waivers.
 
 ## Detail-at-phase-start
 
-1. `audit_design_coverage.py --strict` — at this stage we expect zero gaps from cycles 1-5; remaining gaps are in this cycle's scope.
+1. `audit_design_coverage.py --strict` — should exit 0 from Phase 9. Any remaining findings are this cycle's scope.
 2. `coverage report --show-missing | sort -k4 -n | head -20` — final tail of branch gaps.
+3. Walk every `tests/feature_map/*.json`'s `skip_audit` array; flag entries whose justification has weakened since they were written.
 
 ## Per-module targets
 
-For each module group, the target is whatever brings global to 90 % — measured, not predetermined per-module.
+For each module group, the target is to keep global ≥ 90 % while shrinking per-module gaps where cheap.
 
 - `sorter/` — Already 70-85 %. File-type detection edge cases.
 - `ingest/` — Torrent-completion → staging copy logic.
@@ -25,14 +27,15 @@ For each module group, the target is whatever brings global to 90 % — measured
 - `library/` — Rescraper, scanner, validator. Worst at `library/validator.py`.
 - `conf/` — Config loader edge cases (NB: classifier already addressed in PR #19).
 
-## Task 10.X — Bump `fail_under` to 90
+## Task 10.X — `omit` and `skip_audit` review
 
-- [ ] `make test-cov` ≥ 90.
-- [ ] Edit `pyproject.toml`: `fail_under = 90`.
+- [ ] Audit `[tool.coverage.report].omit`: every entry needs a `# reason:` comment.
+- [ ] Walk every `tests/feature_map/*.json`'s `skip_audit` — convert any anchor that is now testable into a real contract test; renew/remove expired entries.
+- [ ] `audit_design_coverage.py --strict --strict-skip` exits 0.
 - [ ] Commit:
 
 ```
-chore(test-coverage): cycle 6 — remaining cleanup, bump fail_under to 90 (target reached)
+chore(test-coverage): cycle 6 — omit + skip_audit cleanup
 ```
 
 ## Task 10.Y — Phase 10 gate
@@ -40,9 +43,8 @@ chore(test-coverage): cycle 6 — remaining cleanup, bump fail_under to 90 (targ
 - [ ] `make check` green at 90.
 - [ ] `audit_design_coverage.py --strict` exits 0 — no orphans, no stale refs.
 - [ ] Map `--check` clean.
-- [ ] `[tool.coverage.report].omit` reviewed: every entry has a `# reason:` comment justifying the exclusion.
 - [ ] Milestone commit:
 
 ```
-chore(test-coverage): phase 10 gate — 90% target reached
+chore(test-coverage): phase 10 gate — cleanup done (fail_under=90, hold)
 ```

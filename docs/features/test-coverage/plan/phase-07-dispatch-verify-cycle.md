@@ -1,14 +1,14 @@
-# Phase 7 — Dispatch + Verify cycle → `fail_under = 70`
+# Phase 7 — Dispatch + Verify cycle → `fail_under = 85`
 
 **Type**: cycle
 **Effort**: M (~4 h) — modules already 70-80 %, so shorter than scraper.
-**Entry**: Phase 6 done. `fail_under = 60`. CI green.
+**Entry**: Phase 6 done. `fail_under = 82`. CI green.
 **Exit**:
 
-- Coverage of `personalscraper/dispatch/` and `personalscraper/verify/` lifts global to ≥ 70.
+- Coverage of `personalscraper/dispatch/` and `personalscraper/verify/` lifts global to ≥ 85.
 - Worst remaining gap: `verify/fixer.py` (26 %) closed.
 - Design-contract tests for sections of `docs/reference/storage.md` (codename: `dispatch`) and `docs/reference/pipeline-internals.md` (codename: `pipeline`).
-- `fail_under` bumped 60 → 70.
+- `fail_under` bumped 82 → 85.
 
 ## Detail-at-phase-start
 
@@ -27,22 +27,22 @@
 
 Same as Phase 5/6.
 
-## Task 7.X — Bump `fail_under` to 70
+## Task 7.X — Bump `fail_under` to 85
 
-- [ ] `make test-cov` ≥ 70.
-- [ ] Edit `pyproject.toml`: `fail_under = 70`.
+- [ ] `make test-cov` ≥ 85.
+- [ ] Edit `pyproject.toml`: `fail_under = 85`.
 - [ ] Commit:
 
 ```
-chore(test-coverage): cycle 3 — dispatch+verify, bump fail_under to 70
+chore(test-coverage): cycle 3 — dispatch+verify, bump fail_under to 85
 ```
 
 ## Task 7.Y — Phase 7 gate
 
-- [ ] `make check` green at 70.
+- [ ] `make check` green at 85.
 - [ ] Audit script clean for dispatch + pipeline sections (modulo skip_audit).
 - [ ] Milestone commit:
 
 ```
-chore(test-coverage): phase 7 gate — dispatch+verify cycle done (fail_under=70)
+chore(test-coverage): phase 7 gate — dispatch+verify cycle done (fail_under=85)
 ```
