@@ -15,7 +15,7 @@
 
 | #   | Phase                                                  | Type        | File                                                                                                    | Status |
 | --- | ------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Foundation — scripts + Makefile + baseline             | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [ ]    |
+| 1   | Foundation — scripts + Makefile + baseline             | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
 | 2   | CI enforcement (test-cov + design-gaps + monotonic)    | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [ ]    |
 | 3   | Pre-commit hook via core.hooksPath                     | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [ ]    |
 | 4   | Bootstrap — first contract test + 7th check            | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [ ]    |
@@ -47,7 +47,21 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 
 ## Sub-phase → SHA mapping
 
-_Filled by `/implement:phase` and `/implement:sub-phase` as work progresses._
+### Phase 1 — Foundation
+
+| Sub-phase | SHA       | Description                                                    |
+| --------- | --------- | -------------------------------------------------------------- |
+| 1.1       | `106114c` | rebaseline pyproject.toml with branch coverage (fail_under=80) |
+| 1.2       | `a39e07d` | get_coverage_threshold.py helper                               |
+| 1.3       | `11ac556` | \_codename_overrides.py table + resolve_codename()             |
+| 1.4       | `42e5d6d` | update_feature_map.py + 23 unit tests                          |
+| 1.5       | `bb9d2d8` | audit_design_coverage.py + 28 unit tests                       |
+| 1.6       | `1179849` | Makefile test-unit/test-integration/test-cov targets           |
+
+**Note**: actual branch-coverage baseline measured at 80.48 % (not the 44 % the
+plan assumed). Phase 1 set `fail_under = 80`. The cycle phases 5-10 ratchet
+targets (50 → 60 → 70 → 80 → 85 → 90) need to be re-evaluated against this
+higher baseline before each cycle starts.
 
 ## Notes
 
