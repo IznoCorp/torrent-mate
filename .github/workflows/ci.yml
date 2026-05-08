@@ -104,13 +104,18 @@ jobs:
           key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: pip-${{ runner.os }}-${{ matrix.python-version }}-
       - run: pip install -e ".[dev]"
-      - run: python -m pytest -v -n auto --cov=personalscraper --cov-report=xml --cov-report=term --cov-fail-under=80
+      # ``make test-cov`` reads ``fail_under`` from pyproject.toml via
+      # scripts/get_coverage_threshold.py, so the gate stays in lockstep with
+      # the source-of-truth threshold and the local make target.
+      - run: make test-cov
       - uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.12'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          fail_ci_if_error: true
+          # Forks cannot inherit secrets, so they always get a soft upload.
+          # Internal PRs require a working CODECOV_TOKEN and fail otherwise.
+          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
 
   security:
     name: security
