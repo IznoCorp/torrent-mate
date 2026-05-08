@@ -11,8 +11,11 @@ does NOT strip accents.
 See docs/rapidfuzz-reference.md for scorer details.
 """
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import typer
 from rapidfuzz import fuzz
@@ -20,6 +23,10 @@ from rapidfuzz import fuzz
 from personalscraper.api.metadata._base import SearchResult
 from personalscraper.logger import get_logger
 from personalscraper.text_utils import media_processor
+
+if TYPE_CHECKING:
+    from personalscraper.api.metadata.tmdb import TMDBClient
+    from personalscraper.api.metadata.tvdb import TVDBClient
 
 log = get_logger("confidence")
 
@@ -433,8 +440,8 @@ def match_tvshow(
 def get_episode_titles(
     match: MatchResult,
     season: int,
-    tvdb_client: object,
-    tmdb_client: object,
+    tvdb_client: TVDBClient,
+    tmdb_client: TMDBClient,
     lang: str = "fra",
 ) -> dict[int, str]:
     """Get episode titles for a season from the matched provider.
@@ -457,7 +464,7 @@ def get_episode_titles(
     titles: dict[int, str] = {}
 
     if match.source == "tvdb":
-        season_details = tvdb_client.get_series_episodes(match.api_id, season)  # type: ignore[attr-defined]
+        season_details = tvdb_client.get_series_episodes(match.api_id, season)
         if not season_details or not season_details.episodes:
             log.warning("season_not_found_tvdb", season=season, title=match.api_title)
             return titles
@@ -467,7 +474,7 @@ def get_episode_titles(
             titles[ep_num] = ep.title or f"Episode {ep_num}"
 
     elif match.source == "tmdb":
-        season_details = tmdb_client.get_tv_season(match.api_id, season)  # type: ignore[attr-defined]
+        season_details = tmdb_client.get_tv_season(match.api_id, season)
         if not season_details or not season_details.episodes:
             log.warning("season_not_found_tmdb", season=season, title=match.api_title)
             return titles

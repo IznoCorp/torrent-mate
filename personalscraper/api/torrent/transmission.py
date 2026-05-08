@@ -17,7 +17,7 @@ from typing import ClassVar
 
 import transmission_rpc
 
-from personalscraper.api._contracts import ApiError
+from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentClient, TorrentItem
 from personalscraper.api.transport._auth import LoginAuth
 from personalscraper.api.transport._http import HttpTransport
@@ -136,7 +136,7 @@ class TransmissionClient:
             t = self._client.get_torrent(torrent.hash, arguments=["downloadDir", "name", "files"])
         except transmission_rpc.TransmissionError as exc:
             raise ApiError(
-                provider="transmission",
+                provider=ProviderName.TRANSMISSION,
                 http_status=404,
                 message=f"Torrent {torrent.hash} not found: {exc}",
             ) from exc
@@ -195,7 +195,7 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
     password = env.get("TRANSMISSION_PASSWORD", "")
     if not username or not password:
         raise ApiError(
-            provider="transmission",
+            provider=ProviderName.TRANSMISSION,
             http_status=0,
             message="Missing TRANSMISSION_USERNAME or TRANSMISSION_PASSWORD",
         )
@@ -203,7 +203,7 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
     base_url = f"http://{entry.host}:{entry.port}"
     transport = HttpTransport(
         TransportPolicy(
-            provider_name="transmission-precheck",
+            provider_name=f"{ProviderName.TRANSMISSION.value}-precheck",
             base_url=base_url,
             auth=LoginAuth(username, password),
             timeout_seconds=5,

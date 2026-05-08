@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.api.metadata._tvdb_parsers import map_language
 from personalscraper.logger import get_logger
@@ -173,7 +174,7 @@ def _tvdb_series_to_show_data(
     backdrops: list[dict[str, Any]] = []
     if tvdb_client is not None:
         try:
-            all_artworks = tvdb_client.get_artwork_urls(str(tvdb_id), media_type="tv")
+            all_artworks = tvdb_client.get_artwork_urls(str(tvdb_id), media_type=MediaType.TV)
             posters = [
                 {"file_path": a.url, "iso_639_1": a.language or ""}
                 for a in all_artworks
@@ -366,7 +367,7 @@ class TvServiceMixin:
         # match.api_id — use tmdb_id which was resolved above.
         nfo_path = show_dir / self.patterns.tvshow_nfo
         category_id = self._classify_item(
-            media_type="tv",
+            media_type=MediaType.TV,
             path=show_dir,
             title=resolved_title,
             api_data=show_data,
@@ -547,11 +548,19 @@ class TvServiceMixin:
                     fallback_language=self._scraper_fallback_language,
                 )
             else:
+                # Local import: avoids the movie_service ↔ tv_service circular
+                # dependency at module load. Cheap (function already imported
+                # elsewhere) and confined to this branch.
                 from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
 
                 tmdb_id = match.api_id
                 show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
-        except Exception as e:
+        except (ApiError, requests.RequestException, ValueError, TypeError, KeyError, AttributeError) as e:
+            # Operational + payload-shape failures from the metadata path
+            # (network, HTTP, JSON-decode, response-shape drift, missing
+            # external_ids keys). Programming errors elsewhere — e.g. a typo
+            # in the surrounding code — keep propagating as before. Aligned
+            # with the narrowed-tuple stance in tracker/_registry.py.
             result.error = f"Get details failed: {e}"
             log.error("show_details_failed", error=str(e), exc_info=True)
             return None

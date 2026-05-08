@@ -40,21 +40,24 @@ class ApiKeyAuth:
     """
 
     def __init__(self, key: str, *, param: str = "api_key", location: ApiKeyLocation = "header") -> None:
+        # ``location`` is statically constrained to Literal["header","query"], but
+        # JSON-driven config or callers using ``# type: ignore`` can still pass
+        # arbitrary strings. Both ``apply()`` and ``auth_params()`` would then
+        # fall through their explicit branches and emit no header / no param —
+        # every request would 401 with no breadcrumb. Fail-fast at construction
+        # so the misconfiguration surfaces immediately, with a warning logged
+        # before raising so operators see the actionable hint in alerting.
+        if location not in ("header", "query"):
+            log.warning(
+                "api_key_auth_invalid_location",
+                param=param,
+                location=location,
+                hint="location must be 'header' or 'query'.",
+            )
+            raise ValueError(f"ApiKeyAuth.location must be 'header' or 'query', got {location!r}")
         self._key = key
         self._param = param
         self._location: ApiKeyLocation = location
-        # ``location`` is statically constrained to Literal["header","query"], but
-        # JSON-driven config or # type: ignore callers can still pass arbitrary
-        # strings. A typo would silently authenticate as NoAuth and every request
-        # would 401 with no breadcrumb — log a warning so the misconfiguration
-        # surfaces immediately.
-        if location not in ("header", "query"):
-            log.warning(
-                "api_key_auth_unrecognised_location",
-                param=param,
-                location=location,
-                hint="location must be 'header' or 'query'; this auth will behave as no-op.",
-            )
 
     def apply(self, session: requests.Session) -> None:
         if self._location == "header":

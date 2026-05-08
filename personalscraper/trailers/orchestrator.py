@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.indexer.db import open_db as _open_indexer_db
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
@@ -248,7 +249,7 @@ class TrailersOrchestrator:
 
         for item in items:
             ids: dict[str, str | int | None] = {"tmdb": item.tmdb_id, "tvdb": None}
-            key_media_type = "tv" if item.media_type == "tvshow" else item.media_type
+            key_media_type = MediaType.from_legacy(item.media_type)
             try:
                 key = make_state_key(
                     media_type=key_media_type,
@@ -367,7 +368,7 @@ class TrailersOrchestrator:
             url: str | None = None
             try:
                 tmdb_id_int: int | None = int(item.tmdb_id) if item.tmdb_id else None
-                find_media_type = "tv" if item.media_type == "tvshow" else item.media_type
+                find_media_type = MediaType.from_legacy(item.media_type)
                 url = self._finder.find(
                     tmdb_id_int,  # type: ignore[arg-type]
                     find_media_type,

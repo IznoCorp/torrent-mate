@@ -96,6 +96,27 @@ class TestMetadataClient:
             class _Bare(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
                 pass
 
+    def test_missing_provider_name_raises_even_with_custom_init(self) -> None:
+        """The ``__init_subclass__`` guard fires at class-creation time.
+
+        Subclasses that override ``__init__`` and skip ``super().__init__()``
+        still trigger the check — this is the load-bearing scenario the
+        design explicitly calls out: instance-time hooks (``__init__``) can
+        be bypassed; class-creation hooks cannot.
+        """
+        with pytest.raises(TypeError, match="must declare an explicit provider_name"):
+
+            class _CustomInit(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
+                def __init__(self) -> None:  # deliberately skips super().__init__()
+                    self.flag = "should never reach this"
+
+    def test_empty_string_provider_name_raises(self) -> None:
+        """An explicit but empty-string ``provider_name`` is rejected too."""
+        with pytest.raises(TypeError, match="must declare an explicit provider_name"):
+
+            class _Empty(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
+                provider_name: ClassVar[str] = ""
+
     def test_default_get_notations_raises(self) -> None:
         """Default get_notations raises NotImplementedError with provider name."""
         client = TMDBFakeClient(None)  # type: ignore[arg-type]
@@ -127,6 +148,35 @@ class TestMetadataClient:
         result = client.get_notations("123", "movie")
         assert result is not None
         assert result.score == 8.0
+
+
+class TestProviderNameClassVarValues:
+    """Each real metadata client must expose the canonical lowercase ``provider_name``.
+
+    Without this table-test, a copy-paste typo (e.g. ``"tdmb"``) in a
+    ClassVar would only surface via downstream string comparisons —
+    silent bugs in error messages, log routing and ``ProviderName``
+    enum lookups.
+    """
+
+    @pytest.mark.parametrize(
+        ("import_path", "class_name", "expected_provider_name"),
+        [
+            ("personalscraper.api.metadata.tmdb", "TMDBClient", "tmdb"),
+            ("personalscraper.api.metadata.tvdb", "TVDBClient", "tvdb"),
+            ("personalscraper.api.metadata.omdb", "OMDBClient", "omdb"),
+            ("personalscraper.api.metadata.trakt", "TraktClient", "trakt"),
+        ],
+    )
+    def test_real_client_provider_name(self, import_path: str, class_name: str, expected_provider_name: str) -> None:
+        """Real metadata client classes expose the canonical lowercase identifier."""
+        import importlib  # noqa: PLC0415
+
+        module = importlib.import_module(import_path)
+        client_cls = getattr(module, class_name)
+        assert client_cls.provider_name == expected_provider_name, (
+            f"{class_name}.provider_name must equal {expected_provider_name!r}; got {client_cls.provider_name!r}."
+        )
 
 
 class TestMetadataProviderProtocol:

@@ -53,7 +53,7 @@ class TrackerRegistry:
     def search_all(
         self,
         query: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
         year: int | None = None,
     ) -> list[tuple[TrackerResult, int]]:
         """Search all configured trackers and return ranked merged results.
@@ -84,8 +84,7 @@ class TrackerRegistry:
                 # are logged and the surviving trackers' results are still ranked.
                 # Programming errors (KeyError, AttributeError, …) are *not*
                 # caught here — they indicate a code bug that must surface.
-                # Trackers whose parsers may surface KeyError/IndexError on schema
-                # drift must wrap their parse code and re-raise as ApiError so the
-                # error stays operational rather than crashing every other tracker.
+                # See ``TrackerClient`` Protocol docstring for the parse-drift
+                # wrapping contract that tracker authors must satisfy.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
         return rank(results, self._ranking)

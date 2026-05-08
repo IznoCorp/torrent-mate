@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -48,10 +48,10 @@ _SOURCE_MAP: dict[str, Literal["imdb", "rotten_tomatoes", "metacritic"]] = {
     "Metacritic": "metacritic",
 }
 
-# OMDB type string to media_type literal
-_OMDB_TYPE_MAP: dict[str, Literal["movie", "tv"]] = {
-    "movie": "movie",
-    "series": "tv",
+# OMDB type string → MediaType
+_OMDB_TYPE_MAP: dict[str, MediaType] = {
+    "movie": MediaType.MOVIE,
+    "series": MediaType.TV,
 }
 
 
@@ -63,7 +63,7 @@ class OMDBClient(MetadataClient):
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["OMDB_API_KEY"]
-    provider_name: ClassVar[str] = "omdb"
+    provider_name: ClassVar[str] = ProviderName.OMDB.value
 
     @classmethod
     def policy(cls, api_key: str) -> TransportPolicy:
@@ -76,7 +76,7 @@ class OMDBClient(MetadataClient):
             TransportPolicy configured for the OMDB single endpoint.
         """
         return TransportPolicy(
-            provider_name="omdb",
+            provider_name=ProviderName.OMDB,
             base_url="http://www.omdbapi.com",
             auth=ApiKeyAuth(api_key, param="apikey", location="query"),
             timeout_seconds=10,
@@ -99,7 +99,7 @@ class OMDBClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[SearchResult]:
         """Search OMDB by title.
 
@@ -122,7 +122,7 @@ class OMDBClient(MetadataClient):
     def get_details(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> MediaDetails:
         """Fetch full details by IMDb ID.
 
@@ -142,7 +142,7 @@ class OMDBClient(MetadataClient):
     def get_notations(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[Notations] | None:
         """Fetch ratings from OMDB's Ratings[] array.
 
@@ -159,7 +159,7 @@ class OMDBClient(MetadataClient):
     def get_recommendations(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[Recommendation]:
         """OMDB has no recommendations endpoint — returns empty list."""
         return []
@@ -254,7 +254,7 @@ def _parse_search_results(data: dict[str, Any], *, provider: str) -> list[Search
     for item in data.get("Search", []):
         year = _parse_year(item.get("Year"))
         omdb_type = item.get("Type", "movie")
-        media_type = _OMDB_TYPE_MAP.get(omdb_type, "movie")
+        media_type = _OMDB_TYPE_MAP.get(omdb_type, MediaType.MOVIE)
         results.append(
             SearchResult(
                 provider=provider,

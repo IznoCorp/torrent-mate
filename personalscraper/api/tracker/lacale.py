@@ -25,9 +25,9 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import MediaType, ProviderName
 from personalscraper.api._units import ByteSize
-from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -65,7 +65,7 @@ class LaCaleClient:
     Implements the TrackerClient Protocol from ``api/tracker/_base.py``.
     """
 
-    provider_name: str = "lacale"
+    provider_name: str = ProviderName.LACALE.value
     REQUIRED_CREDS: ClassVar[list[str]] = ["LACALE_API_KEY"]
 
     @classmethod
@@ -81,7 +81,7 @@ class LaCaleClient:
             and the standard 5-fail / 5-min circuit settings.
         """
         return TransportPolicy(
-            provider_name="lacale",
+            provider_name=ProviderName.LACALE,
             base_url="https://la-cale.space",
             auth=ApiKeyAuth(api_key, param="X-Api-Key", location="header"),
             timeout_seconds=15,
@@ -103,7 +103,7 @@ class LaCaleClient:
     def search(
         self,
         query: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
         year: int | None = None,
     ) -> list[TrackerResult]:
         """Search the LaCale tracker.
@@ -124,18 +124,12 @@ class LaCaleClient:
         params: dict[str, Any] = {"q": q}
 
         raw = self._transport.get(path="/api/external", params=params)
-        # Wrap schema-drift errors so they reach the registry as ApiError
-        # (operational) instead of crashing the whole multi-tracker search.
-        # Programming errors elsewhere in this client still propagate.
-        try:
+
+        def _parse() -> list[TrackerResult]:
             items = cast("list[dict[str, Any]]", raw)
             return [self._parse_item(item) for item in items]
-        except (KeyError, IndexError, TypeError, AttributeError, ValueError) as exc:
-            raise ApiError(
-                provider=self.provider_name,
-                http_status=0,
-                message=f"lacale response shape drift while parsing search response: {exc!r}",
-            ) from exc
+
+        return wrap_parser_drift(self.provider_name, _parse)
 
     def get_categories(self) -> dict[str, str]:
         """Fetch the LaCale category taxonomy as a flat slug → human label map.

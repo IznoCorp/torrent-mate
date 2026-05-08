@@ -19,7 +19,7 @@ from typing import ClassVar
 import qbittorrentapi
 import requests
 
-from personalscraper.api._contracts import ApiError
+from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.torrent._base import TorrentClient, TorrentItem
 from personalscraper.conf.models.api_config import TorrentClientEntry
 from personalscraper.logger import get_logger
@@ -43,7 +43,7 @@ class QBitClient:
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["QBIT_USERNAME", "QBIT_PASSWORD"]
-    provider_name = "qbittorrent"
+    provider_name = ProviderName.QBITTORRENT.value
 
     def __init__(self, host: str, port: int, username: str, password: str) -> None:
         """Initialize the qBittorrent API client.
@@ -114,7 +114,11 @@ class QBitClient:
         """
         raw = self._client.torrents_info(hashes=torrent.hash)
         if not raw:
-            raise ApiError(provider="qbittorrent", http_status=404, message=f"Torrent {torrent.hash} not found")
+            raise ApiError(
+                provider=ProviderName.QBITTORRENT,
+                http_status=404,
+                message=f"Torrent {torrent.hash} not found",
+            )
         return Path(raw[0].content_path)
 
     # -- Protocol: mutations -------------------------------------------------
@@ -164,14 +168,14 @@ class QBitClient:
         except qbittorrentapi.LoginFailed as exc:
             _set_lockout("login_failed")
             raise ApiError(
-                provider="qbittorrent",
+                provider=ProviderName.QBITTORRENT,
                 http_status=401,
                 message=f"qBittorrent login failed: {exc}",
             ) from exc
         except qbittorrentapi.Forbidden403Error as exc:
             log.error("qbit_ip_banned", hint="Unban IP in qBit > Preferences > Web UI, or restart qBit")
             raise ApiError(
-                provider="qbittorrent",
+                provider=ProviderName.QBITTORRENT,
                 http_status=403,
                 message=f"qBittorrent IP banned: {exc}",
             ) from exc
@@ -182,14 +186,9 @@ class QBitClient:
         try:
             self._client.auth_log_out()
         except (qbittorrentapi.APIConnectionError, OSError) as e:
-            # Server-side context: the qBittorrent daemon is a long-running
-            # service that does not stop in normal operation, so a logout
-            # failure here is always abnormal (network drop, daemon crashed,
-            # or admin manually killed it). ``warning`` is the correct level —
-            # do NOT lower to ``debug`` to silence "PM2 restart noise" in
-            # other deployments: this codebase targets a server where the
-            # daemon never restarts, so every occurrence is an event worth
-            # surfacing.
+            # Logout failure on a long-lived qBit daemon is always abnormal
+            # (network drop, daemon killed). Log at warning — a debug event
+            # would be silently dropped by prod log tiers.
             log.warning("qbit_logout_failed", error=str(e))
 
 
@@ -215,14 +214,18 @@ def build_client(name: str, entry: TorrentClientEntry, env: Mapping[str, str]) -
     username = env.get("QBIT_USERNAME", "")
     password = env.get("QBIT_PASSWORD", "")
     if not username or not password:
-        raise ApiError(provider="qbittorrent", http_status=0, message="Missing QBIT_USERNAME or QBIT_PASSWORD")
+        raise ApiError(
+            provider=ProviderName.QBITTORRENT,
+            http_status=0,
+            message="Missing QBIT_USERNAME or QBIT_PASSWORD",
+        )
 
     try:
         resp = requests.get(f"http://{entry.host}:{entry.port}/", timeout=5)
         log.debug("qbit_pre_check_ok", status=resp.status_code)
     except (requests.ConnectionError, requests.Timeout) as exc:
         raise ApiError(
-            provider="qbittorrent",
+            provider=ProviderName.QBITTORRENT,
             http_status=0,
             message=f"qBittorrent unreachable at {entry.host}:{entry.port}: {exc}",
         ) from exc

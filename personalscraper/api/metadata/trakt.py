@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -61,7 +61,7 @@ class TraktClient(MetadataClient):
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TRAKT_CLIENT_ID"]
-    provider_name: ClassVar[str] = "trakt"
+    provider_name: ClassVar[str] = ProviderName.TRAKT.value
 
     @classmethod
     def policy(cls, client_id: str) -> TransportPolicy:
@@ -74,7 +74,7 @@ class TraktClient(MetadataClient):
             TransportPolicy with dual-header auth and rate limiting.
         """
         return TransportPolicy(
-            provider_name="trakt",
+            provider_name=ProviderName.TRAKT,
             base_url="https://api.trakt.tv",
             auth=ApiKeyAuth(client_id, param="trakt-api-key", location="header"),
             extra_headers={"trakt-api-version": "2"},
@@ -99,7 +99,7 @@ class TraktClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[SearchResult]:
         """Search Trakt by title.
 
@@ -124,7 +124,7 @@ class TraktClient(MetadataClient):
     def get_details(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> MediaDetails:
         """Fetch full details by Trakt ID, slug, or IMDb ID.
 
@@ -150,7 +150,7 @@ class TraktClient(MetadataClient):
     def get_notations(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[Notations] | None:
         """Fetch Trakt community rating.
 
@@ -168,7 +168,7 @@ class TraktClient(MetadataClient):
     def get_recommendations(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[Recommendation]:
         """Fetch related movies/shows.
 
@@ -243,7 +243,7 @@ def _parse_search_results(data: list[dict[str, Any]], *, provider: str, key: str
                 provider_id=_resolve_id(ids),
                 title=inner.get("title", ""),
                 year=inner.get("year"),
-                media_type="tv" if key == "show" else "movie",
+                media_type=MediaType.TV if key == "show" else MediaType.MOVIE,
                 overview=inner.get("overview", ""),
             )
         )
@@ -332,7 +332,7 @@ def _parse_related(data: list[dict[str, Any]], *, provider: str, media_type: Med
                 provider_id=_resolve_id(ids),
                 title=item.get("title", ""),
                 year=item.get("year"),
-                media_type="tv" if media_type == "tv" else "movie",
+                media_type=MediaType.TV if media_type == MediaType.TV else MediaType.MOVIE,
             )
         )
     return results

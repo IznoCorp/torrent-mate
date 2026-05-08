@@ -32,9 +32,9 @@ from __future__ import annotations
 from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from personalscraper.api._contracts import ApiError, MediaType
+from personalscraper.api._contracts import ApiError, MediaType, ProviderName
 from personalscraper.api._units import ByteSize
-from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._base import TrackerResult, wrap_parser_drift
 from personalscraper.api.tracker.lacale import LaCaleClient
 from personalscraper.api.transport._auth import ApiKeyAuth
 from personalscraper.api.transport._policy import (
@@ -86,7 +86,7 @@ def _parse_rfc2822(value: Any) -> datetime | None:
 class C411Client:
     """C411 tracker API client over Torznab XML."""
 
-    provider_name: str = "c411"
+    provider_name: str = ProviderName.C411.value
     REQUIRED_CREDS: ClassVar[list[str]] = ["C411_API_KEY"]
 
     @classmethod
@@ -101,7 +101,7 @@ class C411Client:
             defensive rate limit, and the standard 5-fail / 5-min circuit.
         """
         return TransportPolicy(
-            provider_name="c411",
+            provider_name=ProviderName.C411,
             base_url="https://c411.org",
             auth=ApiKeyAuth(api_key, param="apikey", location="query"),
             timeout_seconds=15,
@@ -124,7 +124,7 @@ class C411Client:
     def search(
         self,
         query: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
         year: int | None = None,
     ) -> list[TrackerResult]:
         """Search C411 via the Torznab API.
@@ -151,17 +151,10 @@ class C411Client:
         params: dict[str, Any] = {"t": endpoint, "q": q}
 
         raw = self._transport.get(path="/api", params=params)
-        # Wrap schema-drift errors so they reach the registry as ApiError
-        # (operational) instead of crashing the whole multi-tracker search.
-        # Programming errors elsewhere in this client still propagate.
-        try:
-            return self._parse_rss(cast("dict[str, Any]", raw))
-        except (KeyError, IndexError, TypeError, AttributeError, ValueError) as exc:
-            raise ApiError(
-                provider=self.provider_name,
-                http_status=0,
-                message=f"c411 response shape drift while parsing search response: {exc!r}",
-            ) from exc
+        return wrap_parser_drift(
+            self.provider_name,
+            lambda: self._parse_rss(cast("dict[str, Any]", raw)),
+        )
 
     def get_categories(self) -> dict[str, str]:
         """Fetch the C411 caps document and flatten the categories tree.

@@ -17,16 +17,14 @@ origin_country is checked before the string-based genre fallback.
 
 import re
 from pathlib import Path
-from typing import Literal
 from xml.etree import ElementTree as ET
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.conf.models.categories import CategoryRule
 from personalscraper.conf.models.config import Config
 from personalscraper.logger import get_logger
 
 log = get_logger("personalscraper.conf.classifier")
-
-MediaType = Literal["movie", "tv"]
 
 
 def classify(
@@ -218,7 +216,7 @@ def classify_from_nfo(
     title_elem = root.find("title")
     title = title_elem.text if title_elem is not None and title_elem.text else None
 
-    normalized: MediaType = "tv" if media_type == "tvshow" else "movie"
+    normalized = MediaType.from_legacy(media_type)
 
     return classify(
         config,

@@ -71,7 +71,7 @@ def parse_search_result(raw: dict[str, Any], provider: str) -> SearchResult:
         provider_id=str(raw["id"]),
         title=title or "",
         year=year,
-        media_type="tv" if is_tv else "movie",
+        media_type=MediaType.TV if is_tv else MediaType.MOVIE,
         overview=raw.get("overview", "") or "",
         poster_url=_build_image_url(raw.get("poster_path"), "w500"),
         original_title=original_title or "",

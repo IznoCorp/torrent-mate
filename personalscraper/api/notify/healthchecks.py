@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from personalscraper.api._contracts import ProviderName
 from personalscraper.api.transport._auth import NoAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -54,7 +55,7 @@ class HealthcheckClient:
         REQUIRED_CREDS: `.env` variable names — `HEALTHCHECK_URL`.
     """
 
-    provider_name: ClassVar[str] = "healthchecks"
+    provider_name: ClassVar[str] = ProviderName.HEALTHCHECKS.value
     REQUIRED_CREDS: ClassVar[list[str]] = ["HEALTHCHECK_URL"]
 
     @classmethod
@@ -74,7 +75,7 @@ class HealthcheckClient:
             TransportPolicy with `response_format = "text"`.
         """
         return TransportPolicy(
-            provider_name="healthchecks",
+            provider_name=ProviderName.HEALTHCHECKS,
             base_url=ping_url,
             auth=NoAuth(),
             timeout_seconds=5.0,

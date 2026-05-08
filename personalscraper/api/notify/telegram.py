@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from personalscraper.api._contracts import ApiError
+from personalscraper.api._contracts import ApiError, ProviderName
 from personalscraper.api.transport._auth import NoAuth
 from personalscraper.api.transport._policy import (
     CircuitPolicy,
@@ -60,7 +60,7 @@ class TelegramNotifier:
             `TELEGRAM_CHAT_ID`.
     """
 
-    provider_name: ClassVar[str] = "telegram"
+    provider_name: ClassVar[str] = ProviderName.TELEGRAM.value
     REQUIRED_CREDS: ClassVar[list[str]] = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]
 
     @classmethod
@@ -78,7 +78,7 @@ class TelegramNotifier:
             TransportPolicy configured for `https://api.telegram.org/bot<TOKEN>`.
         """
         return TransportPolicy(
-            provider_name="telegram",
+            provider_name=ProviderName.TELEGRAM,
             base_url=f"https://api.telegram.org/bot{bot_token}",
             auth=NoAuth(),
             timeout_seconds=10.0,

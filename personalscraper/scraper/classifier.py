@@ -5,10 +5,11 @@ from __future__ import annotations
 import re
 from itertools import zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from guessit.api import GuessitException
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import MediaDetails
 from personalscraper.logger import get_logger
 
@@ -120,7 +121,7 @@ class ClassifierMixin:
 
     def _classify_item(
         self,
-        media_type: Literal["movie", "tv"],
+        media_type: MediaType,
         path: Path,
         title: str,
         api_data: MediaDetails | dict[str, Any],

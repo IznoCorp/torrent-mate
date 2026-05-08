@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from personalscraper.api._contracts import MediaType
+from personalscraper.api._contracts import TVDB_BOOTSTRAP, MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -81,7 +81,7 @@ class TVDBClient(MetadataClient):
 
         # Bootstrap login with NoAuth
         bootstrap_policy = TransportPolicy(
-            provider_name="tvdb-bootstrap",
+            provider_name=TVDB_BOOTSTRAP,
             base_url="https://api4.thetvdb.com/v4",
             auth=NoAuth(),
             timeout_seconds=15.0,
@@ -121,7 +121,7 @@ class TVDBClient(MetadataClient):
             A TransportPolicy configured for TVDB v4.
         """
         return TransportPolicy(
-            provider_name="TVDB",
+            provider_name=ProviderName.TVDB,
             base_url="https://api4.thetvdb.com/v4",
             auth=BearerAuth(jwt_token),
             timeout_seconds=15.0,
@@ -182,7 +182,7 @@ class TVDBClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[SearchResult]:
         """Search TVDB for series or movies.
 
@@ -246,7 +246,7 @@ class TVDBClient(MetadataClient):
 
     # -- Protocol: get_details ----------------------------------------------
 
-    def get_details(self, media_id: str, media_type: MediaType = "movie") -> MediaDetails:
+    def get_details(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> MediaDetails:
         """Fetch full details for a series or movie.
 
         Args:
@@ -286,7 +286,7 @@ class TVDBClient(MetadataClient):
 
     # -- Protocol: get_artwork_urls -----------------------------------------
 
-    def get_artwork_urls(self, media_id: str, media_type: MediaType = "movie") -> list[ArtworkItem]:
+    def get_artwork_urls(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> list[ArtworkItem]:
         """Fetch artwork for a series or movie.
 
         Args:

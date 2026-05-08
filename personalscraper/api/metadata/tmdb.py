@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from personalscraper.api._contracts import MediaType
+from personalscraper.api._contracts import MediaType, ProviderName
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -103,7 +103,7 @@ class TMDBClient(MetadataClient):
             A TransportPolicy configured for TMDB.
         """
         return TransportPolicy(
-            provider_name="TMDB",
+            provider_name=ProviderName.TMDB,
             base_url="https://api.themoviedb.org/3",
             auth=BearerAuth(api_key),
             timeout_seconds=10.0,
@@ -118,7 +118,7 @@ class TMDBClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[SearchResult]:
         """Search for a movie or TV show by title.
 
@@ -139,7 +139,7 @@ class TMDBClient(MetadataClient):
     def get_details(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> MediaDetails:
         """Fetch full details for a movie or TV show.
 
@@ -279,7 +279,7 @@ class TMDBClient(MetadataClient):
     def get_artwork_urls(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[ArtworkItem]:
         """Fetch artwork images for a movie or TV show.
 

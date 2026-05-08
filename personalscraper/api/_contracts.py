@@ -1,18 +1,92 @@
 """Shared contracts for API providers.
 
-Implements DESIGN §3.1: AuthMode, ApiError, CircuitOpenError.
-ApiError is a unified exception replacing all provider-specific error types.
+Implements DESIGN §3.1: AuthMode, ApiError, CircuitOpenError, MediaType,
+ProviderName. ApiError is a unified exception replacing all
+provider-specific error types.
 """
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
+from typing import Final
 
-# Canonical media-type literal used across all metadata-family APIs.
-# Defined here so producer (SearchResult, Recommendation, ArtworkItem) and
-# consumer (search/get_details/get_videos parameters) share the same type
-# instead of leaking as plain ``str`` at every boundary.
-MediaType = Literal["movie", "tv"]
+
+class MediaType(str, Enum):
+    """Canonical media type used across all metadata- and tracker-family APIs.
+
+    Inherits from ``str`` so existing equality checks (``media_type == "tv"``),
+    dict keys, and JSON serialization keep working unchanged — ``MediaType.TV``
+    *is* the string ``"tv"``. New code should prefer the enum members for
+    nominal typing and exhaustive ``match`` statements.
+
+    The legacy library/dispatch/scraper layers historically used ``"tvshow"``
+    instead of ``"tv"``; :meth:`from_legacy` is the single coercion entry
+    point that maps both vocabularies into this enum.
+
+    ``__str__`` returns the wire value (``"movie"`` / ``"tv"``) rather than the
+    enum repr (``"MediaType.MOVIE"``). This matches Python 3.11+ ``StrEnum``
+    semantics and keeps f-string interpolation backward-compatible with the
+    previous ``Literal`` alias.
+    """
+
+    MOVIE = "movie"
+    TV = "tv"
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+    @classmethod
+    def from_legacy(cls, value: str) -> "MediaType":
+        """Coerce any historical media-type string into a :class:`MediaType`.
+
+        Accepts the api/ vocabulary (``"movie"``, ``"tv"``) and the legacy
+        library/dispatch vocabulary (``"tvshow"``, ``"tvshows"``). Case- and
+        whitespace-insensitive.
+
+        Args:
+            value: Free-form string from a legacy caller.
+
+        Returns:
+            The matching :class:`MediaType` enum member.
+
+        Raises:
+            ValueError: ``value`` is not a recognised media-type string.
+        """
+        normalised = value.strip().lower()
+        if normalised == "movie":
+            return cls.MOVIE
+        if normalised in ("tv", "tvshow", "tvshows"):
+            return cls.TV
+        raise ValueError(f"Unknown media_type {value!r} — expected one of: 'movie', 'tv', 'tvshow', 'tvshows'.")
+
+
+class ProviderName(str, Enum):
+    """Canonical lowercase provider identifiers.
+
+    Constants for use in ``provider_name`` ClassVars, ``TransportPolicy``,
+    ``ApiError``, and any other site that previously used a magic string.
+    Inherits from ``str`` so existing comparisons and dict-key usage keep
+    working unchanged. ``__str__`` returns the wire value to preserve
+    f-string formatting parity with plain strings.
+    """
+
+    TMDB = "tmdb"
+    TVDB = "tvdb"
+    OMDB = "omdb"
+    TRAKT = "trakt"
+    QBITTORRENT = "qbittorrent"
+    TRANSMISSION = "transmission"
+    LACALE = "lacale"
+    C411 = "c411"
+    TELEGRAM = "telegram"
+    HEALTHCHECKS = "healthchecks"
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+# Convenience constants for individual provider variants that need a
+# distinguishing suffix (e.g. TVDB has a separate bootstrap-login policy).
+TVDB_BOOTSTRAP: Final = "tvdb-bootstrap"
 
 
 class AuthMode(Enum):

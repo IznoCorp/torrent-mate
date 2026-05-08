@@ -40,7 +40,7 @@ class SearchResult:
     provider_id: str
     title: str
     year: int | None = None
-    media_type: MediaType = "movie"
+    media_type: MediaType = MediaType.MOVIE
     overview: str = ""
     poster_url: str = ""
     original_title: str = ""
@@ -179,7 +179,7 @@ class Recommendation:
     provider_id: str
     title: str
     year: int | None = None
-    media_type: MediaType = "movie"
+    media_type: MediaType = MediaType.MOVIE
     reason: str = ""
 
 
@@ -276,19 +276,19 @@ class MetadataProvider(Protocol):
         self,
         title: str,
         year: int | None = None,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[SearchResult]: ...
 
     def get_details(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> MediaDetails: ...
 
     def get_artwork_urls(
         self,
         media_id: str,
-        media_type: MediaType = "movie",
+        media_type: MediaType = MediaType.MOVIE,
     ) -> list[ArtworkItem]: ...
 
     def get_keywords(
@@ -345,13 +345,23 @@ class MetadataClient:
     provider_name: ClassVar[str] = ""
 
     def __init_subclass__(cls, **kwargs: object) -> None:
+        """Enforce that every subclass declares an explicit ``provider_name``.
+
+        We err on the strict side: the moment a class inherits from
+        ``MetadataClient`` and does not set a non-empty ``provider_name``
+        ClassVar, this raises. There are no abstract intermediate bases
+        in this family — concrete clients are the only valid subclasses,
+        and surfacing the misconfiguration at class-definition time
+        prevents silent fallback to an empty provider identifier in
+        error messages and logs.
+
+        Args:
+            **kwargs: Forwarded to ``object.__init_subclass__``.
+
+        Raises:
+            TypeError: Subclass declares no (or empty) ``provider_name``.
+        """
         super().__init_subclass__(**kwargs)
-        # Skip intermediate abstract bases that intentionally do not set the
-        # ClassVar — only concrete subclasses must declare it. A subclass is
-        # treated as concrete when it sits at depth ≥ 1 in the MRO past
-        # MetadataClient and overrides at least one method or declares fields
-        # of its own. We err on the strict side: the moment a class inherits
-        # from MetadataClient and does not set provider_name, it raises.
         if not cls.provider_name:
             raise TypeError(
                 f"{cls.__name__} must declare an explicit provider_name ClassVar — "
@@ -364,7 +374,7 @@ class MetadataClient:
 
     # -- Optional capability methods (override in subclasses) -----------------
 
-    def get_artwork_urls(self, media_id: str, media_type: MediaType = "movie") -> list[ArtworkItem]:
+    def get_artwork_urls(self, media_id: str, media_type: MediaType = MediaType.MOVIE) -> list[ArtworkItem]:
         raise NotImplementedError(f"{self.provider_name} does not support artwork URLs")
 
     def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]:
