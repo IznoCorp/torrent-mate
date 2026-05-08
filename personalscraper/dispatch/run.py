@@ -141,6 +141,7 @@ def run_dispatch(
             # rather than waiting for the next nightly scan.
             if not dry_run:
                 _drain_dispatch_outbox(config)
+                _enrich_after_dispatch(config, results)
         finally:
             if preview_index:
                 index.rollback_preview()
@@ -184,6 +185,64 @@ def _drain_dispatch_outbox(config: Config) -> None:
             update_merkle_root(conn, disk_id, None)
         if disk_ids:
             log.info("dispatch_merkle_reset", disk_count=len(disk_ids))
+    finally:
+        conn.close()
+
+
+def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> None:
+    """Run an enrich scan on every disk that received files during dispatch.
+
+    Newly dispatched files land in the indexer DB with ``enriched_at=NULL``.
+    Without this pass the indexer would lack stream metadata, release linkage
+    (season/episode rows), NFO status, and artwork inventory until the next
+    scheduled ``library-index --mode enrich`` run — a temporal gap that breaks
+    the contract of "the index is always up-to-date after dispatch."
+
+    Args:
+        config: Validated Config with a resolved ``indexer.db_path``.
+        results: Dispatch results from the just-completed run.
+    """
+    import sqlite3
+
+    from personalscraper.indexer.repos import disk_repo
+    from personalscraper.indexer.scanner import scan as _indexer_scan
+    from personalscraper.indexer.schema import DiskRow
+
+    affected_ids: set[str] = {r.disk for r in results if r.disk and r.action in ("replaced", "merged", "moved")}
+    if not affected_ids:
+        return
+
+    db_path = config.indexer.db_path
+    assert db_path is not None, "indexer.db_path must be resolved"
+    conn = sqlite3.connect(str(db_path))
+    try:
+        disk_rows: list[DiskRow] = []
+        for disk_id in affected_ids:
+            row = disk_repo.get_by_uuid(conn, disk_id)
+            if row is not None:
+                disk_rows.append(row)
+        if not disk_rows:
+            return
+
+        gen_row = conn.execute("SELECT COALESCE(MAX(generation), 0) FROM scan_run").fetchone()
+        next_generation: int = (gen_row[0] or 0) + 1
+
+        log.info(
+            "dispatch_post_enrich_start",
+            disks=[d.label for d in disk_rows],
+            affected_item_count=len(affected_ids),
+        )
+        result = _indexer_scan(
+            disks=disk_rows,
+            mode="enrich",  # type: ignore[arg-type]
+            generation=next_generation,
+            conn=conn,
+        )
+        log.info(
+            "dispatch_post_enrich_done",
+            files_visited=result.files_visited,
+            status=result.status,
+        )
     finally:
         conn.close()
 
