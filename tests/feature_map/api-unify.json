@@ -29,5 +29,271 @@
       ]
     }
   },
-  "skip_audit": []
+  "skip_audit": [
+    {
+      "anchor": "1-goals--non-goals",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "10-deletions-zero-dead-code",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "101-modules-removed",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "102-exception-types-removed",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "103-adjacent-modules-audited-kept-partially-modified",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "104-import-migration",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "105-documentation",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "11-goals",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "11-phases-25-phases--1-phase-per-api-doc-or-impl",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "12-non-goals",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "12-risk-register",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "13-guardrails--coherence-checks",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "13-success-criteria",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "14-roadmap-update",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "15-version",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "2-architecture",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "21-package-structure",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "22-layer-model",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "23-module-size-discipline",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "24-custom-types",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "3-shared-infrastructure",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "31-api_contractspy",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "32-api_unitspy--bytesize",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "36-apitransport_ratepy--ratelimiter",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "4-metadata-family",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "41-metadataprovider-protocol--apimetadata_basepy",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "42-typed-response-models",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "43-provider-matrix",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "5-torrent-client-family",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "51-torrentclient-protocol",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "52-implementations",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "53-apitorrent_factorypy--active-client-resolver",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "6-tracker-family",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "61-trackerclient-protocol--apitracker_basepy",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "62-tracker-list",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "63-ranking-system--apitracker_rankingpy",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "64-trackerregistry--apitracker_registrypy",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "7-notification-family",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "71-protocols--apinotify_basepy",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "72-migration",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "8-config--activation",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "81-new-config-files",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "82-configmetadatajson5",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "83-configtorrentjson5",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "84-configtrackerjson5",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "85-configrankingjson5",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "86-confignotifyjson5",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "9-api-documentation-rule",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "advance-shipped-artifacts",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "docs-to-produce",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "per-doc-phase-user-checkpoint-interactive",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "phase-ordering-rationale",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "third-party-api-consumer-unification--design",
+      "reason": "Bootstrapped during test-coverage Phase 5 — section is descriptive (architecture/intent/migration) or covered by unit-level tests without contract markers. Promote to a contract test if behavior surfaces a regression.",
+      "expires": "2027-05-08"
+    }
+  ]
 }
