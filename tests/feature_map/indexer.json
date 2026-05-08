@@ -8,5 +8,146 @@
       ]
     }
   },
-  "skip_audit": []
+  "skip_audit": [
+    {
+      "anchor": "cli-reference-summary",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "cold-rebuild-playbook",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "corrupted-database",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "cron-setup-launchd",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "disk-swap-edge-case-merkle-delta-freeze",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "drift-policy",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "examples",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "failure-recovery",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "field-registry",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "full-fresh-rebuild-all-disks",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "indexer-reference",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "n-strikes-soft-delete-policy",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "oshash-collision-handling",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "partial-migration-recovery",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "per-disk-rotation-avoiding-usb-saturation",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "query-language",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "quick-nightly-scan-0330-every-day",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "repair-queue",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "rotating-full-scan-monthu-by-disk",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "scan-modes",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "single-disk-rebuild---rebuild-flag",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "stale-lock",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "tier-1--stat-only-check-quick-and-incremental-modes",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "tier-2--racy-mtime-escalation",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "tier-3--oshash-rename-detection",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "token-syntax",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "uninstalling-a-job",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "weekly-enrich-pass-sunday-0400",
+      "reason": "Bootstrapped during test-coverage Phase 9 — section is reference (drift policy tiers, scan modes table, JSON column shapes) rather than a behavior reachable from a single public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    }
+  ]
 }
