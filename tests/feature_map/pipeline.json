@@ -12,68 +12,68 @@
     {
       "anchor": "circuit-breaker",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "reason": "Reference/ops material — failure-rate thresholds, dashboard pointers and runbook prose. Behavior already covered by tests/scraper/test_circuit_breaker.py at the unit level.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "clean-fast-skip",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral fast-skip rule: clean step short-circuits when staging directory has no junk markers. Promote to a contract test before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "disk-selection",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral move-rule: new media routed to disk with most free space (DESIGN move-rules in CLAUDE.md). Promote to a contract test before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "dispatch",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral umbrella for the dispatch step (replace movies / merge TV / route new media). Section-level contract; per-rule contracts already live in tests/integration/test_design_dispatch.py. Promote a section-level smoke contract before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "fast-skip-idempotence",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral idempotence invariant: re-running a step on already-processed input is a no-op. Promote to a contract test before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "pipeline-internals",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "reason": "Reference index/header for the document — no contract to test. Tracked here so the auditor reports zero orphan sections.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "rsync-flags",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "reason": "Ops/reference material — documents which rsync flags are used and why; behavior is exercised end-to-end via dispatch tests. No standalone contract to pin.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "stagingcommit-pattern",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral two-phase commit: staging area only flips to the destination on success. Promote to a contract test before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "standalone-invocation",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "reason": "Reference material — documents the per-step CLI invocation surface. Behavior covered by tests/commands/test_pipeline_commands.py.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "step-contracts",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral umbrella: each pipeline step has an idempotence + crash-resume contract. Promote step-level contract tests before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "verify",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral verify-step contract: post-dispatch checksum + filesystem-state validation. Surface contracts already live in tests/verify/test_verifier.py; promote a design-level contract before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     }
   ]
 }

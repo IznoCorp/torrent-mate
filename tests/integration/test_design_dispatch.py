@@ -6,7 +6,9 @@ Pin points for ``docs/reference/storage.md`` (codename: ``dispatch``) and
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from unittest.mock import patch
 
 from personalscraper.conf import ids as CID
 from personalscraper.conf.models.categories import CategoryConfig, GenreMapping
@@ -69,6 +71,87 @@ class TestMovieReplaceContract:
         assert dest.exists()
         assert (dest / "movie.mkv").read_bytes() == b"new"
         assert not source.exists()
+
+    def test_replace_rolls_back_when_rsync_transfer_fails(self, tmp_path: Path) -> None:
+        """Rsync failure leaves source + destination untouched.
+
+        Design: docs/reference/storage.md#move-rules-dispatch
+        Contract: When Phase 1 (rsync transfer) fails, ``replace`` returns
+        ``False`` and rolls back: the original destination keeps its
+        content, the source is NOT consumed, and no ``.new.tmp`` /
+        ``.old.tmp`` sibling is left behind. This is the load-bearing
+        invariant for the "atomic swap" claim — a partial swap that
+        leaves either side in an inconsistent state would silently lose
+        data on the next dispatch run.
+        """
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        source.mkdir()
+        dest.mkdir()
+        (source / "movie.mkv").write_bytes(b"new")
+        (dest / "movie.mkv").write_bytes(b"old")
+
+        # Force rsync to fail. ``_transfer.rsync`` is the only critical
+        # I/O in Phase 1; making it return False simulates a transfer
+        # error (out of disk, broken pipe, etc.) without needing to
+        # actually run rsync.
+        with patch("personalscraper.dispatch._movie._transfer.rsync", return_value=False):
+            ok = replace(source, dest)
+
+        assert ok is False, "replace must report failure when rsync fails"
+        # Original destination preserved untouched.
+        assert (dest / "movie.mkv").read_bytes() == b"old"
+        # Source preserved (not consumed by Phase 3 cleanup).
+        assert (source / "movie.mkv").read_bytes() == b"new"
+        # No staging siblings leaked.
+        assert not (dest.parent / f"{dest.name}.new.tmp").exists()
+        assert not (dest.parent / f"{dest.name}.old.tmp").exists()
+
+    def test_replace_restores_original_when_swap_fails_mid_way(self, tmp_path: Path) -> None:
+        """Mid-swap failure restores the original destination from backup.
+
+        Design: docs/reference/storage.md#move-rules-dispatch
+        Contract: If Phase 2 fails AFTER the original ``dest`` was
+        renamed to ``dest.old.tmp`` but BEFORE ``dest.new.tmp`` was
+        renamed to ``dest``, ``replace`` rolls the backup back to
+        ``dest`` so the on-disk view is identical to the pre-call
+        state. Without this rollback, a swap failure would leave the
+        media library missing the title entirely until a manual
+        recovery — exactly the silent-data-loss mode the atomic-swap
+        contract exists to prevent.
+        """
+        source = tmp_path / "source"
+        dest = tmp_path / "dest"
+        source.mkdir()
+        dest.mkdir()
+        (source / "movie.mkv").write_bytes(b"new")
+        (dest / "movie.mkv").write_bytes(b"old")
+
+        real_rename = os.rename
+        call_count = {"n": 0}
+
+        def fake_rename(src: str | os.PathLike[str], dst: str | os.PathLike[str]) -> None:
+            """Allow first rename (dest → dest.old.tmp), fail the second.
+
+            This recreates the exact mid-swap state Phase 2's rollback
+            block is designed to recover from.
+            """
+            call_count["n"] += 1
+            if call_count["n"] == 2:
+                raise OSError(28, "simulated swap failure")  # ENOSPC
+            real_rename(src, dst)
+
+        # rsync writes a real .new.tmp so the second rename has something
+        # to act on; only os.rename is patched.
+        with patch("personalscraper.dispatch._movie.os.rename", side_effect=fake_rename):
+            ok = replace(source, dest)
+
+        assert ok is False, "replace must report failure when the swap fails"
+        # Pre-call view restored: dest exists with original content.
+        assert dest.exists()
+        assert (dest / "movie.mkv").read_bytes() == b"old"
+        # No staging siblings leaked after rollback.
+        assert not (dest.parent / f"{dest.name}.old.tmp").exists()
 
 
 class TestTvShowMergeContract:

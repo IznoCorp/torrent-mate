@@ -13,56 +13,56 @@
     {
       "anchor": "architecture-reference",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "reason": "Reference index/header — no behavior to pin. Tracked here so the auditor reports zero orphan sections.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "automated-pipeline-personalscraper-run",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral CLI contract: ``personalscraper run`` orchestrates ingest→sort→process→verify→dispatch in order. Promote a smoke contract test (e.g. with --dry-run + a fake-disk fixture) before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "directory-structure",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral invariant: package directory layout matches the documented module map (so import paths in docs stay valid). Promote a contract test that walks the package tree and matches the doc table before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "key-dependencies-chosen-after-evaluation",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "reason": "Reference rationale for dependency choices (rapidfuzz vs fuzzywuzzy, structlog vs logging, etc.) — no contract to test.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "reference-documentation",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "reason": "Index of other reference docs — no contract to test.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "shared-utilities-single-source-of-truth",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "reason": "Reference principle (no duplicate utility modules) — enforced by code review and the residual-import grep checklist, not by an automated contract.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "trailers-subsystem-notes",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "reason": "Cross-reference to docs/reference/trailers.md — no architecture-level contract; trailer behavior is covered by tests/integration/test_design_trailers.py.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "versioning-hygiene",
       "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "reason": "Reference rules for SemVer bump triggers — enforced by the implement:* lifecycle and CI version-monotonic checks, not by an architecture-level contract.",
+      "expires": "2026-11-08"
     },
     {
       "anchor": "workflow-pipeline",
-      "category": "documentation_only",
-      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
-      "expires": "2028-05-08"
+      "category": "deferred_promotion",
+      "reason": "Behavioral pipeline-step ordering (matches automated-pipeline-personalscraper-run). Promote a contract test that asserts the documented step sequence equals the runtime sequence before the 2026-11-08 expiry.",
+      "expires": "2026-11-08"
     }
   ]
 }

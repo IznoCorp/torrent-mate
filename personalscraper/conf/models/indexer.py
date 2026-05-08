@@ -1,11 +1,22 @@
-"""Media indexer sub-system config models."""
+"""Media indexer sub-system config models.
+
+Defines pydantic models for the indexer block of ``config.json5``: scan-engine
+tunables, drift-detection thresholds, Spotlight integration, audit-table
+retention and the SQLite ``db_path``. All defaults match the reference
+``indexer.json5`` from DESIGN §5.3.
+
+The ``IndexerConfig._reject_external_mount`` validator resolves a relative
+``db_path`` against the project root (set by :func:`personalscraper.conf.loader.load_config_dir`)
+rather than CWD, so the indexer database lands in the same location regardless
+of where ``personalscraper`` is invoked from.
+"""
 
 from pathlib import Path
 
 from pydantic import Field, field_validator
 
+from personalscraper.conf.models import paths as _paths_model
 from personalscraper.conf.models._base import _StrictModel
-from personalscraper.conf.models.paths import _PROJECT_ROOT
 
 
 class IndexerScanConfig(_StrictModel):
@@ -166,7 +177,12 @@ class IndexerConfig(_StrictModel):
             return v
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            base = _PROJECT_ROOT if _PROJECT_ROOT is not None else Path.cwd()
+            # Read at call time via module attribute so the value mutated by
+            # ``load_config_dir`` is honoured (a ``from … import _PROJECT_ROOT``
+            # would value-bind the original ``None`` and silently fall back to
+            # CWD).
+            project_root = _paths_model._PROJECT_ROOT
+            base = project_root if project_root is not None else Path.cwd()
             resolved = (base / resolved).resolve()
         if str(resolved).startswith("/Volumes/"):
             raise ValueError(

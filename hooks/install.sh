@@ -11,6 +11,14 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_ROOT"
 
+# Refuse to run outside a git repo — without a .git/ the call to
+# ``git config --local`` below would silently write nothing (or fail with
+# an opaque error). Surface the real cause up-front instead.
+if ! git rev-parse --show-toplevel >/dev/null 2>&1; then
+  echo "install.sh: not inside a git repository (run 'git init' first or clone the repo)." >&2
+  exit 1
+fi
+
 current=$(git config --local core.hooksPath || true)
 if [ "$current" = "hooks" ] || [ "$current" = "hooks/" ]; then
   echo "core.hooksPath already set to hooks/ — nothing to do."

@@ -76,11 +76,21 @@ def iter_test_functions(
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=str(path))
-    except (SyntaxError, UnicodeDecodeError) as exc:
+    except (SyntaxError, UnicodeDecodeError, ValueError, OSError) as exc:
         # A test file we can't parse may carry Design: markers that
         # silently disappear from the feature map. Surface the warning
         # so a broken test file does not regress coverage tracking,
         # and let --check callers escalate the exit code.
+        #
+        # Captured failure modes:
+        #   - SyntaxError       — invalid Python
+        #   - UnicodeDecodeError — non-utf-8 byte sequence
+        #   - ValueError        — null bytes in source (ast.parse raises this
+        #                         not SyntaxError; covered explicitly so the
+        #                         scan is robust against accidental binary
+        #                         files matched by the *.py glob)
+        #   - OSError           — permission denied / file vanished mid-glob
+        #                         on a parallel CI worker
         rel = path.relative_to(repo_root).as_posix() if path.is_relative_to(repo_root) else str(path)
         print(
             f"warn: {rel}: skipped while collecting markers ({type(exc).__name__}: {exc})",
@@ -222,6 +232,18 @@ def read_existing_skip_audit(path: Path) -> list[object]:
     :class:`SkipAuditCorrupt` if the file exists but is unreadable or has
     a non-list ``skip_audit`` field — never silently overwrites curated
     waivers with an empty list.
+
+    Args:
+        path: Map file path under ``tests/feature_map/``.
+
+    Returns:
+        The current ``skip_audit`` list (possibly empty). Returns ``[]``
+        when the file does not yet exist (new codename).
+
+    Raises:
+        SkipAuditCorrupt: When the file exists but its JSON is invalid,
+            or its top-level ``skip_audit`` field is present but is not
+            a list (silent overwrite of curated waivers must not happen).
     """
     if not path.exists():
         return []

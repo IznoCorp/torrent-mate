@@ -4,6 +4,8 @@
   "sections": {
     "move-rules-dispatch": {
       "tests": [
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_restores_original_when_swap_fails_mid_way",
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_rolls_back_when_rsync_transfer_fails",
         "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_swaps_destination_atomically",
         "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_most_free_eligible",
         "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_none_when_no_disk_eligible",

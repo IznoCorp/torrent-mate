@@ -3,7 +3,9 @@
 # docs/features/test-coverage/audit-YYYY-MM-DD.md.
 #
 # Schedule (mirrors docs/features/test-coverage/HOWTO.md "6-month maintenance"):
-#   0 9 1 1,7 * cd $HOME/dev/PersonnalScaper && ./scripts/coverage_audit_report.sh
+#   0 9 1 1,7 * "$HOME/dev/PersonnalScaper/scripts/coverage_audit_report.sh"
+# (Path is quoted so a $HOME containing spaces or symlinks doesn't break
+# the cron line. The script cd's to its own repo root internally.)
 # The output is committed manually only when it surfaces actionable findings —
 # expired skip_audit entries, fail_under regression, or new orphan sections.
 
@@ -12,11 +14,24 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_ROOT"
 
+# Single-instance lock — prevents a manual run racing with the cron run
+# (which would otherwise corrupt the same-day collision counter below
+# via TOCTOU). flock blocks until the previous run releases; -n converts
+# it to a fast-fail, which is the safer default for a long-running audit.
+LOCKFILE="${TMPDIR:-/tmp}/personalscraper_coverage_audit.lock"
+exec 9>"$LOCKFILE"
+if ! flock -n 9; then
+  echo "audit: another coverage_audit_report.sh is already running (lock=$LOCKFILE); aborting." >&2
+  exit 1
+fi
+
 DATE=$(date +%Y-%m-%d)
 OUT="docs/features/test-coverage/audit-${DATE}.md"
 
-# Same-day collision (cron retried, manual re-run, etc.) — preserve the
-# previous report by suffixing -N. We don't silently overwrite.
+# Same-day collision (manual re-run after a cron run, etc.) — preserve the
+# previous report by suffixing -N. We don't silently overwrite. The flock
+# above guarantees we are the only writer, so the find-free-slot loop is
+# race-free.
 counter=0
 target="$OUT"
 while [ -e "$target" ] && [ "$counter" -lt 100 ]; do

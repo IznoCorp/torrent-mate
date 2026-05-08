@@ -174,7 +174,20 @@ def audit(
                     )
 
         skip_anchors: set[str] = set()
-        for entry in data.get("skip_audit", []):
+        skip_list = data.get("skip_audit", [])
+        # Validate the top-level shape before iterating: ``"skip_audit": null``
+        # or any non-list value would otherwise raise ``TypeError`` below and
+        # surface as a stack trace rather than an actionable finding.
+        if not isinstance(skip_list, list):
+            findings.append(
+                Finding(
+                    "error",
+                    "invalid-skip-audit-shape",
+                    f"{rel_map}: 'skip_audit' must be a list, got {type(skip_list).__name__}",
+                )
+            )
+            skip_list = []
+        for entry in skip_list:
             if not isinstance(entry, dict):
                 findings.append(
                     Finding("error", "invalid-skip-audit", f"{rel_map}: skip_audit entry must be an object")
@@ -281,8 +294,8 @@ def main(argv: list[str] | None = None) -> int:
         "--strict",
         action="store_true",
         help=(
-            "Treat orphan sections as errors. CI's design-gaps job has run "
-            "with --strict since Phase 8."
+            "Treat orphan sections as errors. CI's design-gaps job runs "
+            "with --strict so a regression here breaks the build."
         ),
     )
     parser.add_argument(

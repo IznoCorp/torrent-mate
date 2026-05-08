@@ -81,14 +81,20 @@ class TestTTL:
         assert cache.get("k") is None
 
     def test_zero_ttl_is_immediately_expired(self, cache: JsonTTLCache) -> None:
-        """A TTL of 0 seconds means the entry is expired on the next get()."""
+        """A TTL of 0 seconds means the entry is expired on the next get().
+
+        ``check_ttl`` evaluates ``elapsed < ttl_seconds``; with ``ttl=0`` and
+        a non-negative monotonic-time delta the comparison is ``0.0 < 0``,
+        which is always False (i.e. always stale). Sleep 1 ms for defence
+        in depth against clock-source quirks, then assert the deterministic
+        outcome — None — rather than the previous ``None or 'v'`` hedge,
+        which made the test pass even if the boundary flipped to ``<=``.
+        """
+        import time
+
         cache.set("k", "v", ttl_seconds=0)
-        # Sleep is not needed: the cached_at is set to now, ttl=0 means any read is stale
-        # (>= 0 elapsed). Ensure at least 1 ms passes by reloading from disk.
-        result = cache.get("k")
-        # May be None (already stale) or "v" depending on sub-millisecond timing;
-        # the critical invariant is no exception raised.
-        assert result is None or result == "v"
+        time.sleep(0.001)
+        assert cache.get("k") is None
 
 
 # ── invalidate ───────────────────────────────────────────────────────────────

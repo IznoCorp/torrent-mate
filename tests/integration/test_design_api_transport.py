@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 import responses
 
-from personalscraper.api._contracts import CircuitOpenError
+from personalscraper.api._contracts import ApiError, CircuitOpenError
 from personalscraper.api.transport._auth import ApiKeyAuth, NoAuth
 from personalscraper.api.transport._http import HttpTransport
 from personalscraper.api.transport._policy import (
@@ -104,9 +104,14 @@ class TestCircuitBreakerContract:
 
         transport = HttpTransport(_make_policy())
 
-        with pytest.raises(Exception):
+        # The transport wraps a 5xx into ``ApiError`` (provider-level error
+        # contract from personalscraper.api._contracts). Pin the precise
+        # type so a refactor that swallows the wrap or starts raising a
+        # different class surfaces here rather than being masked by a
+        # broad ``Exception`` catch.
+        with pytest.raises(ApiError):
             transport.get("/down")
-        with pytest.raises(Exception):
+        with pytest.raises(ApiError):
             transport.get("/down")
 
         with pytest.raises(CircuitOpenError, match="Circuit breaker OPEN"):

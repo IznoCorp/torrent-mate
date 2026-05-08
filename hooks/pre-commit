@@ -10,16 +10,38 @@ set -euo pipefail
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
-# grep returns 1 on no-match; with `set -o pipefail` we have to absorb it
-# explicitly so the hook does not abort when no design tests are staged.
-STAGED_DESIGN_TESTS=$(
-  git diff --cached --name-only --diff-filter=ACM \
-    | grep 'test_design_.*\.py$' \
-    || true
-)
+# List staged files in two steps so the `|| true` only swallows grep's
+# no-match exit (1) and not a real `git diff` failure (corrupt index, etc.).
+# Without the split, `git diff | grep || true` would mask both.
+if ! STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACM); then
+  echo >&2 "pre-commit: 'git diff --cached' failed — refusing to commit. Fix git state and retry."
+  exit 1
+fi
+
+STAGED_DESIGN_TESTS=$(printf '%s\n' "$STAGED_ALL" | grep 'test_design_.*\.py$' || true)
 
 if [ -z "$STAGED_DESIGN_TESTS" ]; then
   exit 0
+fi
+
+# If the user has ALSO staged a hand edit to a feature_map JSON, the
+# regenerator below would silently overwrite the `sections` block of that
+# file (skip_audit is preserved by SkipAuditCorrupt; sections is not).
+# Refuse rather than risk silent data loss — the user can unstage the JSON,
+# commit the test_design_ change first, then re-curate the map.
+STAGED_MAPS=$(printf '%s\n' "$STAGED_ALL" | grep '^tests/feature_map/.*\.json$' || true)
+if [ -n "$STAGED_MAPS" ]; then
+  cat >&2 <<EOF
+pre-commit: refusing to regenerate — feature_map JSON files are staged alongside
+            design-contract tests. The regenerator would overwrite the 'sections'
+            block of:
+$(printf '              %s\n' $STAGED_MAPS)
+            Either:
+              1) unstage the JSON (\`git restore --staged tests/feature_map/...\`),
+                 let the hook regenerate it, then re-curate; OR
+              2) bypass with \`git commit --no-verify\` (CI will still flag drift).
+EOF
+  exit 1
 fi
 
 echo "pre-commit: design-contract tests staged, regenerating feature maps..."

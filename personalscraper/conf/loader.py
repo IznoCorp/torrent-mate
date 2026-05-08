@@ -175,7 +175,20 @@ def load_config_dir(config_dir: Path) -> Config:
     merged = merge_overlays(master, *overlay_dicts)
 
     # Resolve relative paths against config_dir.parent (repo root), not CWD.
-    # The project root is the parent of the config directory.
+    # ``init-config`` always places ``config/`` at the repo root, so
+    # ``config_dir.parent`` is the project root by construction.
+    #
+    # We expose the root through a module-level attribute on
+    # ``paths_model`` (saved + restored in finally) instead of pydantic's
+    # ``model_validate(context=...)`` because field_validators on nested
+    # sub-models (PathConfig, IndexerConfig.db_path) cannot reach the
+    # outer validation context cleanly. Validators in those models read
+    # the attribute at call time so this assignment is honoured (a
+    # ``from … import _PROJECT_ROOT`` would value-bind None and silently
+    # fall back to CWD — see indexer.py for the call-time lookup).
+    # Single-threaded CLI startup means no concurrent mutation is
+    # possible; if a future caller validates two configs in parallel,
+    # promote ``_PROJECT_ROOT`` to a ContextVar.
     import personalscraper.conf.models.paths as paths_model
 
     project_root = config_dir.parent.resolve()
@@ -326,8 +339,12 @@ def _check_category_orphans(config: Config) -> None:
     assert db_path is not None, "indexer.db_path must be resolved before calling _warn_orphan_categories"
     db_path = db_path.expanduser()
     if not db_path.is_absolute():
-        # Relative paths are resolved against CWD at call time — same as the
-        # rest of the project's path handling.
+        # By the time we get here, IndexerConfig._reject_external_mount has
+        # already resolved relative db_paths against the project root, so a
+        # still-relative value indicates a downstream model edit. Falling
+        # back to CWD here keeps the orphan-check non-blocking — a wrong
+        # path simply results in "no DB → nothing to check" below, never a
+        # crash on startup.
         db_path = Path.cwd() / db_path
 
     if not db_path.is_file():
