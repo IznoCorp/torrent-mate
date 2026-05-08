@@ -2,9 +2,30 @@
   "feature": "api-unify",
   "design": "docs/archive/features/api-unify/DESIGN.md",
   "sections": {
+    "33-apitransport_policypy--transport-contract": {
+      "tests": [
+        "tests/integration/test_design_api_transport.py::TestPolicyContract::test_policy_is_frozen"
+      ]
+    },
+    "34-apitransport_authpy": {
+      "tests": [
+        "tests/integration/test_design_api_transport.py::TestAuthContract::test_api_key_auth_attaches_key_to_query"
+      ]
+    },
     "35-corecircuitpy": {
       "tests": [
         "tests/integration/test_design_api_transport.py::TestCircuitBreakerContract::test_circuit_opens_after_threshold_final_failures"
+      ]
+    },
+    "37-apitransport_httppy--httptransport": {
+      "tests": [
+        "tests/integration/test_design_api_transport.py::TestHttpTransportContract::test_get_retries_until_success"
+      ]
+    },
+    "87-api_activationpy--provider-activation": {
+      "tests": [
+        "tests/integration/test_design_api_activation.py::TestProviderActivationContract::test_enabled_missing_creds_emits_warning",
+        "tests/integration/test_design_api_activation.py::TestProviderActivationContract::test_enabled_with_creds_is_active"
       ]
     }
   },
