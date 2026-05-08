@@ -497,7 +497,7 @@ class FakeTVDB:
             return raw.get("data", raw)
         return {}
 
-    def get_season_episodes(self, series_id: int, season: int) -> list[dict[str, Any]]:
+    def get_series_episodes(self, series_id: int, season: int) -> list[dict[str, Any]]:
         """Return an empty episode list (stub — episodes not exercised here).
 
         Args:

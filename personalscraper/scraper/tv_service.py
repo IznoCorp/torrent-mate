@@ -547,8 +547,10 @@ class TvServiceMixin:
                     fallback_language=self._scraper_fallback_language,
                 )
             else:
+                from personalscraper.scraper.movie_service import _coerce_to_show_data  # noqa: PLC0415
+
                 tmdb_id = match.api_id
-                show_data = self._tmdb.get_tv(tmdb_id)  # type: ignore[assignment]
+                show_data = _coerce_to_show_data(self._tmdb.get_tv(tmdb_id))
         except Exception as e:
             result.error = f"Get details failed: {e}"
             log.error("show_details_failed", error=str(e), exc_info=True)

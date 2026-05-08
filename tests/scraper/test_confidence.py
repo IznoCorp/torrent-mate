@@ -535,7 +535,7 @@ class TestGetEpisodeTitles:
     def test_tvdb_episodes_with_translation(self) -> None:
         """TVDB episodes use typed SeasonDetails — titles come from EpisodeInfo.title."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = SeasonDetails(
+        tvdb.get_series_episodes.return_value = SeasonDetails(
             provider="tvdb",
             tv_id="81189",
             season_number=1,
@@ -553,7 +553,7 @@ class TestGetEpisodeTitles:
     def test_tvdb_fallback_to_english(self) -> None:
         """Episode titles fall back to placeholder when title is empty."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = SeasonDetails(
+        tvdb.get_series_episodes.return_value = SeasonDetails(
             provider="tvdb",
             tv_id="1",
             season_number=1,
@@ -570,7 +570,7 @@ class TestGetEpisodeTitles:
     def test_tvdb_fallback_to_original(self) -> None:
         """Episode title is used directly from the typed API response."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = SeasonDetails(
+        tvdb.get_series_episodes.return_value = SeasonDetails(
             provider="tvdb",
             tv_id="1",
             season_number=1,
@@ -605,7 +605,7 @@ class TestGetEpisodeTitles:
     def test_empty_season(self) -> None:
         """Should return empty dict for non-existent season."""
         tvdb = MagicMock()
-        tvdb.get_season_episodes.return_value = SeasonDetails(provider="tvdb", tv_id="1", season_number=99, episodes=[])
+        tvdb.get_series_episodes.return_value = SeasonDetails(provider="tvdb", tv_id="1", season_number=99, episodes=[])
 
         match_r = MatchResult(api_id=1, api_title="Test", api_year=2020, confidence=0.9, source="tvdb")
         titles = get_episode_titles(match_r, 99, tvdb, MagicMock())

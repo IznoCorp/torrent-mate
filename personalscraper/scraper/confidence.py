@@ -440,7 +440,7 @@ def get_episode_titles(
     """Get episode titles for a season from the matched provider.
 
     Both TMDB and TVDB now return typed ``SeasonDetails`` (via ``get_tv_season``
-    / ``get_season_episodes``). Episode titles are taken directly from the API
+    / ``get_series_episodes``). Episode titles are taken directly from the API
     response — TVDB v4 has no per-episode translation endpoint.
 
     Args:
@@ -457,7 +457,7 @@ def get_episode_titles(
     titles: dict[int, str] = {}
 
     if match.source == "tvdb":
-        season_details = tvdb_client.get_season_episodes(match.api_id, season)  # type: ignore[attr-defined]
+        season_details = tvdb_client.get_series_episodes(match.api_id, season)  # type: ignore[attr-defined]
         if not season_details or not season_details.episodes:
             log.warning("season_not_found_tvdb", season=season, title=match.api_title)
             return titles
