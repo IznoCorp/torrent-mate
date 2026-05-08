@@ -1,0 +1,12 @@
+{
+  "feature": "indexer",
+  "design": "docs/reference/indexer.md",
+  "sections": {
+    "schema-overview": {
+      "tests": [
+        "tests/integration/test_design_indexer.py::TestIndexerSchemaContract::test_each_migration_registers_in_schema_version_table"
+      ]
+    }
+  },
+  "skip_audit": []
+}
