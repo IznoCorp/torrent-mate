@@ -9,5 +9,51 @@
       ]
     }
   },
-  "skip_audit": []
+  "skip_audit": [
+    {
+      "anchor": "architecture-reference",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "automated-pipeline-personalscraper-run",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "directory-structure",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "key-dependencies-chosen-after-evaluation",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "reference-documentation",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "shared-utilities-single-source-of-truth",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "trailers-subsystem-notes",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "versioning-hygiene",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "workflow-pipeline",
+      "reason": "Bootstrapped during test-coverage Phase 10 — section is reference (workflow pipeline, directory structure, dependency choices, versioning hygiene) rather than a behavior reachable from a single public function.",
+      "expires": "2027-05-08"
+    }
+  ]
 }
