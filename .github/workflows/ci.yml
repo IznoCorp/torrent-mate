@@ -189,7 +189,7 @@ jobs:
       - name: Map freshness check
         run: python3 scripts/update_feature_map.py --check
       - name: Design coverage audit
-        # Warning-mode through cycle 3. Promoted to a hard error in Phase 8
-        # (cycle 4 — trailers) once contract-test coverage is broad enough.
-        run: python3 scripts/audit_design_coverage.py
-        continue-on-error: true
+        # Promoted to hard error in Phase 8 (cycle-4 boundary). Orphans are
+        # waived via tests/feature_map/<codename>.json `skip_audit` entries
+        # (each carries a `reason` and an `expires` ISO date).
+        run: python3 scripts/audit_design_coverage.py --strict
