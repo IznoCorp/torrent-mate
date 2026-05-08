@@ -171,3 +171,25 @@ jobs:
             echo "::error::fail_under decreased (${main_threshold} → ${head_threshold}). Add 'coverage-rollback' label to override."
             exit 1
           fi
+
+  design-gaps:
+    name: design-gaps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: pip-${{ runner.os }}-3.12-
+      - run: pip install -e ".[dev]"
+      - name: Map freshness check
+        run: python3 scripts/update_feature_map.py --check
+      - name: Design coverage audit
+        # Warning-mode through cycle 3. Promoted to a hard error in Phase 8
+        # (cycle 4 — trailers) once contract-test coverage is broad enough.
+        run: python3 scripts/audit_design_coverage.py
+        continue-on-error: true
