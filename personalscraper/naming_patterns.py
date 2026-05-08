@@ -150,6 +150,12 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
     Returns:
         Compiled regex matching any string produced by *pattern*. Each
         ``{placeholder}`` becomes one capturing group, in order.
+
+    Note:
+        The returned pattern is intended for ``match``/``fullmatch`` +
+        ``group(N)`` use. Callers using ``findall`` / ``re.sub`` should
+        be aware that the capturing group changes ``findall`` return
+        shape (returns the captured digits, not the whole match).
     """
     import re
 

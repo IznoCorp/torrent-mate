@@ -10,6 +10,8 @@ set -euo pipefail
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
+# grep returns 1 on no-match; with `set -o pipefail` we have to absorb it
+# explicitly so the hook does not abort when no design tests are staged.
 STAGED_DESIGN_TESTS=$(
   git diff --cached --name-only --diff-filter=ACM \
     | grep 'test_design_.*\.py$' \
@@ -21,18 +23,51 @@ if [ -z "$STAGED_DESIGN_TESTS" ]; then
 fi
 
 echo "pre-commit: design-contract tests staged, regenerating feature maps..."
-python3 scripts/update_feature_map.py
+
+# Run the regenerator with explicit failure context: the user otherwise
+# only sees the script's raw stderr and may not realize the commit is
+# being blocked because of it.
+if ! python3 scripts/update_feature_map.py; then
+  rc=$?
+  cat >&2 <<EOF
+pre-commit: feature map regeneration failed (exit ${rc}).
+            Fix the error above and re-stage, or bypass with
+            \`git commit --no-verify\` (CI will still catch drift).
+EOF
+  exit "$rc"
+fi
 
 # git status --porcelain (NOT git diff) — captures both modified AND new
-# (untracked) map files. git diff --name-only would miss new codename files.
-UPDATED=$(git status --porcelain tests/feature_map/ | awk '{print $2}' || true)
-if [ -n "$UPDATED" ]; then
+# (untracked) map files. git diff --name-only would miss new files.
+# We use porcelain v1 with -z to parse NUL-delimited records, which is
+# robust against filenames containing whitespace, tabs, or " -> " (renames).
+# Each record is: XY<space>PATH or "R " forms with " -> " between two paths.
+# We restrict to entries under tests/feature_map/ added/modified/untracked.
+UPDATED_FILES=()
+while IFS= read -r -d '' record; do
+  # First two chars are status; PATH starts at column 4 (1-indexed).
+  status="${record:0:2}"
+  path="${record:3}"
+  # Renamed entries (status starts with R or C) are emitted as
+  # "old\0new" — consume the next token as the new path.
+  case "$status" in
+    R*|C*)
+      IFS= read -r -d '' new_path
+      path="$new_path"
+      ;;
+  esac
+  # Only re-stage map files; skip anything else porcelain reports.
+  case "$path" in
+    tests/feature_map/*) UPDATED_FILES+=("$path") ;;
+  esac
+done < <(git status --porcelain=v1 -z tests/feature_map/)
+
+if [ "${#UPDATED_FILES[@]}" -gt 0 ]; then
   echo "pre-commit: staging updated/new map files:"
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    git add "$f"
+  for f in "${UPDATED_FILES[@]}"; do
+    git add -- "$f"
     echo "  + $f"
-  done <<< "$UPDATED"
+  done
 fi
 
 echo "pre-commit: feature maps up to date."

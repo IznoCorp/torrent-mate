@@ -18,7 +18,7 @@ from pathlib import Path
 
 try:
     import tomllib
-except ImportError:  # Python 3.10
+except ImportError:  # Python 3.10 has no stdlib tomllib; tomli is the canonical fallback (declared in dev deps).
     import tomli as tomllib  # type: ignore[import-not-found, no-redef]
 
 
@@ -32,23 +32,41 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if args.stdin:
-        data = tomllib.loads(sys.stdin.read())
-    else:
-        path = Path(__file__).resolve().parent.parent / "pyproject.toml"
-        if not path.exists():
-            print(f"error: {path} not found", file=sys.stderr)
-            return 1
-        with path.open("rb") as f:
-            data = tomllib.load(f)
-
+    source = "<stdin>" if args.stdin else None
     try:
-        threshold = data["tool"]["coverage"]["report"]["fail_under"]
-    except KeyError:
-        print("error: [tool.coverage.report].fail_under not set", file=sys.stderr)
+        if args.stdin:
+            data = tomllib.loads(sys.stdin.read())
+        else:
+            path = Path(__file__).resolve().parent.parent / "pyproject.toml"
+            source = str(path)
+            if not path.exists():
+                print(f"error: {path} not found", file=sys.stderr)
+                return 1
+            with path.open("rb") as f:
+                data = tomllib.load(f)
+    except tomllib.TOMLDecodeError as exc:
+        # Surface a one-line operator-friendly message instead of a raw
+        # traceback (the CI monotonic step's output is small enough that
+        # a stack trace drowns the cause).
+        print(f"error: {source} is not valid TOML ({exc})", file=sys.stderr)
         return 1
 
-    print(threshold)
+    # Walk the path explicitly so the error message names the missing key,
+    # not just the leaf 'fail_under'.
+    cursor: object = data
+    walked: list[str] = []
+    for key in ("tool", "coverage", "report", "fail_under"):
+        if not isinstance(cursor, dict) or key not in cursor:
+            print(
+                f"error: {'.'.join(walked) or '<root>'} has no '{key}' "
+                f"(looking for [tool.coverage.report].fail_under)",
+                file=sys.stderr,
+            )
+            return 1
+        cursor = cursor[key]
+        walked.append(key)
+
+    print(cursor)
     return 0
 
 

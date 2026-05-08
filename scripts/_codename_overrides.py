@@ -16,7 +16,11 @@ CODENAME_OVERRIDES: Final[dict[str, str]] = {
     "docs/reference/pipeline-internals.md": "pipeline",
     "docs/reference/trailers.md": "trailers",
     "docs/reference/indexer.md": "indexer",
-    "docs/reference/indexer-json-shapes.md": "indexer",
+    # ``indexer-json-shapes.md`` documents Pydantic models for individual
+    # JSON columns; it gets its own codename so contracts pinning JSON
+    # shapes do not collide with behavioral indexer contracts (one map
+    # file per design doc — DESIGN §3.3.1 collision policy).
+    "docs/reference/indexer-json-shapes.md": "indexer-json-shapes",
     "docs/reference/architecture.md": "architecture",
     # Provider docs auto-resolve via stem (tmdb-api.md → tmdb, etc.).
     # Add explicit entries here if a provider doc uses a non-stem codename.

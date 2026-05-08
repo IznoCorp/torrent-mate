@@ -1,0 +1,101 @@
+{
+  "feature": "indexer-json-shapes",
+  "design": "docs/reference/indexer-json-shapes.md",
+  "sections": {
+    "index_outboxpayload_json": {
+      "tests": [
+        "tests/integration/test_design_indexer.py::TestOutboxPayloadShapeContract::test_outbox_payload_envelope_requires_op_and_allows_per_op_extras"
+      ]
+    },
+    "media_itemartwork_json": {
+      "tests": [
+        "tests/integration/test_design_indexer.py::TestArtworkInventoryShapeContract::test_artwork_inventory_defaults_all_false_and_rejects_unknown_keys"
+      ]
+    },
+    "scan_runstats_json": {
+      "tests": [
+        "tests/integration/test_design_indexer.py::TestScanStatsShapeContract::test_scan_stats_defaults_zero_and_forbids_unknown_keys"
+      ]
+    }
+  },
+  "skip_audit": [
+    {
+      "anchor": "indexer-json-column-shapes",
+      "category": "documentation_only",
+      "reason": "Page-level title heading (no behavior to pin).",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "op-move",
+      "category": "documentation_only",
+      "reason": "Per-op payload sub-shape under index_outbox.payload_json. Doc-only Pydantic OutboxPayload uses extra='allow'; runtime apply functions (_apply_move) read fields directly. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "op-nfo_write",
+      "category": "documentation_only",
+      "reason": "Per-op payload sub-shape under index_outbox.payload_json. Doc-only Pydantic OutboxPayload uses extra='allow'; runtime apply functions (_apply_nfo_write) read fields directly. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "op-artwork_write",
+      "category": "documentation_only",
+      "reason": "Per-op payload sub-shape under index_outbox.payload_json. Doc-only Pydantic OutboxPayload uses extra='allow'; runtime apply functions (_apply_artwork_write) read fields directly. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "op-trailer_download",
+      "category": "documentation_only",
+      "reason": "Per-op payload sub-shape under index_outbox.payload_json. Doc-only Pydantic OutboxPayload uses extra='allow'; runtime apply functions read fields directly. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "pending_oppayload_json",
+      "category": "documentation_only",
+      "reason": "Pending-op payload mirrors the outbox payload envelope; OutboxPayload model already pinned in the envelope contract test.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "repair_queuepayload_json",
+      "category": "documentation_only",
+      "reason": "Repair-queue payload — RepairPayload is documented only; insert_repair_queue accepts a raw dict (json.dumps) per schema.py docstring. No write-time validation today.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "producer-library-verify-scanner-verify-mode",
+      "category": "documentation_only",
+      "reason": "Producer-side example payloads under repair_queue.payload_json. Documentation only — no boundary contract.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "producer-library-reconcile",
+      "category": "documentation_only",
+      "reason": "Producer-side example payloads under repair_queue.payload_json. Documentation only — no boundary contract.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "scan_eventpayload_json",
+      "category": "documentation_only",
+      "reason": "ScanEventPayload uses extra='allow' by design (per-event keys). No closed schema to pin beyond 'must be a dict'.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "deleted_itempayload_json",
+      "category": "documentation_only",
+      "reason": "DeletedSnapshot model documented; per-kind shapes follow.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "kind-file--only-kind-currently-written",
+      "category": "documentation_only",
+      "reason": "Per-kind sub-shape under deleted_item.payload_json. Currently the only kind written; rebuild logic exercised by indexer reconcile tests.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "kind-item-kind-release--reserved",
+      "category": "documentation_only",
+      "reason": "Reserved per-kind sub-shape — no production code writes these today (documented as future kinds).",
+      "expires": "2028-05-08"
+    }
+  ]
+}

@@ -13,19 +13,19 @@
 
 ## Phases
 
-| #   | Phase                                                       | Type        | File                                                                                                    | Status |
-| --- | ----------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Foundation — scripts + Makefile + baseline                  | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
-| 2   | CI enforcement (test-cov + design-gaps + monotonic)         | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
-| 3   | Pre-commit hook via core.hooksPath                          | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [x]    |
-| 4   | Bootstrap — first contract test + 7th check                 | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [x]    |
-| 5   | api-unify cycle (bootstrap markers, no bump)                | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [x]    |
-| 6   | scraper cycle → fail_under = 82 (bump deferred)             | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [x]    |
-| 7   | dispatch + verify cycle → fail_under = 85 (bump deferred)   | cycle       | [phase-07-dispatch-verify-cycle.md](docs/features/test-coverage/plan/phase-07-dispatch-verify-cycle.md) | [x]    |
-| 8   | trailers cycle (bump deferred) + design-gaps strict         | cycle       | [phase-08-trailers-cycle.md](docs/features/test-coverage/plan/phase-08-trailers-cycle.md)               | [x]    |
-| 9   | indexer cycle → fail_under = 90 (bump deferred)             | cycle       | [phase-09-indexer-cycle.md](docs/features/test-coverage/plan/phase-09-indexer-cycle.md)                 | [x]    |
-| 10  | remaining cleanup (stay at fail_under = 80, bumps deferred) | cycle       | [phase-10-remaining-cleanup.md](docs/features/test-coverage/plan/phase-10-remaining-cleanup.md)         | [x]    |
-| 11  | Maintenance — 6-month audit + HOWTO                         | maintenance | [phase-11-maintenance.md](docs/features/test-coverage/plan/phase-11-maintenance.md)                     | [x]    |
+| #   | Phase                                                                        | Type        | File                                                                                                    | Status |
+| --- | ---------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Foundation — scripts + Makefile + baseline                                   | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
+| 2   | CI enforcement (test-cov + design-gaps + monotonic)                          | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
+| 3   | Pre-commit hook via core.hooksPath                                           | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [x]    |
+| 4   | Bootstrap — first contract test + 7th check                                  | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [x]    |
+| 5   | api-unify cycle (bootstrap markers, no bump)                                 | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [x]    |
+| 6   | scraper cycle (markers + skip_audit; consolidated bump in `71c8926`)         | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [x]    |
+| 7   | dispatch + verify cycle (markers + skip_audit; consolidated bump)            | cycle       | [phase-07-dispatch-verify-cycle.md](docs/features/test-coverage/plan/phase-07-dispatch-verify-cycle.md) | [x]    |
+| 8   | trailers cycle + design-gaps promoted to hard error (`bed40c8`)              | cycle       | [phase-08-trailers-cycle.md](docs/features/test-coverage/plan/phase-08-trailers-cycle.md)               | [x]    |
+| 9   | indexer cycle (markers + skip_audit; consolidated bump)                      | cycle       | [phase-09-indexer-cycle.md](docs/features/test-coverage/plan/phase-09-indexer-cycle.md)                 | [x]    |
+| 10  | remaining cleanup (markers + skip_audit; final ratchet 80 → 90 in `71c8926`) | cycle       | [phase-10-remaining-cleanup.md](docs/features/test-coverage/plan/phase-10-remaining-cleanup.md)         | [x]    |
+| 11  | Maintenance — 6-month audit + HOWTO                                          | maintenance | [phase-11-maintenance.md](docs/features/test-coverage/plan/phase-11-maintenance.md)                     | [x]    |
 
 ## Quality gate (every commit)
 
@@ -60,7 +60,10 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 
 **Note**: actual branch-coverage baseline measured at 80.48 % (not the 44 % the
 plan assumed). Phase 1 set `fail_under = 80`. Plan rescaled in commit `1dc7eac`
-to `80 → 82 → 85 → 87 → 90` distributed over Phases 6/7/8/9.
+to `80 → 82 → 85 → 87 → 90` distributed over Phases 6/7/8/9. The cycle-by-cycle
+bumps were consolidated and shipped end-to-end in `71c8926`
+("apply ratchet 80→90 — final gate, target reached"); measured branch coverage
+at the final gate is 91 %.
 
 ### Phase 2 — CI enforcement
 

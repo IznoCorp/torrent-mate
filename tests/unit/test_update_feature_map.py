@@ -55,7 +55,7 @@ def test_circuit_breaker_opens():
     """
 ''',
         )
-        entries, warnings = collect_markers(fake_repo / "tests", fake_repo)
+        entries, warnings, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert warnings == []
         assert len(entries) == 1
         assert entries[0].design_path == "docs/features/api-unify/DESIGN.md"
@@ -76,7 +76,7 @@ async def test_async_handler():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert len(entries) == 1
         assert entries[0].anchor == "async-handler"
 
@@ -93,7 +93,7 @@ def test_legacy():
     """
 ''',
         )
-        entries, warnings = collect_markers(fake_repo / "tests", fake_repo)
+        entries, warnings, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert entries == []
         assert len(warnings) == 1
         assert warnings[0].endswith("::test_legacy")
@@ -111,7 +111,7 @@ def test_no_design():
     """
 ''',
         )
-        entries, warnings = collect_markers(fake_repo / "tests", fake_repo)
+        entries, warnings, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert entries == []
         assert warnings == []
 
@@ -130,7 +130,7 @@ def test_cross_cutting():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert {e.anchor for e in entries} == {"section-a", "section-b"}
 
     def test_module_and_class_docstrings_ignored(self, fake_repo: Path) -> None:
@@ -159,7 +159,7 @@ class TestSuite:
         """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert {e.anchor for e in entries} == {"method-marker"}
         assert entries[0].test_id.endswith("test_design_doc_levels.py::TestSuite::test_method")
 
@@ -177,7 +177,7 @@ def test_in_feature_map():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         assert entries == []
 
 
@@ -198,7 +198,7 @@ def test_a():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps, collisions = build_maps(entries)
         assert collisions == []
         assert "test-coverage" in maps
@@ -212,7 +212,7 @@ def test_a():
             ("docs/reference/pipeline-internals.md", "pipeline"),
             ("docs/reference/trailers.md", "trailers"),
             ("docs/reference/indexer.md", "indexer"),
-            ("docs/reference/indexer-json-shapes.md", "indexer"),
+            ("docs/reference/indexer-json-shapes.md", "indexer-json-shapes"),
             ("docs/reference/architecture.md", "architecture"),
         ],
     )
@@ -227,7 +227,7 @@ def test_x():
     """
 '''
         _write_test_file(fake_repo, "tests/integration/test_design_override.py", source)
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps, _ = build_maps(entries)
         assert expected_codename in maps
 
@@ -252,7 +252,7 @@ def test_y():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         _, collisions = build_maps(entries)
         assert len(collisions) == 1
         codename, first, second = collisions[0]
@@ -283,7 +283,7 @@ def test_a_second():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps, _ = build_maps(entries)
         tests = maps["api-unify"]["sections"]["shared"]["tests"]
         assert tests == sorted(tests)
@@ -307,7 +307,7 @@ def test_x():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps, _ = build_maps(entries)
         write_maps(maps, fake_repo / "tests" / "feature_map")
         drifts = diff_maps(maps, fake_repo / "tests" / "feature_map")
@@ -327,7 +327,7 @@ def test_x():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps, _ = build_maps(entries)
         write_maps(maps, fake_repo / "tests" / "feature_map")
 
@@ -344,7 +344,7 @@ def test_y():
     """
 ''',
         )
-        entries2, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries2, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps2, _ = build_maps(entries2)
         drifts = diff_maps(maps2, fake_repo / "tests" / "feature_map")
         assert len(drifts) == 1
@@ -373,7 +373,7 @@ def test_x():
     """
 ''',
         )
-        entries, _ = collect_markers(fake_repo / "tests", fake_repo)
+        entries, _, _parse_errors = collect_markers(fake_repo / "tests", fake_repo)
         maps, _ = build_maps(entries)
         map_dir = fake_repo / "tests" / "feature_map"
         write_maps(maps, map_dir)

@@ -134,37 +134,44 @@ def audit(
             findings.append(Finding("error", "invalid-json", f"{rel_map}: invalid JSON ({exc})"))
             continue
 
-        design_rel = data.get("design")
-        if not isinstance(design_rel, str) or not design_rel:
-            findings.append(Finding("error", "missing-design", f"{rel_map}: missing 'design' key"))
-            continue
-
-        design_abs = repo_root / design_rel
-        if not design_abs.exists():
-            findings.append(
-                Finding(
-                    "error",
-                    "missing-design-file",
-                    f"{rel_map}: design doc {design_rel} does not exist",
-                )
-            )
-            continue
-
-        doc_anchors = set(parse_anchors(design_abs.read_text(encoding="utf-8")))
+        # Shape validation runs first and unconditionally — a missing or
+        # broken design field must not mask other shape problems in the
+        # same file (otherwise each PR can only surface one shape error
+        # at a time).
         sections = data.get("sections", {})
         if not isinstance(sections, dict):
             findings.append(Finding("error", "invalid-sections", f"{rel_map}: 'sections' must be an object"))
             sections = {}
 
-        for anchor in sections:
-            if anchor not in doc_anchors:
+        design_rel = data.get("design")
+        design_present = isinstance(design_rel, str) and bool(design_rel)
+        if not design_present:
+            findings.append(Finding("error", "missing-design", f"{rel_map}: missing 'design' key"))
+            doc_anchors: set[str] = set()
+        else:
+            design_abs = repo_root / design_rel
+            if not design_abs.exists():
                 findings.append(
                     Finding(
                         "error",
-                        "stale-reference",
-                        f"{rel_map}: anchor '#{anchor}' not found in {design_rel}",
+                        "missing-design-file",
+                        f"{rel_map}: design doc {design_rel} does not exist",
                     )
                 )
+                doc_anchors = set()
+            else:
+                doc_anchors = set(parse_anchors(design_abs.read_text(encoding="utf-8")))
+
+        if design_present and doc_anchors:
+            for anchor in sections:
+                if anchor not in doc_anchors:
+                    findings.append(
+                        Finding(
+                            "error",
+                            "stale-reference",
+                            f"{rel_map}: anchor '#{anchor}' not found in {design_rel}",
+                        )
+                    )
 
         skip_anchors: set[str] = set()
         for entry in data.get("skip_audit", []):
@@ -174,30 +181,66 @@ def audit(
                 )
                 continue
             anchor = entry.get("anchor")
-            if isinstance(anchor, str):
+            if not isinstance(anchor, str) or not anchor:
+                # A non-string / empty anchor cannot be matched against
+                # doc_anchors below, so the corresponding section would
+                # surface as 'orphan-section' — misleading. Emit a
+                # dedicated finding so the real shape problem is fixed.
+                findings.append(
+                    Finding(
+                        "error",
+                        "invalid-skip-anchor",
+                        f"{rel_map}: skip_audit entry has missing or non-string anchor: {entry!r}",
+                    )
+                )
+            else:
                 skip_anchors.add(anchor)
+            anchor_label = anchor if isinstance(anchor, str) and anchor else "<missing>"
+            # Per DESIGN §3.3.2, every skip_audit entry must declare a
+            # category so future maintainers can tell "section will
+            # never carry a contract" from "we're planning to add one".
+            category = entry.get("category")
+            if category not in ("documentation_only", "deferred_promotion"):
+                findings.append(
+                    Finding(
+                        "error",
+                        "invalid-skip-category",
+                        (
+                            f"{rel_map}: skip_audit '#{anchor_label}' has missing or unknown 'category' "
+                            f"({category!r}); must be 'documentation_only' or 'deferred_promotion'"
+                        ),
+                    )
+                )
             expires = entry.get("expires")
-            if isinstance(expires, str):
-                try:
-                    exp = date.fromisoformat(expires)
-                except ValueError:
-                    findings.append(
-                        Finding(
-                            "error",
-                            "invalid-expires",
-                            f"{rel_map}: skip_audit '#{anchor}' has invalid expires '{expires}'",
-                        )
+            if not isinstance(expires, str) or not expires:
+                findings.append(
+                    Finding(
+                        "error",
+                        "missing-expires",
+                        f"{rel_map}: skip_audit '#{anchor_label}' is missing required 'expires' field",
                     )
-                    continue
-                if exp < today:
-                    severity = "error" if strict_skip else "warning"
-                    findings.append(
-                        Finding(
-                            severity,
-                            "expired-skip",
-                            f"{rel_map}: skip_audit '#{anchor}' expired {expires}",
-                        )
+                )
+                continue
+            try:
+                exp = date.fromisoformat(expires)
+            except ValueError:
+                findings.append(
+                    Finding(
+                        "error",
+                        "invalid-expires",
+                        f"{rel_map}: skip_audit '#{anchor_label}' has invalid expires '{expires}'",
                     )
+                )
+                continue
+            if exp < today:
+                severity = "error" if strict_skip else "warning"
+                findings.append(
+                    Finding(
+                        severity,
+                        "expired-skip",
+                        f"{rel_map}: skip_audit '#{anchor_label}' expired {expires}",
+                    )
+                )
 
         for anchor in sorted(doc_anchors):
             if anchor in skip_anchors:
@@ -230,11 +273,17 @@ def report(findings: Iterable[Finding]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Command-line entry point. See module docstring for modes."""
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    # Module docstring's first line is the CLI description — guard against
+    # the docstring being stripped (python -OO) so help still renders.
+    description = (__doc__ or "").splitlines()[0] if __doc__ else None
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="Treat orphan sections as errors (used post-cycle-4).",
+        help=(
+            "Treat orphan sections as errors. CI's design-gaps job has run "
+            "with --strict since Phase 8."
+        ),
     )
     parser.add_argument(
         "--strict-skip",

@@ -184,7 +184,9 @@ class TestAuditOrphanSections:
                 "feature": "sample",
                 "design": "docs/features/sample/DESIGN.md",
                 "sections": {},
-                "skip_audit": [{"anchor": "purpose", "reason": "intent", "expires": "2099-01-01"}],
+                "skip_audit": [
+                    {"anchor": "purpose", "category": "documentation_only", "reason": "intent", "expires": "2099-01-01"}
+                ],
             },
         )
         findings = audit(
@@ -260,7 +262,9 @@ class TestSkipAuditExpiry:
                 "feature": "sample",
                 "design": "docs/features/sample/DESIGN.md",
                 "sections": {},
-                "skip_audit": [{"anchor": "purpose", "reason": "intent", "expires": "2024-01-01"}],
+                "skip_audit": [
+                    {"anchor": "purpose", "category": "documentation_only", "reason": "intent", "expires": "2024-01-01"}
+                ],
             },
         )
         findings = audit(
@@ -284,7 +288,9 @@ class TestSkipAuditExpiry:
                 "feature": "sample",
                 "design": "docs/features/sample/DESIGN.md",
                 "sections": {},
-                "skip_audit": [{"anchor": "purpose", "reason": "intent", "expires": "2024-01-01"}],
+                "skip_audit": [
+                    {"anchor": "purpose", "category": "documentation_only", "reason": "intent", "expires": "2024-01-01"}
+                ],
             },
         )
         findings = audit(
@@ -306,7 +312,9 @@ class TestSkipAuditExpiry:
                 "feature": "sample",
                 "design": "docs/features/sample/DESIGN.md",
                 "sections": {},
-                "skip_audit": [{"anchor": "purpose", "reason": "intent", "expires": "next year"}],
+                "skip_audit": [
+                    {"anchor": "purpose", "category": "documentation_only", "reason": "intent", "expires": "next year"}
+                ],
             },
         )
         findings = audit(

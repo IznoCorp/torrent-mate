@@ -51,6 +51,31 @@ git commit -m "test(<scope>): contract test for <behavior>"
 
 The pre-commit hook (`hooks/pre-commit`, installed by `hooks/install.sh`) regenerates `tests/feature_map/<codename>.json` and stages it as part of the same commit. CI's `design-gaps` job verifies the map is in sync via `update_feature_map.py --check` and runs `audit_design_coverage.py` so stale or missing references trip a build before a reviewer has to.
 
+## Waiving a section (skip_audit)
+
+If a design section is genuinely untestable (intent statement, ops playbook,
+reference table) or is planned for a follow-up contract test, hand-edit
+`tests/feature_map/<codename>.json` and append an entry to `skip_audit`:
+
+```json
+{
+  "anchor": "<github-anchor>",
+  "category": "documentation_only",
+  "reason": "<one-sentence justification>",
+  "expires": "<ISO date>"
+}
+```
+
+Pick `category` per DESIGN §3.3.2:
+
+- **`documentation_only`** — reference/ops/intent content that will never
+  carry a contract. Long expiry (~2 years).
+- **`deferred_promotion`** — behavior that should be pinned later. Short
+  expiry (~6 months) so the entry resurfaces in CI before it goes stale.
+
+The `expires` date is what `audit_design_coverage.py --strict-skip` checks
+in CI and in the 6-month maintenance audit.
+
 ## Troubleshooting
 
 | Symptom                                                  | Cause                                                                        | Fix                                                                                                                                                                         |

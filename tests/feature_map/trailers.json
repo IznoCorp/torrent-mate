@@ -12,143 +12,171 @@
   "skip_audit": [
     {
       "anchor": "cli-commands",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "composite-key-format",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "configuration",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "environment-variables",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "library-aware-idempotence-design-section-8",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "overview",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "personalscraper-run-flags",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "placement-convention",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "retry-policy",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "security",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "state-file",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "top-level-keys",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "tos-note",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailers-download",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailers-purge",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailers-reference",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailers-scan",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailers-verify",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailerscircuit_breakers",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailersfilters",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailerslibrary_check",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailerspipeline",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailersseasons",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailersstep",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailerstatus-values",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailersyoutube_api",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "trailersytdlp",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
       "anchor": "troubleshooting",
+      "category": "documentation_only",
       "reason": "Bootstrapped during test-coverage Phase 8 — section is reference (config keys, env vars, CLI commands) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     }
   ]
 }

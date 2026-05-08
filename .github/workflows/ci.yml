@@ -163,7 +163,10 @@ jobs:
           head_threshold=$(python3 scripts/get_coverage_threshold.py)
           main_threshold=$(git show "origin/${BASE_REF}:pyproject.toml" | python3 scripts/get_coverage_threshold.py --stdin)
           echo "HEAD: ${head_threshold} | base (${BASE_REF}): ${main_threshold}"
-          if [ "${head_threshold}" -lt "${main_threshold}" ]; then
+          # Float-safe comparison via awk — `[ -lt ]` requires integer
+          # operands and would crash if fail_under is ever expressed as
+          # 90.5 / 87.0 / etc.
+          if awk -v h="${head_threshold}" -v m="${main_threshold}" 'BEGIN{exit !(h<m)}'; then
             if echo ",${PR_LABELS}," | grep -q ',coverage-rollback,'; then
               echo "::warning::fail_under decreased (${main_threshold} → ${head_threshold}) — rollback acknowledged via label."
               exit 0

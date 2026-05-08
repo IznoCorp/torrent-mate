@@ -40,6 +40,10 @@ test-integration:
 
 test-cov:
 	@echo "Running tests with branch coverage (fail_under=$(THRESHOLD))..."
+	# Erase any leftover .coverage* files first — `parallel = true` writes
+	# `.coverage.<host>.<pid>.<rand>` shards that can poison a subsequent
+	# run on a dirty tree. Reproducible from any state.
+	python3 -m coverage erase
 	python3 -m pytest tests/ --ignore=tests/e2e -q --no-header -n auto \
 		--cov=personalscraper --cov-branch --cov-report=xml --cov-report=term \
 		--cov-fail-under=$(THRESHOLD)
