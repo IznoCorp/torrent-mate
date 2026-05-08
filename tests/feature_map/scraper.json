@@ -10,5 +10,46 @@
       ]
     }
   },
-  "skip_audit": []
+  "skip_audit": [
+    {
+      "anchor": "artwork-recovery",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "ffprobe-language-codes",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "mediaelch",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "scraping-reference",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "security",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "tmdb-api",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "tmdb-videos-endpoint",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "tvdb-api",
+      "reason": "Bootstrapped during test-coverage Phase 6 — section is documentation/reference (auth invariant tables, response shapes) rather than a behavior reachable from the public scraper API. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    }
+  ]
 }
