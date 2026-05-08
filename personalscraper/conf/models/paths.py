@@ -6,6 +6,12 @@ from pydantic import Field, field_validator
 
 from personalscraper.conf.models._base import _StrictModel
 
+_PROJECT_ROOT: Path | None = None
+"""Set by ``load_config_dir`` before validation. Resolves to ``config_dir.parent``
+(the repo root). Relative paths in the config are resolved against this directory
+rather than CWD, so that running ``personalscraper`` from a non-repo directory
+(e.g. the staging directory) still resolves ``data_dir`` and similar paths correctly."""
+
 
 class PathConfig(_StrictModel):
     """Chemins non-disk utilisés par le pipeline.
@@ -29,7 +35,7 @@ class PathConfig(_StrictModel):
     @field_validator("torrent_complete_dir", "staging_dir", "data_dir", mode="after")
     @classmethod
     def _must_be_absolute_or_resolve(cls, v: Path) -> Path:
-        """Resolve relative paths to absolute via expanduser().resolve().
+        """Resolve relative paths against project root (or CWD as last resort).
 
         Args:
             v: Path value from the config.
@@ -37,4 +43,7 @@ class PathConfig(_StrictModel):
         Returns:
             Absolute path.
         """
-        return v.expanduser().resolve() if not v.is_absolute() else v
+        if v.is_absolute():
+            return v
+        base = _PROJECT_ROOT if _PROJECT_ROOT is not None else Path.cwd()
+        return (base / v).resolve()

@@ -67,6 +67,13 @@ class ConfigValidationError(ValueError):
 def resolve_config_path(cli_override: Path | None = None) -> Path:
     """Resolve the active config directory using CLI > env > default.
 
+    Resolution order:
+      1. ``--config`` CLI override (highest priority)
+      2. ``$PERSONALSCRAPER_CONFIG`` environment variable
+      3. ``./config/`` relative to CWD (backwards-compatible)
+      4. ``<pkg_root>/config/`` (fallback — works when CWD is not the repo root,
+         e.g. running from the staging directory)
+
     Args:
         cli_override: Path passed via --config CLI option. Takes highest priority.
             Must point at a config directory.
@@ -79,7 +86,13 @@ def resolve_config_path(cli_override: Path | None = None) -> Path:
     env = os.environ.get(ENV_CONFIG_PATH)
     if env:
         return Path(env).expanduser().resolve()
-    return DEFAULT_CONFIG_DIR.expanduser().resolve()
+
+    cwd_config = DEFAULT_CONFIG_DIR.expanduser().resolve()
+    if cwd_config.is_dir():
+        return cwd_config
+
+    pkg_root = Path(__file__).resolve().parent.parent.parent
+    return pkg_root / "config"
 
 
 def _load_json5_file(path: Path) -> dict[str, Any]:
@@ -161,11 +174,21 @@ def load_config_dir(config_dir: Path) -> Config:
     # Merge: master is the base; overlays applied in order.
     merged = merge_overlays(master, *overlay_dicts)
 
+    # Resolve relative paths against config_dir.parent (repo root), not CWD.
+    # The project root is the parent of the config directory.
+    import personalscraper.conf.models.paths as paths_model
+
+    project_root = config_dir.parent.resolve()
+    prev_root = paths_model._PROJECT_ROOT
+    paths_model._PROJECT_ROOT = project_root
+
     # Validate through pydantic.
     try:
         config = Config.model_validate(merged)
     except Exception as exc:
         raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
+    finally:
+        paths_model._PROJECT_ROOT = prev_root
 
     # Emit non-blocking warnings.
     for warning in collect_warnings(config):

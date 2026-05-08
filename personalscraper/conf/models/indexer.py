@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic import Field, field_validator
 
 from personalscraper.conf.models._base import _StrictModel
+from personalscraper.conf.models.paths import _PROJECT_ROOT
 
 
 class IndexerScanConfig(_StrictModel):
@@ -144,8 +145,8 @@ class IndexerConfig(_StrictModel):
         Two invariants enforced here:
 
         1. **Absolute path.** Relative ``db_path`` values are resolved against
-           the current working directory at load-time so every consumer sees
-           the same path regardless of where ``personalscraper`` is invoked
+           the project root (config_dir.parent) at load-time so every consumer
+           sees the same path regardless of where ``personalscraper`` is invoked
            from.
         2. **No external mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
            and network mounts. The database must live on the internal APFS
@@ -165,7 +166,8 @@ class IndexerConfig(_StrictModel):
             return v
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            resolved = (Path.cwd() / resolved).resolve()
+            base = _PROJECT_ROOT if _PROJECT_ROOT is not None else Path.cwd()
+            resolved = (base / resolved).resolve()
         if str(resolved).startswith("/Volumes/"):
             raise ValueError(
                 f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "
