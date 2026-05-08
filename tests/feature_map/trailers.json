@@ -1,0 +1,13 @@
+{
+  "feature": "trailers",
+  "design": "docs/reference/trailers.md",
+  "sections": {
+    "pipeline-step": {
+      "tests": [
+        "tests/integration/test_design_trailers.py::TestTrailerPlacementContract::test_movie_trailer_is_flat_next_to_media",
+        "tests/integration/test_design_trailers.py::TestTrailerPlacementContract::test_tvshow_trailer_lands_in_trailers_subfolder"
+      ]
+    }
+  },
+  "skip_audit": []
+}
