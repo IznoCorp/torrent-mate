@@ -128,7 +128,7 @@ class TestMovieReplaceContract:
         (dest / "movie.mkv").write_bytes(b"old")
 
         real_rename = os.rename
-        call_count = {"n": 0}
+        rename_count = 0
 
         def fake_rename(src: str | os.PathLike[str], dst: str | os.PathLike[str]) -> None:
             """Allow first rename (dest → dest.old.tmp), fail the second.
@@ -136,8 +136,9 @@ class TestMovieReplaceContract:
             This recreates the exact mid-swap state Phase 2's rollback
             block is designed to recover from.
             """
-            call_count["n"] += 1
-            if call_count["n"] == 2:
+            nonlocal rename_count
+            rename_count += 1
+            if rename_count == 2:
                 raise OSError(28, "simulated swap failure")  # ENOSPC
             real_rename(src, dst)
 
@@ -150,8 +151,10 @@ class TestMovieReplaceContract:
         # Pre-call view restored: dest exists with original content.
         assert dest.exists()
         assert (dest / "movie.mkv").read_bytes() == b"old"
-        # No staging siblings leaked after rollback.
+        # No staging siblings leaked after rollback — both .old.tmp (backup)
+        # and .new.tmp (successful Phase 1 transfer) must be cleaned up.
         assert not (dest.parent / f"{dest.name}.old.tmp").exists()
+        assert not (dest.parent / f"{dest.name}.new.tmp").exists()
 
 
 class TestTvShowMergeContract:

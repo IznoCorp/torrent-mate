@@ -345,6 +345,12 @@ def _check_category_orphans(config: Config) -> None:
         # back to CWD here keeps the orphan-check non-blocking — a wrong
         # path simply results in "no DB → nothing to check" below, never a
         # crash on startup.
+        log.warning(
+            "indexer.config.unexpected_relative_db_path",
+            db_path=str(db_path),
+            hint="Resolved against CWD as fallback; orphan check may not run. "
+            "This indicates an IndexerConfig constructed outside load_config_dir.",
+        )
         db_path = Path.cwd() / db_path
 
     if not db_path.is_file():

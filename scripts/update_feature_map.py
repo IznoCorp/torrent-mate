@@ -248,7 +248,11 @@ def read_existing_skip_audit(path: Path) -> list[object]:
     if not path.exists():
         return []
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise SkipAuditCorrupt(f"{path}: unreadable ({type(exc).__name__}: {exc})") from exc
+    try:
+        data = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise SkipAuditCorrupt(f"{path}: invalid JSON ({exc})") from exc
     skip = data.get("skip_audit", [])

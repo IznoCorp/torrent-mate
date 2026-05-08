@@ -134,6 +134,16 @@ def audit(
             findings.append(Finding("error", "invalid-json", f"{rel_map}: invalid JSON ({exc})"))
             continue
 
+        if not isinstance(data, dict):
+            findings.append(
+                Finding(
+                    "error",
+                    "invalid-root",
+                    f"{rel_map}: top-level value must be a JSON object, got {type(data).__name__}",
+                )
+            )
+            continue
+
         # Shape validation runs first and unconditionally — a missing or
         # broken design field must not mask other shape problems in the
         # same file (otherwise each PR can only surface one shape error

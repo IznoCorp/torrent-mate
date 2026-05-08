@@ -18,7 +18,12 @@ cd "$REPO_ROOT"
 # (which would otherwise corrupt the same-day collision counter below
 # via TOCTOU). flock blocks until the previous run releases; -n converts
 # it to a fast-fail, which is the safer default for a long-running audit.
-LOCKFILE="${TMPDIR:-/tmp}/personalscraper_coverage_audit.lock"
+LOCK_DIR="${TMPDIR:-/tmp}"
+if [ ! -d "$LOCK_DIR" ]; then
+  echo "audit: lock directory does not exist (TMPDIR=$LOCK_DIR); aborting." >&2
+  exit 1
+fi
+LOCKFILE="$LOCK_DIR/personalscraper_coverage_audit.lock"
 exec 9>"$LOCKFILE"
 if ! flock -n 9; then
   echo "audit: another coverage_audit_report.sh is already running (lock=$LOCKFILE); aborting." >&2
@@ -38,6 +43,10 @@ while [ -e "$target" ] && [ "$counter" -lt 100 ]; do
   counter=$((counter + 1))
   target="${OUT%.md}-${counter}.md"
 done
+if [ -e "$target" ]; then
+  echo "audit: too many same-day collisions (>=100); refusing to overwrite $target" >&2
+  exit 1
+fi
 OUT="$target"
 
 # Atomic write: build into a tmp file, mv into place at the end. Avoids
