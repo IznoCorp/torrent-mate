@@ -16,7 +16,7 @@
 | #   | Phase                                                  | Type        | File                                                                                                    | Status |
 | --- | ------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------- | ------ |
 | 1   | Foundation — scripts + Makefile + baseline             | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
-| 2   | CI enforcement (test-cov + design-gaps + monotonic)    | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [ ]    |
+| 2   | CI enforcement (test-cov + design-gaps + monotonic)    | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
 | 3   | Pre-commit hook via core.hooksPath                     | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [ ]    |
 | 4   | Bootstrap — first contract test + 7th check            | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [ ]    |
 | 5   | api-unify cycle (bootstrap markers, no bump)           | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [ ]    |
@@ -59,9 +59,16 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 | 1.6       | `1179849` | Makefile test-unit/test-integration/test-cov targets           |
 
 **Note**: actual branch-coverage baseline measured at 80.48 % (not the 44 % the
-plan assumed). Phase 1 set `fail_under = 80`. The cycle phases 5-10 ratchet
-targets (50 → 60 → 70 → 80 → 85 → 90) need to be re-evaluated against this
-higher baseline before each cycle starts.
+plan assumed). Phase 1 set `fail_under = 80`. Plan rescaled in commit `1dc7eac`
+to `80 → 82 → 85 → 87 → 90` distributed over Phases 6/7/8/9.
+
+### Phase 2 — CI enforcement
+
+| Sub-phase | SHA       | Description                                                  |
+| --------- | --------- | ------------------------------------------------------------ |
+| 2.1       | `d83a45e` | wire `test` job to `make test-cov` + fork-aware codecov flag |
+| 2.2       | `652f31d` | add `coverage-monotonic` job with `coverage-rollback` label  |
+| 2.3       | `652ee32` | add `design-gaps` job (warning-mode, continue-on-error)      |
 
 ## Notes
 

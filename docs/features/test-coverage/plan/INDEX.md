@@ -14,7 +14,7 @@
 | #   | Phase                                                                  | Type        | File                                                                   | Status |
 | --- | ---------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- | ------ |
 | 1   | Foundation — scripts + Makefile + baseline                             | infra       | [phase-01-foundation.md](phase-01-foundation.md)                       | [x]    |
-| 2   | CI enforcement (test-cov + design-gaps + ratchet)                      | infra       | [phase-02-ci-enforcement.md](phase-02-ci-enforcement.md)               | [ ]    |
+| 2   | CI enforcement (test-cov + design-gaps + ratchet)                      | infra       | [phase-02-ci-enforcement.md](phase-02-ci-enforcement.md)               | [x]    |
 | 3   | Pre-commit hook via `core.hooksPath`                                   | infra       | [phase-03-pre-commit-hook.md](phase-03-pre-commit-hook.md)             | [ ]    |
 | 4   | Bootstrap — first contract test + 7th check                            | bootstrap   | [phase-04-bootstrap.md](phase-04-bootstrap.md)                         | [ ]    |
 | 5   | api-unify cycle (bootstrap markers, no threshold bump)                 | cycle       | [phase-05-api-unify-cycle.md](phase-05-api-unify-cycle.md)             | [ ]    |
