@@ -395,6 +395,12 @@ When a new design-contract test overlaps with an existing legacy test, both are 
 - **Q2** — Should `make test` (no coverage) keep `-n auto` or unify with `test-cov`? Keep `-n auto` for both — `make test` is the fast feedback loop and gets no coverage overhead.
 - **Q3** — Is 90 % the right end target or should we stop at 85 %? Decide post-cycle-5 with measured data.
 
+### Retrospective answers (Phase 11, 2026-05-08)
+
+- **Q1 (diff-coverage timing)**: planned for Phase 8. The infrastructure PR ships the `coverage-monotonic` job and a strict `design-gaps` job; the codecov diff-patch step is left as a follow-up because it depends on `CODECOV_TOKEN` being verified in repo settings (Phase 2 task).
+- **Q2 (`-n auto` for `make test`)**: kept `-n auto` for both `test` and `test-cov`. `pytest-cov` handles per-worker `.coverage.<id>` files via `concurrency = ["multiprocessing"]`; the parallel-mode merge is automatic at session end. No data race observed.
+- **Q3 (90 % vs 85 % end target)**: **deferred decision**. Phases 6–9 ratchet bumps (`80 → 82 → 85 → 87 → 90`) were postponed by the infrastructure PR because the actual branch baseline measured at 80.48 % rather than the originally-assumed 44 %. The four cycle phases now ship the marker convention and the audit waivers; the ratchet bumps are tracked as standalone follow-up work where lifting `tv_service.py`, `verify/fixer.py`, `trailers/orchestrator.py` and `indexer/scanner.py` will deliver real percentage points. Re-evaluate the 90 vs 85 question after the first follow-up PR closes the largest gap.
+
 ## 11. Owner & Maintenance
 
 - **Owner**: project maintainer (LounisBou). Coverage cycles are tracked in `IMPLEMENTATION.md` per phase.
