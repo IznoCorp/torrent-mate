@@ -11,19 +11,19 @@
 
 ## Phases
 
-| #   | Phase                                                                  | Type        | File                                                                   | Status |
-| --- | ---------------------------------------------------------------------- | ----------- | ---------------------------------------------------------------------- | ------ |
-| 1   | Foundation — scripts + Makefile + baseline                             | infra       | [phase-01-foundation.md](phase-01-foundation.md)                       | [x]    |
-| 2   | CI enforcement (test-cov + design-gaps + ratchet)                      | infra       | [phase-02-ci-enforcement.md](phase-02-ci-enforcement.md)               | [x]    |
-| 3   | Pre-commit hook via `core.hooksPath`                                   | infra       | [phase-03-pre-commit-hook.md](phase-03-pre-commit-hook.md)             | [x]    |
-| 4   | Bootstrap — first contract test + 7th check                            | bootstrap   | [phase-04-bootstrap.md](phase-04-bootstrap.md)                         | [x]    |
-| 5   | api-unify cycle (bootstrap markers, no threshold bump)                 | cycle       | [phase-05-api-unify-cycle.md](phase-05-api-unify-cycle.md)             | [x]    |
-| 6   | scraper cycle → `fail_under = 82` (bump deferred)                      | cycle       | [phase-06-scraper-cycle.md](phase-06-scraper-cycle.md)                 | [x]    |
-| 7   | dispatch + verify cycle → `fail_under = 85` (bump deferred)            | cycle       | [phase-07-dispatch-verify-cycle.md](phase-07-dispatch-verify-cycle.md) | [x]    |
-| 8   | trailers cycle → `fail_under = 87` + promote design-gaps to hard error | cycle       | [phase-08-trailers-cycle.md](phase-08-trailers-cycle.md)               | [ ]    |
-| 9   | indexer cycle → `fail_under = 90`                                      | cycle       | [phase-09-indexer-cycle.md](phase-09-indexer-cycle.md)                 | [ ]    |
-| 10  | remaining cleanup (stay at `fail_under = 90`, audit + skip_audit)      | cycle       | [phase-10-remaining-cleanup.md](phase-10-remaining-cleanup.md)         | [ ]    |
-| 11  | Maintenance — 6-month audit + HOWTO                                    | maintenance | [phase-11-maintenance.md](phase-11-maintenance.md)                     | [ ]    |
+| #   | Phase                                                              | Type        | File                                                                   | Status |
+| --- | ------------------------------------------------------------------ | ----------- | ---------------------------------------------------------------------- | ------ |
+| 1   | Foundation — scripts + Makefile + baseline                         | infra       | [phase-01-foundation.md](phase-01-foundation.md)                       | [x]    |
+| 2   | CI enforcement (test-cov + design-gaps + ratchet)                  | infra       | [phase-02-ci-enforcement.md](phase-02-ci-enforcement.md)               | [x]    |
+| 3   | Pre-commit hook via `core.hooksPath`                               | infra       | [phase-03-pre-commit-hook.md](phase-03-pre-commit-hook.md)             | [x]    |
+| 4   | Bootstrap — first contract test + 7th check                        | bootstrap   | [phase-04-bootstrap.md](phase-04-bootstrap.md)                         | [x]    |
+| 5   | api-unify cycle (bootstrap markers, no threshold bump)             | cycle       | [phase-05-api-unify-cycle.md](phase-05-api-unify-cycle.md)             | [x]    |
+| 6   | scraper cycle → `fail_under = 82` (bump deferred)                  | cycle       | [phase-06-scraper-cycle.md](phase-06-scraper-cycle.md)                 | [x]    |
+| 7   | dispatch + verify cycle → `fail_under = 85` (bump deferred)        | cycle       | [phase-07-dispatch-verify-cycle.md](phase-07-dispatch-verify-cycle.md) | [x]    |
+| 8   | trailers cycle (bump deferred) + promote design-gaps to hard error | cycle       | [phase-08-trailers-cycle.md](phase-08-trailers-cycle.md)               | [x]    |
+| 9   | indexer cycle → `fail_under = 90`                                  | cycle       | [phase-09-indexer-cycle.md](phase-09-indexer-cycle.md)                 | [ ]    |
+| 10  | remaining cleanup (stay at `fail_under = 90`, audit + skip_audit)  | cycle       | [phase-10-remaining-cleanup.md](phase-10-remaining-cleanup.md)         | [ ]    |
+| 11  | Maintenance — 6-month audit + HOWTO                                | maintenance | [phase-11-maintenance.md](phase-11-maintenance.md)                     | [ ]    |
 
 ## Standard sub-phase scaffolding
 
