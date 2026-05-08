@@ -18,7 +18,7 @@
 | 1   | Foundation — scripts + Makefile + baseline             | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
 | 2   | CI enforcement (test-cov + design-gaps + monotonic)    | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
 | 3   | Pre-commit hook via core.hooksPath                     | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [x]    |
-| 4   | Bootstrap — first contract test + 7th check            | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [ ]    |
+| 4   | Bootstrap — first contract test + 7th check            | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [x]    |
 | 5   | api-unify cycle (bootstrap markers, no bump)           | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [ ]    |
 | 6   | scraper cycle → fail_under = 82                        | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [ ]    |
 | 7   | dispatch + verify cycle → fail_under = 85              | cycle       | [phase-07-dispatch-verify-cycle.md](docs/features/test-coverage/plan/phase-07-dispatch-verify-cycle.md) | [ ]    |
@@ -78,6 +78,15 @@ to `80 → 82 → 85 → 87 → 90` distributed over Phases 6/7/8/9.
 | 3.2       | `6f1bdbc` | hooks/install.sh (idempotent core.hooksPath setup)           |
 | 3.3       | `910a45b` | document install in CLAUDE.md + README.md                    |
 | 3.4       | (smoke)   | hook regenerates and stages map for staged test*design*\*.py |
+
+### Phase 4 — Bootstrap
+
+| Sub-phase | SHA                 | Description                                                                      |
+| --------- | ------------------- | -------------------------------------------------------------------------------- |
+| 4.1       | `f5d6608`           | capture phase-4 baseline of orphan design sections                               |
+| 4.2/4.3   | `7abbd81`           | first design-contract test (api-unify circuit breaker) + auto-staged map by hook |
+| 4.4       | `dcd7ff5` (.claude) | 7th `/implement:check` step — design-contract coverage                           |
+| 4.5       | `063e311`           | HOWTO — 3-step contract-test guide                                               |
 
 ## Notes
 
