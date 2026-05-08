@@ -186,3 +186,56 @@ class TestRobustness:
         assert result is None
         corrupt_files = list(tmp_path.glob("*.corrupt-*"))
         assert corrupt_files == [], f"Unexpected .corrupt-* files created: {corrupt_files}"
+
+
+class TestErrorPaths:
+    """Cover the malformed-entry warning paths and corrupt-backup flow."""
+
+    def test_malformed_entry_returns_none_on_get(self, tmp_path: Path) -> None:
+        """get() returns None when an entry is malformed (missing fields)."""
+        backing = tmp_path / "malformed.json"
+        backing.write_text(
+            json.dumps({"k": {"value": 1, "cached_at": "not-iso", "ttl_seconds": 60}}),
+            encoding="utf-8",
+        )
+        cache = JsonTTLCache(backing)
+        assert cache.get("k") is None
+
+    def test_compact_drops_malformed_entries(self, tmp_path: Path) -> None:
+        """compact() drops entries that fail to parse cached_at/ttl_seconds."""
+        backing = tmp_path / "compact_malformed.json"
+        backing.write_text(
+            json.dumps(
+                {
+                    "broken": {"value": 1, "cached_at": "not-iso", "ttl_seconds": 60},
+                    "fresh": {
+                        "value": 2,
+                        "cached_at": "2099-01-01T00:00:00",
+                        "ttl_seconds": 3600,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        cache = JsonTTLCache(backing)
+        cache.compact()
+        assert cache.get("broken") is None
+        assert cache.get("fresh") == 2
+
+    def test_corrupt_json_creates_backup(self, tmp_path: Path) -> None:
+        """A JSONDecodeError on _load triggers a .corrupt-<ts>.json sibling."""
+        backing = tmp_path / "broken.json"
+        backing.write_text("{{{ not json", encoding="utf-8")
+        cache = JsonTTLCache(backing)
+        assert cache.get("anything") is None
+        backups = list(tmp_path.glob("broken.corrupt-*.json"))
+        assert len(backups) == 1, f"expected one backup, got: {backups}"
+
+    def test_root_not_object_creates_backup(self, tmp_path: Path) -> None:
+        """A JSON root that is not an object (e.g. list) is backed up and treated as empty."""
+        backing = tmp_path / "rootlist.json"
+        backing.write_text("[1, 2, 3]", encoding="utf-8")
+        cache = JsonTTLCache(backing)
+        assert cache.get("anything") is None
+        backups = list(tmp_path.glob("rootlist.corrupt-*.json"))
+        assert len(backups) == 1
