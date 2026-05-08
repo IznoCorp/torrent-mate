@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Pre-commit hook: when test_design_*.py files are staged, regenerate the
+# affected feature_map files and stage them.
+#
+# Install: hooks/install.sh
+# Bypass:  git commit --no-verify  (CI catches drift via update_feature_map.py --check)
+
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+STAGED_DESIGN_TESTS=$(
+  git diff --cached --name-only --diff-filter=ACM \
+    | grep 'test_design_.*\.py$' \
+    || true
+)
+
+if [ -z "$STAGED_DESIGN_TESTS" ]; then
+  exit 0
+fi
+
+echo "pre-commit: design-contract tests staged, regenerating feature maps..."
+python3 scripts/update_feature_map.py
+
+# git status --porcelain (NOT git diff) — captures both modified AND new
+# (untracked) map files. git diff --name-only would miss new codename files.
+UPDATED=$(git status --porcelain tests/feature_map/ | awk '{print $2}' || true)
+if [ -n "$UPDATED" ]; then
+  echo "pre-commit: staging updated/new map files:"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    git add "$f"
+    echo "  + $f"
+  done <<< "$UPDATED"
+fi
+
+echo "pre-commit: feature maps up to date."
