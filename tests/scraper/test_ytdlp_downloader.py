@@ -598,14 +598,21 @@ class TestCookieStatFailure:
         monkeypatch.delenv("YOUTUBE_COOKIES_FROM_BROWSER", raising=False)
 
         # Selectively raise OSError only on the stat() call performed for the
-        # permission audit (no follow_symlinks kwarg), keeping other stat() calls
-        # (e.g. inside Path.exists() which passes follow_symlinks=True) intact.
+        # permission audit (line 185 in ytdlp_downloader.py). Use frame-caller
+        # inspection so we don't depend on Path.exists() internals — those
+        # differ across Python versions (3.10/3.11 call stat() without kwargs,
+        # 3.12+ adds follow_symlinks=True), making kwarg-based filtering
+        # version-fragile.
+        import inspect
+
         original_stat = Path.stat
 
         def selective_stat(self: Path, *args: object, **kwargs: object) -> object:
-            # The permission-audit call is `cookie_file.stat()` with no kwargs.
-            if self == cookie_file and "follow_symlinks" not in kwargs and not args:
-                raise OSError("mount detached")
+            if self == cookie_file:
+                frame = inspect.currentframe()
+                caller = frame.f_back if frame else None
+                if caller and caller.f_code.co_filename.endswith("ytdlp_downloader.py"):
+                    raise OSError("mount detached")
             return original_stat(self, *args, **kwargs)  # type: ignore[arg-type]
 
         with patch.object(Path, "stat", selective_stat):
