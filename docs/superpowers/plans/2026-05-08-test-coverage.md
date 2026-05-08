@@ -4,9 +4,9 @@
 
 **Goal:** Build the infrastructure (scripts, CI, Makefile, hooks) to enforce staged coverage thresholds with design-contract traceability, then execute 6 feature cycles to reach 90% branch coverage.
 
-**Architecture:** Two script pipeline: `update_feature_map.py` scans test docstrings for `Design:` markers and regenerates per-feature `tests/feature_map/*.json5` files; `audit_design_coverage.py` parses design docs and reports uncovered sections. Both are wired into CI and a git pre-commit hook. Makefile gains `test-unit`, `test-integration`, `test-cov` targets. `.github/workflows/ci.yml` runs `make test-cov` with `--cov-fail-under` and a separate `design-gaps` job.
+**Architecture:** Two script pipeline: `update_feature_map.py` scans test docstrings for `Design:` markers and regenerates per-feature `tests/feature_map/*.json5` files; `audit_design_coverage.py` parses design docs and reports uncovered sections (excluding `skip_audit` anchors). Both are wired into CI and a git pre-commit hook. Makefile gains `test-unit`, `test-integration`, `test-cov` targets. `.github/workflows/ci.yml` runs `make test-cov` with `--cov-fail-under` and a separate `design-gaps` job.
 
-**Tech Stack:** Python 3.10+, pytest, pytest-cov, tomllib, GitHub Actions, JSON5, git hooks
+**Tech Stack:** Python 3.10+, pytest, pytest-cov, tomli (fallback for 3.10), GitHub Actions, JSON5, git hooks
 
 ---
 
@@ -26,9 +26,11 @@ mkdir -p tests/feature_map
 touch tests/feature_map/.gitkeep
 ```
 
-- [ ] **Step 2: Lower `fail_under` to current baseline (44%) and enable branch coverage**
+- [ ] **Step 2: Lower `fail_under` from 80 to 44 and enable branch coverage**
 
-Edit `pyproject.toml`, change the `[tool.coverage.report]` section:
+The current `pyproject.toml` has `fail_under = 80`. Since actual coverage is ~44%,
+the first step is lowering the threshold to match reality. Edit `pyproject.toml`,
+change the `[tool.coverage.report]` section:
 
 ```toml
 [tool.coverage.report]
@@ -50,19 +52,31 @@ source = ["personalscraper"]
 omit = ["personalscraper/__main__.py"]
 ```
 
-- [ ] **Step 3: Verify the threshold passes with current tests**
+- [ ] **Step 3: Re-baseline coverage after enabling --cov-branch**
+
+Branch coverage may lower the measured percentage. Measure the real baseline:
+
+```bash
+python3 -m pytest tests/ --ignore=tests/e2e -q --no-header --cov=personalscraper --cov-branch --cov-report=term 2>&1 | tail -5
+```
+
+Note the actual coverage percentage from the TOTAL line. If it differs significantly
+from 44, update `fail_under` in `pyproject.toml` to match the measured value.
+Example: if branch coverage drops the measurement to 38%, set `fail_under = 38`.
+
+- [ ] **Step 4: Verify the threshold passes with current tests**
 
 ```bash
 python3 -m pytest tests/ --ignore=tests/e2e -q --no-header --cov=personalscraper --cov-branch --cov-report=term --cov-fail-under=44
 ```
 
-Expected: PASS with ~44% coverage (or higher — the full default suite may have higher coverage than the unit+integration subset).
+Expected: PASS (adjust `fail_under` value if re-baseline changed it in Step 3).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/feature_map/.gitkeep pyproject.toml
-git commit -m "chore(coverage): set baseline fail_under=44 with branch coverage enabled"
+git commit -m "chore(coverage): set baseline fail_under with branch coverage enabled"
 ```
 
 ### Task 1.2: Create `scripts/update_feature_map.py`
@@ -77,15 +91,21 @@ git commit -m "chore(coverage): set baseline fail_under=44 with branch coverage 
 #!/usr/bin/env python3
 """Scan test docstrings for Design: markers and regenerate per-feature map files.
 
-Usage:
-  python3 scripts/update_feature_map.py            # regenerate all map files
-  python3 scripts/update_feature_map.py --check    # exit 1 if any map is stale (CI)
-
 Parses test files for docstrings containing:
     Design: docs/path/to/doc.md#anchor-name
 
-Groups by feature codename (derived from the design doc path) and writes
-one JSON5 file per feature at tests/feature_map/<codename>.json5.
+Groups by feature codename (derived from the design doc path using the rule:
+the directory name immediately following 'features/' in the path, or the
+document stem if no 'features/' segment exists). Writes one JSON file per
+feature at tests/feature_map/<codename>.json5.
+
+Usage:
+  python3 scripts/update_feature_map.py            # regenerate all map files
+  python3 scripts/update_feature_map.py --check    # exit 1 if any map is stale
+
+Exit codes:
+  0 — all map files up to date (or successfully regenerated)
+  1 — stale map files detected (--check mode only)
 """
 
 from __future__ import annotations
@@ -101,17 +121,35 @@ TESTS_DIR = REPO_ROOT / "tests"
 MAP_DIR = TESTS_DIR / "feature_map"
 DESIGN_MARKER = re.compile(r"^Design:\s*(\S+)#(.+)$", re.MULTILINE)
 
+# Anchors commonly found in design docs that describe non-functional content.
+# These are pre-populated in the skip_audit list of new map files.
+KNOWN_UNTESTABLE_ANCHORS = frozenset({
+    "purpose", "current-state", "architecture", "non-goals",
+    "constraints", "future-enhancements",
+})
+
 
 def extract_codename(design_path: str) -> str:
     """Derive a feature codename from a design doc path.
 
+    Rule: the directory name immediately following 'features/' in the path.
+    If no 'features/' segment exists, use the document stem (filename without .md).
+
+    Args:
+        design_path: Relative path to the design document from repo root.
+
+    Returns:
+        The feature codename string.
+
     Examples:
         docs/features/api-unify/DESIGN.md  →  api-unify
         docs/reference/architecture.md     →  architecture
+        docs/archive/features/trailer/DESIGN.md  →  trailer
     """
     parts = Path(design_path).parts
     # docs/features/<codename>/DESIGN.md  →  codename
-    if "features" in parts and len(parts) >= 3:
+    # docs/archive/features/<codename>/DESIGN.md  →  codename
+    if "features" in parts:
         idx = parts.index("features")
         if idx + 1 < len(parts):
             return parts[idx + 1]
@@ -121,10 +159,14 @@ def extract_codename(design_path: str) -> str:
 
 
 def scan_tests() -> dict[str, dict[str, list[str]]]:
-    """Scan all test files for Design: markers.
+    """Scan all test files for Design: markers on function/method docstrings.
+
+    Only function and method docstrings are parsed — module-level and class-level
+    docstrings are intentionally skipped because the Design:/Contract: markers
+    must be per-test, not per-module.
 
     Returns:
-        {codename: {anchor: [test_id, ...]}}
+        A dict mapping codename → {anchor: [test_id, ...]}.
     """
     features: dict[str, dict[str, list[str]]] = {}
 
@@ -160,9 +202,19 @@ def scan_tests() -> dict[str, dict[str, list[str]]]:
 
 
 def get_design_path_for_codename(codename: str) -> str | None:
-    """Heuristic: find the design doc for a feature codename."""
+    """Heuristic: find the design doc for a feature codename.
+
+    Checks in order: active features, archived features, reference docs.
+
+    Args:
+        codename: The feature codename.
+
+    Returns:
+        Relative path to the design doc from repo root, or None if not found.
+    """
     candidates = [
         REPO_ROOT / "docs" / "features" / codename / "DESIGN.md",
+        REPO_ROOT / "docs" / "archive" / "features" / codename / "DESIGN.md",
         REPO_ROOT / "docs" / "reference" / f"{codename}.md",
     ]
     for candidate in candidates:
@@ -172,7 +224,12 @@ def get_design_path_for_codename(codename: str) -> str | None:
 
 
 def write_map_file(codename: str, sections: dict[str, list[str]]) -> None:
-    """Write a per-feature JSON map file."""
+    """Write a per-feature JSON map file to tests/feature_map/<codename>.json5.
+
+    Args:
+        codename: The feature codename (used as filename stem).
+        sections: Dict mapping anchor → list of test IDs.
+    """
     design_path = get_design_path_for_codename(codename)
 
     data: dict = {"feature": codename}
@@ -183,6 +240,12 @@ def write_map_file(codename: str, sections: dict[str, list[str]]) -> None:
         for anchor, test_ids in sorted(sections.items())
     }
 
+    # Pre-populate known untestable anchors in skip_audit
+    data["skip_audit"] = sorted(
+        a for a in KNOWN_UNTESTABLE_ANCHORS
+        if a not in sections
+    )
+
     map_dir = MAP_DIR
     map_dir.mkdir(parents=True, exist_ok=True)
     map_file = map_dir / f"{codename}.json5"
@@ -190,29 +253,38 @@ def write_map_file(codename: str, sections: dict[str, list[str]]) -> None:
 
 
 def main() -> int:
+    """Regenerate feature map files or check for staleness.
+
+    Returns:
+        0 on success, 1 if stale maps detected in --check mode.
+    """
     check_mode = "--check" in sys.argv
 
     features = scan_tests()
 
     if check_mode:
-        # In check mode: verify map files exist and are not stale
+        # Verify map files exist for all scanned features
         for codename, sections in features.items():
             map_file = MAP_DIR / f"{codename}.json5"
             if not map_file.exists():
                 print(f"STALE: {map_file} does not exist (run scripts/update_feature_map.py)")
                 return 1
-
-            # Rebuild expected content
-            write_map_file(codename, sections)
-            # Actually, simpler: just check if any test file is newer than the map file
-            # For a real implementation, compare content. For now, check timestamps.
+            # Compare content
+            current = json.loads(map_file.read_text())
+            expected_sections = {
+                anchor: {"tests": sorted(test_ids)}
+                for anchor, test_ids in sorted(sections.items())
+            }
+            if current.get("sections") != expected_sections:
+                print(f"STALE: {map_file} sections differ (run scripts/update_feature_map.py)")
+                return 1
 
         # Check for orphan map files (no matching tests)
         existing_maps = set(f.stem for f in MAP_DIR.glob("*.json5"))
         scanned_codenames = set(features.keys())
         for orphan in existing_maps - scanned_codenames:
             map_file = MAP_DIR / f"{orphan}.json5"
-            if map_file.read_text().strip():  # non-empty = has sections
+            if map_file.read_text().strip():
                 print(f"STALE: {map_file} has no matching Design: markers in tests/")
                 return 1
 
@@ -276,14 +348,14 @@ git commit -m "feat(coverage): add update_feature_map.py script"
 
 Parses Markdown design documents to extract section headings and their
 GitHub-style anchors. Compares against tests/feature_map/*.json5 to list
-uncovered sections.
+uncovered sections, excluding any anchors in the map file's skip_audit list.
 
 Usage:
-  python3 scripts/audit_design_coverage.py           # report gaps
+  python3 scripts/audit_design_coverage.py           # report gaps (exit 0)
   python3 scripts/audit_design_coverage.py --strict  # exit 1 if gaps exist
 
 Exit codes:
-  0 — all sections covered (or no design docs found)
+  0 — all sections covered, no design docs found, or gaps found without --strict
   1 — gaps found (only with --strict)
 """
 
@@ -303,7 +375,15 @@ def github_anchor(heading_text: str) -> str:
     """Generate a GitHub-style anchor from a Markdown heading.
 
     Algorithm: lowercase, strip non-alphanumeric (except spaces and hyphens),
-    replace spaces with hyphens, collapse multiple hyphens, strip leading/trailing.
+    replace spaces with hyphens, collapse multiple hyphens, strip
+    leading/trailing hyphens. Must match the algorithm described in
+    docs/superpowers/specs/2026-05-08-test-coverage-design.md §3 Pillar 2.
+
+    Args:
+        heading_text: The raw heading text from the Markdown document.
+
+    Returns:
+        The GitHub-style anchor string (e.g., "circuit-breaker-open-after-3-failures").
     """
     anchor = heading_text.lower()
     anchor = re.sub(r"[^\w\s-]", "", anchor)
@@ -316,8 +396,15 @@ def github_anchor(heading_text: str) -> str:
 def extract_sections(markdown_path: Path) -> dict[str, str]:
     """Extract all sections from a Markdown file.
 
+    Parses ##, ###, and #### headings. Handles duplicate anchors by appending
+    -1, -2, etc. (matching GitHub's algorithm, which starts at -1 for the
+    first duplicate).
+
+    Args:
+        markdown_path: Path to the Markdown file.
+
     Returns:
-        {anchor: heading_text} for ##, ###, and #### headings.
+        A dict mapping anchor → heading_text.
     """
     text = markdown_path.read_text()
     sections: dict[str, str] = {}
@@ -326,9 +413,9 @@ def extract_sections(markdown_path: Path) -> dict[str, str]:
         heading = match.group(2).strip()
         anchor = github_anchor(heading)
 
-        # Avoid duplicate anchors (e.g., two headings with the same text)
+        # Handle duplicate anchors: GitHub appends -1, -2, etc.
         if anchor in sections:
-            for i in range(2, 100):
+            for i in range(1, 100):
                 dedup = f"{anchor}-{i}"
                 if dedup not in sections:
                     anchor = dedup
@@ -339,11 +426,16 @@ def extract_sections(markdown_path: Path) -> dict[str, str]:
     return sections
 
 
-def load_covered_anchors() -> set[str]:
-    """Load all covered anchors from feature_map files."""
+def load_covered_and_skipped() -> tuple[set[str], set[str]]:
+    """Load covered anchors and skipped anchors from feature_map files.
+
+    Returns:
+        A tuple of (covered_anchors, skipped_anchors).
+    """
     covered: set[str] = set()
+    skipped: set[str] = set()
     if not MAP_DIR.exists():
-        return covered
+        return covered, skipped
 
     for map_file in MAP_DIR.glob("*.json5"):
         try:
@@ -354,20 +446,38 @@ def load_covered_anchors() -> set[str]:
             tests = data["sections"][anchor].get("tests", [])
             if tests:
                 covered.add(anchor)
-    return covered
+        for anchor in data.get("skip_audit", []):
+            skipped.add(anchor)
+    return covered, skipped
 
 
 def find_design_docs() -> list[Path]:
-    """Find all design docs in the repo."""
+    """Find all design docs in the repo.
+
+    Searches active features, archived features, and reference docs.
+
+    Returns:
+        Sorted list of absolute paths to design documents.
+    """
     docs: list[Path] = []
-    for pattern in ["docs/features/*/DESIGN.md", "docs/reference/*.md"]:
+    for pattern in [
+        "docs/features/*/DESIGN.md",
+        "docs/archive/features/*/DESIGN.md",
+        "docs/reference/*.md",
+    ]:
         docs.extend(REPO_ROOT.glob(pattern))
     return sorted(docs)
 
 
 def main() -> int:
+    """Audit design docs for uncovered sections.
+
+    Returns:
+        0 on success (no gaps, or gaps found without --strict),
+        1 if gaps found with --strict.
+    """
     strict = "--strict" in sys.argv
-    covered = load_covered_anchors()
+    covered, skipped = load_covered_and_skipped()
     design_docs = find_design_docs()
     gaps_found = 0
 
@@ -377,7 +487,10 @@ def main() -> int:
             continue
 
         rel_path = doc.relative_to(REPO_ROOT)
-        uncovered = {a: t for a, t in sections.items() if a not in covered}
+        uncovered = {
+            a: t for a, t in sections.items()
+            if a not in covered and a not in skipped
+        }
 
         if uncovered:
             gaps_found += len(uncovered)
@@ -387,6 +500,9 @@ def main() -> int:
 
     if gaps_found:
         print(f"\n{gaps_found} section(s) without design-contract tests.")
+        # Skipped sections are tracked but not reported as gaps
+        if skipped:
+            print(f"{len(skipped)} section(s) intentionally skipped (skip_audit).")
         return 1 if strict else 0
     else:
         print("All design doc sections have at least one design-contract test.")
@@ -403,9 +519,17 @@ if __name__ == "__main__":
 python3 scripts/audit_design_coverage.py
 ```
 
-Expected: Lists uncovered sections for all design docs (all sections are uncovered since no markers exist yet). Exit 0 (no `--strict`).
+Expected: Lists uncovered sections for all design docs. Exit 0 (no `--strict`).
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Test with --strict**
+
+```bash
+python3 scripts/audit_design_coverage.py --strict
+```
+
+Expected: Same output, exit 1 (gaps exist).
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add scripts/audit_design_coverage.py
@@ -423,7 +547,7 @@ git commit -m "feat(coverage): add audit_design_coverage.py script"
 Add after the `test:` target (line 27 area):
 
 ```makefile
-THRESHOLD := $(shell python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['tool']['coverage']['report']['fail_under'])")
+THRESHOLD := $(shell python3 -c "try: import tomllib\nexcept ImportError: import tomli as tomllib\nprint(tomllib.load(open('pyproject.toml','rb'))['tool']['coverage']['report']['fail_under'])")
 
 test-unit:
 	@echo "Running unit tests..."
@@ -436,7 +560,7 @@ test-integration:
 test-cov:
 	@echo "Running tests with coverage (fail_under=$(THRESHOLD))..."
 	python3 -m pytest tests/ --ignore=tests/e2e -q --no-header \
-		--cov=personalscraper --cov-branch --cov-report=term --cov-fail-under=$(THRESHOLD)
+		--cov=personalscraper --cov-branch --cov-report=xml --cov-report=term --cov-fail-under=$(THRESHOLD)
 ```
 
 Update `.PHONY` line to include the new targets:
@@ -450,7 +574,7 @@ Update the `help:` target to list the new targets:
 ```makefile
 	@echo "  make test            - Run all tests with pytest (-n auto)"
 	@echo "  make test-unit       - Run unit tests only (fast, excludes integration + E2E)"
-	@echo "  make test-integration- Run integration tests only"
+	@echo "  make test-integration - Run integration tests only"
 	@echo "  make test-cov        - Run tests with branch coverage (fail_under enforced)"
 ```
 
@@ -472,13 +596,14 @@ make -n test-cov
 
 Expected: Shows the commands without executing.
 
-- [ ] **Step 3: Run test-cov to verify it passes**
+- [ ] **Step 3: Run test-cov to verify it passes and generates coverage.xml**
 
 ```bash
 make test-cov
+ls -la coverage.xml
 ```
 
-Expected: All tests pass, coverage >= 44%.
+Expected: All tests pass, coverage passes threshold, `coverage.xml` exists.
 
 - [ ] **Step 4: Verify test-unit excludes integration and E2E**
 
@@ -563,7 +688,7 @@ design-gaps:
         name: coverage-data
     - run: pip install -e ".[dev]"
     - run: python3 scripts/audit_design_coverage.py --strict
-      continue-on-error: true # warning only; promoted to error at 80% coverage
+      continue-on-error: true # warning only; promoted to hard error at 80% coverage
 ```
 
 - [ ] **Step 3: Verify CI YAML is valid (syntax check)**
@@ -590,7 +715,7 @@ git commit -m "ci(coverage): use make test-cov, add design-gaps job with artifac
 **Files:**
 
 - Create: `hooks/pre-commit`
-- Create: `hooks/install.sh` (optional convenience script)
+- Create: `hooks/install.sh` (convenience script)
 
 - [ ] **Step 1: Create the hook script**
 
@@ -613,7 +738,7 @@ set -euo pipefail
 STAGED_DESIGN_TESTS=$(git diff --cached --name-only --diff-filter=ACM | grep 'test_design_.*\.py$' || true)
 
 if [ -z "$STAGED_DESIGN_TESTS" ]; then
-    # No design-contract test files staged — nothing to do
+    # No design-contract test files staged -- nothing to do
     exit 0
 fi
 
@@ -651,9 +776,9 @@ chmod +x hooks/pre-commit
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-HOOKS_DIR="$SCRIPT_DIR"
+GIT_HOOKS_DIR="$(cd "$SCRIPT_DIR/../.git/hooks" && pwd)"
 
-for hook in "$HOOKS_DIR"/*; do
+for hook in "$SCRIPT_DIR"/*; do
     name=$(basename "$hook")
     # Skip non-executable files and the install script itself
     if [ "$name" = "install.sh" ]; then
@@ -662,8 +787,8 @@ for hook in "$HOOKS_DIR"/*; do
     if [ ! -x "$hook" ]; then
         continue
     fi
-    target="$SCRIPT_DIR/../.git/hooks/$name"
-    ln -sf "$(realpath --relative-to="$(dirname "$target")" "$hook")" "$target"
+    target="$GIT_HOOKS_DIR/$name"
+    ln -sf "$(cd "$SCRIPT_DIR" && pwd)/$name" "$target"
     echo "Installed: .git/hooks/$name -> hooks/$name"
 done
 ```
@@ -681,7 +806,7 @@ cd /Users/izno/dev/PersonnalScaper && ln -sf ../../hooks/pre-commit .git/hooks/p
 - [ ] **Step 5: Verify the hook works (no-op case)**
 
 ```bash
-# Create a dummy test file to trigger the hook
+# Create a dummy change to a non-design file to verify the hook doesn't block it
 echo "" >> tests/integration/conftest.py
 git add tests/integration/conftest.py
 git commit -m "test: verify pre-commit hook (no-op for non-design files)"
@@ -706,35 +831,19 @@ git commit -m "feat(coverage): add pre-commit hook for feature map auto-regenera
 This phase creates the template: the first design-contract test with markers, the first
 feature map file, and validates the full pipeline (pre-commit hook → map file → CI audit).
 
-### Task 4.1: Create a stub map file for api-unify
+### Task 4.1: Audit existing design sections
 
 **Files:**
 
-- Create: `tests/feature_map/api-unify.json5`
+- None created; informational step.
 
-- [ ] **Step 1: Parse DESIGN.md sections and create the stub**
-
-Run the audit script to see all uncovered sections:
+- [ ] **Step 1: Run the audit script to see all uncovered sections**
 
 ```bash
 python3 scripts/audit_design_coverage.py
 ```
 
-Expected: Lists all sections from `docs/features/api-unify/DESIGN.md` and other design docs.
-
-- [ ] **Step 2: Create stub map file manually for now**
-
-Later, `/implement:brainstorm` will auto-create this. For this bootstrap phase,
-create it manually with empty test arrays:
-
-```bash
-python3 scripts/update_feature_map.py
-```
-
-(At this point, no `Design:` markers exist, so this produces nothing. The file
-is created when the first test with a `Design:` marker is written.)
-
-- [ ] **Step 3: No commit yet — the map file will be populated in Task 4.2**
+Expected: Lists all sections from `docs/features/api-unify/DESIGN.md` and other design docs. All returned as UNCOVERED since no markers exist yet.
 
 ### Task 4.2: Write the first design-contract test (template)
 
@@ -742,18 +851,21 @@ is created when the first test with a `Design:` marker is written.)
 
 - Create: `tests/integration/test_design_api_transport.py`
 
-- [ ] **Step 1: Pick a DESIGN.md section with existing test coverage**
+- [ ] **Step 1: Pick a DESIGN.md section with existing code coverage**
 
-The `docs/features/api-unify/DESIGN.md` §4.5 (Circuit Breaker) is well-covered by
-`tests/unit/test_circuit_breaker.py`. Write a design-contract integration test that
-validates the circuit breaker behavior as documented, exercising real module interactions.
+The `docs/features/api-unify/DESIGN.md` section on Circuit Breaker behavior is
+well-covered by `tests/unit/test_circuit_breaker.py`. Write a design-contract
+integration test that validates the circuit breaker behavior as documented,
+exercising real module interactions (HttpTransport + TransportPolicy).
 
 - [ ] **Step 2: Write the test**
 
 ```python
-"""Design-contract tests for api-unify transport layer.
+"""Design-contract tests for the api-unify transport layer.
 
-Design: docs/features/api-unify/DESIGN.md
+Tests in this module validate documented behaviors from the api-unify DESIGN.md.
+Each test carries Design: and Contract: markers linking it to the specific
+section of the design document it validates.
 """
 
 import pytest
@@ -763,10 +875,7 @@ from personalscraper.api._contracts import ApiError
 
 
 class TestCircuitBreakerContract:
-    """Design: docs/features/api-unify/DESIGN.md#circuit-breaker-open-after-3-failures
-    Contract: Circuit breaker opens after 3 consecutive failures and rejects
-    subsequent requests with CircuitBreakerOpenError until the reset timeout.
-    """
+    """Design-contract tests for the circuit breaker behavior."""
 
     def test_circuit_breaker_opens_after_3_consecutive_5xx(
         self, staging_dir, mock_api_server
@@ -793,25 +902,29 @@ class TestCircuitBreakerContract:
         )
 
         with HttpTransport(policy) as transport:
-            # First 3 calls should fail with 503 (not open circuit breaker)
+            # First 3 calls should fail with ApiError (not circuit breaker open)
             for _ in range(3):
                 with pytest.raises(ApiError):
                     transport.get("/test")
 
             # 4th call should fail with CircuitBreakerOpenError
             from personalscraper.api.transport._circuit import CircuitBreakerOpenError
+
             with pytest.raises(CircuitBreakerOpenError):
                 transport.get("/test")
 ```
 
-- [ ] **Step 3: Run the test to verify it fails or passes correctly**
+Note: The `Design:` and `Contract:` markers are on the **function** docstring,
+not the module or class docstring. Only function-level markers are parsed by
+`update_feature_map.py`.
+
+- [ ] **Step 3: Run the test to verify it passes**
 
 ```bash
 python3 -m pytest tests/integration/test_design_api_transport.py -v
 ```
 
-Expected: The test may need adjustments based on actual APIs. Iterate until it passes
-and correctly validates the circuit breaker contract.
+Expected: Test passes (adjust if actual APIs differ from the example).
 
 - [ ] **Step 4: Run update_feature_map to generate the first map file**
 
@@ -819,26 +932,24 @@ and correctly validates the circuit breaker contract.
 python3 scripts/update_feature_map.py
 ```
 
-Expected: Creates `tests/feature_map/api-unify.json5` with the circuit-breaker section
-and the test referenced.
+Expected: Creates `tests/feature_map/api-unify.json5` with the circuit-breaker section,
+the test referenced, and `skip_audit` pre-populated with known untestable anchors.
 
 - [ ] **Step 5: Verify the pre-commit hook stages the map file**
 
 ```bash
 git add tests/integration/test_design_api_transport.py
-git commit -m "test(api-unify): add design-contract test for circuit breaker (§circuit-breaker-open-after-3-failures)"
+git commit -m "test(api-unify): add design-contract test for circuit breaker"
 ```
 
 Expected: Pre-commit hook fires, updates `tests/feature_map/api-unify.json5`, stages it.
 The commit includes both files.
 
-If the hook blocks the commit because the map file is stale, fix and re-commit.
-
 ### Task 4.3: Add the 7th check to `/implement:check` skill
 
 **Files:**
 
-- Modify: `.claude/skills/implement/check.md` (or wherever check logic is defined)
+- Modify: `.claude/skills/implement/check.md` (or the check logic definition)
 
 - [ ] **Step 1: Add the design-contract coverage check**
 
@@ -851,32 +962,46 @@ The check logic:
      - grep for the section anchor in tests/
      - Verify at least one test function with a matching Design: marker exists
      - Verify that test passes when run
+     - Verify the test follows quality criteria (behavioral, minimally mocked,
+       single concern, readable as specification)
    - Run: python3 scripts/audit_design_coverage.py --strict
    - Expected: zero uncovered sections for the feature being implemented
 ```
 
-This is documented in the skill file, enforced manually during `/implement:check`.
-
 - [ ] **Step 2: Document and commit**
 
-The change is documentation-only (skill instructions). Note that the actual
-`.claude/skills/` directory is in the shared config, so this may need to be
-committed there instead.
+The change is documentation-only (skill instructions). If the `.claude/skills/`
+directory is in the shared config repository, commit there. Otherwise, add a
+note in the project's CLAUDE.md about the 7th check.
 
 ---
 
 ## Phase 5-10: Feature Coverage Cycles (Outline)
 
-Each of the following phases bumps `fail_under` by one increment. Detailed plans
-for each phase are written when the phase starts, following the feature-cycle workflow.
+Each phase bumps `fail_under` by one increment. Detailed plans for each phase are
+written when the phase starts.
+
+**Note for existing-feature cycles (Phases 6-10):** Since these features are not
+on active `/implement:feature` branches, a stub map file is created manually at
+cycle start by running `python3 scripts/update_feature_map.py` after the first
+design-contract test is written. The pre-commit hook handles subsequent updates.
+
+**New-code coverage policy:** When adding new production code in any cycle,
+the global `fail_under` CI gate ensures coverage does not regress. If the module
+is critically under-covered, the cycle's audit step identifies it and tests are
+written BEFORE adding new code.
+
+**Duplicate test policy:** When a new design-contract test overlaps with an
+existing legacy test, both are kept. Design-contract tests provide traceability
+that legacy tests lack.
 
 ### Phase 5: api-unify Coverage → 50%
 
-- Audit current api-unify coverage: `python3 -m pytest tests/unit/ tests/integration/ --cov=personalscraper.api --cov-report=term`
+- Audit current api-unify coverage
 - Map DESIGN.md sections to gaps identified in coverage report
-- Write design-contract tests for each § in `docs/features/api-unify/DESIGN.md`
+- Write design-contract tests for each section in `docs/features/api-unify/DESIGN.md`
 - Write unit tests filling remaining gaps in `personalscraper/api/`
-- Bump `fail_under` from 44 to 50 in `pyproject.toml`
+- Bump `fail_under` from baseline to 50 in `pyproject.toml`
 - PR to main
 
 ### Phase 6: Scraper Coverage → 60%
@@ -926,10 +1051,11 @@ for each phase are written when the phase starts, following the feature-cycle wo
 
 ### Task 11.1: Schedule 6-month marker audit
 
-- No code change — add a calendar reminder or CRON job description
+- No code change — add a calendar reminder
 - Every 6 months, run `python3 scripts/audit_design_coverage.py --strict` and verify
   that `Design:` markers still reference existing doc anchors
 - Update markers if design doc sections were renamed
+- Update `skip_audit` lists if new untestable sections were added to design docs
 
 ### Task 11.2: Revisit `coverage_gap_report.py` at 80%
 
