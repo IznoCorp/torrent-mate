@@ -23,7 +23,7 @@
 | 6   | scraper cycle → fail_under = 82 (bump deferred)           | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [x]    |
 | 7   | dispatch + verify cycle → fail_under = 85 (bump deferred) | cycle       | [phase-07-dispatch-verify-cycle.md](docs/features/test-coverage/plan/phase-07-dispatch-verify-cycle.md) | [x]    |
 | 8   | trailers cycle (bump deferred) + design-gaps strict       | cycle       | [phase-08-trailers-cycle.md](docs/features/test-coverage/plan/phase-08-trailers-cycle.md)               | [x]    |
-| 9   | indexer cycle → fail_under = 90                           | cycle       | [phase-09-indexer-cycle.md](docs/features/test-coverage/plan/phase-09-indexer-cycle.md)                 | [ ]    |
+| 9   | indexer cycle → fail_under = 90 (bump deferred)           | cycle       | [phase-09-indexer-cycle.md](docs/features/test-coverage/plan/phase-09-indexer-cycle.md)                 | [x]    |
 | 10  | remaining cleanup (stay at fail_under = 90)               | cycle       | [phase-10-remaining-cleanup.md](docs/features/test-coverage/plan/phase-10-remaining-cleanup.md)         | [ ]    |
 | 11  | Maintenance — 6-month audit + HOWTO                       | maintenance | [phase-11-maintenance.md](docs/features/test-coverage/plan/phase-11-maintenance.md)                     | [ ]    |
 
