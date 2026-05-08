@@ -1,0 +1,13 @@
+{
+  "feature": "architecture",
+  "design": "docs/reference/architecture.md",
+  "sections": {
+    "package": {
+      "tests": [
+        "tests/integration/test_design_architecture.py::TestPackageContract::test_cli_entry_point_importable",
+        "tests/integration/test_design_architecture.py::TestPackageContract::test_package_name_and_version_exposed"
+      ]
+    }
+  },
+  "skip_audit": []
+}
