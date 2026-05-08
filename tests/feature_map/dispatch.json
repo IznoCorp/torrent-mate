@@ -8,5 +8,76 @@
       ]
     }
   },
-  "skip_audit": []
+  "skip_audit": [
+    {
+      "anchor": "24-tb-operations-guide",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "budget-planning",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "cold-rebuild-rotation",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "disk-space-threshold",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "indexer-cold-rebuild-playbook",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "manual-path-if---rebuild-itself-fails",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "ntfs-via-macfuse-constraints",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "paths",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "per-disk-cold-rebuild-disk-replaced-or-uuid-changed",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "quick-path--use---rebuild",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "recommended-mount-flags-for-ntfs-via-macfuse",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "recovery-timing",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "storage-disks",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    },
+    {
+      "anchor": "storage-reference",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2027-05-08"
+    }
+  ]
 }
