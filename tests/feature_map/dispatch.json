@@ -1,0 +1,12 @@
+{
+  "feature": "dispatch",
+  "design": "docs/reference/storage.md",
+  "sections": {
+    "move-rules-dispatch": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_swaps_destination_atomically"
+      ]
+    }
+  },
+  "skip_audit": []
+}

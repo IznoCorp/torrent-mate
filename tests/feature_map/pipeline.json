@@ -1,0 +1,12 @@
+{
+  "feature": "pipeline",
+  "design": "docs/reference/pipeline-internals.md",
+  "sections": {
+    "scrape-fast-skip": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestScrapeFastSkipContract::test_complete_nfo_marks_target_skippable"
+      ]
+    }
+  },
+  "skip_audit": []
+}
