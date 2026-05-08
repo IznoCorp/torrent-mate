@@ -400,3 +400,160 @@ class TestRunVerify:
         assert report.name == "verify"
         mock_v.verify_all_movies.assert_called_once()
         mock_v.verify_all_tvshows.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — missing-branch coverage
+# ---------------------------------------------------------------------------
+
+
+class TestVerifierEdgeCases:
+    """Edge-case branches in Verifier (dry-run, no NFO, errors, missing dirs)."""
+
+    def test_verify_movie_dry_run_does_not_update_path(self, tmp_path: Path, test_config: Config) -> None:
+        """In dry-run, fix produces a FixAction with new_path but movie_dir is NOT updated."""
+        d = tmp_path / "bad.name"
+        d.mkdir()
+        (d / "Fight Club.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        root = ET.Element("movie")
+        ET.SubElement(root, "title").text = "Fight Club"
+        ET.SubElement(root, "year").text = "1999"
+        uid = ET.SubElement(root, "uniqueid")
+        uid.set("type", "tmdb")
+        uid.text = "550"
+        uid2 = ET.SubElement(root, "uniqueid")
+        uid2.set("type", "imdb")
+        uid2.text = "tt0137523"
+        ET.SubElement(root, "genre").text = "Drame"
+        fi = ET.SubElement(root, "fileinfo")
+        ET.SubElement(ET.SubElement(fi, "streamdetails"), "video")
+        ET.ElementTree(root).write(d / "Fight Club.nfo", encoding="unicode")
+        (d / "Fight Club-poster.jpg").write_bytes(b"\xff")
+        (d / "Fight Club-landscape.jpg").write_bytes(b"\xff")
+
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, dry_run=True, fix=True)
+        result = v.verify_movie(d)
+
+        # In dry-run, path stays the same (no rename applied).
+        assert result.media_path == d
+        # Original dir not renamed
+        assert d.exists()
+        assert not (tmp_path / "Fight Club (1999)").exists()
+
+    def test_verify_tvshow_with_fixable_renames(self, tmp_path: Path, test_config: Config) -> None:
+        """verify_tvshow with fix=True renames a misnamed show via tvshow.nfo."""
+        bad = tmp_path / "show.bad.name"
+        bad.mkdir()
+        season = bad / "Saison 01"
+        season.mkdir()
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
+
+        root = ET.Element("tvshow")
+        ET.SubElement(root, "title").text = "Show"
+        ET.SubElement(root, "year").text = "2024"
+        uid = ET.SubElement(root, "uniqueid")
+        uid.set("type", "tvdb")
+        uid.text = "123"
+        uid2 = ET.SubElement(root, "uniqueid")
+        uid2.set("type", "imdb")
+        uid2.text = "tt123"
+        ET.SubElement(root, "genre").text = "Drame"
+        ET.ElementTree(root).write(bad / "tvshow.nfo", encoding="unicode")
+        (bad / "poster.jpg").write_bytes(b"\xff")
+        (bad / "fanart.jpg").write_bytes(b"\xff")
+
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, fix=True)
+        result = v.verify_tvshow(bad)
+
+        # The dir naming fix should have renamed it to "Show (2024)"
+        renamed = tmp_path / "Show (2024)"
+        assert renamed.exists()
+        assert result.media_path == renamed
+        assert len(result.fixes_applied) > 0
+
+    def test_verify_tvshow_dry_run_no_path_update(self, tmp_path: Path, test_config: Config) -> None:
+        """verify_tvshow in dry-run leaves media_path unchanged even with fixes_applied."""
+        bad = tmp_path / "bad.show.name"
+        bad.mkdir()
+        season = bad / "Saison 01"
+        season.mkdir()
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
+
+        root = ET.Element("tvshow")
+        ET.SubElement(root, "title").text = "Show"
+        ET.SubElement(root, "year").text = "2024"
+        uid = ET.SubElement(root, "uniqueid")
+        uid.set("type", "tvdb")
+        uid.text = "123"
+        ET.SubElement(root, "genre").text = "Drame"
+        ET.ElementTree(root).write(bad / "tvshow.nfo", encoding="unicode")
+        (bad / "poster.jpg").write_bytes(b"\xff")
+        (bad / "fanart.jpg").write_bytes(b"\xff")
+
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, dry_run=True, fix=True)
+        result = v.verify_tvshow(bad)
+        # Dry-run: original dir stays in place
+        assert result.media_path == bad
+        assert bad.exists()
+
+    def test_verify_all_tvshows_nonexistent(self, tmp_path: Path, test_config: Config) -> None:
+        """verify_all_tvshows on nonexistent dir returns []."""
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
+        results = v.verify_all_tvshows(tmp_path / "missing")
+        assert results == []
+
+    def test_verify_all_tvshows_with_error(self, tmp_path: Path, test_config: Config) -> None:
+        """Exception during verify_tvshow produces blocked result with error message."""
+        tv_dir = tmp_path / "002-TVSHOWS"
+        tv_dir.mkdir()
+        (tv_dir / "Bad Show").mkdir()
+
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
+        with patch.object(v, "verify_tvshow", side_effect=RuntimeError("boom")):
+            results = v.verify_all_tvshows(tv_dir)
+
+        assert len(results) == 1
+        assert results[0].status == "blocked"
+        assert "boom" in results[0].errors[0]
+
+    def test_verify_tvshow_no_fix(self, tmp_path: Path, test_config: Config) -> None:
+        """verify_tvshow with fix=False skips fixer entirely (branch 124->135)."""
+        bad = tmp_path / "bad.show"
+        bad.mkdir()
+        season = bad / "Saison 01"
+        season.mkdir()
+        (season / "S01E01 - Pilot.mkv").write_bytes(b"\x00" * (200 * 1024 * 1024))
+        (season / "S01E01 - Pilot.nfo").write_text("<episodedetails/>")
+        root = ET.Element("tvshow")
+        ET.SubElement(root, "title").text = "Show"
+        ET.SubElement(root, "year").text = "2024"
+        uid = ET.SubElement(root, "uniqueid")
+        uid.set("type", "tvdb")
+        uid.text = "123"
+        ET.SubElement(root, "genre").text = "Drame"
+        ET.ElementTree(root).write(bad / "tvshow.nfo", encoding="unicode")
+        (bad / "poster.jpg").write_bytes(b"\xff")
+        (bad / "fanart.jpg").write_bytes(b"\xff")
+
+        v = Verifier(MagicMock(), NamingPatterns(), test_config, fix=False)
+        result = v.verify_tvshow(bad)
+
+        # No fix attempted → original dir stays in place
+        assert bad.exists()
+        assert result.fixes_applied == []
+
+    def test_classify_no_nfo_keeps_category_none(self, tmp_path: Path, test_config: Config) -> None:
+        """Classify path: cat_check passed but _find_nfo returns None → category stays None."""
+        # Build a movie dir that passes the "category" check but has no NFO file
+        # (we patch _find_nfo to None to exercise the branch).
+        from personalscraper.verify.checker import CheckResult, Severity
+
+        v = Verifier(MagicMock(), NamingPatterns(), test_config)
+        result = VerifyResult(media_path=tmp_path, media_type="movie")
+        cat = CheckResult("category", True, Severity.WARNING, "ok")
+        with patch.object(Verifier, "_find_nfo", return_value=None):
+            v._classify(result, [cat], tmp_path, "movie")
+        assert result.category is None
+        assert result.status == "valid"

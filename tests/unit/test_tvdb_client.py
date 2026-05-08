@@ -1,0 +1,395 @@
+"""Unit tests for TVDBClient method bodies (search, get_*, helpers).
+
+The bootstrap login (POST /login) is bypassed by constructing the client
+via ``__new__`` and injecting a MagicMock transport. This avoids a real
+HTTP call while still exercising the per-method endpoint, params and
+parser-glue paths.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from personalscraper.api.metadata._base import (
+    ArtworkItem,
+    MediaDetails,
+    SearchResult,
+    SeasonDetails,
+    Video,
+)
+from personalscraper.api.metadata.tvdb import TVDBClient
+
+SAMPLES = Path("docs/reference/_samples/tvdb")
+
+
+def _load(name: str) -> Any:
+    """Load a golden TVDB sample JSON from docs/reference/_samples/tvdb."""
+    return json.loads((SAMPLES / name).read_text(encoding="utf-8"))
+
+
+def _make_client(transport: MagicMock) -> TVDBClient:
+    """Construct a TVDBClient bypassing the bootstrap login.
+
+    Args:
+        transport: Mock HttpTransport injected as the main transport.
+
+    Returns:
+        A fully wired TVDBClient with the supplied transport.
+    """
+    client = TVDBClient.__new__(TVDBClient)
+    client._api_key = "fake"  # type: ignore[attr-defined]
+    client._tvdb_lang = "fra"  # type: ignore[attr-defined]
+    client._language = "fr-FR"  # type: ignore[attr-defined]
+    client._transport = transport  # type: ignore[attr-defined]
+    return client
+
+
+@pytest.fixture()
+def transport() -> MagicMock:
+    """A MagicMock standing in for HttpTransport."""
+    return MagicMock()
+
+
+@pytest.fixture()
+def client(transport: MagicMock) -> TVDBClient:
+    """TVDBClient instance with a mocked transport (no bootstrap)."""
+    return _make_client(transport)
+
+
+# ── bootstrap login (full __init__) ───────────────────────────────────
+
+
+class TestBootstrapLogin:
+    """Cover the __init__ path: POST /login, JWT extraction, type guard."""
+
+    def test_init_logs_in_and_stores_jwt(self) -> None:
+        """A successful /login response yields a fully wired client."""
+        login_resp = {"status": "success", "data": {"token": "jwt-token"}}
+        with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
+            bootstrap = MagicMock()
+            bootstrap.__enter__.return_value = bootstrap
+            bootstrap.__exit__.return_value = None
+            bootstrap.post.return_value = login_resp
+            main = MagicMock()
+            # First call (bootstrap) returns context-managed bootstrap; second is main transport
+            MockTransport.side_effect = [bootstrap, main]
+
+            c = TVDBClient("fake-api-key")
+
+        assert c._transport is main
+        bootstrap.post.assert_called_once_with("/login", data={"apikey": "fake-api-key"})
+
+    def test_init_non_dict_login_response_raises(self) -> None:
+        """A non-dict /login response raises TypeError."""
+        with patch("personalscraper.api.metadata.tvdb.HttpTransport") as MockTransport:
+            bootstrap = MagicMock()
+            bootstrap.__enter__.return_value = bootstrap
+            bootstrap.__exit__.return_value = None
+            bootstrap.post.return_value = ["unexpected"]
+            MockTransport.return_value = bootstrap
+
+            with pytest.raises(TypeError, match="Expected dict"):
+                TVDBClient("fake-api-key")
+
+
+# ── policy + circuit property ─────────────────────────────────────────
+
+
+class TestPolicyAndCircuit:
+    """Cover the classmethod policy() and the circuit property."""
+
+    def test_policy_returns_transport_policy(self) -> None:
+        """policy() builds a TransportPolicy using TVDB defaults."""
+        p = TVDBClient.policy("jwt-token")
+        assert p.base_url == "https://api4.thetvdb.com/v4"
+        assert p.timeout_seconds == 15.0
+
+    def test_policy_accepts_custom_circuit(self) -> None:
+        """A custom CircuitPolicy override is honoured."""
+        from personalscraper.api.transport._policy import CircuitPolicy
+
+        custom = CircuitPolicy(failure_threshold=99, cooldown_seconds=1.0)
+        p = TVDBClient.policy("jwt", circuit=custom)
+        assert p.circuit is custom
+
+    def test_circuit_property(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Circuit property exposes the underlying transport's circuit breaker."""
+        assert client.circuit is transport._circuit
+
+
+# ── _get / _get_dict envelope helpers ─────────────────────────────────
+
+
+class TestGetHelpers:
+    """Direct exercise of the _get / _get_dict envelope helpers."""
+
+    def test_get_unwraps_envelope(self, client: TVDBClient, transport: MagicMock) -> None:
+        """_get unwraps {status: success, data: ...}."""
+        transport.get.return_value = {"status": "success", "data": {"foo": "bar"}}
+        assert client._get("/anything") == {"foo": "bar"}
+
+    def test_get_non_dict_raises(self, client: TVDBClient, transport: MagicMock) -> None:
+        """A non-dict raw response from the transport raises TypeError."""
+        transport.get.return_value = ["bad", "shape"]
+        with pytest.raises(TypeError, match="Expected dict"):
+            client._get("/x")
+
+    def test_get_dict_rejects_list_payload(self, client: TVDBClient, transport: MagicMock) -> None:
+        """_get_dict raises when the unwrapped payload is a list."""
+        transport.get.return_value = {"status": "success", "data": ["a", "b"]}
+        with pytest.raises(TypeError, match="Expected dict from"):
+            client._get_dict("/some/list-endpoint")
+
+    def test_get_dict_returns_dict(self, client: TVDBClient, transport: MagicMock) -> None:
+        """_get_dict returns the unwrapped dict on the happy path."""
+        transport.get.return_value = {"status": "success", "data": {"k": 1}}
+        assert client._get_dict("/x") == {"k": 1}
+
+
+# ── map_language ──────────────────────────────────────────────────────
+
+
+class TestMapLanguageMethod:
+    """The instance ``map_language`` method delegates to the parser helper."""
+
+    def test_two_char_to_three(self, client: TVDBClient) -> None:
+        """``fr`` → ``fra``."""
+        assert client.map_language("fr") == "fra"
+
+    def test_unknown_falls_back_to_eng(self, client: TVDBClient) -> None:
+        """Unknown 2-char codes fall back to ``eng``."""
+        assert client.map_language("xx") == "eng"
+
+
+# ── search dispatcher (Protocol) ──────────────────────────────────────
+
+
+class TestSearchDispatch:
+    """search() routes by media_type — series for tv, movie otherwise."""
+
+    def test_search_series_routes(self, client: TVDBClient, transport: MagicMock) -> None:
+        """media_type='tv' goes through search_series."""
+        transport.get.return_value = _load("search_series.json")
+        results = client.search("Breaking Bad", year=2008, media_type="tv")
+        assert all(isinstance(r, SearchResult) for r in results)
+        # Endpoint is /search regardless; verify the params type=series
+        call = transport.get.call_args
+        assert call.args[0] == "/search"
+        assert call.kwargs["params"]["type"] == "series"
+        assert call.kwargs["params"]["year"] == "2008"
+
+    def test_search_movie_routes(self, client: TVDBClient, transport: MagicMock) -> None:
+        """media_type='movie' (default) goes through search_movie."""
+        transport.get.return_value = _load("search_movie.json")
+        client.search("Inception", media_type="movie")
+        call = transport.get.call_args
+        assert call.args[0] == "/search"
+        assert call.kwargs["params"]["type"] == "movie"
+
+
+# ── search_series / search_movie ──────────────────────────────────────
+
+
+class TestSearchSeries:
+    """search_series: params, year, non-list payload fallback."""
+
+    def test_year_param(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Year is sent as a string."""
+        transport.get.return_value = _load("search_series.json")
+        client.search_series("Breaking Bad", year=2008)
+        call = transport.get.call_args
+        assert call.kwargs["params"]["year"] == "2008"
+
+    def test_non_list_data_returns_empty(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Unwrapped data that isn't a list yields []."""
+        transport.get.return_value = {"status": "success", "data": {"unexpected": "shape"}}
+        assert client.search_series("X") == []
+
+    def test_parses_results(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Happy path: each item parsed into SearchResult."""
+        transport.get.return_value = _load("search_series.json")
+        results = client.search_series("Breaking Bad")
+        assert len(results) >= 1
+        assert results[0].provider == "tvdb"
+
+
+class TestSearchMovieTvdb:
+    """search_movie: params, year, non-list payload fallback."""
+
+    def test_year_param(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Year is sent as a string."""
+        transport.get.return_value = {"status": "success", "data": []}
+        client.search_movie("Inception", year=2010)
+        call = transport.get.call_args
+        assert call.kwargs["params"]["year"] == "2010"
+        assert call.kwargs["params"]["type"] == "movie"
+
+    def test_non_list_data_returns_empty(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Non-list payload yields []."""
+        transport.get.return_value = {"status": "success", "data": {"foo": "bar"}}
+        assert client.search_movie("X") == []
+
+    def test_parses_results(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Happy path returns SearchResult objects from parser."""
+        transport.get.return_value = _load("search_movie.json")
+        results = client.search_movie("Inception")
+        assert all(isinstance(r, SearchResult) for r in results)
+
+
+# ── get_details dispatcher ────────────────────────────────────────────
+
+
+class TestGetDetailsDispatchTvdb:
+    """get_details delegates to get_series / get_movie based on media_type."""
+
+    def test_tv_details(self, client: TVDBClient, transport: MagicMock) -> None:
+        """media_type='tv' calls /series/{id}/extended."""
+        transport.get.return_value = _load("series_extended.json")
+        md = client.get_details("81189", media_type="tv")
+        assert isinstance(md, MediaDetails)
+        assert transport.get.call_args.args[0] == "/series/81189/extended"
+
+    def test_movie_details(self, client: TVDBClient, transport: MagicMock) -> None:
+        """media_type='movie' calls /movies/{id}/extended."""
+        transport.get.return_value = _load("movie_extended.json")
+        md = client.get_details("12345", media_type="movie")
+        assert isinstance(md, MediaDetails)
+        assert transport.get.call_args.args[0] == "/movies/12345/extended"
+
+
+# ── get_series / get_movie ────────────────────────────────────────────
+
+
+class TestGetSeriesAndMovie:
+    """get_series and get_movie hit /extended endpoints."""
+
+    def test_get_series_endpoint(self, client: TVDBClient, transport: MagicMock) -> None:
+        """get_series → /series/{id}/extended."""
+        transport.get.return_value = _load("series_extended.json")
+        md = client.get_series(81189)
+        assert isinstance(md, MediaDetails)
+        assert md.title == "Breaking Bad"
+        assert transport.get.call_args.args[0] == "/series/81189/extended"
+
+    def test_get_movie_endpoint(self, client: TVDBClient, transport: MagicMock) -> None:
+        """get_movie → /movies/{id}/extended."""
+        transport.get.return_value = _load("movie_extended.json")
+        md = client.get_movie(12345)
+        assert isinstance(md, MediaDetails)
+        assert transport.get.call_args.args[0] == "/movies/12345/extended"
+
+
+# ── get_artwork_urls (already partly covered in test_tvdb_artwork_endpoint) ──
+
+
+class TestGetArtworkUrlsTvdb:
+    """Validate the parsing path for both media types."""
+
+    def test_returns_artwork_items(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Artworks are parsed into ArtworkItems."""
+        transport.get.return_value = {
+            "status": "success",
+            "data": {"artworks": [{"type": 2, "image": "https://x/p.jpg"}]},
+        }
+        items = client.get_artwork_urls("999", media_type="movie")
+        assert len(items) == 1
+        assert isinstance(items[0], ArtworkItem)
+
+
+# ── get_season / get_series_episodes (pagination) ─────────────────────
+
+
+class TestGetSeriesEpisodes:
+    """Covers the pagination loop in get_series_episodes."""
+
+    def test_single_page_no_next(self, client: TVDBClient, transport: MagicMock) -> None:
+        """A single-page response (links.next=None) terminates the loop."""
+        transport.get.return_value = _load("episodes_default.json")
+        sd = client.get_series_episodes(81189, 1)
+        assert isinstance(sd, SeasonDetails)
+        assert sd.tv_id == "81189"
+        assert sd.season_number == 1
+        assert len(sd.episodes) > 0
+        # Single GET call
+        assert transport.get.call_count == 1
+
+    def test_multi_page_pagination(self, client: TVDBClient, transport: MagicMock) -> None:
+        """When links.next is non-empty, the loop fetches additional pages."""
+        page0 = {
+            "status": "success",
+            "data": {
+                "episodes": [{"number": 1, "name": "E1", "seasonNumber": 1}],
+                "links": {"next": "https://api/.../page=1"},
+            },
+        }
+        page1 = {
+            "status": "success",
+            "data": {
+                "episodes": [{"number": 2, "name": "E2", "seasonNumber": 1}],
+                "links": {"next": None},
+            },
+        }
+        transport.get.side_effect = [page0, page1]
+        sd = client.get_series_episodes(1, 1)
+        assert len(sd.episodes) == 2
+        assert transport.get.call_count == 2
+
+    def test_get_season_delegates_to_episodes(self, client: TVDBClient, transport: MagicMock) -> None:
+        """The Protocol-level get_season calls get_series_episodes via int coercion."""
+        transport.get.return_value = _load("episodes_default.json")
+        sd = client.get_season("81189", 1)
+        assert sd.tv_id == "81189"
+
+    def test_no_links_terminates(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Missing/empty links.next ends pagination after first page."""
+        transport.get.return_value = {
+            "status": "success",
+            "data": {"episodes": [], "links": {}},
+        }
+        sd = client.get_series_episodes(1, 1)
+        assert sd.episodes == []
+        assert transport.get.call_count == 1
+
+
+# ── get_videos ────────────────────────────────────────────────────────
+
+
+class TestGetVideosTvdb:
+    """get_videos parses trailers from extended responses."""
+
+    def test_extracts_trailers(self, client: TVDBClient, transport: MagicMock) -> None:
+        """Trailers list is mapped through parse_videos."""
+        transport.get.return_value = {
+            "status": "success",
+            "data": {
+                "trailers": [
+                    {"id": 1, "url": "https://www.youtube.com/watch?v=ABC123"},
+                ],
+            },
+        }
+        vids = client.get_videos("12345", media_type="movie", language="eng")
+        assert len(vids) == 1
+        assert isinstance(vids[0], Video)
+        assert vids[0].key == "ABC123"
+
+
+# ── get_keywords / get_notations not supported ────────────────────────
+
+
+class TestUnsupportedCapabilities:
+    """TVDB does not expose keywords or rating notations."""
+
+    def test_get_keywords_raises(self, client: TVDBClient) -> None:
+        """get_keywords raises NotImplementedError."""
+        with pytest.raises(NotImplementedError, match="keywords"):
+            client.get_keywords("1", "movie")
+
+    def test_get_notations_raises(self, client: TVDBClient) -> None:
+        """get_notations raises NotImplementedError."""
+        with pytest.raises(NotImplementedError, match="notations"):
+            client.get_notations("1", "movie")

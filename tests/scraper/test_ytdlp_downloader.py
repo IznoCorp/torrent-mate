@@ -532,6 +532,306 @@ class TestRetryTransportErrorClassification:
         )
 
 
+# ── Extra coverage — settings fallback, stat-OSError, browser cookies, ──────
+# ── timeout-on-retry, post-retry verify-fail, partial cleanup OSError, etc. ─
+
+
+class TestFromEnvSettingsFallback:
+    """Cover the get_settings() exception → bare-env fallback (lines 157-167)."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_settings_cache(self) -> None:
+        """Reset get_settings() lru_cache between tests."""
+        from personalscraper.config import get_settings
+
+        get_settings.cache_clear()
+
+    def test_settings_validation_error_falls_back_to_env(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """If get_settings() raises ValidationError, the env vars are read directly."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cookie_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
+        monkeypatch.setenv("YOUTUBE_COOKIES_FILE", str(cookie_file))
+        monkeypatch.delenv("YOUTUBE_COOKIES_FROM_BROWSER", raising=False)
+
+        from pydantic import BaseModel, ValidationError
+
+        # Build a real ValidationError — it's used by the except clause.
+        try:
+
+            class _M(BaseModel):
+                x: int
+
+            _M(x="not-an-int")  # type: ignore[arg-type]
+        except ValidationError as ve:
+            fake_error = ve
+
+        # ``get_settings`` is imported lazily inside ``from_env`` — patch the
+        # canonical location so the lazy import resolves to our side-effect.
+        with patch(
+            "personalscraper.config.get_settings",
+            side_effect=fake_error,
+        ):
+            cfg = CookieConfig.from_env()
+
+        assert cfg is not None
+        assert cfg.cookie_file == cookie_file
+
+
+class TestCookieStatFailure:
+    """Cover the OSError branch in cookie_file.stat() (lines 193-196)."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_settings_cache(self) -> None:
+        """Reset get_settings() lru_cache between tests."""
+        from personalscraper.config import get_settings
+
+        get_settings.cache_clear()
+
+    def test_stat_oserror_logged_at_debug_and_continues(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When stat() raises OSError (e.g. NTFS mount), we log at DEBUG and continue."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        monkeypatch.setenv("YOUTUBE_COOKIES_FILE", str(cookie_file))
+        monkeypatch.delenv("YOUTUBE_COOKIES_FROM_BROWSER", raising=False)
+
+        # Selectively raise OSError only on the stat() call performed for the
+        # permission audit (no follow_symlinks kwarg), keeping other stat() calls
+        # (e.g. inside Path.exists() which passes follow_symlinks=True) intact.
+        original_stat = Path.stat
+
+        def selective_stat(self: Path, *args: object, **kwargs: object) -> object:
+            # The permission-audit call is `cookie_file.stat()` with no kwargs.
+            if self == cookie_file and "follow_symlinks" not in kwargs and not args:
+                raise OSError("mount detached")
+            return original_stat(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        with patch.object(Path, "stat", selective_stat):
+            with caplog.at_level(logging.DEBUG, logger="personalscraper.scraper.ytdlp_downloader"):
+                cfg = CookieConfig.from_env()
+
+        assert cfg is not None
+        assert cfg.cookie_file == cookie_file
+        assert "cookie_file_stat_failed" in caplog.text
+
+
+class TestBrowserCookiesOpts:
+    """Cover the cookiesfrombrowser opts-building branch (lines 333-335)."""
+
+    def test_browser_cookies_passed_to_ytdlp(self, tmp_path: Path) -> None:
+        """download() forwards cookiesfrombrowser=(browser,) when browser cookies are configured."""
+        cfg = CookieConfig(cookie_file=None, cookie_from_browser="firefox")
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=1,
+            cookie_config=cfg,
+        )
+        captured: list[dict] = []  # type: ignore[type-arg]
+        output_file = tmp_path / "trailer.mp4"
+
+        def capture(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            captured.append(opts)
+            mock = _make_mock_ydl()
+            mock.download.side_effect = lambda urls: output_file.write_bytes(b"x" * 1024) or 0
+            return mock
+
+        with patch("yt_dlp.YoutubeDL", side_effect=capture):
+            d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert captured[0]["cookiesfrombrowser"] == ("firefox",)
+        assert "cookiefile" not in captured[0]
+
+
+class TestNoSigalrmPlatform:
+    """Cover the has_sigalrm=False branches (360->365, 369->exit)."""
+
+    def test_download_works_without_sigalrm(self, tmp_path: Path) -> None:
+        """When SIGALRM is unavailable, the download still runs without arming the alarm."""
+        downloader = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=0,
+            cookie_config=None,
+        )
+        output_file = tmp_path / "clip.mp4"
+
+        # Patch hasattr so the SIGALRM gate evaluates to False inside _attempt_download.
+        import personalscraper.scraper.ytdlp_downloader as mod
+
+        original_hasattr = mod.hasattr if hasattr(mod, "hasattr") else hasattr
+
+        def fake_hasattr(obj: object, name: str) -> bool:
+            if name == "SIGALRM":
+                return False
+            return original_hasattr(obj, name)
+
+        with patch("personalscraper.scraper.ytdlp_downloader.hasattr", fake_hasattr, create=True):
+            with patch("yt_dlp.YoutubeDL") as MockYDL:
+                instance = MockYDL.return_value.__enter__.return_value
+                instance.download.side_effect = lambda urls: output_file.write_bytes(b"x" * 1024) or 0
+                result = downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert result.status == DownloadStatus.SUCCESS
+
+
+class TestEmptyOutputFile:
+    """Cover the size<=0 branch in _verify_output (lines 411-413)."""
+
+    def test_empty_output_returns_ytdlp_error(self, tmp_path: Path) -> None:
+        """When yt-dlp creates a zero-byte file, _verify_output returns YTDLP_ERROR."""
+        downloader = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=0,
+            cookie_config=None,
+        )
+        output_file = tmp_path / "empty.mp4"
+
+        def fake_dl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            mock = _make_mock_ydl()
+            # Create the file but with zero bytes.
+            mock.download.side_effect = lambda urls: output_file.write_bytes(b"") or 0
+            return mock
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_dl):
+            result = downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        assert result.error_message is not None
+        assert "empty" in result.error_message
+
+
+class TestCleanupPartialFilesOSError:
+    """Cover unlink-failure branch in _cleanup_partial_files (lines 434, 438-439)."""
+
+    def test_cleanup_partial_unlink_oserror_logged(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """An OSError on candidate.unlink() is logged but does not abort cleanup."""
+        downloader = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=0,
+            cookie_config=None,
+        )
+        output_file = tmp_path / "clip.mp4"
+        # Pre-create partial files; one (.part) will fail to unlink.
+        part = tmp_path / "clip.part"
+        frag = tmp_path / "clip.frag1"
+        part.write_bytes(b"x")
+        frag.write_bytes(b"y")
+
+        def fake_dl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            mock = _make_mock_ydl()
+            # yt-dlp raises a non-bot exception so the cleanup branch fires.
+            mock.download.side_effect = Exception("Connection reset")
+            return mock
+
+        original_unlink = Path.unlink
+
+        def flaky_unlink(self: Path, *args: object, **kwargs: object) -> None:
+            if self == part:
+                raise OSError(errno.EACCES, "unlink denied")
+            original_unlink(self, *args, **kwargs)
+
+        import errno
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_dl):
+            with patch.object(Path, "unlink", flaky_unlink):
+                with caplog.at_level(logging.WARNING):
+                    downloader.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert "ytdlp_partial_cleanup_error" in caplog.text
+
+
+class TestRetryTimeout:
+    """Cover wall-clock timeout on the retry-without-cookies path (lines 503-510)."""
+
+    def test_retry_timeout_returns_ytdlp_error(self, tmp_path: Path) -> None:
+        """A SIGALRM timeout fires during the retry → YTDLP_ERROR with retry-marker message."""
+        import signal as _signal
+
+        if not hasattr(_signal, "SIGALRM"):  # pragma: no cover — Windows
+            pytest.skip("SIGALRM not available")
+
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cfg = CookieConfig(cookie_file=cookie_file, cookie_from_browser=None)
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=0,
+            cookie_config=cfg,
+            max_wall_clock_sec=1,
+        )
+        output_file = tmp_path / "clip.mp4"
+        call_count = 0
+
+        def fake_dl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            nonlocal call_count
+            call_count += 1
+            mock = _make_mock_ydl()
+            if call_count == 1:
+                # First call: bot-detection triggers retry.
+                mock.download.side_effect = Exception("Sign in to confirm your age")
+            else:
+                # Second call: hang long enough for SIGALRM to fire.
+                import time as _time
+
+                mock.download.side_effect = lambda urls: _time.sleep(5)
+            return mock
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_dl):
+            result = d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert call_count == 2
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        assert "retry without cookies" in (result.error_message or "")
+
+
+class TestPostRetryVerifyFail:
+    """Cover post-retry _verify_output fail branch (lines 544-545)."""
+
+    def test_retry_succeeds_but_output_missing_returns_ytdlp_error(self, tmp_path: Path) -> None:
+        """Retry call returns cleanly but produces no file → verify fails → YTDLP_ERROR."""
+        cookie_file = tmp_path / "cookies.txt"
+        cookie_file.write_text("# cookies", encoding="utf-8")
+        cfg = CookieConfig(cookie_file=cookie_file, cookie_from_browser=None)
+        d = YtdlpDownloader(
+            output_dir=tmp_path,
+            ytdlp_format="best",
+            socket_timeout_sec=10,
+            retries=0,
+            cookie_config=cfg,
+        )
+        output_file = tmp_path / "clip.mp4"
+        call_count = 0
+
+        def fake_dl(opts: dict) -> MagicMock:  # type: ignore[type-arg]
+            nonlocal call_count
+            call_count += 1
+            mock = _make_mock_ydl()
+            if call_count == 1:
+                mock.download.side_effect = Exception("Sign in to confirm your age")
+            else:
+                # Retry exits cleanly without writing the file.
+                mock.download.return_value = 0
+            return mock
+
+        with patch("yt_dlp.YoutubeDL", side_effect=fake_dl):
+            result = d.download("https://www.youtube.com/watch?v=test", output_file)
+
+        assert call_count == 2
+        assert result.status == DownloadStatus.YTDLP_ERROR
+        assert result.error_message == "downloaded file missing"
+
+
 # ── @pytest.mark.network E2E (opt-in) ────────────────────────────────────────
 
 

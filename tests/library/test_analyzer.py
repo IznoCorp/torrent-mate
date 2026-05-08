@@ -20,6 +20,8 @@ import sqlite3
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pytest
+
 from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
@@ -582,3 +584,402 @@ class TestAnalyzeLibrary:
             analyze_library(config)
 
         assert mock_extract.call_count == 1
+
+    def test_disk_not_mounted_logs_and_skips(self, tmp_path: Path) -> None:
+        """When ``disk.path`` does not exist, the disk is logged and skipped.
+
+        Covers lines 724-725 (``library_disk_not_mounted`` warning branch).
+        """
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        unmounted = tmp_path / "ghost"  # never created
+        config = _make_v15_config(unmounted, "ghost", "films", "movies", tmp_path)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
+            result = analyze_library(config)
+
+        assert result.item_count == 0
+        assert result.file_count == 0
+
+    def test_category_filter_excludes_other_categories(self, tmp_path: Path) -> None:
+        """``category_filter`` skips disks whose category_id does not match.
+
+        Covers line 729 (the ``continue`` when ``category_filter != category_id``).
+        """
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        disk = tmp_path / "medias"
+        movie_dir = disk / "films" / "Movie (2024)"
+        movie_dir.mkdir(parents=True)
+        (movie_dir / "movie.mkv").write_bytes(b"\x00" * 1000)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
+            result = analyze_library(config, category_filter="tv_shows")
+
+        assert result.item_count == 0
+
+    def test_category_dir_missing_skipped(self, tmp_path: Path) -> None:
+        """When the category directory is missing, the disk loop continues.
+
+        Covers lines 735-736 (``library_category_not_found`` debug branch).
+        """
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        disk = tmp_path / "medias"
+        disk.mkdir(parents=True)
+        # No "films" subdir created → category_dir does not exist.
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
+            result = analyze_library(config)
+
+        assert result.item_count == 0
+
+    def test_hidden_directory_skipped(self, tmp_path: Path) -> None:
+        """Directories starting with ``.`` are skipped (covers line 742)."""
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        disk = tmp_path / "medias"
+        hidden = disk / "films" / ".cache"
+        hidden.mkdir(parents=True)
+        (hidden / "trash.mkv").write_bytes(b"\x00" * 100)
+
+        # Provide a sibling regular dir so the loop iterates at all.
+        regular = disk / "films" / "Real (2024)"
+        regular.mkdir()
+        (regular / "real.mkv").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
+            result = analyze_library(config)
+
+        # Only the regular dir is reported.
+        assert result.item_count == 1
+        assert result.items[0].title == "Real"
+
+    def test_directory_with_no_video_files_skipped(self, tmp_path: Path) -> None:
+        """A media folder that contains only sidecars is skipped (covers line 756)."""
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Empty (2024)"
+        movie.mkdir(parents=True)
+        (movie / "movie.nfo").write_text("<movie/>")
+        (movie / "poster.jpg").write_bytes(b"\xff\xd8")
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()):
+            result = analyze_library(config)
+
+        assert result.item_count == 0
+
+    def test_incremental_stat_oserror_forces_reanalyze(self, tmp_path: Path) -> None:
+        """OSError during stat() in incremental mode falls through to ffprobe.
+
+        Covers lines 766-767 (the ``current_size_gb = -1.0`` reset).
+        """
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        movie.mkdir(parents=True)
+        video = movie / "Movie.mkv"
+        video.write_bytes(b"\x00" * 1024)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+        existing = {str(video): 0.001}
+
+        # Make ``vf.stat()`` raise OSError specifically on the call inside
+        # the incremental branch — but allow earlier ``is_file()`` /
+        # ``rglob`` calls to succeed. We achieve this by counting calls
+        # against ``video`` and only failing on the third invocation
+        # (rglob's is_file → stat once, then incremental branch's
+        # ``vf.stat`` is the next direct stat call).
+        original_stat = Path.stat
+        call_count = {"n": 0}
+
+        def _raising_stat(self, *args: object, **kwargs: object) -> object:
+            if self == video:
+                call_count["n"] += 1
+                # Allow the first one (is_file pre-check) but raise on the
+                # incremental branch's explicit stat() call.
+                if call_count["n"] >= 2:
+                    raise OSError("stat denied")
+            return original_stat(self, *args, **kwargs)
+
+        with (
+            patch.object(Path, "stat", _raising_stat),
+            patch(
+                "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
+            ) as mock_extract,
+        ):
+            result = analyze_library(config, incremental=True, existing_sizes=existing)
+
+        assert mock_extract.called
+        assert result.file_count == 1
+
+    def test_thread_pool_path_used_for_multiple_files(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When max_workers > 1 and >= 2 files, the ThreadPoolExecutor branch runs.
+
+        Covers lines 791-795 (the parallel ffprobe submit path).
+        """
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import analyze_library
+
+        # Force the parallel branch.
+        monkeypatch.setenv("LIBRARY_ANALYZER_MAX_WORKERS", "2")
+
+        disk = tmp_path / "medias"
+        movie = disk / "films" / "Movie (2024)"
+        movie.mkdir(parents=True)
+        # Two video files → triggers pool.map path
+        (movie / "Movie-disc1.mkv").write_bytes(b"\x00" * 100)
+        (movie / "Movie-disc2.mkv").write_bytes(b"\x00" * 100)
+
+        config = _make_v15_config(disk, "disk1", "films", "movies", tmp_path)
+
+        with patch(
+            "personalscraper.library.analyzer.extract_stream_info", return_value=self._make_stream_info()
+        ) as mock_extract:
+            result = analyze_library(config)
+
+        assert mock_extract.call_count == 2
+        assert result.file_count == 2
+
+
+class TestAnalyzeVideoFile:
+    """Tests for ``_analyze_video_file`` helper covering ffprobe-failure branches."""
+
+    def test_stat_oserror_yields_zero_size(self, tmp_path: Path) -> None:
+        """When ``path.stat`` raises OSError, size_gb falls back to 0.0.
+
+        Covers lines 361-362 in ``_analyze_video_file``.
+        """
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import _analyze_video_file
+
+        video = tmp_path / "Movie.mkv"
+        video.write_bytes(b"\x00" * 1000)
+
+        info = {
+            "video": {"codec": "hevc", "width": 1920, "height": 1080, "bitrate_kbps": 5000, "hdr": {}},
+            "audio": [],
+            "subtitles": [{"language": "fra", "format": "srt", "forced": False, "is_default": False}],
+            "duration_seconds": 1234.0,
+        }
+
+        original_stat = Path.stat
+
+        def _raise_for_video(self, *args: object, **kwargs: object) -> object:
+            if self == video:
+                raise OSError("stat denied")
+            return original_stat(self, *args, **kwargs)
+
+        with (
+            patch.object(Path, "stat", _raise_for_video),
+            patch("personalscraper.library.analyzer.extract_stream_info", return_value=info),
+        ):
+            result = _analyze_video_file(video)
+
+        assert result is not None
+        assert result.size_gb == 0.0
+        # Subtitle path was exercised (line 396 SubtitleTrack construction).
+        assert result.subtitle_tracks
+        assert result.subtitle_tracks[0].language == "fra"
+
+    def test_extract_exception_returns_none(self, tmp_path: Path) -> None:
+        """Ffprobe raising any Exception returns None (covers lines 366-368)."""
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import _analyze_video_file
+
+        video = tmp_path / "Movie.mkv"
+        video.write_bytes(b"\x00" * 100)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", side_effect=RuntimeError("bad probe")):
+            assert _analyze_video_file(video) is None
+
+    def test_empty_info_returns_none(self, tmp_path: Path) -> None:
+        """Empty / falsy info dict returns None (covers line 371)."""
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import _analyze_video_file
+
+        video = tmp_path / "Movie.mkv"
+        video.write_bytes(b"\x00" * 100)
+
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=None):
+            assert _analyze_video_file(video) is None
+
+    def test_no_video_stream_returns_none(self, tmp_path: Path) -> None:
+        """Info without a video stream returns None (covers line 378)."""
+        from unittest.mock import patch
+
+        from personalscraper.library.analyzer import _analyze_video_file
+
+        video = tmp_path / "Movie.mkv"
+        video.write_bytes(b"\x00" * 100)
+
+        info = {"video": None, "audio": [], "subtitles": []}
+        with patch("personalscraper.library.analyzer.extract_stream_info", return_value=info):
+            assert _analyze_video_file(video) is None
+
+
+class TestAnalyzeFromIndexExtraBranches:
+    """Targeted tests for branches missed by the broader suite."""
+
+    def test_category_filter_excludes_other_categories(self) -> None:
+        """``category_filter`` skips items in other categories (covers line 494)."""
+        import time
+
+        from personalscraper.library.analyzer import analyze_from_index
+
+        conn = _make_conn()
+
+        # Movie in 'movies' category — should be excluded by category_filter.
+        cur = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES (?, ?, ?, ?, NULL, 1, 0)",
+            ("Disk1", "Disk1", "/Volumes/Disk1", int(time.time())),
+        )
+        disk_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, 'films/A', NULL, NULL)",
+            (disk_id,),
+        )
+        path_id = cur.lastrowid
+        now = int(time.time())
+        cur = conn.execute(
+            "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+            " tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+            " date_metadata_refreshed, is_locked, preferred_lang) "
+            "VALUES ('movie', 'A', 'A', NULL, NULL, 'movies', NULL, NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
+            (now, now),
+        )
+        item_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+            "VALUES (?, NULL, NULL, NULL, NULL)",
+            (item_id,),
+        )
+        release_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (?, ?, 'A.mkv', 1000, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (release_id, path_id, now, now),
+        )
+        file_id = cur.lastrowid
+        conn.execute(
+            "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+            " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+            "VALUES (?, 0, 'video', 'h264', NULL, NULL, 1920, 1080, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+            (file_id,),
+        )
+
+        result = analyze_from_index(conn, category_filter="anime")
+        assert result.item_count == 0
+        # And same DB without the filter returns the item.
+        result_all = analyze_from_index(conn)
+        assert result_all.item_count == 1
+
+    def test_item_with_no_files_skipped(self) -> None:
+        """Items without any media_file rows do not appear (covers line 501)."""
+        import time
+
+        from personalscraper.library.analyzer import analyze_from_index
+
+        conn = _make_conn()
+        # Item with no release, no files at all.
+        now = int(time.time())
+        conn.execute(
+            "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+            " tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+            " date_metadata_refreshed, is_locked, preferred_lang) "
+            "VALUES ('movie', 'Empty', 'Empty', NULL, NULL, 'movies', NULL, NULL, NULL, "
+            "'valid', NULL, ?, ?, NULL, 0, 'fr')",
+            (now, now),
+        )
+
+        result = analyze_from_index(conn)
+        assert result.item_count == 0
+
+    def test_file_with_only_audio_streams_skipped(self) -> None:
+        """A file row that has streams but no video stream is skipped.
+
+        Covers line 612 (the ``video_row is None`` early return inside
+        ``_file_analysis_from_index``).
+        """
+        import time
+
+        from personalscraper.library.analyzer import analyze_from_index
+
+        conn = _make_conn()
+        cur = conn.execute(
+            "INSERT INTO disk (uuid, label, mount_path, last_seen_at, merkle_root, is_mounted, unreachable_strikes) "
+            "VALUES ('Disk1', 'Disk1', '/Volumes/Disk1', ?, NULL, 1, 0)",
+            (int(time.time()),),
+        )
+        disk_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO path (disk_id, rel_path, dir_mtime_ns, last_walked_at) VALUES (?, 'films/A', NULL, NULL)",
+            (disk_id,),
+        )
+        path_id = cur.lastrowid
+        now = int(time.time())
+        cur = conn.execute(
+            "INSERT INTO media_item (kind, title, title_sort, original_title, year, category_id, "
+            " tmdb_id, imdb_id, tvdb_id, nfo_status, artwork_json, date_created, date_modified, "
+            " date_metadata_refreshed, is_locked, preferred_lang) "
+            "VALUES ('movie', 'A', 'A', NULL, NULL, 'movies', NULL, NULL, NULL, 'valid', NULL, ?, ?, NULL, 0, 'fr')",
+            (now, now),
+        )
+        item_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_release (item_id, episode_id, quality, edition, primary_lang) "
+            "VALUES (?, NULL, NULL, NULL, NULL)",
+            (item_id,),
+        )
+        release_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO media_file (release_id, path_id, filename, size_bytes, mtime_ns, ctime_ns, "
+            " oshash, xxh3_partial, xxh3_full, scan_generation, last_verified_at, enriched_at, "
+            " miss_strikes, deleted_at) "
+            "VALUES (?, ?, 'A.mkv', 1000, 0, NULL, NULL, NULL, NULL, 1, ?, ?, 0, NULL)",
+            (release_id, path_id, now, now),
+        )
+        file_id = cur.lastrowid
+        # ONLY audio stream — no video → file is skipped (line 612).
+        conn.execute(
+            "INSERT INTO media_stream (file_id, idx, kind, codec, lang, channels, width, height, "
+            " duration_ms, bitrate, hdr_format, is_atmos, is_default, forced, format) "
+            "VALUES (?, 0, 'audio', 'aac', 'fra', 2, NULL, NULL, NULL, 128000, NULL, NULL, NULL, NULL, NULL)",
+            (file_id,),
+        )
+
+        result = analyze_from_index(conn)
+        assert result.item_count == 0

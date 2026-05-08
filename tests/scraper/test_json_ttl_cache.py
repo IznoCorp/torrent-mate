@@ -6,11 +6,13 @@ missing file, corrupt file, and atomic write guarantees.
 
 import errno
 import json
+import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.scraper import json_ttl_cache as json_ttl_cache_mod
 from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
 
@@ -239,3 +241,108 @@ class TestErrorPaths:
         assert cache.get("anything") is None
         backups = list(tmp_path.glob("rootlist.corrupt-*.json"))
         assert len(backups) == 1
+
+
+class TestLockFailures:
+    """Cover the lock-acquisition failure branches in ``_locked_update``."""
+
+    def test_lock_acquisition_exhausted_falls_back_to_unlocked(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When flock retries are exhausted, set() still writes via best-effort fallback."""
+        if not json_ttl_cache_mod._FCNTL_AVAILABLE:  # pragma: no cover — Windows
+            pytest.skip("fcntl not available on this platform")
+
+        cache = JsonTTLCache(tmp_path / "lock_busy.json")
+
+        # Simulate flock always raising BlockingIOError so the retry budget is exhausted.
+        fake_fcntl = MagicMock()
+        fake_fcntl.LOCK_EX = 2
+        fake_fcntl.LOCK_NB = 4
+        fake_fcntl.LOCK_UN = 8
+        fake_fcntl.flock.side_effect = OSError(errno.EWOULDBLOCK, "would block")
+
+        with patch.object(json_ttl_cache_mod, "_fcntl", fake_fcntl):
+            with patch.object(json_ttl_cache_mod.time, "sleep", lambda _s: None):
+                with caplog.at_level("WARNING"):
+                    cache.set("k", "v", ttl_seconds=3600)
+
+        assert "json_ttl_cache_lock_failed" in caplog.text
+        # Best-effort write still produced the entry.
+        assert cache.get("k") == "v"
+
+    def test_lock_open_oserror_falls_back_to_unlocked(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """A failure opening the .lock file is caught and best-effort write proceeds."""
+        if not json_ttl_cache_mod._FCNTL_AVAILABLE:  # pragma: no cover — Windows
+            pytest.skip("fcntl not available on this platform")
+
+        cache = JsonTTLCache(tmp_path / "lock_open.json")
+
+        # Patch Path.open so opening the lock-file raises OSError, but reads
+        # of the backing file (which uses Path.open under the hood) still work.
+        original_open = Path.open
+
+        def selective_open(self: Path, *args: object, **kwargs: object) -> object:
+            if self.suffix == ".lock":
+                raise OSError(errno.EACCES, "lock open failed")
+            return original_open(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        with patch.object(Path, "open", selective_open):
+            with caplog.at_level("WARNING"):
+                cache.set("k", "v2", ttl_seconds=3600)
+
+        assert "json_ttl_cache_lock_error" in caplog.text
+        assert cache.get("k") == "v2"
+
+
+class TestAtomicSaveErrors:
+    """Cover the atomic-save error path (os.replace failure)."""
+
+    def test_atomic_save_oserror_cleans_temp_and_reraises(self, tmp_path: Path) -> None:
+        """When os.replace raises, the temp file is unlinked and the error propagates."""
+        cache = JsonTTLCache(tmp_path / "save_fail.json")
+
+        with patch.object(os, "replace", side_effect=OSError(errno.EIO, "i/o error")):
+            with pytest.raises(OSError, match="i/o error"):
+                cache.set("k", "v", ttl_seconds=60)
+
+        # No leftover .tmp files even though the replace failed.
+        leftover = list(tmp_path.glob("*.tmp"))
+        assert leftover == [], f"leftover temp files: {leftover}"
+
+    def test_atomic_save_oserror_when_tmp_unlink_also_fails(self, tmp_path: Path) -> None:
+        """If os.unlink of the temp file also fails, the original OSError still propagates."""
+        cache = JsonTTLCache(tmp_path / "save_fail2.json")
+
+        original_unlink = os.unlink
+
+        def flaky_unlink(path: str) -> None:
+            # The first unlink call (from the cleanup branch) raises; subsequent calls
+            # (e.g. tmp dir teardown) go through normally.
+            if path.endswith(".tmp"):
+                raise OSError(errno.EIO, "unlink failed")
+            original_unlink(path)
+
+        with patch.object(os, "replace", side_effect=OSError(errno.EIO, "replace failed")):
+            with patch.object(os, "unlink", flaky_unlink):
+                with pytest.raises(OSError, match="replace failed"):
+                    cache.set("k", "v", ttl_seconds=60)
+
+
+class TestCorruptBackupErrorPath:
+    """Cover the OSError branch inside ``_backup_corrupt`` (shutil.copy failure)."""
+
+    def test_corrupt_backup_copy_failure_is_logged_and_swallowed(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """If shutil.copy fails when backing up a corrupt file, the error is logged but get() returns None."""
+        backing = tmp_path / "broken_copy.json"
+        backing.write_text("not json {{", encoding="utf-8")
+        cache = JsonTTLCache(backing)
+
+        with patch("personalscraper.scraper.json_ttl_cache.shutil.copy", side_effect=OSError(errno.EACCES, "denied")):
+            with caplog.at_level("ERROR"):
+                result = cache.get("k")
+
+        assert result is None
+        assert "json_ttl_cache_corrupt_backup_failed" in caplog.text

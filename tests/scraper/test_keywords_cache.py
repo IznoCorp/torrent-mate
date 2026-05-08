@@ -280,3 +280,87 @@ class TestOSErrorHygiene:
         assert result is None
         corrupt_files = list(data_dir.glob("*.corrupt-*"))
         assert corrupt_files == [], f"Unexpected .corrupt-* files created: {corrupt_files}"
+
+
+# ---------------------------------------------------------------------------
+# Extra coverage — non-list keywords, root-not-object, copy failure, save fail
+# ---------------------------------------------------------------------------
+
+
+class TestNonListKeywords:
+    """Cover the ``keywords`` field type-guard (line 129)."""
+
+    def test_non_list_keywords_returns_empty(self, cache: KeywordsCache) -> None:
+        """A cache entry whose ``keywords`` is not a list returns ``[]`` (defensive)."""
+        from datetime import datetime as _dt
+
+        from personalscraper.scraper.json_ttl_cache import UTC as _UTC
+
+        now_iso = _dt.now(_UTC).isoformat()
+        # Write a JSON file directly with a malformed keywords field (string instead of list).
+        data = {"movie_555": {"keywords": "not-a-list", "cached_at": now_iso}}
+        cache._path.write_text(json.dumps(data), encoding="utf-8")
+
+        result = cache.get(555, "movie")
+        assert result == []
+
+
+class TestRootNotObjectBackup:
+    """Cover the root-not-object backup branch (lines 212-213)."""
+
+    def test_root_list_creates_backup(self, cache: KeywordsCache) -> None:
+        """A JSON root that is a list (not a dict) is backed up and treated as empty."""
+        cache._path.write_text("[1, 2, 3]", encoding="utf-8")
+        result = cache.get(1, "movie")
+        assert result is None
+        backups = list(cache._path.parent.glob("tmdb_keywords_cache.corrupt-*.json"))
+        assert len(backups) == 1
+
+
+class TestCorruptBackupCopyFailure:
+    """Cover the OSError branch of ``_backup_corrupt`` (lines 182-183)."""
+
+    def test_corrupt_backup_copy_failure_logged(self, cache: KeywordsCache, caplog: pytest.LogCaptureFixture) -> None:
+        """If shutil.copy fails when backing up corrupt JSON, the error is logged."""
+        cache._path.write_text("{not json", encoding="utf-8")
+
+        with patch(
+            "personalscraper.scraper.keywords_cache.shutil.copy",
+            side_effect=OSError(errno.EACCES, "denied"),
+        ):
+            with caplog.at_level("ERROR"):
+                result = cache.get(1, "movie")
+
+        assert result is None
+        assert "keywords_cache_corrupt_backup_failed" in caplog.text
+
+
+class TestAtomicSaveErrors:
+    """Cover the atomic-save error path (lines 260-266)."""
+
+    def test_atomic_save_oserror_cleans_temp_and_reraises(self, cache: KeywordsCache) -> None:
+        """When os.replace raises, the temp file is unlinked and the OSError propagates."""
+        import os as _os
+
+        with patch.object(_os, "replace", side_effect=OSError(errno.EIO, "i/o error")):
+            with pytest.raises(OSError, match="i/o error"):
+                cache.set(1, "movie", ["kw"])
+
+        leftover = list(cache._path.parent.glob("*.tmp"))
+        assert leftover == [], f"leftover temp files: {leftover}"
+
+    def test_atomic_save_oserror_with_unlink_failure(self, cache: KeywordsCache) -> None:
+        """If unlink also fails after os.replace failure, original OSError still propagates."""
+        import os as _os
+
+        original_unlink = _os.unlink
+
+        def flaky_unlink(path: str) -> None:
+            if path.endswith(".tmp"):
+                raise OSError(errno.EIO, "unlink failed")
+            original_unlink(path)
+
+        with patch.object(_os, "replace", side_effect=OSError(errno.EIO, "replace failed")):
+            with patch.object(_os, "unlink", flaky_unlink):
+                with pytest.raises(OSError, match="replace failed"):
+                    cache.set(1, "movie", ["kw"])
