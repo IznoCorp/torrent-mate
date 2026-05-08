@@ -1,0 +1,14 @@
+{
+  "feature": "scraper",
+  "design": "docs/reference/scraping.md",
+  "sections": {
+    "nfo-invariants": {
+      "tests": [
+        "tests/integration/test_design_scraper.py::TestNfoInvariantsContract::test_complete_nfo_with_uniqueid_returns_true",
+        "tests/integration/test_design_scraper.py::TestNfoInvariantsContract::test_corrupt_nfo_returns_false",
+        "tests/integration/test_design_scraper.py::TestNfoInvariantsContract::test_nfo_missing_uniqueid_returns_false"
+      ]
+    }
+  },
+  "skip_audit": []
+}
