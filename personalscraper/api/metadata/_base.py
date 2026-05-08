@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, Literal, Protocol, runtime_checkable
 
+from personalscraper.api._contracts import MediaType
+
 if TYPE_CHECKING:
     from personalscraper.api.transport._http import HttpTransport
 
@@ -38,7 +40,7 @@ class SearchResult:
     provider_id: str
     title: str
     year: int | None = None
-    media_type: Literal["movie", "tv"] = "movie"
+    media_type: MediaType = "movie"
     overview: str = ""
     poster_url: str = ""
     original_title: str = ""
@@ -177,7 +179,7 @@ class Recommendation:
     provider_id: str
     title: str
     year: int | None = None
-    media_type: Literal["movie", "tv"] = "movie"
+    media_type: MediaType = "movie"
     reason: str = ""
 
 
@@ -274,31 +276,31 @@ class MetadataProvider(Protocol):
         self,
         title: str,
         year: int | None = None,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[SearchResult]: ...
 
     def get_details(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> MediaDetails: ...
 
     def get_artwork_urls(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[ArtworkItem]: ...
 
     def get_keywords(
         self,
         media_id: str,
-        media_type: str,
+        media_type: MediaType,
     ) -> list[str]: ...
 
     def get_videos(
         self,
         media_id: str,
-        media_type: str,
+        media_type: MediaType,
         language: str,
     ) -> list[Video]: ...
 
@@ -311,13 +313,13 @@ class MetadataProvider(Protocol):
     def get_notations(
         self,
         media_id: str,
-        media_type: str,
+        media_type: MediaType,
     ) -> list[Notations] | None: ...
 
     def get_recommendations(
         self,
         media_id: str,
-        media_type: str,
+        media_type: MediaType,
     ) -> list[Recommendation]: ...
 
 
@@ -327,38 +329,55 @@ class MetadataProvider(Protocol):
 class MetadataClient:
     """Base class for metadata providers.
 
-    Subclasses override capability methods they support; others raise
-    NotImplementedError on call. Provides a shared transport reference
-    and a default provider_name derived from the class name.
+    Subclasses MUST declare an explicit ``provider_name`` ClassVar — the
+    base value is empty and ``__init_subclass__`` raises ``TypeError`` at
+    class-definition time when a concrete subclass omits it. This prevents
+    silent fallback to the lowercase class name (which would break on a
+    rename like ``TMDbClient``) and surfaces the error before any instance
+    is constructed, even when a subclass overrides ``__init__`` without
+    calling ``super().__init__()``.
+
+    Subclasses override capability methods they support; the base class
+    raises ``NotImplementedError`` for unsupported ones.
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = []
+    provider_name: ClassVar[str] = ""
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+        # Skip intermediate abstract bases that intentionally do not set the
+        # ClassVar — only concrete subclasses must declare it. A subclass is
+        # treated as concrete when it sits at depth ≥ 1 in the MRO past
+        # MetadataClient and overrides at least one method or declares fields
+        # of its own. We err on the strict side: the moment a class inherits
+        # from MetadataClient and does not set provider_name, it raises.
+        if not cls.provider_name:
+            raise TypeError(
+                f"{cls.__name__} must declare an explicit provider_name ClassVar — "
+                "see MetadataClient base class docstring."
+            )
 
     def __init__(self, transport: "HttpTransport", language: str = "fr-FR") -> None:
         self._transport = transport
         self._language = language
 
-    @property
-    def provider_name(self) -> str:
-        """Derive provider name from class name (e.g. TMDBClient → 'tmdb')."""
-        return type(self).__name__.replace("Client", "").lower()
-
     # -- Optional capability methods (override in subclasses) -----------------
 
-    def get_artwork_urls(self, media_id: str, media_type: str = "movie") -> list[ArtworkItem]:
+    def get_artwork_urls(self, media_id: str, media_type: MediaType = "movie") -> list[ArtworkItem]:
         raise NotImplementedError(f"{self.provider_name} does not support artwork URLs")
 
-    def get_keywords(self, media_id: str, media_type: str) -> list[str]:
+    def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]:
         raise NotImplementedError(f"{self.provider_name} does not support keywords")
 
-    def get_videos(self, media_id: str, media_type: str, language: str) -> list[Video]:
+    def get_videos(self, media_id: str, media_type: MediaType, language: str) -> list[Video]:
         raise NotImplementedError(f"{self.provider_name} does not support videos")
 
     def get_season(self, tv_id: str, season: int) -> SeasonDetails:
         raise NotImplementedError(f"{self.provider_name} does not support season details")
 
-    def get_notations(self, media_id: str, media_type: str) -> list[Notations] | None:
+    def get_notations(self, media_id: str, media_type: MediaType) -> list[Notations] | None:
         raise NotImplementedError(f"{self.provider_name} does not support notations")
 
-    def get_recommendations(self, media_id: str, media_type: str) -> list[Recommendation]:
+    def get_recommendations(self, media_id: str, media_type: MediaType) -> list[Recommendation]:
         raise NotImplementedError(f"{self.provider_name} does not support recommendations")

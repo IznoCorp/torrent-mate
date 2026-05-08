@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import ClassVar, Protocol
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api._units import ByteSize
 
 
@@ -65,6 +66,6 @@ class TrackerClient(Protocol):
     provider_name: str
     REQUIRED_CREDS: ClassVar[list[str]]
 
-    def search(self, query: str, media_type: str = "movie", year: int | None = None) -> list[TrackerResult]: ...
+    def search(self, query: str, media_type: MediaType = "movie", year: int | None = None) -> list[TrackerResult]: ...
 
     def get_categories(self) -> dict[str, str]: ...

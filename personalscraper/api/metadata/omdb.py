@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from personalscraper.api._contracts import ApiError
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -63,6 +63,7 @@ class OMDBClient(MetadataClient):
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["OMDB_API_KEY"]
+    provider_name: ClassVar[str] = "omdb"
 
     @classmethod
     def policy(cls, api_key: str) -> TransportPolicy:
@@ -98,7 +99,7 @@ class OMDBClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[SearchResult]:
         """Search OMDB by title.
 
@@ -121,7 +122,7 @@ class OMDBClient(MetadataClient):
     def get_details(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> MediaDetails:
         """Fetch full details by IMDb ID.
 
@@ -141,7 +142,7 @@ class OMDBClient(MetadataClient):
     def get_notations(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[Notations] | None:
         """Fetch ratings from OMDB's Ratings[] array.
 
@@ -158,7 +159,7 @@ class OMDBClient(MetadataClient):
     def get_recommendations(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[Recommendation]:
         """OMDB has no recommendations endpoint — returns empty list."""
         return []
@@ -267,7 +268,7 @@ def _parse_search_results(data: dict[str, Any], *, provider: str) -> list[Search
     return results
 
 
-def _parse_media_details(data: dict[str, Any], *, provider: str, media_type: str) -> MediaDetails:
+def _parse_media_details(data: dict[str, Any], *, provider: str, media_type: MediaType) -> MediaDetails:
     """Parse OMDB title/ID detail response into MediaDetails.
 
     Args:

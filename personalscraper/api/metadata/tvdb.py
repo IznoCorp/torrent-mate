@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -58,6 +59,7 @@ class TVDBClient(MetadataClient):
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TVDB_API_KEY"]
+    provider_name: ClassVar[str] = "tvdb"
 
     def __init__(
         self,
@@ -96,11 +98,6 @@ class TVDBClient(MetadataClient):
         # Main transport with JWT
         main_policy = TVDBClient.policy(jwt, circuit=_cb)
         super().__init__(transport=HttpTransport(main_policy), language=language)
-
-    @property
-    def provider_name(self) -> str:
-        """Provider identifier."""
-        return "tvdb"
 
     @property
     def circuit(self) -> Any:
@@ -185,7 +182,7 @@ class TVDBClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[SearchResult]:
         """Search TVDB for series or movies.
 
@@ -249,7 +246,7 @@ class TVDBClient(MetadataClient):
 
     # -- Protocol: get_details ----------------------------------------------
 
-    def get_details(self, media_id: str, media_type: str = "movie") -> MediaDetails:
+    def get_details(self, media_id: str, media_type: MediaType = "movie") -> MediaDetails:
         """Fetch full details for a series or movie.
 
         Args:
@@ -289,7 +286,7 @@ class TVDBClient(MetadataClient):
 
     # -- Protocol: get_artwork_urls -----------------------------------------
 
-    def get_artwork_urls(self, media_id: str, media_type: str = "movie") -> list[ArtworkItem]:
+    def get_artwork_urls(self, media_id: str, media_type: MediaType = "movie") -> list[ArtworkItem]:
         """Fetch artwork for a series or movie.
 
         Args:
@@ -349,7 +346,7 @@ class TVDBClient(MetadataClient):
 
     # -- Protocol: get_videos -----------------------------------------------
 
-    def get_videos(self, media_id: str, media_type: str, language: str) -> list[Video]:
+    def get_videos(self, media_id: str, media_type: MediaType, language: str) -> list[Video]:
         """Fetch videos/trailers for a series or movie.
 
         Videos are extracted from the extended response's ``trailers`` array.
@@ -362,15 +359,18 @@ class TVDBClient(MetadataClient):
         Returns:
             List of Video objects.
         """
-        raw = self._get_dict(f"/{media_type}s/{media_id}/extended")
+        # TVDB v4 endpoints: /movies/{id}/extended and /series/{id}/extended.
+        # "tv" → "series" — naive pluralization (/tvs/) returns 400.
+        endpoint = "series" if media_type == "tv" else "movies"
+        raw = self._get_dict(f"/{endpoint}/{media_id}/extended")
         return parse_videos(raw.get("trailers", []) or [])
 
     # -- Protocol: get_keywords / get_notations (not supported by TVDB) -----
 
-    def get_keywords(self, media_id: str, media_type: str) -> list[str]:
+    def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]:
         """TVDB has no keywords endpoint. Falls back to TMDB."""
         raise NotImplementedError("tvdb does not support keywords")
 
-    def get_notations(self, media_id: str, media_type: str) -> None:
+    def get_notations(self, media_id: str, media_type: MediaType) -> None:
         """TVDB score is a popularity rank, not a rating."""
         raise NotImplementedError("tvdb does not support notations")

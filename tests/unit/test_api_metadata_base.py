@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from personalscraper.api.metadata._base import (
@@ -83,9 +85,16 @@ class TestMetadataClient:
     """MetadataClient base class tests."""
 
     def test_provider_name(self) -> None:
-        """provider_name is derived from class name (TMDBClient → 'tmdb')."""
+        """provider_name is read from the subclass ClassVar declaration."""
         client = TMDBFakeClient(None)  # type: ignore[arg-type]
         assert client.provider_name == "tmdbfake"
+
+    def test_missing_provider_name_raises(self) -> None:
+        """Forgetting to declare provider_name fails at *class definition* time."""
+        with pytest.raises(TypeError, match="must declare an explicit provider_name"):
+
+            class _Bare(MetadataClient):  # type: ignore[unused-ignore]  # noqa: F841
+                pass
 
     def test_default_get_notations_raises(self) -> None:
         """Default get_notations raises NotImplementedError with provider name."""
@@ -109,6 +118,8 @@ class TestMetadataClient:
         """Subclass can override a capability method and return typed result."""
 
         class TMDBClient(MetadataClient):
+            provider_name: ClassVar[str] = "tmdb"
+
             def get_notations(self, media_id: str, media_type: str) -> Notations | None:
                 return Notations(provider="tmdb", source="tmdb", score=8.0)
 
@@ -170,4 +181,6 @@ class TestMetadataProviderProtocol:
 
 
 class TMDBFakeClient(MetadataClient):
-    """Fake client for testing provider_name derivation."""
+    """Fake client for testing the explicit ``provider_name`` ClassVar contract."""
+
+    provider_name: ClassVar[str] = "tmdbfake"

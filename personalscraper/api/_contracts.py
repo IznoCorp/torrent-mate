@@ -6,6 +6,13 @@ ApiError is a unified exception replacing all provider-specific error types.
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Literal
+
+# Canonical media-type literal used across all metadata-family APIs.
+# Defined here so producer (SearchResult, Recommendation, ArtworkItem) and
+# consumer (search/get_details/get_videos parameters) share the same type
+# instead of leaking as plain ``str`` at every boundary.
+MediaType = Literal["movie", "tv"]
 
 
 class AuthMode(Enum):

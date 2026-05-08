@@ -4,13 +4,15 @@ Pure functions, no HTTP — testable against golden samples from
 docs/reference/_samples/tmdb/. Every parser maps raw TMDB JSON
 fields to the typed models defined in api/metadata/_base.py.
 
-Real-field confirmations from Phase 4 live API calls (2026-05-04).
+Field shapes were confirmed against live TMDB API responses on 2026-05-04
+and are pinned by the golden samples in docs/reference/_samples/tmdb/.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     EpisodeInfo,
@@ -293,12 +295,13 @@ def parse_episode(raw: dict[str, Any]) -> EpisodeInfo:
     )
 
 
-def parse_keywords(raw_keywords: dict[str, Any], media_type: str) -> list[str]:
+def parse_keywords(raw_keywords: dict[str, Any], media_type: MediaType) -> list[str]:
     """Extract keyword name strings from a TMDB keywords response.
 
     Branches on envelope:
     - movie → ``raw_keywords["keywords"]``
-    - tv    → ``raw_keywords["results"]`` (TMDB inconsistency — Phase 4 confirmed)
+    - tv    → ``raw_keywords["results"]`` (TMDB API inconsistency: the two
+      endpoints return the same shape under different top-level keys).
 
     Args:
         raw_keywords: Response from /movie/{id}/keywords or /tv/{id}/keywords.

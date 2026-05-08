@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from personalscraper.api._contracts import MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -58,6 +59,7 @@ class TMDBClient(MetadataClient):
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TMDB_API_KEY"]
+    provider_name: ClassVar[str] = "tmdb"
 
     def __init__(
         self,
@@ -78,11 +80,6 @@ class TMDBClient(MetadataClient):
         super().__init__(transport, language=language)
         self._fallback_language = fallback_language
         self._prefer_local_title = prefer_local_title
-
-    @property
-    def provider_name(self) -> str:
-        """Provider identifier."""
-        return "tmdb"
 
     @property
     def circuit(self) -> Any:  # CircuitBreaker, but avoid circular import
@@ -121,7 +118,7 @@ class TMDBClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[SearchResult]:
         """Search for a movie or TV show by title.
 
@@ -142,7 +139,7 @@ class TMDBClient(MetadataClient):
     def get_details(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> MediaDetails:
         """Fetch full details for a movie or TV show.
 
@@ -282,7 +279,7 @@ class TMDBClient(MetadataClient):
     def get_artwork_urls(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[ArtworkItem]:
         """Fetch artwork images for a movie or TV show.
 
@@ -311,7 +308,7 @@ class TMDBClient(MetadataClient):
     def get_videos(
         self,
         media_id: str,
-        media_type: str,
+        media_type: MediaType,
         language: str,
     ) -> list[Video]:
         """Fetch videos for a movie or TV show.
@@ -401,7 +398,7 @@ class TMDBClient(MetadataClient):
 
     # -- Protocol: get_keywords ---------------------------------------------
 
-    def get_keywords(self, media_id: str, media_type: str) -> list[str]:
+    def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]:
         """Fetch keywords for a movie or TV show.
 
         Handles TMDB's envelope inconsistency: movies use ``keywords``,

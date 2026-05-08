@@ -83,3 +83,45 @@ class TestGetArtworkUrlsEndpoint:
         client.get_artwork_urls("999")
 
         assert captured["path"] == "/movies/999/extended"
+
+
+class TestGetVideosEndpoint:
+    """Endpoint mapping for ``TVDBClient.get_videos``.
+
+    Mirrors the ``get_artwork_urls`` regression: naive ``f"/{media_type}s/..."``
+    pluralization produced ``/tvs/...`` for TV shows. TVDB v4 requires
+    ``/series/{id}/extended`` and returns HTTP 400 otherwise.
+    """
+
+    def test_tv_uses_series_endpoint(self) -> None:
+        """``media_type='tv'`` must request ``/series/{id}/extended``, not ``/tvs/...``."""
+        client = _make_client()
+        captured: dict[str, Any] = {}
+
+        def fake_get_dict(path: str, params: dict[str, object] | None = None) -> dict[str, Any]:
+            captured["path"] = path
+            return {"trailers": []}
+
+        client._get_dict = MagicMock(side_effect=fake_get_dict)  # type: ignore[method-assign]
+
+        client.get_videos("355567", media_type="tv", language="eng")
+
+        assert captured["path"] == "/series/355567/extended", (
+            f"TV videos must use /series/ endpoint; got {captured.get('path')!r}"
+        )
+        assert "/tvs/" not in captured["path"], "Regression: /tvs/ is not a valid TVDB v4 endpoint and returns 400."
+
+    def test_movie_uses_movies_endpoint(self) -> None:
+        """``media_type='movie'`` must request ``/movies/{id}/extended``."""
+        client = _make_client()
+        captured: dict[str, Any] = {}
+
+        def fake_get_dict(path: str, params: dict[str, object] | None = None) -> dict[str, Any]:
+            captured["path"] = path
+            return {"trailers": []}
+
+        client._get_dict = MagicMock(side_effect=fake_get_dict)  # type: ignore[method-assign]
+
+        client.get_videos("12345", media_type="movie", language="eng")
+
+        assert captured["path"] == "/movies/12345/extended"

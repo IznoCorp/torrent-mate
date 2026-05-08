@@ -5,7 +5,8 @@ docs/reference/_samples/tvdb/. Handles TVDB envelope unwrapping,
 3-char language codes, numeric artwork type IDs, and the
 first_release object format.
 
-Real-field confirmations from Phase 6 live API calls (2026-05-04).
+Field shapes were confirmed against live TVDB v4 API responses on 2026-05-04
+and are pinned by the golden samples in docs/reference/_samples/tvdb/.
 """
 
 from __future__ import annotations

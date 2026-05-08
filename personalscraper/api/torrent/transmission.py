@@ -1,8 +1,11 @@
 """Transmission client implementing the TorrentClient Protocol.
 
-Wraps transmission-rpc with an HttpTransport pre-check (Option A from Phase 10).
-Transmission uses JSON-RPC 2.0 over a single POST endpoint, with HTTP Basic Auth
-and CSRF session-id dance handled by the library.
+Wraps transmission-rpc with an HttpTransport pre-check: we issue a cheap
+GET via the unified transport before instantiating transmission-rpc so
+network/auth failures surface as a uniform ApiError instead of leaking the
+library's exception types up the call stack. Transmission itself uses
+JSON-RPC 2.0 over a single POST endpoint with HTTP Basic Auth and the
+CSRF session-id dance handled by the library.
 """
 
 from __future__ import annotations

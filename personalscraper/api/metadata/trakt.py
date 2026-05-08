@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
-from personalscraper.api._contracts import ApiError
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     MediaDetails,
@@ -61,6 +61,7 @@ class TraktClient(MetadataClient):
     """
 
     REQUIRED_CREDS: ClassVar[list[str]] = ["TRAKT_CLIENT_ID"]
+    provider_name: ClassVar[str] = "trakt"
 
     @classmethod
     def policy(cls, client_id: str) -> TransportPolicy:
@@ -98,7 +99,7 @@ class TraktClient(MetadataClient):
         self,
         title: str,
         year: int | None = None,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[SearchResult]:
         """Search Trakt by title.
 
@@ -116,14 +117,14 @@ class TraktClient(MetadataClient):
             params["year"] = str(year)
 
         raw = self._transport.get(f"/search/{endpoint}", params=params)
-        data = _assert_list(raw)  # type: ignore[arg-type]
+        data = _assert_list(raw)
         key = "show" if media_type == "tv" else "movie"
         return _parse_search_results(data, provider=self.provider_name, key=key)
 
     def get_details(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> MediaDetails:
         """Fetch full details by Trakt ID, slug, or IMDb ID.
 
@@ -149,7 +150,7 @@ class TraktClient(MetadataClient):
     def get_notations(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[Notations] | None:
         """Fetch Trakt community rating.
 
@@ -167,7 +168,7 @@ class TraktClient(MetadataClient):
     def get_recommendations(
         self,
         media_id: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
     ) -> list[Recommendation]:
         """Fetch related movies/shows.
 
@@ -180,24 +181,37 @@ class TraktClient(MetadataClient):
         """
         endpoint = "shows" if media_type == "tv" else "movies"
         raw = self._transport.get(f"/{endpoint}/{media_id}/related")
-        data = _assert_list(raw)  # type: ignore[arg-type]
+        data = _assert_list(raw)
         return _parse_related(data, provider=self.provider_name, media_type=media_type)
 
 
 # -- Response type guards --------------------------------------------------
 
 
-def _assert_dict(data: dict[str, Any] | str) -> dict[str, Any]:
-    """Cast HttpTransport response to dict."""
-    if isinstance(data, str):
-        raise ApiError(provider="trakt", http_status=0, message=f"Unexpected string response: {data[:200]}")
+def _assert_dict(data: dict[str, Any] | list[Any] | str) -> dict[str, Any]:
+    """Cast HttpTransport response to dict.
+
+    HttpTransport.get() declares ``dict[str, Any] | str`` but its ``response_format='json'``
+    branch returns whatever ``response.json()`` parses, which can include lists for
+    array-shaped JSON. We widen the input union so callers don't need ``type: ignore``.
+    """
+    if not isinstance(data, dict):
+        snippet = data if isinstance(data, str) else type(data).__name__
+        raise ApiError(provider="trakt", http_status=0, message=f"Expected JSON object, got: {snippet!s:.200}")
     return data
 
 
-def _assert_list(data: list[Any] | str) -> list[dict[str, Any]]:
-    """Cast HttpTransport response to list of dicts."""
-    if isinstance(data, str):
-        raise ApiError(provider="trakt", http_status=0, message=f"Unexpected string response: {data[:200]}")
+def _assert_list(data: dict[str, Any] | list[Any] | str) -> list[dict[str, Any]]:
+    """Cast HttpTransport response to list of dicts.
+
+    HttpTransport.get() declares ``dict[str, Any] | str`` but its ``response_format='json'``
+    branch returns whatever ``response.json()`` parses — Trakt search/related endpoints
+    return JSON arrays. The widened union here matches the real transport return shape
+    and removes the prior ``type: ignore[arg-type]`` at call sites.
+    """
+    if not isinstance(data, list):
+        snippet = data if isinstance(data, str) else type(data).__name__
+        raise ApiError(provider="trakt", http_status=0, message=f"Expected JSON array, got: {snippet!s:.200}")
     return data
 
 
@@ -236,7 +250,7 @@ def _parse_search_results(data: list[dict[str, Any]], *, provider: str, key: str
     return results
 
 
-def _parse_media_details(data: dict[str, Any], *, provider: str, media_type: str) -> MediaDetails:
+def _parse_media_details(data: dict[str, Any], *, provider: str, media_type: MediaType) -> MediaDetails:
     """Parse Trakt detail response into MediaDetails.
 
     Args:
@@ -298,7 +312,7 @@ def _parse_notations(data: dict[str, Any], *, provider: str) -> list[Notations] 
     ]
 
 
-def _parse_related(data: list[dict[str, Any]], *, provider: str, media_type: str) -> list[Recommendation]:
+def _parse_related(data: list[dict[str, Any]], *, provider: str, media_type: MediaType) -> list[Recommendation]:
     """Parse Trakt related response into Recommendation list.
 
     Args:
