@@ -17,7 +17,7 @@
 | --- | ------------------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------- | ------ |
 | 1   | Foundation — scripts + Makefile + baseline             | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
 | 2   | CI enforcement (test-cov + design-gaps + monotonic)    | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
-| 3   | Pre-commit hook via core.hooksPath                     | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [ ]    |
+| 3   | Pre-commit hook via core.hooksPath                     | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [x]    |
 | 4   | Bootstrap — first contract test + 7th check            | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [ ]    |
 | 5   | api-unify cycle (bootstrap markers, no bump)           | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [ ]    |
 | 6   | scraper cycle → fail_under = 82                        | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [ ]    |
@@ -69,6 +69,15 @@ to `80 → 82 → 85 → 87 → 90` distributed over Phases 6/7/8/9.
 | 2.1       | `d83a45e` | wire `test` job to `make test-cov` + fork-aware codecov flag |
 | 2.2       | `652f31d` | add `coverage-monotonic` job with `coverage-rollback` label  |
 | 2.3       | `652ee32` | add `design-gaps` job (warning-mode, continue-on-error)      |
+
+### Phase 3 — Pre-commit hook
+
+| Sub-phase | SHA       | Description                                                  |
+| --------- | --------- | ------------------------------------------------------------ |
+| 3.1       | `a09c16b` | hooks/pre-commit feature-map regenerator                     |
+| 3.2       | `6f1bdbc` | hooks/install.sh (idempotent core.hooksPath setup)           |
+| 3.3       | `910a45b` | document install in CLAUDE.md + README.md                    |
+| 3.4       | (smoke)   | hook regenerates and stages map for staged test*design*\*.py |
 
 ## Notes
 
