@@ -135,19 +135,21 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
     r"""Build a regex from a Python format string pattern.
 
     Replaces all ``{placeholder}`` and ``{placeholder:format}`` tokens
-    with ``\\d+`` (assumes numeric placeholders). Literal portions are
-    escaped for safe regex use.
+    with the capturing group ``(\\d+)`` (assumes numeric placeholders),
+    so callers can recover the matched number via ``m.group(N)``.
+    Literal portions are escaped for safe regex use.
 
     Example::
 
         >>> _build_dir_regex("Saison {Season:02d}")
-        re.compile('^Saison \\\\d+$')
+        re.compile('^Saison (\\\\d+)$')
 
     Args:
         pattern: A Python format string (e.g. ``"Saison {Season:02d}"``).
 
     Returns:
-        Compiled regex matching any string produced by *pattern*.
+        Compiled regex matching any string produced by *pattern*. Each
+        ``{placeholder}`` becomes one capturing group, in order.
     """
     import re
 
@@ -155,7 +157,7 @@ def _build_dir_regex(pattern: str) -> "re.Pattern[str]":
     regex_str = ""
     for part in parts:
         if re.match(r"^\{[^}]+\}$", part):
-            regex_str += r"\d+"
+            regex_str += r"(\d+)"
         else:
             regex_str += re.escape(part)
     return re.compile(f"^{regex_str}$")

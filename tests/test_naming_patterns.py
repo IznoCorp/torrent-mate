@@ -196,3 +196,22 @@ class TestSeasonDirRegex:
         """'Saison' alone (no number) should not match."""
         assert not SEASON_DIR_RE.match("Saison")
         assert not SEASON_DIR_RE.match("Saison ")
+
+    def test_capture_group_yields_season_number(self):
+        """Match exposes the season number via group(1).
+
+        Regression — the regex previously had no capture group, so callers
+        that did ``int(m.group(1))`` (rescraper._rescrape_episodes,
+        tv_service._build_episode_map) raised ``IndexError`` whenever a
+        real ``Saison NN/`` directory was present on disk. The capture
+        group is part of the regex contract from now on.
+        """
+        m = SEASON_DIR_RE.match("Saison 03")
+        assert m is not None
+        assert m.group(1) == "03"
+        assert int(m.group(1)) == 3
+        # Single-digit and three-digit forms also expose the capture group.
+        m1 = SEASON_DIR_RE.match("Saison 1")
+        assert m1 is not None and int(m1.group(1)) == 1
+        m100 = SEASON_DIR_RE.match("Saison 100")
+        assert m100 is not None and int(m100.group(1)) == 100

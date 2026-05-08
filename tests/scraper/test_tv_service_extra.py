@@ -416,12 +416,41 @@ class TestBuildEpisodeMap:
         out = mixin._build_episode_map(show, match, tmdb_id=1, episode_default_name="Episode")
         assert out == {}
 
+    def test_real_season_dir_re_does_not_raise_indexerror(self, tmp_path: Path) -> None:
+        """Regression: real ``Saison NN/`` dirs no longer raise IndexError.
+
+        Before fix: ``int(m.group(1))`` on ``SEASON_DIR_RE`` raised
+        ``IndexError: no such group`` because the production regex had
+        no capturing group. This test exercises ``_build_episode_map``
+        with real ``Saison NN/`` directories on disk and asserts the
+        season iteration completes without raising.
+        """
+        show = tmp_path / "Show"
+        show.mkdir()
+        (show / "Saison 01").mkdir()
+        (show / "Saison 02").mkdir()
+        (show / "Extras").mkdir()  # Non-season dir, must be ignored.
+
+        tmdb = MagicMock()
+        tmdb.get_tv_season.side_effect = RuntimeError("network down")
+        mixin = _make_mixin(tmdb=tmdb)
+        match = MatchResult(api_id=1, api_title="X", api_year=None, confidence=1.0, source="tmdb")
+
+        # No patch on SEASON_DIR_RE — uses production regex.
+        out = mixin._build_episode_map(show, match, tmdb_id=1, episode_default_name="Episode")
+
+        # Both real season dirs were discovered; iteration completed
+        # without IndexError, even though the API mock raises per call.
+        assert tmdb.get_tv_season.call_count == 2
+        # The mock raises on every call so the map is empty, but the
+        # important invariant is that we got here without IndexError.
+        assert out == {}
+
     def test_tvdb_iteration_populates_episodes(self, tmp_path: Path) -> None:
         """TVDB branch fills the (season, episode) map from ``get_series_episodes``."""
         show = tmp_path / "Show"
         show.mkdir()
-        # Use SxxEyy filenames so the bootstrap branch picks up season 1
-        # (the SEASON_DIR_RE regex has no capture group in production).
+        # Use SxxEyy filenames so the bootstrap branch picks up season 1.
         (show / "Show.S01E01.mkv").write_bytes(b"x")
         tvdb = MagicMock()
         tvdb.get_series_episodes.return_value = SeasonDetails(

@@ -773,13 +773,45 @@ class TestRescrapeItemErrors:
 class TestRescrapeEpisodes:
     """Tests for _rescrape_episodes.
 
-    The production regex ``SEASON_DIR_RE`` does not have a capturing group,
-    yet ``_rescrape_episodes`` calls ``m.group(1)`` on it. To exercise the
-    season-iteration logic in a unit test we substitute a regex with a single
-    capturing group via ``patch`` on the original module symbol.
+    Historically the production regex ``SEASON_DIR_RE`` had no capturing
+    group while ``_rescrape_episodes`` called ``m.group(1)`` on it —
+    raising ``IndexError`` on any real ``Saison NN/`` directory. The
+    regex now exposes the season number via ``group(1)`` (see
+    ``tests/test_naming_patterns.py::TestSeasonDirRegex
+    ::test_capture_group_yields_season_number``); the legacy tests below
+    keep the explicit ``_CAPTURING_RE`` patch for historical reasons —
+    it is now equivalent to the production regex but documents the
+    contract relied upon by this code path.
     """
 
     _CAPTURING_RE = __import__("re").compile(r"^Saison (\d+)$")
+
+    def test_real_season_dir_re_does_not_raise_indexerror(self, tmp_path: Path) -> None:
+        """Regression: real ``Saison NN/`` dirs no longer raise IndexError.
+
+        Before fix: ``int(m.group(1))`` on ``SEASON_DIR_RE`` raised
+        ``IndexError: no such group`` because the production regex had
+        no capturing group. This test exercises the iteration without
+        patching the regex, proving the fix is end-to-end.
+        """
+        from personalscraper.library.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        (show / "Saison 01").mkdir()
+        (show / "Saison 02").mkdir()
+        (show / "Extras").mkdir()  # Non-season dir, must be ignored.
+
+        tmdb = MagicMock()
+        tmdb.get_tv_season.side_effect = RuntimeError("network down")
+
+        # No patch on SEASON_DIR_RE — uses production regex.
+        _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+
+        # Both real season dirs were discovered; iteration completed
+        # without IndexError, even though the API mock raises per call.
+        assert tmdb.get_tv_season.call_count == 2
 
     def test_no_seasons_returns_early(self, tmp_path: Path) -> None:
         """When no Saison NN dirs exist, function returns without API calls."""
