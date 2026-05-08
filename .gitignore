@@ -89,6 +89,8 @@ build/
 .pytest_cache/
 htmlcov/
 .coverage
+.coverage.*
+coverage.xml
 
 # ===========================================
 # Logs (structured JSON, non-committed)

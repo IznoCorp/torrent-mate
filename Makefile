@@ -1,9 +1,14 @@
-.PHONY: help clean test lint lint-logging check format install-dev version update-ytdlp perf-rebaseline
+.PHONY: help clean test test-unit test-integration test-cov lint lint-logging check format install-dev version update-ytdlp perf-rebaseline
+
+THRESHOLD := $(shell python3 scripts/get_coverage_threshold.py)
 
 help:
 	@echo "PersonalScraper — Available commands:"
 	@echo "  make clean           - Remove build artifacts and cache files"
 	@echo "  make test            - Run all tests with pytest"
+	@echo "  make test-unit       - Run unit tests only (no coverage)"
+	@echo "  make test-integration - Run integration tests only"
+	@echo "  make test-cov        - Run tests with branch coverage at fail_under threshold"
 	@echo "  make lint            - Run ruff check + ruff format --check + mypy + logging audit"
 	@echo "  make lint-logging    - Run logging convention audit (fails on errors)"
 	@echo "  make check           - Run lint, tests, and advisory module-size check"
@@ -25,6 +30,20 @@ test:
 	@echo "Running tests..."
 	python -m pytest -v -n auto
 
+test-unit:
+	@echo "Running unit tests..."
+	python3 -m pytest tests/ --ignore=tests/integration --ignore=tests/e2e -q -n auto
+
+test-integration:
+	@echo "Running integration tests..."
+	python3 -m pytest tests/integration/ -q -n auto
+
+test-cov:
+	@echo "Running tests with branch coverage (fail_under=$(THRESHOLD))..."
+	python3 -m pytest tests/ --ignore=tests/e2e -q --no-header -n auto \
+		--cov=personalscraper --cov-branch --cov-report=xml --cov-report=term \
+		--cov-fail-under=$(THRESHOLD)
+
 lint:
 	@echo "Running linter..."
 	python -m ruff check personalscraper/ tests/
@@ -36,7 +55,7 @@ lint-logging:
 	@echo "Running logging convention audit..."
 	python scripts/check_logging.py personalscraper/
 
-check: lint test
+check: lint test-cov
 	python3 scripts/check-module-size.py
 	python3 scripts/check-typed-api.py
 
