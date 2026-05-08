@@ -19,7 +19,7 @@
 | 2   | CI enforcement (test-cov + design-gaps + monotonic)    | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
 | 3   | Pre-commit hook via core.hooksPath                     | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [x]    |
 | 4   | Bootstrap — first contract test + 7th check            | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [x]    |
-| 5   | api-unify cycle (bootstrap markers, no bump)           | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [ ]    |
+| 5   | api-unify cycle (bootstrap markers, no bump)           | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [x]    |
 | 6   | scraper cycle → fail_under = 82                        | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [ ]    |
 | 7   | dispatch + verify cycle → fail_under = 85              | cycle       | [phase-07-dispatch-verify-cycle.md](docs/features/test-coverage/plan/phase-07-dispatch-verify-cycle.md) | [ ]    |
 | 8   | trailers cycle → fail_under = 87 + promote design-gaps | cycle       | [phase-08-trailers-cycle.md](docs/features/test-coverage/plan/phase-08-trailers-cycle.md)               | [ ]    |
