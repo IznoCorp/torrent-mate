@@ -303,3 +303,1033 @@ class TestRescrapeLibraryConfig:
         assert result.items == []
         assert tmdb_client_cls.call_count == 1
         assert tmdb_client_cls.call_args[1]["language"] == "fr-FR"
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage suite — added to lift coverage from 34% → ≥80%.
+# ---------------------------------------------------------------------------
+
+
+class TestDetectNeedsAdditional:
+    """Cover the remaining branches of _detect_needs."""
+
+    def test_tvshow_missing_nfo_and_poster(self, tmp_path: Path) -> None:
+        """TV show directory: missing tvshow.nfo and poster.jpg should both flag."""
+        from personalscraper.library.rescraper import _detect_needs
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        (show / "Show.mkv").write_bytes(b"\x00" * 100)
+
+        needs_nfo, needs_artwork, needs_episodes = _detect_needs(show, "tvshow", None)
+        assert needs_nfo is True
+        assert needs_artwork is True
+
+    def test_tvshow_with_unmatched_episode_filename(self, tmp_path: Path) -> None:
+        """A video file without SxxExx pattern should set needs_episodes=True."""
+        from personalscraper.library.rescraper import _detect_needs
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        # Video file without S01E01-style numbering
+        (season / "random_episode.mkv").write_bytes(b"\x00" * 100)
+
+        _, _, needs_episodes = _detect_needs(show, "tvshow", None)
+        assert needs_episodes is True
+
+    def test_tvshow_with_named_episodes_no_rename(self, tmp_path: Path) -> None:
+        """Files matching SxxExx don't trigger needs_episodes."""
+        from personalscraper.library.rescraper import _detect_needs
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "Show S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">10</uniqueid></tvshow>')
+        (show / "poster.jpg").write_bytes(b"\x00" * 10)
+
+        needs_nfo, needs_artwork, needs_episodes = _detect_needs(show, "tvshow", None)
+        assert needs_nfo is False
+        assert needs_artwork is False
+        assert needs_episodes is False
+
+    def test_only_filter_nfo(self, tmp_path: Path) -> None:
+        """--only nfo should suppress artwork and episodes flags."""
+        from personalscraper.library.rescraper import _detect_needs
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()  # no NFO, no poster
+
+        needs_nfo, needs_artwork, needs_episodes = _detect_needs(movie, "movie", "nfo")
+        assert needs_nfo is True
+        assert needs_artwork is False
+        assert needs_episodes is False
+
+    def test_only_filter_episodes(self, tmp_path: Path) -> None:
+        """--only episodes should isolate episode flag."""
+        from personalscraper.library.rescraper import _detect_needs
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "no_pattern.mkv").write_bytes(b"\x00" * 50)
+
+        needs_nfo, needs_artwork, needs_episodes = _detect_needs(show, "tvshow", "episodes")
+        assert needs_nfo is False
+        assert needs_artwork is False
+        assert needs_episodes is True
+
+
+class TestResolveIdAdditional:
+    """Extra coverage for _resolve_tmdb_id branches."""
+
+    def test_match_exception_returns_none(self, tmp_path: Path) -> None:
+        """Exception raised by match_movie should be swallowed and return all-None."""
+        from personalscraper.library.rescraper import _resolve_tmdb_id
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+
+        with patch(
+            "personalscraper.library.rescraper.match_movie",
+            side_effect=RuntimeError("API down"),
+        ):
+            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=False,
+            )
+
+        assert tmdb_id is None
+        assert id_source is None
+        assert confidence is None
+
+    def test_tvshow_match_path(self, tmp_path: Path) -> None:
+        """TV show resolution should call match_tvshow and return api_match source."""
+        from personalscraper.library.rescraper import _resolve_tmdb_id
+        from personalscraper.scraper.confidence import MatchResult
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+
+        mock_match = MatchResult(api_id=4242, api_title="Show", api_year=2024, confidence=0.99, source="tmdb")
+        with patch("personalscraper.library.rescraper.match_tvshow", return_value=mock_match) as mtv:
+            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+                show,
+                "tvshow",
+                "Show",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=False,
+            )
+        assert tmdb_id == "4242"
+        assert id_source == "api_match"
+        assert confidence == 0.99
+        mtv.assert_called_once()
+
+    def test_low_confidence_interactive_accept(self, tmp_path: Path) -> None:
+        """Interactive 'y' answer accepts low-confidence match."""
+        from personalscraper.library.rescraper import _resolve_tmdb_id
+        from personalscraper.scraper.confidence import MatchResult
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        mock_match = MatchResult(api_id=7, api_title="Movie?", api_year=2024, confidence=0.5, source="tmdb")
+
+        with (
+            patch("personalscraper.library.rescraper.match_movie", return_value=mock_match),
+            patch("builtins.input", return_value="y"),
+        ):
+            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=True,
+            )
+
+        assert tmdb_id == "7"
+        assert id_source == "api_match"
+        assert confidence == 0.5
+
+    def test_low_confidence_interactive_reject(self, tmp_path: Path) -> None:
+        """Interactive 'n' answer rejects low-confidence match."""
+        from personalscraper.library.rescraper import _resolve_tmdb_id
+        from personalscraper.scraper.confidence import MatchResult
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        mock_match = MatchResult(api_id=7, api_title="Movie?", api_year=2024, confidence=0.5, source="tmdb")
+
+        with (
+            patch("personalscraper.library.rescraper.match_movie", return_value=mock_match),
+            patch("builtins.input", return_value="n"),
+        ):
+            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=True,
+            )
+
+        assert tmdb_id is None
+        assert id_source is None
+        assert confidence == 0.5
+
+    def test_invalid_nfo_falls_back_to_api(self, tmp_path: Path) -> None:
+        """An NFO without a valid uniqueid should fall through to API match."""
+        from personalscraper.library.rescraper import _resolve_tmdb_id
+        from personalscraper.scraper.confidence import MatchResult
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        # NFO present but no uniqueid → extract_nfo_ids returns (None, None)
+        (movie / "Movie.nfo").write_text("<movie><title>Movie</title></movie>")
+
+        mock_match = MatchResult(api_id=33, api_title="Movie", api_year=2024, confidence=0.95, source="tmdb")
+        with patch("personalscraper.library.rescraper.match_movie", return_value=mock_match):
+            tmdb_id, id_source, confidence = _resolve_tmdb_id(
+                movie,
+                "movie",
+                "Movie",
+                2024,
+                tmdb_client=MagicMock(),
+                tvdb_client=MagicMock(),
+                interactive=False,
+            )
+        assert tmdb_id == "33"
+        assert id_source == "api_match"
+
+
+class TestFindLargestVideo:
+    """Tests for _find_largest_video helper."""
+
+    def test_returns_largest_among_multiple(self, tmp_path: Path) -> None:
+        """Should return the largest video file by size."""
+        from personalscraper.library.rescraper import _find_largest_video
+
+        d = tmp_path / "Movie (2024)"
+        d.mkdir()
+        (d / "small.mkv").write_bytes(b"\x00" * 100)
+        (d / "big.mp4").write_bytes(b"\x00" * 5000)
+        (d / "ignore.txt").write_bytes(b"\x00" * 9999)
+
+        result = _find_largest_video(d)
+        assert result is not None
+        assert result.name == "big.mp4"
+
+    def test_skips_macos_dotfiles(self, tmp_path: Path) -> None:
+        """Should skip ._-prefixed AppleDouble files."""
+        from personalscraper.library.rescraper import _find_largest_video
+
+        d = tmp_path / "Movie"
+        d.mkdir()
+        (d / "._huge.mkv").write_bytes(b"\x00" * 99999)
+        (d / "real.mkv").write_bytes(b"\x00" * 200)
+
+        result = _find_largest_video(d)
+        assert result is not None
+        assert result.name == "real.mkv"
+
+    def test_returns_none_when_no_videos(self, tmp_path: Path) -> None:
+        """Should return None when no video files exist."""
+        from personalscraper.library.rescraper import _find_largest_video
+
+        d = tmp_path / "Empty"
+        d.mkdir()
+        (d / "readme.txt").write_text("nothing here")
+
+        assert _find_largest_video(d) is None
+
+    def test_handles_oserror_on_stat(self, tmp_path: Path) -> None:
+        """OSError during stat() should skip the file rather than crash."""
+        from personalscraper.library.rescraper import _find_largest_video
+
+        d = tmp_path / "Movie"
+        d.mkdir()
+        # Create a broken symlink that points nowhere — .stat() will raise OSError.
+        broken_link = d / "broken.mkv"
+        broken_link.symlink_to(tmp_path / "nonexistent_target.mkv")
+        (d / "good.mkv").write_bytes(b"\x00" * 50)
+
+        result = _find_largest_video(d)
+        assert result is not None
+        assert result.name == "good.mkv"
+
+
+class TestRescrapeItemErrors:
+    """Cover _rescrape_item NFO/artwork/API failure branches."""
+
+    def _movie_dir(self, tmp_path: Path) -> Path:
+        """Create a movie dir with a video, valid NFO (for ID), no poster.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            Path to the prepared movie directory.
+        """
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+        (movie / "Movie.nfo").write_text('<movie><uniqueid type="tmdb">42</uniqueid></movie>')
+        return movie
+
+    def test_api_error_records_error(self, tmp_path: Path) -> None:
+        """tmdb.get_movie raising should produce an errors entry, not crash."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = self._movie_dir(tmp_path)
+        tmdb = MagicMock()
+        tmdb.get_movie.side_effect = RuntimeError("boom")
+
+        result = _rescrape_item(
+            media_dir=movie,
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            title="Movie",
+            year=2024,
+            tmdb_client=tmdb,
+            tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(),
+            artwork_dl=MagicMock(),
+            patterns=NamingPatterns(),
+            only=None,
+            interactive=False,
+            dry_run=True,
+        )
+
+        assert result is not None
+        assert any("API error" in e for e in result.errors)
+        assert result.actions_taken == []
+
+    def test_nfo_generation_error_is_captured(self, tmp_path: Path) -> None:
+        """Errors raised by nfo_gen should be appended to errors list."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        # Movie missing both NFO and poster — needs both
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        (movie / "Movie.mkv").write_bytes(b"\x00" * 1000)
+
+        tmdb = MagicMock()
+        tmdb.get_movie.return_value = {"id": 42, "title": "Movie"}
+        nfo_gen = MagicMock()
+        nfo_gen.generate_movie_nfo.side_effect = ValueError("bad nfo")
+
+        from personalscraper.scraper.confidence import MatchResult
+
+        match = MatchResult(api_id=42, api_title="Movie", api_year=2024, confidence=0.95, source="tmdb")
+        with (
+            patch("personalscraper.library.rescraper.match_movie", return_value=match),
+            patch(
+                "personalscraper.scraper.mediainfo.extract_stream_info",
+                return_value=None,
+            ),
+        ):
+            result = _rescrape_item(
+                media_dir=movie,
+                media_type="movie",
+                disk="Disk1",
+                category="films",
+                title="Movie",
+                year=2024,
+                tmdb_client=tmdb,
+                tvdb_client=MagicMock(),
+                nfo_gen=nfo_gen,
+                artwork_dl=MagicMock(),
+                patterns=NamingPatterns(),
+                only="nfo",
+                interactive=False,
+                dry_run=True,
+            )
+
+        assert result is not None
+        assert any("NFO generation failed" in e for e in result.errors)
+
+    def test_artwork_download_error_is_captured(self, tmp_path: Path) -> None:
+        """Errors raised by artwork_dl should be appended to errors list."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = self._movie_dir(tmp_path)  # has valid NFO, no poster
+
+        tmdb = MagicMock()
+        tmdb.get_movie.return_value = {"id": 42, "title": "Movie"}
+        artwork_dl = MagicMock()
+        artwork_dl.download_movie_artwork.side_effect = OSError("disk full")
+
+        result = _rescrape_item(
+            media_dir=movie,
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            title="Movie",
+            year=2024,
+            tmdb_client=tmdb,
+            tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(),
+            artwork_dl=artwork_dl,
+            patterns=NamingPatterns(),
+            only=None,
+            interactive=False,
+            dry_run=False,  # so the artwork branch actually invokes download
+        )
+
+        assert result is not None
+        assert any("Artwork download failed" in e for e in result.errors)
+
+    def test_artwork_download_dry_run_skips_call(self, tmp_path: Path) -> None:
+        """In dry-run mode, artwork_dl.download_* must not be called even when needed."""
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        movie = self._movie_dir(tmp_path)
+        tmdb = MagicMock()
+        tmdb.get_movie.return_value = {"id": 42, "title": "Movie"}
+        artwork_dl = MagicMock()
+
+        from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
+
+        result = _rescrape_item(
+            media_dir=movie,
+            media_type="movie",
+            disk="Disk1",
+            category="films",
+            title="Movie",
+            year=2024,
+            tmdb_client=tmdb,
+            tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(),
+            artwork_dl=artwork_dl,
+            patterns=NamingPatterns(),
+            only=None,
+            interactive=False,
+            dry_run=True,
+        )
+
+        assert result is not None
+        assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
+        artwork_dl.download_movie_artwork.assert_not_called()
+
+    def test_tvshow_artwork_branch(self, tmp_path: Path) -> None:
+        """TV show needing artwork should call download_tvshow_artwork (apply mode)."""
+        from personalscraper.library.models import ACTION_ARTWORK_DOWNLOADED
+        from personalscraper.library.rescraper import _rescrape_item
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        # Valid tvshow.nfo so we don't need NFO regen, but no poster.jpg
+        (show / "tvshow.nfo").write_text('<tvshow><uniqueid type="tmdb">42</uniqueid></tvshow>')
+        # Add an episode that already follows SxxExx so episodes branch is False
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "Show S01E01 - Pilot.mkv").write_bytes(b"\x00" * 100)
+
+        tmdb = MagicMock()
+        tmdb.get_tv.return_value = {"id": 42, "name": "Show"}
+        artwork_dl = MagicMock()
+
+        result = _rescrape_item(
+            media_dir=show,
+            media_type="tvshow",
+            disk="Disk1",
+            category="series",
+            title="Show",
+            year=2024,
+            tmdb_client=tmdb,
+            tvdb_client=MagicMock(),
+            nfo_gen=MagicMock(),
+            artwork_dl=artwork_dl,
+            patterns=NamingPatterns(),
+            only=None,
+            interactive=False,
+            dry_run=False,
+        )
+
+        assert result is not None
+        assert ACTION_ARTWORK_DOWNLOADED in result.actions_taken
+        artwork_dl.download_tvshow_artwork.assert_called_once()
+
+
+class TestRescrapeEpisodes:
+    """Tests for _rescrape_episodes.
+
+    The production regex ``SEASON_DIR_RE`` does not have a capturing group,
+    yet ``_rescrape_episodes`` calls ``m.group(1)`` on it. To exercise the
+    season-iteration logic in a unit test we substitute a regex with a single
+    capturing group via ``patch`` on the original module symbol.
+    """
+
+    _CAPTURING_RE = __import__("re").compile(r"^Saison (\d+)$")
+
+    def test_no_seasons_returns_early(self, tmp_path: Path) -> None:
+        """When no Saison NN dirs exist, function returns without API calls."""
+        from personalscraper.library.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        tmdb = MagicMock()
+
+        with patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE):
+            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+        tmdb.get_tv_season.assert_not_called()
+
+    def test_season_fetch_failure_continues(self, tmp_path: Path) -> None:
+        """Per-season exceptions should be logged and not propagate."""
+        from personalscraper.library.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "ep.mkv").write_bytes(b"\x00" * 50)
+
+        tmdb = MagicMock()
+        tmdb.get_tv_season.side_effect = RuntimeError("api fail")
+
+        with patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE):
+            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+        tmdb.get_tv_season.assert_called()
+
+    def test_dry_run_renames_when_matched(self, tmp_path: Path) -> None:
+        """Successful season + episode match should call create_season_dirs + rename_episodes."""
+        from personalscraper.library.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "Show.S01E01.mkv").write_bytes(b"\x00" * 100)
+
+        tmdb = MagicMock()
+        ep = MagicMock()
+        ep.episode_number = 1
+        ep.title = "Pilot"
+        season_data = MagicMock()
+        season_data.episodes = [ep]
+        tmdb.get_tv_season.return_value = season_data
+
+        with (
+            patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE),
+            patch("personalscraper.scraper.episode_manager.create_season_dirs") as csd,
+            patch("personalscraper.scraper.episode_manager.rename_episodes") as ren,
+        ):
+            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+
+        csd.assert_called_once()
+        ren.assert_called_once()
+
+    def test_no_matched_episodes_skips_rename(self, tmp_path: Path) -> None:
+        """If match_episode_files returns empty, rename_episodes is NOT called."""
+        from personalscraper.library.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "weird-name.mkv").write_bytes(b"\x00" * 100)
+
+        tmdb = MagicMock()
+        ep = MagicMock()
+        ep.episode_number = 1
+        ep.title = None  # exercises default-name branch
+        season_data = MagicMock()
+        season_data.episodes = [ep]
+        tmdb.get_tv_season.return_value = season_data
+
+        with (
+            patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE),
+            patch(
+                "personalscraper.scraper.episode_manager.match_episode_files",
+                return_value={},
+            ),
+            patch("personalscraper.scraper.episode_manager.create_season_dirs") as csd,
+            patch("personalscraper.scraper.episode_manager.rename_episodes") as ren,
+        ):
+            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+
+        csd.assert_not_called()
+        ren.assert_not_called()
+
+    def test_no_episodes_returned_returns_early(self, tmp_path: Path) -> None:
+        """All seasons fetch returning empty episodes should short-circuit before walk."""
+        from personalscraper.library.rescraper import _rescrape_episodes
+        from personalscraper.naming_patterns import NamingPatterns
+
+        show = tmp_path / "Show (2024)"
+        show.mkdir()
+        season = show / "Saison 01"
+        season.mkdir()
+        (season / "ep.mkv").write_bytes(b"\x00" * 50)
+
+        tmdb = MagicMock()
+        season_data = MagicMock()
+        season_data.episodes = []
+        tmdb.get_tv_season.return_value = season_data
+
+        with (
+            patch("personalscraper.naming_patterns.SEASON_DIR_RE", self._CAPTURING_RE),
+            patch("personalscraper.scraper.episode_manager.match_episode_files") as mef,
+        ):
+            _rescrape_episodes(show, {"id": 1}, 1, tmdb, NamingPatterns(), dry_run=True)
+        mef.assert_not_called()
+
+
+class TestCollectRescrapeCandidates:
+    """Tests for _collect_rescrape_candidates (filesystem walk + DB path)."""
+
+    def _make_config(self, tmp_path: Path) -> Config:
+        """Build a minimal Config with one disk/category for walk testing.
+
+        Args:
+            tmp_path: pytest tmp_path fixture.
+
+        Returns:
+            A populated Config instance.
+        """
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["movies"])],
+            categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_walk_disk_not_mounted_logs_and_skips(self, tmp_path: Path) -> None:
+        """Disk path missing on filesystem should be skipped without errors."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        # Don't create disk1 dir
+        candidates = _collect_rescrape_candidates(config, None, None, None)
+        assert candidates == []
+
+    def test_walk_category_dir_missing(self, tmp_path: Path) -> None:
+        """Category dir missing on disk should be skipped quietly."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        (tmp_path / "disk1").mkdir()
+        # No "films" subdir
+        candidates = _collect_rescrape_candidates(config, None, None, None)
+        assert candidates == []
+
+    def test_walk_returns_movie_dirs(self, tmp_path: Path) -> None:
+        """Filesystem walk should return discovered media directories."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        category_dir = tmp_path / "disk1" / "films"
+        category_dir.mkdir(parents=True)
+        (category_dir / "Movie A (2024)").mkdir()
+        (category_dir / "Movie B (2023)").mkdir()
+        # Hidden dir should be skipped
+        (category_dir / ".hidden").mkdir()
+        # File at category root (not a dir) should be skipped
+        (category_dir / "stray.txt").write_text("x")
+
+        candidates = _collect_rescrape_candidates(config, None, None, None)
+        names = sorted(p.name for p, *_ in candidates)
+        assert names == ["Movie A (2024)", "Movie B (2023)"]
+        for _path, media_type, disk_id, cat_id in candidates:
+            assert media_type == "movie"
+            assert disk_id == "disk1"
+            assert cat_id == "movies"
+
+    def test_walk_disk_filter_excludes(self, tmp_path: Path) -> None:
+        """disk_filter not matching any disk yields empty list."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        category_dir = tmp_path / "disk1" / "films"
+        category_dir.mkdir(parents=True)
+        (category_dir / "Movie (2024)").mkdir()
+
+        result = _collect_rescrape_candidates(config, None, "other-disk", None)
+        assert result == []
+
+    def test_walk_category_filter_excludes(self, tmp_path: Path) -> None:
+        """category_filter not matching skips iteration."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        category_dir = tmp_path / "disk1" / "films"
+        category_dir.mkdir(parents=True)
+        (category_dir / "Movie (2024)").mkdir()
+
+        result = _collect_rescrape_candidates(config, None, None, "tv_shows")
+        assert result == []
+
+    def test_db_path_skips_missing_mount(self, tmp_path: Path) -> None:
+        """DB results lacking mount_path/rel_path should be filtered."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        item_row = MagicMock()
+        item_row.kind = "movie"
+        item_row.category_id = "movies"
+
+        with patch(
+            "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+            return_value=[(item_row, "", "")],
+        ):
+            result = _collect_rescrape_candidates(config, MagicMock(), None, None)
+        assert result == []
+
+    def test_db_path_skips_nonexistent_dir(self, tmp_path: Path) -> None:
+        """DB hit pointing to non-existent dir is filtered out."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        item_row = MagicMock()
+        item_row.kind = "movie"
+        item_row.category_id = "movies"
+
+        with patch(
+            "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+            return_value=[(item_row, str(tmp_path / "nope"), "Movie (2024)")],
+        ):
+            result = _collect_rescrape_candidates(config, MagicMock(), None, None)
+        assert result == []
+
+    def test_db_path_returns_show_with_disk_id(self, tmp_path: Path) -> None:
+        """Valid DB row should resolve to a (Path, 'tvshow', disk_id, category) tuple."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        cfg = Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["tv_shows"])],
+            categories={"tv_shows": CategoryConfig(folder_name="series")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+        media_dir = tmp_path / "disk1" / "series" / "Show (2024)"
+        media_dir.mkdir(parents=True)
+
+        item_row = MagicMock()
+        item_row.kind = "show"
+        item_row.category_id = "tv_shows"
+
+        with patch(
+            "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+            return_value=[(item_row, str(tmp_path / "disk1"), "series/Show (2024)")],
+        ):
+            result = _collect_rescrape_candidates(cfg, MagicMock(), None, None)
+
+        assert len(result) == 1
+        path, media_type, disk_id, cat_id = result[0]
+        assert path == media_dir
+        assert media_type == "tvshow"
+        assert disk_id == "disk1"
+        assert cat_id == "tv_shows"
+
+    def test_db_path_no_matching_disk_filtered(self, tmp_path: Path) -> None:
+        """When item.category_id is not in any disk's categories, row is dropped."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        media_dir = tmp_path / "disk1" / "films" / "Movie (2024)"
+        media_dir.mkdir(parents=True)
+        item_row = MagicMock()
+        item_row.kind = "movie"
+        item_row.category_id = "unknown_category"
+
+        with patch(
+            "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+            return_value=[(item_row, str(tmp_path / "disk1"), "films/Movie (2024)")],
+        ):
+            result = _collect_rescrape_candidates(config, MagicMock(), None, None)
+        assert result == []
+
+    def test_db_path_category_filter_drops(self, tmp_path: Path) -> None:
+        """Category filter mismatch should drop the candidate."""
+        from personalscraper.library.rescraper import _collect_rescrape_candidates
+
+        config = self._make_config(tmp_path)
+        media_dir = tmp_path / "disk1" / "films" / "Movie (2024)"
+        media_dir.mkdir(parents=True)
+
+        item_row = MagicMock()
+        item_row.kind = "movie"
+        item_row.category_id = "movies"
+
+        with patch(
+            "personalscraper.indexer.repos.item_repo.find_items_needing_rescrape",
+            return_value=[(item_row, str(tmp_path / "disk1"), "films/Movie (2024)")],
+        ):
+            result = _collect_rescrape_candidates(config, MagicMock(), None, "other_cat")
+        assert result == []
+
+
+class TestRescrapeLibraryOrchestrator:
+    """End-to-end orchestrator tests for rescrape_library, using mocked components."""
+
+    def _settings(self) -> MagicMock:
+        """Build a minimal mocked Settings with API keys.
+
+        Returns:
+            A MagicMock acting as a Settings instance.
+        """
+        settings = MagicMock()
+        settings.tmdb_api_key = "tmdb-key"
+        settings.tvdb_api_key = "tvdb-key"
+        settings.artwork_language = "en"
+        return settings
+
+    def _config(self, tmp_path: Path) -> Config:
+        """Build a Config used across orchestrator tests."""
+        return Config(
+            paths=PathConfig(
+                torrent_complete_dir=tmp_path / "complete",
+                staging_dir=tmp_path / "staging",
+                data_dir=tmp_path / ".data",
+            ),
+            disks=[DiskConfig(id="disk1", path=tmp_path / "disk1", categories=["movies"])],
+            categories={"movies": CategoryConfig(folder_name="films")},
+            staging_dirs=CANONICAL_STAGING_DIRS,
+            scraper=ScraperConfig(),
+        )
+
+    def test_max_items_caps_processing(self, tmp_path: Path) -> None:
+        """max_items should stop the loop after N candidates."""
+        from personalscraper.library.rescraper import rescrape_library
+
+        movie1 = tmp_path / "Movie A (2024)"
+        movie1.mkdir()
+        movie2 = tmp_path / "Movie B (2024)"
+        movie2.mkdir()
+
+        cands = [
+            (movie1, "movie", "disk1", "movies"),
+            (movie2, "movie", "disk1", "movies"),
+        ]
+
+        with (
+            patch(
+                "personalscraper.library.rescraper._collect_rescrape_candidates",
+                return_value=cands,
+            ),
+            patch("personalscraper.library.rescraper._rescrape_item", return_value=None) as ri,
+            patch("personalscraper.api.transport._http.HttpTransport"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(
+                self._config(tmp_path),
+                self._settings(),
+                max_items=1,
+                dry_run=True,
+            )
+
+        assert ri.call_count == 1
+        assert result.fixed_count == 0  # all None → not tracked
+
+    def test_action_with_errors_increments_error_count(self, tmp_path: Path) -> None:
+        """RescrapeAction with non-empty errors should bump error_count."""
+        from personalscraper.library.models import RescrapeAction
+        from personalscraper.library.rescraper import rescrape_library
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        cands = [(movie, "movie", "disk1", "movies")]
+        action = RescrapeAction(
+            path=str(movie),
+            title="Movie",
+            media_type="movie",
+            disk="disk1",
+            category="movies",
+            actions_taken=[],
+            actions_skipped=[],
+            errors=["NFO generation failed"],
+            tmdb_id="42",
+            id_source="api_match",
+            match_confidence=0.9,
+            rescraped_at="2024-01-01T00:00:00+00:00",
+        )
+
+        with (
+            patch(
+                "personalscraper.library.rescraper._collect_rescrape_candidates",
+                return_value=cands,
+            ),
+            patch("personalscraper.library.rescraper._rescrape_item", return_value=action),
+            patch("personalscraper.api.transport._http.HttpTransport"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+
+        assert result.error_count == 1
+        assert result.fixed_count == 0
+
+    def test_action_with_skipped_increments_skipped_count(self, tmp_path: Path) -> None:
+        """RescrapeAction with actions_skipped should bump skipped_count."""
+        from personalscraper.library.models import SKIP_NO_MATCH, RescrapeAction
+        from personalscraper.library.rescraper import rescrape_library
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        cands = [(movie, "movie", "disk1", "movies")]
+        action = RescrapeAction(
+            path=str(movie),
+            title="Movie",
+            media_type="movie",
+            disk="disk1",
+            category="movies",
+            actions_taken=[],
+            actions_skipped=[SKIP_NO_MATCH],
+            errors=[],
+            tmdb_id=None,
+            id_source=None,
+            match_confidence=None,
+            rescraped_at="2024-01-01T00:00:00+00:00",
+        )
+
+        with (
+            patch(
+                "personalscraper.library.rescraper._collect_rescrape_candidates",
+                return_value=cands,
+            ),
+            patch("personalscraper.library.rescraper._rescrape_item", return_value=action),
+            patch("personalscraper.api.transport._http.HttpTransport"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+
+        assert result.skipped_count == 1
+
+    def test_action_success_increments_fixed_count(self, tmp_path: Path) -> None:
+        """RescrapeAction with actions_taken and no errors bumps fixed_count."""
+        from personalscraper.library.models import ACTION_NFO_REGENERATED, RescrapeAction
+        from personalscraper.library.rescraper import rescrape_library
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        cands = [(movie, "movie", "disk1", "movies")]
+        action = RescrapeAction(
+            path=str(movie),
+            title="Movie",
+            media_type="movie",
+            disk="disk1",
+            category="movies",
+            actions_taken=[ACTION_NFO_REGENERATED],
+            actions_skipped=[],
+            errors=[],
+            tmdb_id="42",
+            id_source="api_match",
+            match_confidence=0.9,
+            rescraped_at="2024-01-01T00:00:00+00:00",
+        )
+
+        with (
+            patch(
+                "personalscraper.library.rescraper._collect_rescrape_candidates",
+                return_value=cands,
+            ),
+            patch("personalscraper.library.rescraper._rescrape_item", return_value=action),
+            patch("personalscraper.api.transport._http.HttpTransport"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+
+        assert result.fixed_count == 1
+        assert result.error_count == 0
+        assert result.skipped_count == 0
+        assert len(result.items) == 1
+
+    def test_unhandled_exception_recorded_as_error(self, tmp_path: Path) -> None:
+        """An exception inside _rescrape_item should be caught and recorded."""
+        from personalscraper.library.rescraper import rescrape_library
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        cands = [(movie, "movie", "disk1", "movies")]
+
+        with (
+            patch(
+                "personalscraper.library.rescraper._collect_rescrape_candidates",
+                return_value=cands,
+            ),
+            patch(
+                "personalscraper.library.rescraper._rescrape_item",
+                side_effect=RuntimeError("crash"),
+            ),
+            patch("personalscraper.api.transport._http.HttpTransport"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+
+        assert result.error_count == 1
+        assert len(result.items) == 1
+        assert "crash" in result.items[0].errors[0]
+
+    def test_action_none_not_tracked(self, tmp_path: Path) -> None:
+        """When _rescrape_item returns None (already OK), nothing is appended."""
+        from personalscraper.library.rescraper import rescrape_library
+
+        movie = tmp_path / "Movie (2024)"
+        movie.mkdir()
+        cands = [(movie, "movie", "disk1", "movies")]
+
+        with (
+            patch(
+                "personalscraper.library.rescraper._collect_rescrape_candidates",
+                return_value=cands,
+            ),
+            patch("personalscraper.library.rescraper._rescrape_item", return_value=None),
+            patch("personalscraper.api.transport._http.HttpTransport"),
+            patch("personalscraper.api.metadata.tmdb.TMDBClient"),
+            patch("personalscraper.api.metadata.tvdb.TVDBClient"),
+            patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
+            patch("personalscraper.scraper.artwork.ArtworkDownloader"),
+        ):
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+
+        assert result.fixed_count == 0
+        assert result.skipped_count == 0
+        assert result.error_count == 0
+        assert result.items == []
