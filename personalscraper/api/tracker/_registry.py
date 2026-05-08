@@ -6,6 +6,11 @@ instances, and returns them ranked via ``rank()``. Failures of individual
 trackers are logged and do not abort the search.
 """
 
+import xml.parsers.expat
+
+import requests
+
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api.tracker._base import TrackerClient, TrackerResult
 from personalscraper.api.tracker._ranking import RankingConfig, rank
 from personalscraper.logger import get_logger
@@ -48,7 +53,7 @@ class TrackerRegistry:
     def search_all(
         self,
         query: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
         year: int | None = None,
     ) -> list[tuple[TrackerResult, int]]:
         """Search all configured trackers and return ranked merged results.
@@ -68,6 +73,19 @@ class TrackerRegistry:
                 continue
             try:
                 results.extend(client.search(query, media_type, year))
-            except Exception:
+            except (
+                ApiError,
+                requests.RequestException,
+                ValueError,  # JSON decode, payload validation
+                TypeError,  # response-shape drift (wrong type returned)
+                xml.parsers.expat.ExpatError,  # malformed XML from c411 / Torznab
+            ):
+                # Operational failures (network, malformed payload, schema drift)
+                # are logged and the surviving trackers' results are still ranked.
+                # Programming errors (KeyError, AttributeError, …) are *not*
+                # caught here — they indicate a code bug that must surface.
+                # Trackers whose parsers may surface KeyError/IndexError on schema
+                # drift must wrap their parse code and re-raise as ApiError so the
+                # error stays operational rather than crashing every other tracker.
                 log.warning("tracker_search_failed", tracker=name, exc_info=True)
         return rank(results, self._ranking)

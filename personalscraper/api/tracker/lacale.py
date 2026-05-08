@@ -25,6 +25,7 @@ import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.transport._auth import ApiKeyAuth
@@ -102,7 +103,7 @@ class LaCaleClient:
     def search(
         self,
         query: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
         year: int | None = None,
     ) -> list[TrackerResult]:
         """Search the LaCale tracker.
@@ -123,8 +124,18 @@ class LaCaleClient:
         params: dict[str, Any] = {"q": q}
 
         raw = self._transport.get(path="/api/external", params=params)
-        items = cast("list[dict[str, Any]]", raw)
-        return [self._parse_item(item) for item in items]
+        # Wrap schema-drift errors so they reach the registry as ApiError
+        # (operational) instead of crashing the whole multi-tracker search.
+        # Programming errors elsewhere in this client still propagate.
+        try:
+            items = cast("list[dict[str, Any]]", raw)
+            return [self._parse_item(item) for item in items]
+        except (KeyError, IndexError, TypeError, AttributeError, ValueError) as exc:
+            raise ApiError(
+                provider=self.provider_name,
+                http_status=0,
+                message=f"lacale response shape drift while parsing search response: {exc!r}",
+            ) from exc
 
     def get_categories(self) -> dict[str, str]:
         """Fetch the LaCale category taxonomy as a flat slug → human label map.

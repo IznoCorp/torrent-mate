@@ -32,7 +32,7 @@ from __future__ import annotations
 from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from personalscraper.api._contracts import ApiError
+from personalscraper.api._contracts import ApiError, MediaType
 from personalscraper.api._units import ByteSize
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker.lacale import LaCaleClient
@@ -124,7 +124,7 @@ class C411Client:
     def search(
         self,
         query: str,
-        media_type: str = "movie",
+        media_type: MediaType = "movie",
         year: int | None = None,
     ) -> list[TrackerResult]:
         """Search C411 via the Torznab API.
@@ -151,7 +151,17 @@ class C411Client:
         params: dict[str, Any] = {"t": endpoint, "q": q}
 
         raw = self._transport.get(path="/api", params=params)
-        return self._parse_rss(cast("dict[str, Any]", raw))
+        # Wrap schema-drift errors so they reach the registry as ApiError
+        # (operational) instead of crashing the whole multi-tracker search.
+        # Programming errors elsewhere in this client still propagate.
+        try:
+            return self._parse_rss(cast("dict[str, Any]", raw))
+        except (KeyError, IndexError, TypeError, AttributeError, ValueError) as exc:
+            raise ApiError(
+                provider=self.provider_name,
+                http_status=0,
+                message=f"c411 response shape drift while parsing search response: {exc!r}",
+            ) from exc
 
     def get_categories(self) -> dict[str, str]:
         """Fetch the C411 caps document and flatten the categories tree.
