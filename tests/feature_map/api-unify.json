@@ -1,0 +1,12 @@
+{
+  "feature": "api-unify",
+  "design": "docs/archive/features/api-unify/DESIGN.md",
+  "sections": {
+    "35-corecircuitpy": {
+      "tests": [
+        "tests/integration/test_design_api_transport.py::TestCircuitBreakerContract::test_circuit_opens_after_threshold_final_failures"
+      ]
+    }
+  },
+  "skip_audit": []
+}
