@@ -7,13 +7,23 @@
 **Bump**: 0.12.0 → 0.13.0
 **Branch**: feat/pipeline-obs
 **Design**: docs/features/pipeline-obs/DESIGN.md
-**Master plan**: _(to be defined after /implement:plan)_
+**Master plan**: docs/features/pipeline-obs/plan/INDEX.md
 **PR**: _(created after last phase)_
 **PR merge**: manual
 
 ## Phases
 
-_(filled by /implement:plan)_
+| #   | Phase                                               | Type  | File                                                                                                     | Status |
+| --- | --------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [ ]    |
+| 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [ ]    |
+| 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [ ]    |
+| 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [ ]    |
+| 5   | CLI wiring                                          | wire  | [phase-05-cli-wiring.md](docs/features/pipeline-obs/plan/phase-05-cli-wiring.md)                         | [ ]    |
+| 6   | Step integration — ingest + sort                    | steps | [phase-06-ingest-sort.md](docs/features/pipeline-obs/plan/phase-06-ingest-sort.md)                       | [ ]    |
+| 7   | Step integration — process + scrape                 | steps | [phase-07-process-scrape.md](docs/features/pipeline-obs/plan/phase-07-process-scrape.md)                 | [ ]    |
+| 8   | Step integration — enforce + verify                 | steps | [phase-08-enforce-verify.md](docs/features/pipeline-obs/plan/phase-08-enforce-verify.md)                 | [ ]    |
+| 9   | Step integration — trailers + dispatch + final gate | steps | [phase-09-trailers-dispatch-gate.md](docs/features/pipeline-obs/plan/phase-09-trailers-dispatch-gate.md) | [ ]    |
 
 ## Quality gate (every commit)
 
@@ -43,4 +53,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:plan` to generate the phase plan from the design doc.
+Run `/implement:phase` to start Phase 1.
