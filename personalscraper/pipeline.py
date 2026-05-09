@@ -12,17 +12,17 @@ independent sub-steps, each with its own error isolation.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
-
-from rich.console import Console
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
+from personalscraper.observers.rich_console import RichConsoleObserver
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
 from personalscraper.reports import STEP_REPORT_CONTRACT
@@ -49,7 +49,6 @@ class Pipeline:
         dry_run: Preview mode — no filesystem changes.
         interactive: Prompt user for ambiguous matches.
         verbose: Show per-item details in console output.
-        console: Rich console for output.
         skip_trailers: Skip the trailers download step entirely.
         continue_on_trailer_error: Continue to dispatch even when the
             trailers step returns status=error.
@@ -62,7 +61,7 @@ class Pipeline:
         dry_run: bool = False,
         interactive: bool = False,
         verbose: bool = False,
-        console: Console | None = None,
+        observers: Sequence[PipelineObserver] | None = None,
         step_overrides: Mapping[str, Callable[..., Any]] | None = None,
         skip_trailers: bool = False,
         continue_on_trailer_error: bool = False,
@@ -75,7 +74,10 @@ class Pipeline:
             dry_run: If True, preview operations without modifying files.
             interactive: If True, prompt for ambiguous matches.
             verbose: If True, show per-item details.
-            console: Rich console. Created if not provided.
+            observers: Pipeline observers for lifecycle and progress
+                notifications. Default ``None`` auto-creates a
+                ``RichConsoleObserver``. Pass an empty sequence for
+                headless/silent mode.
             step_overrides: Optional mapping of step name to replacement
                 callable. Keys: "ingest", "sort", "clean", "scrape",
                 "cleanup", "enforce", "verify", "trailers", "dispatch". Used by tests
@@ -94,7 +96,10 @@ class Pipeline:
         self.dry_run = dry_run
         self.interactive = interactive
         self.verbose = verbose
-        self.console = console or Console()
+        if observers is None:
+            self._observers: list[PipelineObserver] = [RichConsoleObserver(verbose=verbose)]
+        else:
+            self._observers = list(observers)
         self._log = get_logger("pipeline")
         # Freeze into a protocol registry so callers cannot mutate after init.
         self._steps = apply_step_overrides(DEFAULT_STEPS, step_overrides)
@@ -299,23 +304,17 @@ class Pipeline:
             )
         else:
             self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
-            self.console.print(
-                f"\n{self._step_icon('dispatch')} [bold]DISPATCH[/bold]",
-                highlight=False,
-            )
-            self.console.print(
-                "   [yellow]SKIPPED: no verified items to dispatch[/yellow]",
-                highlight=False,
-            )
-            report.add_step(
-                "dispatch",
-                self._with_details_payload(
-                    "dispatch",
-                    StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"]),
-                ),
-            )
+            for obs in self._observers:
+                obs.on_step_start("dispatch")
+            dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
+            dispatch_report = self._with_details_payload("dispatch", dispatch_report)
+            report.add_step("dispatch", dispatch_report)
+            for obs in self._observers:
+                obs.on_step_end("dispatch", dispatch_report, 0.0)
 
         report.finished_at = datetime.now()
+        for obs in self._observers:
+            obs.on_pipeline_end(report)
         return report
 
     def _step_context(self, report: PipelineReport, extras: dict[str, Any]) -> StepContext:
@@ -326,7 +325,7 @@ class Pipeline:
             dry_run=self.dry_run,
             interactive=self.interactive,
             verbose=self.verbose,
-            console=self.console,
+            observers=tuple(self._observers),
             upstream=report.steps,
             extras=extras,
         )
@@ -381,32 +380,6 @@ class Pipeline:
                 count=len(remaining),
                 sample=remaining[:5],
             )
-            self.console.print(
-                f"   [yellow]! Ingest dir not empty: {len(remaining)} files remain[/yellow]",
-                highlight=False,
-            )
-
-    def _step_icon(self, name: str) -> str:
-        """Return the step number indicator for console output.
-
-        Args:
-            name: Step name.
-
-        Returns:
-            Formatted step number string (e.g. "[cyan]1/9[/cyan]").
-        """
-        icons = {
-            "ingest": "[cyan]1/9[/cyan]",
-            "sort": "[cyan]2/9[/cyan]",
-            "clean": "[cyan]3/9[/cyan]",
-            "scrape": "[cyan]4/9[/cyan]",
-            "cleanup": "[cyan]5/9[/cyan]",
-            "enforce": "[cyan]6/9[/cyan]",
-            "verify": "[cyan]7/9[/cyan]",
-            "trailers": "[cyan]8/9[/cyan]",
-            "dispatch": "[cyan]9/9[/cyan]",
-        }
-        return icons.get(name, "")
 
     def _with_details_payload(self, name: str, step_report: StepReport) -> StepReport:
         """Attach the typed empty payload expected for a pipeline step."""
@@ -424,7 +397,7 @@ class Pipeline:
         *,
         critical: bool = False,
     ) -> Any:
-        """Execute a pipeline step with logging, timing, and console feedback.
+        """Execute a pipeline step with logging, timing, and observer notification.
 
         If fn raises an exception, it is caught and recorded as a fatal
         error in the report. The step still contributes to the pipeline
@@ -444,8 +417,9 @@ class Pipeline:
         Raises:
             _CriticalStepError: If ``critical=True`` and fn raises.
         """
-        icon = self._step_icon(name)
-        self.console.print(f"\n{icon} [bold]{name.upper()}[/bold]", highlight=False)
+        for obs in self._observers:
+            obs.on_step_start(name)
+
         self._log.info("step_started", step=name)
         t0 = time.monotonic()
         extra = None
@@ -463,6 +437,8 @@ class Pipeline:
         except Exception as exc:
             crashed = True
             self._log.exception("step_fatal", step=name, error=str(exc))
+            for obs in self._observers:
+                obs.on_step_error(name, exc)
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
                 name=name,
@@ -471,33 +447,16 @@ class Pipeline:
             )
             step_report = self._with_details_payload(name, step_report)
             report.add_step(name, step_report)
-            self.console.print(f"   [red]FATAL: {error_msg}[/red]", highlight=False)
 
         elapsed = time.monotonic() - t0
-        elapsed_str = f"{elapsed:.1f}s"
 
-        # Inline summary after each step
+        if not crashed:
+            for obs in self._observers:
+                obs.on_step_end(name, step_report, elapsed)
+
         ok = step_report.success_count
         skip = step_report.skip_count
         err = step_report.error_count
-        parts = []
-        if ok:
-            parts.append(f"[green]{ok} OK[/green]")
-        if skip:
-            parts.append(f"[yellow]{skip} skip[/yellow]")
-        if err:
-            parts.append(f"[red]{err} err[/red]")
-        summary = ", ".join(parts) if parts else "[dim]nothing to do[/dim]"
-        self.console.print(f"   {summary} ({elapsed_str})", highlight=False)
-
-        # Show details in verbose mode — skip "already done" noise
-        if self.verbose:
-            for detail in step_report.details:
-                if "skipped_already_done" in detail:
-                    continue
-                self.console.print(f"   [dim]{detail}[/dim]", highlight=False)
-            for warning in step_report.warnings:
-                self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
 
         self._log.info(
             "step_finished",

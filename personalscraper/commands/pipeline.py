@@ -266,6 +266,7 @@ def run(
     from personalscraper.api.notify.telegram import TelegramNotifier
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
+    from personalscraper.observers.rich_console import RichConsoleObserver
     from personalscraper.pipeline import Pipeline
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
@@ -323,7 +324,7 @@ def run(
                 dry_run=dry_run,
                 interactive=interactive,
                 verbose=verbose,
-                console=console,
+                observers=[RichConsoleObserver(console=console, verbose=verbose)],
                 skip_trailers=effective_skip_trailers,
                 continue_on_trailer_error=effective_continue_on_trailer_error,
             )

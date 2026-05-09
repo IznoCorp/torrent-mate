@@ -171,7 +171,7 @@ class TestPipelineOrchestration:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             step_overrides={
                 "ingest": recorder("ingest"),
                 "sort": recorder("sort"),
@@ -205,7 +205,7 @@ class TestPipelineOrchestration:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             step_overrides={
                 "ingest": crashing_ingest,
                 "sort": sort_sentinel,
@@ -236,7 +236,7 @@ class TestPipelineOrchestration:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": crashing_sort,
@@ -255,7 +255,7 @@ class TestPipelineOrchestration:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest", success_count=3),
                 "sort": lambda *_a, **_kw: StepReport(name="sort", success_count=3),
@@ -289,7 +289,7 @@ class TestPipelineOrchestration:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": lambda *_a, **_kw: StepReport(name="sort"),
@@ -314,7 +314,7 @@ class TestPipelineOrchestration:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": lambda *_a, **_kw: StepReport(name="sort"),
@@ -366,7 +366,7 @@ class TestPipelineOrchestration:
                     orch_config,
                     orch_settings,
                     interactive=True,
-                    console=quiet_console,
+                    observers=[],
                 )
                 pipeline.run()
 
@@ -411,7 +411,7 @@ class TestPipelineOrchestration:
             # only; the real trailers step requires a full config (TMDB key, state
             # file path, etc.) that is not available in this integration fixture.
             mock_trailers.return_value = StepReport(name="trailers", status="skipped")
-            pipeline = Pipeline(orch_config, orch_settings, console=quiet_console)
+            pipeline = Pipeline(orch_config, orch_settings, observers=[])
             report = pipeline.run()
 
         # The clean step should have re-cleaned the polluted folder
@@ -451,7 +451,7 @@ class TestTrailerErrorFlagWiring:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             continue_on_trailer_error=False,
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
@@ -489,7 +489,7 @@ class TestTrailerErrorFlagWiring:
         pipeline = Pipeline(
             orch_config,
             orch_settings,
-            console=quiet_console,
+            observers=[],
             continue_on_trailer_error=True,
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
@@ -567,7 +567,7 @@ class TestTrailerStepFailedE2E:
             pipeline = Pipeline(
                 orch_config,
                 orch_settings,
-                console=quiet_console,
+                observers=[],
                 continue_on_trailer_error=False,
                 step_overrides={
                     "ingest": lambda *_a, **_kw: StepReport(name="ingest"),

@@ -67,7 +67,7 @@ class TestPipelineDoubleRun:
         config.trailers.enabled = False
 
         console = Console(quiet=True)
-        pipeline = Pipeline(config, resilience_settings, console=console)
+        pipeline = Pipeline(config, resilience_settings, observers=[])
         report1 = pipeline.run()
 
         assert len(report1.steps) == 9
