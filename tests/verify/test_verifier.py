@@ -134,7 +134,14 @@ class TestVerifyCheckFixCycle:
     """Tests for the check → fix → re-check cycle."""
 
     def test_verify_check_fix_recheck_cycle(self, tmp_path: Path, test_config: Config) -> None:
-        """Item with fixable error should be fixed and re-checked."""
+        """Item with fixable error should be fixed and re-checked.
+
+        Design: docs/reference/pipeline-internals.md#verify
+        Contract: The verify step performs a check→fix→re-check cycle.
+        A movie with fixable naming errors is fixed (directory renamed
+        to match NFO title+year), then re-checked, and the final result
+        carries the corrected path with status ``fixed``.
+        """
         # Create a movie with bad naming (fixable) but otherwise valid
         d = tmp_path / "bad.name"
         d.mkdir()

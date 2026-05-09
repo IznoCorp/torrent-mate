@@ -65,3 +65,13 @@ class TestGetDiskStatus:
         status = get_disk_status(dc)
         assert isinstance(status, DiskStatus)
         assert status.config is dc
+
+    def test_disk_usage_oserror_treated_as_unmounted(self, tmp_path: Path) -> None:
+        """When shutil.disk_usage raises OSError, disk is treated as unmounted."""
+        from unittest.mock import patch
+
+        dc = DiskConfig(id="disk_a", path=tmp_path, categories=["movies"])
+        with patch("shutil.disk_usage", side_effect=OSError("permission denied")):
+            status = get_disk_status(dc)
+        assert status.is_mounted is False
+        assert status.free_space_gb == 0.0

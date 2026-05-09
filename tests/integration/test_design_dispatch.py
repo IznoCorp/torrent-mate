@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from personalscraper.conf import ids as CID
 from personalscraper.conf.models.categories import CategoryConfig, GenreMapping
@@ -51,6 +51,7 @@ class TestMovieReplaceContract:
         """Movie replace performs a transfer + atomic swap.
 
         Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/reference/pipeline-internals.md#dispatch
         Contract: For a movie whose destination folder already exists on
         the target disk, ``replace`` transfers ``source`` into a temporary
         sibling and atomically swaps it for the existing destination.
@@ -164,6 +165,7 @@ class TestTvShowMergeContract:
         """Existing episode files matching the (season, episode) key are purged.
 
         Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/reference/pipeline-internals.md#dispatch
         Contract: TV-show merge keys episode files on the (season,
         episode) tuple, NOT the full filename. When the source carries
         a re-titled re-scrape of the same episode (e.g. EN
@@ -195,6 +197,117 @@ class TestTvShowMergeContract:
         assert (dest / "Saison 04" / "S04E07 - HONEST DAY.mkv").exists()
 
 
+class TestStagingCommitContract:
+    """Two-phase staging→commit pattern — DESIGN pipeline-internals.md §Staging→commit."""
+
+    def test_move_new_writes_to_tmp_then_atomic_rename(self, tmp_path: Path) -> None:
+        """Rsync to ``_tmp_dispatch_{name}``, then atomic ``os.rename``.
+
+        Design: docs/reference/pipeline-internals.md#stagingcommit-pattern
+        Contract: ``_move_new`` rsyncs the source into a temporary directory
+        ``_tmp_dispatch_{name}`` alongside the destination parent, then
+        atomically renames it to the destination. After a successful call,
+        the destination exists with the source's content, the source is
+        consumed, and the tmp staging directory is gone.
+        """
+        from personalscraper.dispatch._transfer import rsync
+
+        source = tmp_path / "source"
+        source.mkdir()
+        (source / "movie.mkv").write_bytes(b"payload")
+        dest_parent = tmp_path / "target_disk" / "Films"
+        dest_parent.mkdir(parents=True)
+        dest = dest_parent / "Movie (2024)"
+
+        # Use real rsync if available, else a thin wrapper.
+        with patch("personalscraper.dispatch._transfer.rsync", side_effect=rsync):
+            with patch("personalscraper.dispatch._transfer.dir_size_gb", return_value=0.1):
+                from personalscraper.dispatch.dispatcher import Dispatcher
+
+                d = MagicMock(spec=Dispatcher)
+                d._rsync = Dispatcher._rsync
+                d._verify_transfer = Dispatcher._verify_transfer
+
+                # Override delegates to use real paths.
+                d._rsync = lambda s, dest_path, delete=False: rsync(s, dest_path, delete=delete)
+                d._verify_transfer = lambda s, dest_path: True
+
+                ok = Dispatcher._move_new(d, source, dest)
+
+        assert ok is True
+        assert dest.exists()
+        assert (dest / "movie.mkv").read_bytes() == b"payload"
+        assert not source.exists()
+        assert not dest_parent.joinpath("_tmp_dispatch_Movie (2024)").exists()
+
+    def test_move_new_cleans_orphan_tmp_from_previous_crash(self, tmp_path: Path) -> None:
+        """Leftover ``_tmp_dispatch_*`` from a previous crash is cleaned first.
+
+        Design: docs/reference/pipeline-internals.md#stagingcommit-pattern
+        Contract: When ``_move_new`` finds an existing
+        ``_tmp_dispatch_{name}`` directory before starting the transfer,
+        it removes it first (crash residue), then proceeds with the fresh
+        rsync. This guarantees that a partial transfer from a previous
+        failed run cannot contaminate the current dispatch.
+        """
+        from personalscraper.dispatch._transfer import rsync
+
+        source = tmp_path / "source"
+        source.mkdir()
+        (source / "movie.mkv").write_bytes(b"correct")
+        dest_parent = tmp_path / "target_disk" / "Films"
+        dest_parent.mkdir(parents=True)
+        dest = dest_parent / "Movie (2024)"
+
+        # Simulate a crash leftover: a stale tmp dir with stale content.
+        orphan = dest_parent / "_tmp_dispatch_Movie (2024)"
+        orphan.mkdir()
+        (orphan / "stale.partial").write_bytes(b"corrupt")
+
+        from personalscraper.dispatch.dispatcher import Dispatcher
+
+        d = MagicMock(spec=Dispatcher)
+        d._rsync = lambda s, dest_path, delete=False: rsync(s, dest_path, delete=delete)
+        d._verify_transfer = lambda s, dest_path: True
+
+        ok = Dispatcher._move_new(d, source, dest)
+
+        assert ok is True
+        assert (dest / "movie.mkv").read_bytes() == b"correct"
+        assert not orphan.exists(), "orphan tmp must be cleaned"
+        assert not source.exists()
+
+    def test_move_new_rolls_back_tmp_when_rsync_fails(self, tmp_path: Path) -> None:
+        """Failed rsync leaves no tmp residue and preserves the source.
+
+        Design: docs/reference/pipeline-internals.md#stagingcommit-pattern
+        Contract: If rsync to the tmp staging directory fails,
+        ``_move_new`` removes the incomplete tmp directory, leaves the
+        source intact, and returns ``False``. The disk is left in a
+        consistent state — no partial transfer remains.
+        """
+        source = tmp_path / "source"
+        source.mkdir()
+        (source / "movie.mkv").write_bytes(b"unchanged")
+        dest_parent = tmp_path / "target_disk" / "Films"
+        dest_parent.mkdir(parents=True)
+        dest = dest_parent / "Movie (2024)"
+
+        from personalscraper.dispatch.dispatcher import Dispatcher
+
+        d = MagicMock(spec=Dispatcher)
+        d._rsync = lambda s, dest_path, delete=False: False  # simulate failure
+
+        ok = Dispatcher._move_new(d, source, dest)
+
+        assert ok is False
+        assert source.exists(), "source must be preserved on rsync failure"
+        assert (source / "movie.mkv").read_bytes() == b"unchanged"
+        assert not dest.exists()
+        tmp = dest_parent / "_tmp_dispatch_Movie (2024)"
+        assert not tmp.exists(), "tmp must be cleaned after rsync failure"
+
+
 class TestNewMediaDiskSelectionContract:
     """New-media disk selection — DESIGN storage.md §Move Rules (dispatch)."""
 
@@ -202,6 +315,7 @@ class TestNewMediaDiskSelectionContract:
         """New media targets the eligible disk with the most free space.
 
         Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/reference/pipeline-internals.md#disk-selection
         Contract: For a media item whose folder does not already exist
         on any storage disk, dispatch resolves the target via
         ``pick_disk_for`` which (a) filters disks accepting the
@@ -253,6 +367,7 @@ class TestNewMediaDiskSelectionContract:
         """No eligible disk → ``None``; caller skips the dispatch.
 
         Design: docs/reference/storage.md#move-rules-dispatch
+        Design: docs/reference/pipeline-internals.md#disk-selection
         Contract: When no disk has enough free space (or none accept
         the category), ``pick_disk_for`` returns ``None`` and the
         dispatch step records a ``skipped`` outcome rather than picking

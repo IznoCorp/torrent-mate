@@ -2,9 +2,49 @@
   "feature": "pipeline",
   "design": "docs/reference/pipeline-internals.md",
   "sections": {
+    "clean-fast-skip": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestCleanFastSkipContract::test_clean_runs_reclean_when_junk_detected",
+        "tests/integration/test_design_pipeline.py::TestCleanFastSkipContract::test_clean_skips_reclean_when_no_polluted_folders"
+      ]
+    },
+    "disk-selection": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_most_free_eligible",
+        "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_none_when_no_disk_eligible"
+      ]
+    },
+    "dispatch": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_swaps_destination_atomically",
+        "tests/integration/test_design_dispatch.py::TestTvShowMergeContract::test_purge_resolves_episode_conflicts_on_season_episode_key"
+      ]
+    },
+    "fast-skip-idempotence": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestIdempotenceContract::test_scrape_step_idempotent_across_two_runs"
+      ]
+    },
     "scrape-fast-skip": {
       "tests": [
         "tests/integration/test_design_pipeline.py::TestScrapeFastSkipContract::test_complete_nfo_short_circuits_scrape_step"
+      ]
+    },
+    "stagingcommit-pattern": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestStagingCommitContract::test_move_new_cleans_orphan_tmp_from_previous_crash",
+        "tests/integration/test_design_dispatch.py::TestStagingCommitContract::test_move_new_rolls_back_tmp_when_rsync_fails",
+        "tests/integration/test_design_dispatch.py::TestStagingCommitContract::test_move_new_writes_to_tmp_then_atomic_rename"
+      ]
+    },
+    "step-contracts": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestStepContracts::test_all_default_steps_accept_step_context"
+      ]
+    },
+    "verify": {
+      "tests": [
+        "tests/verify/test_verifier.py::TestVerifyCheckFixCycle::test_verify_check_fix_recheck_cycle"
       ]
     }
   },
@@ -13,30 +53,6 @@
       "anchor": "circuit-breaker",
       "category": "documentation_only",
       "reason": "Reference/ops material — failure-rate thresholds, dashboard pointers and runbook prose. Behavior already covered by tests/scraper/test_circuit_breaker.py at the unit level.",
-      "expires": "2026-11-08"
-    },
-    {
-      "anchor": "clean-fast-skip",
-      "category": "deferred_promotion",
-      "reason": "Behavioral fast-skip rule: clean step short-circuits when staging directory has no junk markers. Promote to a contract test before the 2026-11-08 expiry.",
-      "expires": "2026-11-08"
-    },
-    {
-      "anchor": "disk-selection",
-      "category": "deferred_promotion",
-      "reason": "Behavioral move-rule: new media routed to disk with most free space (DESIGN move-rules in CLAUDE.md). Promote to a contract test before the 2026-11-08 expiry.",
-      "expires": "2026-11-08"
-    },
-    {
-      "anchor": "dispatch",
-      "category": "deferred_promotion",
-      "reason": "Behavioral umbrella for the dispatch step (replace movies / merge TV / route new media). Section-level contract; per-rule contracts already live in tests/integration/test_design_dispatch.py. Promote a section-level smoke contract before the 2026-11-08 expiry.",
-      "expires": "2026-11-08"
-    },
-    {
-      "anchor": "fast-skip-idempotence",
-      "category": "deferred_promotion",
-      "reason": "Behavioral idempotence invariant: re-running a step on already-processed input is a no-op. Promote to a contract test before the 2026-11-08 expiry.",
       "expires": "2026-11-08"
     },
     {
@@ -52,27 +68,9 @@
       "expires": "2026-11-08"
     },
     {
-      "anchor": "stagingcommit-pattern",
-      "category": "deferred_promotion",
-      "reason": "Behavioral two-phase commit: staging area only flips to the destination on success. Promote to a contract test before the 2026-11-08 expiry.",
-      "expires": "2026-11-08"
-    },
-    {
       "anchor": "standalone-invocation",
       "category": "documentation_only",
       "reason": "Reference material — documents the per-step CLI invocation surface. Behavior covered by tests/commands/test_pipeline_commands.py.",
-      "expires": "2026-11-08"
-    },
-    {
-      "anchor": "step-contracts",
-      "category": "deferred_promotion",
-      "reason": "Behavioral umbrella: each pipeline step has an idempotence + crash-resume contract. Promote step-level contract tests before the 2026-11-08 expiry.",
-      "expires": "2026-11-08"
-    },
-    {
-      "anchor": "verify",
-      "category": "deferred_promotion",
-      "reason": "Behavioral verify-step contract: post-dispatch checksum + filesystem-state validation. Surface contracts already live in tests/verify/test_verifier.py; promote a design-level contract before the 2026-11-08 expiry.",
       "expires": "2026-11-08"
     }
   ]

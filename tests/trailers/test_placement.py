@@ -194,6 +194,25 @@ class TestTrailerExists:
         d.mkdir()
         assert trailer_exists(d, min_size_bytes=0) is False
 
+    def test_returns_false_when_stat_fails(self, tmp_path: Path, monkeypatch) -> None:
+        """trailer_exists returns False when stat() raises OSError on st_size."""
+        trailer = tmp_path / "broken.mkv"
+        trailer.write_bytes(b"\x00" * 200000)
+
+        real_stat = Path.stat
+        call_count = [0]
+
+        def failing_stat(self_path, *, follow_symlinks=True):
+            call_count[0] += 1
+            # First call: is_file() needs True → let it succeed
+            # Second call: st_size check → raise OSError
+            if call_count[0] == 1:
+                return real_stat(self_path, follow_symlinks=follow_symlinks)
+            raise OSError("broken")
+
+        monkeypatch.setattr(Path, "stat", failing_stat)
+        assert trailer_exists(trailer, min_size_bytes=102400) is False
+
 
 # ── NFO trailer tag population ───────────────────────────────────────────────
 
@@ -327,6 +346,25 @@ class TestWriteTrailerUrlToNfo:
         """
         nfo = self._make_nfo(tmp_path)
         result = write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=OK")
+        assert result is True
+
+    def test_parse_error_nfo_returns_false(self, tmp_path: Path) -> None:
+        """Corrupted NFO (unparseable XML) returns False — no exception raised."""
+        nfo = tmp_path / "broken.nfo"
+        nfo.write_text("<<<not xml>>>", encoding="utf-8")
+        result = write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=X")
+        assert result is False
+
+    def test_tmp_unlink_oserror_is_suppressed(self, tmp_path: Path, monkeypatch) -> None:
+        """OSError during tmp_path.unlink in the finally block is suppressed."""
+        nfo = self._make_nfo(tmp_path)
+
+        def failing_unlink(self_path, missing_ok=False):
+            raise OSError("read-only fs")
+
+        monkeypatch.setattr(Path, "unlink", failing_unlink)
+        result = write_trailer_url_to_nfo(nfo, "https://www.youtube.com/watch?v=OK")
+        # The write succeeded BEFORE the unlink; the function returns True.
         assert result is True
 
 

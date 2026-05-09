@@ -218,6 +218,30 @@ class TestEdgeCases:
         result = cleaner.clean("Up.2009.mkv")
         assert "Up" in result
 
+    def test_clean_list_season_unpack(self, cleaner):
+        """When guessit returns list of seasons, clean() picks first."""
+        from unittest.mock import patch
+
+        with patch(
+            "personalscraper.sorter.cleaner._guess_cached",
+            return_value={"title": "Show", "season": [1, 2, 3]},
+        ):
+            result = cleaner.clean("Show.S01-S03.1080p")
+        assert result.startswith("Show")
+        assert "S01" in result
+
+    def test_clean_list_episode_unpack(self, cleaner):
+        """When guessit returns list of episodes, clean() picks first."""
+        from unittest.mock import patch
+
+        with patch(
+            "personalscraper.sorter.cleaner._guess_cached",
+            return_value={"title": "Show", "season": 1, "episode": [6, 7]},
+        ):
+            result = cleaner.clean("Show.S01E06E07.1080p")
+        assert result.startswith("Show")
+        assert "E06" in result
+
     def test_caching_returns_same_result(self, cleaner):
         """Calling clean() twice with same input returns same result (cache test)."""
         name = "Shrinking.S03.MULTi.1080p.WEBRiP.DDP5.1.x265-R3MiX"
