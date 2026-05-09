@@ -15,7 +15,7 @@
 
 | #   | Phase                                               | Type  | File                                                                                                     | Status |
 | --- | --------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [ ]    |
+| 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [x]    |
 | 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [ ]    |
 | 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [ ]    |
 | 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [ ]    |
@@ -45,7 +45,12 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 
 ## Sub-phase → SHA mapping
 
-_(filled phase by phase)_
+### Phase 1 — Protocol Foundation
+
+| Sub-phase | SHA       | Description                                                  |
+| --------- | --------- | ------------------------------------------------------------ |
+| 1.1       | `09b9ddc` | PipelineObserver Protocol + StepEvent + notify_progress      |
+| 1.2       | `65b2ed6` | 13 unit tests for Protocol, Base, StepEvent, notify_progress |
 
 ## Review cycles
 
@@ -53,4 +58,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1.
+Run `/implement:phase` to start Phase 2.
