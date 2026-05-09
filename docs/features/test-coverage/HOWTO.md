@@ -94,4 +94,18 @@ in CI and in the 6-month maintenance audit.
 0 9 1 1,7 * cd $HOME/dev/PersonnalScaper && ./scripts/coverage_audit_report.sh
 ```
 
-On macOS prefer launchd; the personalscraper launchd helpers in `scripts/install-launchd.sh` are the existing reference. The audit output is committed manually only if it surfaces actionable findings (expired waivers, coverage regression, new orphan sections).
+Install the managed cron entry with:
+
+```bash
+./hooks/install.sh --install-cron
+```
+
+The installer preserves unrelated crontab lines and replaces only the block between the `personalscraper coverage audit` markers. On macOS prefer launchd if you want native scheduling; the personalscraper launchd helpers in `scripts/install-launchd.sh` are the existing reference. The audit output is committed manually only if it surfaces actionable findings (expired waivers, coverage regression, new orphan sections).
+
+## launchd smoke tests
+
+The static plist checks run in the default test gate. The live `launchctl bootstrap` smoke is excluded from `make test-cov` because it depends on the active macOS user session state. Run it manually when changing the launchd templates:
+
+```bash
+python3 -m pytest tests/indexer/test_plists.py -m "darwin_only and slow" -q
+```
