@@ -16,7 +16,7 @@
 | #   | Phase                                               | Type  | File                                                                                                     | Status |
 | --- | --------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- | ------ |
 | 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [x]    |
-| 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [ ]    |
+| 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [x]    |
 | 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [ ]    |
 | 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [ ]    |
 | 5   | CLI wiring                                          | wire  | [phase-05-cli-wiring.md](docs/features/pipeline-obs/plan/phase-05-cli-wiring.md)                         | [ ]    |
@@ -51,6 +51,13 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 | --------- | --------- | ------------------------------------------------------------ |
 | 1.1       | `09b9ddc` | PipelineObserver Protocol + StepEvent + notify_progress      |
 | 1.2       | `65b2ed6` | 13 unit tests for Protocol, Base, StepEvent, notify_progress |
+
+### Phase 2 — RichConsoleObserver
+
+| Sub-phase | SHA       | Description                           |
+| --------- | --------- | ------------------------------------- |
+| 2.1+2.2   | `59ca770` | RichConsoleObserver + observers pkg   |
+| 2.3       | `2ae0253` | 10 unit tests for RichConsoleObserver |
 
 ## Review cycles
 
