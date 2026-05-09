@@ -17,7 +17,7 @@
 | --- | --------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- | ------ |
 | 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [x]    |
 | 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [x]    |
-| 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [ ]    |
+| 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [x]    |
 | 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [ ]    |
 | 5   | CLI wiring                                          | wire  | [phase-05-cli-wiring.md](docs/features/pipeline-obs/plan/phase-05-cli-wiring.md)                         | [ ]    |
 | 6   | Step integration — ingest + sort                    | steps | [phase-06-ingest-sort.md](docs/features/pipeline-obs/plan/phase-06-ingest-sort.md)                       | [ ]    |
