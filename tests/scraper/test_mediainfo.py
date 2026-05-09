@@ -269,3 +269,167 @@ class TestGracefulFallbacks:
         }
         mock_run.return_value = _mock_run(json.dumps(data))
         assert extract_stream_info(Path("test.mkv")) is None
+
+
+# --- Additional codec / aspect / HDR / duration edge branches ---
+
+
+class TestAudioCodecExtras:
+    """Edge branches for _map_audio_codec."""
+
+    def test_dts_hd_hra(self):
+        """DTS with DTS-HD HRA profile maps to dtshd_hra."""
+        assert _map_audio_codec("dts", "DTS-HD HRA") == "dtshd_hra"
+
+    def test_dts_hd_hr(self):
+        """DTS with DTS-HD HR profile also maps to dtshd_hra."""
+        assert _map_audio_codec("dts", "DTS-HD HR") == "dtshd_hra"
+
+    def test_plain_dts_with_other_profile(self):
+        """DTS codec with a non-HD profile passes through unchanged."""
+        assert _map_audio_codec("dts", "DTS Core") == "dts"
+
+
+class TestParseAspectRatioErrors:
+    """Edge branches for _parse_aspect_ratio."""
+
+    def test_division_by_zero_falls_back(self):
+        """ZeroDivisionError on '16:0' falls back to width/height."""
+        assert _parse_aspect_ratio("16:0", 1920, 1080) == 1.778
+
+    def test_invalid_dar_string_falls_back(self):
+        """Invalid (non-int) DAR string falls back to width/height."""
+        assert _parse_aspect_ratio("a:b", 1920, 1080) == 1.778
+
+
+class TestExtractStreamInfoBranches:
+    """Branch coverage: attached_pic, HDR variants, malformed duration."""
+
+    @patch("personalscraper.scraper.mediainfo.subprocess.run")
+    def test_invalid_duration_falls_back_to_zero(self, mock_run):
+        """Non-numeric duration string yields duration_seconds=0."""
+        data = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    "height": 1080,
+                    "display_aspect_ratio": "16:9",
+                    "field_order": "progressive",
+                    "color_transfer": "",
+                    "disposition": {"attached_pic": 0},
+                },
+            ],
+            "format": {"duration": "not-a-number"},
+        }
+        mock_run.return_value = _mock_run(json.dumps(data))
+        info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
+        assert info["duration_seconds"] == 0
+
+    @patch("personalscraper.scraper.mediainfo.subprocess.run")
+    def test_attached_pic_skipped(self, mock_run):
+        """Attached cover-art video streams are skipped; second real video stream wins."""
+        data = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "mjpeg",
+                    "width": 600,
+                    "height": 900,
+                    "display_aspect_ratio": "2:3",
+                    "field_order": "progressive",
+                    "color_transfer": "",
+                    "disposition": {"attached_pic": 1},
+                },
+                {
+                    "codec_type": "video",
+                    "codec_name": "h264",
+                    "width": 1920,
+                    "height": 1080,
+                    "display_aspect_ratio": "16:9",
+                    "field_order": "progressive",
+                    "color_transfer": "",
+                    "disposition": {"attached_pic": 0},
+                },
+            ],
+            "format": {"duration": "120"},
+        }
+        mock_run.return_value = _mock_run(json.dumps(data))
+        info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
+        assert info["video"]["codec"] == "h264"
+        assert info["video"]["width"] == 1920
+
+    @patch("personalscraper.scraper.mediainfo.subprocess.run")
+    def test_dolby_vision_detected(self, mock_run):
+        """smpte2084 + DOVI configuration record side data → dolby_vision."""
+        data = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "hevc",
+                    "width": 3840,
+                    "height": 2160,
+                    "display_aspect_ratio": "16:9",
+                    "field_order": "progressive",
+                    "color_transfer": "smpte2084",
+                    "side_data_list": [{"side_data_type": "DOVI configuration record"}],
+                    "disposition": {"attached_pic": 0},
+                },
+            ],
+            "format": {"duration": "100"},
+        }
+        mock_run.return_value = _mock_run(json.dumps(data))
+        info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
+        assert info["video"]["hdr"]["hdr_type"] == "dolby_vision"
+
+    @patch("personalscraper.scraper.mediainfo.subprocess.run")
+    def test_hdr10plus_detected(self, mock_run):
+        """smpte2084 + HDR dynamic metadata side data → hdr10plus."""
+        data = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "hevc",
+                    "width": 3840,
+                    "height": 2160,
+                    "display_aspect_ratio": "16:9",
+                    "field_order": "progressive",
+                    "color_transfer": "smpte2084",
+                    "side_data_list": [{"side_data_type": "HDR dynamic metadata"}],
+                    "disposition": {"attached_pic": 0},
+                },
+            ],
+            "format": {"duration": "100"},
+        }
+        mock_run.return_value = _mock_run(json.dumps(data))
+        info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
+        assert info["video"]["hdr"]["hdr_type"] == "hdr10plus"
+
+    @patch("personalscraper.scraper.mediainfo.subprocess.run")
+    def test_hlg_detected(self, mock_run):
+        """arib-std-b67 transfer → hlg HDR type."""
+        data = {
+            "streams": [
+                {
+                    "codec_type": "video",
+                    "codec_name": "hevc",
+                    "width": 3840,
+                    "height": 2160,
+                    "display_aspect_ratio": "16:9",
+                    "field_order": "progressive",
+                    "color_transfer": "arib-std-b67",
+                    "disposition": {"attached_pic": 0},
+                },
+            ],
+            "format": {"duration": "100"},
+        }
+        mock_run.return_value = _mock_run(json.dumps(data))
+        info = extract_stream_info(Path("test.mkv"))
+        assert info is not None
+        assert info["video"]["hdr"]["is_hdr"] is True
+        assert info["video"]["hdr"]["hdr_type"] == "hlg"

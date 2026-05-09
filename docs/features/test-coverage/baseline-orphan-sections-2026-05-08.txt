@@ -1,0 +1,24 @@
+Phase 4 baseline — design-coverage audit at the start of the bootstrap phase.
+
+Date: 2026-05-08
+Branch: feat/test-coverage
+Commits since main: phases 1-3 done (foundation, CI enforcement, pre-commit hook).
+
+audit_design_coverage.py output:
+  audit: 0 finding(s), 0 error(s).
+  exit code: 0
+
+Reason: no tests/feature_map/<codename>.json files have been generated yet.
+The audit walks committed map files and reports orphan sections per file.
+With zero map files there is nothing to audit. The first map file is
+created by Phase 4 task 4.3 (first design-contract test for api-unify),
+at which point orphan sections will surface for every api-unify DESIGN
+section that does NOT carry a contract test yet — those become the
+backlog for the api-unify cycle (Phase 5).
+
+Once api-unify.json is generated, expect ~all sections under
+docs/archive/features/api-unify/DESIGN.md (Goals/Non-Goals + 18 §3.x
+implementation sections + §4-§13) to appear as orphan-section findings,
+warning severity. The trailers/scraper/dispatch/indexer designs are
+surfaced as their own cycles (Phases 6-9) introduce contract tests
+for them.

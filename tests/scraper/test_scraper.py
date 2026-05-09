@@ -102,6 +102,27 @@ class TestFindVideoFile:
         result = _find_video_file(tmp_path)
         assert result is None
 
+    def test_stat_oserror_falls_back_to_first_candidate(self, tmp_path: Path) -> None:
+        """When stat() fails on one candidate, fall back to first candidate."""
+        (tmp_path / "first.mkv").write_text("small")
+
+        # Create a broken symlink — stat() on a dangling symlink may fail
+        # differently depending on OS. On macOS, os.stat() on a dangling
+        # symlink with follow_symlinks=True raises FileNotFoundError which
+        # is a subclass of OSError.
+        broken = tmp_path / "second.mkv"
+        broken.symlink_to(tmp_path / "nonexistent_target")
+
+        # max() uses stat().st_size via the key lambda. With
+        # follow_symlinks=True (default for Path.stat()), the dangling
+        # symlink triggers an OSError (FileNotFoundError), which the
+        # try/except OSError in _find_video_file catches, falling back
+        # to candidates[0].
+        result = _find_video_file(tmp_path)
+
+        assert result is not None
+        assert result.name == "first.mkv"
+
 
 class TestInferYearFromChildNames:
     """Tests for release child year inference."""

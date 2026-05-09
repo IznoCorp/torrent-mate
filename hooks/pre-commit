@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Pre-commit hook: when test_design_*.py files are staged, regenerate the
+# affected feature_map files and stage them.
+#
+# Install: hooks/install.sh
+# Bypass:  git commit --no-verify  (CI catches drift via update_feature_map.py --check)
+
+set -euo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+# List staged files in two steps so the `|| true` only swallows grep's
+# no-match exit (1) and not a real `git diff` failure (corrupt index, etc.).
+# Without the split, `git diff | grep || true` would mask both.
+if ! STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACM); then
+  echo >&2 "pre-commit: 'git diff --cached' failed — refusing to commit. Fix git state and retry."
+  exit 1
+fi
+
+STAGED_DESIGN_TESTS=$(grep 'test_design_.*\.py$' <<< "$STAGED_ALL" || true)
+
+if [ -z "$STAGED_DESIGN_TESTS" ]; then
+  exit 0
+fi
+
+# If the user has ALSO staged a hand edit to a feature_map JSON, the
+# regenerator below would silently overwrite the `sections` block of that
+# file (skip_audit is preserved by SkipAuditCorrupt; sections is not).
+# Refuse rather than risk silent data loss — the user can unstage the JSON,
+# commit the test_design_ change first, then re-curate the map.
+STAGED_MAPS=$(grep '^tests/feature_map/.*\.json$' <<< "$STAGED_ALL" || true)
+if [ -n "$STAGED_MAPS" ]; then
+  {
+    printf >&2 '%s\n' \
+      "pre-commit: refusing to regenerate — feature_map JSON files are staged alongside" \
+      "            design-contract tests. The regenerator would overwrite the 'sections'" \
+      "            block of:"
+    while IFS= read -r mapfile; do
+      printf >&2 '              %s\n' "$mapfile"
+    done <<< "$STAGED_MAPS"
+    printf >&2 '%s\n' \
+      "            Either:" \
+      "              1) unstage the JSON (\`git restore --staged tests/feature_map/...\`)," \
+      "                 let the hook regenerate it, then re-curate; OR" \
+      "              2) bypass with \`git commit --no-verify\` (CI will still flag drift)."
+  } >&2
+  exit 1
+fi
+
+echo "pre-commit: design-contract tests staged, regenerating feature maps..."
+
+# Run the regenerator with explicit failure context: the user otherwise
+# only sees the script's raw stderr and may not realize the commit is
+# being blocked because of it.
+if ! python3 scripts/update_feature_map.py; then
+  rc=$?
+  cat >&2 <<EOF
+pre-commit: feature map regeneration failed (exit ${rc}).
+            Fix the error above and re-stage, or bypass with
+            \`git commit --no-verify\` (CI will still catch drift).
+EOF
+  exit "$rc"
+fi
+
+# git status --porcelain (NOT git diff) — captures both modified AND new
+# (untracked) map files. git diff --name-only would miss new files.
+# We use porcelain v1 with -z to parse NUL-delimited records, which is
+# robust against filenames containing whitespace, tabs, or " -> " (renames).
+# Each record is: XY<space>PATH or "R " forms with " -> " between two paths.
+# We restrict to entries under tests/feature_map/ added/modified/untracked.
+UPDATED_FILES=()
+while IFS= read -r -d '' record; do
+  # First two chars are status; PATH starts at column 4 (1-indexed).
+  status="${record:0:2}"
+  path="${record:3}"
+  # Renamed entries (status starts with R or C) are emitted as
+  # "old\0new" — consume the next token as the new path.
+  case "$status" in
+    R*|C*)
+      IFS= read -r -d '' new_path
+      path="$new_path"
+      ;;
+  esac
+  # Only re-stage map files; skip anything else porcelain reports.
+  case "$path" in
+    tests/feature_map/*) UPDATED_FILES+=("$path") ;;
+  esac
+done < <(git status --porcelain=v1 -z tests/feature_map/)
+
+if [ "${#UPDATED_FILES[@]}" -gt 0 ]; then
+  echo "pre-commit: staging updated/new map files:"
+  for f in "${UPDATED_FILES[@]}"; do
+    git add -- "$f"
+    echo "  + $f"
+  done
+fi
+
+echo "pre-commit: feature maps up to date."

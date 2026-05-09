@@ -105,3 +105,80 @@ class TestValidateLibrary:
         result = validate_library(config, disk_filter="disk1")
 
         assert result.total_items == 1
+
+
+class TestValidateFromIndexEdgeCases:
+    """Branch coverage for validate_from_index."""
+
+    def _conn(self):  # noqa: ANN202
+        """Build an in-memory DB with the migration chain applied."""
+        import sqlite3
+
+        from personalscraper.indexer.db import apply_migrations
+
+        migrations = Path(__file__).parent.parent.parent / "personalscraper" / "indexer" / "migrations"
+        c = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
+        c.execute("PRAGMA foreign_keys=ON")
+        apply_migrations(c, migrations)
+        return c
+
+    def test_artwork_json_invalid_treated_as_empty(self) -> None:
+        """Malformed artwork_json triggers TypeError/ValueError branch and is empty.
+
+        The DB enforces json_valid via virtual columns, so we feed the broken
+        payload through a mocked connection that returns hand-built rows.
+        """
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.validator import validate_from_index
+
+        # Build one row with an obviously malformed artwork_json blob.
+        row = {
+            "id": 1,
+            "kind": "movie",
+            "title": "Foo",
+            "year": 2024,
+            "category_id": "movies",
+            "nfo_status": "valid",
+            "artwork_json": "{not-json}",
+            "disk_label": "Disk1",
+            "dispatch_path": "/Volumes/Disk1/films/Foo (2024)",
+        }
+
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [row]
+        conn.execute.return_value = cursor
+
+        result = validate_from_index(conn)
+
+        assert result.total_items == 1
+        # artwork={} after decode error → poster missing → poster_present error
+        assert "poster_present" in result.items[0].errors
+
+    def test_artwork_json_empty_string_skips_block(self) -> None:
+        """artwork_raw being empty/None skips the parse branch entirely."""
+        from unittest.mock import MagicMock
+
+        from personalscraper.library.validator import validate_from_index
+
+        row = {
+            "id": 1,
+            "kind": "movie",
+            "title": "Foo",
+            "year": 2024,
+            "category_id": "movies",
+            "nfo_status": "valid",
+            "artwork_json": None,
+            "disk_label": "Disk1",
+            "dispatch_path": "/Volumes/Disk1/films/Foo (2024)",
+        }
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [row]
+        conn.execute.return_value = cursor
+
+        result = validate_from_index(conn)
+        assert result.total_items == 1
+        # No artwork errors when the column is NULL
+        assert "poster_present" not in result.items[0].errors

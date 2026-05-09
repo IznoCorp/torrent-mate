@@ -88,13 +88,24 @@ class TestResolveConfigPath:
         result = resolve_config_path()
         assert result == env_path.expanduser().resolve()
 
-    def test_default_when_neither(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        """Default points to the split-config directory."""
+    def test_cwd_config_when_present(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """CWD ./config/ is preferred when it exists."""
         monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
+        (tmp_path / "config").mkdir()
         monkeypatch.chdir(tmp_path)
 
         result = resolve_config_path()
         assert result == (tmp_path / "config").resolve()
+
+    def test_fallback_to_pkg_when_cwd_absent(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """When CWD has no ./config/, fall back to the package parent directory."""
+        monkeypatch.delenv(ENV_CONFIG_PATH, raising=False)
+        monkeypatch.chdir(tmp_path)
+
+        result = resolve_config_path()
+        assert result.name == "config"
+        assert result.is_absolute()
+        assert result != (tmp_path / "config").resolve()
 
     def test_expanduser_applied(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Tilde paths must be expanded."""

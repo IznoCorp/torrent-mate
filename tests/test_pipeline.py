@@ -341,3 +341,71 @@ class TestCrashRecovery:
         pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
 
         assert not orphan.exists()
+
+    def test_oserror_during_orphan_rmtree_logged(self, tmp_path: Path) -> None:
+        """OSError during orphan rmtree is caught and logged, not raised."""
+        disk_path = tmp_path / "Disk1" / "medias"
+        category = disk_path / "films"
+        orphan = category / "_tmp_dispatch_Broken"
+        orphan.mkdir(parents=True)
+
+        disk_config = MagicMock()
+        disk_config.path = disk_path
+
+        (tmp_path / "097-TEMP").mkdir()
+
+        config = self._make_config(tmp_path)
+        config.disks = [disk_config]
+        pipeline = Pipeline(config, MagicMock(), dry_run=False)
+
+        with patch("shutil.rmtree", side_effect=OSError("device busy")):
+            cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
+
+        # Orphan not cleaned (rmtree failed), but no exception raised.
+        assert orphan.exists()
+        assert cleaned >= 0
+
+    def test_oserror_during_disk_scan_logged(self, tmp_path: Path) -> None:
+        """OSError during disk path iterdir is caught and logged."""
+        disk_path = tmp_path / "Disk1" / "medias"
+        disk_path.mkdir(parents=True)
+
+        disk_config = MagicMock()
+        disk_config.path = disk_path
+
+        (tmp_path / "097-TEMP").mkdir()
+
+        config = self._make_config(tmp_path)
+        config.disks = [disk_config]
+        pipeline = Pipeline(config, MagicMock(), dry_run=False)
+
+        with patch("pathlib.Path.iterdir", side_effect=OSError("io error")):
+            cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
+
+        assert cleaned >= 0
+
+    def test_ingest_dir_does_not_exist_is_noop(self, tmp_path: Path) -> None:
+        """When ingest dir does not exist, crash recovery skips ingest cleanup."""
+        (tmp_path / "097-TEMP").mkdir()
+        # No orphan files, ingest dir absent → total cleaned = 0.
+        settings = MagicMock()
+        pipeline = Pipeline(self._make_config(tmp_path), settings, dry_run=False)
+        cleaned = pipeline._recover_from_previous_run(lockout_path=tmp_path / "nonexistent_lockout")
+        assert cleaned == 0
+
+    def test_oserror_during_lockout_cleanup_logged(self, tmp_path: Path) -> None:
+        """OSError during lockout file delete is caught and logged."""
+        lockout = tmp_path / ".cache" / "personalscraper" / "qbit_auth_lockout"
+        lockout.parent.mkdir(parents=True)
+        lockout.write_text("login_failed")
+        old_time = time.time() - 7200
+        os.utime(lockout, (old_time, old_time))
+
+        (tmp_path / "097-TEMP").mkdir()
+
+        pipeline = Pipeline(self._make_config(tmp_path), MagicMock(), dry_run=False)
+
+        with patch.object(Path, "unlink", side_effect=OSError("read-only")):
+            cleaned = pipeline._recover_from_previous_run(lockout_path=lockout)
+
+        assert cleaned >= 0

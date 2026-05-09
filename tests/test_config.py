@@ -54,3 +54,28 @@ def test_rich_repr_masks_secrets(monkeypatch):
     assert rendered["tvdb_api_key"] == "<masked>"
     # Non-secret fields must still be visible
     assert rendered["qbit_host"] == "localhost"
+
+
+def test_repr_masks_secret_fields(monkeypatch):
+    """``__repr__`` masks secret fields to prevent accidental traceback leaks.
+
+    Design: docs/reference/architecture.md#directory-structure
+    Contract: ``repr(Settings(...))`` renders secret fields as
+    ``<masked>`` while non-secret fields appear with their actual
+    values. This is the minimal safety net — even where rich is not
+    installed, secrets never appear in ``repr()`` output.
+    """
+    monkeypatch.setenv("QBIT_PASSWORD", "supersecret")
+    monkeypatch.setenv("TMDB_API_KEY", "tmdb-key")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bot12345:abc")
+    s = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    r = repr(s)
+    assert "qbit_password=<masked>" in r
+    assert "tmdb_api_key=<masked>" in r
+    assert "telegram_bot_token=<masked>" in r
+    assert "supersecret" not in r
+    assert "tmdb-key" not in r
+    assert "bot12345" not in r
+    # Non-secret fields visible
+    assert "qbit_host='localhost'" in r or "qbit_host=localhost" in r

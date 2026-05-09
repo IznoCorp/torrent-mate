@@ -67,6 +67,13 @@ class ConfigValidationError(ValueError):
 def resolve_config_path(cli_override: Path | None = None) -> Path:
     """Resolve the active config directory using CLI > env > default.
 
+    Resolution order:
+      1. ``--config`` CLI override (highest priority)
+      2. ``$PERSONALSCRAPER_CONFIG`` environment variable
+      3. ``./config/`` relative to CWD (backwards-compatible)
+      4. ``<pkg_root>/config/`` (fallback — works when CWD is not the repo root,
+         e.g. running from the staging directory)
+
     Args:
         cli_override: Path passed via --config CLI option. Takes highest priority.
             Must point at a config directory.
@@ -79,7 +86,13 @@ def resolve_config_path(cli_override: Path | None = None) -> Path:
     env = os.environ.get(ENV_CONFIG_PATH)
     if env:
         return Path(env).expanduser().resolve()
-    return DEFAULT_CONFIG_DIR.expanduser().resolve()
+
+    cwd_config = DEFAULT_CONFIG_DIR.expanduser().resolve()
+    if cwd_config.is_dir():
+        return cwd_config
+
+    pkg_root = Path(__file__).resolve().parent.parent.parent
+    return pkg_root / "config"
 
 
 def _load_json5_file(path: Path) -> dict[str, Any]:
@@ -161,11 +174,34 @@ def load_config_dir(config_dir: Path) -> Config:
     # Merge: master is the base; overlays applied in order.
     merged = merge_overlays(master, *overlay_dicts)
 
+    # Resolve relative paths against config_dir.parent (repo root), not CWD.
+    # ``init-config`` always places ``config/`` at the repo root, so
+    # ``config_dir.parent`` is the project root by construction.
+    #
+    # We expose the root through a module-level attribute on
+    # ``paths_model`` (saved + restored in finally) instead of pydantic's
+    # ``model_validate(context=...)`` because field_validators on nested
+    # sub-models (PathConfig, IndexerConfig.db_path) cannot reach the
+    # outer validation context cleanly. Validators in those models read
+    # the attribute at call time so this assignment is honoured (a
+    # ``from … import _PROJECT_ROOT`` would value-bind None and silently
+    # fall back to CWD — see indexer.py for the call-time lookup).
+    # Single-threaded CLI startup means no concurrent mutation is
+    # possible; if a future caller validates two configs in parallel,
+    # promote ``_PROJECT_ROOT`` to a ContextVar.
+    import personalscraper.conf.models.paths as paths_model
+
+    project_root = config_dir.parent.resolve()
+    prev_root = paths_model._PROJECT_ROOT
+    paths_model._PROJECT_ROOT = project_root
+
     # Validate through pydantic.
     try:
         config = Config.model_validate(merged)
     except Exception as exc:
         raise ConfigValidationError(f"Validation error merging config in {config_dir}:\n{exc}") from exc
+    finally:
+        paths_model._PROJECT_ROOT = prev_root
 
     # Emit non-blocking warnings.
     for warning in collect_warnings(config):
@@ -303,8 +339,18 @@ def _check_category_orphans(config: Config) -> None:
     assert db_path is not None, "indexer.db_path must be resolved before calling _warn_orphan_categories"
     db_path = db_path.expanduser()
     if not db_path.is_absolute():
-        # Relative paths are resolved against CWD at call time — same as the
-        # rest of the project's path handling.
+        # By the time we get here, IndexerConfig._reject_external_mount has
+        # already resolved relative db_paths against the project root, so a
+        # still-relative value indicates a downstream model edit. Falling
+        # back to CWD here keeps the orphan-check non-blocking — a wrong
+        # path simply results in "no DB → nothing to check" below, never a
+        # crash on startup.
+        log.warning(
+            "indexer.config.unexpected_relative_db_path",
+            db_path=str(db_path),
+            hint="Resolved against CWD as fallback; orphan check may not run. "
+            "This indicates an IndexerConfig constructed outside load_config_dir.",
+        )
         db_path = Path.cwd() / db_path
 
     if not db_path.is_file():

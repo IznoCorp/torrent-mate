@@ -84,3 +84,48 @@ def test_toctou_race_lost(tmp_path, monkeypatch):
     assert acquire_lock(lock_file) is False
     # Competitor's lock content is preserved — we did not overwrite it
     assert lock_file.read_text().strip() == str(os.getpid() + 1)
+
+
+def test_default_lock_file_uses_config(tmp_path, monkeypatch):
+    """_default_lock_file derives lock path from configured paths.data_dir."""
+    from unittest.mock import MagicMock
+
+    fake_config = MagicMock()
+    fake_config.paths.data_dir = tmp_path / "data"
+
+    monkeypatch.setattr("personalscraper.conf.loader.resolve_config_path", lambda: tmp_path / "config")
+    monkeypatch.setattr("personalscraper.conf.loader.load_config", lambda _path: fake_config)
+
+    from personalscraper.lock import _default_lock_file
+
+    result = _default_lock_file()
+    assert result == tmp_path / "data" / "pipeline.lock"
+
+
+def test_acquire_lock_uses_default_when_none(tmp_path, monkeypatch):
+    """acquire_lock(None) falls back to _default_lock_file()."""
+    target = tmp_path / "default.lock"
+
+    monkeypatch.setattr("personalscraper.lock._default_lock_file", lambda: target)
+
+    assert acquire_lock(None) is True
+    assert target.exists()
+    # Cleanup via release_lock(None) — also exercises default path
+    monkeypatch.setattr("personalscraper.lock._default_lock_file", lambda: target)
+    release_lock(None)
+    assert not target.exists()
+
+
+def test_acquire_lock_permission_error_other_user(tmp_path, monkeypatch):
+    """A live lock owned by another user (PermissionError on os.kill) blocks acquisition."""
+    lock_file = tmp_path / "pipeline.lock"
+    lock_file.write_text("12345")
+
+    def _raise_permission(_pid, _sig):
+        raise PermissionError("not allowed")
+
+    monkeypatch.setattr("personalscraper.lock.os.kill", _raise_permission)
+
+    assert acquire_lock(lock_file) is False
+    # Lock file untouched
+    assert lock_file.read_text().strip() == "12345"

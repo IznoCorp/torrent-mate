@@ -251,3 +251,104 @@ class TestErrorHandling:
         statuses = {r.status for r in results}
         assert "error" in statuses
         assert "moved" in statuses
+
+
+# --- Edge cases — missing-branch coverage ---
+
+
+class TestEdgeBranches:
+    """Source-dir-missing and movie-dir replace branches."""
+
+    def test_process_missing_source_dir(self, config, tmp_path):
+        """process() returns [] and warns when source_dir does not exist."""
+        sorter = Sorter(config=config, dry_run=True)
+        results = sorter.process(tmp_path / "no_such_dir")
+        assert results == []
+
+    def test_movie_dir_replace_existing(self, staging, config):
+        """Movie directory with existing destination is replaced atomically."""
+        # Create the source movie directory
+        src = staging / "Movie.Title.2024.1080p"
+        src.mkdir()
+        (src / "movie.mkv").write_text("new content")
+
+        # Pre-populate the destination with different content
+        movies_root = staging / "001-MOVIES"
+        movies_root.mkdir(exist_ok=True)
+        # Use folder cleaned name (NameCleaner would yield "Movie Title (2024)")
+        from personalscraper.sorter.cleaner import NameCleaner
+
+        cleaned_folder = NameCleaner().clean_for_folder(src.name)
+        existing_dest = movies_root / cleaned_folder
+        existing_dest.mkdir()
+        (existing_dest / "old.mkv").write_text("OLD")
+
+        sorter = Sorter(config=config, dry_run=False)
+        result = sorter.sort_item(src, staging)
+        assert result.status == "moved"
+        # After replace, old file is gone, new file present
+        assert not (existing_dest / "old.mkv").exists()
+        assert (existing_dest / "movie.mkv").exists()
+        # Backup is cleaned up
+        assert not (movies_root / f"{existing_dest.name}.old.tmp").exists()
+
+    def test_movie_dir_replace_initial_rename_fails(self, staging, config, monkeypatch):
+        """If os.rename(dest → backup) fails, no backup exists and we re-raise (branch 195->197)."""
+        src = staging / "Movie.Title.2024.1080p"
+        src.mkdir()
+        (src / "movie.mkv").write_text("new content")
+
+        from personalscraper.sorter.cleaner import NameCleaner
+
+        movies_root = staging / "001-MOVIES"
+        movies_root.mkdir(exist_ok=True)
+        cleaned_folder = NameCleaner().clean_for_folder(src.name)
+        existing_dest = movies_root / cleaned_folder
+        existing_dest.mkdir()
+        (existing_dest / "keep.mkv").write_text("OLD")
+
+        import personalscraper.sorter.sorter as sorter_mod
+
+        def _fail_rename(*a, **kw):
+            raise OSError("rename failure")
+
+        monkeypatch.setattr(sorter_mod.os, "rename", _fail_rename)
+
+        sorter = Sorter(config=config, dry_run=False)
+        result = sorter.sort_item(src, staging)
+        assert result.status == "error"
+        # Existing destination still intact
+        assert existing_dest.exists()
+        assert (existing_dest / "keep.mkv").exists()
+
+    def test_movie_dir_replace_failure_restores_backup(self, staging, config, monkeypatch):
+        """When shutil.move fails during a replace, the backup is restored."""
+        src = staging / "Movie.Title.2024.1080p"
+        src.mkdir()
+        (src / "movie.mkv").write_text("new content")
+
+        from personalscraper.sorter.cleaner import NameCleaner
+
+        movies_root = staging / "001-MOVIES"
+        movies_root.mkdir(exist_ok=True)
+        cleaned_folder = NameCleaner().clean_for_folder(src.name)
+        existing_dest = movies_root / cleaned_folder
+        existing_dest.mkdir()
+        (existing_dest / "keep.mkv").write_text("OLD")
+
+        import personalscraper.sorter.sorter as sorter_mod
+
+        def _fail_move(*a, **kw):
+            raise OSError("simulated move failure")
+
+        monkeypatch.setattr(sorter_mod.shutil, "move", _fail_move)
+
+        sorter = Sorter(config=config, dry_run=False)
+        result = sorter.sort_item(src, staging)
+        # Catch-all converts OSError into status="error"
+        assert result.status == "error"
+        # Original destination restored from backup
+        assert existing_dest.exists()
+        assert (existing_dest / "keep.mkv").exists()
+        # Source still in place (not moved successfully)
+        assert src.exists()

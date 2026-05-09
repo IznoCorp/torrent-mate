@@ -201,6 +201,14 @@ def replace(source: Path, dest: Path) -> bool:
                 tmp_old=str(tmp_old),
                 dest=str(dest),
             )
+        # Clean up the successful transfer so it is not left orphaned
+        # on disk (occupies space and could be picked up by a
+        # subsequent dispatch run as a stale sibling).
+        try:
+            if tmp_new.exists():
+                _transfer.force_rmtree(tmp_new)
+        except OSError as e:
+            log.warning("replace_tmp_new_cleanup_failed", path=str(tmp_new), error=str(e), exc_info=True)
         return False
 
     # Phase 3: Cleanup (non-critical — replace already succeeded)

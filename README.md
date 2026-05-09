@@ -35,6 +35,7 @@ Toutes les étapes s'enchaînent avec `personalscraper run` (ou `--dry-run` pour
 git clone <votre-repo-url> "/path/to/staging"
 cd "/path/to/staging"
 pip install -e ".[dev]"
+./hooks/install.sh                                  # Une seule fois par clone — active core.hooksPath et le hook pre-commit (régénère tests/feature_map/*.json)
 
 # Configuration
 cp .env.example .env                                # Secrets API uniquement (TMDB_API_KEY, TVDB_API_KEY, ...)

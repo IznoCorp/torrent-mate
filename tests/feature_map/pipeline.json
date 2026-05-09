@@ -1,0 +1,77 @@
+{
+  "feature": "pipeline",
+  "design": "docs/reference/pipeline-internals.md",
+  "sections": {
+    "clean-fast-skip": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestCleanFastSkipContract::test_clean_runs_reclean_when_junk_detected",
+        "tests/integration/test_design_pipeline.py::TestCleanFastSkipContract::test_clean_skips_reclean_when_no_polluted_folders"
+      ]
+    },
+    "disk-selection": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_most_free_eligible",
+        "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_none_when_no_disk_eligible"
+      ]
+    },
+    "dispatch": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_swaps_destination_atomically",
+        "tests/integration/test_design_dispatch.py::TestTvShowMergeContract::test_purge_resolves_episode_conflicts_on_season_episode_key"
+      ]
+    },
+    "fast-skip-idempotence": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestIdempotenceContract::test_scrape_step_idempotent_across_two_runs"
+      ]
+    },
+    "scrape-fast-skip": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestScrapeFastSkipContract::test_complete_nfo_short_circuits_scrape_step"
+      ]
+    },
+    "stagingcommit-pattern": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestStagingCommitContract::test_move_new_cleans_orphan_tmp_from_previous_crash",
+        "tests/integration/test_design_dispatch.py::TestStagingCommitContract::test_move_new_rolls_back_tmp_when_rsync_fails",
+        "tests/integration/test_design_dispatch.py::TestStagingCommitContract::test_move_new_writes_to_tmp_then_atomic_rename"
+      ]
+    },
+    "step-contracts": {
+      "tests": [
+        "tests/integration/test_design_pipeline.py::TestStepContracts::test_all_default_steps_accept_step_context"
+      ]
+    },
+    "verify": {
+      "tests": [
+        "tests/verify/test_verifier.py::TestVerifyCheckFixCycle::test_verify_check_fix_recheck_cycle"
+      ]
+    }
+  },
+  "skip_audit": [
+    {
+      "anchor": "circuit-breaker",
+      "category": "documentation_only",
+      "reason": "Reference/ops material — failure-rate thresholds, dashboard pointers and runbook prose. Behavior already covered by tests/scraper/test_circuit_breaker.py at the unit level.",
+      "expires": "2026-11-08"
+    },
+    {
+      "anchor": "pipeline-internals",
+      "category": "documentation_only",
+      "reason": "Reference index/header for the document — no contract to test. Tracked here so the auditor reports zero orphan sections.",
+      "expires": "2026-11-08"
+    },
+    {
+      "anchor": "rsync-flags",
+      "category": "documentation_only",
+      "reason": "Ops/reference material — documents which rsync flags are used and why; behavior is exercised end-to-end via dispatch tests. No standalone contract to pin.",
+      "expires": "2026-11-08"
+    },
+    {
+      "anchor": "standalone-invocation",
+      "category": "documentation_only",
+      "reason": "Reference material — documents the per-step CLI invocation surface. Behavior covered by tests/commands/test_pipeline_commands.py.",
+      "expires": "2026-11-08"
+    }
+  ]
+}

@@ -104,13 +104,18 @@ jobs:
           key: pip-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
           restore-keys: pip-${{ runner.os }}-${{ matrix.python-version }}-
       - run: pip install -e ".[dev]"
-      - run: python -m pytest -v -n auto --cov=personalscraper --cov-report=xml --cov-report=term --cov-fail-under=80
+      # ``make test-cov`` reads ``fail_under`` from pyproject.toml via
+      # scripts/get_coverage_threshold.py, so the gate stays in lockstep with
+      # the source-of-truth threshold and the local make target.
+      - run: make test-cov
       - uses: codecov/codecov-action@v4
         if: matrix.python-version == '3.12'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
-          fail_ci_if_error: true
+          # Forks cannot inherit secrets, so they always get a soft upload.
+          # Internal PRs require a working CODECOV_TOKEN and fail otherwise.
+          fail_ci_if_error: ${{ github.event.pull_request.head.repo.fork == false }}
 
   security:
     name: security
@@ -135,3 +140,59 @@ jobs:
       # TODO(security): remove --ignore-vuln CVE-2026-3219 once pip ships a fix.
       #                 Check https://nvd.nist.gov/vuln/detail/CVE-2026-3219 for status.
       - run: pip-audit --ignore-vuln CVE-2026-3219
+
+  coverage-monotonic:
+    name: coverage-monotonic
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tomli for older Pythons
+        run: pip install 'tomli; python_version < "3.11"'
+      - name: Verify fail_under is monotonic against base ref
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          head_threshold=$(python3 scripts/get_coverage_threshold.py)
+          main_threshold=$(git show "origin/${BASE_REF}:pyproject.toml" | python3 scripts/get_coverage_threshold.py --stdin)
+          echo "HEAD: ${head_threshold} | base (${BASE_REF}): ${main_threshold}"
+          # Float-safe comparison via awk — `[ -lt ]` requires integer
+          # operands and would crash if fail_under is ever expressed as
+          # 90.5 / 87.0 / etc.
+          if awk -v h="${head_threshold}" -v m="${main_threshold}" 'BEGIN{exit !(h<m)}'; then
+            if echo ",${PR_LABELS}," | grep -q ',coverage-rollback,'; then
+              echo "::warning::fail_under decreased (${main_threshold} → ${head_threshold}) — rollback acknowledged via label."
+              exit 0
+            fi
+            echo "::error::fail_under decreased (${main_threshold} → ${head_threshold}). Add 'coverage-rollback' label to override."
+            exit 1
+          fi
+
+  design-gaps:
+    name: design-gaps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-3.12-${{ hashFiles('pyproject.toml') }}
+          restore-keys: pip-${{ runner.os }}-3.12-
+      - run: pip install -e ".[dev]"
+      - name: Map freshness check
+        run: python3 scripts/update_feature_map.py --check
+      - name: Design coverage audit
+        # Promoted to hard error in Phase 8 (cycle-4 boundary). Orphans are
+        # waived via tests/feature_map/<codename>.json `skip_audit` entries
+        # (each carries a `reason` and an `expires` ISO date).
+        run: python3 scripts/audit_design_coverage.py --strict

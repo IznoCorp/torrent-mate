@@ -6,11 +6,13 @@ missing file, corrupt file, and atomic write guarantees.
 
 import errno
 import json
+import os
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.scraper import json_ttl_cache as json_ttl_cache_mod
 from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
 
@@ -79,14 +81,20 @@ class TestTTL:
         assert cache.get("k") is None
 
     def test_zero_ttl_is_immediately_expired(self, cache: JsonTTLCache) -> None:
-        """A TTL of 0 seconds means the entry is expired on the next get()."""
+        """A TTL of 0 seconds means the entry is expired on the next get().
+
+        ``check_ttl`` evaluates ``elapsed < ttl_seconds``; with ``ttl=0`` and
+        a non-negative monotonic-time delta the comparison is ``0.0 < 0``,
+        which is always False (i.e. always stale). Sleep 1 ms for defence
+        in depth against clock-source quirks, then assert the deterministic
+        outcome — None — rather than the previous ``None or 'v'`` hedge,
+        which made the test pass even if the boundary flipped to ``<=``.
+        """
+        import time
+
         cache.set("k", "v", ttl_seconds=0)
-        # Sleep is not needed: the cached_at is set to now, ttl=0 means any read is stale
-        # (>= 0 elapsed). Ensure at least 1 ms passes by reloading from disk.
-        result = cache.get("k")
-        # May be None (already stale) or "v" depending on sub-millisecond timing;
-        # the critical invariant is no exception raised.
-        assert result is None or result == "v"
+        time.sleep(0.001)
+        assert cache.get("k") is None
 
 
 # ── invalidate ───────────────────────────────────────────────────────────────
@@ -186,3 +194,161 @@ class TestRobustness:
         assert result is None
         corrupt_files = list(tmp_path.glob("*.corrupt-*"))
         assert corrupt_files == [], f"Unexpected .corrupt-* files created: {corrupt_files}"
+
+
+class TestErrorPaths:
+    """Cover the malformed-entry warning paths and corrupt-backup flow."""
+
+    def test_malformed_entry_returns_none_on_get(self, tmp_path: Path) -> None:
+        """get() returns None when an entry is malformed (missing fields)."""
+        backing = tmp_path / "malformed.json"
+        backing.write_text(
+            json.dumps({"k": {"value": 1, "cached_at": "not-iso", "ttl_seconds": 60}}),
+            encoding="utf-8",
+        )
+        cache = JsonTTLCache(backing)
+        assert cache.get("k") is None
+
+    def test_compact_drops_malformed_entries(self, tmp_path: Path) -> None:
+        """compact() drops entries that fail to parse cached_at/ttl_seconds."""
+        backing = tmp_path / "compact_malformed.json"
+        backing.write_text(
+            json.dumps(
+                {
+                    "broken": {"value": 1, "cached_at": "not-iso", "ttl_seconds": 60},
+                    "fresh": {
+                        "value": 2,
+                        "cached_at": "2099-01-01T00:00:00",
+                        "ttl_seconds": 3600,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        cache = JsonTTLCache(backing)
+        cache.compact()
+        assert cache.get("broken") is None
+        assert cache.get("fresh") == 2
+
+    def test_corrupt_json_creates_backup(self, tmp_path: Path) -> None:
+        """A JSONDecodeError on _load triggers a .corrupt-<ts>.json sibling."""
+        backing = tmp_path / "broken.json"
+        backing.write_text("{{{ not json", encoding="utf-8")
+        cache = JsonTTLCache(backing)
+        assert cache.get("anything") is None
+        backups = list(tmp_path.glob("broken.corrupt-*.json"))
+        assert len(backups) == 1, f"expected one backup, got: {backups}"
+
+    def test_root_not_object_creates_backup(self, tmp_path: Path) -> None:
+        """A JSON root that is not an object (e.g. list) is backed up and treated as empty."""
+        backing = tmp_path / "rootlist.json"
+        backing.write_text("[1, 2, 3]", encoding="utf-8")
+        cache = JsonTTLCache(backing)
+        assert cache.get("anything") is None
+        backups = list(tmp_path.glob("rootlist.corrupt-*.json"))
+        assert len(backups) == 1
+
+
+class TestLockFailures:
+    """Cover the lock-acquisition failure branches in ``_locked_update``."""
+
+    def test_lock_acquisition_exhausted_falls_back_to_unlocked(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When flock retries are exhausted, set() still writes via best-effort fallback."""
+        if not json_ttl_cache_mod._FCNTL_AVAILABLE:  # pragma: no cover — Windows
+            pytest.skip("fcntl not available on this platform")
+
+        cache = JsonTTLCache(tmp_path / "lock_busy.json")
+
+        # Simulate flock always raising BlockingIOError so the retry budget is exhausted.
+        fake_fcntl = MagicMock()
+        fake_fcntl.LOCK_EX = 2
+        fake_fcntl.LOCK_NB = 4
+        fake_fcntl.LOCK_UN = 8
+        fake_fcntl.flock.side_effect = OSError(errno.EWOULDBLOCK, "would block")
+
+        with patch.object(json_ttl_cache_mod, "_fcntl", fake_fcntl):
+            with patch.object(json_ttl_cache_mod.time, "sleep", lambda _s: None):
+                with caplog.at_level("WARNING"):
+                    cache.set("k", "v", ttl_seconds=3600)
+
+        assert "json_ttl_cache_lock_failed" in caplog.text
+        # Best-effort write still produced the entry.
+        assert cache.get("k") == "v"
+
+    def test_lock_open_oserror_falls_back_to_unlocked(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        """A failure opening the .lock file is caught and best-effort write proceeds."""
+        if not json_ttl_cache_mod._FCNTL_AVAILABLE:  # pragma: no cover — Windows
+            pytest.skip("fcntl not available on this platform")
+
+        cache = JsonTTLCache(tmp_path / "lock_open.json")
+
+        # Patch Path.open so opening the lock-file raises OSError, but reads
+        # of the backing file (which uses Path.open under the hood) still work.
+        original_open = Path.open
+
+        def selective_open(self: Path, *args: object, **kwargs: object) -> object:
+            if self.suffix == ".lock":
+                raise OSError(errno.EACCES, "lock open failed")
+            return original_open(self, *args, **kwargs)  # type: ignore[arg-type]
+
+        with patch.object(Path, "open", selective_open):
+            with caplog.at_level("WARNING"):
+                cache.set("k", "v2", ttl_seconds=3600)
+
+        assert "json_ttl_cache_lock_error" in caplog.text
+        assert cache.get("k") == "v2"
+
+
+class TestAtomicSaveErrors:
+    """Cover the atomic-save error path (os.replace failure)."""
+
+    def test_atomic_save_oserror_cleans_temp_and_reraises(self, tmp_path: Path) -> None:
+        """When os.replace raises, the temp file is unlinked and the error propagates."""
+        cache = JsonTTLCache(tmp_path / "save_fail.json")
+
+        with patch.object(os, "replace", side_effect=OSError(errno.EIO, "i/o error")):
+            with pytest.raises(OSError, match="i/o error"):
+                cache.set("k", "v", ttl_seconds=60)
+
+        # No leftover .tmp files even though the replace failed.
+        leftover = list(tmp_path.glob("*.tmp"))
+        assert leftover == [], f"leftover temp files: {leftover}"
+
+    def test_atomic_save_oserror_when_tmp_unlink_also_fails(self, tmp_path: Path) -> None:
+        """If os.unlink of the temp file also fails, the original OSError still propagates."""
+        cache = JsonTTLCache(tmp_path / "save_fail2.json")
+
+        original_unlink = os.unlink
+
+        def flaky_unlink(path: str) -> None:
+            # The first unlink call (from the cleanup branch) raises; subsequent calls
+            # (e.g. tmp dir teardown) go through normally.
+            if path.endswith(".tmp"):
+                raise OSError(errno.EIO, "unlink failed")
+            original_unlink(path)
+
+        with patch.object(os, "replace", side_effect=OSError(errno.EIO, "replace failed")):
+            with patch.object(os, "unlink", flaky_unlink):
+                with pytest.raises(OSError, match="replace failed"):
+                    cache.set("k", "v", ttl_seconds=60)
+
+
+class TestCorruptBackupErrorPath:
+    """Cover the OSError branch inside ``_backup_corrupt`` (shutil.copy failure)."""
+
+    def test_corrupt_backup_copy_failure_is_logged_and_swallowed(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """If shutil.copy fails when backing up a corrupt file, the error is logged but get() returns None."""
+        backing = tmp_path / "broken_copy.json"
+        backing.write_text("not json {{", encoding="utf-8")
+        cache = JsonTTLCache(backing)
+
+        with patch("personalscraper.scraper.json_ttl_cache.shutil.copy", side_effect=OSError(errno.EACCES, "denied")):
+            with caplog.at_level("ERROR"):
+                result = cache.get("k")
+
+        assert result is None
+        assert "json_ttl_cache_corrupt_backup_failed" in caplog.text

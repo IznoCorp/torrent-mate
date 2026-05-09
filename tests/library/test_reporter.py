@@ -397,3 +397,258 @@ class TestRescrapeSection:
         report = LibraryReport(generated_at="2026-04-17T12:00:00")
         text = format_report_text(report)
         assert "RESCRAPE" not in text
+
+
+# ---------------------------------------------------------------------------
+# Suite 4 — generate_report extra branches
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateReportExtras:
+    """Tests for branches not covered by the base suite."""
+
+    def test_scan_issues_populated_via_counter_most_common(self) -> None:
+        """``scan_issues`` should be sorted by descending count via Counter.most_common()."""
+        ar = _make_analysis_result(total_items=10)
+        # AnalysisResult exposes scan_issues via dataclass field.
+        ar.scan_issues = {"junk_files": 3, "actors_dir_present": 7}
+        ar.actors_dir_count = 7
+
+        report = generate_report(analysis_result=ar)
+        # Most common first.
+        keys = list(report.scan_issues.keys())
+        assert keys[0] == "actors_dir_present"
+        assert report.actors_dir_count == 7
+
+    def test_disk_statuses_populates_disk_free_gb(self) -> None:
+        """When ``disk_statuses`` is supplied, ``disk_free_gb`` is rounded by id."""
+
+        class _FakeDiskCfg:
+            def __init__(self, did: str) -> None:
+                self.id = did
+
+        class _FakeDiskStatus:
+            def __init__(self, did: str, free: float) -> None:
+                self.config = _FakeDiskCfg(did)
+                self.free_space_gb = free
+
+        statuses = [_FakeDiskStatus("disk1", 123.456), _FakeDiskStatus("disk2", 999.99)]
+        report = generate_report(disk_statuses=statuses)
+        assert report.disk_free_gb == {"disk1": 123.5, "disk2": 1000.0}
+
+    def test_disk_statuses_missing_attributes_skipped(self) -> None:
+        """Objects missing ``config``/``free_space_gb`` should be ignored, not raise."""
+
+        class _Noop:
+            pass
+
+        report = generate_report(disk_statuses=[_Noop()])
+        assert report.disk_free_gb == {}
+
+    def test_rescrape_episodes_renamed_action(self) -> None:
+        """``episodes_renamed`` action should bump rescrape_episodes_count."""
+        rescrape_data = {
+            "fixed_count": 1,
+            "skipped_count": 0,
+            "error_count": 0,
+            "items": [{"actions_taken": ["episodes_renamed", "nfo_regenerated"]}],
+        }
+        report = generate_report(rescrape_data=rescrape_data)
+        assert report.rescrape_episodes_count == 1
+        assert report.rescrape_nfo_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Suite 5 — format_report_text full sections
+# ---------------------------------------------------------------------------
+
+
+class TestFormatReportTextSections:
+    """Exhaustive section-by-section coverage of ``format_report_text``."""
+
+    def test_disks_section_rendered(self) -> None:
+        """DISQUES section lists per-disk count, size, free space, and percentage."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            total_items=4,
+            total_size_gb=100.0,
+            items_per_disk={"disk1": 3, "disk2": 1},
+            size_per_disk_gb={"disk1": 75.0, "disk2": 25.0},
+            disk_free_gb={"disk1": 500.0, "disk2": 250.0},
+        )
+        text = format_report_text(report)
+        assert "DISQUES" in text
+        assert "disk1: 3 items" in text
+        assert "500 GB libre" in text
+        # Percentages: 3/4 = 75%, 1/4 = 25%.
+        assert "[75%]" in text
+        assert "[25%]" in text
+
+    def test_categories_section_rendered(self) -> None:
+        """CATÉGORIES section lists categories sorted by count desc."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            total_items=10,
+            items_per_category={"films": 7, "series": 3},
+        )
+        text = format_report_text(report)
+        assert "CATÉGORIES" in text
+        # films appears before series (sorted descending by count).
+        idx_films = text.index("films:")
+        idx_series = text.index("series:")
+        assert idx_films < idx_series
+
+    def test_scan_section_rendered_with_fixes(self) -> None:
+        """SCAN section enumerates issues + remediation commands."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            total_items=100,
+            scan_issues={
+                "actors_dir_present": 12,
+                "junk_files": 5,
+                "release_group_artifact": 2,
+                "empty_subdir": 1,
+            },
+        )
+        text = format_report_text(report)
+        assert "1. SCAN" in text
+        # Each issue type with explanation and fix.
+        assert "actors_dir_present: 12" in text
+        assert "library-clean --only actors --apply" in text
+        # Cleanable summary should be sum of those that have fixes.
+        assert "Nettoyable automatiquement: 20" in text
+        assert "library-clean --apply" in text
+
+    def test_validation_warnings_only_section(self) -> None:
+        """Warnings-only validation should still render the warnings sub-block."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            validation_valid=10,
+            validation_issues=2,
+            validation_warnings={"artwork_landscape": 4},
+        )
+        text = format_report_text(report)
+        assert "Avertissements" in text
+        assert "artwork_landscape: 4" in text
+
+    def test_validation_errors_with_fix_lines(self) -> None:
+        """Validation errors with a known fix get a ``✓`` remediation line."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            validation_valid=10,
+            validation_issues=2,
+            validation_errors={"nfo_present": 1, "category": 1},
+        )
+        text = format_report_text(report)
+        # ``nfo_present`` has a fix, ``category`` does not.
+        assert "library-rescrape --only nfo" in text
+        # Both errors listed.
+        assert "nfo_present: 1" in text
+        assert "category: 1" in text
+
+    def test_analysis_section_rendered(self) -> None:
+        """ANALYSE section shows codecs, audio profiles, and partial-coverage warning."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            total_items=200,
+            analysis_item_count=100,
+            analysis_file_count=120,
+            codec_distribution={"h264": 80, "hevc": 40},
+            audio_distribution={"vf": 60, "vostfr": 30, "multi": 20, "vo": 10, "weird": 5},
+        )
+        text = format_report_text(report)
+        assert "3. ANALYSE" in text
+        # Coverage 50% < 100 ⇒ partial-warning line.
+        assert "library-analyze --incremental" in text
+        assert "h264: 80 fichiers" in text
+        # Audio labels resolved.
+        assert "VF (français)" in text
+        assert "VOSTFR" in text
+        # Unknown profile falls back to its raw label.
+        assert "weird:" in text or "weird " in text
+
+    def test_recommendations_section_rendered(self) -> None:
+        """RECOMMANDATIONS section emits priority counts + per-item details."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            recommendation_count=2,
+            estimated_savings_gb=10.5,
+            recommendations_by_priority={"high": 1, "medium": 1},
+            recommendation_details=[
+                {
+                    "title": "Movie A",
+                    "priority": "high",
+                    "codec": "mpeg2",
+                    "resolution": "1080p",
+                    "size_gb": 8.0,
+                    "audio_profile": "vf",
+                    "reasons": ["rejected codec"],
+                    "savings_gb": 5.0,
+                },
+                {
+                    "title": "Movie B",
+                    "priority": "medium",
+                    "codec": "h264",
+                    "resolution": "720p",
+                    "size_gb": 5.0,
+                    "audio_profile": "vo",
+                    "reasons": ["upgrade resolution"],
+                    "savings_gb": 5.5,
+                },
+            ],
+        )
+        text = format_report_text(report)
+        assert "4. RECOMMANDATIONS" in text
+        assert "Économie potentielle: ~10.5 GB" in text
+        assert "Movie A" in text
+        assert "rejected codec" in text
+        assert "library-recommend --export csv" in text
+
+    def test_top_largest_section_rendered(self) -> None:
+        """TOP 20 section lists each item with rank and size."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            top_largest=[("Big A", 50.5), ("Big B", 30.1)],
+        )
+        text = format_report_text(report)
+        assert "5. TOP 20" in text
+        assert "Big A" in text
+        assert "50.5 GB" in text
+
+    def test_rescrape_section_full_lines(self) -> None:
+        """RESCRAPE section emits every optional line when corresponding count > 0."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            rescrape_fixed=10,
+            rescrape_skipped=5,
+            rescrape_errors=2,
+            rescrape_nfo_count=4,
+            rescrape_artwork_count=3,
+            rescrape_episodes_count=2,
+        )
+        text = format_report_text(report)
+        assert "Épisodes renommés: 2" in text
+        # Skipped warning line present.
+        assert "items ignorés" in text
+        assert "library-rescrape --interactive" in text
+
+    def test_actions_section_full(self) -> None:
+        """ACTIONS SUGGÉRÉES section lists every action the report can produce."""
+        report = LibraryReport(
+            generated_at="2026-04-17T12:00:00",
+            total_items=100,
+            scan_issues={"actors_dir_present": 5, "junk_files": 3},
+            nfo_invalid_count=4,  # falls back when no validation errors
+            poster_missing_count=2,
+            analysis_item_count=50,  # less than total_items ⇒ ffprobe action
+            recommendation_count=7,
+        )
+        text = format_report_text(report)
+        # Every numbered/half-numbered action emitted.
+        assert "Supprimer 5 dossiers .actors" in text
+        assert "Supprimer 3 fichiers parasites" in text
+        # Re-scrape uses nfo_invalid_count fallback when no validation_errors.
+        assert "Re-scraper 4 items" in text
+        assert "Récupérer l'artwork" in text
+        assert "Compléter l'analyse ffprobe (50 items restants)" in text
+        assert "Examiner 7 recommandations" in text

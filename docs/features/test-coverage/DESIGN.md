@@ -4,7 +4,7 @@
 **Codename**: `test-coverage`
 **Version bump**: 0.11.0 → 0.12.0 (minor — new `tests/feature_map/` artifact, new scripts, new Makefile/CI surface)
 **Design date**: 2026-05-08
-**Trigger**: ROADMAP — raise coverage from 44 % to 90 % branch with documentation traceability before scaling new features.
+**Trigger**: ROADMAP — raise branch coverage to 90 % with documentation traceability before scaling new features (originally framed against a 44 % line-coverage entry point; rescaled at Phase 1 to start from the actual 80.48 % branch baseline measured on `feat/test-coverage`).
 
 ## Changelog
 
@@ -29,7 +29,7 @@
 
 ### 1.1 Goals
 
-- Raise unit + integration **branch** coverage from the rebaselined value to 90 %, enforced in CI.
+- Raise unit + integration **branch** coverage from the rebaselined value (80 %) to 90 %, enforced in CI.
 - Every integration test under `tests/integration/test_design_*.py` traces to a documented behavior in a `DESIGN.md` or reference doc via stable docstring markers.
 - Per-feature JSON map files at `tests/feature_map/<codename>.json` — eliminates merge conflicts.
 - Two scripts: `scripts/update_feature_map.py` (scan + regenerate) and `scripts/audit_design_coverage.py` (orphan section detection, both directions).
@@ -55,7 +55,7 @@
 | `make test-cov`                                          | green at the current `fail_under`, branch coverage on                                                     |
 | `make check` (lint + test-cov + module-size + typed-api) | green                                                                                                     |
 | `make lint`                                              | green (ruff + mypy)                                                                                       |
-| `python3 scripts/audit_design_coverage.py --strict`      | green at end of cycle 6 (post-`fail_under = 80`)                                                          |
+| `python3 scripts/audit_design_coverage.py --strict`      | green from Phase 8 onward (`design-gaps` job promoted to hard error in `bed40c8`)                         |
 | Final `fail_under`                                       | 90                                                                                                        |
 | Threshold ratchet                                        | monotonic; CI rejects PRs that lower `fail_under`                                                         |
 | Scripts test coverage                                    | `tests/unit/test_update_feature_map.py` + `tests/unit/test_audit_design_coverage.py` cover the algorithms |
@@ -141,16 +141,16 @@ Default rule: codename is the directory name immediately following `features/` i
 
 Reference docs are mapped through an explicit override table (canonical source: `scripts/_codename_overrides.py`):
 
-| Reference doc                           | Codename       |
-| --------------------------------------- | -------------- |
-| `docs/reference/scraping.md`            | `scraper`      |
-| `docs/reference/storage.md`             | `dispatch`     |
-| `docs/reference/pipeline-internals.md`  | `pipeline`     |
-| `docs/reference/trailers.md`            | `trailers`     |
-| `docs/reference/indexer.md`             | `indexer`      |
-| `docs/reference/indexer-json-shapes.md` | `indexer`      |
-| `docs/reference/architecture.md`        | `architecture` |
-| `docs/reference/<provider>-api.md`      | `<provider>`   |
+| Reference doc                           | Codename              |
+| --------------------------------------- | --------------------- |
+| `docs/reference/scraping.md`            | `scraper`             |
+| `docs/reference/storage.md`             | `dispatch`            |
+| `docs/reference/pipeline-internals.md`  | `pipeline`            |
+| `docs/reference/trailers.md`            | `trailers`            |
+| `docs/reference/indexer.md`             | `indexer`             |
+| `docs/reference/indexer-json-shapes.md` | `indexer-json-shapes` |
+| `docs/reference/architecture.md`        | `architecture`        |
+| `docs/reference/<provider>-api.md`      | `<provider>`          |
 
 Collision policy: if two design docs would resolve to the same codename, the script logs an error and exits non-zero. The override table is the disambiguator.
 
@@ -172,25 +172,51 @@ Files use the `.json` extension and standard JSON content. JSON5 was considered 
   "skip_audit": [
     {
       "anchor": "purpose",
+      "category": "documentation_only",
       "reason": "Non-functional content (intent statement).",
-      "expires": "2027-05-08"
+      "expires": "2028-05-08"
     },
     {
-      "anchor": "non-goals",
-      "reason": "Non-functional content (scope exclusion).",
-      "expires": "2027-05-08"
+      "anchor": "tv-merge-on-rename",
+      "category": "deferred_promotion",
+      "reason": "Behavior planned for follow-up — TV merge keys on (season, episode), see _tv.purge_episode_conflicts.",
+      "expires": "2026-11-08"
     }
   ]
 }
 ```
 
-`skip_audit` entries are objects with `anchor`, `reason` (mandatory, free-form), and `expires` (ISO date, required). `audit_design_coverage.py` warns on entries past their `expires` date — forces periodic re-evaluation. A `--strict-skip` mode (post-90 %) promotes that warning to an error.
+`skip_audit` entries are objects with four fields:
+
+| Field      | Required | Meaning                                                                         |
+| ---------- | -------- | ------------------------------------------------------------------------------- |
+| `anchor`   | yes      | GitHub-style anchor of the design section being waived.                         |
+| `category` | yes      | One of `documentation_only` or `deferred_promotion` (see below).                |
+| `reason`   | yes      | Free-form explanation. Should justify the chosen `category`.                    |
+| `expires`  | yes      | ISO date after which the audit emits a warning (or error with `--strict-skip`). |
+
+Categories:
+
+- **`documentation_only`** — the section is reference / ops / intent / glossary content with no closed behavioral contract. These have a long expiry (typically two years) because we don't expect to ever promote them to a contract test; the expiry exists so a maintenance pass periodically re-confirms the section hasn't drifted into something that _can_ be pinned.
+- **`deferred_promotion`** — the section describes behavior that should eventually be pinned by a contract test, but the test hasn't been written yet. Expiry is tighter (six months) so the entry resurfaces and forces either promotion or formal re-waiving.
+
+`audit_design_coverage.py` warns on entries past their `expires` date — forces periodic re-evaluation. A `--strict-skip` mode (post-90 %) promotes that warning to an error.
 
 ### 3.4 Pillar 4 — Staged Coverage Thresholds (Monotonic Ratchet)
 
 `fail_under` in `pyproject.toml` lowered to the rebaselined value, then bumped progressively. Branch coverage is enabled from the start so we don't need to re-baseline later.
 
-Progression: `baseline → 50 → 60 → 70 → 80 → 85 → 90`.
+Progression: `baseline (80) → 82 → 85 → 87 → 90`.
+
+> **Baseline note (2026-05-08).** The original DESIGN assumed a ~44 % line-coverage
+> entry point. Actual measured _branch_ coverage on `feat/test-coverage` (after
+> the api-unify merge) is **80.48 %**, so Phase 1 set `fail_under = 80`. The
+> ratchet was rescaled to `80 → 82 → 85 → 87 → 90` and the bumps were assigned
+> to the cycles that ship the most new tests (scraper / dispatch+verify /
+> trailers / indexer). Phase 5 (api-unify) keeps its role as the marker-format
+> bootstrap and does **not** bump the threshold; Phase 10 (cleanup) remains at
+> 90 for audit + skip_audit review. The `design-gaps` promotion still happens
+> at the cycle-4 boundary (Phase 8 — trailers).
 
 **Monotonic enforcement.** A CI job `coverage-monotonic` reads `fail_under` from `pyproject.toml` on the PR's HEAD and from `main`, and fails if HEAD `<` main. Prevents accidental revert regressions and a malicious / mistaken PR that lowers the gate.
 
@@ -274,7 +300,7 @@ Initially `continue-on-error: true`. **Promoted to hard error** in cycle 4 (trai
 1. One test = one contract clause. 3 clauses → 3 tests.
 2. Test name encodes behavior, not section number. `test_circuit_breaker_opens_after_3_failures`, NOT `test_s3_2_1`.
 3. Mandatory `Design:` and `Contract:` markers in the **function** docstring.
-4. Prefer integration tier with mocked external services (mock_api_server, dependency injection). Contracts that _require_ live services live in `tests/e2e/` and are excluded from the `fail_under` gate.
+4. Prefer integration tier with mocked external services (mock*api_server, dependency injection). Contracts that \_require* live services live in `tests/e2e/` and are excluded from the `fail_under` gate.
 
 ### 6.3 Test quality criteria
 
@@ -384,6 +410,12 @@ When a new design-contract test overlaps with an existing legacy test, both are 
 - **Q1** — Should diff-coverage be enabled in cycle 4 or earlier? Defer to the cycle-4 gate review.
 - **Q2** — Should `make test` (no coverage) keep `-n auto` or unify with `test-cov`? Keep `-n auto` for both — `make test` is the fast feedback loop and gets no coverage overhead.
 - **Q3** — Is 90 % the right end target or should we stop at 85 %? Decide post-cycle-5 with measured data.
+
+### Retrospective answers (Phase 11, 2026-05-08)
+
+- **Q1 (diff-coverage timing)**: planned for Phase 8. The infrastructure PR ships the `coverage-monotonic` job and a strict `design-gaps` job; the codecov diff-patch step is left as a follow-up because it depends on `CODECOV_TOKEN` being verified in repo settings (Phase 2 task).
+- **Q2 (`-n auto` for `make test`)**: kept `-n auto` for both `test` and `test-cov`. `pytest-cov` handles per-worker `.coverage.<id>` files via `concurrency = ["multiprocessing"]`; the parallel-mode merge is automatic at session end. No data race observed.
+- **Q3 (90 % vs 85 % end target)**: **90 % chosen and shipped**. The cycle-by-cycle bumps `80 → 82 → 85 → 87 → 90` planned for Phases 6–9 were consolidated into a single end-of-feature ratchet bump (`71c8926` — "apply ratchet 80→90 — final gate, target reached"). Measured branch coverage at the final gate is 91 %, so the gate sits at 90 % with ~1 % headroom. The post-cycle-5 measurement that this question deferred to is therefore the final ratchet: the data clearly cleared 85 % well before the last cycle, so the original 90 % target was kept.
 
 ## 11. Owner & Maintenance
 

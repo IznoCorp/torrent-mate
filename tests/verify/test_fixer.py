@@ -199,3 +199,133 @@ class TestFixThenRecheck:
         checks2 = checker.check_movie(empty_dir)
         video_check = next(r for r in checks2 if r.name == "video_present")
         assert not video_check.passed
+
+
+# ---------------------------------------------------------------------------
+# Edge cases — missing-branch coverage
+# ---------------------------------------------------------------------------
+
+
+class TestFixerEdgeCases:
+    """Edge-case branches in MediaFixer (parse errors, missing data, OS errors)."""
+
+    def test_no_dir_naming_check_no_action(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """fix_tvshow returns [] when checks list contains no failing dir_naming entry."""
+        d = tmp_path / "show"
+        d.mkdir()
+        checks = [
+            CheckResult("other_check", False, Severity.ERROR, "x", fixable=True),
+        ]
+        assert fixer.fix_tvshow(d, checks) == []
+
+    def test_tvshow_nfo_parse_error(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """Malformed tvshow.nfo: ET.ParseError → no action."""
+        d = tmp_path / "show"
+        d.mkdir()
+        (d / "tvshow.nfo").write_text("<<<not xml>>>")
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_tvshow(d, checks)
+        assert actions == []
+
+    def test_movie_nfo_empty_title(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """NFO with empty title returns no action (title required)."""
+        d = tmp_path / "bad"
+        d.mkdir()
+        root = ET.Element("movie")
+        ET.SubElement(root, "title").text = ""
+        ET.SubElement(root, "year").text = "2024"
+        ET.ElementTree(root).write(d / "movie.nfo", encoding="unicode")
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_movie(d, checks)
+        assert actions == []
+
+    def test_movie_nfo_no_year_uses_title_only(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """NFO with no year produces canonical = title (no year suffix)."""
+        d = tmp_path / "bad"
+        d.mkdir()
+        root = ET.Element("movie")
+        ET.SubElement(root, "title").text = "Movie No Year"
+        # No year sub-element
+        ET.ElementTree(root).write(d / "movie.nfo", encoding="unicode")
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_movie(d, checks)
+        assert len(actions) == 1
+        assert actions[0].new_path is not None
+        assert actions[0].new_path.name == "Movie No Year"
+
+    def test_movie_already_canonical(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """If media_dir.name already equals canonical, no rename is needed."""
+        d = tmp_path / "Movie (2024)"
+        d.mkdir()
+        root = ET.Element("movie")
+        ET.SubElement(root, "title").text = "Movie"
+        ET.SubElement(root, "year").text = "2024"
+        ET.ElementTree(root).write(d / "movie.nfo", encoding="unicode")
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_movie(d, checks)
+        assert actions == []
+
+    def test_movie_target_already_exists(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """If new_dir already exists, the fix is aborted."""
+        d = tmp_path / "old.name"
+        d.mkdir()
+        root = ET.Element("movie")
+        ET.SubElement(root, "title").text = "Movie"
+        ET.SubElement(root, "year").text = "2024"
+        ET.ElementTree(root).write(d / "movie.nfo", encoding="unicode")
+
+        # Create the target before the fix attempt
+        (tmp_path / "Movie (2024)").mkdir()
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_movie(d, checks)
+        assert actions == []
+
+    def test_movie_rename_oserror(self, fixer: MediaFixer, tmp_path: Path, monkeypatch) -> None:
+        """Rename raises OSError → no action returned, original dir still exists."""
+        d = tmp_path / "bad"
+        d.mkdir()
+        root = ET.Element("movie")
+        ET.SubElement(root, "title").text = "Good"
+        ET.SubElement(root, "year").text = "2024"
+        ET.ElementTree(root).write(d / "movie.nfo", encoding="unicode")
+
+        from pathlib import Path as _Path
+
+        def _bad_rename(self, target):
+            raise OSError("rename denied")
+
+        monkeypatch.setattr(_Path, "rename", _bad_rename)
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_movie(d, checks)
+        assert actions == []
+        assert d.exists()
+
+    def test_tvshow_nfo_missing_returns_none(self, fixer: MediaFixer, tmp_path: Path) -> None:
+        """TV show without tvshow.nfo: no action."""
+        d = tmp_path / "Show"
+        d.mkdir()
+        # No tvshow.nfo file written
+
+        checks = [
+            CheckResult("dir_naming", False, Severity.ERROR, "bad", fixable=True),
+        ]
+        actions = fixer.fix_tvshow(d, checks)
+        assert actions == []

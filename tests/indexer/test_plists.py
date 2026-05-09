@@ -7,11 +7,11 @@ Two levels of validation:
    ``StandardOutPath``, ``StandardErrorPath``, ``StartCalendarInterval``).
    Runs on every CI platform.
 
-2. **macOS smoke** (``@pytest.mark.darwin_only``): calls
+2. **macOS smoke** (``@pytest.mark.darwin_only`` + ``@pytest.mark.slow``): calls
    ``launchctl bootstrap gui/<uid> <plist>`` then
    ``launchctl bootout gui/<uid> <plist>`` to verify the plist is accepted by
-   the running launchd.  Skipped automatically on Linux/Windows runners
-   via :func:`tests.conftest.pytest_collection_modifyitems`.
+   the running launchd.  Excluded from the default coverage gate because
+   ``launchctl bootstrap`` depends on the active macOS user session state.
 
 Test strategy:
     All static tests are parametrised over the three plist paths so that adding
@@ -223,6 +223,7 @@ def test_rotate_shell_wrapper_references_correct_modes() -> None:
 
 
 @pytest.mark.darwin_only
+@pytest.mark.slow
 @pytest.mark.parametrize("plist_path", PLIST_PATHS)
 def test_plist_launchctl_bootstrap_and_bootout(plist_path: Path, tmp_path: Path) -> None:
     """Smoke test: launchctl bootstrap + bootout must succeed on macOS.

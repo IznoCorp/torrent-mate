@@ -130,12 +130,17 @@ reportMissingTypeStubs = "none"
 [tool.coverage.run]
 source = ["personalscraper"]
 omit = ["personalscraper/__main__.py"]
+branch = true
+parallel = true
+concurrency = ["multiprocessing"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 90
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.",
+    "@overload",
+    "raise NotImplementedError",
 ]

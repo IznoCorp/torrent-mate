@@ -1,0 +1,102 @@
+{
+  "feature": "dispatch",
+  "design": "docs/reference/storage.md",
+  "sections": {
+    "move-rules-dispatch": {
+      "tests": [
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_restores_original_when_swap_fails_mid_way",
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_rolls_back_when_rsync_transfer_fails",
+        "tests/integration/test_design_dispatch.py::TestMovieReplaceContract::test_replace_swaps_destination_atomically",
+        "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_most_free_eligible",
+        "tests/integration/test_design_dispatch.py::TestNewMediaDiskSelectionContract::test_pick_disk_for_returns_none_when_no_disk_eligible",
+        "tests/integration/test_design_dispatch.py::TestTvShowMergeContract::test_purge_resolves_episode_conflicts_on_season_episode_key"
+      ]
+    }
+  },
+  "skip_audit": [
+    {
+      "anchor": "24-tb-operations-guide",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "budget-planning",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "cold-rebuild-rotation",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "disk-space-threshold",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "indexer-cold-rebuild-playbook",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "manual-path-if---rebuild-itself-fails",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "ntfs-via-macfuse-constraints",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "paths",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "per-disk-cold-rebuild-disk-replaced-or-uuid-changed",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "quick-path--use---rebuild",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "recommended-mount-flags-for-ntfs-via-macfuse",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "recovery-timing",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "storage-disks",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    },
+    {
+      "anchor": "storage-reference",
+      "category": "documentation_only",
+      "reason": "Bootstrapped during test-coverage Phase 7 — section is reference/ops material (mount flags, disk-space tables, ops playbooks) rather than a behavior reachable from a public function. Promote to a contract test if a regression surfaces.",
+      "expires": "2028-05-08"
+    }
+  ]
+}

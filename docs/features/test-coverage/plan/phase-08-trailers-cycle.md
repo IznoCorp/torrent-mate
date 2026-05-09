@@ -1,13 +1,13 @@
-# Phase 8 — Trailers cycle → `fail_under = 80` + promote `design-gaps` to hard error + diff-coverage
+# Phase 8 — Trailers cycle → `fail_under = 87` + promote `design-gaps` to hard error + diff-coverage
 
 **Type**: cycle
 **Effort**: L (~1.5 day) — worst-covered feature, three explicit promotion tasks at the end.
-**Entry**: Phase 7 done. `fail_under = 70`. CI green.
+**Entry**: Phase 7 done. `fail_under = 85`. CI green.
 **Exit**:
 
-- Coverage of `personalscraper/trailers/` lifts global to ≥ 80.
+- Coverage of `personalscraper/trailers/` lifts global to ≥ 87.
 - Design-contract tests for `docs/reference/trailers.md` (codename: `trailers`) and `docs/archive/features/trailer/DESIGN.md` (codename: `trailer`).
-- `fail_under` bumped 70 → 80.
+- `fail_under` bumped 85 → 87.
 - **`design-gaps` CI job promoted from `continue-on-error: true` to hard error.**
 - **diff-coverage gate enabled in CI** (codecov patch %, threshold 80).
 - `audit_design_coverage.py` orphan severity escalated from Warning to Error in the audit report.
@@ -34,14 +34,14 @@ Worst coverage in the codebase. Modules that are 0-30 %:
 
 Contract tests + unit tests + module by module. Trailers has rich behavior (state lifecycle, placement rules) — favor integration-tier tests with a fake `yt-dlp` shim.
 
-## Task 8.A — Bump `fail_under` to 80
+## Task 8.A — Bump `fail_under` to 87
 
-- [ ] `make test-cov` ≥ 80.
-- [ ] Edit `pyproject.toml`: `fail_under = 80`.
+- [ ] `make test-cov` ≥ 87.
+- [ ] Edit `pyproject.toml`: `fail_under = 87`.
 - [ ] Commit:
 
 ```
-chore(test-coverage): cycle 4 — trailers, bump fail_under to 80
+chore(test-coverage): cycle 4 — trailers, bump fail_under to 87
 ```
 
 ## Task 8.B — Promote `design-gaps` job to hard error
@@ -54,7 +54,7 @@ chore(test-coverage): cycle 4 — trailers, bump fail_under to 80
 - [ ] Commit:
 
 ```
-ci(test-coverage): promote design-gaps to hard error (post-fail_under=80)
+ci(test-coverage): promote design-gaps to hard error (post-fail_under=87)
 ```
 
 ## Task 8.C — Enable diff-coverage gate
@@ -83,12 +83,12 @@ ci(test-coverage): enable diff-coverage gate (80% on changed lines)
 
 ## Task 8.D — Phase 8 gate
 
-- [ ] `make check` green at 80.
+- [ ] `make check` green at 87.
 - [ ] `audit_design_coverage.py --strict` exits 0 globally (only `skip_audit` entries remain).
 - [ ] Map `--check` clean.
 - [ ] CI on the gate PR shows: monotonic ✓, design-gaps ✓ (now hard), diff-coverage ✓.
 - [ ] Milestone commit:
 
 ```
-chore(test-coverage): phase 8 gate — trailers + design-gaps hard + diff-cov (fail_under=80)
+chore(test-coverage): phase 8 gate — trailers + design-gaps hard + diff-cov (fail_under=87)
 ```

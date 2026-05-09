@@ -1,9 +1,21 @@
-"""Media indexer sub-system config models."""
+"""Media indexer sub-system config models.
+
+Defines pydantic models for the indexer block of ``config.json5``: scan-engine
+tunables, drift-detection thresholds, Spotlight integration, audit-table
+retention and the SQLite ``db_path``. All defaults match the reference
+``indexer.json5`` from DESIGN §5.3.
+
+The ``IndexerConfig._reject_external_mount`` validator resolves a relative
+``db_path`` against the project root (set by :func:`personalscraper.conf.loader.load_config_dir`)
+rather than CWD, so the indexer database lands in the same location regardless
+of where ``personalscraper`` is invoked from.
+"""
 
 from pathlib import Path
 
 from pydantic import Field, field_validator
 
+from personalscraper.conf.models import paths as _paths_model
 from personalscraper.conf.models._base import _StrictModel
 
 
@@ -144,8 +156,8 @@ class IndexerConfig(_StrictModel):
         Two invariants enforced here:
 
         1. **Absolute path.** Relative ``db_path`` values are resolved against
-           the current working directory at load-time so every consumer sees
-           the same path regardless of where ``personalscraper`` is invoked
+           the project root (config_dir.parent) at load-time so every consumer
+           sees the same path regardless of where ``personalscraper`` is invoked
            from.
         2. **No external mount.** SQLite WAL mode is unreliable on macFUSE-NTFS
            and network mounts. The database must live on the internal APFS
@@ -165,7 +177,13 @@ class IndexerConfig(_StrictModel):
             return v
         resolved = v.expanduser()
         if not resolved.is_absolute():
-            resolved = (Path.cwd() / resolved).resolve()
+            # Read at call time via module attribute so the value mutated by
+            # ``load_config_dir`` is honoured (a ``from … import _PROJECT_ROOT``
+            # would value-bind the original ``None`` and silently fall back to
+            # CWD).
+            project_root = _paths_model._PROJECT_ROOT
+            base = project_root if project_root is not None else Path.cwd()
+            resolved = (base / resolved).resolve()
         if str(resolved).startswith("/Volumes/"):
             raise ValueError(
                 f"db_path '{v}' resolves under /Volumes/ which indicates an external or macFUSE mount. "

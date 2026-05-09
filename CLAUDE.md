@@ -19,6 +19,19 @@ See `docs/reference/architecture.md` for the module map and package layout.
 All storage paths, staging layout, and category names are in the `config/` directory.
 Run `personalscraper init-config` to create `config/` from the `config.example/` template.
 
+## Setup (per clone)
+
+```bash
+pip install -e ".[dev]"
+./hooks/install.sh   # one-time per clone — sets core.hooksPath to hooks/
+```
+
+`hooks/install.sh` is idempotent and only configures `core.hooksPath` for this
+clone (writes to `.git/config`, never to `~/.gitconfig`). The pre-commit hook
+regenerates `tests/feature_map/<codename>.json` whenever a `test_design_*.py`
+file is staged. CI catches drift via `update_feature_map.py --check` if the
+hook is bypassed (`--no-verify`).
+
 ## Critical Rules
 
 ### Search Safety (MANDATORY — machine crash prevention)
@@ -199,7 +212,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: api-unify
-**Branch**: feat/api-unify
-**Design**: docs/features/api-unify/DESIGN.md
-**Plan**: docs/features/api-unify/plan/
+**Feature**: test-coverage
+**Branch**: feat/test-coverage
+**Design**: docs/features/test-coverage/DESIGN.md
+**Plan**: docs/features/test-coverage/plan/
