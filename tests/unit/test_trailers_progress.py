@@ -28,8 +28,13 @@ class TestTrailersProgress:
     @patch("personalscraper.trailers.orchestrator.TrailersOrchestrator")
     def test_emits_per_item_from_orchestrator(self, _orch) -> None:
         """Per-item results from orchestrator are emitted as progress events."""
-        _orch.return_value.run.return_value = {"downloaded": 1, "already_present": 0,
-                                                 "skipped_by_state": 0, "error": 0, "bot_detected": 0}
+        _orch.return_value.run.return_value = {
+            "downloaded": 1,
+            "already_present": 0,
+            "skipped_by_state": 0,
+            "error": 0,
+            "bot_detected": 0,
+        }
         _orch.return_value.failed_items = []
         _orch.return_value.item_results = [("/tmp/Inception (2010)", "downloaded", "downloaded")]
 

@@ -57,11 +57,12 @@ class TestIngestProgress:
                 with patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True):
                     run_ingest(settings, dry_run=True, config=config, observers=(collector,))
 
-
     def test_step_event_structure(self) -> None:
         """StepEvent fields are coherent."""
         event = StepEvent(
-            step="ingest", item="Some.Torrent.2024.1080p", status="copied",
+            step="ingest",
+            item="Some.Torrent.2024.1080p",
+            status="copied",
             details={"action": "copied", "dest": "/tmp/dest"},
         )
         assert event.step == "ingest"
