@@ -173,6 +173,17 @@ def run_dispatch(
                             details={"reason": r.reason or ""},
                         ),
                     )
+                else:
+                    # error or unknown action
+                    notify_progress(
+                        observers,
+                        StepEvent(
+                            step="dispatch",
+                            item=r.source.name,
+                            status="failed",
+                            details={"action": r.action, "reason": r.reason or ""},
+                        ),
+                    )
 
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately

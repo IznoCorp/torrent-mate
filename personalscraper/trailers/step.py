@@ -111,6 +111,30 @@ def run_trailers(
         skip_count = counts.get("already_present", 0) + counts.get("skipped_by_state", 0)
         error_count = counts.get("error", 0) + counts.get("bot_detected", 0)
 
+        # Emit completion events for failed items (per-item detail available)
+        for item_id, reason, detail in failed_items:
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="trailers",
+                    item=str(item_id),
+                    status="failed",
+                    details={"reason": reason, "detail": detail},
+                ),
+            )
+
+        # Emit aggregate completion events based on counts
+        for _ in range(success_count):
+            notify_progress(
+                observers,
+                StepEvent(step="trailers", item="(item)", status="downloaded"),
+            )
+        for _ in range(counts.get("bot_detected", 0)):
+            notify_progress(
+                observers,
+                StepEvent(step="trailers", item="(item)", status="bot_detected"),
+            )
+
         # Partial: some items succeeded but at least one failed or was bot-detected.
         # Success: all items processed cleanly (errors=0 and no failed_items list).
         if error_count > 0 or failed_items:

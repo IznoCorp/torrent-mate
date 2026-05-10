@@ -170,6 +170,15 @@ def run_clean(
             clean_report.error_count += dedup_failed
             clean_report.warnings.append(f"Dedup: {dedup_failed} merge(s) failed in {category_dir.name}")
 
+        notify_progress(
+            observers,
+            StepEvent(
+                step="clean",
+                item=str(category_dir.name),
+                status="cleaned",
+            ),
+        )
+
     log.info(
         "process_clean_complete",
         recleaned=clean_report.success_count,
@@ -215,6 +224,15 @@ def run_cleanup(
         cat_report = cleanup_empty_dirs(category_dir, dry_run=dry_run)
         cleanup_report.success_count += cat_report.success_count
         cleanup_report.details.extend(cat_report.details)
+        notify_progress(
+            observers,
+            StepEvent(
+                step="cleanup",
+                item=str(category_dir.name),
+                status="completed",
+                details={"removed": cat_report.success_count},
+            ),
+        )
 
     log.info("process_cleanup_complete", removed=cleanup_report.success_count)
     return cleanup_report

@@ -358,6 +358,11 @@ def run_ingest(
                                 dest_path=dest_str,
                             )
                             report.warnings.append(warning_msg)
+                        notify_progress(
+                            observers,
+                            StepEvent(step="ingest", item=name, status="skipped",
+                                      details={"reason": "already_ingested"}),
+                        )
                         continue
 
                     # Skip torrents that have not yet reached the minimum ratio threshold.
@@ -382,6 +387,11 @@ def run_ingest(
                             min_ratio=config.ingest.min_ratio,
                         )
                         report.skip_count += 1
+                        notify_progress(
+                            observers,
+                            StepEvent(step="ingest", item=name, status="skipped",
+                                      details={"reason": "ratio_below_threshold"}),
+                        )
                         continue
 
                     # Resolve content path — if missing, check if already in staging
@@ -410,11 +420,21 @@ def run_ingest(
                                 dest_path=str(staging_dest),
                             )
                             report.skip_count += 1
+                            notify_progress(
+                                observers,
+                                StepEvent(step="ingest", item=name, status="skipped",
+                                          details={"reason": "found_in_staging"}),
+                            )
                         else:
                             log.warning("content_missing", name=name, path=str(source))
                             content_missing_count += 1
                             report.skip_count += 1
                             report.warnings.append(f"{name}: content path missing ({source})")
+                            notify_progress(
+                                observers,
+                                StepEvent(step="ingest", item=name, status="failed",
+                                          details={"error": "content_missing"}),
+                            )
                         continue
 
                     # Destination in {ingest_dir}/ (sort picks up from here)
@@ -424,6 +444,11 @@ def run_ingest(
                         report.skip_count += 1
                         # Still mark as ingested to avoid re-checking
                         tracker.mark_ingested(torrent_hash, name, "skipped_exists", dest_path=str(dest))
+                        notify_progress(
+                            observers,
+                            StepEvent(step="ingest", item=name, status="skipped",
+                                      details={"reason": "already_exists"}),
+                        )
                         continue
 
                     # Check disk space
@@ -433,6 +458,11 @@ def run_ingest(
                         log.warning("insufficient_space", name=name, size_mb=source_size // (1024 * 1024))
                         report.skip_count += 1
                         report.warnings.append(f"{name}: insufficient disk space")
+                        notify_progress(
+                            observers,
+                            StepEvent(step="ingest", item=name, status="skipped",
+                                      details={"reason": "insufficient_space"}),
+                        )
                         continue
 
                     # Transfer
@@ -479,6 +509,15 @@ def run_ingest(
                     )
                     report.error_count += 1
                     report.details.append(f"{name}: {type(torrent_err).__name__}: {torrent_err}")
+                    notify_progress(
+                        observers,
+                        StepEvent(
+                            step="ingest",
+                            item=name,
+                            status="failed",
+                            details={"error": str(torrent_err)},
+                        ),
+                    )
 
                     # Abort on 2 consecutive identical errors (systemic failure)
                     err_key = type(torrent_err).__name__
