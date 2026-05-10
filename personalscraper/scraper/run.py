@@ -143,7 +143,6 @@ def run_scrape(
     interactive: bool = False,
     movies_only: bool = False,
     tvshows_only: bool = False,
-
     observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the scrape pipeline step.
@@ -288,4 +287,3 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
         counts=counts,
         unmatched_paths=unmatched_paths,
     )
-

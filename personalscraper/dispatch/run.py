@@ -292,4 +292,3 @@ def _to_step_report(results: list[DispatchResult]) -> StepReport:
         warnings=warnings,
         details=details,
     )
-

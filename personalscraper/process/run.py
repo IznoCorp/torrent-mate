@@ -285,4 +285,3 @@ def run_process(
         )
 
     return clean_report, scrape_report, cleanup_report
-

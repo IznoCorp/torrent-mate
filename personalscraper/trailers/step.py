@@ -25,7 +25,6 @@ def run_trailers(
     staging_dir: Path,
     verified: list[Any],
     skip_trailers: bool = False,
-
     observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
@@ -164,4 +163,3 @@ def run_trailers(
             error_type=type(exc).__name__,
         )
         return StepReport(name="trailers", error_count=1, status="error")
-

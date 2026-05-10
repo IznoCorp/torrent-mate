@@ -58,8 +58,7 @@ def main() -> int:
     for key in ("tool", "coverage", "report", "fail_under"):
         if not isinstance(cursor, dict) or key not in cursor:
             print(
-                f"error: {'.'.join(walked) or '<root>'} has no '{key}' "
-                f"(looking for [tool.coverage.report].fail_under)",
+                f"error: {'.'.join(walked) or '<root>'} has no '{key}' (looking for [tool.coverage.report].fail_under)",
                 file=sys.stderr,
             )
             return 1

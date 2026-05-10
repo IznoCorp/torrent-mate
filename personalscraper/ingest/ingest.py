@@ -526,4 +526,3 @@ def run_ingest(
         dry_run=dry_run,
     )
     return report
-

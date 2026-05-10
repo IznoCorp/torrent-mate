@@ -109,4 +109,3 @@ def run_enforce(
         warnings=warnings_list,
         details=details,
     )
-

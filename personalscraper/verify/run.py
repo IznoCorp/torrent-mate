@@ -51,7 +51,6 @@ def run_verify(
     fix: bool = True,
     movies_only: bool = False,
     tvshows_only: bool = False,
-
     observers: tuple[PipelineObserver, ...] = (),
 ) -> tuple[StepReport, list[VerifyResult]]:
     """Run the verify pipeline step.
@@ -139,4 +138,3 @@ def _to_step_report(results: list[VerifyResult]) -> StepReport:
         warnings=warnings,
         details=details,
     )
-

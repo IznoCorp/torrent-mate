@@ -145,4 +145,3 @@ def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config) -> 
             remaining_count=len(remaining),
         )
     return remaining
-
