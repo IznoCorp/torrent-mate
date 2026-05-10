@@ -55,7 +55,7 @@ def run_enforce(
             observers,
             StepEvent(
                 step="enforce",
-                item=sanitize_result.old_name,
+                item=sanitize_result.old_name or "",
                 status="started",
             ),
         )
@@ -69,7 +69,7 @@ def run_enforce(
                 observers,
                 StepEvent(
                     step="enforce",
-                    item=sanitize_result.old_name,
+                    item=sanitize_result.old_name or "",
                     status="fixed",
                     details={
                         "action": sanitize_result.action,
@@ -88,7 +88,7 @@ def run_enforce(
                 observers,
                 StepEvent(
                     step="enforce",
-                    item=sanitize_result.old_name,
+                    item=sanitize_result.old_name or "",
                     status="skipped",
                 ),
             )
