@@ -24,7 +24,14 @@ from personalscraper.sorter.sorter import Sorter
 log = get_logger("sorter.run")
 
 
-def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
+def run_sort(
+    settings: Settings,
+    staging_dir: Path,
+    config: Config,
+    dry_run: bool = False,
+    *,
+    observers: tuple[PipelineObserver, ...] = (),
+) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
     Instantiates NameCleaner and Sorter, processes the ingest directory
@@ -38,6 +45,8 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
         staging_dir: Absolute path to the staging area (from Config.paths).
         config: Loaded Config instance (required) for staging_dirs and path resolution.
         dry_run: If True, simulate moves without actually moving.
+        observers: Tuple of pipeline observers for per-item progress
+            notifications.
 
     Returns:
         StepReport with counts and per-item details.
@@ -136,3 +145,4 @@ def assert_temp_empty(settings: Settings, staging_dir: Path, config: Config) -> 
             remaining_count=len(remaining),
         )
     return remaining
+

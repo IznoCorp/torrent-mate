@@ -273,6 +273,9 @@ def run_ingest(
             ``config.paths.staging_dir``.
         config: Loaded Config instance (required) for staging dir name resolution.
 
+
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+
     Returns:
         StepReport with success/skip/error counts and details.
     """
@@ -523,3 +526,4 @@ def run_ingest(
         dry_run=dry_run,
     )
     return report
+

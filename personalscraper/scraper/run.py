@@ -162,6 +162,9 @@ def run_scrape(
         movies_only: If True, process only {movies_dir}/.
         tvshows_only: If True, process only {tvshows_dir}/.
 
+
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+
     Returns:
         StepReport with success/skip/error counts and details.
     """
@@ -285,3 +288,4 @@ def _to_step_report(results: list[ScrapeResult]) -> StepReport:
         counts=counts,
         unmatched_paths=unmatched_paths,
     )
+

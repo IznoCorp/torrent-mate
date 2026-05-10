@@ -65,6 +65,9 @@ def run_verify(
         movies_only: Process only {movies_dir}/.
         tvshows_only: Process only {tvshows_dir}/.
 
+
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+
     Returns:
         Tuple of (StepReport, dispatchable VerifyResult list).
     """
@@ -136,3 +139,4 @@ def _to_step_report(results: list[VerifyResult]) -> StepReport:
         warnings=warnings,
         details=details,
     )
+

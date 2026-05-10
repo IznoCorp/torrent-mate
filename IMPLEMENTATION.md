@@ -18,12 +18,12 @@
 | 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [x]    |
 | 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [x]    |
 | 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [x]    |
-| 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [ ]    |
-| 5   | CLI wiring                                          | wire  | [phase-05-cli-wiring.md](docs/features/pipeline-obs/plan/phase-05-cli-wiring.md)                         | [ ]    |
-| 6   | Step integration — ingest + sort                    | steps | [phase-06-ingest-sort.md](docs/features/pipeline-obs/plan/phase-06-ingest-sort.md)                       | [ ]    |
-| 7   | Step integration — process + scrape                 | steps | [phase-07-process-scrape.md](docs/features/pipeline-obs/plan/phase-07-process-scrape.md)                 | [ ]    |
-| 8   | Step integration — enforce + verify                 | steps | [phase-08-enforce-verify.md](docs/features/pipeline-obs/plan/phase-08-enforce-verify.md)                 | [ ]    |
-| 9   | Step integration — trailers + dispatch + final gate | steps | [phase-09-trailers-dispatch-gate.md](docs/features/pipeline-obs/plan/phase-09-trailers-dispatch-gate.md) | [ ]    |
+| 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [x]    |
+| 5   | CLI wiring                                          | wire  | [phase-05-cli-wiring.md](docs/features/pipeline-obs/plan/phase-05-cli-wiring.md)                         | [x]    |
+| 6   | Step integration — ingest + sort                    | steps | [phase-06-ingest-sort.md](docs/features/pipeline-obs/plan/phase-06-ingest-sort.md)                       | [x]    |
+| 7   | Step integration — process + scrape                 | steps | [phase-07-process-scrape.md](docs/features/pipeline-obs/plan/phase-07-process-scrape.md)                 | [x]    |
+| 8   | Step integration — enforce + verify                 | steps | [phase-08-enforce-verify.md](docs/features/pipeline-obs/plan/phase-08-enforce-verify.md)                 | [x]    |
+| 9   | Step integration — trailers + dispatch + final gate | steps | [phase-09-trailers-dispatch-gate.md](docs/features/pipeline-obs/plan/phase-09-trailers-dispatch-gate.md) | [x]    |
 
 ## Quality gate (every commit)
 
@@ -65,4 +65,4 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 2.
+All phases complete — run `/implement:feature-pr`.

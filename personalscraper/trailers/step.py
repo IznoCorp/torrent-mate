@@ -42,6 +42,9 @@ def run_trailers(
             absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
 
+
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+
     Returns:
         StepReport with name="trailers", status in
         {success, partial, skipped, error}, and counts dict.
@@ -161,3 +164,4 @@ def run_trailers(
             error_type=type(exc).__name__,
         )
         return StepReport(name="trailers", error_count=1, status="error")
+

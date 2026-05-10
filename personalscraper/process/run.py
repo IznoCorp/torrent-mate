@@ -111,7 +111,13 @@ def _revert_unmatched_recleans(
     return reverted
 
 
-def run_clean(settings: Settings, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
+def run_clean(
+    settings: Settings,
+    config: Config,
+    dry_run: bool = False,
+    *,
+    observers: tuple[PipelineObserver, ...] = (),
+) -> StepReport:
     """Run reclean + dedup on all category directories.
 
     Skips reclean when no polluted folder names are found.
@@ -122,6 +128,8 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False, *, obse
         dry_run: If True, preview without modifying files.
         config: Loaded Config for staging dir name resolution.
             Derives movie/tvshow dir names from staging_dirs.
+        observers: Tuple of pipeline observers for progress and lifecycle
+            notifications.
 
     Returns:
         StepReport with combined reclean + dedup counts.
@@ -167,7 +175,13 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False, *, obse
     return clean_report
 
 
-def run_cleanup(settings: Settings, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
+def run_cleanup(
+    settings: Settings,
+    config: Config,
+    dry_run: bool = False,
+    *,
+    observers: tuple[PipelineObserver, ...] = (),
+) -> StepReport:
     """Run empty directory cleanup on all category directories.
 
     Args:
@@ -175,6 +189,8 @@ def run_cleanup(settings: Settings, config: Config, dry_run: bool = False, *, ob
         dry_run: If True, preview without deleting.
         config: Loaded Config for staging dir name resolution.
             Derives movie/tvshow dir names from staging_dirs.
+        observers: Tuple of pipeline observers for progress and lifecycle
+            notifications.
 
     Returns:
         StepReport with cleanup counts.
@@ -213,6 +229,9 @@ def run_process(
         interactive: If True, prompt for ambiguous scrape matches.
         config: Loaded Config passed through to run_clean and run_cleanup
             for staging dir name resolution.
+
+
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:
         Tuple of (clean_report, scrape_report, cleanup_report).
@@ -266,3 +285,4 @@ def run_process(
         )
 
     return clean_report, scrape_report, cleanup_report
+

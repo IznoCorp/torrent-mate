@@ -88,6 +88,9 @@ def run_dispatch(
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
 
+
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+
     Returns:
         StepReport with dispatch counts and details.
     """
@@ -289,3 +292,4 @@ def _to_step_report(results: list[DispatchResult]) -> StepReport:
         warnings=warnings,
         details=details,
     )
+

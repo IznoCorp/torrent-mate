@@ -20,7 +20,13 @@ from personalscraper.pipeline_observer import PipelineObserver
 log = get_logger("enforce.run")
 
 
-def run_enforce(settings: Settings, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
+def run_enforce(
+    settings: Settings,
+    config: Config,
+    dry_run: bool = False,
+    *,
+    observers: tuple[PipelineObserver, ...] = (),
+) -> StepReport:
     """Run the enforce pipeline step.
 
     Executes sanitize → structure → coherence in order.
@@ -29,6 +35,8 @@ def run_enforce(settings: Settings, config: Config, dry_run: bool = False, *, ob
         settings: Pipeline configuration.
         config: Config passed to the coherence checker for classifier rules.
         dry_run: If True, preview without modifying filesystem.
+        observers: Tuple of pipeline observers for progress and lifecycle
+            notifications.
 
     Returns:
         StepReport with enforce counts and details.
@@ -101,3 +109,4 @@ def run_enforce(settings: Settings, config: Config, dry_run: bool = False, *, ob
         warnings=warnings_list,
         details=details,
     )
+
