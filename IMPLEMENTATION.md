@@ -59,10 +59,35 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 | 2.1+2.2   | `59ca770` | RichConsoleObserver + observers pkg   |
 | 2.3       | `2ae0253` | 10 unit tests for RichConsoleObserver |
 
+### Phase 3 — TelegramObserver
+
+| Sub-phase | SHA       | Description              |
+| --------- | --------- | ------------------------ |
+| 3.1+3.2   | `6d28fbc` | TelegramObserver + tests |
+
+### Phase 4 — Pipeline core refactor
+
+| Sub-phase | SHA       | Description                                      |
+| --------- | --------- | ------------------------------------------------ |
+| 4.1-4.4   | `9ad5c57` | StepContext.console→observers, Pipeline refactor |
+
+### Phase 5 — CLI wiring
+
+| Sub-phase | SHA       | Description                                                 |
+| --------- | --------- | ----------------------------------------------------------- |
+| 5.1-5.3   | `12e81a1` | RichConsoleObserver + TelegramObserver wired, Panel removed |
+
+### Phase 6 — Steps: notify_progress + tests
+
+| Sub-phase | SHA       | Description                              |
+| --------- | --------- | ---------------------------------------- |
+| 6.1-6.3   | `2b2456b` | notify_progress in all 9 steps           |
+| 6.4       | `009e734` | 10 progress/headless/observer test files |
+
 ## Review cycles
 
 _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-All phases complete — run `/implement:feature-pr`.
+PR #21 created. Awaiting manual merge.

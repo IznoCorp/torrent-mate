@@ -13,7 +13,7 @@ class TestDispatchProgress:
 
     @patch("personalscraper.dispatch.dispatcher.Dispatcher")
     @patch("personalscraper.dispatch.media_index.MediaIndex")
-    
+
     def test_accepts_observers(self, _disp, _idx) -> None:
         """run_dispatch accepts observers without error."""
         _disp.return_value.process.return_value = []

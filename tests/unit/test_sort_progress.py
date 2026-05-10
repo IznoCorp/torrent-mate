@@ -32,8 +32,7 @@ class TestSortProgress:
 
     def test_emits_progress_per_item(self) -> None:
         """Each sorted item emits started event via CollectorObserver."""
-        from personalscraper.sorter.cleaner import NameCleaner
-        from personalscraper.sorter.sorter import Sorter, SortResult
+        from personalscraper.sorter.sorter import Sorter
 
         collector = CollectorObserver()
         settings = MagicMock()
@@ -60,6 +59,6 @@ class TestSortProgress:
 
         assert report.name == "sort"
         started = [e for e in collector.progress if e.status == "started"]
-        if started: pass  # mock-dependent
+
         if started:
             assert started[0].step == "sort"

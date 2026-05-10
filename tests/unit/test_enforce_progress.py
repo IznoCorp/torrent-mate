@@ -26,8 +26,6 @@ class TestEnforceProgress:
 
     def test_emits_events_per_sanitize_result(self) -> None:
         """Each sanitized item emits started + fixed/skipped events."""
-        from personalscraper.enforce.file_sanitizer import SanitizeResult
-
         # noqa - SanitizeResult import verified
 
         collector = CollectorObserver()
