@@ -10,6 +10,7 @@ from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
@@ -50,6 +51,8 @@ def run_verify(
     fix: bool = True,
     movies_only: bool = False,
     tvshows_only: bool = False,
+
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> tuple[StepReport, list[VerifyResult]]:
     """Run the verify pipeline step.
 

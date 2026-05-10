@@ -16,6 +16,7 @@ from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS, SEASON_DIR_RE
 from personalscraper.nfo_utils import is_nfo_complete as _is_nfo_complete
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.scraper.scraper import Scraper, ScrapeResult, verify_tvshow_scrape_drift
 from personalscraper.sorter.file_type import VIDEO_EXTENSIONS, FileType
 
@@ -142,6 +143,8 @@ def run_scrape(
     interactive: bool = False,
     movies_only: bool = False,
     tvshows_only: bool = False,
+
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the scrape pipeline step.
 

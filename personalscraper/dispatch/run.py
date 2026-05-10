@@ -19,6 +19,7 @@ from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
@@ -76,6 +77,7 @@ def run_dispatch(
     config: "Config",
     dry_run: bool = False,
     verified: list[VerifyResult] | None = None,
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the dispatch pipeline step.
 

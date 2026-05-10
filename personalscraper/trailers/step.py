@@ -15,6 +15,7 @@ from typing import Any
 
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver
 
 logger = get_logger(__name__)
 
@@ -24,6 +25,8 @@ def run_trailers(
     staging_dir: Path,
     verified: list[Any],
     skip_trailers: bool = False,
+
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
 

@@ -15,11 +15,12 @@ from personalscraper.enforce.file_sanitizer import sanitize_files
 from personalscraper.enforce.structure_validator import validate_structure
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver
 
 log = get_logger("enforce.run")
 
 
-def run_enforce(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
+def run_enforce(settings: Settings, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
     """Run the enforce pipeline step.
 
     Executes sanitize → structure → coherence in order.

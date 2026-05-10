@@ -14,6 +14,7 @@ from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("process.run")
@@ -110,7 +111,7 @@ def _revert_unmatched_recleans(
     return reverted
 
 
-def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
+def run_clean(settings: Settings, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
     """Run reclean + dedup on all category directories.
 
     Skips reclean when no polluted folder names are found.
@@ -166,7 +167,7 @@ def run_clean(settings: Settings, config: Config, dry_run: bool = False) -> Step
     return clean_report
 
 
-def run_cleanup(settings: Settings, config: Config, dry_run: bool = False) -> StepReport:
+def run_cleanup(settings: Settings, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
     """Run empty directory cleanup on all category directories.
 
     Args:

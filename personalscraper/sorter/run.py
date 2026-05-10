@@ -17,13 +17,14 @@ from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
 log = get_logger("sorter.run")
 
 
-def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: bool = False) -> StepReport:
+def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: bool = False, *, observers: tuple[PipelineObserver, ...] = ()) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
     Instantiates NameCleaner and Sorter, processes the ingest directory

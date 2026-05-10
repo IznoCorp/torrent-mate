@@ -31,7 +31,7 @@ class IngestStep:
         """
         from personalscraper.ingest.ingest import run_ingest
 
-        return run_ingest(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
+        return run_ingest(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
 
 
 class SortStep:
@@ -55,6 +55,7 @@ class SortStep:
             staging_dir=ctx.config.paths.staging_dir,
             dry_run=ctx.dry_run,
             config=ctx.config,
+            observers=ctx.observers,
         )
 
 
@@ -74,7 +75,7 @@ class CleanStep:
         """
         from personalscraper.process.run import run_clean
 
-        return run_clean(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
+        return run_clean(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
 
 
 class ScrapeStep:
@@ -98,6 +99,7 @@ class ScrapeStep:
             config=ctx.config,
             dry_run=ctx.dry_run,
             interactive=ctx.interactive,
+            observers=ctx.observers,
         )
 
 
@@ -136,7 +138,7 @@ class EnforceStep:
         """
         from personalscraper.enforce.run import run_enforce
 
-        return run_enforce(ctx.settings, ctx.config, dry_run=ctx.dry_run)
+        return run_enforce(ctx.settings, ctx.config, dry_run=ctx.dry_run, observers=ctx.observers)
 
 
 class VerifyStep:
@@ -160,7 +162,7 @@ class VerifyStep:
         """
         from personalscraper.verify.run import run_verify
 
-        return run_verify(ctx.settings, ctx.config, dry_run=ctx.dry_run, fix=False)
+        return run_verify(ctx.settings, ctx.config, dry_run=ctx.dry_run, fix=False, observers=ctx.observers)
 
 
 class TrailersStep:
@@ -185,6 +187,7 @@ class TrailersStep:
             staging_dir=ctx.config.paths.staging_dir,
             verified=ctx.extras.get("verified", []),
             skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
+            observers=ctx.observers,
         )
 
 
@@ -210,6 +213,7 @@ class DispatchStep:
             config=ctx.config,
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
+            observers=ctx.observers,
         )
 
 
@@ -242,31 +246,45 @@ class LegacyCallableStep:
             The return value of the wrapped legacy callable.
         """
         if self.name == "ingest":
-            return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
+            return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
         if self.name == "sort":
             return self._fn(
                 ctx.settings,
                 staging_dir=ctx.config.paths.staging_dir,
                 dry_run=ctx.dry_run,
                 config=ctx.config,
+                observers=ctx.observers,
             )
         if self.name in {"clean", "cleanup"}:
-            return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
+            return self._fn(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
         if self.name == "scrape":
-            return self._fn(ctx.settings, config=ctx.config, dry_run=ctx.dry_run, interactive=ctx.interactive)
+            return self._fn(
+                ctx.settings,
+                config=ctx.config,
+                dry_run=ctx.dry_run,
+                interactive=ctx.interactive,
+                observers=ctx.observers,
+            )
         if self.name == "enforce":
-            return self._fn(ctx.settings, ctx.config, dry_run=ctx.dry_run)
+            return self._fn(ctx.settings, ctx.config, dry_run=ctx.dry_run, observers=ctx.observers)
         if self.name == "verify":
-            return self._fn(ctx.settings, ctx.config, dry_run=ctx.dry_run, fix=False)
+            return self._fn(ctx.settings, ctx.config, dry_run=ctx.dry_run, fix=False, observers=ctx.observers)
         if self.name == "trailers":
             return self._fn(
                 ctx.config,
                 staging_dir=ctx.config.paths.staging_dir,
                 verified=ctx.extras.get("verified", []),
                 skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
+                observers=ctx.observers,
             )
         if self.name == "dispatch":
-            return self._fn(ctx.settings, config=ctx.config, dry_run=ctx.dry_run, verified=ctx.extras.get("verified"))
+            return self._fn(
+                ctx.settings,
+                config=ctx.config,
+                dry_run=ctx.dry_run,
+                verified=ctx.extras.get("verified"),
+                observers=ctx.observers,
+            )
         return self._fn(ctx)
 
 

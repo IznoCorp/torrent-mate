@@ -20,6 +20,7 @@ from personalscraper.config import Settings
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("ingest")
@@ -256,6 +257,7 @@ def run_ingest(
     ingest_dir: Path | None = None,
     staging_dir: Path | None = None,
     config: Config,
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the ingest pipeline step.
 
