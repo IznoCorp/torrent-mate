@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.trailers.step import run_trailers
 from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.trailers.step import run_trailers
 
 
 class TestTrailersProgress:

@@ -57,10 +57,6 @@ class TestIngestProgress:
                 with patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True):
                     run_ingest(settings, dry_run=True, config=config, observers=(collector,))
 
-        started = [e for e in collector.progress if e.status == "started"]
-        # In mock mode, events may not fire depending on internal routing
-        # Verify the function completed without error
-        assert collector.starts or collector.progress or True
 
     def test_step_event_structure(self) -> None:
         """StepEvent fields are coherent."""
