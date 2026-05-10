@@ -207,7 +207,7 @@ class Pipeline:
             obs.on_pipeline_start(report)
 
         try:
-                # Recover from previous interrupted run (best-effort, never blocks pipeline)
+            # Recover from previous interrupted run (best-effort, never blocks pipeline)
             if not self.dry_run:
                 try:
                     self._recover_from_previous_run()
