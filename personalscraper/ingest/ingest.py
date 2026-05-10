@@ -360,8 +360,9 @@ def run_ingest(
                             report.warnings.append(warning_msg)
                         notify_progress(
                             observers,
-                            StepEvent(step="ingest", item=name, status="skipped",
-                                      details={"reason": "already_ingested"}),
+                            StepEvent(
+                                step="ingest", item=name, status="skipped", details={"reason": "already_ingested"}
+                            ),
                         )
                         continue
 
@@ -389,8 +390,9 @@ def run_ingest(
                         report.skip_count += 1
                         notify_progress(
                             observers,
-                            StepEvent(step="ingest", item=name, status="skipped",
-                                      details={"reason": "ratio_below_threshold"}),
+                            StepEvent(
+                                step="ingest", item=name, status="skipped", details={"reason": "ratio_below_threshold"}
+                            ),
                         )
                         continue
 
@@ -422,8 +424,9 @@ def run_ingest(
                             report.skip_count += 1
                             notify_progress(
                                 observers,
-                                StepEvent(step="ingest", item=name, status="skipped",
-                                          details={"reason": "found_in_staging"}),
+                                StepEvent(
+                                    step="ingest", item=name, status="skipped", details={"reason": "found_in_staging"}
+                                ),
                             )
                         else:
                             log.warning("content_missing", name=name, path=str(source))
@@ -432,8 +435,9 @@ def run_ingest(
                             report.warnings.append(f"{name}: content path missing ({source})")
                             notify_progress(
                                 observers,
-                                StepEvent(step="ingest", item=name, status="failed",
-                                          details={"error": "content_missing"}),
+                                StepEvent(
+                                    step="ingest", item=name, status="failed", details={"error": "content_missing"}
+                                ),
                             )
                         continue
 
@@ -446,8 +450,7 @@ def run_ingest(
                         tracker.mark_ingested(torrent_hash, name, "skipped_exists", dest_path=str(dest))
                         notify_progress(
                             observers,
-                            StepEvent(step="ingest", item=name, status="skipped",
-                                      details={"reason": "already_exists"}),
+                            StepEvent(step="ingest", item=name, status="skipped", details={"reason": "already_exists"}),
                         )
                         continue
 
@@ -460,8 +463,9 @@ def run_ingest(
                         report.warnings.append(f"{name}: insufficient disk space")
                         notify_progress(
                             observers,
-                            StepEvent(step="ingest", item=name, status="skipped",
-                                      details={"reason": "insufficient_space"}),
+                            StepEvent(
+                                step="ingest", item=name, status="skipped", details={"reason": "insufficient_space"}
+                            ),
                         )
                         continue
 

@@ -107,14 +107,17 @@ def run_enforce(
                 log.info("enforce_structure_fix", item=item_name, fix=fix)
             notify_progress(
                 observers,
-                StepEvent(step="enforce", item=item_name, status="fixed",
-                          details={"component": "structure"}),
+                StepEvent(step="enforce", item=item_name, status="fixed", details={"component": "structure"}),
             )
         else:
             notify_progress(
                 observers,
-                StepEvent(step="enforce", item=item_name, status="skipped",
-                          details={"component": "structure", "action": structure_result.action}),
+                StepEvent(
+                    step="enforce",
+                    item=item_name,
+                    status="skipped",
+                    details={"component": "structure", "action": structure_result.action},
+                ),
             )
         for w in structure_result.warnings:
             warnings_list.append(f"{item_name}: {w}")
@@ -130,14 +133,17 @@ def run_enforce(
         if coherence_result.warnings:
             notify_progress(
                 observers,
-                StepEvent(step="enforce", item=item_name, status="fixed",
-                          details={"component": "coherence", "warning_count": len(coherence_result.warnings)}),
+                StepEvent(
+                    step="enforce",
+                    item=item_name,
+                    status="fixed",
+                    details={"component": "coherence", "warning_count": len(coherence_result.warnings)},
+                ),
             )
         else:
             notify_progress(
                 observers,
-                StepEvent(step="enforce", item=item_name, status="skipped",
-                          details={"component": "coherence"}),
+                StepEvent(step="enforce", item=item_name, status="skipped", details={"component": "coherence"}),
             )
         for w in coherence_result.warnings:
             warnings_list.append(f"[coherence] {item_name}: {w}")
