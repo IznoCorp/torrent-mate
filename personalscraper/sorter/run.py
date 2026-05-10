@@ -17,7 +17,7 @@ from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
@@ -66,19 +66,59 @@ def run_sort(
 
     report = StepReport(name="sort")
     for r in results:
+        notify_progress(
+            observers,
+            StepEvent(step="sort", item=r.source.name, status="started"),
+        )
         if r.status == "moved":
             report.success_count += 1
             report.details.append(f"{r.source.name} -> {r.destination}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="moved",
+                    details={"destination": str(r.destination)},
+                ),
+            )
         elif r.status == "dry-run":
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {r.source.name} -> {r.destination}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="moved",
+                    details={"destination": str(r.destination), "dry_run": True},
+                ),
+            )
         elif r.status == "skipped":
             report.skip_count += 1
             if r.message:
                 report.warnings.append(f"{r.source.name}: {r.message}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="skipped",
+                    details={"reason": r.message or ""},
+                ),
+            )
         elif r.status == "error":
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="failed",
+                    details={"error": r.message or ""},
+                ),
+            )
 
     # After sort consumes files from the ingest dir, prune any
     # ``dest_path`` recorded inside that dir from the ingest tracker.

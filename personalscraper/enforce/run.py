@@ -15,7 +15,7 @@ from personalscraper.enforce.file_sanitizer import sanitize_files
 from personalscraper.enforce.structure_validator import validate_structure
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 
 log = get_logger("enforce.run")
 
@@ -51,17 +51,46 @@ def run_enforce(
 
     # Sanitize actions
     for sanitize_result in sanitize_results:
+        notify_progress(
+            observers,
+            StepEvent(
+                step="enforce",
+                item=sanitize_result.old_name,
+                status="started",
+            ),
+        )
         if sanitize_result.action not in ("skipped",):
             success += 1
             details.append(
                 f"[sanitize:{sanitize_result.action}] {sanitize_result.old_name}"
                 + (f" → {sanitize_result.new_name}" if sanitize_result.new_name else "")
             )
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="enforce",
+                    item=sanitize_result.old_name,
+                    status="fixed",
+                    details={
+                        "action": sanitize_result.action,
+                        "new_name": sanitize_result.new_name or "",
+                    },
+                ),
+            )
             log.info(
                 "enforce_sanitize_action",
                 action=sanitize_result.action,
                 old_name=sanitize_result.old_name,
                 new_name=sanitize_result.new_name,
+            )
+        else:
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="enforce",
+                    item=sanitize_result.old_name,
+                    status="skipped",
+                ),
             )
 
     # Structure fixes

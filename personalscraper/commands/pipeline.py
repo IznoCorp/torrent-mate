@@ -299,16 +299,9 @@ def run(
             run_id = datetime.now().isoformat(timespec="seconds")
             structlog.contextvars.bind_contextvars(run_id=run_id)
 
-            mode = "[yellow]DRY-RUN[/yellow]" if dry_run else "[green]LIVE[/green]"
-            console.print(
-                f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
-                highlight=False,
-            )
             _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
 
             # Resolve flag defaults from config when not explicitly set by the caller.
-            # config.trailers.pipeline.skip / continue_on_error act as persistent
-            # operator-level defaults; CLI flags take precedence when provided.
             effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
             effective_continue_on_trailer_error = (
                 continue_on_trailer_error or config.trailers.pipeline.continue_on_error
@@ -317,9 +310,10 @@ def run(
             from personalscraper.observers.telegram import TelegramObserver
             from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-            # Build observer list
+            # Build observer list — RichConsoleObserver now prints the banner in
+            # on_pipeline_start, replacing the inline console.print that was here.
             pipeline_observers: list[PipelineObserver] = [
-                RichConsoleObserver(console=console, verbose=verbose),
+                RichConsoleObserver(console=console, verbose=verbose, dry_run=dry_run, run_id=run_id),
             ]
             if TelegramNotifier.is_configured(settings):
                 pipeline_observers.append(TelegramObserver(settings))

@@ -10,7 +10,7 @@ from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.naming_patterns import PATTERNS
-from personalscraper.pipeline_observer import PipelineObserver
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import Verifier, VerifyResult
 
@@ -95,6 +95,32 @@ def run_verify(
         tvshows_dir = staging / folder_name(find_by_file_type(config, FileType.TVSHOW))
         if tvshows_dir.exists():
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
+
+    for r in all_results:
+        notify_progress(
+            observers,
+            StepEvent(step="verify", item=r.media_path.name, status="started"),
+        )
+        if r.status in ("valid", "fixed"):
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="verify",
+                    item=r.media_path.name,
+                    status="ok",
+                    details={"status": r.status, "category": r.category or ""},
+                ),
+            )
+        elif r.status == "blocked":
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="verify",
+                    item=r.media_path.name,
+                    status="blocked",
+                    details={"errors": r.errors},
+                ),
+            )
 
     dispatchable = Verifier.get_dispatchable(all_results)
     report = _to_step_report(all_results)

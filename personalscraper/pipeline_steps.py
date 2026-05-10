@@ -119,7 +119,7 @@ class CleanupStep:
         """
         from personalscraper.process.run import run_cleanup
 
-        return run_cleanup(ctx.settings, dry_run=ctx.dry_run, config=ctx.config)
+        return run_cleanup(ctx.settings, dry_run=ctx.dry_run, config=ctx.config, observers=ctx.observers)
 
 
 class EnforceStep:

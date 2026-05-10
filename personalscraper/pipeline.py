@@ -203,6 +203,9 @@ class Pipeline:
             "skip_trailers": self.skip_trailers,
         }
 
+        for obs in self._observers:
+            obs.on_pipeline_start(report)
+
         # Recover from previous interrupted run (best-effort, never blocks pipeline)
         if not self.dry_run:
             try:

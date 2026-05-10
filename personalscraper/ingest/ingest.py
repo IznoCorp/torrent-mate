@@ -20,7 +20,7 @@ from personalscraper.config import Settings
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("ingest")
@@ -326,6 +326,11 @@ def run_ingest(
                 name = torrent.name
                 torrent_hash = torrent.hash
 
+                notify_progress(
+                    observers,
+                    StepEvent(step="ingest", item=name, status="started"),
+                )
+
                 try:
                     # Skip already ingested
                     if tracker.is_ingested(torrent_hash):
@@ -438,11 +443,29 @@ def run_ingest(
                     if success:
                         report.success_count += 1
                         report.details.append(f"{name} → {action}")
+                        notify_progress(
+                            observers,
+                            StepEvent(
+                                step="ingest",
+                                item=name,
+                                status="copied",
+                                details={"action": action, "dest": str(dest)},
+                            ),
+                        )
                         if not dry_run:
                             tracker.mark_ingested(torrent_hash, name, action, dest_path=str(dest))
                     else:
                         report.error_count += 1
                         report.details.append(f"{name}: transfer failed")
+                        notify_progress(
+                            observers,
+                            StepEvent(
+                                step="ingest",
+                                item=name,
+                                status="failed",
+                                details={"error": "transfer failed"},
+                            ),
+                        )
 
                 except Exception as torrent_err:
                     # Isolate per-torrent failures so other torrents still process.

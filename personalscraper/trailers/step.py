@@ -15,7 +15,7 @@ from typing import Any
 
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 
 logger = get_logger(__name__)
 
@@ -93,6 +93,16 @@ def run_trailers(
         else:
             # No verified list — let the orchestrator scan staging itself.
             orchestrator_items = None
+
+        # Emit progress events for each item being processed.
+        if orchestrator_items:
+            for item in orchestrator_items:
+                item_path = getattr(item, "path", None)
+                item_name = str(item_path.name) if item_path else str(item)
+                notify_progress(
+                    observers,
+                    StepEvent(step="trailers", item=item_name, status="started"),
+                )
 
         counts = orchestrator.run(items=orchestrator_items)
         failed_items = orchestrator.failed_items

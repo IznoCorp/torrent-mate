@@ -14,7 +14,7 @@ from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress  # noqa: F401
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("process.run")
@@ -146,6 +146,10 @@ def run_clean(
     clean_report = StepReport(name="clean")
 
     for category_dir in (movies_dir, tvshows_dir):
+        notify_progress(
+            observers,
+            StepEvent(step="clean", item=str(category_dir.name), status="started"),
+        )
         # Only run reclean if polluted folders exist
         if has_polluted:
             reclean_report = reclean_folders(category_dir, dry_run=dry_run, config=config)
@@ -204,6 +208,10 @@ def run_cleanup(
     cleanup_report = StepReport(name="cleanup")
 
     for category_dir in (movies_dir, tvshows_dir):
+        notify_progress(
+            observers,
+            StepEvent(step="cleanup", item=str(category_dir.name), status="started"),
+        )
         cat_report = cleanup_empty_dirs(category_dir, dry_run=dry_run)
         cleanup_report.success_count += cat_report.success_count
         cleanup_report.details.extend(cat_report.details)
@@ -217,6 +225,8 @@ def run_process(
     config: Config,
     dry_run: bool = False,
     interactive: bool = False,
+    *,
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 
@@ -229,9 +239,8 @@ def run_process(
         interactive: If True, prompt for ambiguous scrape matches.
         config: Loaded Config passed through to run_clean and run_cleanup
             for staging dir name resolution.
-
-
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        observers: Tuple of pipeline observers for progress and lifecycle
+            notifications.
 
     Returns:
         Tuple of (clean_report, scrape_report, cleanup_report).
@@ -240,7 +249,7 @@ def run_process(
 
     # Error isolation: each sub-step runs independently
     try:
-        clean_report = run_clean(settings, dry_run=dry_run, config=config)
+        clean_report = run_clean(settings, dry_run=dry_run, config=config, observers=observers)
     except Exception as exc:
         log.exception("process_clean_fatal", error=str(exc))
         clean_report = StepReport(
@@ -250,7 +259,9 @@ def run_process(
         )
 
     try:
-        scrape_report = run_scrape(settings, config=config, dry_run=dry_run, interactive=interactive)
+        scrape_report = run_scrape(
+            settings, config=config, dry_run=dry_run, interactive=interactive, observers=observers
+        )
     except Exception as exc:
         log.exception("process_scrape_fatal", error=str(exc))
         scrape_report = StepReport(
@@ -275,7 +286,7 @@ def run_process(
         )
 
     try:
-        cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config)
+        cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config, observers=observers)
     except Exception as exc:
         log.exception("process_cleanup_fatal", error=str(exc))
         cleanup_report = StepReport(

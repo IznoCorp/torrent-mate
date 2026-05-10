@@ -23,15 +23,26 @@ class RichConsoleObserver:
 
     name = "rich-console"
 
-    def __init__(self, console: Console | None = None, *, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        console: Console | None = None,
+        *,
+        verbose: bool = False,
+        dry_run: bool = False,
+        run_id: str = "",
+    ) -> None:
         """Initialize the observer.
 
         Args:
             console: Rich console instance. Created if not provided.
             verbose: If True, emit per-item detail output.
+            dry_run: If True, label the banner as DRY-RUN.
+            run_id: Pipeline run identifier for the banner.
         """
         self.console = console or Console()
         self.verbose = verbose
+        self.dry_run = dry_run
+        self.run_id = run_id
 
     @staticmethod
     def _icon(step: str) -> str:
@@ -57,7 +68,17 @@ class RichConsoleObserver:
         return icons.get(step, "")
 
     def on_pipeline_start(self, report: PipelineReport) -> None:  # noqa: ARG002
-        """No-op — banner is printed by CLI before ``Pipeline.run()``."""
+        """Print the pipeline banner.
+
+        Args:
+            report: Freshly created ``PipelineReport`` with ``started_at``.
+        """
+        run_id = self.run_id or report.started_at.isoformat(timespec="seconds")
+        mode = "[yellow]DRY-RUN[/yellow]" if self.dry_run else "[green]LIVE[/green]"
+        self.console.print(
+            f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
+            highlight=False,
+        )
 
     def on_pipeline_end(self, report: PipelineReport) -> None:
         """Print the final summary table.
