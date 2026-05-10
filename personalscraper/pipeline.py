@@ -212,7 +212,12 @@ class Pipeline:
                 try:
                     self._recover_from_previous_run()
                 except Exception as exc:
-                    self._log.error("crash_recovery_failed", error=str(exc), message="Pipeline continues", exc_info=True)
+                    self._log.error(
+                        "crash_recovery_failed",
+                        error=str(exc),
+                        message="Pipeline continues",
+                        exc_info=True,
+                    )
             else:
                 self._log.info("crash_recovery_skipped", reason="dry_run")
 

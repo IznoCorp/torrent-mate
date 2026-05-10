@@ -61,7 +61,7 @@ class TestCleanProgress:
         started = [e for e in collector.progress if e.status == "started"]
         cleaned = [e for e in collector.progress if e.status == "cleaned"]
         assert len(started) >= 2, "expected 2 started events (movies + tvshows)"
-        assert len(cleaned) >= 0  # conditional: may be "skipped" in dry-run, "expected 2 cleaned events (movies + tvshows)"
+        assert len(cleaned) >= 0  # conditional on dry-run
         assert all(e.step == "clean" for e in started)
 
 
