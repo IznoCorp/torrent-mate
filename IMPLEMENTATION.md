@@ -8,7 +8,7 @@
 **Branch**: feat/pipeline-obs
 **Design**: docs/features/pipeline-obs/DESIGN.md
 **Master plan**: docs/features/pipeline-obs/plan/INDEX.md
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/21
 **PR merge**: manual
 
 ## Phases
