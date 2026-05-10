@@ -106,33 +106,22 @@ def run_trailers(
 
         counts = orchestrator.run(items=orchestrator_items)
         failed_items = orchestrator.failed_items
+        item_results = orchestrator.item_results
 
         success_count = counts.get("downloaded", 0)
         skip_count = counts.get("already_present", 0) + counts.get("skipped_by_state", 0)
         error_count = counts.get("error", 0) + counts.get("bot_detected", 0)
 
-        # Emit completion events for failed items (per-item detail available)
-        for item_id, reason, detail in failed_items:
+        # Emit per-item completion events from orchestrator results
+        for item_path, status, reason in item_results:
             notify_progress(
                 observers,
                 StepEvent(
                     step="trailers",
-                    item=str(item_id),
-                    status="failed",
-                    details={"reason": reason, "detail": detail},
+                    item=item_path,
+                    status=status,
+                    details={"reason": reason or ""},
                 ),
-            )
-
-        # Emit aggregate completion events based on counts
-        for _ in range(success_count):
-            notify_progress(
-                observers,
-                StepEvent(step="trailers", item="(item)", status="downloaded"),
-            )
-        for _ in range(counts.get("bot_detected", 0)):
-            notify_progress(
-                observers,
-                StepEvent(step="trailers", item="(item)", status="bot_detected"),
             )
 
         # Partial: some items succeeded but at least one failed or was bot-detected.

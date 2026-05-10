@@ -9,7 +9,7 @@ from personalscraper.verify.run import run_verify
 
 
 class TestVerifyProgress:
-    """Verify run_verify emits per-item progress events."""
+    """Verify run_verify accepts and uses observers."""
 
     def test_accepts_observers(self) -> None:
         """run_verify accepts observers without error."""
