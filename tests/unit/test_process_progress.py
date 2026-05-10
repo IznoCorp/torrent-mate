@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.process.run import run_clean, run_cleanup
 from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.process.run import run_clean, run_cleanup
 
 
 class TestCleanProgress:
