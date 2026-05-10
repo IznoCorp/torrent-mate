@@ -60,15 +60,26 @@ class TestPipelineHeadless:
         class FakeStep:
             def __init__(self, step_name):
                 self.name = step_name
+
             def __call__(self, *args, **kwargs):
                 if self.name == "verify":
                     return StepReport(name=self.name, success_count=1), [MagicMock()]
                 return StepReport(name=self.name, success_count=1)
 
-        overrides = {n: FakeStep(n) for n in [
-            "ingest", "sort", "clean", "scrape", "cleanup",
-            "enforce", "verify", "trailers", "dispatch",
-        ]}
+        overrides = {
+            n: FakeStep(n)
+            for n in [
+                "ingest",
+                "sort",
+                "clean",
+                "scrape",
+                "cleanup",
+                "enforce",
+                "verify",
+                "trailers",
+                "dispatch",
+            ]
+        }
 
         pipeline = Pipeline(config, settings, observers=[], step_overrides=overrides)
 

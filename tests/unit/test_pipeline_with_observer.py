@@ -17,15 +17,26 @@ class TestPipelineWithObserver:
         class FakeStep:
             def __init__(self, name):
                 self.name = name
+
             def __call__(self, *args, **kwargs):
                 if self.name == "verify":
                     return StepReport(name=self.name, success_count=1), [MagicMock()]
                 return StepReport(name=self.name, success_count=1)
 
-        return {n: FakeStep(n) for n in [
-            "ingest", "sort", "clean", "scrape", "cleanup",
-            "enforce", "verify", "trailers", "dispatch",
-        ]}
+        return {
+            n: FakeStep(n)
+            for n in [
+                "ingest",
+                "sort",
+                "clean",
+                "scrape",
+                "cleanup",
+                "enforce",
+                "verify",
+                "trailers",
+                "dispatch",
+            ]
+        }
 
     @staticmethod
     def _make_config():
@@ -46,8 +57,10 @@ class TestPipelineWithObserver:
         """on_step_start + on_step_end called for each step in order."""
         collector = CollectorObserver()
         pipeline = Pipeline(
-            self._make_config(), MagicMock(),
-            observers=[collector], step_overrides=self._make_fake_steps(),
+            self._make_config(),
+            MagicMock(),
+            observers=[collector],
+            step_overrides=self._make_fake_steps(),
         )
 
         with patch("personalscraper.pipeline.ensure_staging_tree"):
@@ -67,14 +80,17 @@ class TestPipelineWithObserver:
 
         class CrashStep:
             name = "ingest"
+
             def __call__(self, *args, **kwargs):
                 raise ValueError("boom")
 
         overrides["ingest"] = CrashStep()
 
         pipeline = Pipeline(
-            self._make_config(), MagicMock(),
-            observers=[collector], step_overrides=overrides,
+            self._make_config(),
+            MagicMock(),
+            observers=[collector],
+            step_overrides=overrides,
         )
 
         with patch("personalscraper.pipeline.ensure_staging_tree"):
@@ -89,8 +105,10 @@ class TestPipelineWithObserver:
         """on_pipeline_start is called exactly once at the beginning."""
         collector = CollectorObserver()
         pipeline = Pipeline(
-            self._make_config(), MagicMock(),
-            observers=[collector], step_overrides=self._make_fake_steps(),
+            self._make_config(),
+            MagicMock(),
+            observers=[collector],
+            step_overrides=self._make_fake_steps(),
         )
 
         with patch("personalscraper.pipeline.ensure_staging_tree"):
@@ -105,8 +123,10 @@ class TestPipelineWithObserver:
         """on_pipeline_end is called after all steps."""
         collector = CollectorObserver()
         pipeline = Pipeline(
-            self._make_config(), MagicMock(),
-            observers=[collector], step_overrides=self._make_fake_steps(),
+            self._make_config(),
+            MagicMock(),
+            observers=[collector],
+            step_overrides=self._make_fake_steps(),
         )
 
         with patch("personalscraper.pipeline.ensure_staging_tree"):

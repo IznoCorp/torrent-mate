@@ -21,7 +21,9 @@ class TestTrailersProgress:
         staging_dir = Path("/tmp/staging")
 
         report = run_trailers(
-            config, staging_dir=staging_dir,
-            verified=[], observers=(),
+            config,
+            staging_dir=staging_dir,
+            verified=[],
+            observers=(),
         )
         assert report.name == "trailers"

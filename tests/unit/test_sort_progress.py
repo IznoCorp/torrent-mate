@@ -25,8 +25,11 @@ class TestSortProgress:
 
         with patch("personalscraper.sorter.run._has_unsorted_items", return_value=False):
             report = run_sort(
-                settings, staging_dir=staging_dir, dry_run=True,
-                config=config, observers=(),
+                settings,
+                staging_dir=staging_dir,
+                dry_run=True,
+                config=config,
+                observers=(),
             )
         assert report.name == "sort"
 
@@ -53,8 +56,11 @@ class TestSortProgress:
 
         with patch.object(Sorter, "process", return_value=[fake_result]):
             report = run_sort(
-                settings, staging_dir=staging_dir, dry_run=False,
-                config=config, observers=(collector,),
+                settings,
+                staging_dir=staging_dir,
+                dry_run=False,
+                config=config,
+                observers=(collector,),
             )
 
         assert report.name == "sort"
