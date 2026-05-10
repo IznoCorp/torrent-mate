@@ -77,12 +77,32 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 | --------- | --------- | ----------------------------------------------------------- |
 | 5.1-5.3   | `12e81a1` | RichConsoleObserver + TelegramObserver wired, Panel removed |
 
-### Phase 6 — Steps: notify_progress + tests
+### Phase 6 — Steps: notify_progress in all 9 steps
 
-| Sub-phase | SHA       | Description                              |
-| --------- | --------- | ---------------------------------------- |
-| 6.1-6.3   | `2b2456b` | notify_progress in all 9 steps           |
-| 6.4       | `009e734` | 10 progress/headless/observer test files |
+| Sub-phase | SHA       | Description                                         |
+| --------- | --------- | --------------------------------------------------- |
+| 6.1       | `2b2456b` | per-item started events in 7 steps                  |
+| 6.2       | `f626a4e` | full transitions in all 9 steps                     |
+| 6.3       | `009e734` | 10 test files: progress + headless + observer       |
+| 6.4       | `bd1616c` | hardened assertions: sort, enforce, process, scrape |
+
+### Phase 7 — Design compliance fixes (audit #2)
+
+| Sub-phase | SHA       | Description                                              |
+| --------- | --------- | -------------------------------------------------------- |
+| 7.1       | `f626a4e` | scrape matched/failed, clean cleaned, cleanup completed  |
+| 7.2       | `f626a4e` | ingest skipped/failed paths, enforce structure+coherence |
+| 7.3       | `f626a4e` | dispatch error action, trailers completion events        |
+
+## Review cycles
+
+_(filled by implement:pr-review — max 3 cycles)_
+
+## Next action
+
+PR #21 pushed — 3709 tests pass. Awaiting manual merge.
+| 6.1-6.3 | `2b2456b` | notify_progress in all 9 steps |
+| 6.4 | `009e734` | 10 progress/headless/observer test files |
 
 ## Review cycles
 
