@@ -115,7 +115,7 @@ def run_sort(
                 StepEvent(
                     step="sort",
                     item=r.source.name,
-                    status="failed",
+                    status="error",
                     details={"error": r.message or ""},
                 ),
             )

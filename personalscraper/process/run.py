@@ -170,13 +170,15 @@ def run_clean(
             clean_report.error_count += dedup_failed
             clean_report.warnings.append(f"Dedup: {dedup_failed} merge(s) failed in {category_dir.name}")
 
+        if clean_report.error_count > 0:
+            cat_status = "error"
+        elif clean_report.success_count > 0:
+            cat_status = "cleaned"
+        else:
+            cat_status = "skipped"
         notify_progress(
             observers,
-            StepEvent(
-                step="clean",
-                item=str(category_dir.name),
-                status="cleaned",
-            ),
+            StepEvent(step="clean", item=str(category_dir.name), status=cat_status),
         )
 
     log.info(
@@ -229,7 +231,7 @@ def run_cleanup(
             StepEvent(
                 step="cleanup",
                 item=str(category_dir.name),
-                status="completed",
+                status="removed",
                 details={"removed": cat_report.success_count},
             ),
         )

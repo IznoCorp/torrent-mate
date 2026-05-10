@@ -206,118 +206,122 @@ class Pipeline:
         for obs in self._observers:
             obs.on_pipeline_start(report)
 
-        # Recover from previous interrupted run (best-effort, never blocks pipeline)
-        if not self.dry_run:
+        try:
+                # Recover from previous interrupted run (best-effort, never blocks pipeline)
+            if not self.dry_run:
+                try:
+                    self._recover_from_previous_run()
+                except Exception as exc:
+                    self._log.error("crash_recovery_failed", error=str(exc), message="Pipeline continues", exc_info=True)
+            else:
+                self._log.info("crash_recovery_skipped", reason="dry_run")
+
+            # Phase 1: INGEST — abort pipeline on fatal crash because
+            # sort depends on ingest having deposited files into ingest_dir
             try:
-                self._recover_from_previous_run()
-            except Exception as exc:
-                self._log.error("crash_recovery_failed", error=str(exc), message="Pipeline continues", exc_info=True)
-        else:
-            self._log.info("crash_recovery_skipped", reason="dry_run")
-
-        # Phase 1: INGEST — abort pipeline on fatal crash because
-        # sort depends on ingest having deposited files into ingest_dir
-        try:
-            self._run_step(
-                "ingest",
-                lambda: self._steps["ingest"](self._step_context(report, extras)),
-                report,
-                critical=True,
-            )
-        except _CriticalStepError:
-            self._log.error("pipeline_aborted", step="ingest", reason="fatal_crash")
-            report.finished_at = datetime.now()
-            return report
-
-        # Phase 2: SORT — abort pipeline on fatal crash because
-        # process/scrape depend on files being in category dirs
-        try:
-            self._run_step(
-                "sort",
-                lambda: self._steps["sort"](self._step_context(report, extras)),
-                report,
-                critical=True,
-            )
-        except _CriticalStepError:
-            self._log.error("pipeline_aborted", step="sort", reason="fatal_crash")
-            report.finished_at = datetime.now()
-            return report
-
-        # GATE: assert ingest dir is empty after sort
-        self._check_temp_empty_gate()
-
-        # Phase 3: PROCESS (re-clean + dedup + scrape + cleanup)
-        # Returns 3 StepReports added individually
-        self._run_process_phase(report, extras)
-
-        # Phase 4: ENFORCE (validate and correct conventions)
-        self._run_step(
-            "enforce",
-            lambda: self._steps["enforce"](self._step_context(report, extras)),
-            report,
-        )
-
-        # Phase 5: VERIFY
-        verified = self._run_step(
-            "verify",
-            lambda: self._steps["verify"](self._step_context(report, extras)),
-            report,
-        )
-        extras["verified"] = verified or []
-
-        # Phase 6: TRAILERS (non-blocking by default -- partial/skipped does not abort dispatch)
-        # Runs after verify so items that failed verify are never downloaded.
-        # Runs before dispatch so trailers are placed (Plex-conformant) alongside
-        # media in staging and moved together in one atomic dispatch operation.
-        self._run_step(
-            "trailers",
-            lambda: self._steps["trailers"](self._step_context(report, extras)),
-            report,
-        )
-
-        # _run_step appends the StepReport to report.steps (keyed by step name).
-        # Read it back to inspect status without relying on the return value of _run_step,
-        # which returns the extra tuple element (None for steps returning only StepReport).
-        trailers_step = report.steps.get("trailers")
-        if trailers_step is not None and trailers_step.status == "error":
-            if not self.continue_on_trailer_error:
-                # Trailers step failed and the caller did not opt into ignoring it.
-                # Abort before dispatch so a broken trailer acquisition never silently
-                # lets corrupted or missing state reach the library.  The CLI catches
-                # TrailerStepFailed and exits with code 2 to distinguish this abort
-                # from a generic pipeline error (exit 1).
-                from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
-
-                raise TrailerStepFailed(
-                    "trailers step failed; use --continue-on-trailer-error to proceed to dispatch anyway"
+                self._run_step(
+                    "ingest",
+                    lambda: self._steps["ingest"](self._step_context(report, extras)),
+                    report,
+                    critical=True,
                 )
-            # continue_on_trailer_error=True: log the error and fall through to dispatch.
-            self._log.warning(
-                "trailers_step_error_suppressed",
-                status=trailers_step.status,
-                hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
-            )
+            except _CriticalStepError:
+                self._log.error("pipeline_aborted", step="ingest", reason="fatal_crash")
+                report.finished_at = datetime.now()
+                return report
 
-        # Phase 7: DISPATCH (only if verified items exist)
-        if verified:
+            # Phase 2: SORT — abort pipeline on fatal crash because
+            # process/scrape depend on files being in category dirs
+            try:
+                self._run_step(
+                    "sort",
+                    lambda: self._steps["sort"](self._step_context(report, extras)),
+                    report,
+                    critical=True,
+                )
+            except _CriticalStepError:
+                self._log.error("pipeline_aborted", step="sort", reason="fatal_crash")
+                report.finished_at = datetime.now()
+                return report
+
+            # GATE: assert ingest dir is empty after sort
+            self._check_temp_empty_gate()
+
+            # Phase 3: PROCESS (re-clean + dedup + scrape + cleanup)
+            # Returns 3 StepReports added individually
+            self._run_process_phase(report, extras)
+
+            # Phase 4: ENFORCE (validate and correct conventions)
             self._run_step(
-                "dispatch",
-                lambda: self._steps["dispatch"](self._step_context(report, extras)),
+                "enforce",
+                lambda: self._steps["enforce"](self._step_context(report, extras)),
                 report,
             )
-        else:
-            self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
-            for obs in self._observers:
-                obs.on_step_start("dispatch")
-            dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
-            dispatch_report = self._with_details_payload("dispatch", dispatch_report)
-            report.add_step("dispatch", dispatch_report)
-            for obs in self._observers:
-                obs.on_step_end("dispatch", dispatch_report, 0.0)
 
-        report.finished_at = datetime.now()
-        for obs in self._observers:
-            obs.on_pipeline_end(report)
+            # Phase 5: VERIFY
+            verified = self._run_step(
+                "verify",
+                lambda: self._steps["verify"](self._step_context(report, extras)),
+                report,
+            )
+            extras["verified"] = verified or []
+
+            # Phase 6: TRAILERS (non-blocking by default -- partial/skipped does not abort dispatch)
+            # Runs after verify so items that failed verify are never downloaded.
+            # Runs before dispatch so trailers are placed (Plex-conformant) alongside
+            # media in staging and moved together in one atomic dispatch operation.
+            self._run_step(
+                "trailers",
+                lambda: self._steps["trailers"](self._step_context(report, extras)),
+                report,
+            )
+
+            # _run_step appends the StepReport to report.steps (keyed by step name).
+            # Read it back to inspect status without relying on the return value of _run_step,
+            # which returns the extra tuple element (None for steps returning only StepReport).
+            trailers_step = report.steps.get("trailers")
+            if trailers_step is not None and trailers_step.status == "error":
+                if not self.continue_on_trailer_error:
+                    # Trailers step failed and the caller did not opt into ignoring it.
+                    # Abort before dispatch so a broken trailer acquisition never silently
+                    # lets corrupted or missing state reach the library.  The CLI catches
+                    # TrailerStepFailed and exits with code 2 to distinguish this abort
+                    # from a generic pipeline error (exit 1).
+                    from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
+
+                    raise TrailerStepFailed(
+                        "trailers step failed; use --continue-on-trailer-error to proceed to dispatch anyway"
+                    )
+                # continue_on_trailer_error=True: log the error and fall through to dispatch.
+                self._log.warning(
+                    "trailers_step_error_suppressed",
+                    status=trailers_step.status,
+                    hint="continue_on_trailer_error=True — dispatch will proceed despite trailer errors",
+                )
+
+            # Phase 7: DISPATCH (only if verified items exist)
+            if verified:
+                self._run_step(
+                    "dispatch",
+                    lambda: self._steps["dispatch"](self._step_context(report, extras)),
+                    report,
+                )
+            else:
+                self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
+                for obs in self._observers:
+                    obs.on_step_start("dispatch")
+                dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
+                dispatch_report = self._with_details_payload("dispatch", dispatch_report)
+                report.add_step("dispatch", dispatch_report)
+                for obs in self._observers:
+                    obs.on_step_end("dispatch", dispatch_report, 0.0)
+
+        finally:
+            if report.finished_at is None:
+                report.finished_at = datetime.now()
+            for obs in self._observers:
+                obs.on_pipeline_end(report)
+
         return report
 
     def _step_context(self, report: PipelineReport, extras: dict[str, Any]) -> StepContext:

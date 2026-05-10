@@ -180,7 +180,7 @@ def run_dispatch(
                         StepEvent(
                             step="dispatch",
                             item=r.source.name,
-                            status="failed",
+                            status="error",
                             details={"action": r.action, "reason": r.reason or ""},
                         ),
                     )
