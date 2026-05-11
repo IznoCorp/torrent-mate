@@ -36,7 +36,7 @@ DEFERRAL — MANDATORY".
 | #   | Phase                                  | Type    | File                                                                                                        | Status |
 | --- | -------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- | ------ |
 | 1   | Foundation (standalone)                | core    | [phase-01-foundation.md](docs/features/event-bus/plan/phase-01-foundation.md)                               | [x]    |
-| 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [ ]    |
+| 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [x]    |
 | 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [ ]    |
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [ ]    |
 | 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [ ]    |
@@ -80,19 +80,20 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" and INDEX.md Invariant 3 for th
 | 1.8       | `026fda6` | CollectingSubscriber + factories registry mechanism (9 tests)         |
 | 1.9       | `aae849e` | Phase 1 gate (no new code, all 10 verification items green)           |
 
-### Phase 2 — AppContext + StepContext slim (IN PROGRESS — 4 of 9 sub-phases)
+### Phase 2 — AppContext + StepContext slim (DONE — all 9 sub-phases)
 
-| Sub-phase | SHA                | Description                                                          |
-| --------- | ------------------ | -------------------------------------------------------------------- |
-| 2.1       | `343001f`          | AppContext frozen dataclass at core/app_context.py (3 tests)         |
-| 2.2a      | `fcc68dd`          | StepContext gains app + run_id, legacy mirrors via **post_init** (6) |
-| 2.2b      | `4b90106`          | Sweep ctx.config/settings → ctx.app.config/settings (27 sites)       |
-| 2.2c      | `be8a52e`          | Drop legacy mirrors from StepContext; final 2.2 shape                |
-| 2.3       | _(pending)_        | Pipeline.**init**(app), per-run run_id, ContextVar bind (~39 sites)  |
-| 2.4       | _(pending)_        | CLI entry builds AppContext (commands/pipeline.py)                   |
-| 2.5       | _(pending)_        | launchd scan + trailers commands rewired                             |
-| 2.6       | _(pending)_        | tests/architecture/test_app_context_boundary.py (AST allowlist)      |
-| 2.7       | _(pending — gate)_ | Phase 2 gate (10 verification items)                                 |
+| Sub-phase | SHA             | Description                                                              |
+| --------- | --------------- | ------------------------------------------------------------------------ |
+| 2.1       | `343001f`       | AppContext frozen dataclass at core/app_context.py (3 tests)             |
+| 2.2a      | `fcc68dd`       | StepContext gains app + run_id, legacy mirrors via **post_init** (6)     |
+| 2.2b      | `4b90106`       | Sweep ctx.config/settings → ctx.app.config/settings (27 sites)           |
+| 2.2c      | `be8a52e`       | Drop legacy mirrors from StepContext; final 2.2 shape                    |
+| pre-2.4   | `248f29d`       | Pre-flight #7 — canonical Rich Console snapshot baseline                 |
+| 2.3       | `879cda8`       | Pipeline.\_\_init\_\_(app), per-run run_id, ContextVar bind (9 tests)    |
+| 2.4       | `e1b4a17`       | CLI entry builds AppContext via `_build_app_context` (3 tests)           |
+| 2.5       | `5969555`       | launchd scan + 4 trailers commands rewired; bus to orchestrators (12 t.) |
+| 2.6       | `28d4d9a`       | tests/architecture/test_app_context_boundary.py (AST allowlist, 5 t.)    |
+| 2.7       | _(this commit)_ | Phase 2 gate (10 verification items)                                     |
 
 ## Review cycles
 

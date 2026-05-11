@@ -87,6 +87,6 @@ def test_step_context_app_is_required_field() -> None:
         extras={},
     )
     assert ctx.app is app
-    # Legacy mirrors are GONE — no more ctx.config / ctx.settings.
+    # Legacy mirrors are GONE — Sub-phase 2.2c removed them.
     assert not hasattr(ctx, "config")
     assert not hasattr(ctx, "settings")

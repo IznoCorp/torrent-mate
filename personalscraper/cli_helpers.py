@@ -68,20 +68,20 @@ def handle_cli_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def _bootstrap_staging(ctx: typer.Context) -> None:
-    """Call ensure_staging_tree if config is available on the AppCtx."""
-    app_ctx: AppCtx = ctx.obj
-    if app_ctx is not None and app_ctx.config is not None:
-        _ensure_staging_tree(app_ctx.config)
+    """Call ensure_staging_tree if config is available on the legacy ``AppCtx``."""
+    legacy: AppCtx = ctx.obj
+    if legacy is not None and legacy.config is not None:
+        _ensure_staging_tree(legacy.config)
 
 
 def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
     """Resolve a --category CLI value to a canonical category_id."""
     if category is None:
         return None
-    app_ctx: AppCtx = ctx.obj
-    resolved: str | None = app_ctx.config.resolve_category_alias(category)  # type: ignore[union-attr]
+    legacy: AppCtx = ctx.obj
+    resolved: str | None = legacy.config.resolve_category_alias(category)  # type: ignore[union-attr]
     if resolved is None:
-        conf = app_ctx.config
+        conf = legacy.config
         alias_map = {cid: ccfg.aliases for cid, ccfg in conf.categories.items() if ccfg.aliases}  # type: ignore[union-attr]
         alias_hint = ", ".join(f"{cid}: {aliases}" for cid, aliases in sorted(alias_map.items()))
         valid_ids = ", ".join(sorted(conf.all_category_ids))  # type: ignore[union-attr]

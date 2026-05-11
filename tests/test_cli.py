@@ -26,16 +26,16 @@ _PATCH_RESOLVE_PATH = "personalscraper.conf.loader.resolve_config_path"
 
 def test_appctx_instantiation() -> None:
     """AppCtx can be instantiated with None values for both fields."""
-    ctx = AppCtx(config=None, config_override=None)
-    assert ctx.config is None
-    assert ctx.config_override is None
+    legacy = AppCtx(config=None, config_override=None)
+    assert legacy.config is None
+    assert legacy.config_override is None
 
 
 def test_appctx_with_path() -> None:
     """AppCtx stores config_override Path when provided."""
     p = Path("/tmp/config.json5")
-    ctx = AppCtx(config=None, config_override=p)
-    assert ctx.config_override == p
+    legacy = AppCtx(config=None, config_override=p)
+    assert legacy.config_override == p
 
 
 # Patches for standalone commands

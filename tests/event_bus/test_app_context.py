@@ -23,9 +23,9 @@ def test_app_context_is_frozen() -> None:
     expected = {"config", "settings", "event_bus"}
     field_names = {f.name for f in dataclasses.fields(AppContext)}
     assert field_names == expected
-    ctx = AppContext(config=Mock(), settings=Mock(), event_bus=EventBus())
+    bundle = AppContext(config=Mock(), settings=Mock(), event_bus=EventBus())
     try:
-        ctx.config = Mock()  # type: ignore[misc]
+        bundle.config = Mock()  # type: ignore[misc]
     except (AttributeError, dataclasses.FrozenInstanceError):
         pass
     else:  # pragma: no cover
@@ -37,16 +37,16 @@ def test_app_context_carries_provided_services() -> None:
     config = Mock(name="config")
     settings = Mock(name="settings")
     bus = EventBus()
-    ctx = AppContext(config=config, settings=settings, event_bus=bus)
-    assert ctx.config is config
-    assert ctx.settings is settings
-    assert ctx.event_bus is bus
+    bundle = AppContext(config=config, settings=settings, event_bus=bus)
+    assert bundle.config is config
+    assert bundle.settings is settings
+    assert bundle.event_bus is bus
 
 
 def test_app_context_event_bus_is_usable() -> None:
     """The bundled event_bus dispatches subscribed events end-to-end."""
-    ctx = AppContext(config=Mock(), settings=Mock(), event_bus=EventBus())
-    with CollectingSubscriber(ctx.event_bus, _Foo) as sub:
+    bundle = AppContext(config=Mock(), settings=Mock(), event_bus=EventBus())
+    with CollectingSubscriber(bundle.event_bus, _Foo) as sub:
         event = _Foo()
-        ctx.event_bus.emit(event)
+        bundle.event_bus.emit(event)
     assert sub.received == [event]
