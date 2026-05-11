@@ -1088,6 +1088,64 @@ class TestScrapeTvshowFullPath:
             res = mixin.scrape_tvshow(show)
         assert res.error is not None and "Rename/merge failed" in res.error
 
+    def test_artwork_runs_after_season_dirs_exist(self, tmp_path: Path) -> None:
+        """Regression for BUG #3: season-poster ordering.
+
+        Season posters were silently skipped for new shows because
+        ``download_tvshow_artwork`` was called before ``_match_seasons``
+        created the ``Saison NN/`` dirs. The artwork helper bails on
+        seasons whose folder is absent, so brand-new shows ended up
+        without ``seasonNN-poster.jpg``.
+
+        Assert the ordering by recording the Saison-22 directory's
+        existence at the moment ``download_tvshow_artwork`` is invoked.
+        """
+        show = tmp_path / "Show (2020)"
+        show.mkdir()
+        (show / "Show.S22E01.mkv").write_bytes(b"x")
+
+        mixin = _make_scrape_mocks()
+        match = self._patched_match(api_title="Show", api_year=2020, source="tvdb")
+        mixin._tvdb.get_series.return_value = MediaDetails(  # type: ignore[union-attr]
+            provider="tvdb",
+            provider_id="100",
+            title="Show",
+            external_ids={"tmdb": "5"},
+        )
+        mixin._tvdb.get_series_episodes.return_value = SeasonDetails(  # type: ignore[union-attr]
+            provider="tvdb",
+            tv_id="100",
+            season_number=22,
+            episodes=[EpisodeInfo(episode_number=1, title="Pilot")],
+        )
+        mixin._tvdb.get_artwork_urls.return_value = []  # type: ignore[union-attr]
+
+        season_dir_present_at_artwork_call: list[bool] = []
+
+        def _record_season_dir(_show_data: Any, _show_dir: Path, _patterns: Any) -> list[Path]:
+            season_dir_present_at_artwork_call.append((_show_dir / "Saison 22").is_dir())
+            return []
+
+        mixin._artwork.download_tvshow_artwork.side_effect = _record_season_dir  # type: ignore[union-attr]
+
+        with (
+            patch(
+                "personalscraper.scraper.tv_service._is_nfo_complete",
+                return_value=False,
+            ),
+            patch(
+                "personalscraper.scraper.scraper.match_tvshow",
+                return_value=match,
+            ),
+        ):
+            res = mixin.scrape_tvshow(show)
+
+        assert res.action == "scraped"
+        assert season_dir_present_at_artwork_call == [True], (
+            "download_tvshow_artwork was called before Saison 22/ existed — "
+            "season-poster download would be skipped (BUG #3)."
+        )
+
     def test_loose_episodes_unmatched_surface_warning(
         self,
         tmp_path: Path,

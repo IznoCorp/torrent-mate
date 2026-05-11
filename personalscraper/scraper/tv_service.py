@@ -392,21 +392,13 @@ class TvServiceMixin:
             result.error = f"tvshow.nfo failed: {e}"
             return result
 
-        # Download artwork
-        try:
-            downloaded = self._artwork.download_tvshow_artwork(
-                show_data,
-                show_dir,
-                self.patterns,
-            )
-            result.artwork_downloaded = [p.name for p in downloaded]
-        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
-            log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork failed: {e}")
-
         # Process episodes — rglob to find files nested in release-group subdirs,
         # but skip files already organized in Saison XX/ directories.
         # Trailers/ holds Plex-conformant trailer mp4s, never episodes.
+        #
+        # Episode processing must run BEFORE artwork so the Saison NN/ dirs
+        # exist when ``download_tvshow_artwork`` decides which season posters
+        # to fetch: that helper skips seasons whose folder is absent.
         total_renamed = 0
         video_files = sorted(
             f
@@ -450,6 +442,20 @@ class TvServiceMixin:
                     show=show_dir.name,
                     files=loose,
                 )
+
+        # Download artwork (show-level + season posters). Runs after episode
+        # processing so newly-created Saison NN/ dirs are visible to the
+        # season-poster selection logic in ``download_tvshow_artwork``.
+        try:
+            downloaded = self._artwork.download_tvshow_artwork(
+                show_data,
+                show_dir,
+                self.patterns,
+            )
+            result.artwork_downloaded = [p.name for p in downloaded]
+        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
+            log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
+            result.warnings.append(f"Artwork failed: {e}")
 
         result.episodes_renamed = total_renamed
         result.action = "scraped"
