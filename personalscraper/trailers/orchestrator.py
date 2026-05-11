@@ -598,7 +598,6 @@ class TrailersOrchestrator:
         return counts
 
     @property
-    @property
     def item_results(self) -> list[tuple[str, str, str | None]]:
         """Per-item results: (item_path, status, reason) for every item processed."""
         return list(self._item_results)
