@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
+import textwrap
 from unittest.mock import MagicMock, patch
 
 from personalscraper.models import PipelineReport, StepReport
@@ -165,3 +168,29 @@ class TestPipelineWithObserver:
         assert len(report.steps) == 9
         assert len(collector.starts) == 9
         assert len(collector.pipeline_ends) == 1
+
+    def test_notify_observers_overloads_are_checked_by_mypy(self) -> None:
+        """Static overloads reject invalid lifecycle callback argument shapes."""
+        snippet = textwrap.dedent(
+            """
+            from typing import cast
+
+            from personalscraper.models import StepReport
+            from personalscraper.pipeline import Pipeline
+
+            p = cast(Pipeline, object())
+            p._notify_observers("on_step_end", "sort", StepReport(name="sort"), 1.5)
+            p._notify_observers("on_step_start", "ingest", "extra")
+            """
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-m", "mypy", "--config-file=/dev/null", "-c", snippet],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1
+        assert 'No overload variant of "_notify_observers"' in result.stdout
+        assert "on_step_start" in result.stdout

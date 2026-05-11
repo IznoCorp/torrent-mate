@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal, overload  # noqa: F401 — Literal in string annotations
+from typing import Any, Literal, overload
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
