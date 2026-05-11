@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline import Pipeline
 from personalscraper.pipeline_observer import CollectorObserver, PipelineObserverBase
@@ -39,7 +41,7 @@ class TestPipelineWithObserver:
         }
 
     @staticmethod
-    def _make_config():
+    def _make_app() -> AppContext:
         config = MagicMock()
         config.disks = []
         config.paths.staging_dir = MagicMock()
@@ -51,22 +53,29 @@ class TestPipelineWithObserver:
         ingest_entry.id = 97
         ingest_entry.role = "ingest"
         config.staging_dirs = [ingest_entry]
-        return config
+        return AppContext(config=config, settings=MagicMock(), event_bus=EventBus())
+
+    @staticmethod
+    def _run(pipeline: Pipeline, steps: dict, *, observers: tuple) -> PipelineReport:
+        """Run ``pipeline`` with all disk-touching helpers stubbed.
+
+        ``apply_step_overrides`` is patched to return ``steps`` verbatim so
+        the test stubs reach the run loop unchanged (they implement the
+        :class:`PipelineStep` protocol, not the legacy positional signature).
+        """
+        with (
+            patch("personalscraper.pipeline.ensure_staging_tree"),
+            patch.object(Pipeline, "_check_temp_empty_gate"),
+            patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
+            patch("personalscraper.pipeline.apply_step_overrides", return_value=steps),
+        ):
+            return pipeline.run(observers=observers)
 
     def test_all_step_callbacks_called_in_order(self) -> None:
         """on_step_start + on_step_end called for each step in order."""
         collector = CollectorObserver()
-        pipeline = Pipeline(
-            self._make_config(),
-            MagicMock(),
-            observers=[collector],
-            step_overrides=self._make_fake_steps(),
-        )
-
-        with patch("personalscraper.pipeline.ensure_staging_tree"):
-            with patch.object(Pipeline, "_check_temp_empty_gate"):
-                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
-                    pipeline.run()
+        pipeline = Pipeline(self._make_app())
+        self._run(pipeline, self._make_fake_steps(), observers=(collector,))
 
         assert len(collector.starts) == 9
         assert len(collector.ends) == 9
@@ -81,22 +90,13 @@ class TestPipelineWithObserver:
         class CrashStep:
             name = "ingest"
 
-            def __call__(self, *args, **kwargs):
+            def __call__(self, ctx):  # type: ignore[no-untyped-def]  # noqa: ARG002
                 raise ValueError("boom")
 
         overrides["ingest"] = CrashStep()
 
-        pipeline = Pipeline(
-            self._make_config(),
-            MagicMock(),
-            observers=[collector],
-            step_overrides=overrides,
-        )
-
-        with patch("personalscraper.pipeline.ensure_staging_tree"):
-            with patch.object(Pipeline, "_check_temp_empty_gate"):
-                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
-                    pipeline.run()
+        pipeline = Pipeline(self._make_app())
+        self._run(pipeline, overrides, observers=(collector,))
 
         assert len(collector.errors) == 1
         assert "boom" in str(collector.errors[0][1])
@@ -106,17 +106,8 @@ class TestPipelineWithObserver:
     def test_on_pipeline_start_called_once(self) -> None:
         """on_pipeline_start is called exactly once at the beginning."""
         collector = CollectorObserver()
-        pipeline = Pipeline(
-            self._make_config(),
-            MagicMock(),
-            observers=[collector],
-            step_overrides=self._make_fake_steps(),
-        )
-
-        with patch("personalscraper.pipeline.ensure_staging_tree"):
-            with patch.object(Pipeline, "_check_temp_empty_gate"):
-                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
-                    pipeline.run()
+        pipeline = Pipeline(self._make_app())
+        self._run(pipeline, self._make_fake_steps(), observers=(collector,))
 
         assert len(collector.pipeline_starts) == 1
         assert len(collector.pipeline_ends) == 1
@@ -124,17 +115,8 @@ class TestPipelineWithObserver:
     def test_on_pipeline_end_called(self) -> None:
         """on_pipeline_end is called after all steps."""
         collector = CollectorObserver()
-        pipeline = Pipeline(
-            self._make_config(),
-            MagicMock(),
-            observers=[collector],
-            step_overrides=self._make_fake_steps(),
-        )
-
-        with patch("personalscraper.pipeline.ensure_staging_tree"):
-            with patch.object(Pipeline, "_check_temp_empty_gate"):
-                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
-                    pipeline.run()
+        pipeline = Pipeline(self._make_app())
+        self._run(pipeline, self._make_fake_steps(), observers=(collector,))
 
         assert len(collector.pipeline_ends) == 1
         assert isinstance(collector.pipeline_ends[0], PipelineReport)
@@ -168,17 +150,8 @@ class TestPipelineWithObserver:
                 raise RuntimeError(f"broken progress {event.step}")
 
         collector = CollectorObserver()
-        pipeline = Pipeline(
-            self._make_config(),
-            MagicMock(),
-            observers=[CrashingObserver(), collector],
-            step_overrides=self._make_fake_steps(),
-        )
-
-        with patch("personalscraper.pipeline.ensure_staging_tree"):
-            with patch.object(Pipeline, "_check_temp_empty_gate"):
-                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
-                    report = pipeline.run()
+        pipeline = Pipeline(self._make_app())
+        report = self._run(pipeline, self._make_fake_steps(), observers=(CrashingObserver(), collector))
 
         assert len(report.steps) == 9
         assert len(collector.starts) == 9

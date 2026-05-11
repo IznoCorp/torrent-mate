@@ -6,6 +6,8 @@ second run fast-skips most phases, including the trailers step.
 
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
 
@@ -65,8 +67,8 @@ class TestPipelineDoubleRun:
         config.trailers.enabled = False
 
         # console removed — no longer needed
-        pipeline = Pipeline(config, resilience_settings, observers=[])
-        report1 = pipeline.run()
+        pipeline = Pipeline(AppContext(config=config, settings=resilience_settings, event_bus=EventBus()))
+        report1 = pipeline.run(observers=())
 
         assert len(report1.steps) == 9
         assert report1.steps["ingest"].success_count == 2
@@ -82,7 +84,7 @@ class TestPipelineDoubleRun:
         )
         mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
-        report2 = pipeline.run()
+        report2 = pipeline.run(observers=())
 
         assert len(report2.steps) == 9
         # Ingest should show skips (all already ingested)

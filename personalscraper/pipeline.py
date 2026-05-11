@@ -12,7 +12,7 @@ independent sub-steps, each with its own error isolation.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, Literal, overload
 from uuid import UUID, uuid4
@@ -21,10 +21,9 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.core.app_context import AppContext
-from personalscraper.core.event_bus import EventBus
+from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
-from personalscraper.observers.rich_console import RichConsoleObserver
 from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
@@ -46,81 +45,52 @@ class Pipeline:
     complete fully before the next one starts. The dispatch phase
     only runs if verified items exist.
 
+    Sub-phase 2.3 shape: ``Pipeline.__init__`` accepts ONLY an
+    :class:`AppContext`. All run-scope flags (``dry_run``,
+    ``interactive``, ``verbose``), the observers tuple, the step
+    overrides, and the trailer-step toggles are moved to keyword-only
+    parameters on :meth:`run`. Each call to ``run`` generates a fresh
+    ``run_id`` and binds ``current_correlation_id`` to it for the
+    lifetime of the call.
+
     Attributes:
-        config: Config with paths and disk layout.
-        settings: Pipeline configuration (secrets, thresholds).
-        dry_run: Preview mode — no filesystem changes.
-        interactive: Prompt user for ambiguous matches.
-        verbose: Show per-item details in console output.
-        skip_trailers: Skip the trailers download step entirely.
-        continue_on_trailer_error: Continue to dispatch even when the
-            trailers step returns status=error.
+        config: Shortcut for ``self._app.config`` (read-only property).
+        settings: Shortcut for ``self._app.settings`` (read-only property).
     """
 
-    def __init__(
-        self,
-        config: Config,
-        settings: Settings,
-        dry_run: bool = False,
-        interactive: bool = False,
-        verbose: bool = False,
-        observers: Sequence[PipelineObserver] | None = None,
-        step_overrides: Mapping[str, Callable[..., Any]] | None = None,
-        skip_trailers: bool = False,
-        continue_on_trailer_error: bool = False,
-    ) -> None:
+    def __init__(self, app: AppContext) -> None:
         """Initialize the pipeline.
 
         Args:
-            config: Config with paths and disk layout.
-            settings: Pipeline configuration (secrets, thresholds).
-            dry_run: If True, preview operations without modifying files.
-            interactive: If True, prompt for ambiguous matches.
-            verbose: If True, show per-item details.
-            observers: Pipeline observers for lifecycle and progress
-                notifications. Default ``None`` auto-creates a
-                ``RichConsoleObserver``. Pass an empty sequence for
-                headless/silent mode.
-            step_overrides: Optional mapping of step name to replacement
-                callable. Keys: "ingest", "sort", "clean", "scrape",
-                "cleanup", "enforce", "verify", "trailers", "dispatch". Used by tests
-                to inject fakes without monkey-patching module globals.
-                Default ``None`` means no overrides — production behaviour
-                is unchanged.
-            skip_trailers: If True, skip the trailers download step.
-            continue_on_trailer_error: Non-blocking by default; per-item failures
-                are logged and dispatch proceeds. ``continue_on_trailer_error=False``
-                (the default) aborts dispatch when the trailers step returns
-                ``status='error'`` — typically only on lock contention or unexpected
-                crash. Set to ``True`` to log and fall through to dispatch regardless.
+            app: Process-scoped service bundle (``config``, ``settings``,
+                ``event_bus``). All other knobs are run-scope and live on
+                :meth:`run` as keyword-only parameters.
         """
-        self.config = config
-        self.settings = settings
-        self.dry_run = dry_run
-        self.interactive = interactive
-        self.verbose = verbose
-        if observers is None:
-            self._observers: list[PipelineObserver] = [RichConsoleObserver(verbose=verbose, dry_run=dry_run)]
-        else:
-            self._observers = list(observers)
+        self._app: AppContext = app
         self._log = get_logger("pipeline")
-        # Freeze into a protocol registry so callers cannot mutate after init.
-        self._steps = apply_step_overrides(DEFAULT_STEPS, step_overrides)
-        self.skip_trailers = skip_trailers
-        self.continue_on_trailer_error = continue_on_trailer_error
-        # Sub-phase 2.2a transitional plumbing: build AppContext + run_id from
-        # existing fields. Sub-phase 2.3 inverts this — callers will pass an
-        # AppContext directly and Pipeline will derive config/settings/run_id
-        # from it. The EventBus here has no subscribers in Phase 2; emits land
-        # in Phase 3 (which also removes the legacy observers list).
-        self._app: AppContext = AppContext(
-            config=config,
-            settings=settings,
-            event_bus=EventBus(),
-        )
-        # Per-run UUID, regenerated each time _step_context is built. Kept as
-        # an attribute so launchd / smoke tests can correlate against logs.
+        # Run-scope state below is (re)assigned at the start of every
+        # ``run`` call so existing helper methods can read it via ``self``.
+        # Defaults are conservative no-op values used only if a helper
+        # somehow reads them before ``run`` is invoked.
+        self.dry_run: bool = False
+        self.interactive: bool = False
+        self.verbose: bool = False
+        self._observers: list[PipelineObserver] = []
+        self._steps = DEFAULT_STEPS
+        self.skip_trailers: bool = False
+        self.continue_on_trailer_error: bool = False
+        # Per-run UUID, regenerated at the start of every ``run`` call.
         self._run_id: UUID = uuid4()
+
+    @property
+    def config(self) -> Config:
+        """Return the typed JSON5 configuration bundled in ``app``."""
+        return self._app.config
+
+    @property
+    def settings(self) -> Settings:
+        """Return the Pydantic env-var settings bundled in ``app``."""
+        return self._app.settings
 
     def _recover_from_previous_run(
         self,
@@ -193,7 +163,17 @@ class Pipeline:
             self._log.info("crash_recovery_done", cleaned=cleaned)
         return cleaned
 
-    def run(self) -> PipelineReport:
+    def run(
+        self,
+        *,
+        dry_run: bool = False,
+        interactive: bool = False,
+        verbose: bool = False,
+        observers: tuple[PipelineObserver, ...] = (),
+        step_overrides: Mapping[str, Callable[..., Any]] | None = None,
+        skip_trailers: bool = False,
+        continue_on_trailer_error: bool = False,
+    ) -> PipelineReport:
         """Execute all pipeline phases sequentially with gates.
 
         Phase 1: INGEST — complete/ → {ingest_dir}/
@@ -205,11 +185,45 @@ class Pipeline:
         Phase 6: TRAILERS — download trailers (non-blocking by default)
         Phase 7: DISPATCH — only if verified items exist
 
+        Args:
+            dry_run: If True, preview operations without modifying files.
+            interactive: If True, prompt for ambiguous matches.
+            verbose: If True, show per-item details.
+            observers: Pipeline observers wired by the CLI bootstrap.
+                ``StepContext.observers`` carries this tuple so steps can
+                continue to call ``notify_progress(ctx.observers, ...)`` —
+                Phase 3.7b removes this kwarg entirely (subscribers on the
+                ``app.event_bus`` take over).
+            step_overrides: Optional mapping of step name to replacement
+                callable. Used by tests to inject fakes.
+            skip_trailers: If True, skip the trailers download step.
+            continue_on_trailer_error: When True, log the trailers step
+                error and proceed to dispatch; when False (the default),
+                abort dispatch on a trailers step error.
+
         Returns:
             PipelineReport with 9 StepReports (ingest, sort, clean,
             scrape, cleanup, enforce, verify, trailers, dispatch).
         """
         from datetime import datetime
+
+        # Promote run-scope kwargs to instance state so helper methods can
+        # read them via ``self``. Each call to ``run`` overwrites the
+        # previous values — the Pipeline is not concurrent-safe by design.
+        self.dry_run = dry_run
+        self.interactive = interactive
+        self.verbose = verbose
+        self._observers = list(observers)
+        self._steps = apply_step_overrides(DEFAULT_STEPS, step_overrides)
+        self.skip_trailers = skip_trailers
+        self.continue_on_trailer_error = continue_on_trailer_error
+
+        # Fresh per-run UUID + bind the ContextVar so any downstream
+        # ``Event`` constructed during this run captures it as its
+        # ``correlation_id``. The ``finally`` clause resets the token even
+        # on exception so a crashed run never leaks the binding.
+        self._run_id = uuid4()
+        token = current_correlation_id.set(str(self._run_id))
 
         # Bootstrap staging tree on first run (idempotent, no-op if already exists)
         ensure_staging_tree(self.config)
@@ -338,6 +352,7 @@ class Pipeline:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
             self._notify_observers("on_pipeline_end", report)
+            current_correlation_id.reset(token)
 
         return report
 

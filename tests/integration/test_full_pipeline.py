@@ -11,6 +11,8 @@ from pathlib import Path
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport
 from personalscraper.pipeline import Pipeline
 from tests.integration.conftest import FakeQBitClient, FakeTMDB, FakeTorrent, FakeTVDB
@@ -171,11 +173,13 @@ def test_dry_run_three_torrents(
 
     # Construct and run the pipeline in dry_run mode.
     pipeline = Pipeline(
-        config=integration_config,
-        settings=_make_settings(),
-        dry_run=True,
+        AppContext(
+            config=integration_config,
+            settings=_make_settings(),
+            event_bus=EventBus(),
+        )
     )
-    report: PipelineReport = pipeline.run()
+    report: PipelineReport = pipeline.run(dry_run=True, observers=())
 
     # --- Structural invariant: all 9 steps must be present ---------------
     # The plan specified 6 StepReports; actual production code produces 9

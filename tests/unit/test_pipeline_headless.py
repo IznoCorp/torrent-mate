@@ -1,92 +1,112 @@
-"""Tests for pipeline headless mode (observers=[])."""
+"""Tests for pipeline headless mode (default ``observers=()`` on ``run``)."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline import Pipeline
 
 
+def _stub_app() -> AppContext:
+    """Build an :class:`AppContext` whose config/settings are MagicMocks."""
+    config = MagicMock()
+    config.disks = []
+    config.paths.staging_dir = MagicMock()
+    ingest_entry = MagicMock()
+    ingest_entry.id = 97
+    ingest_entry.role = "ingest"
+    config.staging_dirs = [ingest_entry]
+    config.paths.data_dir = MagicMock()
+    config.trailers.pipeline.skip = True
+    config.trailers.pipeline.continue_on_error = True
+    config.trailers.enabled = False
+    settings = MagicMock()
+    return AppContext(config=config, settings=settings, event_bus=EventBus())
+
+
 class TestPipelineHeadless:
-    """Pipeline with observers=[] runs without rich.Console."""
+    """Pipeline default contract: no observers attached unless wired at ``run``."""
 
-    def test_constructs_with_empty_observers(self) -> None:
-        """Pipeline accepts observers=[] without error."""
-        config = MagicMock()
-        config.disks = []
-        config.paths.staging_dir = MagicMock()
-        ingest_entry = MagicMock()
-        ingest_entry.id = 97
-        ingest_entry.role = "ingest"
-        config.staging_dirs = [ingest_entry]
-        config.paths.data_dir = MagicMock()
-        settings = MagicMock()
+    def test_init_starts_with_empty_observers(self) -> None:
+        """``Pipeline.__init__`` leaves ``_observers`` empty.
 
-        pipeline = Pipeline(config, settings, observers=[])
+        Sub-phase 2.3 contract: observer wiring is exclusively the CLI
+        bootstrap's responsibility (sub-phase 2.4). The Pipeline no
+        longer auto-creates a :class:`RichConsoleObserver` — headless is
+        the default. The CLI passes ``observers=...`` to
+        :meth:`Pipeline.run` to opt into console output.
+        """
+        pipeline = Pipeline(_stub_app())
         assert pipeline._observers == []
 
-    def test_default_creates_rich_console_observer(self) -> None:
-        """observers=None auto-creates RichConsoleObserver."""
-        config = MagicMock()
-        config.disks = []
-        config.paths.staging_dir = MagicMock()
-        ingest_entry = MagicMock()
-        ingest_entry.id = 97
-        ingest_entry.role = "ingest"
-        config.staging_dirs = [ingest_entry]
-        config.paths.data_dir = MagicMock()
-        settings = MagicMock()
+    def test_init_rejects_legacy_observers_kwarg(self) -> None:
+        """The legacy ``observers`` kwarg on ``__init__`` is removed.
 
-        pipeline = Pipeline(config, settings)
-        assert len(pipeline._observers) == 1
-        assert pipeline._observers[0].name == "rich-console"
+        ``observers`` moved to :meth:`Pipeline.run` in sub-phase 2.3.
+        Passing it to ``__init__`` must raise ``TypeError``.
+        """
+        import pytest
 
-    def test_default_rich_console_observer_receives_dry_run_flag(self) -> None:
-        """Pipeline dry-run mode is reflected by the default console observer."""
-        config = MagicMock()
-        config.disks = []
-        config.paths.staging_dir = MagicMock()
-        ingest_entry = MagicMock()
-        ingest_entry.id = 97
-        ingest_entry.role = "ingest"
-        config.staging_dirs = [ingest_entry]
-        config.paths.data_dir = MagicMock()
-        settings = MagicMock()
+        with pytest.raises(TypeError):
+            Pipeline(_stub_app(), observers=[])  # type: ignore[call-arg]
 
-        pipeline = Pipeline(config, settings, dry_run=True)
+    def test_run_with_default_observers_is_headless(self) -> None:
+        """``Pipeline.run`` with no observers kwarg keeps ``_observers`` empty."""
+        pipeline = Pipeline(_stub_app())
 
-        assert pipeline._observers[0]._dry_run is True
+        class _Step:
+            def __init__(self, name: str) -> None:
+                self.name = name
+
+            def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
+                if self.name == "verify":
+                    return StepReport(name=self.name, success_count=1), []
+                return StepReport(name=self.name, success_count=1)
+
+        steps = {
+            name: _Step(name)
+            for name in (
+                "ingest",
+                "sort",
+                "clean",
+                "scrape",
+                "cleanup",
+                "enforce",
+                "verify",
+                "trailers",
+                "dispatch",
+            )
+        }
+
+        with (
+            patch("personalscraper.pipeline.ensure_staging_tree"),
+            patch.object(Pipeline, "_check_temp_empty_gate"),
+            patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
+            patch("personalscraper.pipeline.apply_step_overrides", return_value=steps),
+        ):
+            pipeline.run()
+        assert pipeline._observers == []
 
     def test_headless_run_produces_no_stdout(self, capsys) -> None:
-        """observers=[] means the pipeline emits no stdout — the real headless contract.
+        """Default ``Pipeline.run`` (no observers) emits zero stdout.
 
-        Whether the observer list is empty is the API check; what matters for cron/CI
-        is that *nothing* is printed to the terminal. This test exercises both axes.
+        Whether the observer list is empty is the API check; what
+        matters for cron/CI is that *nothing* is printed to the terminal.
         """
-        config = MagicMock()
-        config.disks = []
-        config.paths.staging_dir = MagicMock()
-        ingest_entry = MagicMock()
-        ingest_entry.id = 97
-        ingest_entry.role = "ingest"
-        config.staging_dirs = [ingest_entry]
-        config.paths.data_dir = MagicMock()
-        config.trailers.pipeline.skip = True
-        config.trailers.pipeline.continue_on_error = True
-        config.trailers.enabled = False
-        settings = MagicMock()
 
         class FakeStep:
-            def __init__(self, step_name):
+            def __init__(self, step_name: str) -> None:
                 self.name = step_name
 
-            def __call__(self, *args, **kwargs):
+            def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
                 if self.name == "verify":
                     return StepReport(name=self.name, success_count=1), [MagicMock()]
                 return StepReport(name=self.name, success_count=1)
 
-        overrides = {
+        steps = {
             n: FakeStep(n)
             for n in (
                 "ingest",
@@ -101,7 +121,7 @@ class TestPipelineHeadless:
             )
         }
 
-        pipeline = Pipeline(config, settings, observers=[], step_overrides=overrides)
+        pipeline = Pipeline(_stub_app())
 
         # Drain stdout from setup, then run and check no further output.
         capsys.readouterr()
@@ -109,6 +129,7 @@ class TestPipelineHeadless:
             patch("personalscraper.pipeline.ensure_staging_tree"),
             patch.object(Pipeline, "_check_temp_empty_gate"),
             patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
+            patch("personalscraper.pipeline.apply_step_overrides", return_value=steps),
         ):
             pipeline.run()
         captured = capsys.readouterr()
@@ -119,32 +140,20 @@ class TestPipelineHeadless:
         assert captured.out == "", f"Headless run must not write to stdout, got: {captured.out!r}"
 
     def test_run_with_no_observers(self) -> None:
-        """Pipeline runs to completion with observers=[]."""
-        config = MagicMock()
-        config.disks = []
-        config.paths.staging_dir = MagicMock()
-        ingest_entry = MagicMock()
-        ingest_entry.id = 97
-        ingest_entry.role = "ingest"
-        config.staging_dirs = [ingest_entry]
-        config.paths.data_dir = MagicMock()
-        config.trailers.pipeline.skip = True
-        config.trailers.pipeline.continue_on_error = True
-        config.trailers.enabled = False
-        settings = MagicMock()
+        """``Pipeline.run`` produces a 9-step report when invoked headless."""
 
         class FakeStep:
-            def __init__(self, step_name):
+            def __init__(self, step_name: str) -> None:
                 self.name = step_name
 
-            def __call__(self, *args, **kwargs):
+            def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
                 if self.name == "verify":
                     return StepReport(name=self.name, success_count=1), [MagicMock()]
                 return StepReport(name=self.name, success_count=1)
 
-        overrides = {
+        steps = {
             n: FakeStep(n)
-            for n in [
+            for n in (
                 "ingest",
                 "sort",
                 "clean",
@@ -154,15 +163,18 @@ class TestPipelineHeadless:
                 "verify",
                 "trailers",
                 "dispatch",
-            ]
+            )
         }
 
-        pipeline = Pipeline(config, settings, observers=[], step_overrides=overrides)
+        pipeline = Pipeline(_stub_app())
 
-        with patch("personalscraper.pipeline.ensure_staging_tree"):
-            with patch.object(Pipeline, "_check_temp_empty_gate"):
-                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
-                    report = pipeline.run()
+        with (
+            patch("personalscraper.pipeline.ensure_staging_tree"),
+            patch.object(Pipeline, "_check_temp_empty_gate"),
+            patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
+            patch("personalscraper.pipeline.apply_step_overrides", return_value=steps),
+        ):
+            report = pipeline.run()
 
         assert isinstance(report, PipelineReport)
         assert len(report.steps) == 9

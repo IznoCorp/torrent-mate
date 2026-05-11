@@ -271,6 +271,8 @@ def run(
     from personalscraper.api.notify.healthchecks import HealthcheckClient
     from personalscraper.api.notify.telegram import TelegramNotifier
     from personalscraper.api.transport._http import HttpTransport
+    from personalscraper.core.app_context import AppContext  # noqa: PLC0415
+    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.observers.rich_console import RichConsoleObserver
     from personalscraper.pipeline import Pipeline
@@ -331,19 +333,23 @@ def run(
                     tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
                     pipeline_observers.append(TelegramObserver(tg_notifier))
 
-            # Delegate to Pipeline orchestrator (9-step sequential flow)
-            pipeline = Pipeline(
-                config,
-                settings,
-                dry_run=dry_run,
-                interactive=interactive,
-                verbose=verbose,
-                observers=pipeline_observers,
-                skip_trailers=effective_skip_trailers,
-                continue_on_trailer_error=effective_continue_on_trailer_error,
-            )
+            # Delegate to Pipeline orchestrator (9-step sequential flow).
+            # Sub-phase 2.3 contract: ``__init__`` takes ``app: AppContext``
+            # only; every run-scope flag and the observers tuple is a
+            # keyword-only argument of :meth:`Pipeline.run`. Sub-phase 2.4
+            # extracts the AppContext construction into a `_build_app_context`
+            # helper near the top of this module.
+            app = AppContext(config=config, settings=settings, event_bus=EventBus())
+            pipeline = Pipeline(app)
             try:
-                report = pipeline.run()
+                report = pipeline.run(
+                    dry_run=dry_run,
+                    interactive=interactive,
+                    verbose=verbose,
+                    observers=tuple(pipeline_observers),
+                    skip_trailers=effective_skip_trailers,
+                    continue_on_trailer_error=effective_continue_on_trailer_error,
+                )
             except TrailerStepFailed as exc:
                 # Trailers step failed and --continue-on-trailer-error was not set.
                 # Exit with code 2 (distinct from generic pipeline error exit 1) so
