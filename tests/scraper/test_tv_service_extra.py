@@ -555,6 +555,120 @@ class TestBuildEpisodeMap:
         assert "show_season_empty" in caplog.text
         assert "season=17" in caplog.text or "'season': 17" in caplog.text
 
+    def test_tvdb_empty_falls_back_to_tmdb(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Regression for BUG #6 (episode-scraping provider priority).
+
+        ``metadata.json5`` declares ``episode_scraping: { tvdb: 1, tmdb: 2 }``
+        but ``_build_episode_map`` previously honored only ``match.source``
+        — when TVDB returned zero episodes for a season it gave up silently
+        instead of trying the lower-priority TMDB. The new contract: when
+        the higher-priority provider returns an empty episode list, fall
+        back to the next available provider (cross-reference id required).
+        """
+        show = tmp_path / "Show"
+        show.mkdir()
+        (show / "Show.S17E10.mkv").write_bytes(b"x")
+        tvdb = MagicMock()
+        tvdb.get_series_episodes.return_value = SeasonDetails(
+            provider="tvdb",
+            tv_id="475278",
+            season_number=17,
+            episodes=[],
+        )
+        tmdb = MagicMock()
+        tmdb.get_tv_season.return_value = SeasonDetails(
+            provider="tmdb",
+            tv_id="315820",
+            season_number=17,
+            episodes=[EpisodeInfo(episode_number=10, title="Finale")],
+        )
+        mixin = _make_mixin(tvdb=tvdb, tmdb=tmdb)
+        match = MatchResult(api_id=475278, api_title="X", api_year=2026, confidence=0.98, source="tvdb")
+        with caplog.at_level("INFO"):
+            out = mixin._build_episode_map(show, match, tmdb_id=315820, episode_default_name="Episode")
+        # TMDB filled the gap.
+        assert (17, 10) in out
+        assert out[(17, 10)]["title"] == "Finale"
+        # Diagnostic trail: TVDB came back empty, TMDB was tried, TMDB won.
+        assert "show_season_empty" in caplog.text
+        assert "show_season_fetched" in caplog.text
+        # TMDB was queried for the same season number.
+        tmdb.get_tv_season.assert_called_with(315820, 17)
+
+    def test_tvdb_exception_falls_back_to_tmdb(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Provider exception must trigger the next-priority provider."""
+        show = tmp_path / "Show"
+        show.mkdir()
+        (show / "Show.S01E01.mkv").write_bytes(b"x")
+        tvdb = MagicMock()
+        tvdb.get_series_episodes.side_effect = RuntimeError("boom")
+        tmdb = MagicMock()
+        tmdb.get_tv_season.return_value = SeasonDetails(
+            provider="tmdb",
+            tv_id="100",
+            season_number=1,
+            episodes=[EpisodeInfo(episode_number=1, title="Pilot")],
+        )
+        mixin = _make_mixin(tvdb=tvdb, tmdb=tmdb)
+        match = MatchResult(api_id=42, api_title="X", api_year=2020, confidence=0.9, source="tvdb")
+        with caplog.at_level("WARNING"):
+            out = mixin._build_episode_map(show, match, tmdb_id=100, episode_default_name="Episode")
+        assert (1, 1) in out
+        assert "show_season_fetch_failed" in caplog.text
+
+    def test_no_fallback_when_cross_ref_id_missing(self, tmp_path: Path) -> None:
+        """No TMDB cross-ref id → no fallback attempted, even if TVDB is empty."""
+        show = tmp_path / "Show"
+        show.mkdir()
+        (show / "Show.S17E10.mkv").write_bytes(b"x")
+        tvdb = MagicMock()
+        tvdb.get_series_episodes.return_value = SeasonDetails(
+            provider="tvdb",
+            tv_id="475278",
+            season_number=17,
+            episodes=[],
+        )
+        tmdb = MagicMock()  # must NOT be called
+        mixin = _make_mixin(tvdb=tvdb, tmdb=tmdb)
+        match = MatchResult(api_id=475278, api_title="X", api_year=2026, confidence=0.98, source="tvdb")
+        out = mixin._build_episode_map(show, match, tmdb_id=None, episode_default_name="Episode")
+        assert out == {}
+        tmdb.get_tv_season.assert_not_called()
+
+    def test_config_priority_inverted_tries_tmdb_first(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Config ``episode_scraping: { tmdb: 1, tvdb: 2 }`` → TMDB queried first."""
+        show = tmp_path / "Show"
+        show.mkdir()
+        (show / "Show.S01E01.mkv").write_bytes(b"x")
+        tvdb = MagicMock()
+        tmdb = MagicMock()
+        tmdb.get_tv_season.return_value = SeasonDetails(
+            provider="tmdb",
+            tv_id="100",
+            season_number=1,
+            episodes=[EpisodeInfo(episode_number=1, title="Pilot")],
+        )
+        cfg = MagicMock()
+        cfg.metadata.priorities.episode_scraping = {"tmdb": 1, "tvdb": 2}
+        mixin = _make_mixin(tvdb=tvdb, tmdb=tmdb, config=cfg)
+        match = MatchResult(api_id=42, api_title="X", api_year=2020, confidence=0.9, source="tvdb")
+        out = mixin._build_episode_map(show, match, tmdb_id=100, episode_default_name="Episode")
+        assert (1, 1) in out
+        # TVDB never called because TMDB came first per config priority.
+        tvdb.get_series_episodes.assert_not_called()
+        tmdb.get_tv_season.assert_called_with(100, 1)
+
     def test_tmdb_warns_when_season_returns_empty_episodes(
         self,
         tmp_path: Path,
@@ -793,6 +907,10 @@ def _make_scrape_mocks(
     """Create a mixin with a config object so ``scrape_tvshow`` runs end-to-end."""
     cfg = MagicMock()
     cfg.scraper.episode_default_name = "Episode"
+    # ``_ordered_episode_providers`` reads this dict; give it a concrete
+    # value so MagicMock auto-attribute resolution doesn't smuggle a
+    # non-comparable mock into the priority sort.
+    cfg.metadata.priorities.episode_scraping = {"tvdb": 1, "tmdb": 2}
     return _make_mixin(
         config=cfg if has_config else None,
         classify_return=classify_return,
