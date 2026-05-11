@@ -68,3 +68,54 @@ class TestEnforceProgress:
 
         structure_events = [e for e in collector.progress if e.item == "Inception (2010)"]
         assert len(structure_events) >= 2, "expected started + fixed events for structure item"
+
+    def test_sanitize_skip_emits_skipped(self) -> None:
+        """A sanitize_result with action='skipped' emits a skipped event (no fixed)."""
+        collector = CollectorObserver()
+        settings = MagicMock()
+        config = MagicMock()
+        config.paths.staging_dir = Path("/tmp/staging")
+
+        skipped_result = MagicMock()
+        skipped_result.old_name = "Already.OK.2024"
+        skipped_result.new_name = None
+        skipped_result.action = "skipped"
+
+        with (
+            patch("personalscraper.enforce.run.sanitize_files", return_value=[skipped_result]),
+            patch("personalscraper.enforce.run.validate_structure", return_value=[]),
+            patch("personalscraper.enforce.run.check_coherence", return_value=[]),
+        ):
+            run_enforce(settings, config, dry_run=True, observers=(collector,))
+
+        skipped = [e for e in collector.progress if e.status == "skipped"]
+        fixed = [e for e in collector.progress if e.status == "fixed"]
+        assert len(skipped) >= 1
+        assert len(fixed) == 0
+
+    def test_structure_unrepaired_emits_skipped(self) -> None:
+        """A structure_result with action != 'repaired' emits skipped (not fixed)."""
+        collector = CollectorObserver()
+        settings = MagicMock()
+        config = MagicMock()
+        config.paths.staging_dir = Path("/tmp/staging")
+
+        struct = MagicMock()
+        struct.path = MagicMock()
+        struct.path.name = "Broken (2010)"
+        struct.action = "blocked"
+        struct.fixes = []
+        struct.warnings = ["unrecoverable structure"]
+
+        with (
+            patch("personalscraper.enforce.run.sanitize_files", return_value=[]),
+            patch("personalscraper.enforce.run.validate_structure", return_value=[struct]),
+            patch("personalscraper.enforce.run.check_coherence", return_value=[]),
+        ):
+            run_enforce(settings, config, dry_run=True, observers=(collector,))
+
+        events_for_item = [e for e in collector.progress if e.item == "Broken (2010)"]
+        statuses = [e.status for e in events_for_item]
+        assert "started" in statuses
+        assert "skipped" in statuses
+        assert "fixed" not in statuses
