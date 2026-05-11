@@ -67,18 +67,32 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" and INDEX.md Invariant 3 for th
 
 ### Phase 1 — Foundation
 
-| Sub-phase | SHA                            | Description                                                           |
-| --------- | ------------------------------ | --------------------------------------------------------------------- |
-| pre-1.1   | `505596c`                      | Pre-flight baselines (tests=3738, skip=6, notify_progress=46/8 files) |
-| 1.1       | `08616a3`                      | Event base + current_correlation_id ContextVar (10 tests)             |
-| 1.2       | `28e4121`                      | EventBus.subscribe/unsubscribe + SubscriptionToken (COW) (7 tests)    |
-| 1.3       | `f694070`                      | EventBus.emit + MRO cache + zero-alloc fast path (10 tests)           |
-| 1.4       | `492ac24`                      | Error isolation + re-entrant emit safety (6 tests)                    |
-| 1.5       | `6acfa18`                      | event_to_dict pure-payload JSON encoder (12 tests)                    |
-| 1.6       | `92fad12`                      | event_to_envelope/from_envelope + class registry (12 tests)           |
-| 1.7       | `a1e7d4c`                      | correlation_id ContextVar capture semantics (8 tests)                 |
-| 1.8       | `026fda6`                      | CollectingSubscriber + factories registry mechanism (9 tests)         |
-| 1.9       | _(pending — this gate commit)_ | Phase 1 gate (no new code, all 10 verification items pass)            |
+| Sub-phase | SHA       | Description                                                           |
+| --------- | --------- | --------------------------------------------------------------------- |
+| pre-1.1   | `505596c` | Pre-flight baselines (tests=3738, skip=6, notify_progress=46/8 files) |
+| 1.1       | `08616a3` | Event base + current_correlation_id ContextVar (10 tests)             |
+| 1.2       | `28e4121` | EventBus.subscribe/unsubscribe + SubscriptionToken (COW) (7 tests)    |
+| 1.3       | `f694070` | EventBus.emit + MRO cache + zero-alloc fast path (10 tests)           |
+| 1.4       | `492ac24` | Error isolation + re-entrant emit safety (6 tests)                    |
+| 1.5       | `6acfa18` | event_to_dict pure-payload JSON encoder (12 tests)                    |
+| 1.6       | `92fad12` | event_to_envelope/from_envelope + class registry (12 tests)           |
+| 1.7       | `a1e7d4c` | correlation_id ContextVar capture semantics (8 tests)                 |
+| 1.8       | `026fda6` | CollectingSubscriber + factories registry mechanism (9 tests)         |
+| 1.9       | `aae849e` | Phase 1 gate (no new code, all 10 verification items green)           |
+
+### Phase 2 — AppContext + StepContext slim (IN PROGRESS — 4 of 9 sub-phases)
+
+| Sub-phase | SHA                | Description                                                          |
+| --------- | ------------------ | -------------------------------------------------------------------- |
+| 2.1       | `343001f`          | AppContext frozen dataclass at core/app_context.py (3 tests)         |
+| 2.2a      | `fcc68dd`          | StepContext gains app + run_id, legacy mirrors via **post_init** (6) |
+| 2.2b      | `4b90106`          | Sweep ctx.config/settings → ctx.app.config/settings (27 sites)       |
+| 2.2c      | `be8a52e`          | Drop legacy mirrors from StepContext; final 2.2 shape                |
+| 2.3       | _(pending)_        | Pipeline.**init**(app), per-run run_id, ContextVar bind (~39 sites)  |
+| 2.4       | _(pending)_        | CLI entry builds AppContext (commands/pipeline.py)                   |
+| 2.5       | _(pending)_        | launchd scan + trailers commands rewired                             |
+| 2.6       | _(pending)_        | tests/architecture/test_app_context_boundary.py (AST allowlist)      |
+| 2.7       | _(pending — gate)_ | Phase 2 gate (10 verification items)                                 |
 
 ## Review cycles
 
