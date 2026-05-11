@@ -175,6 +175,18 @@ Find SXXEXX for episodes missing season/episode numbers via reverse scraping on 
 
 ## P3 — Stretch (nice to have, lower urgency)
 
+### P3 — LLM Pipeline Assistant (idée, gardée pour la fin)
+
+Connecter un LLM (local et/ou distant) comme assistant d'arbitrage pour les
+points du pipeline qui requièrent aujourd'hui une décision humaine (matches
+ambigus TMDB/TVDB, post-mortem d'erreurs, détection d'incohérences). L'IA
+s'imprègne de la médiathèque existante et apprend des corrections utilisateur
+via RAG — jamais de fine-tuning, jamais autonome, toujours en validation.
+Principe directeur : feature volontairement simple à implémenter.
+
+Vision et questions ouvertes (document vivant, pas de plan technique) :
+`docs/superpowers/roadmap/llm-assistant/brainstorming.md`
+
 ### P3 — God-Module Splits (Residual from arch-cleanup)
 
 The arch-cleanup feature completed major decomposition (CLI, scraper, indexer CLI, config models, dispatch), but four modules remain above the 800 LOC advisory ceiling:
