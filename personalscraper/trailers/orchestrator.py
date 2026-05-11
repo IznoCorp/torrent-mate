@@ -136,6 +136,7 @@ class TrailersOrchestrator:
         self._config = config
         self._staging_dir = staging_dir
         self._failed_items: list[tuple[str, str, str]] = []
+        self._item_results: list[tuple[str, str, str | None]] = []
 
         min_size = int(config.trailers.filters.min_file_size_bytes)
         self._scanner = Scanner(
@@ -202,6 +203,7 @@ class TrailersOrchestrator:
             ytdlp_error, skipped_by_state, skipped_by_filter, error.
         """
         self._failed_items = []
+        self._item_results = []
 
         # Guard: if the finder could not be constructed (import failure or
         # misconfiguration), raise immediately rather than processing items and
@@ -267,6 +269,7 @@ class TrailersOrchestrator:
             if self._state_store.should_skip(key):
                 log.debug("trailers_skipped_by_state", key=key, title=item.title)
                 counts["skipped_by_state"] += 1
+                self._item_results.append((str(item.path), "skipped", "skipped_by_state"))
                 continue
 
             apply_library_check = tvshows_check if item.media_type == "tvshow" else movies_check
@@ -304,6 +307,7 @@ class TrailersOrchestrator:
                             item.title,
                         )
                         counts["already_present_on_disk"] += 1
+                        self._item_results.append((str(item.path), "already_present", "already_present_on_disk"))
                         continue
 
             media_name = item.path.name
@@ -318,6 +322,7 @@ class TrailersOrchestrator:
             if trailer_exists(expected_path, min_size):
                 log.debug("trailers_already_present", key=key, title=item.title)
                 counts["already_present"] += 1
+                self._item_results.append((str(item.path), "already_present", "already_present"))
                 continue
 
             _disk_ok = True
@@ -352,6 +357,7 @@ class TrailersOrchestrator:
                 )
             if not _disk_ok:
                 counts["skipped_by_filter"] += 1
+                self._item_results.append((str(item.path), "skipped", "skipped_by_filter"))
                 continue
 
             elapsed = time.monotonic() - step_start
@@ -392,6 +398,7 @@ class TrailersOrchestrator:
                         error_type=type(exc).__name__,
                     )
                     counts["circuit_open"] += 1
+                    self._item_results.append((str(item.path), "error", "circuit_open"))
                 else:
                     log.error(
                         "trailers_finder_error",
@@ -429,6 +436,7 @@ class TrailersOrchestrator:
             if url is None:
                 log.info("trailers_no_trailer_found", key=key, title=item.title)
                 counts["no_trailer"] += 1
+                self._item_results.append((str(item.path), "no_trailer", "no_trailer"))
                 self._failed_items.append((key, "no_trailer", ""))
                 _set_state_for_item(
                     self._state_store,
@@ -454,6 +462,7 @@ class TrailersOrchestrator:
             if trailer_exists(expected_path, min_size):
                 log.debug("trailers_already_present", key=key, title=item.title)
                 counts["already_present"] += 1
+                self._item_results.append((str(item.path), "already_present", "already_present"))
                 continue
 
             result = self._downloader.download(url, expected_path)
@@ -468,6 +477,7 @@ class TrailersOrchestrator:
                     output_path=str(result.output_path),
                 )
                 counts["downloaded"] += 1
+                self._item_results.append((str(item.path), "downloaded", "downloaded"))
 
                 # Best-effort outbox publish for the indexer (DESIGN §9.1).
                 if result.output_path is not None:
@@ -518,6 +528,7 @@ class TrailersOrchestrator:
             elif result.status == DownloadStatus.BOT_DETECTED:
                 log.warning("trailers_bot_detected", key=key, title=item.title, url=url)
                 counts["bot_detected"] += 1
+                self._item_results.append((str(item.path), "bot_detected", "bot_detected"))
                 self._failed_items.append((key, "bot_detected", result.error_message or ""))
                 _set_state_for_item(
                     self._state_store,
@@ -539,6 +550,7 @@ class TrailersOrchestrator:
             elif result.status == DownloadStatus.HTTP_ERROR:
                 log.warning("trailers_http_error", key=key, title=item.title, url=url)
                 counts["http_error"] += 1
+                self._item_results.append((str(item.path), "error", "http_error"))
                 self._failed_items.append((key, "http_error", result.error_message or ""))
                 _set_state_for_item(
                     self._state_store,
@@ -562,6 +574,7 @@ class TrailersOrchestrator:
             else:
                 log.warning("trailers_ytdlp_error", key=key, title=item.title, url=url)
                 counts["ytdlp_error"] += 1
+                self._item_results.append((str(item.path), "error", "ytdlp_error"))
                 self._failed_items.append((key, "ytdlp_error", result.error_message or ""))
                 _set_state_for_item(
                     self._state_store,
@@ -583,6 +596,11 @@ class TrailersOrchestrator:
                 )
 
         return counts
+
+    @property
+    def item_results(self) -> list[tuple[str, str, str | None]]:
+        """Per-item results: (item_path, status, reason) for every item processed."""
+        return list(self._item_results)
 
     @property
     def failed_items(self) -> list[tuple[str, str, str]]:

@@ -6,8 +6,6 @@ second run fast-skips most phases, including the trailers step.
 
 from unittest.mock import MagicMock, patch
 
-from rich.console import Console
-
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
 
@@ -66,8 +64,8 @@ class TestPipelineDoubleRun:
         # orchestrator is never invoked even if the run_trailers stub is removed.
         config.trailers.enabled = False
 
-        console = Console(quiet=True)
-        pipeline = Pipeline(config, resilience_settings, console=console)
+        # console removed — no longer needed
+        pipeline = Pipeline(config, resilience_settings, observers=[])
         report1 = pipeline.run()
 
         assert len(report1.steps) == 9

@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rich.console import Console
 
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline import Pipeline
@@ -48,18 +47,12 @@ def pipeline_config(tmp_path):
     return config
 
 
-@pytest.fixture
-def quiet_console():
-    """Console that suppresses output for clean test logs."""
-    return Console(quiet=True)
-
-
 class TestRunStep:
     """Tests for Pipeline._run_step method."""
 
-    def test_normal_step_report(self, pipeline_config, pipeline_settings, quiet_console):
+    def test_normal_step_report(self, pipeline_config, pipeline_settings):
         """Normal step function returning StepReport."""
-        pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+        pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
         report = PipelineReport(started_at=MagicMock())
         sr = StepReport(name="test", success_count=3)
 
@@ -68,9 +61,9 @@ class TestRunStep:
         assert result is None
         assert report.steps["test"].success_count == 3
 
-    def test_tuple_return_extracts_extra(self, pipeline_config, pipeline_settings, quiet_console):
+    def test_tuple_return_extracts_extra(self, pipeline_config, pipeline_settings):
         """Step returning (StepReport, extra_data) extracts both."""
-        pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+        pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
         report = PipelineReport(started_at=MagicMock())
         sr = StepReport(name="verify", success_count=5)
         extra_data = [{"path": "/some/path"}]
@@ -80,9 +73,9 @@ class TestRunStep:
         assert result == extra_data
         assert report.steps["verify"].success_count == 5
 
-    def test_exception_creates_error_report(self, pipeline_config, pipeline_settings, quiet_console):
+    def test_exception_creates_error_report(self, pipeline_config, pipeline_settings):
         """Fatal exception creates StepReport with error details."""
-        pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+        pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
         report = PipelineReport(started_at=MagicMock())
 
         def failing_step():
@@ -106,7 +99,6 @@ class TestPipelineRun:
         mock_sort,
         pipeline_config,
         pipeline_settings,
-        quiet_console,
     ):
         """Pipeline executes ingest→sort→gate→process→enforce→verify→dispatch."""
         mock_ingest.return_value = StepReport(name="ingest", success_count=2)
@@ -129,7 +121,7 @@ class TestPipelineRun:
             )
             mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
-            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
             report = pipeline.run()
 
         assert len(report.steps) == 9
@@ -153,7 +145,6 @@ class TestPipelineRun:
         mock_sort,
         pipeline_config,
         pipeline_settings,
-        quiet_console,
     ):
         """Dispatch is skipped when verify returns no dispatchable items."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -176,7 +167,7 @@ class TestPipelineRun:
                 [],  # no dispatchable items
             )
 
-            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
             report = pipeline.run()
 
         assert report.steps["dispatch"].skip_count == 1
@@ -190,7 +181,6 @@ class TestPipelineRun:
         mock_sort,
         pipeline_config,
         pipeline_settings,
-        quiet_console,
     ):
         """Dispatch is skipped when verify step crashes (returns None)."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -206,7 +196,7 @@ class TestPipelineRun:
                 return_value=StepReport(name="trailers", status="skipped"),
             ),
         ):
-            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
             report = pipeline.run()
 
         # verify has error, dispatch is skipped
@@ -221,7 +211,6 @@ class TestPipelineRun:
         mock_sort,
         pipeline_config,
         pipeline_settings,
-        quiet_console,
     ):
         """Gate 097-TEMP not empty logs warning but pipeline continues."""
         mock_ingest.return_value = StepReport(name="ingest")
@@ -239,7 +228,7 @@ class TestPipelineRun:
         ):
             mock_verify.return_value = (StepReport(name="verify"), [])
 
-            pipeline = Pipeline(pipeline_config, pipeline_settings, console=quiet_console)
+            pipeline = Pipeline(pipeline_config, pipeline_settings, observers=[])
             report = pipeline.run()
 
         # Pipeline continued despite gate warning

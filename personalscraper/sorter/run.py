@@ -17,13 +17,21 @@ from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
 
 log = get_logger("sorter.run")
 
 
-def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: bool = False) -> StepReport:
+def run_sort(
+    settings: Settings,
+    staging_dir: Path,
+    config: Config,
+    dry_run: bool = False,
+    *,
+    observers: tuple[PipelineObserver, ...] = (),
+) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
     Instantiates NameCleaner and Sorter, processes the ingest directory
@@ -37,6 +45,8 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
         staging_dir: Absolute path to the staging area (from Config.paths).
         config: Loaded Config instance (required) for staging_dirs and path resolution.
         dry_run: If True, simulate moves without actually moving.
+        observers: Tuple of pipeline observers for per-item progress
+            notifications.
 
     Returns:
         StepReport with counts and per-item details.
@@ -56,19 +66,59 @@ def run_sort(settings: Settings, staging_dir: Path, config: Config, dry_run: boo
 
     report = StepReport(name="sort")
     for r in results:
+        notify_progress(
+            observers,
+            StepEvent(step="sort", item=r.source.name, status="started"),
+        )
         if r.status == "moved":
             report.success_count += 1
             report.details.append(f"{r.source.name} -> {r.destination}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="moved",
+                    details={"destination": str(r.destination)},
+                ),
+            )
         elif r.status == "dry-run":
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {r.source.name} -> {r.destination}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="moved",
+                    details={"destination": str(r.destination), "dry_run": True},
+                ),
+            )
         elif r.status == "skipped":
             report.skip_count += 1
             if r.message:
                 report.warnings.append(f"{r.source.name}: {r.message}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="skipped",
+                    details={"reason": r.message or ""},
+                ),
+            )
         elif r.status == "error":
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
+            notify_progress(
+                observers,
+                StepEvent(
+                    step="sort",
+                    item=r.source.name,
+                    status="error",
+                    details={"error": r.message or ""},
+                ),
+            )
 
     # After sort consumes files from the ingest dir, prune any
     # ``dest_path`` recorded inside that dir from the ingest tracker.

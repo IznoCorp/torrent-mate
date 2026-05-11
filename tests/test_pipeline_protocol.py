@@ -17,7 +17,7 @@ def test_step_context_is_frozen() -> None:
         dry_run=False,
         interactive=False,
         verbose=False,
-        console=None,  # type: ignore[arg-type]
+        observers=(),
         upstream={},
         extras={},
     )
@@ -52,7 +52,7 @@ def test_step_context_upstream_mapping() -> None:
         dry_run=False,
         interactive=False,
         verbose=False,
-        console=None,  # type: ignore[arg-type]
+        observers=(),
         upstream={"ingest": prior},
         extras={},
     )

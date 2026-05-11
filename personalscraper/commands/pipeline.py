@@ -254,19 +254,27 @@ def run(
         "--continue-on-trailer-error",
         help="Do not abort dispatch when the trailers step crashes.",
     ),
+    headless: bool = typer.Option(
+        False,
+        "--headless",
+        help=(
+            "Run with no observers (silent mode for cron / CI). "
+            "Disables Rich console output and Telegram notifications."
+        ),
+    ),
 ) -> None:
     """Run full pipeline (ingest -> sort -> process -> verify -> dispatch)."""
     from datetime import datetime
 
     import structlog.contextvars
-    from rich.panel import Panel
-    from rich.table import Table
 
     from personalscraper.api.notify.healthchecks import HealthcheckClient
     from personalscraper.api.notify.telegram import TelegramNotifier
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
+    from personalscraper.observers.rich_console import RichConsoleObserver
     from personalscraper.pipeline import Pipeline
+    from personalscraper.pipeline_observer import PipelineObserver
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
@@ -299,22 +307,29 @@ def run(
             run_id = datetime.now().isoformat(timespec="seconds")
             structlog.contextvars.bind_contextvars(run_id=run_id)
 
-            mode = "[yellow]DRY-RUN[/yellow]" if dry_run else "[green]LIVE[/green]"
-            console.print(
-                f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
-                highlight=False,
-            )
             _run_log.info("pipeline_started", dry_run=dry_run, run_id=run_id)
 
             # Resolve flag defaults from config when not explicitly set by the caller.
-            # config.trailers.pipeline.skip / continue_on_error act as persistent
-            # operator-level defaults; CLI flags take precedence when provided.
             effective_skip_trailers = skip_trailers or config.trailers.pipeline.skip
             effective_continue_on_trailer_error = (
                 continue_on_trailer_error or config.trailers.pipeline.continue_on_error
             )
 
+            from personalscraper.observers.telegram import TelegramObserver
             from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
+
+            # Build observer list — RichConsoleObserver now prints the banner in
+            # on_pipeline_start, replacing the inline console.print that was here.
+            # --headless skips all observer registration for silent cron/CI runs.
+            pipeline_observers: list[PipelineObserver] = []
+            if not headless:
+                pipeline_observers.append(
+                    RichConsoleObserver(console=console, verbose=verbose, dry_run=dry_run, run_id=run_id)
+                )
+                if TelegramNotifier.is_configured(settings):
+                    tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+                    tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
+                    pipeline_observers.append(TelegramObserver(tg_notifier))
 
             # Delegate to Pipeline orchestrator (9-step sequential flow)
             pipeline = Pipeline(
@@ -323,7 +338,7 @@ def run(
                 dry_run=dry_run,
                 interactive=interactive,
                 verbose=verbose,
-                console=console,
+                observers=pipeline_observers,
                 skip_trailers=effective_skip_trailers,
                 continue_on_trailer_error=effective_continue_on_trailer_error,
             )
@@ -342,29 +357,6 @@ def run(
             seconds = int(dur.total_seconds()) % 60
             dur_str = f"{minutes}min {seconds:02d}s" if minutes else f"{seconds}s"
             _run_log.info("pipeline_finished", duration=dur_str)
-
-            # Final summary table (9 steps)
-            table = Table(show_header=True, header_style="bold")
-            table.add_column("Step")
-            table.add_column("OK", justify="right")
-            table.add_column("Skip", justify="right")
-            table.add_column("Err", justify="right")
-            for name, step in report.steps.items():
-                err_style = "red" if step.error_count else ""
-                table.add_row(
-                    name.capitalize(),
-                    str(step.success_count),
-                    str(step.skip_count),
-                    f"[{err_style}]{step.error_count}[/{err_style}]" if err_style else str(step.error_count),
-                )
-            status_text = "[green]OK[/green]" if not report.has_errors() else "[red]ERRORS[/red]"
-            console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
-
-            # Telegram notification (if configured)
-            if TelegramNotifier.is_configured(settings):
-                transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
-                notifier = TelegramNotifier(transport, settings.telegram_chat_id)
-                notifier.send_report(report)
 
             # Mark outcome BEFORE the typer.Exit so the finally block pings the right state.
             pipeline_outcome = "fail" if report.has_errors() else "success"

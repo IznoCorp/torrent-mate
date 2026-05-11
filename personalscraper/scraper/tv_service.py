@@ -276,8 +276,19 @@ class TvServiceMixin:
             else:
                 # Existing fast path: artwork recovery + dir repair.
                 missing_art = self._check_missing_tvshow_artwork(show_dir)
-                if missing_art and not self.dry_run:
-                    self._recover_tvshow_artwork(nfo_path, show_dir, result)
+                if missing_art:
+                    if self.dry_run:
+                        # Surface the work the real run would do so dry-run
+                        # output is not misleading (operators previously saw
+                        # ``skipped_already_done`` and then watched the real
+                        # run unexpectedly download artwork).
+                        log.info(
+                            "artwork_would_recover",
+                            directory=show_dir.name,
+                            missing=missing_art,
+                        )
+                    else:
+                        self._recover_tvshow_artwork(nfo_path, show_dir, result)
                 # Repair pass: remove residual NFOs, root MKV duplicates, etc.
                 repaired = self._repair_tvshow_dir(show_dir)
                 if repaired and result.action != "artwork_recovered":
@@ -392,21 +403,13 @@ class TvServiceMixin:
             result.error = f"tvshow.nfo failed: {e}"
             return result
 
-        # Download artwork
-        try:
-            downloaded = self._artwork.download_tvshow_artwork(
-                show_data,
-                show_dir,
-                self.patterns,
-            )
-            result.artwork_downloaded = [p.name for p in downloaded]
-        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
-            log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
-            result.warnings.append(f"Artwork failed: {e}")
-
         # Process episodes — rglob to find files nested in release-group subdirs,
         # but skip files already organized in Saison XX/ directories.
         # Trailers/ holds Plex-conformant trailer mp4s, never episodes.
+        #
+        # Episode processing must run BEFORE artwork so the Saison NN/ dirs
+        # exist when ``download_tvshow_artwork`` decides which season posters
+        # to fetch: that helper skips seasons whose folder is absent.
         total_renamed = 0
         video_files = sorted(
             f
@@ -432,6 +435,38 @@ class TvServiceMixin:
                     _cleanup_empty_release_dirs(show_dir)
                 except OSError as exc:
                     log.warning("show_clean_release_dirs_failed", show=show_dir.name, error=str(exc))
+
+            # Episodes detected at the show root but none matched/moved into
+            # ``Saison NN/`` — file naming and provider season layout diverge.
+            # Without this signal the operator gets ``action="scraped"`` and
+            # no clue that videos are still loose; verify catches the
+            # filesystem shape but the scrape result itself stays opaque.
+            if total_renamed == 0:
+                loose = [f.name for f in video_files]
+                result.warnings.append(
+                    f"Episodes unmatched against {match.source} api_id={match.api_id}: {', '.join(loose)}"
+                )
+                log.warning(
+                    "show_episodes_unmatched",
+                    provider=match.source,
+                    api_id=match.api_id,
+                    show=show_dir.name,
+                    files=loose,
+                )
+
+        # Download artwork (show-level + season posters). Runs after episode
+        # processing so newly-created Saison NN/ dirs are visible to the
+        # season-poster selection logic in ``download_tvshow_artwork``.
+        try:
+            downloaded = self._artwork.download_tvshow_artwork(
+                show_data,
+                show_dir,
+                self.patterns,
+            )
+            result.artwork_downloaded = [p.name for p in downloaded]
+        except (requests.RequestException, OSError, KeyError, AttributeError) as e:
+            log.warning("show_artwork_failed", api_title=match.api_title, exc_info=True, error=str(e))
+            result.warnings.append(f"Artwork failed: {e}")
 
         result.episodes_renamed = total_renamed
         result.action = "scraped"
@@ -574,21 +609,27 @@ class TvServiceMixin:
         tmdb_id: int | None,
         episode_default_name: str,
     ) -> dict[tuple[int, int], dict[str, Any]]:
-        """Fetch episode data from TVDB or TMDB keyed by (season, episode).
+        """Fetch episode data from TVDB/TMDB keyed by (season, episode).
 
-        Discovers seasons from local filesystem directories (Saison XX/).
+        Discovers seasons from local filesystem directories (Saison XX/) and
+        queries metadata providers in the priority order declared by
+        ``config.metadata.priorities.episode_scraping``. The first provider
+        that returns a non-empty episode list for a given season wins; if
+        it comes back empty or raises, the next provider is tried.
         Episodes with missing titles receive a synthetic
         ``"{episode_default_name} {number}"``.
 
         Args:
             show_dir: Path to the TV show directory.
             match: MatchResult from the scrape step.
-            tmdb_id: TMDB ID for the show (required when match.source == "tmdb").
+            tmdb_id: TMDB ID resolved at lookup time (from cross-references
+                on TVDB-matched shows or ``match.api_id`` on TMDB-matched
+                shows). ``None`` disables the TMDB branch.
             episode_default_name: Fallback title prefix for unnamed episodes.
 
         Returns:
             Dict mapping ``(season, episode)`` to ``{"title", "still_path"}``.
-            May be empty when all seasons failed to fetch or had no episodes.
+            Empty when every provider's catalog lacks the requested seasons.
         """
         season_nums = sorted(
             {
@@ -607,35 +648,128 @@ class TvServiceMixin:
         if not season_nums:
             return {}
 
+        # Derive the TVDB id when the show was matched via TVDB. TMDB-matched
+        # shows currently leave ``tvdb_id`` unresolved (would require a
+        # cross-reference fetch); the priority loop handles that gracefully by
+        # skipping providers whose id is missing.
+        tvdb_id = match.api_id if match.source == "tvdb" else None
+        providers = self._ordered_episode_providers(tvdb_id, tmdb_id, episode_default_name)
+        if not providers:
+            return {}
+
         api_episodes: dict[tuple[int, int], dict[str, Any]] = {}
         for s_num in season_nums:
+            api_episodes.update(self._fetch_season_with_fallback(s_num, providers))
+        return api_episodes
+
+    def _ordered_episode_providers(
+        self,
+        tvdb_id: int | None,
+        tmdb_id: int | None,
+        episode_default_name: str,
+    ) -> list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]]:
+        """Build the per-season fetch list, ordered by ``episode_scraping`` priority.
+
+        Each entry is ``(provider_name, fetch_callable)`` where ``fetch_callable``
+        takes a season number and returns ``[(episode_number, payload), ...]``.
+        Providers whose cross-reference id is missing are dropped. The
+        ordering reads from ``config.metadata.priorities.episode_scraping``
+        with a sane default (``tvdb`` then ``tmdb``) when config is absent.
+
+        Args:
+            tvdb_id: Resolved TVDB id (``None`` if unavailable).
+            tmdb_id: Resolved TMDB id (``None`` if unavailable).
+            episode_default_name: Title prefix for episodes whose provider
+                title is empty.
+
+        Returns:
+            List of ``(name, fetch)`` pairs, lowest priority number first.
+        """
+        priority: dict[str, int] = self.config.metadata.priorities.episode_scraping if self.config is not None else {}
+
+        def _rank(name: str) -> int:
+            """Pull a provider rank, falling back to a sentinel for unknowns.
+
+            Providers absent from ``episode_scraping`` are sorted last so they
+            only fire when everything higher-priority is unavailable.
+            """
+            return priority.get(name, 99)
+
+        def _tvdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
+            assert tvdb_id is not None
+            detail = self._tvdb.get_series_episodes(tvdb_id, season)
+            return [
+                (
+                    ep.episode_number,
+                    {
+                        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
+                        "still_path": "",
+                    },
+                )
+                for ep in detail.episodes
+            ]
+
+        def _tmdb_fetch(season: int) -> list[tuple[int, dict[str, Any]]]:
+            assert tmdb_id is not None
+            detail = self._tmdb.get_tv_season(tmdb_id, season)
+            return [
+                (
+                    ep.episode_number,
+                    {
+                        "title": ep.title or f"{episode_default_name} {ep.episode_number}",
+                        "still_path": "",
+                    },
+                )
+                for ep in detail.episodes
+            ]
+
+        candidates: list[tuple[str, int, Callable[[int], list[tuple[int, dict[str, Any]]]]]] = []
+        if tvdb_id is not None:
+            candidates.append(("tvdb", _rank("tvdb"), _tvdb_fetch))
+        if tmdb_id is not None:
+            candidates.append(("tmdb", _rank("tmdb"), _tmdb_fetch))
+        candidates.sort(key=lambda c: c[1])
+        return [(name, fetch) for name, _, fetch in candidates]
+
+    def _fetch_season_with_fallback(
+        self,
+        season: int,
+        providers: list[tuple[str, Callable[[int], list[tuple[int, dict[str, Any]]]]]],
+    ) -> dict[tuple[int, int], dict[str, Any]]:
+        """Iterate providers in priority order, return the first non-empty result.
+
+        A provider is considered "successful" only when it returns at least
+        one episode for the requested season. Empty responses and exceptions
+        both fall through to the next provider so a stale catalog on the
+        primary source does not silently lose downstream data.
+
+        Args:
+            season: Season number to fetch.
+            providers: Ordered ``(name, fetch)`` list from
+                :meth:`_ordered_episode_providers`.
+
+        Returns:
+            ``{(season, episode): payload}`` mapping. Empty when all
+            providers came back empty or raised.
+        """
+        for name, fetch in providers:
             try:
-                if match.source == "tvdb":
-                    season_detail = self._tvdb.get_series_episodes(match.api_id, s_num)
-                    for ep in season_detail.episodes:
-                        e_num = ep.episode_number
-                        title = ep.title or f"{episode_default_name} {e_num}"
-                        api_episodes[(s_num, e_num)] = {
-                            "title": title,
-                            "still_path": "",
-                        }
-                else:
-                    assert tmdb_id is not None
-                    season_detail = self._tmdb.get_tv_season(tmdb_id, s_num)
-                    for ep in season_detail.episodes:
-                        e_num = ep.episode_number
-                        api_episodes[(s_num, e_num)] = {
-                            "title": ep.title or f"{episode_default_name} {e_num}",
-                            "still_path": "",
-                        }
-            except Exception as e:
+                items = fetch(season)
+            except Exception as e:  # noqa: BLE001 — provider clients raise a wide variety
                 log.warning(
                     "show_season_fetch_failed",
-                    season=s_num,
+                    provider=name,
+                    season=season,
                     exc_info=True,
                     error=str(e),
                 )
-        return api_episodes
+                continue
+            if not items:
+                log.warning("show_season_empty", provider=name, season=season)
+                continue
+            log.info("show_season_fetched", provider=name, season=season, count=len(items))
+            return {(season, e_num): payload for e_num, payload in items}
+        return {}
 
     def _match_seasons(
         self,
@@ -661,8 +795,12 @@ class TvServiceMixin:
         Returns:
             Number of episodes renamed (0 if no matches).
         """
-        if not api_episodes:
-            return 0
+        # NOTE: do NOT bail when api_episodes is empty. ``match_episode_files``
+        # has a Pass-3 synthetic fallback that places loose .mkv files into
+        # their labeled ``Saison NN/`` with a "Episode N" title — exactly what
+        # we want when the provider's season catalog is missing or stale
+        # (Top Chef Le Concours Parallèle S17 case). Early-exiting here left
+        # the file at the show root with no signal to verify/dispatch.
         matched = match_episode_files(
             video_files,
             api_episodes,

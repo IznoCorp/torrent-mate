@@ -7,11 +7,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from rich.console import Console
-
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.models import StepReport
+    from personalscraper.pipeline_observer import PipelineObserver
 
 
 @dataclass(frozen=True)
@@ -24,7 +23,7 @@ class StepContext:
         dry_run: If True, preview operations without side effects.
         interactive: If True, prompt before destructive actions.
         verbose: If True, emit detailed progress output.
-        console: Rich console instance for formatted output.
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
         upstream: Reports from previously executed steps, keyed by step name.
         extras: Mutable mapping for ad-hoc cross-step data (e.g. verified paths).
     """
@@ -34,7 +33,7 @@ class StepContext:
     dry_run: bool
     interactive: bool
     verbose: bool
-    console: "Console"
+    observers: tuple["PipelineObserver", ...]
     upstream: Mapping[str, "StepReport"]
     extras: MutableMapping[str, Any]
 

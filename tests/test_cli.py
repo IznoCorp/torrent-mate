@@ -220,14 +220,11 @@ def test_quiet_mode():
 
 @patch(_PATCH_PIPELINE_RUN)
 def test_run_delegates_to_pipeline(mock_pipeline_run):
-    """Run command delegates to Pipeline and shows 7-step summary panel."""
+    """Run command delegates to Pipeline and completes successfully."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
     mock_pipeline_run.assert_called_once()
-    # Verify all 7 step names appear in the panel
-    for step_name in ("Ingest", "Sort", "Clean", "Scrape", "Cleanup", "Verify", "Dispatch"):
-        assert step_name in result.output
 
 
 @patch(_PATCH_PIPELINE_RUN, autospec=True)
@@ -251,19 +248,45 @@ def test_run_lock_blocked(mock_lock):
 
 
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
-@patch("personalscraper.api.notify.telegram.TelegramNotifier.send_report")
-def test_run_sends_telegram_when_configured(mock_send_report, mock_notifier_cfg):
-    """Telegram notification is sent when configured."""
-    mock_send_report.return_value = True
+@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
+@patch(_PATCH_PIPELINE_RUN)
+def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_pipeline_init, mock_notifier_cfg):
+    """TelegramObserver is passed to Pipeline when notifier is configured."""
+    mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
-    mock_send_report.assert_called_once()
+    _, kwargs = mock_pipeline_init.call_args
+    observers = kwargs.get("observers", [])
+    assert any(obs.name == "telegram" for obs in observers), (
+        f"TelegramObserver not found in observers: {[getattr(o, 'name', type(o).__name__) for o in observers]}"
+    )
 
 
-def test_run_no_telegram_when_not_configured():
-    """No Telegram call when not configured (no error)."""
+@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
+@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
+@patch(_PATCH_PIPELINE_RUN)
+def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_pipeline_init, mock_cfg):
+    """is_configured gating: when notifier is not configured, no TelegramObserver is wired."""
+    mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
+    _, kwargs = mock_pipeline_init.call_args
+    observers = kwargs.get("observers", [])
+    names = [getattr(o, "name", type(o).__name__) for o in observers]
+    assert not any(n == "telegram" for n in names), f"TelegramObserver should not be wired, got {names}"
+
+
+@patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
+@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
+@patch(_PATCH_PIPELINE_RUN)
+def test_run_headless_disables_all_observers(mock_pipeline_run, mock_pipeline_init, mock_cfg):
+    """--headless flag yields an empty observers list, even when Telegram is configured."""
+    mock_pipeline_run.return_value = _make_pipeline_report()
+    result = runner.invoke(app, ["run", "--headless"])
+    assert result.exit_code == 0
+    _, kwargs = mock_pipeline_init.call_args
+    observers = kwargs.get("observers", [])
+    assert observers == [], f"--headless must produce empty observer list, got {observers}"
 
 
 @patch(_PATCH_HC_CONFIGURED, return_value=True)

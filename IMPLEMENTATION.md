@@ -1,31 +1,29 @@
-# Implementation Progress — test-coverage
+# Implementation Progress — pipeline-obs
 
 > For Claude: read this file at session start. Current feature tracker.
 
-**Codename**: `test-coverage`
-**Feature**: Test Coverage & Design-Contract Testing (minor)
-**Bump**: 0.11.0 → 0.12.0
-**Branch**: feat/test-coverage
-**Design**: docs/features/test-coverage/DESIGN.md
-**Master plan**: docs/features/test-coverage/plan/INDEX.md
-**PR**: _(created after last phase)_
+**Codename**: `pipeline-obs`
+**Feature**: Pipeline Observer Protocol (Headless Mode) (minor)
+**Bump**: 0.12.0 → 0.13.0
+**Branch**: feat/pipeline-obs
+**Design**: docs/features/pipeline-obs/DESIGN.md
+**Master plan**: docs/features/pipeline-obs/plan/INDEX.md
+**PR**: https://github.com/LounisBou/personal-scraper/pull/21
 **PR merge**: manual
 
 ## Phases
 
-| #   | Phase                                                                        | Type        | File                                                                                                    | Status |
-| --- | ---------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Foundation — scripts + Makefile + baseline                                   | infra       | [phase-01-foundation.md](docs/features/test-coverage/plan/phase-01-foundation.md)                       | [x]    |
-| 2   | CI enforcement (test-cov + design-gaps + monotonic)                          | infra       | [phase-02-ci-enforcement.md](docs/features/test-coverage/plan/phase-02-ci-enforcement.md)               | [x]    |
-| 3   | Pre-commit hook via core.hooksPath                                           | infra       | [phase-03-pre-commit-hook.md](docs/features/test-coverage/plan/phase-03-pre-commit-hook.md)             | [x]    |
-| 4   | Bootstrap — first contract test + 7th check                                  | bootstrap   | [phase-04-bootstrap.md](docs/features/test-coverage/plan/phase-04-bootstrap.md)                         | [x]    |
-| 5   | api-unify cycle (bootstrap markers, no bump)                                 | cycle       | [phase-05-api-unify-cycle.md](docs/features/test-coverage/plan/phase-05-api-unify-cycle.md)             | [x]    |
-| 6   | scraper cycle (markers + skip_audit; consolidated bump in `71c8926`)         | cycle       | [phase-06-scraper-cycle.md](docs/features/test-coverage/plan/phase-06-scraper-cycle.md)                 | [x]    |
-| 7   | dispatch + verify cycle (markers + skip_audit; consolidated bump)            | cycle       | [phase-07-dispatch-verify-cycle.md](docs/features/test-coverage/plan/phase-07-dispatch-verify-cycle.md) | [x]    |
-| 8   | trailers cycle + design-gaps promoted to hard error (`bed40c8`)              | cycle       | [phase-08-trailers-cycle.md](docs/features/test-coverage/plan/phase-08-trailers-cycle.md)               | [x]    |
-| 9   | indexer cycle (markers + skip_audit; consolidated bump)                      | cycle       | [phase-09-indexer-cycle.md](docs/features/test-coverage/plan/phase-09-indexer-cycle.md)                 | [x]    |
-| 10  | remaining cleanup (markers + skip_audit; final ratchet 80 → 90 in `71c8926`) | cycle       | [phase-10-remaining-cleanup.md](docs/features/test-coverage/plan/phase-10-remaining-cleanup.md)         | [x]    |
-| 11  | Maintenance — 6-month audit + HOWTO                                          | maintenance | [phase-11-maintenance.md](docs/features/test-coverage/plan/phase-11-maintenance.md)                     | [x]    |
+| #   | Phase                                               | Type  | File                                                                                                     | Status |
+| --- | --------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Protocol foundation                                 | core  | [phase-01-protocol-foundation.md](docs/features/pipeline-obs/plan/phase-01-protocol-foundation.md)       | [x]    |
+| 2   | RichConsoleObserver                                 | core  | [phase-02-rich-console-observer.md](docs/features/pipeline-obs/plan/phase-02-rich-console-observer.md)   | [x]    |
+| 3   | TelegramObserver                                    | core  | [phase-03-telegram-observer.md](docs/features/pipeline-obs/plan/phase-03-telegram-observer.md)           | [x]    |
+| 4   | StepContext + Pipeline core refactor                | core  | [phase-04-pipeline-core.md](docs/features/pipeline-obs/plan/phase-04-pipeline-core.md)                   | [x]    |
+| 5   | CLI wiring                                          | wire  | [phase-05-cli-wiring.md](docs/features/pipeline-obs/plan/phase-05-cli-wiring.md)                         | [x]    |
+| 6   | Step integration — ingest + sort                    | steps | [phase-06-ingest-sort.md](docs/features/pipeline-obs/plan/phase-06-ingest-sort.md)                       | [x]    |
+| 7   | Step integration — process + scrape                 | steps | [phase-07-process-scrape.md](docs/features/pipeline-obs/plan/phase-07-process-scrape.md)                 | [x]    |
+| 8   | Step integration — enforce + verify                 | steps | [phase-08-enforce-verify.md](docs/features/pipeline-obs/plan/phase-08-enforce-verify.md)                 | [x]    |
+| 9   | Step integration — trailers + dispatch + final gate | steps | [phase-09-trailers-dispatch-gate.md](docs/features/pipeline-obs/plan/phase-09-trailers-dispatch-gate.md) | [x]    |
 
 ## Quality gate (every commit)
 
@@ -35,10 +33,10 @@ python3 scripts/check-module-size.py
 python3 scripts/check-typed-api.py
 ```
 
-Every milestone commit (`chore(test-coverage): phase N gate — <summary>`) must pass:
+Every milestone commit (`chore(pipeline-obs): phase N gate — <summary>`) must pass:
 
 1. `make lint` — ruff + mypy clean.
-2. `make test-cov` — all tests pass at the current `fail_under`.
+2. `make test` — all tests pass.
 3. `make check` — composite gate.
 4. Residual import grep (per phase plan, where applicable).
 5. Smoke import: `python -c "import personalscraper"`.
@@ -47,51 +45,69 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" for the full protocol.
 
 ## Sub-phase → SHA mapping
 
-### Phase 1 — Foundation
-
-| Sub-phase | SHA       | Description                                                    |
-| --------- | --------- | -------------------------------------------------------------- |
-| 1.1       | `106114c` | rebaseline pyproject.toml with branch coverage (fail_under=80) |
-| 1.2       | `a39e07d` | get_coverage_threshold.py helper                               |
-| 1.3       | `11ac556` | \_codename_overrides.py table + resolve_codename()             |
-| 1.4       | `42e5d6d` | update_feature_map.py + 23 unit tests                          |
-| 1.5       | `bb9d2d8` | audit_design_coverage.py + 28 unit tests                       |
-| 1.6       | `1179849` | Makefile test-unit/test-integration/test-cov targets           |
-
-**Note**: actual branch-coverage baseline measured at 80.48 % (not the 44 % the
-plan assumed). Phase 1 set `fail_under = 80`. Plan rescaled in commit `1dc7eac`
-to `80 → 82 → 85 → 87 → 90` distributed over Phases 6/7/8/9. The cycle-by-cycle
-bumps were consolidated and shipped end-to-end in `71c8926`
-("apply ratchet 80→90 — final gate, target reached"); measured branch coverage
-at the final gate is 91 %.
-
-### Phase 2 — CI enforcement
+### Phase 1 — Protocol Foundation
 
 | Sub-phase | SHA       | Description                                                  |
 | --------- | --------- | ------------------------------------------------------------ |
-| 2.1       | `d83a45e` | wire `test` job to `make test-cov` + fork-aware codecov flag |
-| 2.2       | `652f31d` | add `coverage-monotonic` job with `coverage-rollback` label  |
-| 2.3       | `652ee32` | add `design-gaps` job (warning-mode, continue-on-error)      |
+| 1.1       | `09b9ddc` | PipelineObserver Protocol + StepEvent + notify_progress      |
+| 1.2       | `65b2ed6` | 13 unit tests for Protocol, Base, StepEvent, notify_progress |
 
-### Phase 3 — Pre-commit hook
+### Phase 2 — RichConsoleObserver
 
-| Sub-phase | SHA       | Description                                                  |
-| --------- | --------- | ------------------------------------------------------------ |
-| 3.1       | `a09c16b` | hooks/pre-commit feature-map regenerator                     |
-| 3.2       | `6f1bdbc` | hooks/install.sh (idempotent core.hooksPath setup)           |
-| 3.3       | `910a45b` | document install in CLAUDE.md + README.md                    |
-| 3.4       | (smoke)   | hook regenerates and stages map for staged test*design*\*.py |
+| Sub-phase | SHA       | Description                           |
+| --------- | --------- | ------------------------------------- |
+| 2.1+2.2   | `59ca770` | RichConsoleObserver + observers pkg   |
+| 2.3       | `2ae0253` | 10 unit tests for RichConsoleObserver |
 
-### Phase 4 — Bootstrap
+### Phase 3 — TelegramObserver
 
-| Sub-phase | SHA                 | Description                                                                      |
-| --------- | ------------------- | -------------------------------------------------------------------------------- |
-| 4.1       | `f5d6608`           | capture phase-4 baseline of orphan design sections                               |
-| 4.2/4.3   | `7abbd81`           | first design-contract test (api-unify circuit breaker) + auto-staged map by hook |
-| 4.4       | `dcd7ff5` (.claude) | 7th `/implement:check` step — design-contract coverage                           |
-| 4.5       | `063e311`           | HOWTO — 3-step contract-test guide                                               |
+| Sub-phase | SHA       | Description              |
+| --------- | --------- | ------------------------ |
+| 3.1+3.2   | `6d28fbc` | TelegramObserver + tests |
 
-## Notes
+### Phase 4 — Pipeline core refactor
 
-- DESIGN + plan were prepared in advance (PR #19 final commit) per `/implement:prepare-feature`. `/implement:feature` skipped brainstorm + plan generation.
-- Previous feature `api-unify` (PR #19, merged 2026-05-08) archived to `docs/archive/features/api-unify/` in the same commit that bumps version to 0.12.0.
+| Sub-phase | SHA       | Description                                      |
+| --------- | --------- | ------------------------------------------------ |
+| 4.1-4.4   | `9ad5c57` | StepContext.console→observers, Pipeline refactor |
+
+### Phase 5 — CLI wiring
+
+| Sub-phase | SHA       | Description                                                 |
+| --------- | --------- | ----------------------------------------------------------- |
+| 5.1-5.3   | `12e81a1` | RichConsoleObserver + TelegramObserver wired, Panel removed |
+
+### Phase 6 — Steps: notify_progress in all 9 steps
+
+| Sub-phase | SHA       | Description                                         |
+| --------- | --------- | --------------------------------------------------- |
+| 6.1       | `2b2456b` | per-item started events in 7 steps                  |
+| 6.2       | `f626a4e` | full transitions in all 9 steps                     |
+| 6.3       | `009e734` | 10 test files: progress + headless + observer       |
+| 6.4       | `bd1616c` | hardened assertions: sort, enforce, process, scrape |
+
+### Phase 7 — Design compliance fixes (audit #2)
+
+| Sub-phase | SHA       | Description                                              |
+| --------- | --------- | -------------------------------------------------------- |
+| 7.1       | `f626a4e` | scrape matched/failed, clean cleaned, cleanup completed  |
+| 7.2       | `f626a4e` | ingest skipped/failed paths, enforce structure+coherence |
+| 7.3       | `f626a4e` | dispatch error action, trailers completion events        |
+
+## Review cycles
+
+_(filled by implement:pr-review — max 3 cycles)_
+
+## Next action
+
+PR #21 pushed — 3709 tests pass. Awaiting manual merge.
+| 6.1-6.3 | `2b2456b` | notify_progress in all 9 steps |
+| 6.4 | `009e734` | 10 progress/headless/observer test files |
+
+## Review cycles
+
+_(filled by implement:pr-review — max 3 cycles)_
+
+## Next action
+
+PR #21 created. Awaiting manual merge.

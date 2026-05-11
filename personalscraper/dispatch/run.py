@@ -19,6 +19,7 @@ from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
@@ -76,6 +77,7 @@ def run_dispatch(
     config: "Config",
     dry_run: bool = False,
     verified: list[VerifyResult] | None = None,
+    observers: tuple[PipelineObserver, ...] = (),
 ) -> StepReport:
     """Run the dispatch pipeline step.
 
@@ -85,6 +87,7 @@ def run_dispatch(
         dry_run: If True, preview without transferring files.
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
+        observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:
         StepReport with dispatch counts and details.
@@ -135,6 +138,50 @@ def run_dispatch(
                 _, verified = run_verify(settings, config, dry_run=dry_run)
 
             results = dispatcher.process(verified=verified)
+
+            for r in results:
+                notify_progress(
+                    observers,
+                    StepEvent(
+                        step="dispatch",
+                        item=r.source.name,
+                        status="started",
+                    ),
+                )
+                if r.action in ("replaced", "merged", "moved"):
+                    notify_progress(
+                        observers,
+                        StepEvent(
+                            step="dispatch",
+                            item=r.source.name,
+                            status=r.action,
+                            details={
+                                "dest": str(r.destination) if r.destination else "",
+                                "disk": r.disk or "",
+                            },
+                        ),
+                    )
+                elif r.action == "skipped":
+                    notify_progress(
+                        observers,
+                        StepEvent(
+                            step="dispatch",
+                            item=r.source.name,
+                            status="skipped",
+                            details={"reason": r.reason or ""},
+                        ),
+                    )
+                else:
+                    # error or unknown action
+                    notify_progress(
+                        observers,
+                        StepEvent(
+                            step="dispatch",
+                            item=r.source.name,
+                            status="error",
+                            details={"action": r.action, "reason": r.reason or ""},
+                        ),
+                    )
 
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately
