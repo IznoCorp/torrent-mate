@@ -163,6 +163,10 @@ Execute these BEFORE creating any code:
    ```
 
    Record the baseline number — every phase gate compares against it.
+   **Captured 2026-05-11 at activation of feat/event-bus (HEAD ~ commit 55f758a):**
+   - `make test`: **3738 passed, 3 skipped, ~17s**
+   - `make check`: **3580 passed, 3 skipped, ~31s** (coverage mode collects fewer items than `make test`; both must stay green)
+   - Phase 1.9 gate target: ≥ **3788** (`make test`, baseline + 50 new event-bus tests).
 
 4. **Baseline `make check` green on `main` merged into the branch**:
 
@@ -171,6 +175,7 @@ Execute these BEFORE creating any code:
    ```
 
    Must be green. If it is red on the branch starting point, fix `main` first; do NOT inherit red gates.
+   **Captured 2026-05-11**: `make check` exit 0, coverage 91.24%, 1 soft-warn finding (`personalscraper/scraper/tv_service.py: 819 LOC` — pre-existing, soft threshold 800 / hard 1000, NOT a blocker).
 
 5. **CLAUDE.md "Search Safety" rule loaded**:
    `rg` MUST always include `--type py` or `-g '*.py'`. `tests/e2e/perf/.fixture/` is 14 GB; a wildcard `rg` will crash the machine.
@@ -234,10 +239,20 @@ Execute these BEFORE creating any code:
    cat /tmp/notify_progress_files.txt      # the actual file list
    ```
 
-   Record the captured numbers HERE in this INDEX before starting Phase 1, replacing the placeholders below:
-   - **Total `notify_progress(` call-lines in `personalscraper/` (production code)**: `<N_CALLS>` (to fill at Pre-flight)
-   - **Files containing `notify_progress(` (excluding `pipeline_observer.py` which defines the helper)**: `<N_FILES>` (to fill at Pre-flight)
-   - **File list** (verbatim from the grep output, alphabetical): `<paste-list-here>`
+   Record the captured numbers HERE in this INDEX before starting Phase 1, replacing the placeholders below.
+   **Captured 2026-05-11 at activation of feat/event-bus (HEAD ~ commit 55f758a):**
+   - **Total `notify_progress(` call-lines in `personalscraper/` (production code, EXCLUDING the definer `pipeline_observer.py`)**: **46**
+   - **Total `notify_progress(` call-lines INCLUDING the definer**: **47** (= 46 callers + 1 definition in `pipeline_observer.py`)
+   - **Files containing `notify_progress(` (excluding `pipeline_observer.py` which defines the helper)**: **8**
+   - **File list** (verbatim from the grep output, alphabetical, EXCLUDING the definer):
+     - `personalscraper/dispatch/run.py`
+     - `personalscraper/enforce/run.py`
+     - `personalscraper/ingest/ingest.py`
+     - `personalscraper/process/run.py`
+     - `personalscraper/scraper/run.py`
+     - `personalscraper/sorter/run.py`
+     - `personalscraper/trailers/step.py`
+     - `personalscraper/verify/run.py`
 
    These exact numbers are the **gate targets**:
    - Phase 3.4 gate: after the mechanical sweep, `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST equal `<N_CALLS>` (every legacy site has a paired bus emit alongside).
@@ -254,8 +269,10 @@ Execute these BEFORE creating any code:
    cat /tmp/skip_baseline.txt
    ```
 
-   Record the integer HERE before starting Phase 1:
-   - **Skip / xfail count at feature start**: `<SKIP_BASELINE>` (to fill at Pre-flight)
+   Record the integer HERE before starting Phase 1.
+   **Captured 2026-05-11 at activation of feat/event-bus (HEAD ~ commit 55f758a):**
+   - **Skip / xfail count at feature start (decorator presence per `rg -c`)**: **6**
+   - **Pytest runtime skipped count at feature start (informational)**: **3** (some `@skipif` decorators evaluate to `False` on this platform)
 
    Every phase gate re-runs the same `rg | awk` command and asserts equality with `<SKIP_BASELINE>`. ANY growth means a new `@pytest.mark.skip` or `@pytest.mark.xfail` was added during the feature — that is a banned form of deferral per Invariant 1. The PR reviewer cross-checks this number against the gate-commit body.
 
