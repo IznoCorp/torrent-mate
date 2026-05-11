@@ -15,10 +15,13 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, overload
+from uuid import UUID, uuid4
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.observers.rich_console import RichConsoleObserver
@@ -105,6 +108,19 @@ class Pipeline:
         self._steps = apply_step_overrides(DEFAULT_STEPS, step_overrides)
         self.skip_trailers = skip_trailers
         self.continue_on_trailer_error = continue_on_trailer_error
+        # Sub-phase 2.2a transitional plumbing: build AppContext + run_id from
+        # existing fields. Sub-phase 2.3 inverts this — callers will pass an
+        # AppContext directly and Pipeline will derive config/settings/run_id
+        # from it. The EventBus here has no subscribers in Phase 2; emits land
+        # in Phase 3 (which also removes the legacy observers list).
+        self._app: AppContext = AppContext(
+            config=config,
+            settings=settings,
+            event_bus=EventBus(),
+        )
+        # Per-run UUID, regenerated each time _step_context is built. Kept as
+        # an attribute so launchd / smoke tests can correlate against logs.
+        self._run_id: UUID = uuid4()
 
     def _recover_from_previous_run(
         self,
@@ -353,9 +369,11 @@ class Pipeline:
 
     def _step_context(self, report: PipelineReport, extras: dict[str, Any]) -> StepContext:
         """Build a StepContext for the current pipeline state."""
+        # config + settings are derived from app via __post_init__
+        # (sub-phase 2.2a) — they are NOT constructor args anymore.
         return StepContext(
-            config=self.config,
-            settings=self.settings,
+            app=self._app,
+            run_id=self._run_id,
             dry_run=self.dry_run,
             interactive=self.interactive,
             verbose=self.verbose,

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, MutableMapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from uuid import UUID
 
 if TYPE_CHECKING:
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
+    from personalscraper.core.app_context import AppContext
     from personalscraper.models import StepReport
     from personalscraper.pipeline_observer import PipelineObserver
 
@@ -17,25 +19,48 @@ if TYPE_CHECKING:
 class StepContext:
     """Immutable context bundle passed to every pipeline step adapter.
 
+    Sub-phase 2.2a transitional shape: ``app`` + ``run_id`` are NEW required
+    fields. ``config`` and ``settings`` are now derived from ``app`` via
+    ``__post_init__`` and declared ``field(init=False)`` — callers cannot
+    pass them and so cannot create a mismatched context. Both names point
+    to the same object (``self.app.config``) so callsite migration in
+    Sub-phase 2.2b is purely cosmetic, and 2.2c drops the legacy mirrors.
+
     Attributes:
-        config: Loaded configuration with disk definitions and category mapping.
-        settings: Pipeline settings with numeric thresholds and credentials.
+        app: Process-scoped service bundle (config, settings, event_bus).
+        run_id: Per-run UUID, identifies a single pipeline invocation.
         dry_run: If True, preview operations without side effects.
         interactive: If True, prompt before destructive actions.
         verbose: If True, emit detailed progress output.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        observers: Tuple of pipeline observers (REMOVED in Phase 3.7b).
         upstream: Reports from previously executed steps, keyed by step name.
-        extras: Mutable mapping for ad-hoc cross-step data (e.g. verified paths).
+        extras: Mutable mapping for ad-hoc cross-step data.
+        config: Mirror of ``app.config`` — derived, NOT a constructor arg.
+        settings: Mirror of ``app.settings`` — derived, NOT a constructor arg.
     """
 
-    config: "Config"
-    settings: "Settings"
+    app: "AppContext"
+    run_id: UUID
     dry_run: bool
     interactive: bool
     verbose: bool
     observers: tuple["PipelineObserver", ...]
     upstream: Mapping[str, "StepReport"]
     extras: MutableMapping[str, Any]
+    # Legacy mirrors — populated by __post_init__, removed in 2.2c once all
+    # callsites read via ctx.app.config / ctx.app.settings. ``init=False``
+    # keeps callers from passing a mismatched value (no runtime assert needed).
+    config: "Config" = field(init=False)
+    settings: "Settings" = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Populate the derived legacy mirrors from ``app``.
+
+        Frozen dataclass — uses ``object.__setattr__`` to bypass the freeze
+        guard. Same pattern as ``Event.__post_init__`` (1.1).
+        """
+        object.__setattr__(self, "config", self.app.config)
+        object.__setattr__(self, "settings", self.app.settings)
 
 
 @runtime_checkable
