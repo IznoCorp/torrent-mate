@@ -451,7 +451,6 @@ class TestTrailerErrorFlagWiring:
         Args:
             orch_config: Minimal Config mock.
             orch_settings: Minimal Settings mock.
-           : Rich Console in quiet mode.
         """
         from personalscraper.trailers.state import TrailerStepFailed
 
@@ -495,7 +494,6 @@ class TestTrailerErrorFlagWiring:
         Args:
             orch_config: Minimal Config mock.
             orch_settings: Minimal Settings mock.
-           : Rich Console in quiet mode.
         """
         dispatch_executed: list[bool] = []
 
