@@ -212,7 +212,7 @@ Also check archived alpha versions under `docs/archive/legacy-alpha/` and archiv
 
 ## Current Feature
 
-**Feature**: test-coverage
-**Branch**: feat/test-coverage
-**Design**: docs/features/test-coverage/DESIGN.md
-**Plan**: docs/features/test-coverage/plan/
+**Feature**: event-bus
+**Branch**: feat/event-bus
+**Design**: docs/features/event-bus/DESIGN.md
+**Plan**: docs/features/event-bus/plan/

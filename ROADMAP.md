@@ -52,13 +52,13 @@ No event/signal system exists today. The pipeline runs as a linear sequence with
 - Cross-process events (needed later for Watcher Service, but out of scope for v1).
 - Retry/replay semantics.
 
-**Preparation** (not yet implemented):
+**In progress** (feat/event-bus, version 0.14.0):
 
 - Codename: `event-bus`
 - SemVer bump: minor (Y+1)
-- Design: `docs/superpowers/roadmap/event-bus/specs/DESIGN.md`
-- Plan: `docs/superpowers/roadmap/event-bus/plan/INDEX.md` (5 phases, 41 sub-phases, ~45 commits)
-- Prepared on: 2026-05-11
+- Design: `docs/features/event-bus/DESIGN.md`
+- Plan: `docs/features/event-bus/plan/INDEX.md` (5 phases, 42 sub-phases)
+- Activated on: 2026-05-11
 
 ### P1 — Provider Registry (Scraper Orchestrator Decoupling)
 

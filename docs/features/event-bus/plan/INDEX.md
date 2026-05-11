@@ -7,7 +7,7 @@
 **SemVer bump**: minor (Y+1)
 **Date**: 2026-05-11
 **Status**: spec (preparation — not yet implemented)
-**Design**: [`../specs/DESIGN.md`](../specs/DESIGN.md)
+**Design**: [`../DESIGN.md`](../DESIGN.md)
 **Goal**: Replace `PipelineObserver` Protocol with a single application-wide `EventBus` that serves as the only substrate for cross-component asynchronous communication.
 **Architecture**: In-process typed pub/sub with type-indexed `subscribe`, MRO-walking dispatch, frozen dataclass events inheriting a common `Event` base, JSON-serializable with split `event_to_dict` / `event_to_envelope` contracts, `correlation_id` captured at event construction via `current_correlation_id` `ContextVar`. Owned by an `AppContext` that lives at process boundaries only.
 **Layout note**: `personalscraper/pipeline.py` is a **single flat module** today, not a package. Pipeline events live at `personalscraper/pipeline_events.py` (sibling flat module), NOT at `personalscraper/pipeline/events.py` (which would require converting `pipeline.py` to a package — explicitly **out of scope** for this feature per DESIGN). The same convention applies to `personalscraper/dispatch/events.py` (dispatch IS a package), `personalscraper/indexer/events.py`, `personalscraper/trailers/events.py` (each is a package), and `personalscraper/core/circuit.py` (events embedded, single flat module).
@@ -68,7 +68,7 @@ Every phase gate MUST pass ALL of the following before the phase is considered c
 6. **Module size budget** — every file under the `personalscraper/` tree obeys the DESIGN.md "Module size budget" table. Run `python3 scripts/check-module-size.py` (also part of `make check`).
 7. **AST boundary test** — `pytest tests/architecture/test_app_context_boundary.py` green (from Phase 2 onwards once `AppContext` and the test exist).
 8. **Smoke import** — `python -c "import personalscraper"` succeeds (catches circular imports introduced by event class registry).
-9. **No unresolved placeholders** — `rg -F '<N_CALLS>' docs/superpowers/roadmap/event-bus/` and `rg -F '<TBD-by-4.2a>' docs/superpowers/roadmap/event-bus/` MUST each return zero matches by the relevant phase (3.4 / 4.2b respectively). A literal placeholder reaching its consumer sub-phase is an unfilled Pre-flight step and a gate failure.
+9. **No unresolved placeholders** — `rg -F '<N_CALLS>' docs/features/event-bus/` and `rg -F '<TBD-by-4.2a>' docs/features/event-bus/` MUST each return zero matches by the relevant phase (3.4 / 4.2b respectively). A literal placeholder reaching its consumer sub-phase is an unfilled Pre-flight step and a gate failure.
 10. **No deferred work in IMPLEMENTATION.md** — the canonical banned-token grep (re-used identically at Phase 5.6 §16):
 
     ```bash
@@ -175,11 +175,12 @@ Execute these BEFORE creating any code:
 5. **CLAUDE.md "Search Safety" rule loaded**:
    `rg` MUST always include `--type py` or `-g '*.py'`. `tests/e2e/perf/.fixture/` is 14 GB; a wildcard `rg` will crash the machine.
 
-6. **No leftover prep artifacts in production paths**:
+6. **Design + plan in place, no leftover prep artifacts**:
 
    ```bash
-   ls docs/superpowers/roadmap/event-bus/specs/DESIGN.md  # exists
-   ls docs/features/event-bus/  # should NOT exist yet on this branch — /implement:feature creates it
+   ls docs/features/event-bus/DESIGN.md            # exists (moved by /implement:feature)
+   ls docs/features/event-bus/plan/INDEX.md        # exists (moved by /implement:feature)
+   ls docs/superpowers/roadmap/event-bus 2>&1 | grep -q 'No such' && echo "OK"   # MUST be absent
    ```
 
 7. **Record canonical Rich Console snapshot baseline** (used by Sub-phases 2.4 visual smoke, 3.5 RichConsoleSubscriber rewrite, and 3.9 Phase 3 gate visual regression):
@@ -281,7 +282,7 @@ Execute these BEFORE creating any code:
 
 ## Final acceptance pointer
 
-This plan is complete when every sub-phase is checked **AND** the DESIGN.md "Acceptance criteria" section (last section of `../specs/DESIGN.md`) is fully satisfied:
+This plan is complete when every sub-phase is checked **AND** the DESIGN.md "Acceptance criteria" section (last section of `../DESIGN.md`) is fully satisfied:
 
 - All five phases gate-green.
 - `rg --type py 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' personalscraper/ tests/` returns zero matches. (Use `rg --type py`, NOT bare `grep -r` — the latter would scan `tests/e2e/perf/.fixture/` 14 GB and crash the machine per CLAUDE.md "Search Safety".)

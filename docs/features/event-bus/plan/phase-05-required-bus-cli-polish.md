@@ -296,7 +296,7 @@ When `--verbose` is on:
   ```bash
   rg 'docs/reference/event-bus\.md' --type md docs/ CLAUDE.md
   ```
-  Must show at least the `CLAUDE.md` entry + the link from `docs/superpowers/roadmap/event-bus/specs/DESIGN.md` (which references it in §Acceptance criteria).
+  Must show at least the `CLAUDE.md` entry + the link from `docs/features/event-bus/DESIGN.md` (which references it in §Acceptance criteria).
 
 **Steps**:
 
