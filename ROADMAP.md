@@ -187,6 +187,13 @@ Principe directeur : feature volontairement simple à implémenter.
 Vision et questions ouvertes (document vivant, pas de plan technique) :
 `docs/superpowers/roadmap/llm-assistant/brainstorming.md`
 
+**Brainstorming déjà entamé** (2026-05-11/12) : principes directeurs posés,
+cas d'usage cadrés (pipeline + médiathèque), stack pressenti identifié
+(MCP server + sqlite-vec + Ollama + Open WebUI compatible), 3 questions
+ouvertes restantes (log de corrections, indexation initiale, confidentialité
+backend distant). Reprendre la prochaine session via `/brainstorming` sur ce
+document — pas besoin de repartir de zéro.
+
 ### P3 — God-Module Splits (Residual from arch-cleanup)
 
 The arch-cleanup feature completed major decomposition (CLI, scraper, indexer CLI, config models, dispatch), but four modules remain above the 800 LOC advisory ceiling:
