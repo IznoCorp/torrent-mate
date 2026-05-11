@@ -1,19 +1,22 @@
-"""In-process typed event bus — Sub-phase 1.1 scaffold.
+"""In-process typed event bus — Sub-phase 1.2 layer.
 
 This module is the single substrate for cross-component asynchronous
-communication in PersonalScraper. Sub-phase 1.1 introduces only:
+communication in PersonalScraper. Sub-phase 1.1 introduced ``Event`` and
+``current_correlation_id``; Sub-phase 1.2 adds ``SubscriptionToken`` and the
+``EventBus`` skeleton with ``subscribe`` / ``unsubscribe`` (no ``emit`` yet —
+that ships in Sub-phase 1.3).
 
-- ``current_correlation_id``: module-level ``ContextVar`` for run/job tagging.
-- ``Event``: frozen dataclass base for every concrete event type.
-
-Subsequent sub-phases extend this module with ``SubscriptionToken``,
-``EventBus``, JSON serialization helpers, and the event class registry.
+Subsequent sub-phases extend this module with ``emit`` + MRO cache + fast path
+(1.3), error isolation + re-entrant safety (1.4), JSON serialization (1.5–1.6),
+and the event class registry hooked via ``Event.__init_subclass__`` (1.6).
 The module-level docstring will be expanded as those layers land — see
 ``docs/features/event-bus/plan/phase-01-foundation.md``.
 """
 
 from __future__ import annotations
 
+import itertools
+from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -81,7 +84,137 @@ class Event:
             object.__setattr__(self, "source", f"{cls.__module__}.{cls.__name__}")
 
 
+# ---------------------------------------------------------------------------
+# Subscription tokens
+# ---------------------------------------------------------------------------
+# Tokens are opaque handles returned by ``EventBus.subscribe``. They carry the
+# minimum data needed to identify a subscription for ``unsubscribe``: a
+# process-unique integer id and the event type the subscription is bound to.
+# A frozen dataclass gives us ``__eq__`` / ``__hash__`` for free, plus protects
+# the internal id from accidental mutation by callers.
+_token_id_counter = itertools.count(1)
+
+
+@dataclass(frozen=True)
+class SubscriptionToken:
+    """Opaque handle for a single subscription, returned by ``EventBus.subscribe``.
+
+    Attributes:
+        _id: Process-monotonic integer assigned at creation time. Underscore
+            prefix marks it as internal; callers MUST treat the token as opaque
+            and only use it as the argument to ``EventBus.unsubscribe``.
+        event_type: The ``Event`` subclass this subscription is bound to.
+            Stored on the token so a future ``unsubscribe`` can locate the
+            subscriber tuple in ``EventBus._subscribers`` without a full scan.
+    """
+
+    _id: int
+    event_type: type[Event]
+
+
+# ---------------------------------------------------------------------------
+# EventBus
+# ---------------------------------------------------------------------------
+# Sub-phase 1.2 lands the storage shape and the ``subscribe`` / ``unsubscribe``
+# methods. ``emit`` is intentionally absent — added in Sub-phase 1.3. Storage is
+# ``dict[type[Event], tuple[tuple[SubscriptionToken, Callable], ...]]``: the
+# outer dict is keyed by event class; the inner tuple is *immutable* per
+# subscriber set, rebuilt on every ``subscribe`` / ``unsubscribe`` call. This
+# copy-on-write discipline ensures ``emit`` (added later) can safely iterate
+# the captured snapshot even if a subscriber re-enters the bus mid-dispatch.
+
+_SubscriberEntry = tuple[SubscriptionToken, Callable[[Event], None]]
+
+
+class EventBus:
+    """In-process typed event bus.
+
+    Sub-phase 1.2 surface: ``subscribe`` and ``unsubscribe`` only. Emit is added
+    in Sub-phase 1.3 with MRO-walking dispatch and a fast path for the
+    no-subscribers case.
+
+    Concurrency: this bus is **not thread-safe** by design. Subscribers and
+    emitters run inside a single process, single thread (the pipeline runner,
+    the trailer CLI invocation, etc.). The ContextVar mechanism handles
+    per-task isolation for asyncio Tasks (verified in Sub-phase 1.7 tests).
+    """
+
+    def __init__(self) -> None:
+        """Initialize an empty subscriber registry."""
+        # Outer dict: event class → tuple of (token, callback) entries.
+        # The tuple is rebuilt on every subscribe/unsubscribe — never mutated
+        # in place — so emit (Sub-phase 1.3) can iterate a captured snapshot.
+        self._subscribers: dict[type[Event], tuple[_SubscriberEntry, ...]] = {}
+
+    def subscribe(
+        self,
+        event_type: type[Event],
+        callback: Callable[[Event], None],
+    ) -> SubscriptionToken:
+        """Register a callback for events of ``event_type`` (or any subclass).
+
+        Subscriber-of-base semantics — i.e. subscribing to ``Event`` catches
+        every concrete subclass via the MRO walk — is implemented in
+        Sub-phase 1.3's ``emit``; ``subscribe`` here only stores the binding.
+
+        Args:
+            event_type: The ``Event`` subclass to listen for.
+            callback: Single-argument callable invoked with the event on emit.
+
+        Returns:
+            A ``SubscriptionToken`` to be passed to ``unsubscribe``.
+        """
+        token = SubscriptionToken(
+            _id=next(_token_id_counter),
+            event_type=event_type,
+        )
+        # Copy-on-write: build a brand-new tuple containing the existing
+        # entries plus the new (token, callback) pair. The previous tuple
+        # object is preserved unchanged for any in-flight emit iteration
+        # (relevant from Sub-phase 1.4 onwards).
+        existing = self._subscribers.get(event_type, ())
+        self._subscribers[event_type] = (*existing, (token, callback))
+        return token
+
+    def unsubscribe(self, token: SubscriptionToken) -> None:
+        """Remove the subscription identified by ``token``.
+
+        Idempotent: passing a token that was never returned by ``subscribe``
+        (or one already unsubscribed) is a no-op — no exception is raised.
+        This matches the contract documented in DESIGN §Subscriber lifecycle:
+        callers may unsubscribe defensively without try/except.
+
+        Args:
+            token: The token previously returned by ``subscribe``.
+        """
+        existing = self._subscribers.get(token.event_type)
+        if not existing:
+            # No subscriptions for this event type — nothing to remove.
+            return
+        # Rebuild the tuple without any entry whose token matches.
+        # We compare on the token's _id (the process-monotonic counter value)
+        # because dataclass __eq__ also matches on event_type (already known
+        # to match here via the dict key); _id alone is the unique identifier.
+        filtered = tuple(
+            entry
+            for entry in existing
+            if entry[0]._id != token._id  # noqa: SLF001
+        )
+        if len(filtered) == len(existing):
+            # Token not found in the current tuple — already-unsubscribed or
+            # never-subscribed. Idempotent no-op.
+            return
+        if filtered:
+            self._subscribers[token.event_type] = filtered
+        else:
+            # No subscribers left for this type — drop the dict key entirely
+            # so the fast path in ``emit`` (Sub-phase 1.3) sees a smaller dict.
+            del self._subscribers[token.event_type]
+
+
 __all__ = [
     "Event",
+    "EventBus",
+    "SubscriptionToken",
     "current_correlation_id",
 ]
