@@ -63,8 +63,6 @@ def run_verify(
         fix: If True, attempt automatic corrections.
         movies_only: Process only {movies_dir}/.
         tvshows_only: Process only {tvshows_dir}/.
-
-
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:

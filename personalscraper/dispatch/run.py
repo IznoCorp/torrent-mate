@@ -19,7 +19,7 @@ from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress  # noqa: F401
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
@@ -87,8 +87,6 @@ def run_dispatch(
         dry_run: If True, preview without transferring files.
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
-
-
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:

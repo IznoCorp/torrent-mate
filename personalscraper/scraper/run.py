@@ -160,8 +160,6 @@ def run_scrape(
         interactive: If True, prompt user for ambiguous matches.
         movies_only: If True, process only {movies_dir}/.
         tvshows_only: If True, process only {tvshows_dir}/.
-
-
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:

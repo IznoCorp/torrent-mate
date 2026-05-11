@@ -272,8 +272,6 @@ def run_ingest(
         staging_dir: Explicit staging area override. When None, resolved from
             ``config.paths.staging_dir``.
         config: Loaded Config instance (required) for staging dir name resolution.
-
-
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:
