@@ -96,27 +96,50 @@ rg --type py 'event_bus: EventBus \| None' personalscraper/ | tee /tmp/event_bus
 CURRENT=$(wc -l < /tmp/event_bus_none_sites.txt)
 echo "current_count=$CURRENT"
 
-# Step 2: extract Phase 4.6 gate commit count from its commit body (locked format
-# per Phase 4 §4.6 step 12 — trailer line "event_bus_optional_sites_count: <N>")
-PHASE4_GATE_SHA=$(git log --grep='phase 4 gate' --format='%H' | head -1)
-GATE_COUNT=$(git show --format=%B "$PHASE4_GATE_SHA" | grep -E '^event_bus_optional_sites_count: [0-9]+$' | awk '{print $2}')
-echo "phase_4_gate_count=$GATE_COUNT"
-
-# Step 3: cross-check assertion
-if [ -z "$GATE_COUNT" ]; then
-  echo "FAIL: Phase 4.6 gate commit body missing 'event_bus_optional_sites_count: <N>' trailer line"
+# Step 2: locate Phase 4.6 gate commit (case-insensitive search to survive
+# subject-line capitalisation slips; the literal commit subject per Phase 4 §4.6
+# step 13 is lowercase "phase 4 gate", but a defensive -i protects against typos)
+PHASE4_GATE_SHA=$(git log -i --grep='phase 4 gate' --format='%H' | head -1)
+if [ -z "$PHASE4_GATE_SHA" ]; then
+  echo "FAIL: no commit matching 'phase 4 gate' found — has Phase 4 actually completed?"
   exit 1
 fi
-# Current MUST be ≤ gate count (5.1 may have tightened some; never grew).
+
+# Step 3: extract BOTH locked trailer lines (Phase 4.6 §12 mandates two)
+GATE_BODY=$(git show --format=%B "$PHASE4_GATE_SHA")
+GATE_COUNT=$(echo "$GATE_BODY" | grep -E '^event_bus_optional_sites_count: [0-9]+$' | awk '{print $2}')
+CB_COUNT=$(echo "$GATE_BODY" | grep -E '^circuit_breaker_calls_without_event_bus_count: [0-9]+$' | awk '{print $2}')
+echo "phase_4_gate event_bus_optional_sites_count=$GATE_COUNT circuit_breaker_calls_without_event_bus_count=$CB_COUNT"
+
+# Step 4: cross-check assertion — BOTH trailers must be present
+if [ -z "$GATE_COUNT" ] || [ -z "$CB_COUNT" ]; then
+  echo "FAIL: Phase 4.6 gate commit body missing one or both trailer lines:"
+  echo "      event_bus_optional_sites_count: <N>"
+  echo "      circuit_breaker_calls_without_event_bus_count: <M>"
+  exit 1
+fi
+
+# Step 5: reconstruct the Phase-4-gate-time site list (from the SHA) so the diff
+# below has something to diff against. This avoids referring to a /tmp/ file that
+# only this run knows about.
+git show "$PHASE4_GATE_SHA" -- personalscraper/ \
+  | grep -E '^\+.*event_bus: EventBus \| None' \
+  | sed 's/^+//' \
+  > /tmp/event_bus_none_sites_phase4_gate.txt 2>/dev/null || true
+# (Fallback: if the diff-from-SHA extraction misses sites, the COUNT-vs-COUNT
+# inequality below still catches drift; the file diff is purely diagnostic.)
+
+# Step 6: count cross-check — current MUST be ≤ gate count
 if [ "$CURRENT" -gt "$GATE_COUNT" ]; then
   echo "FAIL: a new | None site appeared after Phase 4.6 (current=$CURRENT > gate=$GATE_COUNT)"
+  echo "Diagnostic (may be empty if Phase-4-gate-time list could not be reconstructed):"
   diff /tmp/event_bus_none_sites.txt /tmp/event_bus_none_sites_phase4_gate.txt || true
   exit 1
 fi
 echo "OK current=$CURRENT gate=$GATE_COUNT (5.1 may have tightened $((GATE_COUNT - CURRENT)) site(s))"
 ```
 
-If the assertion fails because `event_bus_optional_sites_count:` is missing from the Phase 4 gate commit body, **STOP**: this is a Phase 4 protocol violation. Amend the Phase 4 gate commit to add the trailer line (or land a `fix(event-bus): phase 4 gate count trailer` commit before proceeding). Do NOT proceed with 5.2 in the dark.
+If the assertion fails because either trailer line is missing from the Phase 4 gate commit body, **STOP**: this is a Phase 4 protocol violation. Amend the Phase 4 gate commit to add the trailer lines (or land a `fix(event-bus): phase 4 gate count trailer` commit before proceeding). Do NOT proceed with 5.2 in the dark.
 
 Each match in the current list becomes a tightening target. If any module declares NO option (already required from Phase 4 or 5.1), it does not appear in the grep and is already done.
 
@@ -201,7 +224,7 @@ Module ≤ 40 LOC (DESIGN budget).
 
 **Files**:
 
-- Modify: `personalscraper/cli.py` (or `commands/pipeline.py` — verify) — when `--verbose` flag is set, instantiate `DebugLogSubscriber(app.event_bus)` after bus construction.
+- Modify: `personalscraper/commands/pipeline.py` (the real Pipeline construction site post arch-cleanup, locked in Phase 2.4) — when `--verbose` flag is set, instantiate `DebugLogSubscriber(app.event_bus)` after bus construction. `cli.py` is NOT modified by this sub-phase (the `--verbose` flag is already a Typer option declared on the `run` command in `commands/pipeline.py`).
 - Modify: any ad-hoc verbose handling that already exists — replace with this subscriber if it duplicates.
 - Modify: tests for the verbose flag.
 
@@ -215,7 +238,7 @@ When `--verbose` is on:
 
 **Tests written**:
 
-- `test_cli_run_verbose_registers_debug_log_subscriber`: invoke `run --verbose` via `CliRunner` against a stub pipeline; monkeypatch the subscriber's `on_event` to count calls; assert ≥ 2 events received (at minimum `PipelineStarted` + `PipelineEnded`).
+- `test_cli_run_verbose_registers_debug_log_subscriber`: invoke `run --verbose` via `CliRunner` against a stub pipeline configured to emit a known event sequence `[PipelineStarted, StepStarted("ingest"), StepCompleted("ingest"), PipelineEnded]`; monkeypatch the subscriber's `on_event` to collect calls; assert `[type(e).__name__ for e in received] == ["PipelineStarted", "StepStarted", "StepCompleted", "PipelineEnded"]` (strict equality, not `≥` cardinality — soft cardinality is trivially evaded by an empty stub).
 - `test_cli_run_without_verbose_does_not_register_debug_log_subscriber`: invoke without `--verbose`; assert no `DebugLogSubscriber` registered (a side-channel sentinel set by the subscriber's `__init__` can be checked, or check the bus's subscriber count for `Event` base).
 
 **Steps**:
@@ -335,7 +358,7 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
    print('OK 13 events:', sorted(actual))
    "
    ```
-   (Identical command to Phase 4.6 §5; re-run here as a feature-merge gate.)
+   (Identical command to Phase 4.6 §6; re-run here as a feature-merge gate.)
 8. **Factories complete**: `pytest tests/fixtures/test_factories_registry.py::test_every_event_has_factory -v` green. (`test_every_event_has_factory` iterates the production-module-filtered registry per Invariant 9 / Phase 1.6, so pytest-collected test stubs do NOT pollute the assertion — the iteration sees exactly 13 entries regardless of collection order.)
 9. **Envelope round-trip**: parametrized test green for all 13.
 10. **AST boundary test green**.
@@ -371,7 +394,11 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
       Both commands MUST exit 0.
     - [ ] Any audit failure is fixed IN this sub-phase + a regression test landed if relevant (Invariant 5). NEVER defer.
 15. **Reference documentation present**: `ls docs/reference/event-bus.md` exists; `rg --type md 'docs/reference/event-bus\.md' CLAUDE.md` finds at least one match.
-16. **No deferred work in `IMPLEMENTATION.md`** (Class A): `rg -i 'TODO|deferred|follow-?up|next phase|next sub-phase|TBD|to be done|to be implemented' IMPLEMENTATION.md` MUST return zero matches. An agent that rephrases deferral language to evade this grep is acting in bad faith — the PR review checklist explicitly asks "is there ANY language anywhere in IMPLEMENTATION.md that hints at deferred work?" and rejects evasive phrasings.
+16. **No deferred work in `IMPLEMENTATION.md`** (Class A — identical token list as INDEX Invariant 3 item 10):
+    ```bash
+    rg -i 'TODO|deferred|follow-?up|next phase|next sub-phase|TBD|to be done|to be implemented|parked|revisit|will be done|forthcoming|pending|out of scope|later' IMPLEMENTATION.md
+    ```
+    MUST return zero matches. An agent that rephrases deferral language to evade this grep is acting in bad faith — the PR review checklist explicitly asks "is there ANY language anywhere in IMPLEMENTATION.md that hints at deferred work?" and rejects evasive phrasings. If a new evasive vocabulary is discovered, extend BOTH this list AND INDEX Invariant 3 item 10 in the same `fix(event-bus): extend banned-token list — <new token>` commit (never one without the other).
 17. **No `# TODO(<sub-phase>): delete` markers survived** — every test that planted a `# TODO(X.Y): delete` comment was deleted in sub-phase X.Y. Verify: `rg '# TODO\([0-9.a-z]+\): delete' --type py tests/` MUST return zero matches.
 
 **Steps**:

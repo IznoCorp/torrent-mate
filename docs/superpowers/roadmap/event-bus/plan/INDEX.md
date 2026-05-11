@@ -25,7 +25,7 @@
 | 4     | Cross-cutting events                   | 7          | Phase 3    | [`phase-04-cross-cutting-events.md`](phase-04-cross-cutting-events.md)           |
 | 5     | Required-bus tightening + CLI polish   | 6          | Phase 4    | [`phase-05-required-bus-cli-polish.md`](phase-05-required-bus-cli-polish.md)     |
 
-Total sub-phases: **42**. Total commits (estimate): **42–48** (most sub-phases = 1 commit each; Phase 2 split the StepContext refactor across 2.2a/2.2b/2.2c, Phase 3 split the legacy deletion across 3.7a/3.7b/3.7c, Phase 4 split the conditional DiskGuard extraction at 4.2a from the emit at 4.2b, Phase 5 folded its audit-only step into the gate; sub-phase 3.1 may produce 1 commit (happy path) OR 2+ commits (if Report JSON-safety pre-investigation surfaces non-JSON-safe fields, each coerced via its own `fix(event-bus): ...` commit). The upper bound 48 accommodates 2 coercion commits in 3.1 and 4 atomic commits in 5.2 if multiple `| None` sites exist.).
+Total sub-phases: **42**. Total commits (estimate): **42–49** (most sub-phases = 1 commit each; Phase 2 split the StepContext refactor across 2.2a/2.2b/2.2c, Phase 3 split the legacy deletion across 3.7a/3.7b/3.7c, Phase 4 split the conditional DiskGuard extraction at 4.2a from the emit at 4.2b, Phase 5 folded its audit-only step into the gate; sub-phase 3.1 may produce 1 commit (happy path) OR 2+ commits (if Report JSON-safety pre-investigation surfaces non-JSON-safe fields, each coerced via its own `fix(event-bus): ...` commit). The upper bound 49 accommodates 2 coercion commits in 3.1, 4 atomic commits in 5.2 if multiple `| None` sites exist, and one optional `fix(event-bus): legitimate skip — <justification>` commit allowed by Pre-flight #9 (rare, exceptional).
 
 ---
 
@@ -69,8 +69,15 @@ Every phase gate MUST pass ALL of the following before the phase is considered c
 7. **AST boundary test** — `pytest tests/architecture/test_app_context_boundary.py` green (from Phase 2 onwards once `AppContext` and the test exist).
 8. **Smoke import** — `python -c "import personalscraper"` succeeds (catches circular imports introduced by event class registry).
 9. **No unresolved placeholders** — `rg -F '<N_CALLS>' docs/superpowers/roadmap/event-bus/` and `rg -F '<TBD-by-4.2a>' docs/superpowers/roadmap/event-bus/` MUST each return zero matches by the relevant phase (3.4 / 4.2b respectively). A literal placeholder reaching its consumer sub-phase is an unfilled Pre-flight step and a gate failure.
-10. **No deferred work in IMPLEMENTATION.md** — `rg -i 'TODO|deferred|follow-?up|next phase|next sub-phase|TBD|to be done' IMPLEMENTATION.md` MUST return zero matches. An agent that rephrases deferral language to evade this grep is acting in bad faith; the PR review checklist explicitly looks for paraphrased deferrals.
-11. **No-deferral audit (mechanical)** — for each DESIGN section listed in the phase's "Scope", grep the section's keywords against the phase file. Every keyword MUST appear in at least one sub-phase heading or behavior bullet. The mapping table (DESIGN section → phase sub-phase) is captured in each phase file's "Scope" block and re-asserted by an INDEX-level cross-check at the feature gate (Phase 5.6 §13).
+10. **No deferred work in IMPLEMENTATION.md** — the canonical banned-token grep (re-used identically at Phase 5.6 §16):
+
+    ```bash
+    rg -i 'TODO|deferred|follow-?up|next phase|next sub-phase|TBD|to be done|to be implemented|parked|revisit|will be done|forthcoming|pending|out of scope|later' IMPLEMENTATION.md
+    ```
+
+    MUST return zero matches at every phase gate. The token list is intentionally exhaustive — common evasive paraphrases (`parked`, `revisit`, `pending`, `later`, etc.) are explicit banned tokens. An agent that rephrases deferral language to evade this grep is acting in bad faith; the PR review checklist explicitly looks for paraphrased deferrals AND for new evasive vocabulary not yet in this list (in which case the list itself is bumped, in the same commit, as a `fix(event-bus): extend banned-token list — <new token>` commit).
+
+11. **No-deferral audit (mechanical)** — for each DESIGN section listed in the phase's "Scope", grep the section's keywords against the phase file. Every keyword MUST appear in at least one sub-phase heading or behavior bullet. The mapping table (DESIGN section → phase sub-phase) is captured in each phase file's "Scope" block and re-asserted by an INDEX-level cross-check at the feature gate (Phase 5.6 §14 — the DESIGN Acceptance criteria audit sub-bullet list).
 
 A phase that fails ANY gate item is NOT mergeable. The gate is not negotiable.
 
@@ -253,7 +260,7 @@ Execute these BEFORE creating any code:
 
    If a legitimate skip is required (e.g. a platform-conditional that the feature doesn't introduce but discovers), the change MUST be its own `fix(event-bus): legitimate skip — <justification>` commit BEFORE the gate, and `<SKIP_BASELINE>` is bumped explicitly in the same commit with a one-paragraph justification. No silent baseline drift.
 
-10. **`docs/reference/event-bus.md` outline locked** (Phase 5.5 target — captured here so the doc-completeness gate at Phase 5.6 §13 can grep section headings mechanically):
+10. **`docs/reference/event-bus.md` outline locked** (Phase 5.5 target — captured here so the doc-completeness gate at Phase 5.6 §14 (the "Reference doc complete" sub-bullet of the Acceptance criteria audit) can grep section headings mechanically):
 
     The reference doc MUST contain exactly these top-level section headings, each followed by ≥ 20 LOC of body content:
     - `## Purpose & high-level architecture`
@@ -268,7 +275,7 @@ Execute these BEFORE creating any code:
     - `## Performance notes`
     - `## Future evolution`
 
-    Phase 5.6 §13's doc-completeness check is the bash loop in INDEX Pre-flight #10 below converted into a gate command. Locked here so renumbering of sections requires INDEX edit, not silent drift.
+    Phase 5.6 §14's "Reference doc complete" sub-bullet is the bash loop in this INDEX Pre-flight #10 converted into a gate command. Locked here so renumbering of sections requires an INDEX edit, not silent drift.
 
 ---
 

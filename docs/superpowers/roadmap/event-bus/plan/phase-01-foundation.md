@@ -348,7 +348,7 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
 **Hard verification gate** (must ALL pass before committing the gate):
 
 1. **`make lint`** → zero errors.
-2. **`make test`** → all tests pass; baseline test count MUST have grown by **at least 50** new tests (target ~57: 7 + 5 + 9 + 5 + 10 + 7 + 8 + 6 from sub-phases 1.1 through 1.8). A lower count means a test was silently skipped or deleted — investigate which one and restore it; do NOT lower the minimum. Test count CANNOT regress.
+2. **`make test`** → all tests pass; baseline test count MUST have grown by **at least 50** new tests (target ~61 by per-sub-phase enumeration: 1.1=7 + 1.2=5 + 1.3=9 (+ allocation contract) + 1.4=6 + 1.5=10 + 1.6=10 + 1.7=8 + 1.8=6 = 61). A lower count means a test was silently skipped or deleted — investigate which one and restore it; do NOT lower the minimum. Test count CANNOT regress.
 3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
 4. **`make check`** → green.
 5. **Module size**: `personalscraper/core/event_bus.py` ≤ 400 LOC (DESIGN budget, uplifted from 350 to accommodate MRO cache + COW + ContextVar + envelope encode/decode + registry + `__init_subclass__` hook). Run `python3 scripts/check-module-size.py` (also covered by `make check`).

@@ -742,7 +742,7 @@ file=StringIO(), record=True)` — and compares the recorded text
 | `indexer/events.py`                                  | ≤ 60                                                                                                                               |
 | `trailers/events.py`                                 | ≤ 30                                                                                                                               |
 | `events/__init__.py` (re-exports + registry)         | ≤ 100                                                                                                                              |
-| `subscribers/rich_console.py`                        | ~180 (≈ observers/rich_console.py today: 174 LOC)                                                                                  |
+| `subscribers/rich_console.py`                        | ≤ 200 (current `observers/rich_console.py` 174 LOC; rewrite targets ~180 LOC with bus-subscription scaffolding)                    |
 | `subscribers/telegram.py`                            | ≤ 200 (today: 54 LOC; +pipeline handlers in Phase 3 ≈ 100; +circuit/disk in Phase 4 ≈ 150)                                         |
 | `subscribers/debug_log.py`                           | ≤ 40                                                                                                                               |
 | `tests/fixtures/event_bus.py`                        | ≤ 80                                                                                                                               |

@@ -95,6 +95,7 @@ def on_circuit_opened(self, event: CircuitBreakerOpened) -> None:
 - `test_circuit_breaker_events_have_factories`: assert all 3 in `EVENT_SAMPLE_FACTORIES`.
 - `test_circuit_breaker_events_envelope_roundtrip`: parametrized round-trip for all 3.
 - `test_telegram_subscriber_alerts_on_circuit_opened`: subscribe Telegram; emit `CircuitBreakerOpened(breaker="tmdb", failure_count=5, last_error_class="TimeoutError", last_error_message="...")`; monkeypatch `_send_html`; assert one send with the rendered alert body containing `"tmdb"`, `"5"`, `"TimeoutError"`.
+- `test_telegram_cassette_circuit_opened` (extends `tests/subscribers/test_telegram_cassette.py` planted in Phase 3.6): register a `responses` / `requests-mock` cassette for the Telegram bot send URL; emit `CircuitBreakerOpened(...)` via `TelegramSubscriber`; assert exactly one HTTP request was made with the expected `parse_mode=HTML` body containing the breaker name, failure count, and error class. **This is the Phase-4 half of the Phase 5.6 §14 cassette-fallback for the manual smoke test** — the cassette file MUST be the same `tests/subscribers/test_telegram_cassette.py` (not a separate file), so the Phase 5.6 fallback `pytest tests/subscribers/test_telegram_cassette.py -v` exercises all 4 events in one invocation.
 
 **Steps**:
 
@@ -223,6 +224,7 @@ def on_disk_full(self, event: DiskFullWarning) -> None:
 - `test_disk_full_warning_has_factory`.
 - `test_disk_full_warning_envelope_roundtrip`.
 - `test_telegram_subscriber_alerts_on_disk_full_warning`: monkeypatch send; emit event; assert send call body contains the disk path and free/threshold bytes.
+- `test_telegram_cassette_disk_full_warning` (extends `tests/subscribers/test_telegram_cassette.py`): register a cassette for the Telegram bot send URL; emit `DiskFullWarning(disk_path=Path("/Volumes/Disk1"), free_bytes=1_000_000_000, threshold_bytes=10_000_000_000)`; assert exactly one HTTP request with `parse_mode=HTML` and a body containing the disk path and free/threshold bytes formatted as GB. **Together with the cassette tests from Phase 3.6 (PipelineEnded, StepErrored) and Phase 4.1 (CircuitBreakerOpened), this completes the 4-event cassette coverage promised by Phase 5.6 §14 fallback.**
 
 **Steps**:
 
@@ -305,7 +307,17 @@ class TrailerDownloaded(Event):
     source_url: str
 ```
 
-After `YtdlpDownloader.download(...)` returns a successful download, the orchestrator emits `TrailerDownloaded(media_path=..., trailer_path=..., source_url=...)`. `source_url` comes from yt-dlp's `webpage_url` field (or the `youtube_url` already captured at the orchestrator level — verify exact attribute at impl time; `personalscraper/trailers/orchestrator.py` already tracks `youtube_url=url` at the download call sites, so the same string is available for the event).
+After `YtdlpDownloader.download(...)` returns a successful download, the orchestrator emits `TrailerDownloaded(media_path=..., trailer_path=..., source_url=...)`.
+
+**`source_url` provenance is LOCKED** (no "verify at impl time"): use the `url` variable already in scope at every download call site in `personalscraper/trailers/orchestrator.py` (the orchestrator passes `youtube_url=url` to its result records — same string, already a `str`, no transformation needed). The yt-dlp `webpage_url` field is an alternative but unnecessary since `url` is already the resolved video URL at the call site. The implementation populates `source_url=url` verbatim.
+
+Pre-flight check (Class A — confirms the lock survives a future orchestrator refactor):
+
+```bash
+rg --type py 'youtube_url=url' personalscraper/trailers/orchestrator.py | wc -l
+```
+
+MUST return `≥ 4` (the current call-site count per `rg` against HEAD — adjust to actual count in the sub-phase commit body as `trailer_url_callsite_count: <N>`). If a future refactor renames `url`, the test below catches the regression.
 
 **Tests written**:
 
@@ -388,7 +400,7 @@ This decision is FINAL — no "decide at implementation time" remains.
 **Hard verification gate**:
 
 1. **`make lint`** → zero.
-2. **`make test`** → all pass; cumulative test count MUST have grown by **at least 168** new tests since the feature baseline (Phase 1 ≥ 50 + Phase 2 ≥ 30 + Phase 3 ≥ 50 net 48 after deletions + Phase 4 ≥ 40). Test count CANNOT regress below this floor.
+2. **`make test`** → all pass; cumulative test count MUST have grown by **at least 163** new tests since the feature baseline (Phase 1 ≥ 50 raw + Phase 2 ≥ 30 + Phase 3 ≥ 50 raw net ≥ 48 after the two transitional deletions + Phase 4 ≥ 35). The Phase 4 minimum 35 is the floor of the per-sub-phase enumeration (4.1=8, 4.2b=6, 4.3=7, 4.4=6, 4.5=8 = 35); target is ~38–42 with the cassette tests in 4.1/4.2b. Test count CANNOT regress below the floor.
 3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
 4. **`make check`** → green.
 5. **Module sizes**:
@@ -401,7 +413,7 @@ This decision is FINAL — no "decide at implementation time" remains.
    - `PipelineStarted`, `PipelineEnded`, `StepStarted`, `StepCompleted`, `StepErrored`, `ItemProgressed` (Phase 3).
    - `ItemDispatched` (Phase 4.3).
    - `CircuitBreakerOpened`, `CircuitBreakerClosed`, `CircuitBreakerHalfOpened` (Phase 4.1).
-   - `DiskFullWarning` (Phase 4.2).
+   - `DiskFullWarning` (Phase 4.2b).
    - `TrailerDownloaded` (Phase 4.4).
    - `LibraryScanCompleted` (Phase 4.5).
    - Total: **13 concrete events** (does NOT include `Event` base — Phase 1 §1.6 committed to `Event.__init_subclass__` registration which fires only for subclasses).

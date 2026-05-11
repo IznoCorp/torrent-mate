@@ -298,7 +298,24 @@ The `personalscraper run` CLI command delegates to `commands/pipeline.py`. **The
 **Files**:
 
 - Modify: `personalscraper/commands/pipeline.py` — add the `_build_app_context` helper near the top; replace the `Pipeline(...)` construction at line ~335 with `Pipeline(app=_build_app_context(...))`; modify the `run(...)` invocation to pass `observers=...` and run-scope flags.
-- Modify: `personalscraper/cli.py` — touch only if the Typer app currently passes `Config`/`Settings` to the command function directly (verify at impl time). The vast majority of the change is in `commands/pipeline.py`.
+- Modify: `personalscraper/cli.py` — touch only if the Pre-flight probe below returns "TOUCH-CLI". The vast majority of the change is in `commands/pipeline.py`.
+
+**Pre-flight probe (Class A — decide deterministically, no "verify at impl time" hedging)**:
+
+```bash
+# Does cli.py currently pass Config or Settings positionally / via kwarg to
+# any Typer command function it delegates to? If yes → "TOUCH-CLI";
+# if no → "SKIP-CLI" (the whole Config/Settings handling already lives in
+# commands/pipeline.py and cli.py merely wires Typer).
+if rg --type py 'config=|settings=|Config\(|Settings\(' personalscraper/cli.py | grep -q -v '^[^:]*:\s*#'; then
+  echo "TOUCH-CLI"
+else
+  echo "SKIP-CLI"
+fi
+```
+
+Record the result in the sub-phase commit body as a literal `cli_probe_result: TOUCH-CLI` or `cli_probe_result: SKIP-CLI` trailer line. The sub-phase implementation MUST follow whichever branch the probe returned — no agent improvisation.
+
 - Modify: `tests/commands/test_pipeline.py` (and any sibling tests that exercise the CLI entry).
 
 **Behavior delivered**:
@@ -398,7 +415,7 @@ APP_CONTEXT_ALLOWED_MODULES: set[str] = {
 APP_CONTEXT_ALLOWED_FUNCS: set[tuple[str, str]] = {
     ("personalscraper/cli.py", "main"),
     ("personalscraper/commands/pipeline.py", "_build_app_context"),
-    ("personalscraper/commands/pipeline.py", "run_command"),       # Typer command function — verify exact name at impl time
+    ("personalscraper/commands/pipeline.py", "run_command"),       # Typer command function — name verified via `rg --type py '@app\.command' personalscraper/commands/pipeline.py -A2` at Pre-flight; if the actual function name differs, fix BOTH this allowlist entry AND the AST allowlist test in the same commit
     ("personalscraper/commands/library/scan.py", "library_index"),
     ("personalscraper/trailers/cli.py", "scan"),
     ("personalscraper/trailers/cli.py", "download"),
