@@ -808,6 +808,41 @@ class TestScrapeTvshowDriftAndFastPath:
             res = mixin.scrape_tvshow(show)
         assert res.action == "artwork_recovered"
 
+    def test_fast_path_dry_run_logs_would_recover_artwork(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Regression for BUG #5: dry-run silent on artwork recovery.
+
+        Previously, ``_check_missing_tvshow_artwork`` was queried in
+        dry-run mode but the result was discarded — the operator saw
+        ``skipped_already_done`` and then watched the real run unexpectedly
+        download artwork. Dry-run must now log ``artwork_would_recover``
+        with the missing-file list so the dry-run/real-run contract holds.
+        """
+        show = tmp_path / "Show (2020)"
+        show.mkdir()
+        (show / "tvshow.nfo").write_text("<x/>")
+        mixin = _make_scrape_mocks()
+        mixin.dry_run = True
+        mixin._check_missing_tvshow_artwork = MagicMock(  # type: ignore[assignment]
+            return_value=["season22-poster.jpg"]
+        )
+        with (
+            patch(
+                "personalscraper.scraper.tv_service._is_nfo_complete",
+                return_value=True,
+            ),
+            caplog.at_level("INFO"),
+        ):
+            res = mixin.scrape_tvshow(show)
+        assert res.action == "skipped_already_done"
+        assert "artwork_would_recover" in caplog.text
+        assert "season22-poster.jpg" in caplog.text
+        # Recovery helper must not run in dry-run mode.
+        assert not mixin._recover_tvshow_artwork.called  # type: ignore[union-attr]
+
     def test_fast_path_repaired(self, tmp_path: Path) -> None:
         """Valid NFO + repair makes changes → ``repaired`` action."""
         show = tmp_path / "Show (2020)"

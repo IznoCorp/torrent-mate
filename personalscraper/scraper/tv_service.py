@@ -276,8 +276,19 @@ class TvServiceMixin:
             else:
                 # Existing fast path: artwork recovery + dir repair.
                 missing_art = self._check_missing_tvshow_artwork(show_dir)
-                if missing_art and not self.dry_run:
-                    self._recover_tvshow_artwork(nfo_path, show_dir, result)
+                if missing_art:
+                    if self.dry_run:
+                        # Surface the work the real run would do so dry-run
+                        # output is not misleading (operators previously saw
+                        # ``skipped_already_done`` and then watched the real
+                        # run unexpectedly download artwork).
+                        log.info(
+                            "artwork_would_recover",
+                            directory=show_dir.name,
+                            missing=missing_art,
+                        )
+                    else:
+                        self._recover_tvshow_artwork(nfo_path, show_dir, result)
                 # Repair pass: remove residual NFOs, root MKV duplicates, etc.
                 repaired = self._repair_tvshow_dir(show_dir)
                 if repaired and result.action != "artwork_recovered":
