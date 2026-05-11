@@ -1,4 +1,4 @@
-"""In-process typed event bus — Sub-phase 1.4 layer.
+"""In-process typed event bus — Sub-phase 1.5 layer.
 
 This module is the single substrate for cross-component asynchronous
 communication in PersonalScraper. Layers landed so far:
@@ -11,19 +11,26 @@ communication in PersonalScraper. Layers landed so far:
 - 1.4: per-subscriber ``try/except Exception`` error isolation,
        ``event_emit_failed`` structlog WARNING, immutable-snapshot iteration
        (re-entrant ``subscribe`` / ``unsubscribe`` / ``emit`` are all safe).
+- 1.5: ``event_to_dict`` pure-payload JSON-safe encoder (datetime, UUID,
+       Path, Enum, nested dataclasses, lists, tuples, dicts, primitives).
 
-Subsequent sub-phases extend this module with JSON serialization (1.5–1.6)
-and the event class registry hooked via ``Event.__init_subclass__`` (1.6).
-See ``docs/features/event-bus/plan/phase-01-foundation.md``.
+Subsequent sub-phases extend this module with the tagged envelope encoder
+``event_to_envelope`` and its decoder + class registry hooked via
+``Event.__init_subclass__`` (1.6). See
+``docs/features/event-bus/plan/phase-01-foundation.md``.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import itertools
 from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
+from pathlib import PurePath
+from typing import Any
 from uuid import UUID, uuid4
 
 from personalscraper.logger import get_logger
@@ -32,6 +39,97 @@ from personalscraper.logger import get_logger
 # Imported once at module load time; ``get_logger`` returns a bound logger
 # that includes the module name as a context field.
 _log = get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# JSON-safe encoder (Sub-phase 1.5 — pure-payload form)
+# ---------------------------------------------------------------------------
+# ``event_to_dict`` is the single recursive encoder shared by Event.to_dict()
+# (sugar) and ``event_to_envelope`` (Sub-phase 1.6, adds the {"_type", "data"}
+# tag layer). Its rules verbatim from DESIGN §JSON serialization contract:
+#
+#   datetime → ISO 8601 string (timezone-aware values keep their offset)
+#   UUID     → str
+#   PurePath → str (covers Path on every platform)
+#   Enum     → enum.value
+#   dataclass→ recursive {field_name: encoded(value)} mapping
+#   list/tuple → list of recursively encoded elements
+#   dict     → dict of {key: encoded(value)} — keys MUST be JSON-safe scalars
+#   None / str / int / float / bool → unchanged
+#
+# Anything else raises ``TypeError`` (fail-loud — never silent fallback). The
+# error message names the offending type so callers can extend the encoder
+# (or coerce in the producer) rather than chasing a silent serialization bug.
+#
+# Allowed JSON-safe key types for dicts: str, int, float, bool, None
+# (matching the JSON object key contract; non-string keys are coerced to
+# strings by ``json.dumps`` but we keep them as-is here so the round-trip
+# at envelope level can decide).
+
+_JSON_SAFE_KEY_TYPES: tuple[type, ...] = (str, int, float, bool, type(None))
+
+
+def event_to_dict(value: Any) -> Any:
+    """Recursively encode ``value`` to JSON-safe primitives.
+
+    Acts as a single-dispatch encoder: each branch covers one type-class from
+    the contract table above. Reaches the bottom on a primitive (returned
+    unchanged) or raises ``TypeError`` if the type is not in the contract.
+
+    Args:
+        value: Any object — usually an ``Event`` instance, but the function
+            is recursive and called with field values too.
+
+    Returns:
+        A JSON-safe representation: a dict, list, str, int, float, bool, or
+        ``None``. The result can be passed straight to ``json.dumps`` without
+        a custom encoder.
+
+    Raises:
+        TypeError: if ``value`` (or any nested element) is not in the
+            contract — for example a ``socket``, an arbitrary ``object``,
+            or a dict with a non-JSON-safe key type.
+    """
+    # Order matters: ``bool`` is a subclass of ``int`` in CPython, so the
+    # ``int`` branch would silently swallow bools. Primitives are listed
+    # first because they are by far the most common case during a real
+    # pipeline emit (most event field values are int / str).
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, datetime):
+        # ``isoformat`` keeps the timezone offset (`+00:00` for UTC).
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, PurePath):
+        # ``PurePath`` covers ``Path``, ``PurePosixPath``, ``PureWindowsPath``.
+        return str(value)
+    if isinstance(value, Enum):
+        # The contract is to encode the *value*, not the name — value is the
+        # representation that survives database / wire / log round-trip.
+        return value.value
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        # ``asdict`` would walk the tree itself but we want our own encoding
+        # rules applied at every node — so we iterate fields() and recurse.
+        return {f.name: event_to_dict(getattr(value, f.name)) for f in dataclasses.fields(value)}
+    if isinstance(value, (list, tuple)):
+        # Tuples encode as lists — JSON has no tuple type and decoding with
+        # the field annotation in 1.6 will reconstruct the tuple from the list.
+        return [event_to_dict(item) for item in value]
+    if isinstance(value, dict):
+        out: dict[Any, Any] = {}
+        for key, val in value.items():
+            if not isinstance(key, _JSON_SAFE_KEY_TYPES):
+                raise TypeError(
+                    f"Cannot encode dict key of type {type(key).__name__} "
+                    f"for JSON serialization (allowed: str, int, float, bool, None)",
+                )
+            out[key] = event_to_dict(val)
+        return out
+    raise TypeError(
+        f"Cannot encode {type(value).__name__} for JSON serialization (value: {value!r})",
+    )
+
 
 # Local alias matches the convention used elsewhere in the codebase
 # (e.g. ``personalscraper.trailers.state``, ``personalscraper.scraper.json_ttl_cache``).
@@ -93,6 +191,26 @@ class Event:
         if not self.source:
             cls = type(self)
             object.__setattr__(self, "source", f"{cls.__module__}.{cls.__name__}")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the JSON-safe payload form of this event.
+
+        Thin alias for module-level ``event_to_dict(self)`` — provided as a
+        method for ergonomic ``event.to_dict()`` calls in subscriber code.
+        Sub-phase 1.6 layers ``event_to_envelope`` on top to add the
+        ``{"_type", "data"}`` tag for cross-process / Web-UI consumers.
+
+        Returns:
+            A ``dict`` of JSON-safe primitives (the recursive encoding of
+            every dataclass field via ``event_to_dict``).
+        """
+        # ``event_to_dict`` returns ``Any`` because its recursive contract
+        # spans many shapes (dict, list, str, int, …); for any ``Event``
+        # subclass (a dataclass) the encoder always lands in the dataclass
+        # branch and returns a dict[str, Any] — narrow the type here.
+        encoded = event_to_dict(self)
+        assert isinstance(encoded, dict)
+        return encoded
 
 
 # ---------------------------------------------------------------------------
@@ -317,4 +435,5 @@ __all__ = [
     "EventBus",
     "SubscriptionToken",
     "current_correlation_id",
+    "event_to_dict",
 ]
