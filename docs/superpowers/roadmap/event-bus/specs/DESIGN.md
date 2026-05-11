@@ -1,0 +1,719 @@
+# Event Bus — Design
+
+**Feature**: Event Bus
+**Codename**: event-bus
+**Type**: minor (SemVer Y+1)
+**Status**: spec (preparation — not yet implemented)
+**Date**: 2026-05-11
+**Replaces**: `PipelineObserver` Protocol (introduced in `pipeline-obs`, merged 2026-05-11)
+
+## NO DEFERRAL — MANDATORY
+
+**Every step is adapted. Every test is written. Nothing is skipped, nothing is
+deferred, nothing is left for "later". This applies to every phase and every
+sub-phase of the implementation plan. Each phase gate MUST verify that all
+planned work for that phase is complete — no partial implementations, no
+"foundation first, integration later".**
+
+## Purpose
+
+PersonalScraper has no event/signal system. The pipeline runs as a linear
+sequence with zero hooks for external code to react to step transitions, item
+completion, errors, circuit-breaker trips, disk-full conditions, dispatch
+decisions. The `PipelineObserver` Protocol introduced by `pipeline-obs` solves
+a sub-problem (pipeline lifecycle) but is not extensible to cross-cutting
+events emitted outside pipeline runs (CircuitBreaker transitions from any HTTP
+component, scheduled launchd indexer scans, standalone trailer CLI invocations).
+
+This feature replaces `PipelineObserver` with a single application-wide
+`EventBus` that serves as the only substrate for component-to-component
+asynchronous communication. Every cross-cutting event in the system flows
+through one bus, every subscriber speaks one API.
+
+The design is **greenfield-first, no compromises**. Pipeline observer
+infrastructure introduced two days earlier is fully removed and rewritten as
+subscribers on the bus. This is a deliberate choice: the rest of the roadmap
+(Web UI, Watcher Service, Auto-Download, Provider Registry, DI Container)
+all depend on a single coherent event substrate, and carrying a dual
+mechanism would tax every future feature.
+
+## Goals
+
+1. `EventBus` class with type-indexed subscribe and fire-and-forget emit,
+   owned by an `AppContext`.
+2. Typed frozen event dataclasses inheriting from a common `Event` base.
+3. Event catalog covering v1 needs: pipeline lifecycle, item progress,
+   dispatch outcomes, circuit-breaker transitions, disk pressure, indexer
+   scan completion, trailer downloads.
+4. Subscribe-to-base-class catches all subclasses via MRO resolution of
+   the emitted event type — enables "everything" consumers (CLI
+   `--verbose`, Web UI in P2).
+5. Zero overhead when no subscribers are registered (early-return fast path).
+6. Error isolation: a failing subscriber does not break dispatch.
+7. Re-entrant emit: a subscriber may emit during its own handler.
+8. JSON-serializable events: every event in the catalog round-trips
+   through `event_to_envelope()` → JSON → `event_from_envelope()`,
+   verified by test for every concrete event type via factory-built
+   realistic instances. Pure-payload form available via `event_to_dict()`
+   for consumers that already know the type out-of-band. Web UI and
+   future cross-process variants can ship events over the wire without
+   an adapter layer.
+9. Clean removal of `PipelineObserver`, `RichConsoleObserver`,
+   `TelegramObserver` — rewritten as subscribers.
+10. `AppContext` bootstrap pattern reusable by CLI, launchd scan, and
+    (later) Web UI / Watcher Service.
+
+## Non-Goals (verrouillés)
+
+- Persistent event log / event sourcing.
+- Cross-process event propagation (deferred to Watcher Service v2 — out of
+  v1 scope, but events are JSON-serializable so the bridge is non-traumatic
+  later).
+- Retry/replay semantics.
+- Asynchronous (asyncio) dispatch — sync only. The name `aemit` is reserved
+  for future addition without API change.
+- Middleware / event interceptors.
+- Predicate-based subscription filters (`bus.subscribe(T, fn, where=...)`).
+  Type-indexed subscribe is the only filter.
+- Subscription priorities / weights.
+
+Each non-goal is intentionally absent. v1 MUST NOT add them speculatively.
+
+## Architecture
+
+### AppContext (new) — boundary-only rule
+
+`AppContext` is the long-lived process-scoped bundle. Created **once per
+process** (CLI entry, launchd scan entry, future Web UI / Watcher boot).
+
+```python
+@dataclass(frozen=True)
+class AppContext:
+    config: Config
+    settings: Settings
+    event_bus: EventBus
+```
+
+Future fields (designed-for but not in v1): `provider_registry` (P1),
+`service_container` (P3 DI Container).
+
+**Boundary-only rule** (architectural invariant): `AppContext` is constructed
+and passed at process boundaries only. Internal components MUST receive
+specifically what they need — typically `event_bus: EventBus`, sometimes
+`config: Config`. They MUST NOT receive `AppContext` "for convenience".
+
+Rationale: `AppContext` is a god-object risk. If low-level modules take
+`AppContext` "in case they need other services later", tests become
+constructor-heavy and unit boundaries blur. The bus is the only piece every
+component will eventually need; pass it directly.
+
+Construction sites (v1):
+
+- `cli.py` (interactive pipeline run) → builds AppContext, hands to Pipeline.
+- `commands/library/scan.py` (launchd `library-index`) → builds AppContext,
+  hands to scanner orchestrator.
+- `commands/trailers/*.py` (standalone trailers commands) → builds
+  AppContext, hands to trailers service.
+- Test fixtures → build minimal AppContext with collector subscribers.
+
+### EventBus
+
+`personalscraper/core/event_bus.py` exports: `EventBus`, `Event` base,
+`SubscriptionToken`, `event_to_dict`, `event_to_envelope`,
+`event_from_envelope`, `current_correlation_id` (ContextVar), and the
+event class registry helpers. Co-located with `core/circuit.py`.
+Module target ≤ 350 LOC.
+
+```python
+class EventBus:
+    """In-process pub/sub for typed events.
+
+    Subscribe by event type; subscribing to a base class catches all
+    subclasses via MRO walk of the emitted event type. Emit is
+    synchronous, fire-and-forget,
+    error-isolated.
+    """
+
+    def subscribe(
+        self,
+        event_type: type[E],
+        callback: Callable[[E], None],
+    ) -> SubscriptionToken: ...
+
+    def unsubscribe(self, token: SubscriptionToken) -> None: ...
+
+    def emit(self, event: Event) -> None: ...
+```
+
+`SubscriptionToken` is an opaque handle returned from `subscribe`. Use case:
+a subscriber that registers itself in `__init__` and tears down in a
+`close()` / `__exit__` method (Web UI WebSocket session lifecycle, test
+fixtures, etc.).
+
+### Dispatch semantics
+
+1. **Type matching**: `emit(StepStarted(...))` notifies subscribers of
+   `StepStarted`, `Event` (base), and any intermediate ancestors. The MRO
+   walk is performed once per `emit`; the result is cached per concrete event
+   type after the first emit (~5 LOC, real win on `ItemProgressed` which can
+   fire 1000× per run).
+2. **Fast path**: if `_subscribers` dict is empty, `emit` returns immediately
+   after a single check. If subscribers exist for some types but not the
+   emitted type's MRO, the cached resolution yields an empty tuple — still
+   sub-microsecond.
+3. **Error isolation**: each callback invocation is wrapped in `try/except`.
+   Exceptions are logged via structlog at WARNING with `event_emit_failed`,
+   `subscriber=<name>`, `event_type=<class>`, `event_id=<UUID>`,
+   `exc_info=True`. Dispatch continues to the next subscriber.
+4. **Re-entrancy**: a subscriber MAY emit during its own handler. Dispatch
+   iterates over an immutable snapshot of the subscriber tuple per type to
+   avoid mutation-during-iteration bugs. Snapshot is the same tuple object
+   when no mutation has occurred (copy-on-write inside `subscribe` /
+   `unsubscribe`), so no allocation per emit in the steady state.
+5. **Ordering**: subscribers for a given type are invoked in subscription
+   order. Subscribers of ancestor types are invoked after subscribers of the
+   concrete type (so a `bus.subscribe(StepStarted, …)` sees the event before
+   a generic `bus.subscribe(Event, debug_log)` does — intentional, lets
+   specific handlers act before the generic logger).
+6. **Thread safety** (v1): not guaranteed. Pipeline is single-threaded. If a
+   future Watcher Service introduces multi-threaded emit, add a lock then
+   (well-bounded change).
+
+### Event base class
+
+```python
+@dataclass(frozen=True)
+class Event:
+    """Base for all bus events.
+
+    Carries metadata common to every event. Subclasses add their payload.
+    """
+
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    source: str = field(default="")     # auto-derived in __post_init__
+    event_id: UUID = field(default_factory=uuid4)
+    correlation_id: str | None = field(
+        default_factory=lambda: current_correlation_id.get()
+    )
+
+    def __post_init__(self) -> None:
+        # Frozen dataclass — use object.__setattr__ to populate auto-derived
+        # default. Caller may override `source` via constructor.
+        if not self.source:
+            cls = type(self)
+            object.__setattr__(
+                self, "source", f"{cls.__module__}.{cls.__name__}"
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convenience method — delegates to module-level `event_to_dict(self)`.
+
+        Returns the pure payload form (no `_type` tag). For the
+        type-tagged envelope used by transport/reconstruction, use
+        `event_to_envelope(self)`. Round-trip is verified by
+        `tests/event_bus/test_serialization.py` for every concrete event.
+        """
+        return event_to_dict(self)
+```
+
+**Auto-derived `source`**: eliminates the "empty source default" failure
+class. Emitters can still override (e.g. CircuitBreaker passes
+`source=f"core.circuit.{breaker_name}"` so subscribers can distinguish TMDB
+breaker from TVDB breaker without payload inspection).
+
+**`correlation_id` convention** (v1):
+
+Long-lived emitters (CircuitBreaker singletons constructed at HTTP client
+boot time, indexer DiskGuard) cannot receive a per-run `run_id` via
+constructor — they outlive any single run. The chosen mechanism is a
+module-level `ContextVar`:
+
+```python
+# core/event_bus.py
+current_correlation_id: ContextVar[str | None] = ContextVar(
+    "current_correlation_id", default=None
+)
+```
+
+- `Pipeline.run()` generates `run_id: UUID` once per run and binds it via
+  `token = current_correlation_id.set(str(run_id))` inside a try/finally
+  that calls `current_correlation_id.reset(token)` on exit (success or
+  failure). `StepContext.run_id` exposes the same value to step code
+  that needs it explicitly.
+- **Capture happens at event construction**, not at emit: the base
+  `Event` dataclass declares
+  `correlation_id: str | None = field(default_factory=lambda:
+current_correlation_id.get())`. Constructing any event inside a
+  bound region picks up the current `run_id` automatically; outside
+  any bound region the factory returns `None`. Caller can still
+  override explicitly: `StepStarted(step="ingest",
+correlation_id="custom")`.
+- `EventBus.emit()` does **not** read or modify `correlation_id`. The
+  event is frozen and dispatched as-is. This avoids
+  `dataclasses.replace`/`object.__setattr__` in the hot path
+  (`ItemProgressed` can fire 1000× per run) and eliminates the
+  "explicit None vs default None" ambiguity that a sentinel would
+  otherwise require.
+- Long-lived emitters (CircuitBreaker, DiskGuard) construct their
+  events normally; the current run's `run_id` is picked up at event
+  construction time via the ContextVar. **No `correlation_provider`
+  callable on the CircuitBreaker constructor** — ContextVar removes
+  the need.
+- Emits originating outside a pipeline run (launchd indexer scan,
+  standalone trailers command) bind their own `run_id` at AppContext
+  bootstrap time using the same `current_correlation_id.set(...)` /
+  try-finally pattern. Each AppContext build site owns one bind/reset
+  cycle.
+- Cross-thread/async safety: `ContextVar` is per-task in asyncio and
+  per-thread in threading; a future Watcher Service multi-threaded
+  emit Just Works without redesign.
+
+### JSON serialization contract
+
+`core/event_bus.py` exports:
+
+```python
+def event_to_dict(event: Event) -> dict[str, Any]:
+    """Recursively serialize an event payload to a JSON-safe dict.
+
+    Returns the **pure** payload form — no `_type` metadata wrapper.
+    Suitable for consumers that already know the event type out-of-band
+    (Web UI typed channels, structured logs with explicit type labels,
+    typed RPC responses).
+
+    Encoding rules:
+      datetime  → ISO 8601 string (UTC, with timezone)
+      UUID      → str
+      Path      → str
+      Enum      → enum.value
+      dataclass → asdict (recursive)
+      list/tuple → list
+      dict      → dict (keys must be JSON-safe; otherwise TypeError)
+      None/str/int/float/bool → unchanged
+      anything else → TypeError (fail-loud, never silent)
+    """
+
+def event_to_envelope(event: Event) -> dict[str, Any]:
+    """Wrap an event in a self-describing envelope for transport.
+
+    Returns `{"_type": "<ClassName>", "data": event_to_dict(event)}`.
+    Used by the cross-process bridge (P2 Watcher v2), the test
+    round-trip, and any consumer that needs reconstruction without
+    prior type knowledge.
+
+    The split between `event_to_dict` (pure) and `event_to_envelope`
+    (tagged) is deliberate: keeps the wire format clean for typed
+    consumers, keeps reconstruction explicit for untyped consumers.
+    """
+
+def event_from_envelope(data: dict[str, Any]) -> Event:
+    """Reconstruct an event from its envelope form.
+
+    Looks up `data["_type"]` in a class registry populated at import
+    time by the `events/__init__.py` re-exports. Raises `KeyError` if
+    the type is unknown (fail-loud — never silently drop unknown
+    events, the caller decides whether to skip or crash).
+    """
+```
+
+`PipelineReport` and `StepReport` are plain dataclasses; `event_to_dict`
+handles them via the recursive `dataclass` rule. They MUST keep all their
+fields JSON-friendly (no `Console`, no `Callable`, no live file handle).
+This is enforced in v1 by the round-trip test (`test_event_round_trip`)
+which iterates over every concrete event in `personalscraper.events`.
+
+### Event catalog (v1)
+
+Located by domain producer; re-exported from `personalscraper/events/__init__.py`.
+
+| Event                      | Module               | Payload (beyond Event base)                                                                    |
+| -------------------------- | -------------------- | ---------------------------------------------------------------------------------------------- |
+| `PipelineStarted`          | `pipeline/events.py` | `report: PipelineReport`                                                                       |
+| `PipelineEnded`            | `pipeline/events.py` | `report: PipelineReport`                                                                       |
+| `StepStarted`              | `pipeline/events.py` | `step: str`                                                                                    |
+| `StepCompleted`            | `pipeline/events.py` | `step: str, report: StepReport, elapsed_s: float`                                              |
+| `StepErrored`              | `pipeline/events.py` | `step: str, error_class: str, error_message: str`                                              |
+| `ItemProgressed`           | `pipeline/events.py` | `step: str, item: str, status: str, details: dict[str, Any]`                                   |
+| `ItemDispatched`           | `dispatch/events.py` | `item: str, target_disk: Path, category_id: str, action: Literal["moved","merged","replaced"]` |
+| `CircuitBreakerOpened`     | `core/circuit.py`    | `breaker: str, failure_count: int, last_error_class: str, last_error_message: str`             |
+| `CircuitBreakerClosed`     | `core/circuit.py`    | `breaker: str`                                                                                 |
+| `CircuitBreakerHalfOpened` | `core/circuit.py`    | `breaker: str`                                                                                 |
+| `DiskFullWarning`          | `indexer/events.py`  | `disk_path: Path, free_bytes: int, threshold_bytes: int`                                       |
+| `TrailerDownloaded`        | `trailers/events.py` | `media_path: Path, trailer_path: Path, source_url: str`                                        |
+| `LibraryScanCompleted`     | `indexer/events.py`  | `mode: str, scanned: int, errors: int, elapsed_s: float`                                       |
+
+Notes:
+
+- `ItemProgressed` replaces `StepEvent` from pipeline-obs (renamed and lifted
+  to the canonical hierarchy). `details: dict[str, Any]` payload values MUST
+  be JSON-safe (the encoder fails loud otherwise — see Phase 1 test).
+- `StepErrored.error_class` and `error_message` split is intentional:
+  Telegram subscriber needs the human message; structlog still captures the
+  traceback via `exc_info` at the emit site.
+- All payload fields MUST be JSON-safe types. Adding an event with a
+  non-serializable field is caught by the round-trip test.
+
+## Migration
+
+### Removed
+
+- `personalscraper/pipeline_observer.py` — entire file (PipelineObserver,
+  PipelineObserverBase, notify_progress, StepEvent, CollectorObserver).
+- `personalscraper/pipeline_protocol.py::StepContext.observers` field.
+- `personalscraper/observers/` package — renamed to
+  `personalscraper/subscribers/`. Grep `from personalscraper.observers` is
+  required (mechanical sweep in Phase 3 — tests/, docs/reference/, every
+  importer).
+
+### Refactored
+
+- **`StepContext`** gains `app: AppContext` and `run_id: UUID` fields; drops
+  `config`, `settings`, `observers`. Steps access config via `ctx.app.config`,
+  bus via `ctx.app.event_bus`. Run-scope flags (`dry_run`, `interactive`,
+  `verbose`, `upstream`, `extras`) remain.
+- **`Pipeline.__init__`** accepts `AppContext` (not `Console`, not observers
+  tuple). Generates `run_id: UUID` per run. Builds `StepContext` from
+  `AppContext` + per-run state.
+- **`RichConsoleObserver` → `RichConsoleSubscriber`** in
+  `subscribers/rich_console.py`: subscribes in `__init__` to
+  `PipelineStarted`, `PipelineEnded`, `StepStarted`, `StepCompleted`,
+  `StepErrored`, `ItemProgressed`. Same visual behavior; different wiring.
+- **`TelegramObserver` → `TelegramSubscriber`** in `subscribers/telegram.py`:
+  subscribes to `PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`,
+  `DiskFullWarning`. **Behavioral gain over pipeline-obs**: Telegram now
+  alerts on circuit-breaker trips and disk-full warnings, previously
+  invisible to operators.
+- **`CollectorObserver` → `CollectingSubscriber[E]`** generic, exported from
+  `tests/fixtures/event_bus.py` (test-only utility). Tests parametrize on
+  event type or subscribe to `Event` to collect everything.
+- **All `notify_progress(observers, StepEvent(...))` call sites** become
+  `ctx.app.event_bus.emit(ItemProgressed(...))`. Mechanical migration.
+
+### CircuitBreaker integration
+
+`personalscraper/core/circuit.py` gains constructor parameters:
+
+```python
+def __init__(
+    self,
+    *,
+    event_bus: EventBus | None = None,            # Phase 4: optional
+    name: str = "anonymous",
+    ...
+):
+```
+
+- `event_bus` is **optional in Phase 4** (migration window): call sites that
+  haven't been threaded yet pass nothing, breakers silently skip emit.
+- `event_bus` is **required from Phase 5**: the `| None` is removed, all
+  call sites must pass a bus. Audit at Phase 5 gate: `grep "CircuitBreaker("`
+  shows zero call sites without `event_bus=...`.
+- `name` identifies the breaker (e.g. `"tmdb"`, `"tvdb"`, `"qbit"`); used as
+  the `breaker:` payload field on emitted events.
+- **No `correlation_provider` parameter**: the `current_correlation_id`
+  `ContextVar` (see "correlation_id convention" above) handles run_id
+  lookup at event construction time. The base `Event` dataclass's
+  `correlation_id` default_factory reads the ContextVar when the
+  CircuitBreaker constructs a `CircuitBreakerOpened` / `Closed` /
+  `HalfOpened` instance — so even though the breaker singleton was
+  constructed long before any pipeline run started, the event it
+  emits during a run carries the current `run_id`. `EventBus.emit`
+  itself does not read or modify `correlation_id`.
+
+### DiskGuard / indexer integration
+
+The indexer's existing disk-free check (currently embedded in
+`indexer/db.py`, slated for extraction to `indexer/_disk_guard.py` per P3
+roadmap) receives an `event_bus` parameter from its AppContext-aware
+caller and emits `DiskFullWarning` when free space crosses the threshold.
+
+`indexer/scanner/_modes/*.py` orchestrator emits `LibraryScanCompleted` at
+end of each mode, with `mode`, `scanned`, `errors`, `elapsed_s` extracted
+from the scan summary.
+
+### Dispatch integration
+
+`dispatch/dispatcher.py` (and the per-type files `_movie.py`, `_tv.py`)
+emit `ItemDispatched` after each successful move/merge/replace, with
+`action` being one of the existing dispatch outcomes.
+
+### Trailers integration
+
+`trailers/service.py` (or equivalent — exact path verified at
+implementation) emits `TrailerDownloaded` after each successful trailer
+fetch, with `source_url` from yt-dlp metadata.
+
+### CLI integration
+
+- **`personalscraper run` (interactive)**: bootstrap creates `AppContext`,
+  registers `RichConsoleSubscriber` (always) and `TelegramSubscriber` (if
+  Telegram creds present). Same UX as today.
+- **`--verbose` flag**: registers an additional `DebugLogSubscriber` that
+  subscribes to `Event` (base) and logs every event via structlog at DEBUG
+  with the full `event_to_dict` payload. Replaces ad-hoc verbose handling.
+- **`personalscraper trailers download` (standalone)**: bootstrap creates
+  AppContext; trailers service emits `TrailerDownloaded` which subscribers
+  (if registered) see.
+- **Launchd `library-index` scan**: bootstrap creates AppContext with
+  logging-only subscribers; emits `LibraryScanCompleted` at end. Future
+  Watcher Service v2 subscribes to this event from its daemon AppContext.
+
+### Logging convention (Phase 3 sweep)
+
+**Emitters emit only — no structlog inside emit sites.** This eliminates
+double-logging (event + log line for the same fact). `DebugLogSubscriber` is
+the canonical path from emit → log.
+
+Existing structlog calls at points that will become emit sites are
+**removed** during Phase 3 migration (not left as duplicates). Calls that
+log information NOT carried by any event (intermediate state, debug
+breadcrumbs) stay as-is — they are not emit-equivalent.
+
+Phase 3 gate audit: every emit site has at most one structlog call, and
+only when it carries information distinct from the emitted event (e.g.
+exception traceback via `exc_info=True` while the event carries the
+class+message strings).
+
+## Roadmap Alignment (non-engaging vision)
+
+**No code is written in v1 for any of the use cases listed below.** This
+section explains why the v1 design choices (single bus, JSON-serializable
+events, boundary AppContext) are not over-engineered — they are the
+minimum that doesn't paint roadmap items into a corner. Reviewers should
+NOT request features below to be implemented as part of this PR.
+
+- **P2 Web Management UI**: `WebSocketSubscriber` will be implemented in
+  the Web UI feature; it subscribes once with `bus.subscribe(Event, ws_fanout)`
+  and forwards every event as JSON. v1 makes this trivial because events
+  serialize natively.
+- **P2 Watcher Service**: standalone process with its own AppContext.
+  When the watcher triggers a pipeline run in-process, watcher and pipeline
+  share the same `event_bus` instance → the watcher sees the pipeline's
+  events. The cross-process bridge (for the daemon variant) consumes the
+  JSON form of events.
+- **P2 Auto-Download System**: adds `LibraryRecommendationListUpdated`,
+  `TorrentSearchCompleted`, `DownloadCompleted` to the catalog when that
+  feature lands. v1 adds no infrastructure for these; only the bus
+  remains the same.
+- **P1 Provider Registry**: `ProviderRegistered`, `ProviderSelected`,
+  `ProviderFailedOver` join the catalog. Provider registry consumes
+  `CircuitBreakerOpened` (already emitted in v1) to skip dead providers
+  via one subscription, no new mechanism.
+- **P3 DI Container**: `AppContext` is the seed. The DI feature formalizes
+  its factory and a per-test variant. v1 introduces no DI framework.
+- **P2 Verify Checker Plugin System**: each check plugin emits
+  `CheckPassed` / `CheckFailed`. Web UI shows per-check progress in real
+  time without a dedicated protocol.
+
+## Testing strategy
+
+- **`CollectingSubscriber[E]`** generic helper in `tests/fixtures/event_bus.py`.
+  Subscribes to a given event type (or `Event` for all) and records every
+  delivered event in a list ordered by arrival.
+- **Per-step tests**: build a minimal `AppContext` with a collector, run the
+  step against fixture inputs, assert on the collected events (count, order,
+  payload fields).
+- **Pipeline-level tests**: assert on the full event timeline (`PipelineStarted`
+  → step starts/ends → `ItemProgressed × N` → `PipelineEnded`).
+- **Error isolation test**: register a subscriber that always raises;
+  emit; assert other subscribers received the event AND a WARNING
+  `event_emit_failed` log was emitted with the right `subscriber=` /
+  `event_type=` / `event_id=` fields.
+- **Re-entrant emit test**: subscriber emits during its handler; assert the
+  second event reaches its subscribers and no recursion bug occurs (depth
+  bounded by the test's max emit chain).
+- **Fast-path test**: emit without any subscribers; assert no allocation
+  beyond the event itself (measured via a `tracemalloc` snapshot diff
+  ≤ epsilon, or via instrumenting the dispatch path with a counter).
+- **Event sample factories** (`tests/fixtures/event_samples.py`): for
+  every concrete event in `personalscraper.events`, a factory function
+  `make_<event_name>()` returns a realistic instance with all payload
+  fields populated with canonical values. `PipelineReport`, `StepReport`,
+  and other rich payloads are constructed with non-empty, type-correct
+  data — **never `MagicMock`**, since the goal is to exercise the
+  serialization path against real shapes. A registry
+  `EVENT_SAMPLE_FACTORIES: dict[type[Event], Callable[[], Event]]` is
+  populated by import-side decoration; adding a new event to the
+  catalog without registering a factory triggers a unit test failure
+  (`test_every_event_has_factory`).
+- **JSON round-trip test**: parametrized over every concrete event via
+  the sample factories. For each sample: `event_to_envelope(e)` →
+  `json.dumps` → `json.loads` → `event_from_envelope(d)` → assert
+  reconstructed event equals original (including `event_id`,
+  `correlation_id`, and `source`; `timestamp` allows ≤ 1µs drift due
+  to ISO-8601 round-trip). This is the gate that catches
+  non-serializable payloads at PR time.
+- **Snapshot determinism for `RichConsoleSubscriber`**: the visual
+  regression test constructs Rich Console with forced parameters —
+  `Console(width=120, color_system=None, force_terminal=False,
+file=StringIO(), record=True)` — and compares the recorded text
+  output. Without this setup terminal width/color detection makes the
+  snapshot non-portable across dev/CI environments.
+- **MRO resolution cache test**: emit the same event type twice; assert
+  the second emit uses the cached subscriber tuple (verified via internal
+  counter or by patching the MRO walk).
+- **`AppContext` boundary test** (`tests/architecture/test_app_context_boundary.py`):
+  **AST-based, NOT grep-based** — grep would false-positive on imports,
+  type aliases, docstrings, and comments. The test parses every `.py`
+  file under `personalscraper/`, walks `ast.FunctionDef` and
+  `ast.AsyncFunctionDef` nodes, and inspects each parameter annotation
+  via `ast.unparse`. If any parameter is annotated as `AppContext` (or
+  `"AppContext"` forward-ref) in a module not on the allowlist, the
+  test fails. Allowlist (each entry is a precise (module, function)
+  pair, not the whole file):
+  - `personalscraper/cli.py` → `main`, `_build_app_context`
+  - `personalscraper/commands/library/scan.py` → `scan_command`
+  - `personalscraper/commands/trailers/*.py` → entrypoints only
+  - `personalscraper/pipeline/pipeline.py` → `Pipeline.__init__`
+  - `personalscraper/core/app_context.py` → factories
+  - `tests/fixtures/**` → fixtures may construct `AppContext` freely
+    Any new boundary site MUST be added to the allowlist consciously
+    (the diff review-gates the new authorization). ~80 LOC, robust,
+    future-proof.
+- **Pipeline-obs test migration**: every test under `tests/` that
+  references `PipelineObserver`, `CollectorObserver`, `notify_progress`,
+  `StepEvent`, or `personalscraper.observers` is rewritten to use
+  `EventBus` + `CollectingSubscriber`. Phase 3 gate: zero matches for
+  `from personalscraper.observers` and `notify_progress(` across the
+  entire repo.
+
+## Module size budget
+
+| Module                                               | LOC cible                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------- |
+| `core/event_bus.py`                                  | ≤ 350                                                     |
+| `core/app_context.py`                                | ≤ 80                                                      |
+| `pipeline/events.py`                                 | ≤ 150                                                     |
+| `dispatch/events.py`                                 | ≤ 50                                                      |
+| `core/circuit.py` (events embedded, existing module) | ≤ 350 total (vs. 216 today + ~50 for events + emit calls) |
+| `indexer/events.py`                                  | ≤ 60                                                      |
+| `trailers/events.py`                                 | ≤ 30                                                      |
+| `events/__init__.py` (re-exports + registry)         | ≤ 100                                                     |
+| `subscribers/rich_console.py`                        | ~180 (≈ observers/rich_console.py today)                  |
+| `subscribers/telegram.py`                            | ~200 (≈ observers/telegram.py + circuit/disk handlers)    |
+| `subscribers/debug_log.py`                           | ≤ 40                                                      |
+| `tests/fixtures/event_bus.py`                        | ≤ 80                                                      |
+| `tests/fixtures/event_samples.py`                    | ≤ 150                                                     |
+| `tests/architecture/test_app_context_boundary.py`    | ≤ 80                                                      |
+
+New code budget: ~1000 LOC. Removed: 180 LOC (`pipeline_observer.py`) +
+mechanical adjustments across ~10 step files. Net delta: ~+820 LOC.
+
+## Performance notes
+
+- **MRO resolution cache**: dict `type → tuple[SubscriptionToken, ...]`
+  invalidated on `subscribe`/`unsubscribe`. First emit per type walks MRO;
+  subsequent emits reuse the cache. Cache size bounded by the number of
+  distinct concrete event types ever emitted (~13 in v1 catalog).
+- **Subscriber tuple copy-on-write**: `_subscribers[type]` stored as
+  `tuple[(token, callback), ...]`. `subscribe` rebuilds the tuple
+  (O(n) but rare); `emit` iterates over the immutable tuple directly
+  without allocation per emit.
+- **`ItemProgressed` hot path**: with the cache + immutable tuple, emit
+  without subscribers is a single dict lookup (`O(1)`) returning empty
+  tuple. With subscribers, it's the cached tuple iteration + try/except
+  per subscriber. Negligible vs. the actual step work.
+
+## Phase outline (informational — actual phase plan lives in plan/INDEX.md)
+
+1. **Phase 1 — Foundation (standalone)**: `EventBus` + `Event` base +
+   `SubscriptionToken` + `event_to_dict` + `event_to_envelope` +
+   `event_from_envelope` + `current_correlation_id` ContextVar + MRO
+   cache + COW subscriber tuples + event sample factories registry.
+   Full unit test suite: dispatch, error isolation, re-entrant emit,
+   fast path, MRO cache, ContextVar capture at event construction
+   (in-bound region → run_id captured; out-of-bound → `None`; explicit
+   `correlation_id=` arg overrides default_factory; `emit` is verified
+   to NOT mutate `correlation_id`), envelope round-trip via factory
+   registry. Zero pipeline integration. Gate: `make check` green, all
+   bus tests green, module ≤ 350 LOC.
+2. **Phase 2 — AppContext + StepContext slim**: introduce `AppContext`;
+   refactor CLI entry to build it; refactor `StepContext` to gain
+   `app: AppContext` + `run_id: UUID` and drop `config`/`settings`
+   (accessed via `ctx.app.config`/`ctx.app.settings`).
+   **`observers` field is KEPT on `StepContext` in Phase 2** — it is
+   removed in Phase 3 along with the `PipelineObserver` API; Phase 2
+   keeps `notify_progress(ctx.observers, ...)` wiring intact so the
+   pipeline still emits user-visible output through the legacy path
+   while the new context shape lands. No event emit on the bus yet —
+   pipeline visual behavior unchanged. Gate: full test suite passes
+   against new context shape; `RichConsoleObserver` and
+   `TelegramObserver` still wired through `ctx.observers`.
+3. **Phase 3 — Pipeline event migration + subscribers rewrite**: define
+   `pipeline/events.py`; pipeline steps emit (`PipelineStarted/Ended`,
+   `Step*`, `ItemProgressed`); remove `PipelineObserver`, `notify_progress`,
+   `StepContext.observers`, `observers/` package; rewrite
+   `RichConsoleSubscriber` + `TelegramSubscriber`; migrate every test
+   in `tests/` that references the old observer API. **Sweep grep**:
+   `from personalscraper.observers`, `PipelineObserver`,
+   `notify_progress(`, `StepEvent(` → zero matches at gate.
+   **Structlog dedup audit**: every emit site has at most one
+   structlog call carrying info distinct from the event.
+4. **Phase 4 — Cross-cutting events (one commit per integration)**:
+   CircuitBreaker (`event_bus: EventBus | None`), DiskGuard, Dispatch,
+   Trailers, Indexer scan. Each integration is one focused commit with
+   focused tests. **Phase 4 stays additive only** — each commit makes
+   one component start emitting without touching contracts elsewhere.
+   The `| None` on CircuitBreaker (and any other temporarily-optional
+   `event_bus` parameter introduced here) is the price of that
+   additive property and is paid off in Phase 5.
+5. **Phase 5 — Required-bus tightening + CLI polish**: separated from
+   Phase 4 deliberately to keep each Phase 4 commit reviewable as a
+   pure additive integration. Phase 5 tightens contracts and lands
+   the cross-cutting consumer in one pass. Tasks: remove `| None`
+   from `CircuitBreaker.__init__(event_bus=...)` and any other Phase 4
+   call site; audit `grep "CircuitBreaker("` shows zero call sites
+   without `event_bus`. Implement `DebugLogSubscriber`, wire
+   `--verbose` to register it. Final documentation pass
+   (`docs/reference/event-bus.md`).
+
+## Open Questions (to resolve in plan or implementation)
+
+1. **Location of the `_disk_guard.py` extraction**: P3 roadmap proposes
+   moving disk-full check out of `indexer/db.py`. event-bus does the move
+   if not already done (depends on phasing of P3 god-module-split). If P3
+   hasn't landed, event-bus extracts it as a sub-task of Phase 4 — the
+   `DiskFullWarning` emit needs a clean call site.
+2. **`run_id` propagation across launchd / standalone commands**: how does
+   the launchd scan correlate its events? Decision: each AppContext build
+   site generates its own `run_id` (CLI run, launchd scan, trailers
+   command) — there is no cross-process correlation in v1. Cross-process
+   correlation is a Watcher Service v2 concern.
+3. **WebSocketSubscriber prototype**: out of scope, but worth a 10-minute
+   spike at end of Phase 5 to confirm the v1 design suffices. NOT in the
+   committed plan.
+
+## Acceptance criteria
+
+A PR for this feature is mergeable when:
+
+- All five phases gate-green (`make check`, full test suite, module-size
+  budget).
+- `grep -r "PipelineObserver\|notify_progress\|StepEvent\|from
+personalscraper.observers" personalscraper/ tests/` returns zero
+  matches (the old API is fully gone).
+- Every concrete event in `personalscraper.events` has a factory in
+  `tests/fixtures/event_samples.py` (enforced by
+  `test_every_event_has_factory`) and passes the envelope round-trip
+  test (`event_to_envelope` → JSON → `event_from_envelope` →
+  equality).
+- The `AppContext` boundary AST test
+  (`tests/architecture/test_app_context_boundary.py`) passes — no
+  internal module takes `AppContext` in its signature outside the
+  documented allowlist.
+- `RichConsoleSubscriber` produces visually identical output to the
+  removed `RichConsoleObserver` on the canonical pipeline-run snapshot
+  test. **Determinism setup mandatory**: the test constructs
+  `Console(width=120, color_system=None, force_terminal=False,
+file=StringIO(), record=True)` and compares the recorded text
+  output; without this setup terminal width/color detection makes the
+  snapshot non-portable across dev/CI.
+- `TelegramSubscriber` alerts on `PipelineEnded`, `StepErrored`,
+  `CircuitBreakerOpened`, `DiskFullWarning` (manual smoke test with a
+  staging Telegram channel — documented in PR description).
+- `personalscraper run --verbose` produces a structured event log of the
+  whole run via `DebugLogSubscriber`.
+- `docs/reference/event-bus.md` documents the API, the event catalog,
+  the boundary-only AppContext rule, the `current_correlation_id`
+  ContextVar convention, and the JSON serialization contract
+  (`event_to_dict` vs `event_to_envelope`).

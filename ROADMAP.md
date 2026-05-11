@@ -52,6 +52,14 @@ No event/signal system exists today. The pipeline runs as a linear sequence with
 - Cross-process events (needed later for Watcher Service, but out of scope for v1).
 - Retry/replay semantics.
 
+**Preparation** (not yet implemented):
+
+- Codename: `event-bus`
+- SemVer bump: minor (Y+1)
+- Design: `docs/superpowers/roadmap/event-bus/specs/DESIGN.md`
+- Plan: `docs/superpowers/roadmap/event-bus/plan/INDEX.md` (5 phases, 41 sub-phases, ~45 commits)
+- Prepared on: 2026-05-11
+
 ### P1 — Provider Registry (Scraper Orchestrator Decoupling)
 
 `scraper/orchestrator.py` hardcodes `self._tmdb` and `self._tvdb` with ad-hoc fallback logic ("if TMDB circuit open, skip" — line 151; "if both circuits open, skip" — line 224). Adding a new metadata provider (IMDB, SensCritique from the ROADMAP matrix) requires modifying the orchestrator directly.
