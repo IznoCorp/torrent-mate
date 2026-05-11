@@ -1,4 +1,4 @@
-"""In-process typed event bus — Sub-phase 1.3 layer.
+"""In-process typed event bus — Sub-phase 1.4 layer.
 
 This module is the single substrate for cross-component asynchronous
 communication in PersonalScraper. Layers landed so far:
@@ -8,11 +8,13 @@ communication in PersonalScraper. Layers landed so far:
        copy-on-write subscriber storage.
 - 1.3: ``EventBus.emit`` with MRO-walking dispatch, an MRO cache, and the
        no-subscribers zero-allocation fast path (DESIGN §Performance notes).
+- 1.4: per-subscriber ``try/except Exception`` error isolation,
+       ``event_emit_failed`` structlog WARNING, immutable-snapshot iteration
+       (re-entrant ``subscribe`` / ``unsubscribe`` / ``emit`` are all safe).
 
-Subsequent sub-phases extend this module with error isolation + re-entrant
-safety (1.4), JSON serialization (1.5–1.6), and the event class registry
-hooked via ``Event.__init_subclass__`` (1.6). See
-``docs/features/event-bus/plan/phase-01-foundation.md``.
+Subsequent sub-phases extend this module with JSON serialization (1.5–1.6)
+and the event class registry hooked via ``Event.__init_subclass__`` (1.6).
+See ``docs/features/event-bus/plan/phase-01-foundation.md``.
 """
 
 from __future__ import annotations
@@ -23,6 +25,13 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
+
+from personalscraper.logger import get_logger
+
+# Module-level structlog binding — used to log subscriber failures (1.4).
+# Imported once at module load time; ``get_logger`` returns a bound logger
+# that includes the module name as a context field.
+_log = get_logger(__name__)
 
 # Local alias matches the convention used elsewhere in the codebase
 # (e.g. ``personalscraper.trailers.state``, ``personalscraper.scraper.json_ttl_cache``).
@@ -254,8 +263,27 @@ class EventBus:
             # Memoize even when empty — emitting a type with no relevant
             # subscribers is still cheap on subsequent calls.
             self._mro_cache[event_type] = callbacks
+        # Iterate the captured tuple snapshot. ``callbacks`` is an immutable
+        # tuple, so any subscribe/unsubscribe a handler performs (which clears
+        # ``_mro_cache`` and replaces an entry in ``_subscribers``) does NOT
+        # mutate this local — the current emit always sees the snapshot taken
+        # at dispatch start. This is the entire re-entrancy contract.
         for callback in callbacks:
-            callback(event)
+            try:
+                callback(event)
+            except Exception:
+                # Error isolation: a failing subscriber MUST NOT break dispatch
+                # to the others. ``RecursionError`` is a subclass of
+                # ``Exception`` and is therefore caught here too — the bus
+                # documents that subscribers must not subscribe to their own
+                # emit type (DESIGN §Dispatch semantics #4).
+                _log.warning(
+                    "event_emit_failed",
+                    subscriber=getattr(callback, "__name__", repr(callback)),
+                    event_type=type(event).__name__,
+                    event_id=str(event.event_id),
+                    exc_info=True,
+                )
 
     def _resolve_mro_chain(
         self,
