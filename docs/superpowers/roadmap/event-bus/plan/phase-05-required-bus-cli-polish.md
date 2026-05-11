@@ -84,24 +84,39 @@ The output is the work list. Every line must be either:
 
 ## Sub-phase 5.2 — Tighten other Phase 4 `| None` sites
 
-**Files**: any other module from Phase 4 (DiskGuard, dispatcher, trailers service, indexer orchestrator) that adopted the `| None` migration contract.
+**Files**: any other module from Phase 4 (DiskGuard, dispatcher, trailers orchestrator, indexer scanner orchestrator) that adopted the `| None` migration contract.
 
 **Behavior delivered**: same as 5.1 for each site. The Phase 4 gate audit (item 11) produced the full list. Each is tightened individually with its own gate audit.
 
-**Pre-sub-phase grep + cross-check vs Phase 4.6 audit count**:
+**Pre-sub-phase grep + cross-check vs Phase 4.6 audit count** (mechanical — Phase 4.6 §12 locks the commit-body format):
 
 ```bash
 # Step 1: enumerate the current | None sites
-rg 'event_bus: EventBus \| None' --type py personalscraper/ | tee /tmp/event_bus_none_sites.txt
-wc -l /tmp/event_bus_none_sites.txt    # current count
+rg --type py 'event_bus: EventBus \| None' personalscraper/ | tee /tmp/event_bus_none_sites.txt
+CURRENT=$(wc -l < /tmp/event_bus_none_sites.txt)
+echo "current_count=$CURRENT"
 
-# Step 2: extract Phase 4.6 gate commit count (documented in the gate commit body per
-# Phase 4 §4.6 step 11):
-git log --grep='phase 4 gate' --format='%H' | head -1 | xargs git show --format=%B
-# Look for the line: "event_bus | None sites at Phase 4 gate: <N>"
+# Step 2: extract Phase 4.6 gate commit count from its commit body (locked format
+# per Phase 4 §4.6 step 12 — trailer line "event_bus_optional_sites_count: <N>")
+PHASE4_GATE_SHA=$(git log --grep='phase 4 gate' --format='%H' | head -1)
+GATE_COUNT=$(git show --format=%B "$PHASE4_GATE_SHA" | grep -E '^event_bus_optional_sites_count: [0-9]+$' | awk '{print $2}')
+echo "phase_4_gate_count=$GATE_COUNT"
+
+# Step 3: cross-check assertion
+if [ -z "$GATE_COUNT" ]; then
+  echo "FAIL: Phase 4.6 gate commit body missing 'event_bus_optional_sites_count: <N>' trailer line"
+  exit 1
+fi
+# Current MUST be ≤ gate count (5.1 may have tightened some; never grew).
+if [ "$CURRENT" -gt "$GATE_COUNT" ]; then
+  echo "FAIL: a new | None site appeared after Phase 4.6 (current=$CURRENT > gate=$GATE_COUNT)"
+  diff /tmp/event_bus_none_sites.txt /tmp/event_bus_none_sites_phase4_gate.txt || true
+  exit 1
+fi
+echo "OK current=$CURRENT gate=$GATE_COUNT (5.1 may have tightened $((GATE_COUNT - CURRENT)) site(s))"
 ```
 
-**Cross-check assertion**: the count from Step 1 MUST equal the `<N>` documented in the Phase 4.6 gate commit body. If higher, a new `| None` site was introduced between the Phase 4 gate and the start of 5.1 — identify the new site (`diff /tmp/event_bus_none_sites.txt` against the gate-commit-time list) and tighten it as part of 5.2 too, without skipping the original list. If lower, 5.1 already tightened some sites — fine; the gate count is the upper bound.
+If the assertion fails because `event_bus_optional_sites_count:` is missing from the Phase 4 gate commit body, **STOP**: this is a Phase 4 protocol violation. Amend the Phase 4 gate commit to add the trailer line (or land a `fix(event-bus): phase 4 gate count trailer` commit before proceeding). Do NOT proceed with 5.2 in the dark.
 
 Each match in the current list becomes a tightening target. If any module declares NO option (already required from Phase 4 or 5.1), it does not appear in the grep and is already done.
 
@@ -279,9 +294,10 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
 **Hard verification gate** (this is the **feature merge gate**, not just a phase gate):
 
 1. **`make lint`** → zero errors.
-2. **`make test`** → all tests pass. Final tally: baseline + **~177 new tests** (sum of explicit per-phase deltas: Phase 1 ~57 + Phase 2 ~30 + Phase 3 ~50 + Phase 4 ~30 + Phase 5 ~10). Verify by `make test 2>&1 | tail -5 | grep passed` and comparing against the baseline recorded in INDEX Pre-flight #3.
-3. **`make check`** → green.
-4. **Module size budget** (DESIGN table) — every module within its cap:
+2. **`make test`** → all tests pass. Cumulative test count MUST have grown by **at least 175** new tests since the feature baseline (target ~177: Phase 1 ≥ 50 + Phase 2 ≥ 30 + Phase 3 net ≥ 48 + Phase 4 ≥ 40 + Phase 5 ≥ 10). Verify by `make test 2>&1 | tail -5 | grep passed` and comparing against the baseline recorded in INDEX Pre-flight #3. Test count CANNOT regress below this floor.
+3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
+4. **`make check`** → green.
+5. **Module size budget** (DESIGN table) — every module within its cap:
    - `core/event_bus.py` ≤ 400.
    - `core/app_context.py` ≤ 80.
    - `pipeline_events.py` ≤ 150.
@@ -290,17 +306,17 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
    - `indexer/events.py` ≤ 60.
    - `trailers/events.py` ≤ 30.
    - `events/__init__.py` ≤ 100.
-   - `subscribers/rich_console.py` ≈ 180.
+   - `subscribers/rich_console.py` ≤ 200.
    - `subscribers/telegram.py` ≤ 200.
    - `subscribers/debug_log.py` ≤ 40.
    - `tests/fixtures/event_bus.py` ≤ 80.
    - `tests/fixtures/event_samples.py` ≤ 150.
-   - `tests/architecture/test_app_context_boundary.py` ≤ 80.
-5. **Sweep greps — all zero** (use `rg --type py` always, never bare `grep -r`):
+   - `tests/architecture/test_app_context_boundary.py` ≤ 100 (uplifted from 80 in Phase 2.6 for the qualified-name walker; DESIGN budget aligned).
+6. **Sweep greps — all zero** (use `rg --type py` always, never bare `grep -r`):
    - Phase 3 grep set (already zero).
    - `rg 'event_bus: EventBus \| None' --type py personalscraper/` → 0.
    - `rg --type py 'CircuitBreaker\(' personalscraper/ tests/ | grep -v 'event_bus='` → 0.
-6. **Event catalog: exactly the 13 v1 events, no missing, no extra, `Event` NOT in registry**:
+7. **Event catalog: exactly the 13 v1 events, no missing, no extra, `Event` NOT in registry**:
    ```bash
    python -c "
    from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY
@@ -320,29 +336,48 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
    "
    ```
    (Identical command to Phase 4.6 §5; re-run here as a feature-merge gate.)
-7. **Factories complete**: `pytest tests/fixtures/test_factories_registry.py::test_every_event_has_factory -v` green. (`test_every_event_has_factory` iterates the production-module-filtered registry per Invariant 9 / Phase 1.6, so pytest-collected test stubs do NOT pollute the assertion — the iteration sees exactly 13 entries regardless of collection order.)
-8. **Envelope round-trip**: parametrized test green for all 13.
-9. **AST boundary test green**.
-10. **AppContext allowlist live**: `pytest tests/architecture/test_app_context_boundary.py::test_allowlist_entries_are_live -v` green.
-11. **Smoke imports**: `python -c "import personalscraper; from personalscraper.events import *"` succeeds.
-12. **Visual regression**: RichConsoleSubscriber snapshot test green.
-13. **DESIGN §Acceptance criteria audit** — walk the full checklist (replaces the earlier audit-only sub-phase):
-    - [ ] All five phases gate-green: re-run `make check` from the top; all green.
-    - [ ] Legacy API removed (full grep — must return zero): `rg --type py 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' personalscraper/ tests/` → 0. (Use `rg --type py`, NOT bare `grep -r` — the latter scans the 14 GB fixture dir.)
-    - [ ] Factories complete + round-trip green: `pytest tests/event_bus/test_pipeline_events.py::test_pipeline_events_envelope_roundtrip tests/core/test_circuit_events.py tests/indexer/test_disk_guard_events.py tests/indexer/test_scan_completed_events.py tests/dispatch/test_dispatch_events.py tests/trailers/test_trailer_events.py -v`.
-    - [ ] AST boundary test green: `pytest tests/architecture/test_app_context_boundary.py -v`.
-    - [ ] RichConsoleSubscriber snapshot matches the immutable baseline at `tests/snapshots/rich_console_canonical.txt` (the Sub-phase 3.5 test).
-    - [ ] **Manual Telegram smoke test**: with a staging Telegram channel in `.env`, run `personalscraper run --dry-run` against a fixture triggering `PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning` (use stubs). Verify all four alerts arrive. Document the result in the PR description.
-    - [ ] `--verbose` produces structured event log: run `personalscraper run --verbose --dry-run` against a no-op fixture; assert `event_emitted` log lines appear for at least `PipelineStarted` and `PipelineEnded`.
-    - [ ] Reference doc complete: re-read `docs/reference/event-bus.md`; every section listed in 5.5 present and non-empty.
+8. **Factories complete**: `pytest tests/fixtures/test_factories_registry.py::test_every_event_has_factory -v` green. (`test_every_event_has_factory` iterates the production-module-filtered registry per Invariant 9 / Phase 1.6, so pytest-collected test stubs do NOT pollute the assertion — the iteration sees exactly 13 entries regardless of collection order.)
+9. **Envelope round-trip**: parametrized test green for all 13.
+10. **AST boundary test green**.
+11. **AppContext allowlist live**: `pytest tests/architecture/test_app_context_boundary.py::test_allowlist_funcs_are_live tests/architecture/test_app_context_boundary.py::test_allowlist_modules_exist -v` green (both tests defined in Phase 2.6).
+12. **Smoke imports**: `python -c "import personalscraper; from personalscraper.events import *"` succeeds.
+13. **Visual regression** (Class A): `pytest tests/event_bus/test_rich_console_subscriber.py::test_rich_console_subscriber_snapshot_matches_baseline -v` → expected `1 passed`.
+14. **DESIGN §Acceptance criteria audit** — every item below is a runnable command, not a judgment call:
+    - [ ] All five phases gate-green: `make check` → exit 0.
+    - [ ] Legacy API removed: `rg --type py 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' personalscraper/ tests/` → 0 lines. (Use `rg --type py`, NOT bare `grep -r` — the latter scans the 14 GB fixture dir per CLAUDE.md "Search Safety".)
+    - [ ] Factories complete + round-trip green: `pytest tests/event_bus/test_pipeline_events.py::test_pipeline_events_envelope_roundtrip tests/core/test_circuit_events.py tests/indexer/test_disk_guard_events.py tests/indexer/test_scan_completed_events.py tests/dispatch/test_dispatch_events.py tests/trailers/test_trailer_events.py -v` → exit 0.
+    - [ ] AST boundary test green: `pytest tests/architecture/test_app_context_boundary.py -v` → exit 0.
+    - [ ] RichConsoleSubscriber snapshot matches baseline: `pytest tests/event_bus/test_rich_console_subscriber.py::test_rich_console_subscriber_snapshot_matches_baseline -v` → exit 0 (same test as item 13).
+    - [ ] **Manual Telegram smoke test** (only unavoidably-manual gate item): with a staging Telegram channel in `.env`, run `personalscraper run --dry-run` against a fixture triggering `PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning` (use stubs). Verify all four alerts arrive. **MANDATORY: paste the four message bodies (or screenshots) into the PR description under a "Telegram smoke test" heading**. If `.env` credentials are absent on the dev machine, FALLBACK = `pytest tests/subscribers/test_telegram_cassette.py -v` (a `responses`/`requests-mock` cassette test landed in Phase 3.6 that asserts the four `_send_html` payloads fire with the expected bodies); the PR description states which path was taken. The cassette test is mandatory either way; the live smoke is optional but preferred.
+    - [ ] `--verbose` produces structured event log: `personalscraper run --verbose --dry-run 2>&1 | rg -c 'event_emitted.*event_type=PipelineStarted'` → 1; `personalscraper run --verbose --dry-run 2>&1 | rg -c 'event_emitted.*event_type=PipelineEnded'` → 1.
+    - [ ] Reference doc complete (Class A — mechanical bash loop over the locked outline from INDEX Pre-flight #10):
+      ```bash
+      MISSING=0
+      for s in "## Purpose & high-level architecture" "## API reference" "## Event catalog (v1)" "## Boundary-only AppContext rule" "## JSON serialization contract" "## current_correlation_id ContextVar convention" "## Writing a new event" "## Writing a new subscriber" "## Testing patterns" "## Performance notes" "## Future evolution"; do
+        grep -q "$s" docs/reference/event-bus.md || { echo "MISSING SECTION: $s"; MISSING=$((MISSING+1)); }
+      done
+      # Each section body MUST be ≥ 20 lines (rough completeness check)
+      python3 -c "
+      import re, sys
+      text = open('docs/reference/event-bus.md').read()
+      sections = re.split(r'^(##+ .*)$', text, flags=re.M)
+      pairs = [(sections[i], sections[i+1]) for i in range(1, len(sections), 2)]
+      bad = [(h, len(b.splitlines())) for h, b in pairs if h.startswith('## ') and len(b.splitlines()) < 20]
+      if bad: print('SHORT SECTIONS:', bad); sys.exit(1)
+      print('OK doc completeness')
+      "
+      [ $MISSING -eq 0 ] && echo "OK all sections present"
+      ```
+      Both commands MUST exit 0.
     - [ ] Any audit failure is fixed IN this sub-phase + a regression test landed if relevant (Invariant 5). NEVER defer.
-14. **Reference documentation present**: `ls docs/reference/event-bus.md` exists; entry in `CLAUDE.md` Reference Index present.
-15. **No deferred work in `IMPLEMENTATION.md`** for the event-bus feature: read `IMPLEMENTATION.md`; ensure no "tests deferred", no "follow-up", no "TODO Phase N+1". The no-deferral invariant must be honoured.
+15. **Reference documentation present**: `ls docs/reference/event-bus.md` exists; `rg --type md 'docs/reference/event-bus\.md' CLAUDE.md` finds at least one match.
+16. **No deferred work in `IMPLEMENTATION.md`** (Class A): `rg -i 'TODO|deferred|follow-?up|next phase|next sub-phase|TBD|to be done|to be implemented' IMPLEMENTATION.md` MUST return zero matches. An agent that rephrases deferral language to evade this grep is acting in bad faith — the PR review checklist explicitly asks "is there ANY language anywhere in IMPLEMENTATION.md that hints at deferred work?" and rejects evasive phrasings.
+17. **No `# TODO(<sub-phase>): delete` markers survived** — every test that planted a `# TODO(X.Y): delete` comment was deleted in sub-phase X.Y. Verify: `rg '# TODO\([0-9.a-z]+\): delete' --type py tests/` MUST return zero matches.
 
 **Steps**:
 
 - [ ] Re-read each sub-phase 5.1–5.5; every checkbox checked.
-- [ ] Run gate items 1–15; resolve any red (fix inline; never defer).
+- [ ] Run gate items 1–17; resolve any red (fix inline; never defer).
 - [ ] Commit: `chore(event-bus): phase 5 gate — feature complete, mergeable`.
 
 The PR is now ready for the `/implement:feature-pr` orchestration (push + create PR + CI poll) followed by `/implement:pr-review`.

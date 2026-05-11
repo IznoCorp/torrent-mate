@@ -122,7 +122,7 @@ class StepContext:
 - `test_step_context_carries_app_and_run_id`: build with mock AppContext + a UUID; assert `ctx.app is the_app` and `ctx.run_id == the_uuid`.
 - `test_step_context_legacy_fields_mirror_app_phase2a`: assert `ctx.config is ctx.app.config` AND `ctx.settings is ctx.app.settings` (identity, not just equality — the `__post_init__` guarantees same-object).
 - `test_step_context_constructor_does_not_accept_config_kwarg`: attempt `StepContext(app=..., run_id=..., config=other_config, ...)`; assert `TypeError: __init__() got an unexpected keyword argument 'config'` (because `field(init=False)` removes it from the signature). Same assertion for `settings`. This locks the no-mismatch property.
-- `test_step_context_still_has_observers_phase2`: assert `hasattr(ctx, "observers")` and `isinstance(ctx.observers, tuple)`. **DELETED in Phase 3.7b** (when `StepContext.observers` field is removed) — explicit `# TODO(3.7b): delete this test when StepContext.observers is removed` comment in the test file.
+- `test_step_context_still_has_observers_phase2`: assert `hasattr(ctx, "observers")` and `isinstance(ctx.observers, tuple)`. **DELETED in Phase 3.7a** (the test-migration sub-phase that scrubs every legacy-Observer reference from `tests/`) — explicit `# TODO(3.7a): delete this test when StepContext.observers is removed` comment in the test file.
 - `test_step_context_remains_frozen`: attempt mutation of `ctx.app`; assert `FrozenInstanceError`.
 
 **Steps**:
@@ -447,33 +447,35 @@ The walker:
 **Hard verification gate** (all must pass):
 
 1. **`make lint`** → zero errors.
-2. **`make test`** → all tests pass; baseline + Phase 1 (~57) + Phase 2 (~30) ≈ baseline + 87 new tests. (Adjust per actual count.)
-3. **`make check`** → green.
-4. **Module size**:
-   - `personalscraper/core/event_bus.py` ≤ 350.
+2. **`make test`** → all tests pass; cumulative test count MUST have grown by **at least 80** new tests since the feature baseline (Phase 1 minimum 50 + Phase 2 minimum 30). A lower count means a test was silently skipped or deleted — investigate and restore. Test count CANNOT regress.
+3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
+4. **`make check`** → green.
+5. **Module size**:
+   - `personalscraper/core/event_bus.py` ≤ 400 (DESIGN uplift — Phase 2 does NOT touch this file, so the cap is inherited from Phase 1.9 unchanged).
    - `personalscraper/core/app_context.py` ≤ 80.
    - `personalscraper/pipeline_protocol.py` — verify still under its current ceiling.
-5. **AppContext boundary test green**: `pytest tests/architecture/test_app_context_boundary.py -v`.
-6. **Visual regression smoke**: run `personalscraper run --dry-run` against a recorded fixture; visual diff vs baseline ≤ zero changes (Phase 2 MUST NOT change pipeline output).
-7. **Targeted greps**:
+   - `tests/architecture/test_app_context_boundary.py` ≤ 100 (DESIGN-aligned uplift for the qualified-name walker; see Phase 2.6 implementation note).
+6. **AppContext boundary test green**: `pytest tests/architecture/test_app_context_boundary.py -v`.
+7. **Visual regression smoke**: run `personalscraper run --dry-run` against a recorded fixture; visual diff vs baseline ≤ zero changes (Phase 2 MUST NOT change pipeline output).
+8. **Targeted greps**:
    - `rg 'ctx\.config\b|ctx\.settings\b' --type py personalscraper/ tests/` → zero matches (2.2b swept reads; 2.2c removed the fields).
    - `rg 'StepContext\(.*config=' --type py personalscraper/ tests/` → zero matches (2.2c removed the constructor kwarg).
    - `rg 'Pipeline\((console=|observers=|config=|settings=)' --type py personalscraper/ tests/` → zero matches (Pipeline no longer accepts these kwargs; 2.3).
    - `rg 'from personalscraper\.observers' --type py personalscraper/ tests/` → still has matches (legacy observers still imported in Phase 2 — Phase 3 removes them).
    - `rg 'notify_progress\(' --type py personalscraper/ tests/` → still has matches (legacy emit path still active — Phase 3 removes).
-8. **Smoke imports**:
+9. **Smoke imports**:
    - `python -c "import personalscraper"` succeeds.
    - `python -c "from personalscraper.core.app_context import AppContext; print(AppContext.__dataclass_fields__.keys())"` prints `dict_keys(['config', 'settings', 'event_bus'])`.
-9. **No emit sites in production code** (still no `bus.emit` outside event_bus.py — Phase 3 adds them):
-   ```bash
-   rg '\.event_bus\.emit\(|app\.event_bus\.emit\(' --type py personalscraper/
-   ```
-   Expected: zero matches.
+10. **No emit sites in production code** (still no `bus.emit` outside event_bus.py — Phase 3 adds them):
+    ```bash
+    rg '\.event_bus\.emit\(|app\.event_bus\.emit\(' --type py personalscraper/
+    ```
+    Expected: zero matches.
 
 **Steps**:
 
 - [ ] Re-read each sub-phase 2.1 / 2.2a / 2.2b / 2.2c / 2.3 / 2.4 / 2.5 / 2.6; confirm every checkbox checked.
-- [ ] Run gate items 1–9 above; resolve any red.
+- [ ] Run gate items 1–10 above; resolve any red.
 - [ ] Commit: `chore(event-bus): phase 2 gate — AppContext + StepContext slim`.
 
 ---

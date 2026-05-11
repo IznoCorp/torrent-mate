@@ -547,7 +547,7 @@ orchestrator from their AppContext-aware bootstrap.
   subscribes to `Event` (base) and logs every event via structlog at DEBUG
   with the full `event_to_dict` payload. Replaces ad-hoc verbose handling.
 - **`personalscraper trailers download` (standalone)**: bootstrap creates
-  AppContext; trailers service emits `TrailerDownloaded` which subscribers
+  AppContext; the trailers orchestrator emits `TrailerDownloaded` which subscribers
   (if registered) see.
 - **Launchd `library-index` scan**: bootstrap creates AppContext with
   logging-only subscribers; emits `LibraryScanCompleted` at end. Future
@@ -706,17 +706,23 @@ file=StringIO(), record=True)` — and compares the recorded text
   `ast.AsyncFunctionDef` nodes, and inspects each parameter annotation
   via `ast.unparse`. If any parameter is annotated as `AppContext` (or
   `"AppContext"` forward-ref) in a module not on the allowlist, the
-  test fails. Allowlist (each entry is a precise (module, function)
-  pair, not the whole file — paths match the real codebase):
-  - `personalscraper/cli.py` → `main`, `_build_app_context`
+  test fails. Allowlist (each entry is a precise (module, qualified-name)
+  pair, not the whole file — paths match the real codebase post arch-cleanup):
+  - `personalscraper/cli.py` → `main` (Typer app entrypoint — minimal touch; the real Pipeline construction lives in `commands/pipeline.py` after the `arch-cleanup` refactor)
+  - `personalscraper/commands/pipeline.py` → `_build_app_context`, `run_command`
   - `personalscraper/commands/library/scan.py` → `library_index`
   - `personalscraper/trailers/cli.py` → `scan`, `download`, `verify`, `purge`
   - `personalscraper/pipeline.py` → `Pipeline.__init__`
-  - `personalscraper/core/app_context.py` → factories
+  - `personalscraper/core/app_context.py` → factories (module-level allow)
   - `tests/fixtures/**` → fixtures may construct `AppContext` freely
     Any new boundary site MUST be added to the allowlist consciously
-    (the diff review-gates the new authorization). ~80 LOC, robust,
-    future-proof.
+    (the diff review-gates the new authorization). ≤ 100 LOC (uplift
+    from earlier 80 budget; see Module size budget table), robust,
+    future-proof. The plan's Phase 2.6 implements this as two structures:
+    `APP_CONTEXT_ALLOWED_MODULES` (module-level allow) +
+    `APP_CONTEXT_ALLOWED_FUNCS` (per-(module, qualified-name) allow),
+    with the AST walker computing class-method qualified names via
+    `ast.NodeVisitor`.
 - **Pipeline-obs test migration**: every test under `tests/` that
   references `PipelineObserver`, `CollectorObserver`, `notify_progress`,
   `StepEvent`, or `personalscraper.observers` is rewritten to use
@@ -726,22 +732,22 @@ file=StringIO(), record=True)` — and compares the recorded text
 
 ## Module size budget
 
-| Module                                               | LOC cible                                                                                  |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `core/event_bus.py`                                  | ≤ 400                                                                                      |
-| `core/app_context.py`                                | ≤ 80                                                                                       |
-| `pipeline_events.py`                                 | ≤ 150                                                                                      |
-| `dispatch/events.py`                                 | ≤ 50                                                                                       |
-| `core/circuit.py` (events embedded, existing module) | ≤ 350 total (vs. 216 today + ~50 for events + emit calls)                                  |
-| `indexer/events.py`                                  | ≤ 60                                                                                       |
-| `trailers/events.py`                                 | ≤ 30                                                                                       |
-| `events/__init__.py` (re-exports + registry)         | ≤ 100                                                                                      |
-| `subscribers/rich_console.py`                        | ~180 (≈ observers/rich_console.py today: 174 LOC)                                          |
-| `subscribers/telegram.py`                            | ≤ 200 (today: 54 LOC; +pipeline handlers in Phase 3 ≈ 100; +circuit/disk in Phase 4 ≈ 150) |
-| `subscribers/debug_log.py`                           | ≤ 40                                                                                       |
-| `tests/fixtures/event_bus.py`                        | ≤ 80                                                                                       |
-| `tests/fixtures/event_samples.py`                    | ≤ 150                                                                                      |
-| `tests/architecture/test_app_context_boundary.py`    | ≤ 80                                                                                       |
+| Module                                               | LOC cible                                                                                                                          |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `core/event_bus.py`                                  | ≤ 400                                                                                                                              |
+| `core/app_context.py`                                | ≤ 80                                                                                                                               |
+| `pipeline_events.py`                                 | ≤ 150                                                                                                                              |
+| `dispatch/events.py`                                 | ≤ 50                                                                                                                               |
+| `core/circuit.py` (events embedded, existing module) | ≤ 350 total (vs. 216 today + ~50 for events + emit calls)                                                                          |
+| `indexer/events.py`                                  | ≤ 60                                                                                                                               |
+| `trailers/events.py`                                 | ≤ 30                                                                                                                               |
+| `events/__init__.py` (re-exports + registry)         | ≤ 100                                                                                                                              |
+| `subscribers/rich_console.py`                        | ~180 (≈ observers/rich_console.py today: 174 LOC)                                                                                  |
+| `subscribers/telegram.py`                            | ≤ 200 (today: 54 LOC; +pipeline handlers in Phase 3 ≈ 100; +circuit/disk in Phase 4 ≈ 150)                                         |
+| `subscribers/debug_log.py`                           | ≤ 40                                                                                                                               |
+| `tests/fixtures/event_bus.py`                        | ≤ 80                                                                                                                               |
+| `tests/fixtures/event_samples.py`                    | ≤ 150                                                                                                                              |
+| `tests/architecture/test_app_context_boundary.py`    | ≤ 100 (uplift from 80 — accommodates the qualified-name walker that builds class-method names via `ast.NodeVisitor` per Phase 2.6) |
 
 These budgets are TIGHTER than the project-wide soft warning (800 LOC) /
 hard ceiling (1000 LOC) from `scripts/check-module-size.py` — they are

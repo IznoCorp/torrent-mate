@@ -62,12 +62,15 @@ Every phase gate MUST pass ALL of the following before the phase is considered c
 
 1. **`make lint`** → zero errors (ruff + mypy).
 2. **`make test`** → all tests pass; check the summary line `NNNN passed` with **zero failed / zero errors**. If any ERROR appears (vs FAILED), test COLLECTION crashed — fix imports immediately, the count after the error is meaningless.
-3. **`make check`** → green (lint + test + module-size + typed-api). This is the canonical gate.
-4. **Targeted greps** — the per-phase list (see each phase file). Each pattern's expected match count is **explicit**; deviations fail the gate.
-5. **Module size budget** — every file under the `personalscraper/` tree obeys the DESIGN.md "Module size budget" table. Run `python3 scripts/check-module-size.py` (also part of `make check`).
-6. **AST boundary test** — `pytest tests/architecture/test_app_context_boundary.py` green (from Phase 2 onwards once `AppContext` and the test exist).
-7. **Smoke import** — `python -c "import personalscraper"` succeeds (catches circular imports introduced by event class registry).
-8. **No-deferral audit** — re-read the phase's "Sub-phases" list; every box checked. Re-read the DESIGN sections covered by this phase; every feature listed has a sub-phase that delivered it AND a test that asserts it.
+3. **Skip / xfail baseline must NOT grow** — `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py'` MUST equal the baseline locked in Pre-flight #9 below. A new skip / xfail is a silent deferral and a gate failure. To honour Invariant 1, no agent may add `@pytest.mark.skip`, `@pytest.mark.xfail`, or `@pytest.mark.skipif` during this feature. If a hard test cannot pass, the underlying bug is fixed, not the test silenced.
+4. **`make check`** → green (lint + test + module-size + typed-api). This is the canonical gate.
+5. **Targeted greps** — the per-phase list (see each phase file). Each pattern's expected match count is **explicit**; deviations fail the gate.
+6. **Module size budget** — every file under the `personalscraper/` tree obeys the DESIGN.md "Module size budget" table. Run `python3 scripts/check-module-size.py` (also part of `make check`).
+7. **AST boundary test** — `pytest tests/architecture/test_app_context_boundary.py` green (from Phase 2 onwards once `AppContext` and the test exist).
+8. **Smoke import** — `python -c "import personalscraper"` succeeds (catches circular imports introduced by event class registry).
+9. **No unresolved placeholders** — `rg -F '<N_CALLS>' docs/superpowers/roadmap/event-bus/` and `rg -F '<TBD-by-4.2a>' docs/superpowers/roadmap/event-bus/` MUST each return zero matches by the relevant phase (3.4 / 4.2b respectively). A literal placeholder reaching its consumer sub-phase is an unfilled Pre-flight step and a gate failure.
+10. **No deferred work in IMPLEMENTATION.md** — `rg -i 'TODO|deferred|follow-?up|next phase|next sub-phase|TBD|to be done' IMPLEMENTATION.md` MUST return zero matches. An agent that rephrases deferral language to evade this grep is acting in bad faith; the PR review checklist explicitly looks for paraphrased deferrals.
+11. **No-deferral audit (mechanical)** — for each DESIGN section listed in the phase's "Scope", grep the section's keywords against the phase file. Every keyword MUST appear in at least one sub-phase heading or behavior bullet. The mapping table (DESIGN section → phase sub-phase) is captured in each phase file's "Scope" block and re-asserted by an INDEX-level cross-check at the feature gate (Phase 5.6 §13).
 
 A phase that fails ANY gate item is NOT mergeable. The gate is not negotiable.
 
@@ -235,6 +238,37 @@ Execute these BEFORE creating any code:
    - Phase 3.7b gate: `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST still equal `<N_CALLS>` (only legacy removed; bus emit preserved).
 
    Phase 3 sub-phase 3.4 migrates EVERY site in a single mechanical sweep (one commit). The invariant is "every legacy site has a paired bus emit by end of 3.4, and zero legacy sites by end of 3.7b".
+
+9. **Capture skip / xfail baseline** (used by Invariant 3 gate item 3):
+
+   ```bash
+   rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}' > /tmp/skip_baseline.txt
+   cat /tmp/skip_baseline.txt
+   ```
+
+   Record the integer HERE before starting Phase 1:
+   - **Skip / xfail count at feature start**: `<SKIP_BASELINE>` (to fill at Pre-flight)
+
+   Every phase gate re-runs the same `rg | awk` command and asserts equality with `<SKIP_BASELINE>`. ANY growth means a new `@pytest.mark.skip` or `@pytest.mark.xfail` was added during the feature — that is a banned form of deferral per Invariant 1. The PR reviewer cross-checks this number against the gate-commit body.
+
+   If a legitimate skip is required (e.g. a platform-conditional that the feature doesn't introduce but discovers), the change MUST be its own `fix(event-bus): legitimate skip — <justification>` commit BEFORE the gate, and `<SKIP_BASELINE>` is bumped explicitly in the same commit with a one-paragraph justification. No silent baseline drift.
+
+10. **`docs/reference/event-bus.md` outline locked** (Phase 5.5 target — captured here so the doc-completeness gate at Phase 5.6 §13 can grep section headings mechanically):
+
+    The reference doc MUST contain exactly these top-level section headings, each followed by ≥ 20 LOC of body content:
+    - `## Purpose & high-level architecture`
+    - `## API reference`
+    - `## Event catalog (v1)`
+    - `## Boundary-only AppContext rule`
+    - `## JSON serialization contract`
+    - `## current_correlation_id ContextVar convention`
+    - `## Writing a new event`
+    - `## Writing a new subscriber`
+    - `## Testing patterns`
+    - `## Performance notes`
+    - `## Future evolution`
+
+    Phase 5.6 §13's doc-completeness check is the bash loop in INDEX Pre-flight #10 below converted into a gate command. Locked here so renumbering of sections requires INDEX edit, not silent drift.
 
 ---
 

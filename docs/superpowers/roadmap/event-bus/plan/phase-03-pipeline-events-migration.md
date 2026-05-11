@@ -335,7 +335,7 @@ This keeps the visual regression baseline (`tests/snapshots/rich_console_canonic
 - [ ] Assert against the pre-existing baseline at `tests/snapshots/rich_console_canonical.txt` (recorded during INDEX Pre-flight step 7). **Do NOT re-record** — the baseline is immutable.
 - [ ] **Smoke import check** (catches circular import during the transition where `observers/` and `subscribers/` coexist): `python -c "import personalscraper.observers; import personalscraper.subscribers; print('ok')"` → prints `ok`.
 - [ ] Run → pass.
-- [ ] `make check` green; `subscribers/rich_console.py` ≈ 180 LOC (DESIGN budget).
+- [ ] `make check` green; `subscribers/rich_console.py` ≤ 200 LOC (DESIGN budget; current `observers/rich_console.py` baseline 174 LOC, the rewrite should land at ≈ 180 LOC with the bus-subscription scaffolding).
 - [ ] Commit: `refactor(event-bus): rewrite RichConsoleObserver as RichConsoleSubscriber on the bus`.
 
 ---
@@ -367,6 +367,8 @@ This keeps the visual regression baseline (`tests/snapshots/rich_console_canonic
 - `test_telegram_subscriber_sends_html_on_pipeline_ended`: monkeypatch the HTTP send function; emit a `PipelineEnded` event; assert one send call with `parse_mode="HTML"` and the rendered body.
 - `test_telegram_subscriber_alerts_on_step_errored`: emit a `StepErrored(step="scrape", error_class="ValueError", error_message="boom")`; assert one send call with body containing `"scrape"` and `"ValueError"` and `"boom"`.
 - `test_telegram_subscriber_close_unsubscribes`: as in 3.5.
+- `test_telegram_subscriber_returns_synchronously_under_threshold` (DESIGN §Performance contract — "subscribers MUST be fast or schedule work; bus has no async offload in v1"): monkeypatch the HTTP send to a function that `time.sleep(2.0)` to simulate a slow network. Call `subscriber.on_pipeline_ended(event)` directly. Assert: total wall-clock time of the call is **< 50 ms** (i.e. the HTTP send was scheduled off-thread / queued / fire-and-forgot, NOT awaited synchronously on the bus thread). If the test fails, the subscriber is blocking the bus — fix by wrapping the send in `threading.Thread(target=_send, daemon=True).start()` or equivalent before merging. This test exists because a synchronous slow subscriber linearly slows the pipeline; DESIGN's prose contract becomes a regression test here.
+- `test_telegram_subscriber_cassette` (fallback for Phase 5.6 manual smoke test): create `tests/subscribers/test_telegram_cassette.py` using `responses` or `requests-mock`. Register one mock for each of `_send_html`'s expected outbound URLs. Emit (a) `PipelineEnded(report=make_pipeline_report_with_errors())`, (b) `StepErrored(step="scrape", error_class="ValueError", error_message="boom")`, (c) `CircuitBreakerOpened(...)`, (d) `DiskFullWarning(...)`. (Events (c) and (d) are subscribed in Phase 4.1 and 4.2b respectively; the cassette test for those payloads is **shipped in their respective Phase 4 sub-phases**, not here — this 3.6 test only covers (a) and (b).) The cassette test is what Phase 5.6 §14 falls back to when `.env` credentials are absent.
 
 **Steps**:
 
@@ -374,7 +376,7 @@ This keeps the visual regression baseline (`tests/snapshots/rich_console_canonic
 - [ ] Implement `TelegramSubscriber`.
 - [ ] **Smoke import check** (same rationale as 3.5): `python -c "import personalscraper.observers; import personalscraper.subscribers; print('ok')"` → prints `ok`.
 - [ ] Run → pass.
-- [ ] `make check` green; `subscribers/telegram.py` at this point holds 2 handlers (≈ 100 LOC up from today's 54 LOC; the 200 LOC cap is the END-of-Phase-4 budget after circuit + disk handlers).
+- [ ] `make check` green; `subscribers/telegram.py` ≤ 200 LOC (DESIGN cap; at end of Phase 3 the file holds 2 handlers ≈ 100 LOC up from today's 54 LOC; the same 200 LOC cap applies through Phase 4 after circuit + disk handlers land).
 - [ ] Commit: `refactor(event-bus): rewrite TelegramObserver as TelegramSubscriber`.
 
 ---
@@ -385,7 +387,7 @@ This keeps the visual regression baseline (`tests/snapshots/rich_console_canonic
 
 - Modify: every test file that imports from `personalscraper.observers` or `personalscraper.pipeline_observer`. Production code is NOT touched in this sub-phase — only test files.
 - Delete: `tests/event_bus/test_step_context_shape.py::test_step_context_still_has_observers_phase2` (the temporary assertion landed in Phase 2.2a, marked for deletion).
-- Delete: the Sub-phase 3.5 transitional test `test_rich_console_subscriber_outputs_match_legacy_observer_for_canonical_run` (legacy observer about to disappear).
+- Delete: the Sub-phase 3.5 transitional test `test_rich_console_subscriber_outputs_match_legacy_observer_directly` (legacy observer about to disappear).
 
 **Behavior delivered**: every test rewritten to use `EventBus` + `CollectingSubscriber`. The production tree still has `pipeline_observer.py`, `observers/`, `StepContext.observers`, and every `notify_progress(...)` call — they remain functional through 3.7a. Tests stop reading them; the build stays green because production keeps both paths active.
 
@@ -513,15 +515,20 @@ Per DESIGN §Logging convention (Phase 3 sweep): **emitters emit only — no str
 
 **Tests written**:
 
-- `test_structlog_emit_dedup_audit`: a regression test that asserts a specific known-good emit site has exactly one `log.*` call (or zero) within a small range around the emit. Pick one canonical site (e.g., `Pipeline._run_step`) and lock it in. (Architecture tests of this style are brittle; keep the assertion narrow.)
+- `test_no_emit_site_double_logs_at_<module>` (parametrized over EVERY file containing a `bus.emit(` or `event_bus.emit(` call — **no agent-chosen "canonical site" cherry-picking**): for each such file, parse the source via `ast`, locate every `Call` node whose target unparses to `*.emit`, and assert that within a 3-line window of the `emit` call there is **either** zero `log.<level>(` calls **or** exactly one `log.<level>(` call whose first positional kwarg differs from the event payload's discriminator (e.g. `exc_info=True` for traceback alongside `StepErrored(error_class=..., error_message=...)` is allowed; `log.info("step_completed", step=ctx.step)` immediately after `event_bus.emit(StepCompleted(step=ctx.step, ...))` is NOT — same `step` field duplicated). Parametrize the test over `list(Path("personalscraper").rglob("*.py"))` so adding a new emit site automatically extends the audit. **One file = one assertion. No file is skipped.** A new file added without dedup auditing fails the gate.
+- `test_structlog_emit_dedup_audit_commit_documents_counts`: read the most recent commit body (`git log -1 --format=%B`); assert it contains the line `structlog_calls_removed: <N>` and `structlog_calls_kept: <M>` (the documented audit result). Phase reviewer cross-checks `<N>` against the diff.
 
 **Steps**:
 
-- [ ] Run the audit grep + manual inspection.
-- [ ] Delete duplicate `log.*` calls.
+- [ ] List every emit site: `rg --type py 'event_bus\.emit\(' personalscraper/ -l > /tmp/emit_sites.txt`.
+- [ ] For EVERY file in `/tmp/emit_sites.txt`, inspect the lines surrounding each `emit(`. If a `log.info(...)` / `log.debug(...)` / `log.warning(...)` immediately precedes or follows the emit and carries the SAME information, DELETE the log call.
+- [ ] If a log call carries DIFFERENT information (e.g. exception traceback alongside an `error_class`+`error_message` event), KEEP it but ensure it does not duplicate.
+- [ ] Track running counts `<N>` (removed) and `<M>` (kept) for the commit body.
+- [ ] Write the parametrized AST test described above; assert it passes for every file.
 - [ ] Run tests → green (no test should rely on a deleted log line; if one does, it was over-asserting on logs vs events — rewrite the test to assert on the event).
 - [ ] `make check` green.
 - [ ] Commit: `refactor(event-bus): structlog dedup audit — emit sites do not double-log`.
+  - Body MUST include trailer lines: `structlog_calls_removed: <N>` and `structlog_calls_kept: <M>` (per the second test above).
 
 ---
 
@@ -530,10 +537,11 @@ Per DESIGN §Logging convention (Phase 3 sweep): **emitters emit only — no str
 **Hard verification gate**:
 
 1. **`make lint`** → zero.
-2. **`make test`** → all pass; baseline + Phase 1+2 + Phase 3 new tests (~50+). The TOTAL test count must equal baseline + (Phase 1 + Phase 2 + Phase 3 deltas) minus the deleted Phase-2 / Phase-3 transitional tests.
-3. **`make check`** → green.
-4. **Module size**: every module ≤ DESIGN budget table; `subscribers/rich_console.py` ≈ 180; `subscribers/telegram.py` ≈ 100 at end of Phase 3 (cap is 200 — circuit + disk handlers in Phase 4 grow it toward the cap).
-5. **Sweep greps — all must return ZERO**:
+2. **`make test`** → all pass; cumulative test count MUST have grown by **at least 130** new tests since the feature baseline (Phase 1 ≥ 50 + Phase 2 ≥ 30 + Phase 3 ≥ 50), MINUS the explicit deletions of the two transitional tests (`test_step_context_still_has_observers_phase2` in 3.7a, `test_rich_console_subscriber_outputs_match_legacy_observer_directly` in 3.7a) → net minimum **128**. Test count CANNOT regress below this floor. A lower count means a test was silently skipped or deleted beyond the documented transitional pair — investigate and restore.
+3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
+4. **`make check`** → green.
+5. **Module size**: every module ≤ DESIGN budget table; `subscribers/rich_console.py` ≤ 200; `subscribers/telegram.py` ≤ 200 (current at end of Phase 3 is ~100 LOC; circuit + disk handlers in Phase 4 grow it toward the cap).
+6. **Sweep greps — all must return ZERO**:
    - `rg 'from personalscraper\.observers' --type py personalscraper/ tests/` → 0.
    - `rg 'from personalscraper\.pipeline_observer' --type py personalscraper/ tests/` → 0.
    - `rg 'PipelineObserver\b' --type py personalscraper/ tests/` → 0.
@@ -543,16 +551,16 @@ Per DESIGN §Logging convention (Phase 3 sweep): **emitters emit only — no str
    - `rg 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' docs/ -g '!docs/archive/**'` → 0.
    - `ls personalscraper/pipeline_observer.py 2>&1 | grep -c 'No such'` → 1 (file deleted).
    - `ls personalscraper/observers 2>&1 | grep -c 'No such'` → 1 (dir deleted).
-6. **`test_every_event_has_factory` green** (now non-vacuous — asserts on the 6 pipeline events).
-7. **AppContext boundary test green**.
-8. **Visual regression**: run a canonical pipeline against a fixture; capture Rich Console output via the determinism setup; compare against the immutable baseline at `tests/snapshots/rich_console_canonical.txt` (recorded in INDEX Pre-flight step 7, untouched since). **Byte-for-byte match required** — the entire Observer-to-Subscriber rewrite must be visually transparent.
-9. **Smoke import**: `python -c "import personalscraper"` succeeds.
-10. **Per-event envelope round-trip**: parametrized test passes for all 6 pipeline events.
+7. **`test_every_event_has_factory` green** (now non-vacuous — asserts on the 6 pipeline events).
+8. **AppContext boundary test green**.
+9. **Visual regression**: `pytest tests/event_bus/test_rich_console_subscriber.py::test_rich_console_subscriber_snapshot_matches_baseline -v` → expected `1 passed`. The test replays `CANONICAL_SEQUENCE` through `RichConsoleSubscriber` with the determinism setup and asserts byte-for-byte equality with `tests/snapshots/rich_console_canonical.txt` (recorded in INDEX Pre-flight #7, untouched since). The entire Observer-to-Subscriber rewrite must be visually transparent.
+10. **Smoke import**: `python -c "import personalscraper"` succeeds.
+11. **Per-event envelope round-trip**: parametrized test passes for all 6 pipeline events.
 
 **Steps**:
 
 - [ ] Re-read each sub-phase 3.1 / 3.2 / 3.3 / 3.4 / 3.5 / 3.6 / 3.7a / 3.7b / 3.7c / 3.8; every checkbox checked.
-- [ ] Run gate items 1–10; resolve red.
+- [ ] Run gate items 1–11; resolve red.
 - [ ] Commit: `chore(event-bus): phase 3 gate — pipeline events migration complete`.
 
 ---

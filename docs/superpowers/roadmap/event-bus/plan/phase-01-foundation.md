@@ -115,6 +115,7 @@
 - `test_emit_does_not_invoke_unrelated_type_subscribers`: subscribe to `Baz`; emit `Foo()`; assert `Baz` callback NOT invoked.
 - `test_emit_ordering_concrete_before_ancestor`: subscribe `concrete_cb` to `Foo`, then `base_cb` to `Event`; emit `Foo()`; assert call order `[concrete_cb, base_cb]`.
 - `test_emit_with_no_subscribers_is_noop`: instantiate bus; emit `Foo()`; assert no exceptions and internal counters show no callback invocations.
+- `test_emit_no_subscribers_zero_allocation` (fast-path allocation contract — DESIGN §Testing strategy line "no allocation beyond the event itself"): use `tracemalloc` to snapshot before and after emitting 100 events on an empty bus; assert the delta in tracked block count is ≤ 1 block per emit (the event instance itself; the bus allocates nothing). Concrete: `tracemalloc.start(); s1 = tracemalloc.take_snapshot(); for _ in range(100): bus.emit(Foo()); s2 = tracemalloc.take_snapshot(); diff = sum(stat.count_diff for stat in s2.compare_to(s1, 'lineno') if 'event_bus.py' in stat.traceback[0].filename); assert diff == 0, f'fast path allocated {diff} blocks in event_bus.py'`. Asserts the fast path is genuinely allocation-free in `event_bus.py`'s code path (event construction in user code is excluded by filename filter).
 - `test_mro_cache_populated_on_first_emit`: emit `Foo()` once; assert `_mro_cache[Foo]` is set.
 - `test_mro_cache_invalidated_on_subscribe`: emit `Foo()`; assert cache populated; subscribe new callback to `Foo`; assert cache cleared.
 - `test_mro_cache_invalidated_on_unsubscribe`: subscribe; emit (populates cache); unsubscribe; assert cache cleared.
@@ -347,31 +348,32 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
 **Hard verification gate** (must ALL pass before committing the gate):
 
 1. **`make lint`** → zero errors.
-2. **`make test`** → all tests pass; baseline test count grew by **~50 new tests** (rough estimate: 7 + 5 + 9 + 5 + 10 + 7 + 8 + 6 = 57 new tests). Adjust if implementation merges/splits some.
-3. **`make check`** → green.
-4. **Module size**: `personalscraper/core/event_bus.py` ≤ 400 LOC (DESIGN budget, uplifted from 350 to accommodate MRO cache + COW + ContextVar + envelope encode/decode + registry + `__init_subclass__` hook). Run `python3 scripts/check-module-size.py` (also covered by `make check`).
-5. **Smoke import**: `python -c "import personalscraper.core.event_bus; print('ok')"` → prints `ok`.
-6. **Smoke import top-level**: `python -c "import personalscraper"` → succeeds.
-7. **No emit sites in production code yet** (sanity — Phase 1 is standalone):
+2. **`make test`** → all tests pass; baseline test count MUST have grown by **at least 50** new tests (target ~57: 7 + 5 + 9 + 5 + 10 + 7 + 8 + 6 from sub-phases 1.1 through 1.8). A lower count means a test was silently skipped or deleted — investigate which one and restore it; do NOT lower the minimum. Test count CANNOT regress.
+3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
+4. **`make check`** → green.
+5. **Module size**: `personalscraper/core/event_bus.py` ≤ 400 LOC (DESIGN budget, uplifted from 350 to accommodate MRO cache + COW + ContextVar + envelope encode/decode + registry + `__init_subclass__` hook). Run `python3 scripts/check-module-size.py` (also covered by `make check`).
+6. **Smoke import**: `python -c "import personalscraper.core.event_bus; print('ok')"` → prints `ok`.
+7. **Smoke import top-level**: `python -c "import personalscraper"` → succeeds.
+8. **No emit sites in production code yet** (sanity — Phase 1 is standalone):
    ```bash
    rg 'event_bus\.emit\(|app\.event_bus\.emit\(' --type py personalscraper/
    ```
    Expected: zero matches (the only `.emit` is inside `event_bus.py` itself, e.g. internal helpers or comments).
-8. **No imports of `personalscraper.core.event_bus` in production code yet**:
+9. **No imports of `personalscraper.core.event_bus` in production code yet**:
    ```bash
    rg 'from personalscraper\.core\.event_bus' --type py personalscraper/ | grep -v test_
    ```
    Expected: zero matches (only tests import).
-9. **`pipeline_observer.py` still intact** (Phase 3 removes it; Phase 1 must not touch it):
-   ```bash
-   ls personalscraper/pipeline_observer.py
-   ```
-   File exists.
+10. **`pipeline_observer.py` still intact** (Phase 3 removes it; Phase 1 must not touch it):
+    ```bash
+    ls personalscraper/pipeline_observer.py
+    ```
+    File exists.
 
 **Steps**:
 
 - [ ] Re-read each sub-phase 1.1–1.8; confirm every checkbox checked.
-- [ ] Run gate items 1–9 above; resolve any red.
+- [ ] Run gate items 1–10 above; resolve any red.
 - [ ] Commit: `chore(event-bus): phase 1 gate — standalone event bus foundation`.
 
 ---

@@ -362,10 +362,14 @@ This decision is FINAL — no "decide at implementation time" remains.
 
 - `test_quick_scan_emits_library_scan_completed`: run quick scan against a fixture; collect; assert one event with `mode="quick"`, `scanned > 0`.
 - `test_each_scan_mode_emits_its_mode_string`: parametrize over all 6 modes; assert event's `mode` matches.
-- `test_scan_emits_on_partial_failure`: stub a mode where some items error; assert one event with `errors > 0`.
+- `test_scan_emits_on_partial_failure`: stub a mode where some items error during processing; assert exactly one event with `errors > 0` AND `scanned > 0` (partial = scanner reached items, some failed).
+- `test_scan_emits_on_total_exception_before_any_item` (covers the `finally`-block emit path): stub a mode where the scanner raises BEFORE processing any item (e.g. config-loading exception, disk-unavailable). Allow the exception to propagate out of the orchestrator (`pytest.raises(...)`); capture `LibraryScanCompleted` via `CollectingSubscriber`; assert exactly one event with `scanned=0`, `errors=1` (the locked formula's lower bound), `elapsed_s ≥ 0`, AND `mode=<the requested mode>`. **This test guarantees the `finally`-block emit is not silently dropped on the total-exception path** — the asymmetry that earlier drafts of this plan left under-tested.
+- `test_scan_emits_on_mid_scan_exception` (covers the `finally`-block emit path when the exception fires after some items): stub a mode that processes 3 items then raises on item 4; let the exception propagate; assert one event with `scanned=3`, `errors=max(3 - 3, 1) = 1` (the locked formula's lower bound). Same exception path, different progress count — verifies the formula behaves correctly on both edges.
 - `test_library_scan_completed_has_factory`.
 - `test_library_scan_completed_envelope_roundtrip`.
 - `test_launchd_scan_event_correlation_id_is_scan_run_id`: invoke the launchd scan entry; collect; assert `event.correlation_id` equals the `run_id` bound by the scan's AppContext bootstrap (Phase 2.5).
+
+**Anti-defer reinforcement**: if the orchestrator's existing exception-handling flow makes the `finally`-block emit awkward (e.g. the orchestrator returns multiple paths through different functions), **do NOT defer the failure-path emit to Phase 5**. Instead, refactor the orchestrator to centralize the emit in a single `finally` block within this same sub-phase. If the refactor is large (> 100 LOC), split this sub-phase into 4.5a (success + partial paths) and 4.5b (total-failure refactor + emit) — both shipped in Phase 4, never punted forward. The acceptance criterion is "every scan mode invocation emits exactly one event regardless of exit path".
 
 **Steps**:
 
@@ -384,15 +388,16 @@ This decision is FINAL — no "decide at implementation time" remains.
 **Hard verification gate**:
 
 1. **`make lint`** → zero.
-2. **`make test`** → all pass; total grew by Phase 4 test count (~40+).
-3. **`make check`** → green.
-4. **Module sizes**:
+2. **`make test`** → all pass; cumulative test count MUST have grown by **at least 168** new tests since the feature baseline (Phase 1 ≥ 50 + Phase 2 ≥ 30 + Phase 3 ≥ 50 net 48 after deletions + Phase 4 ≥ 40). Test count CANNOT regress below this floor.
+3. **No new skips / xfails** — per Invariant 3 item 3: `rg -c '@pytest\.mark\.(skip|xfail|skipif)' tests/ -g '*.py' | awk -F: '{s+=$2} END{print s}'` MUST equal `<SKIP_BASELINE>` from INDEX Pre-flight #9.
+4. **`make check`** → green.
+5. **Module sizes**:
    - `core/circuit.py` ≤ 350 LOC.
    - `indexer/events.py` ≤ 60.
    - `dispatch/events.py` ≤ 50.
    - `trailers/events.py` ≤ 30.
    - `subscribers/telegram.py` ≤ 200.
-5. **Event catalog completeness**: every concrete event from DESIGN §Event catalog (v1) exists and is registered:
+6. **Event catalog completeness**: every concrete event from DESIGN §Event catalog (v1) exists and is registered:
    - `PipelineStarted`, `PipelineEnded`, `StepStarted`, `StepCompleted`, `StepErrored`, `ItemProgressed` (Phase 3).
    - `ItemDispatched` (Phase 4.3).
    - `CircuitBreakerOpened`, `CircuitBreakerClosed`, `CircuitBreakerHalfOpened` (Phase 4.1).
@@ -420,24 +425,27 @@ This decision is FINAL — no "decide at implementation time" remains.
      "
      ```
      The diagnostic names exactly what diverged; the assertion holds only when the registry is bit-for-bit the v1 catalog.
-6. **`test_every_event_has_factory` green**: factories for all 13 in `tests/fixtures/event_samples.py`.
-7. **Envelope round-trip parametrized test green for all 13**.
-8. **AppContext boundary test green**.
-9. **Smoke imports**:
-   - `python -c "import personalscraper"`.
-   - `python -c "from personalscraper.events import PipelineStarted, ItemDispatched, CircuitBreakerOpened, DiskFullWarning, TrailerDownloaded, LibraryScanCompleted"`.
-10. **Telegram subscriptions**: assert at the test level that `TelegramSubscriber.__init__` results in 4 subscription tokens (`PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning`). The regression test `test_telegram_subscriber_has_four_subscriptions_after_phase4` is shipped in **sub-phase 4.2b** (the last Phase-4 sub-phase that adds a Telegram subscription — `DiskFullWarning`). Sub-phase 4.1 already shipped a 3-subscription analogue; 4.2b extends it to 4.
-11. **`event_bus | None` audit**: list every call site that still relies on the `| None` default:
-    ```bash
-    rg 'event_bus: EventBus \| None' --type py personalscraper/
-    rg 'CircuitBreaker\(' --type py personalscraper/ | grep -v 'event_bus='
+7. **`test_every_event_has_factory` green**: factories for all 13 in `tests/fixtures/event_samples.py`.
+8. **Envelope round-trip parametrized test green for all 13**.
+9. **AppContext boundary test green**.
+10. **Smoke imports**:
+    - `python -c "import personalscraper"`.
+    - `python -c "from personalscraper.events import PipelineStarted, ItemDispatched, CircuitBreakerOpened, DiskFullWarning, TrailerDownloaded, LibraryScanCompleted"`.
+11. **Telegram subscriptions**: assert at the test level that `TelegramSubscriber.__init__` results in 4 subscription tokens (`PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning`). The regression test `test_telegram_subscriber_has_four_subscriptions_after_phase4` is shipped in **sub-phase 4.2b** (the last Phase-4 sub-phase that adds a Telegram subscription — `DiskFullWarning`). Sub-phase 4.1 already shipped a 3-subscription analogue; 4.2b extends it to 4.
+12. **`event_bus | None` audit — count locked in commit body**: the gate commit MUST include two literal trailer lines (parseable by Phase 5.2 pre-flight via `git log -1 --format=%B`):
+
     ```
-    Document the count in the gate commit message — this is the work for Phase 5.
+    event_bus_optional_sites_count: <N>
+    circuit_breaker_calls_without_event_bus_count: <M>
+    ```
+
+    where `<N>` is the integer output of `rg --type py 'event_bus: EventBus \| None' personalscraper/ | wc -l` and `<M>` is the integer output of `rg --type py 'CircuitBreaker\(' personalscraper/ | grep -v 'event_bus=' | wc -l`. Phase 5.2 pre-flight greps these lines: `git log -1 --format=%B <phase-4-gate-sha> | grep -E '^(event_bus_optional_sites_count|circuit_breaker_calls_without_event_bus_count): [0-9]+$' | wc -l` MUST return `2`. Any drift in Phase 5 baseline means an undocumented `| None` site was introduced; 5.2 fails its pre-flight loudly.
 
 **Steps**:
 
 - [ ] Re-read each sub-phase 4.1 / 4.2a / 4.2b / 4.3 / 4.4 / 4.5; every checkbox checked. (4.2a may have been a documented no-op if `_disk_guard.py` was already extracted by P3.)
-- [ ] Run gate items 1–11; resolve red.
+- [ ] Run gate items 1–12; resolve red.
+- [ ] Compute `<N>` and `<M>` for the audit; append the two literal trailer lines to the commit body.
 - [ ] Commit: `chore(event-bus): phase 4 gate — all cross-cutting events emitting`.
 
 ---
