@@ -316,7 +316,9 @@ def run(
                 RichConsoleObserver(console=console, verbose=verbose, dry_run=dry_run, run_id=run_id),
             ]
             if TelegramNotifier.is_configured(settings):
-                pipeline_observers.append(TelegramObserver(settings))
+                tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+                tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
+                pipeline_observers.append(TelegramObserver(tg_notifier))
 
             # Delegate to Pipeline orchestrator (9-step sequential flow)
             pipeline = Pipeline(

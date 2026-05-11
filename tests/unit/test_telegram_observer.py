@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+import pytest
 
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.observers.telegram import TelegramObserver
@@ -13,41 +15,38 @@ from personalscraper.pipeline_observer import PipelineObserver
 class TestTelegramObserver:
     """TelegramObserver tests."""
 
+    @staticmethod
+    def _make_notifier(**kwargs) -> MagicMock:
+        notifier = MagicMock()
+        notifier.send_report.return_value = kwargs.get("send_report_return", True)
+        return notifier
+
     def test_is_pipeline_observer(self) -> None:
         """TelegramObserver satisfies the PipelineObserver Protocol."""
-        settings = MagicMock()
-        settings.telegram_bot_token = "fake-token"
-        settings.telegram_chat_id = "123"
-        assert isinstance(TelegramObserver(settings), PipelineObserver)
+        notifier = self._make_notifier()
+        assert isinstance(TelegramObserver(notifier), PipelineObserver)
 
     def test_name(self) -> None:
         """Observer has the expected name."""
-        settings = MagicMock()
-        assert TelegramObserver(settings).name == "telegram"
+        notifier = self._make_notifier()
+        assert TelegramObserver(notifier).name == "telegram"
 
     def test_on_pipeline_end_sends_report(self) -> None:
         """on_pipeline_end calls TelegramNotifier.send_report with the report."""
-        settings = MagicMock()
-        settings.telegram_bot_token = "t"
-        settings.telegram_chat_id = "1"
-        obs = TelegramObserver(settings)
+        notifier = self._make_notifier()
+        obs = TelegramObserver(notifier)
         report = PipelineReport(started_at=datetime.now())
         report.add_step("ingest", StepReport(name="ingest", success_count=1))
         report.finished_at = datetime.now()
 
-        with patch("personalscraper.observers.telegram.TelegramNotifier") as mock_cls:
-            mock_notifier = MagicMock()
-            mock_cls.return_value = mock_notifier
+        obs.on_pipeline_end(report)
 
-            with patch("personalscraper.observers.telegram.HttpTransport"):
-                obs.on_pipeline_end(report)
-
-            mock_notifier.send_report.assert_called_once_with(report)
+        notifier.send_report.assert_called_once_with(report)
 
     def test_all_other_callbacks_are_noop(self) -> None:
         """All callbacks except on_pipeline_end are no-ops."""
-        settings = MagicMock()
-        obs = TelegramObserver(settings)
+        notifier = self._make_notifier()
+        obs = TelegramObserver(notifier)
         report = PipelineReport(started_at=datetime.now())
         step_report = StepReport(name="test")
 
@@ -57,3 +56,27 @@ class TestTelegramObserver:
         obs.on_step_error("ingest", ValueError())
         obs.on_progress(MagicMock())
         # No exception = pass
+
+    def test_on_pipeline_end_logs_warning_on_send_failure(self) -> None:
+        """on_pipeline_end survives when send_report returns False."""
+        notifier = self._make_notifier(send_report_return=False)
+        obs = TelegramObserver(notifier)
+        report = PipelineReport(started_at=datetime.now())
+        report.add_step("ingest", StepReport(name="ingest", success_count=1))
+        report.finished_at = datetime.now()
+
+        obs.on_pipeline_end(report)
+        notifier.send_report.assert_called_once_with(report)
+
+    def test_on_pipeline_end_survives_notifier_exception(self) -> None:
+        """Observer does not crash when the notifier raises an exception."""
+        notifier = self._make_notifier()
+        notifier.send_report.side_effect = RuntimeError("telegram API unreachable")
+        obs = TelegramObserver(notifier)
+        report = PipelineReport(started_at=datetime.now())
+        report.add_step("ingest", StepReport(name="ingest", success_count=1))
+        report.finished_at = datetime.now()
+
+        # Must raise — the observer does not catch; _notify_observers does.
+        with pytest.raises(RuntimeError, match="telegram API unreachable"):
+            obs.on_pipeline_end(report)

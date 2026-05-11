@@ -77,7 +77,7 @@ class TestPipelineWithObserver:
         assert collector.ends[-1][0] == "dispatch"
 
     def test_on_step_error_called_on_failure(self) -> None:
-        """on_step_error is called when a step raises."""
+        """on_step_error is called when a step raises, and on_pipeline_end still fires."""
         collector = CollectorObserver()
         overrides = self._make_fake_steps()
 
@@ -103,6 +103,8 @@ class TestPipelineWithObserver:
 
         assert len(collector.errors) == 1
         assert "boom" in str(collector.errors[0][1])
+        # on_pipeline_end must fire even on abort
+        assert len(collector.pipeline_ends) == 1
 
     def test_on_pipeline_start_called_once(self) -> None:
         """on_pipeline_start is called exactly once at the beginning."""
@@ -141,16 +143,32 @@ class TestPipelineWithObserver:
         assert isinstance(collector.pipeline_ends[0], PipelineReport)
 
     def test_crashing_lifecycle_observer_does_not_abort_pipeline(self) -> None:
-        """A broken observer lifecycle callback is isolated from pipeline execution."""
+        """A broken observer lifecycle callback is isolated from pipeline execution.
+
+        Covers all 6 callbacks: on_pipeline_start, on_pipeline_end,
+        on_step_start, on_step_end, on_step_error, on_progress.
+        """
 
         class CrashingObserver(PipelineObserverBase):
             name = "crashing"
 
+            def on_pipeline_start(self, report: PipelineReport) -> None:
+                raise RuntimeError("broken pipeline_start")
+
+            def on_pipeline_end(self, report: PipelineReport) -> None:
+                raise RuntimeError("broken pipeline_end")
+
             def on_step_start(self, step: str) -> None:
                 raise RuntimeError(f"broken start {step}")
 
-            def on_pipeline_end(self, report: PipelineReport) -> None:
-                raise RuntimeError("broken end")
+            def on_step_end(self, step: str, report: StepReport, elapsed: float) -> None:
+                raise RuntimeError(f"broken end {step}")
+
+            def on_step_error(self, step: str, error: Exception) -> None:
+                raise RuntimeError(f"broken error {step}")
+
+            def on_progress(self, event) -> None:
+                raise RuntimeError(f"broken progress {event.step}")
 
         collector = CollectorObserver()
         pipeline = Pipeline(

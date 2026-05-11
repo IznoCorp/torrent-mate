@@ -248,12 +248,18 @@ def test_run_lock_blocked(mock_lock):
 
 
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
+@patch("personalscraper.pipeline.Pipeline.__init__", return_value=None)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg):
-    """TelegramObserver is wired when notifier is configured."""
+def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_pipeline_init, mock_notifier_cfg):
+    """TelegramObserver is passed to Pipeline when notifier is configured."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
+    _, kwargs = mock_pipeline_init.call_args
+    observers = kwargs.get("observers", [])
+    assert any(obs.name == "telegram" for obs in observers), (
+        f"TelegramObserver not found in observers: {[getattr(o, 'name', type(o).__name__) for o in observers]}"
+    )
 
 
 def test_run_no_telegram_when_not_configured():

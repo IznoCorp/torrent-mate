@@ -31,7 +31,7 @@ class TestScrapeProgress:
                 report = run_scrape(settings, config=config, dry_run=True, observers=())
         assert report.name == "scrape"
 
-    def test_observers_survive_no_crash(self) -> None:
+    def test_does_not_crash_with_observers(self) -> None:
         """Scrape step does not crash with observers attached."""
         settings = MagicMock()
         config = MagicMock()

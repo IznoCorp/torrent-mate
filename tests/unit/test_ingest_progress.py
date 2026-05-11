@@ -31,7 +31,7 @@ class TestIngestProgress:
         """run_ingest accepts observers without error."""
         settings = MagicMock()
         config = self._make_config()
-        _mock_client.return_value.list_completed.return_value = []
+        _mock_client.return_value.get_completed.return_value = []
 
         report = run_ingest(settings, dry_run=True, config=config, observers=())
         assert report.name == "ingest"
@@ -39,7 +39,7 @@ class TestIngestProgress:
     @patch("personalscraper.ingest.ingest.build_active_torrent_client")
     @patch("personalscraper.ingest.ingest.IngestTracker")
     def test_emits_started_event_per_torrent(self, _mock_tracker, _mock_client) -> None:
-        """Each torrent emits a started event."""
+        """Each torrent emits started and completed/skipped/failed progress events."""
         collector = CollectorObserver()
         settings = MagicMock()
         config = self._make_config()
@@ -48,7 +48,8 @@ class TestIngestProgress:
         mock_torrent.name = "Test.Movie.2024.1080p"
         mock_torrent.hash = "abc123"
         mock_torrent.ratio = 1.5
-        _mock_client.return_value.list_completed.return_value = [mock_torrent]
+        _mock_client.return_value.get_completed.return_value = [mock_torrent]
+        _mock_client.return_value.get_all_hashes.return_value = {"abc123"}
         _mock_tracker.return_value.is_ingested.return_value = False
         _mock_tracker.return_value.get_entry.return_value = None
 
@@ -56,6 +57,11 @@ class TestIngestProgress:
             with patch("personalscraper.ingest.ingest._get_dir_size", return_value=1000):
                 with patch("personalscraper.ingest.ingest.transfer_torrent", return_value=True):
                     run_ingest(settings, dry_run=True, config=config, observers=(collector,))
+
+        assert len(collector.progress) >= 1
+        started = [e for e in collector.progress if e.status == "started"]
+        assert len(started) == 1
+        assert started[0].item == "Test.Movie.2024.1080p"
 
     def test_step_event_structure(self) -> None:
         """StepEvent fields are coherent."""

@@ -56,7 +56,7 @@ class TestPipelineHeadless:
 
         pipeline = Pipeline(config, settings, dry_run=True)
 
-        assert pipeline._observers[0].dry_run is True
+        assert pipeline._observers[0]._dry_run is True
 
     def test_run_with_no_observers(self) -> None:
         """Pipeline runs to completion with observers=[]."""

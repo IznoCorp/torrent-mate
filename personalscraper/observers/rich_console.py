@@ -40,9 +40,9 @@ class RichConsoleObserver:
             run_id: Pipeline run identifier for the banner.
         """
         self.console = console or Console()
-        self.verbose = verbose
-        self.dry_run = dry_run
-        self.run_id = run_id
+        self._verbose = verbose
+        self._dry_run = dry_run
+        self._run_id: str | None = run_id if run_id else None
 
     @staticmethod
     def _icon(step: str) -> str:
@@ -73,8 +73,8 @@ class RichConsoleObserver:
         Args:
             report: Freshly created ``PipelineReport`` with ``started_at``.
         """
-        run_id = self.run_id or report.started_at.isoformat(timespec="seconds")
-        mode = "[yellow]DRY-RUN[/yellow]" if self.dry_run else "[green]LIVE[/green]"
+        run_id = self._run_id or report.started_at.isoformat(timespec="seconds")
+        mode = "[yellow]DRY-RUN[/yellow]" if self._dry_run else "[green]LIVE[/green]"
         self.console.print(
             f"[bold]PersonalScraper Pipeline[/bold] {mode}  [dim]{run_id}[/dim]",
             highlight=False,
@@ -138,7 +138,7 @@ class RichConsoleObserver:
         summary = ", ".join(parts) if parts else "[dim]nothing to do[/dim]"
         self.console.print(f"   {summary} ({elapsed_str})", highlight=False)
 
-        if self.verbose:
+        if self._verbose:
             for detail in report.details:
                 if "skipped_already_done" in detail:
                     continue
@@ -162,7 +162,7 @@ class RichConsoleObserver:
         Args:
             event: The progress event to render.
         """
-        if not self.verbose:
+        if not self._verbose:
             return
         self.console.print(
             f"   [dim]{event.step}: {event.item} — {event.status}[/dim]",

@@ -10,7 +10,6 @@ external-API fakes belong in ``tests/integration/test_full_pipeline.py``.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rich.console import Console
 
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
@@ -82,16 +81,6 @@ def orch_config(tmp_path):
     return config
 
 
-@pytest.fixture
-def quiet_console():
-    """Console that suppresses all output.
-
-    Returns:
-        Rich Console in quiet mode.
-    """
-    return Console(quiet=True)
-
-
 def _noop_step(name: str, *_args, **_kwargs) -> StepReport:
     """Return a no-op StepReport for the given step name.
 
@@ -137,7 +126,11 @@ def _verify_with_items(*_args, **_kwargs):
 class TestPipelineOrchestration:
     """Unit tests for Pipeline orchestration using step_overrides injection."""
 
-    def test_step_order(self, orch_config, orch_settings, quiet_console):
+    def test_step_order(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """Steps execute in canonical order: ingest→sort→clean→scrape→cleanup→enforce→verify→trailers→dispatch.
 
         Uses step_overrides to record call order without patching module globals.
@@ -188,7 +181,11 @@ class TestPipelineOrchestration:
 
         assert order == ["ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "trailers", "dispatch"]
 
-    def test_ingest_crash_aborts_pipeline(self, orch_config, orch_settings, quiet_console):
+    def test_ingest_crash_aborts_pipeline(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """A fatal ingest crash causes the pipeline to return early.
 
         Sort and downstream steps must not execute.
@@ -219,7 +216,11 @@ class TestPipelineOrchestration:
         assert "sort" not in report.steps
         assert executed == []
 
-    def test_sort_crash_aborts_pipeline(self, orch_config, orch_settings, quiet_console):
+    def test_sort_crash_aborts_pipeline(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """A fatal sort crash causes the pipeline to return after sort.
 
         Clean and downstream steps must not execute.
@@ -250,7 +251,11 @@ class TestPipelineOrchestration:
         assert "clean" not in report.steps
         assert executed == []
 
-    def test_reporter_aggregation(self, orch_config, orch_settings, quiet_console):
+    def test_reporter_aggregation(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """All 9 StepReports from overrides roll up into the PipelineReport."""
         pipeline = Pipeline(
             orch_config,
@@ -284,7 +289,11 @@ class TestPipelineOrchestration:
         assert report.steps["ingest"].success_count == 3
         assert report.steps["scrape"].success_count == 2
 
-    def test_dispatch_skipped_no_verified(self, orch_config, orch_settings, quiet_console):
+    def test_dispatch_skipped_no_verified(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """Dispatch step is skipped (skip_count=1) when verify returns no items."""
         pipeline = Pipeline(
             orch_config,
@@ -305,7 +314,11 @@ class TestPipelineOrchestration:
         assert "dispatch" in report.steps
         assert report.steps["dispatch"].skip_count == 1
 
-    def test_clean_crash_does_not_block_scrape(self, orch_config, orch_settings, quiet_console):
+    def test_clean_crash_does_not_block_scrape(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """A clean crash is isolated: scrape and cleanup still execute."""
 
         def crashing_clean(*_a, **_kw) -> StepReport:
@@ -346,7 +359,6 @@ class TestPipelineOrchestration:
         mock_scrape,
         orch_config,
         orch_settings,
-        quiet_console,
     ):
         """``--interactive`` flag is forwarded to run_scrape as a kwarg.
 
@@ -384,7 +396,6 @@ class TestPipelineOrchestration:
         mock_scrape,
         orch_config,
         orch_settings,
-        quiet_console,
     ):
         """A polluted folder in 001-MOVIES is re-cleaned during the process phase.
 
@@ -429,9 +440,7 @@ class TestPipelineOrchestration:
 class TestTrailerErrorFlagWiring:
     """Tests for --continue-on-trailer-error flag behavior (C2)."""
 
-    def test_pipeline_aborts_when_trailers_error_and_continue_on_error_false(
-        self, orch_config, orch_settings, quiet_console
-    ):
+    def test_pipeline_aborts_when_trailers_error_and_continue_on_error_false(self, orch_config, orch_settings):
         """Pipeline raises TrailerStepFailed when trailers step fails and flag is False.
 
         When the trailers step returns status='error' and
@@ -442,7 +451,7 @@ class TestTrailerErrorFlagWiring:
         Args:
             orch_config: Minimal Config mock.
             orch_settings: Minimal Settings mock.
-            quiet_console: Rich Console in quiet mode.
+           : Rich Console in quiet mode.
         """
         from personalscraper.trailers.state import TrailerStepFailed
 
@@ -473,7 +482,11 @@ class TestTrailerErrorFlagWiring:
         # Dispatch must NOT have been called
         assert dispatch_executed == []
 
-    def test_pipeline_continues_when_continue_on_trailer_error_true(self, orch_config, orch_settings, quiet_console):
+    def test_pipeline_continues_when_continue_on_trailer_error_true(
+        self,
+        orch_config,
+        orch_settings,
+    ):
         """Pipeline proceeds to dispatch when continue_on_trailer_error=True.
 
         With the flag set, a trailers step error is logged but the pipeline
@@ -482,7 +495,7 @@ class TestTrailerErrorFlagWiring:
         Args:
             orch_config: Minimal Config mock.
             orch_settings: Minimal Settings mock.
-            quiet_console: Rich Console in quiet mode.
+           : Rich Console in quiet mode.
         """
         dispatch_executed: list[bool] = []
 
@@ -527,7 +540,7 @@ class TestTrailerStepFailedE2E:
     """
 
     def test_real_run_trailers_failure_propagates_TrailerStepFailed_to_pipeline(
-        self, orch_config, orch_settings, quiet_console, tmp_path
+        self, orch_config, orch_settings, tmp_path
     ):
         """TrailerStateLocked from state_store.set propagates to TrailerStepFailed.
 
@@ -541,7 +554,7 @@ class TestTrailerStepFailedE2E:
             orch_config: Minimal Config mock (``trailers.enabled`` overridden
                 to ``True`` for this test).
             orch_settings: Minimal Settings mock.
-            quiet_console: Rich Console in quiet mode.
+           : Rich Console in quiet mode.
             tmp_path: Pytest tmp_path fixture.
         """
         from unittest.mock import patch

@@ -93,8 +93,11 @@ class TestRichConsoleObserver:
         assert "9/9" in obs._icon("dispatch")
         assert obs._icon("unknown") == ""
 
-    def test_on_pipeline_start_is_noop(self) -> None:
-        """on_pipeline_start does nothing (banner is CLI responsibility)."""
-        obs = RichConsoleObserver()
-        report = PipelineReport(started_at=datetime.now())
-        obs.on_pipeline_start(report)  # No exception = pass
+    def test_on_pipeline_start_prints_banner(self) -> None:
+        """on_pipeline_start prints the pipeline banner with mode and run ID."""
+        console = self._make_console()
+        with patch.object(console, "print") as mock_print:
+            obs = RichConsoleObserver(console=console)
+            report = PipelineReport(started_at=datetime.now())
+            obs.on_pipeline_start(report)
+            mock_print.assert_called_once()

@@ -5,8 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from personalscraper.api.notify.telegram import TelegramNotifier
-from personalscraper.api.transport._http import HttpTransport
-from personalscraper.config import Settings
 from personalscraper.pipeline_observer import StepEvent
 
 if TYPE_CHECKING:
@@ -18,14 +16,16 @@ class TelegramObserver:
 
     name = "telegram"
 
-    def __init__(self, settings: Settings) -> None:
-        """Initialize the observer with Telegram credentials.
+    def __init__(self, notifier: TelegramNotifier) -> None:
+        """Initialize the observer with a pre-configured Telegram notifier.
 
         Args:
-            settings: Pipeline settings containing telegram_bot_token
-                and telegram_chat_id.
+            notifier: A configured ``TelegramNotifier`` instance (already
+                wired with transport, token, and chat ID). Construction-time
+                injection eliminates the need for the observer to depend on
+                HTTP transport internals.
         """
-        self._settings = settings
+        self._notifier = notifier
 
     def on_pipeline_start(self, report: PipelineReport) -> None:  # noqa: ARG002
         """No-op — Telegram summary is sent only at completion."""
@@ -36,9 +36,10 @@ class TelegramObserver:
         Args:
             report: The completed ``PipelineReport`` to send as HTML.
         """
-        transport = HttpTransport(TelegramNotifier.policy(self._settings.telegram_bot_token))
-        notifier = TelegramNotifier(transport, self._settings.telegram_chat_id)
-        notifier.send_report(report)
+        if not self._notifier.send_report(report):
+            from personalscraper.logger import get_logger
+
+            get_logger(__name__).warning("telegram_observer_send_failed", reason="send_report_returned_false")
 
     def on_step_start(self, step: str) -> None:  # noqa: ARG002
         """No-op — Telegram summary is sent only at completion."""

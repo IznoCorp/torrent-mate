@@ -5,8 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+from personalscraper.logger import get_logger
+
 if TYPE_CHECKING:
     from personalscraper.models import PipelineReport, StepReport
+
+_log = get_logger(__name__)
 
 
 @runtime_checkable
@@ -88,7 +92,8 @@ class StepEvent:
     Attributes:
         step: Step identifier (e.g. ``"ingest"``, ``"sort"``, ``"scrape"``).
         item: Human-readable item identifier (filename, folder name).
-        status: Event status (``"started"``, ``"completed"``, ``"skipped"``, ``"failed"``).
+        status: Event status (``"started"``, ``"completed"``, ``"skipped"``, ``"failed"``,
+            ``"moved"``, ``"copied"``, ``"fixed"``, ``"blocked"``, ``"cleaned"``, ``"error"``).
         details: Optional structured payload (provider, confidence, size_mb, …).
     """
 
@@ -115,7 +120,11 @@ def notify_progress(
         try:
             obs.on_progress(event)
         except Exception:
-            pass
+            _log.warning(
+                "observer_progress_failed",
+                observer=getattr(obs, "name", type(obs).__name__),
+                exc_info=True,
+            )
 
 
 class CollectorObserver(PipelineObserverBase):
