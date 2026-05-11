@@ -587,11 +587,44 @@ class TestBuildEpisodeMap:
 class TestMatchSeasons:
     """Cover lines 664-678."""
 
-    def test_returns_zero_when_no_api_episodes(self, tmp_path: Path) -> None:
-        """Empty api_episodes → 0 without calling helpers."""
+    def test_returns_zero_when_no_video_files(self, tmp_path: Path) -> None:
+        """No video files → 0 even when api_episodes is non-empty."""
         mixin = _make_mixin()
-        n = mixin._match_seasons([], {}, tmp_path, {}, "Episode")
+        n = mixin._match_seasons([], {(1, 1): {"title": "x", "still_path": ""}}, tmp_path, {}, "Episode")
         assert n == 0
+
+    def test_empty_api_still_falls_back_to_synthetic_for_video_files(self, tmp_path: Path) -> None:
+        """Regression for BUG #2 (Top Chef Le Concours Parallèle).
+
+        Provider returns 0 episodes for the local season (TVDB had no S17
+        records for series 475278 at the time of the run, observed in
+        docs/pipeline-runs/2026-05-11-16h11-pipeline-run.md).
+        ``match_episode_files`` has a Pass-3 synthetic fallback for that
+        case — but ``_match_seasons`` previously bailed with
+        ``if not api_episodes: return 0`` and never let Pass 3 run, so
+        the .mkv stayed loose at the show root. Files must now still be
+        placed under ``Saison NN/`` with the synthetic "Episode N" title.
+        """
+        show = tmp_path / "Show"
+        show.mkdir()
+        v = show / "Show.S17E10.mkv"
+        v.write_bytes(b"x")
+        mixin = _make_mixin(dry_run=True)  # dry_run avoids real fs writes
+        with (
+            patch("personalscraper.scraper.tv_service.create_season_dirs") as csd,
+            patch(
+                "personalscraper.scraper.tv_service.rename_episodes",
+                return_value=1,
+            ) as ren,
+        ):
+            n = mixin._match_seasons([v], {}, show, {"name": "Show"}, "Episode")
+        assert n == 1
+        csd.assert_called_once()
+        # Season 17 must be in the list of dirs to create.
+        called_args, _ = csd.call_args
+        ep_list = called_args[1]
+        assert any(e["season_number"] == 17 for e in ep_list)
+        ren.assert_called_once()
 
     def test_returns_zero_when_no_matches(self, tmp_path: Path) -> None:
         """``match_episode_files`` returning {} short-circuits."""
@@ -1186,21 +1219,23 @@ class TestScrapeTvshowFullPath:
         tmp_path: Path,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Regression for BUG #2: loose video files left at show root.
+        """Regression for BUG #2: loose video files when API returns empty.
 
-        Loose files left at show root must propagate to ``result.warnings``
-        plus a structured log event so verify and operators see the issue.
-        Previously ``scrape_tvshow`` returned ``action="scraped"`` with no
-        warnings even though a S17E10 file was sitting at the show root
-        because TVDB had no season 17.
+        When the matched provider returns 0 episodes for the labeled season
+        (observed for "Top Chef Le Concours Parallèle" S17 — TVDB had no
+        S17 records yet), the file must still land under ``Saison NN/``
+        via ``match_episode_files``'s synthetic-fallback path AND emit a
+        ``show_season_empty`` warning so operators see the upstream gap.
+        Previously ``_match_seasons`` bailed before the fallback ran, the
+        file stayed at the show root, and only ``action="scraped"`` was
+        reported.
         """
         show = tmp_path / "Show (2026)"
         show.mkdir()
         (show / "Show.S17E10.mkv").write_bytes(b"x")
         mixin = _make_scrape_mocks()
+        mixin.dry_run = True  # avoid touching the filesystem during rename
         match = self._patched_match(api_id=475278, api_title="Show", api_year=2026, source="tvdb")
-        # TVDB returns an empty SeasonDetails for the requested season — the
-        # spin-off-vs-parent-numbering scenario from the prod incident.
         mixin._tvdb.get_series.return_value = MediaDetails(  # type: ignore[union-attr]
             provider="tvdb",
             provider_id="475278",
@@ -1227,8 +1262,13 @@ class TestScrapeTvshowFullPath:
         ):
             res = mixin.scrape_tvshow(show)
         assert res.action == "scraped"
-        assert any("Episodes unmatched" in w for w in res.warnings)
-        assert "show_episodes_unmatched" in caplog.text
+        # Upstream signal: TVDB came back with no episodes for S17.
+        assert "show_season_empty" in caplog.text
+        # match_episode_files Pass-3 synthetic fallback marks the file as
+        # ``episode_not_in_api_fallback`` so the renamed episode landed
+        # under Saison 17/ instead of staying loose at the show root.
+        assert "episode_not_in_api_fallback" in caplog.text
+        assert res.episodes_renamed >= 1
 
 
 @pytest.mark.parametrize("source", ["tvdb", "tmdb"])

@@ -709,8 +709,12 @@ class TvServiceMixin:
         Returns:
             Number of episodes renamed (0 if no matches).
         """
-        if not api_episodes:
-            return 0
+        # NOTE: do NOT bail when api_episodes is empty. ``match_episode_files``
+        # has a Pass-3 synthetic fallback that places loose .mkv files into
+        # their labeled ``Saison NN/`` with a "Episode N" title — exactly what
+        # we want when the provider's season catalog is missing or stale
+        # (Top Chef Le Concours Parallèle S17 case). Early-exiting here left
+        # the file at the show root with no signal to verify/dispatch.
         matched = match_episode_files(
             video_files,
             api_episodes,
