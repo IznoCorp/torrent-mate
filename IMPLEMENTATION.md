@@ -101,31 +101,38 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: `eea8a5a` — `docs(event-bus): record sub-phase progress 2.1-2.2c`
+**HEAD SHA**: `2581321` — `chore(event-bus): phase 2 gate — AppContext + StepContext slim`
 **Branch**: `feat/event-bus` — fully synced with `origin/feat/event-bus` (0 ahead, 0 behind).
 **Working tree**: clean (`git status --porcelain` returns empty).
-**Last successful gate**: full `make check` green (3816 passed, 3 skipped, coverage 91.24%).
+**Last successful gate**: full `make check` green (3845 passed, 3 skipped, coverage 91.28%).
 
 **Captured baselines (locked at feature start, see INDEX Pre-flight):**
 
 - `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **3816 passed, 3 skipped** (= **+78 new event-bus tests**, well above the +50 floor for Phase 1.9 gate; Phase 2 has added 9 tests so far across 2.1 + 2.2a + 2.2c).
+- Current `make test`: **3845 passed, 3 skipped** (= **+107 new event-bus tests**, well above the +80 floor for Phase 2 gate).
 - `make check` exit 0 (1 pre-existing soft-warn on `personalscraper/scraper/tv_service.py: 819 LOC`, threshold 800/1000 — not a blocker).
 - Skip / xfail decorator count: **6** (unchanged — Invariant 3 §3 baseline).
 - `notify_progress` call sites in production: **46** across **8** files (Phase 3.4 / 3.7b gate target — see INDEX Pre-flight #8 for the file list).
 - Module size: `personalscraper/core/event_bus.py` 366 LOC (budget 400),
   `personalscraper/core/app_context.py` 43 LOC (budget 80),
-  `tests/fixtures/event_bus.py` 66 LOC (budget 80).
+  `tests/architecture/test_app_context_boundary.py` 97 LOC (budget 100).
 
-**Where we stopped:** end of Phase 2 sub-phase 2.2c. Phase 2 row is still `[ ]`
-in the Phases table because sub-phases 2.3 → 2.7 remain. Re-invoking
-`/implement:phase` will detect Phase 2 as the next `[ ]` row and resume from
-sub-phase 2.3 (the first pending sub-phase per the Sub-phase → SHA mapping
-above — every prior sub-phase has a real SHA).
+**Where we stopped:** end of Phase 2 (gate 2.7 committed at SHA `2581321`,
+pushed to origin). Phase 2 row is `[x]`. Re-invoking `/implement:phase`
+will detect Phase 3 (pipeline event migration + subscribers) as the next
+`[ ]` row and start from sub-phase 3.1.
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked after `/clear`, execute in this order:
+When `/implement:phase` is re-invoked after `/clear`, execute Phase 3
+(see `docs/features/event-bus/plan/phase-03-pipeline-events-migration.md`).
+Phase 3 begins with sub-phase 3.1; consult the plan file for the
+detailed list. Phase 4 (cross-cutting events) and Phase 5 (polish)
+follow, then `/implement:feature-pr` chains automatically.
+
+The legacy resumption notes for Phase 2 (Steps A → D below) are kept
+for historical reference only — every sub-phase they describe is now
+committed and pushed.
 
 ### Step A — Pre-flight #7 (BEFORE any Phase 2.4 commit)
 
