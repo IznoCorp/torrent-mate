@@ -80,12 +80,22 @@ def notify_progress(
     observers: tuple[PipelineObserver, ...],
     event: StepEvent,
 ) -> None:
-    """Call on_progress on every observer. Survives individual observer failures."""
+    """Call on_progress on every observer. Survives individual observer failures.
+
+    A failing observer must not crash the pipeline, but the failure is logged
+    (``observer_progress_failed`` at WARNING with ``exc_info=True``) so operators
+    can debug broken observers without a silent swallow.
+    """
     for obs in observers:
         try:
             obs.on_progress(event)
-        except Exception:
-            pass  # One observer must not crash the pipeline
+        except Exception as exc:
+            _log.warning(
+                "observer_progress_failed",
+                observer=getattr(obs, "name", type(obs).__name__),
+                error=str(exc),
+                exc_info=True,
+            )
 ```
 
 ### 4. StepContext Changes
@@ -121,16 +131,30 @@ Replaces the inline `TelegramNotifier.send_report()` call in `commands/pipeline.
 - `on_pipeline_end` → `report.to_html()` → send via TelegramNotifier
 - Created when `TelegramNotifier.is_configured(settings)` is True
 
+**Constructor (DI choice)**: `TelegramObserver(notifier: TelegramNotifier)` — the
+CLI builds the `HttpTransport` + `TelegramNotifier` and injects the ready notifier.
+The observer itself stays transport-agnostic, which keeps unit tests trivial
+(`TelegramObserver(Mock(spec=TelegramNotifier))`) and matches the rest of the
+codebase's dependency-injection style.
+
 ### 8. Command-Line Wiring (`commands/pipeline.py`)
 
 ```python
-observers = [RichConsoleObserver(console=console, verbose=verbose)]
-if TelegramNotifier.is_configured(settings):
-    observers.append(TelegramObserver(settings))
+observers: list[PipelineObserver] = []
+if not headless:
+    observers.append(RichConsoleObserver(console=console, verbose=verbose, ...))
+    if TelegramNotifier.is_configured(settings):
+        tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+        tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
+        observers.append(TelegramObserver(tg_notifier))
 pipeline = Pipeline(config, settings, observers=observers, ...)
 report = pipeline.run()
 # Panel + send_report removed — observers handle it
 ```
+
+**`--headless` CLI flag**: when set, the observer list stays empty — no Rich
+console output, no Telegram. Intended for cron, CI, watcher services, and any
+non-TTY context. Programmatic callers achieve the same with `observers=[]`.
 
 ### 9. Step Progress Integration
 
@@ -206,13 +230,24 @@ Each `run_*` function receives `observers: tuple[PipelineObserver, ...] = ()` an
 
 - **`observers` in `StepContext` is a tuple, not a list** — frozen, hashable, signals
   "you don't modify this"
-- **`notify_progress` catches observer exceptions** — one broken observer must not
-  crash the pipeline
+- **`notify_progress` catches observer exceptions and LOGS them** — one broken
+  observer must not crash the pipeline, but failures are emitted as
+  `observer_progress_failed` warnings (with `exc_info=True`) rather than a silent
+  swallow, so operators can debug broken observers.
 - **`PipelineObserver` is a Protocol, not an ABC** — structural subtyping, no
   mandatory base class, testable with `@runtime_checkable`
 - **`RichConsoleObserver` is the default** — `observers=None` auto-creates it, so
   existing CLI users see zero difference
 - **`StepEvent` is frozen** — events are snapshots, consumers shouldn't mutate them
+- **`StepEvent.status` vocabulary is per-step** — DESIGN §9 lists the canonical
+  statuses per step (e.g. `matched`, `bot_detected`, `merged`). The four-value
+  axis `started/completed/skipped/failed` from §2 is the lifecycle pattern, not
+  an enum constraint; each step uses the domain-appropriate label so observers
+  can render meaningful output (e.g. RichConsole displays `🤖 bot_detected`).
+- **`CollectorObserver`** — a recording observer for tests, shipped in
+  `pipeline_observer.py` as a public testing utility. Lives in the production
+  package (not under `tests/`) so that downstream consumers and integration
+  tests outside the repo can import it from a stable path.
 
 ## SOLID Compliance
 
