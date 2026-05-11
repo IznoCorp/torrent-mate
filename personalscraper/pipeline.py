@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, overload  # noqa: F401 — Literal in string annotations
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import ensure_staging_tree, find_ingest_dir, staging_path
@@ -325,7 +325,17 @@ class Pipeline:
 
         return report
 
-    def _notify_observers(self, callback: str, *args: Any) -> None:
+    @overload
+    def _notify_observers(self, callback: Literal["on_pipeline_start"], report: PipelineReport) -> None: ...
+    @overload
+    def _notify_observers(self, callback: Literal["on_pipeline_end"], report: PipelineReport) -> None: ...
+    @overload
+    def _notify_observers(self, callback: Literal["on_step_start"], step: str) -> None: ...
+    @overload
+    def _notify_observers(self, callback: Literal["on_step_end"], step: str, report: StepReport, elapsed: float) -> None: ...
+    @overload
+    def _notify_observers(self, callback: Literal["on_step_error"], step: str, error: Exception) -> None: ...
+    def _notify_observers(self, callback: str, *args: Any) -> None:  # type: ignore[misc]  # noqa: D105
         """Notify lifecycle observers without letting observer bugs affect the run."""
         for obs in self._observers:
             try:
