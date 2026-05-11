@@ -433,6 +433,24 @@ class TvServiceMixin:
                 except OSError as exc:
                     log.warning("show_clean_release_dirs_failed", show=show_dir.name, error=str(exc))
 
+            # Episodes detected at the show root but none matched/moved into
+            # ``Saison NN/`` — file naming and provider season layout diverge.
+            # Without this signal the operator gets ``action="scraped"`` and
+            # no clue that videos are still loose; verify catches the
+            # filesystem shape but the scrape result itself stays opaque.
+            if total_renamed == 0:
+                loose = [f.name for f in video_files]
+                result.warnings.append(
+                    f"Episodes unmatched against {match.source} api_id={match.api_id}: {', '.join(loose)}"
+                )
+                log.warning(
+                    "show_episodes_unmatched",
+                    provider=match.source,
+                    api_id=match.api_id,
+                    show=show_dir.name,
+                    files=loose,
+                )
+
         result.episodes_renamed = total_renamed
         result.action = "scraped"
         return result
@@ -628,6 +646,19 @@ class TvServiceMixin:
                             "title": ep.title or f"{episode_default_name} {e_num}",
                             "still_path": "",
                         }
+                # Empty episode list for a season the local filesystem
+                # claims exists almost always means the show/season numbering
+                # diverges from the provider (spin-off picking up parent-show
+                # numbering, mis-classified item, etc.). Surface it so
+                # downstream verify/dispatch and operators can react instead
+                # of silently leaving the file at the show root.
+                if not season_detail.episodes:
+                    log.warning(
+                        "show_season_empty",
+                        provider=match.source,
+                        api_id=match.api_id,
+                        season=s_num,
+                    )
             except Exception as e:
                 log.warning(
                     "show_season_fetch_failed",

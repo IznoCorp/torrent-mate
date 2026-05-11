@@ -520,6 +520,64 @@ class TestBuildEpisodeMap:
         out = mixin._build_episode_map(show, match, tmdb_id=100, episode_default_name="Ep")
         assert (1, 1) in out
 
+    def test_tvdb_warns_when_season_returns_empty_episodes(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Regression for BUG #2 (Top Chef Le Concours Parallèle).
+
+        When a local file says ``S17E10`` but the matched TVDB show has only
+        3 seasons, ``get_series_episodes`` returns SeasonDetails with
+        ``episodes=[]``. Previously the loop body never ran and the function
+        returned ``{}`` silently — the episode file was left at the show
+        root with no warning, no error, just ``result.action="scraped"``.
+
+        Expected behavior: a ``show_season_empty`` warning per season with
+        zero episodes from the API.
+        """
+        show = tmp_path / "Show"
+        show.mkdir()
+        # Local file claims S17E10 — show only has S01..S03 in TVDB.
+        (show / "Show.S17E10.mkv").write_bytes(b"x")
+        tvdb = MagicMock()
+        tvdb.get_series_episodes.return_value = SeasonDetails(
+            provider="tvdb",
+            tv_id="475278",
+            season_number=17,
+            episodes=[],
+        )
+        mixin = _make_mixin(tvdb=tvdb)
+        match = MatchResult(api_id=475278, api_title="X", api_year=2026, confidence=0.98, source="tvdb")
+        with caplog.at_level("WARNING"):
+            out = mixin._build_episode_map(show, match, tmdb_id=None, episode_default_name="Episode")
+        assert out == {}
+        assert "show_season_empty" in caplog.text
+        assert "season=17" in caplog.text or "'season': 17" in caplog.text
+
+    def test_tmdb_warns_when_season_returns_empty_episodes(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Same regression as the TVDB variant but via the TMDB branch."""
+        show = tmp_path / "Show"
+        show.mkdir()
+        (show / "Show.S99E01.mkv").write_bytes(b"x")
+        tmdb = MagicMock()
+        tmdb.get_tv_season.return_value = SeasonDetails(
+            provider="tmdb",
+            tv_id="100",
+            season_number=99,
+            episodes=[],
+        )
+        mixin = _make_mixin(tmdb=tmdb)
+        match = MatchResult(api_id=100, api_title="X", api_year=2020, confidence=0.9, source="tmdb")
+        with caplog.at_level("WARNING"):
+            out = mixin._build_episode_map(show, match, tmdb_id=100, episode_default_name="Episode")
+        assert out == {}
+        assert "show_season_empty" in caplog.text
+
 
 # ---------------------------------------------------------------------------
 # _match_seasons
@@ -1029,6 +1087,55 @@ class TestScrapeTvshowFullPath:
         ):
             res = mixin.scrape_tvshow(show)
         assert res.error is not None and "Rename/merge failed" in res.error
+
+    def test_loose_episodes_unmatched_surface_warning(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Regression for BUG #2: loose video files left at show root.
+
+        Loose files left at show root must propagate to ``result.warnings``
+        plus a structured log event so verify and operators see the issue.
+        Previously ``scrape_tvshow`` returned ``action="scraped"`` with no
+        warnings even though a S17E10 file was sitting at the show root
+        because TVDB had no season 17.
+        """
+        show = tmp_path / "Show (2026)"
+        show.mkdir()
+        (show / "Show.S17E10.mkv").write_bytes(b"x")
+        mixin = _make_scrape_mocks()
+        match = self._patched_match(api_id=475278, api_title="Show", api_year=2026, source="tvdb")
+        # TVDB returns an empty SeasonDetails for the requested season — the
+        # spin-off-vs-parent-numbering scenario from the prod incident.
+        mixin._tvdb.get_series.return_value = MediaDetails(  # type: ignore[union-attr]
+            provider="tvdb",
+            provider_id="475278",
+            title="Show",
+            external_ids={"tmdb": "315820"},
+        )
+        mixin._tvdb.get_series_episodes.return_value = SeasonDetails(  # type: ignore[union-attr]
+            provider="tvdb",
+            tv_id="475278",
+            season_number=17,
+            episodes=[],
+        )
+        mixin._tvdb.get_artwork_urls.return_value = []  # type: ignore[union-attr]
+        with (
+            patch(
+                "personalscraper.scraper.tv_service._is_nfo_complete",
+                return_value=False,
+            ),
+            patch(
+                "personalscraper.scraper.scraper.match_tvshow",
+                return_value=match,
+            ),
+            caplog.at_level("WARNING"),
+        ):
+            res = mixin.scrape_tvshow(show)
+        assert res.action == "scraped"
+        assert any("Episodes unmatched" in w for w in res.warnings)
+        assert "show_episodes_unmatched" in caplog.text
 
 
 @pytest.mark.parametrize("source", ["tvdb", "tmdb"])
