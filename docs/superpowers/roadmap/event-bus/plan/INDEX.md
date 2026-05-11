@@ -10,7 +10,7 @@
 **Design**: [`../specs/DESIGN.md`](../specs/DESIGN.md)
 **Goal**: Replace `PipelineObserver` Protocol with a single application-wide `EventBus` that serves as the only substrate for cross-component asynchronous communication.
 **Architecture**: In-process typed pub/sub with type-indexed `subscribe`, MRO-walking dispatch, frozen dataclass events inheriting a common `Event` base, JSON-serializable with split `event_to_dict` / `event_to_envelope` contracts, `correlation_id` captured at event construction via `current_correlation_id` `ContextVar`. Owned by an `AppContext` that lives at process boundaries only.
-**Tech stack**: Python 3.11+, `dataclasses` (frozen), `contextvars`, `structlog`, `rich` (subscriber), `pytest`.
+**Tech stack**: Python ≥ 3.10 (per `pyproject.toml` `requires-python = ">=3.10"`; pyenv 3.11.9 is the dev shell but the code targets 3.10+), `dataclasses` (frozen), `contextvars`, `structlog`, `rich` (subscriber), `pytest`.
 
 ---
 
@@ -19,12 +19,12 @@
 | Phase | Name                                   | Sub-phases | Depends on | File                                                                             |
 | ----- | -------------------------------------- | ---------- | ---------- | -------------------------------------------------------------------------------- |
 | 1     | Foundation (standalone)                | 9          | —          | [`phase-01-foundation.md`](phase-01-foundation.md)                               |
-| 2     | AppContext + StepContext slim          | 8          | Phase 1    | [`phase-02-app-context-step-context.md`](phase-02-app-context-step-context.md)   |
-| 3     | Pipeline event migration + subscribers | 12         | Phase 2    | [`phase-03-pipeline-events-migration.md`](phase-03-pipeline-events-migration.md) |
-| 4     | Cross-cutting events                   | 6          | Phase 3    | [`phase-04-cross-cutting-events.md`](phase-04-cross-cutting-events.md)           |
-| 5     | Required-bus tightening + CLI polish   | 7          | Phase 4    | [`phase-05-required-bus-cli-polish.md`](phase-05-required-bus-cli-polish.md)     |
+| 2     | AppContext + StepContext slim          | 9          | Phase 1    | [`phase-02-app-context-step-context.md`](phase-02-app-context-step-context.md)   |
+| 3     | Pipeline event migration + subscribers | 11         | Phase 2    | [`phase-03-pipeline-events-migration.md`](phase-03-pipeline-events-migration.md) |
+| 4     | Cross-cutting events                   | 7          | Phase 3    | [`phase-04-cross-cutting-events.md`](phase-04-cross-cutting-events.md)           |
+| 5     | Required-bus tightening + CLI polish   | 6          | Phase 4    | [`phase-05-required-bus-cli-polish.md`](phase-05-required-bus-cli-polish.md)     |
 
-Total sub-phases: **42**. Total commits (estimate): **42–50** (each sub-phase ≥ 1 commit; a few sub-phases produce 2 atomic commits when test setup + integration land in separate steps; sub-phase 5.6 may produce 0 commits when no fix is needed).
+Total sub-phases: **42**. Total commits (estimate): **42–46** (each sub-phase = 1 commit; rebalanced for `/implement:sub-phase` atomicity — Phase 2 splits the StepContext refactor into 3 atomic commits, Phase 3 collapses the per-step-group emit migration into one sweep and splits legacy deletion into 3 atomic commits, Phase 4 splits the conditional DiskGuard extraction from its emit, Phase 5 folds the audit-only sub-phase into the gate to avoid a zero-commit step).
 
 ---
 
@@ -51,7 +51,7 @@ If a verification gate fails, the offending sub-phase is **fixed in place**, nev
   - `feat(event-bus): introduce EventBus core dispatch + subscribe`
   - `refactor(event-bus): slim StepContext to app + run-scope flags`
   - `chore(event-bus): phase 3 gate — pipeline events migration`
-- **No AI attribution**: never include `Co-Authored-By`, `Claude`, `Anthropic` (enforced by `hooks/block_ai_attribution.py`).
+- **No AI attribution**: never include `Co-Authored-By`, `Claude`, `Anthropic` (enforced by `.claude/hooks/block_ai_attribution.py`).
 - **No version prefix**: version traceability lives in `IMPLEMENTATION.md`, not in commit messages.
 - **Phase-gate commit**: at the end of every phase, the final commit message is `chore(event-bus): phase N gate — <short label>`.
 
@@ -152,19 +152,19 @@ Execute these BEFORE creating any code:
    ls docs/features/event-bus/  # should NOT exist yet on this branch — /implement:feature creates it
    ```
 
-7. **Record canonical Rich Console snapshot baseline** (used by Sub-phases 2.4, 3.8, 3.12 visual regression assertions):
+7. **Record canonical Rich Console snapshot baseline** (used by Sub-phases 2.4 visual smoke, 3.5 RichConsoleSubscriber rewrite, and 3.9 Phase 3 gate visual regression after Phase 3 renumbering):
 
    Run the current legacy pipeline (`RichConsoleObserver` still in place, pre-Phase-1) against a deterministic fixture and capture its Rich Console output via the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)` into `tests/snapshots/rich_console_canonical.txt`. This file is the **single immutable baseline** referenced by Phase 2 (CLI output unchanged after Pipeline refactor) AND Phase 3 (RichConsoleSubscriber output matches legacy RichConsoleObserver). Two distinct purposes, same baseline artefact — bytes-identical rendering is the invariant.
 
    Record this file ONCE here, commit it (with `git add -f tests/snapshots/rich_console_canonical.txt` since global `~/.gitignore` does not block `tests/`), and treat it as read-only for the rest of the feature.
 
-8. **Enumerate `notify_progress` sites** (used by Phase 3 sub-phase partitioning A/B/C/D):
+8. **Enumerate `notify_progress` sites** (used by Phase 3 sub-phase 3.4 mechanical sweep):
 
    ```bash
    rg 'notify_progress\(' --type py personalscraper/ -l
    ```
 
-   The output is the list of pipeline step files that emit progress. Phase 3 sub-phases 3.4 / 3.5 / 3.6 / 3.7 partition this list in groups of 2-3 steps each. If the actual list differs from the plan's assumed grouping (A: ingest+sort, B: clean+scrape, C: cleanup+enforce+verify, D: trailers+dispatch), **rebalance the sub-phases at Phase 3 start** rather than forcing the assumed grouping. The invariant is "every site migrated by end of Phase 3", not "exactly this grouping".
+   The output is the list of pipeline step files that emit progress. Phase 3 sub-phase 3.4 migrates EVERY site in a single mechanical sweep (one commit) per the rebalanced plan — earlier drafts of this plan partitioned the sites into 3.4 / 3.5 / 3.6 / 3.7 (groups of 2–3 steps each), but the per-step granularity was too fine for `/implement:sub-phase` atomicity (each group ≈ 5–20 LOC + 3–4 tests, all mechanical). The invariant is "every site migrated by end of Phase 3" and 3.4 covers it atomically.
 
 ---
 
@@ -173,7 +173,7 @@ Execute these BEFORE creating any code:
 This plan is complete when every sub-phase is checked **AND** the DESIGN.md "Acceptance criteria" section (last section of `../specs/DESIGN.md`) is fully satisfied:
 
 - All five phases gate-green.
-- `grep -r "PipelineObserver\|notify_progress\|StepEvent\|from personalscraper.observers" personalscraper/ tests/` returns zero matches.
+- `rg --type py 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' personalscraper/ tests/` returns zero matches. (Use `rg --type py`, NOT bare `grep -r` — the latter would scan `tests/e2e/perf/.fixture/` 14 GB and crash the machine per CLAUDE.md "Search Safety".)
 - Every concrete event has a factory in `tests/fixtures/event_samples.py` (`test_every_event_has_factory` green) and passes the envelope round-trip test.
 - `tests/architecture/test_app_context_boundary.py` green.
 - `RichConsoleSubscriber` visually matches the removed `RichConsoleObserver` on the canonical pipeline-run snapshot test (deterministic Console setup).

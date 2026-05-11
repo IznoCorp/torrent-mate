@@ -1,7 +1,7 @@
 # Phase 5 — Required-bus tightening + CLI polish
 
 **Depends on**: Phase 4 (every cross-cutting component emits; `event_bus: EventBus | None` is the temporary migration contract).
-**Commits expected**: **6–7** (one per sub-phase; sub-phase 5.7 IS the phase-gate commit; sub-phase 5.6 may produce 0 commits if no fix is needed during the audit, hence 6–7 range).
+**Commits expected**: **6** — 5.1, 5.2, 5.3, 5.4, 5.5, 5.6 (phase gate); the earlier draft's audit-only "5.6" is folded into the 5.6 gate to avoid a sub-phase that may produce zero commits (which confuses `/implement:sub-phase` orchestration).
 **Goal**: Tighten the bus contract (remove every `| None`), ship the `DebugLogSubscriber` for `--verbose`, and document the whole system. After Phase 5, the feature is **mergeable**: every acceptance criterion from DESIGN.md is satisfied.
 
 ## Scope
@@ -263,47 +263,9 @@ When `--verbose` is on:
 
 ---
 
-## Sub-phase 5.6 — Final test sweep and acceptance-criteria audit
+## Sub-phase 5.6 — Phase 5 gate + acceptance-criteria audit (feature merge gate)
 
-**Files**: none new; audit-only sub-phase that produces one commit if any small fix is needed.
-
-**Behavior delivered**: walk through every line of DESIGN.md §Acceptance criteria and run the explicit verification command. Each must pass.
-
-**Acceptance-criteria audit checklist**:
-
-- [ ] **All five phases gate-green**: re-run `make check` from the top; all green.
-- [ ] **Legacy API removed** (full grep — must return zero):
-  ```bash
-  rg 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' --type py personalscraper/ tests/
-  ```
-- [ ] **Factories complete + round-trip green** (parametrized test):
-  ```bash
-  pytest tests/event_bus/test_pipeline_events.py::test_pipeline_events_envelope_roundtrip tests/core/test_circuit_events.py tests/indexer/test_disk_guard_events.py tests/indexer/test_scan_completed_events.py tests/dispatch/test_dispatch_events.py tests/trailers/test_trailer_events.py -v
-  ```
-- [ ] **AST boundary test green**:
-  ```bash
-  pytest tests/architecture/test_app_context_boundary.py -v
-  ```
-- [ ] **RichConsoleSubscriber snapshot matches baseline** (deterministic Console setup): run the canonical snapshot test from Sub-phase 3.8; must pass.
-- [ ] **Telegram subscriber smoke test (manual)**: with a staging Telegram channel configured in `.env`, run `personalscraper run --dry-run` against a fixture that triggers `PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning` (use stubs). Verify all four alerts arrive. Document the result in the PR description.
-- [ ] **`--verbose` produces structured event log**: run `personalscraper run --verbose --dry-run` against a no-op fixture; assert `event_emitted` log lines appear for at least `PipelineStarted` and `PipelineEnded`.
-- [ ] **Reference doc complete**: re-read `docs/reference/event-bus.md`; every section listed in 5.5 present and non-empty.
-
-If any audit item fails, fix in-place in this sub-phase. Do NOT defer.
-
-**Tests written**: none new — this is the audit.
-
-**Steps**:
-
-- [ ] Run every audit item.
-- [ ] Fix any failure inline.
-- [ ] If a regression test is needed for any fix, land it in this sub-phase (Invariant 5).
-- [ ] `make check` green.
-- [ ] Commit: `chore(event-bus): acceptance-criteria audit complete` (only if a fix landed; otherwise no commit and proceed to gate).
-
----
-
-## Sub-phase 5.7 — Phase 5 gate (feature merge gate)
+This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentially zero commits) and 5.7 (phase gate). Combining them avoids a sub-phase that may produce zero commits (which breaks `/implement:sub-phase`'s 1-sub-phase = 1-commit assumption) and keeps the acceptance-criteria audit on the same commit as the gate verification.
 
 **Hard verification gate** (this is the **feature merge gate**, not just a phase gate):
 
@@ -311,9 +273,9 @@ If any audit item fails, fix in-place in this sub-phase. Do NOT defer.
 2. **`make test`** → all tests pass. Final tally: baseline + ~150-200 new tests (sum of Phase 1-5 additions).
 3. **`make check`** → green.
 4. **Module size budget** (DESIGN table) — every module within its cap:
-   - `core/event_bus.py` ≤ 350.
+   - `core/event_bus.py` ≤ 400.
    - `core/app_context.py` ≤ 80.
-   - `pipeline/events.py` ≤ 150.
+   - `pipeline_events.py` ≤ 150.
    - `dispatch/events.py` ≤ 50.
    - `core/circuit.py` ≤ 350 (with events embedded).
    - `indexer/events.py` ≤ 60.
@@ -325,10 +287,10 @@ If any audit item fails, fix in-place in this sub-phase. Do NOT defer.
    - `tests/fixtures/event_bus.py` ≤ 80.
    - `tests/fixtures/event_samples.py` ≤ 150.
    - `tests/architecture/test_app_context_boundary.py` ≤ 80.
-5. **Sweep greps — all zero**:
+5. **Sweep greps — all zero** (use `rg --type py` always, never bare `grep -r`):
    - Phase 3 grep set (already zero).
    - `rg 'event_bus: EventBus \| None' --type py personalscraper/` → 0.
-   - `rg 'CircuitBreaker\(' --type py personalscraper/ tests/ | grep -v 'event_bus='` → 0.
+   - `rg --type py 'CircuitBreaker\(' personalscraper/ tests/ | grep -v 'event_bus='` → 0.
 6. **Event catalog: exactly 13 entries**:
    ```bash
    python -c "from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY; print(len(_EVENT_CLASS_REGISTRY))"
@@ -340,14 +302,23 @@ If any audit item fails, fix in-place in this sub-phase. Do NOT defer.
 10. **AppContext allowlist live**: `pytest tests/architecture/test_app_context_boundary.py::test_allowlist_entries_are_live -v` green.
 11. **Smoke imports**: `python -c "import personalscraper; from personalscraper.events import *"` succeeds.
 12. **Visual regression**: RichConsoleSubscriber snapshot test green.
-13. **DESIGN §Acceptance criteria audit**: every checkbox from 5.6 ticked. PR description includes the manual Telegram smoke test result.
+13. **DESIGN §Acceptance criteria audit** — walk the full checklist (replaces the earlier audit-only sub-phase):
+    - [ ] All five phases gate-green: re-run `make check` from the top; all green.
+    - [ ] Legacy API removed (full grep — must return zero): `rg --type py 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' personalscraper/ tests/` → 0. (Use `rg --type py`, NOT bare `grep -r` — the latter scans the 14 GB fixture dir.)
+    - [ ] Factories complete + round-trip green: `pytest tests/event_bus/test_pipeline_events.py::test_pipeline_events_envelope_roundtrip tests/core/test_circuit_events.py tests/indexer/test_disk_guard_events.py tests/indexer/test_scan_completed_events.py tests/dispatch/test_dispatch_events.py tests/trailers/test_trailer_events.py -v`.
+    - [ ] AST boundary test green: `pytest tests/architecture/test_app_context_boundary.py -v`.
+    - [ ] RichConsoleSubscriber snapshot matches the immutable baseline at `tests/snapshots/rich_console_canonical.txt` (the Sub-phase 3.5 test).
+    - [ ] **Manual Telegram smoke test**: with a staging Telegram channel in `.env`, run `personalscraper run --dry-run` against a fixture triggering `PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning` (use stubs). Verify all four alerts arrive. Document the result in the PR description.
+    - [ ] `--verbose` produces structured event log: run `personalscraper run --verbose --dry-run` against a no-op fixture; assert `event_emitted` log lines appear for at least `PipelineStarted` and `PipelineEnded`.
+    - [ ] Reference doc complete: re-read `docs/reference/event-bus.md`; every section listed in 5.5 present and non-empty.
+    - [ ] Any audit failure is fixed IN this sub-phase + a regression test landed if relevant (Invariant 5). NEVER defer.
 14. **Reference documentation present**: `ls docs/reference/event-bus.md` exists; entry in `CLAUDE.md` Reference Index present.
 15. **No deferred work in `IMPLEMENTATION.md`** for the event-bus feature: read `IMPLEMENTATION.md`; ensure no "tests deferred", no "follow-up", no "TODO Phase N+1". The no-deferral invariant must be honoured.
 
 **Steps**:
 
-- [ ] Re-read each sub-phase 5.1–5.6; every checkbox checked.
-- [ ] Run gate items 1–15; resolve any red.
+- [ ] Re-read each sub-phase 5.1–5.5; every checkbox checked.
+- [ ] Run gate items 1–15; resolve any red (fix inline; never defer).
 - [ ] Commit: `chore(event-bus): phase 5 gate — feature complete, mergeable`.
 
 The PR is now ready for the `/implement:feature-pr` orchestration (push + create PR + CI poll) followed by `/implement:pr-review`.
@@ -362,7 +333,7 @@ Phase 5 is **reversible** like Phases 1, 2, 4 — additive (DebugLogSubscriber +
 - Removes `DebugLogSubscriber` (the `--verbose` flag's pre-Phase-5 behavior is restored).
 - Removes `docs/reference/event-bus.md` (no functional impact).
 
-Phase 3 remains the point of no return.
+Phase 3 remains the point of no return. After merge to `main`, the project policy is **fix-forward only** (DESIGN §Rollback policy).
 
 ## Open questions left for this phase
 

@@ -124,7 +124,7 @@
 - [ ] Write failing tests.
 - [ ] Implement `emit` + MRO cache + invalidation.
 - [ ] Run → pass.
-- [ ] `make check` green; module size ≤ 350 LOC.
+- [ ] `make check` green; module size ≤ 400 LOC.
 - [ ] Commit: `feat(event-bus): implement emit with MRO cache and fast path`.
 
 ---
@@ -140,7 +140,7 @@
 
 - **Error isolation**: each callback wrapped in `try/except Exception`. On exception, log via structlog WARNING with fields `event_emit_failed`, `subscriber=<name or callable repr>`, `event_type=<class name>`, `event_id=<UUID>`, `exc_info=True`. Dispatch continues to the next subscriber.
 - **Re-entrancy**: `emit` iterates over the **immutable tuple snapshot** captured at dispatch start. If a subscriber emits during its handler, the nested emit dispatches against its own resolved tuple. The outer emit's iteration is unaffected by any `subscribe`/`unsubscribe` performed inside a nested handler.
-- Re-entrant emit depth is unbounded (Python's recursion limit governs); if a subscriber emits the same event type causing infinite recursion, Python's `RecursionError` is allowed to propagate (consistent with normal Python semantics — no special handling).
+- **Recursion policy (DESIGN §Dispatch semantics #4)**: re-entrant emit depth is unbounded. If a subscriber emits an event whose dispatch eventually re-invokes that same subscriber (subscribing to its own type, or to `Event` base), `RecursionError` IS caught by the per-subscriber `try/except Exception` block (since `RecursionError` ⊂ `Exception`). The bus logs `event_emit_failed` at WARNING and dispatch continues with the next subscriber. Caller responsibility to avoid this pattern; documented.
 
 **Tests written**:
 
@@ -149,6 +149,7 @@
 - `test_subscriber_can_emit_during_handler`: register `cb_a` that emits `Bar()` when receiving `Foo()`; register `cb_b` on `Bar`; emit `Foo()`; assert `cb_b` received exactly one `Bar` event.
 - `test_unsubscribe_during_dispatch_does_not_affect_current_emit`: register `cb_x` that unsubscribes itself; register `cb_y` after `cb_x` for the same type; emit; assert BOTH `cb_x` and `cb_y` invoked for THIS emit (snapshot iteration); next emit invokes only `cb_y`.
 - `test_subscribe_during_dispatch_does_not_affect_current_emit`: register `cb_x` that subscribes `cb_new` to the same type; emit once; assert `cb_new` NOT invoked for this emit; emit again; assert `cb_new` IS invoked.
+- `test_recursive_subscriber_caught_as_error_isolation`: register `cb_loop` on `Foo` that emits a new `Foo()` from inside its own handler (unbounded recursion). Set `sys.setrecursionlimit(100)` for test isolation. Emit `Foo()`; assert (a) `emit` does NOT raise, (b) a structlog `event_emit_failed` WARNING was logged with `subscriber=<repr of cb_loop>` and an `exc_info` whose exception class is `RecursionError`, (c) dispatch returned normally and subsequent emits without the loop subscriber work fine. **Documents the caller-responsibility contract from DESIGN §Dispatch semantics #4: `RecursionError` ⊂ `Exception` is caught by the bus, not propagated; subscribers MUST NOT subscribe to their own emit type.**
 
 **Steps**:
 
@@ -200,7 +201,7 @@
 - [ ] Write failing tests with small ad-hoc Event subclasses defined inside the test module.
 - [ ] Implement `event_to_dict` (a single dispatch function with isinstance ladder).
 - [ ] Run → pass.
-- [ ] `make check` green; module size ≤ 350 LOC.
+- [ ] `make check` green; module size ≤ 400 LOC.
 - [ ] Commit: `feat(event-bus): add event_to_dict pure-payload JSON encoder`.
 
 ---
@@ -219,18 +220,20 @@
 - `event_from_envelope(data) -> Event`:
   - Look up `data["_type"]` in `_EVENT_CLASS_REGISTRY`.
   - If unknown, raise `KeyError(f"Unknown event type: {data['_type']!r}")` (fail-loud).
-  - Reconstruct the dataclass: deserialize each field of `data["data"]` back to the proper type (datetime from ISO string, UUID from str, Path from str, Enum from value, nested dataclasses recursively).
-- Round-trip identity: `event_from_envelope(event_to_envelope(e))` returns an `Event` equal to `e` modulo timestamp microsecond precision (ISO-8601 round-trip preserves microseconds in Python's `datetime.fromisoformat`).
+  - Reconstruct the dataclass per the **nested-dataclass decoding contract from DESIGN §JSON serialization contract**: resolve each field's annotation via `typing.get_type_hints(EventClass, globalns=sys.modules[EventClass.__module__].__dict__)`; decode field values recursively according to the inverse encoding table (`datetime.fromisoformat`, `UUID(value)`, `Path(value)`, `EnumClass(value)`, dataclass → recursive decode of its fields via the same algorithm, `list[T]` / `dict[K, V]` → recurse on elements). The decoder is **symmetric with the encoder** — no per-type adapter is needed because the field annotation suffices.
+- **Round-trip equality is field-by-field**, NOT `==`: a helper `assert_event_round_trip(original, reconstructed)` in `tests/fixtures/event_bus.py` asserts every field except `timestamp` is exactly equal, AND `abs((reconstructed.timestamp - original.timestamp).total_seconds()) <= 1e-6` (1 µs tolerance for ISO-8601 round-trip). Dataclass `__eq__` is NOT used because it compares all fields strictly including `timestamp`.
 
 **Tests written**:
 
 - `test_envelope_contains_type_and_data`: encode; assert keys `{"_type", "data"}` and `data["_type"] == "Foo"` (where `Foo` is the test subclass).
 - `test_event_subclass_auto_registered_on_definition`: define `class Bar(Event): ...`; assert `_EVENT_CLASS_REGISTRY["Bar"] is Bar`.
-- `test_event_from_envelope_reconstructs_equal_event`: build `Foo(...)`; envelope; reconstruct; assert reconstructed `== original` (compare with `__eq__` provided by dataclass).
+- `test_event_from_envelope_reconstructs_via_assert_event_round_trip`: build `Foo(...)`; envelope; reconstruct; call `assert_event_round_trip(original, reconstructed)` (the field-by-field helper). NEVER use raw `==` — `timestamp` rounding would make it flaky.
 - `test_event_from_envelope_unknown_type_raises_keyerror`: pass `{"_type": "Nonexistent", "data": {}}`; assert `KeyError` with the type name in the message.
-- `test_envelope_round_trip_through_json`: `e1 = Foo(...)`; `json_str = json.dumps(event_to_envelope(e1))`; `e2 = event_from_envelope(json.loads(json_str))`; assert `e2 == e1`.
-- `test_envelope_preserves_correlation_id`: bind ContextVar; build event; envelope round-trip; assert `correlation_id` preserved.
-- `test_envelope_preserves_event_id`: assert `event_id` round-trips identically.
+- `test_envelope_round_trip_through_json`: `e1 = Foo(...)`; `json_str = json.dumps(event_to_envelope(e1))`; `e2 = event_from_envelope(json.loads(json_str))`; `assert_event_round_trip(e1, e2)`.
+- `test_envelope_preserves_correlation_id`: bind ContextVar; build event; envelope round-trip; assert `e2.correlation_id == e1.correlation_id` (exact, not via timestamp tolerance).
+- `test_envelope_preserves_event_id`: assert `e2.event_id == e1.event_id` exactly.
+- `test_envelope_round_trip_nested_dataclass`: define a test Event with a nested `@dataclass(frozen=True) class Inner` field carrying `datetime`, `UUID`, `Path`, and `Enum` fields. Round-trip; assert each nested field is reconstructed to its proper type AND value (proves the nested-dataclass decoder works recursively per DESIGN §JSON serialization contract). This test is the gate that exercises the `event_from_envelope` decode path against the encode path of `event_to_dict`'s `dataclass → asdict` rule.
+- `test_envelope_timestamp_tolerance_is_one_microsecond`: build an event with a precisely-known timestamp; round-trip; assert delta ≤ 1 µs. Bound test for the `assert_event_round_trip` helper.
 
 **Steps**:
 
@@ -284,7 +287,7 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
 **Behavior delivered**:
 
 - `tests/fixtures/event_bus.py`:
-  - `class CollectingSubscriber(Generic[E])` using `typing.Generic[E]` with `E = TypeVar("E", bound=Event)`. **PEP 695 syntax (`[E: Event]`) requires Python 3.12+ and is NOT used** — the project targets Python 3.11 (per CLAUDE.md, pyenv 3.11.9). Verify `pyproject.toml` `requires-python` constraint at impl time; if it gets bumped to ≥ 3.12 in a later feature, this sub-phase's TypeVar pattern can be migrated then.
+  - `class CollectingSubscriber(Generic[E])` using `typing.Generic[E]` with `E = TypeVar("E", bound=Event)`. **PEP 695 syntax (`[E: Event]`) requires Python 3.12+ and is NOT used** — `pyproject.toml` declares `requires-python = ">=3.10"`, so the codebase must remain Python 3.10-compatible (pyenv 3.11.9 is the dev shell, not the runtime floor). If `pyproject.toml` is bumped to ≥ 3.12 in a later feature, this sub-phase's TypeVar pattern can be migrated then.
   - `__init__(self, bus: EventBus, event_type: type[E] = Event)`: subscribes itself on construction.
   - `received: list[E]` — append-only.
   - `close(self) -> None`: unsubscribes via stored token.
@@ -329,7 +332,7 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
 1. **`make lint`** → zero errors.
 2. **`make test`** → all tests pass; baseline test count grew by **~50 new tests** (rough estimate: 7 + 5 + 9 + 5 + 10 + 7 + 8 + 6 = 57 new tests). Adjust if implementation merges/splits some.
 3. **`make check`** → green.
-4. **Module size**: `personalscraper/core/event_bus.py` ≤ 350 LOC (DESIGN budget). Run `python3 scripts/check-module-size.py` (also covered by `make check`).
+4. **Module size**: `personalscraper/core/event_bus.py` ≤ 400 LOC (DESIGN budget, uplifted from 350 to accommodate MRO cache + COW + ContextVar + envelope encode/decode + registry + `__init_subclass__` hook). Run `python3 scripts/check-module-size.py` (also covered by `make check`).
 5. **Smoke import**: `python -c "import personalscraper.core.event_bus; print('ok')"` → prints `ok`.
 6. **Smoke import top-level**: `python -c "import personalscraper"` → succeeds.
 7. **No emit sites in production code yet** (sanity — Phase 1 is standalone):

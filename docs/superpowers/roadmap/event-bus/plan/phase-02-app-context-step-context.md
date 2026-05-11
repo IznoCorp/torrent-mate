@@ -1,7 +1,7 @@
 # Phase 2 — AppContext + StepContext slim
 
 **Depends on**: Phase 1 (EventBus + ContextVar landed).
-**Commits expected**: **8** (one per sub-phase; sub-phase 2.8 IS the phase-gate commit).
+**Commits expected**: **9** (one per sub-phase; sub-phase 2.9 IS the phase-gate commit). Sub-phase 2.2 is intentionally split into three atomic commits (2.2a / 2.2b / 2.2c) to keep each `/implement:sub-phase` cycle below ~300 LOC of change — the StepContext refactor + ~15-file callsite sweep is the highest blast-radius change in the feature.
 **Goal**: Introduce `AppContext` at every process boundary, slim `StepContext` to its run-scope role, codify the boundary-only rule via an AST-based test. The pipeline keeps emitting via the legacy `notify_progress(ctx.observers, …)` path; the bus is constructed and threaded but not yet emitted to. Pipeline visual behavior is **unchanged**.
 
 ## Scope
@@ -72,18 +72,94 @@ Module ≤ 80 LOC (DESIGN budget). Future fields (`provider_registry`, `service_
 
 ---
 
-## Sub-phase 2.2 — Refactor `StepContext`: add `app` + `run_id`, drop `config`/`settings`, KEEP `observers`
+## Sub-phase 2.2a — Add `app` + `run_id` to `StepContext` (dual-source, legacy fields kept)
 
 **Files**:
 
 - Modify: `personalscraper/pipeline_protocol.py` (StepContext definition)
-- Modify: every consumer of `ctx.config` / `ctx.settings` (grep first; expected ~10-15 files in `pipeline/`, `ingest/`, `process/`, `dispatch/`, etc.)
-- Modify: `tests/conftest.py` and per-domain conftest fixtures that build `StepContext` directly
-- Modify: tests that read `ctx.config` / `ctx.settings`
+- Modify: `personalscraper/pipeline.py` (every `StepContext(...)` construction site populates both new fields and legacy fields)
+- Modify: `tests/conftest.py` and per-domain conftest fixtures that build `StepContext` directly (populate the new fields too)
+- Create: `tests/event_bus/test_step_context_shape.py`
 
-**Behavior delivered**:
+**Behavior delivered** (transitional shape — kept stable for the duration of 2.2a → 2.2c):
 
-New `StepContext` shape (DESIGN §Migration / Refactored):
+```python
+@dataclass(frozen=True)
+class StepContext:
+    app: AppContext                              # NEW — required
+    run_id: UUID                                 # NEW — required
+    config: Config                               # LEGACY — removed in 2.2c
+    settings: Settings                           # LEGACY — removed in 2.2c
+    dry_run: bool
+    interactive: bool
+    verbose: bool
+    observers: tuple["PipelineObserver", ...]   # KEPT through Phase 2 — removed in Phase 3
+    upstream: Mapping[str, "StepReport"]
+    extras: MutableMapping[str, Any]
+```
+
+**Invariant**: in 2.2a, BOTH `ctx.app.config` and `ctx.config` work — every callsite sees a consistent view because the constructor populates `config = app.config` and `settings = app.settings` on construction. Production callsites are NOT migrated in this sub-phase; they read whichever shape they prefer. This keeps the build green at every step.
+
+**Tests written**:
+
+- `test_step_context_carries_app_and_run_id`: build with mock AppContext + a UUID; assert `ctx.app is the_app` and `ctx.run_id == the_uuid`.
+- `test_step_context_legacy_fields_mirror_app_phase2a`: assert `ctx.config is ctx.app.config` and `ctx.settings is ctx.app.settings` (constructor enforces).
+- `test_step_context_still_has_observers_phase2`: assert `hasattr(ctx, "observers")` and `isinstance(ctx.observers, tuple)`. **DELETED in Phase 3.10b** — explicit `# TODO(phase 3.10b): delete` comment in the test file.
+- `test_step_context_remains_frozen`: attempt mutation; assert `FrozenInstanceError`.
+
+**Steps**:
+
+- [ ] Write failing tests.
+- [ ] Add `app` and `run_id` fields to `StepContext` (required).
+- [ ] Update every direct `StepContext(...)` construction site in production code AND test fixtures to populate the new fields. Pipeline builds StepContext in `Pipeline.run` — this is the primary site; conftest fixtures are the secondary sites.
+- [ ] Verify constructor populates `config = app.config` / `settings = app.settings` (either via `__post_init__` consistency assertion or by removing the legacy fields' independent init — see notes below).
+- [ ] Run `pytest` → green.
+- [ ] `make check` green.
+- [ ] Commit: `refactor(event-bus): add app + run_id to StepContext (dual-source with legacy config/settings)`.
+
+Implementation note: keep `config: Config` / `settings: Settings` as ordinary frozen-dataclass fields populated at construction (NOT via `@property` proxies — properties on frozen dataclasses are awkward, and the goal here is "no callsite change yet", not "callsites silently redirect"). The 2.2b sweep changes the read sites; 2.2c removes the legacy fields.
+
+---
+
+## Sub-phase 2.2b — Sweep callsites: `ctx.config` → `ctx.app.config`, `ctx.settings` → `ctx.app.settings`
+
+**Files**:
+
+- Modify: every consumer of `ctx.config` / `ctx.settings` in `personalscraper/` (mechanical sweep; expected ~10–15 files across `ingest/`, `process/`, `dispatch/`, `scraper/`, `cleanup/`, `verify/`, `enforce/`, `trailers/`, plus any step adapters)
+- Modify: tests that read `ctx.config` / `ctx.settings` (lower volume — fixtures dominate)
+
+**Pre-sub-phase grep** to enumerate every callsite:
+
+```bash
+rg 'ctx\.config\b' --type py personalscraper/ tests/ -l > /tmp/ctx_config_files.txt
+rg 'ctx\.settings\b' --type py personalscraper/ tests/ -l > /tmp/ctx_settings_files.txt
+wc -l /tmp/ctx_config_files.txt /tmp/ctx_settings_files.txt
+```
+
+The output is the migration list. Every read site becomes `ctx.app.config` / `ctx.app.settings`. **Pure mechanical, no semantics change** — the dual-source from 2.2a guarantees the views are identical at every line.
+
+**Tests written**: none new (2.2a's tests cover both shapes; if any existing test asserted specifically on `ctx.config`, it is updated mechanically to `ctx.app.config` in this sub-phase).
+
+**Steps**:
+
+- [ ] Grep callsites; produce the migration list.
+- [ ] Mechanical sweep — `sed`-grade edit per file (manual confirmation per file to avoid false positives like comments / docstrings).
+- [ ] Run `pytest` → green (2.2a's tests already cover both shapes, so this sweep is invisible to test outcomes).
+- [ ] `make check` green.
+- [ ] **Sweep grep gate**: `rg 'ctx\.config\b|ctx\.settings\b' --type py personalscraper/ tests/` → zero matches. The legacy fields still EXIST on StepContext (removed in 2.2c) but NO callsite reads them.
+- [ ] Commit: `refactor(event-bus): sweep ctx.config / ctx.settings callsites to ctx.app.config / ctx.app.settings`.
+
+---
+
+## Sub-phase 2.2c — Drop legacy `config` / `settings` fields from `StepContext`
+
+**Files**:
+
+- Modify: `personalscraper/pipeline_protocol.py` (remove the two fields)
+- Modify: `personalscraper/pipeline.py` and any conftest fixture that still passes `config=` / `settings=` to the `StepContext(...)` constructor (drop those kwargs)
+- Update: `tests/event_bus/test_step_context_shape.py`
+
+**Behavior delivered**: final `StepContext` shape for Phase 2 (matches DESIGN §Migration / Refactored, minus the `observers` field which remains until Phase 3):
 
 ```python
 @dataclass(frozen=True)
@@ -93,42 +169,27 @@ class StepContext:
     dry_run: bool
     interactive: bool
     verbose: bool
-    observers: tuple["PipelineObserver", ...]   # KEPT — removed in Phase 3
+    observers: tuple["PipelineObserver", ...]
     upstream: Mapping[str, "StepReport"]
     extras: MutableMapping[str, Any]
 ```
 
-- Accessors: `ctx.app.config`, `ctx.app.settings`, `ctx.app.event_bus`.
-- `run_id: UUID` — set per pipeline run; carried so steps that need explicit access (not via ContextVar) can read it.
-
-**Pre-sub-phase grep** to enumerate every callsite:
-
-```bash
-rg 'ctx\.config\b' --type py personalscraper/ tests/ > /tmp/ctx_config_callsites.txt
-rg 'ctx\.settings\b' --type py personalscraper/ tests/ > /tmp/ctx_settings_callsites.txt
-```
-
-Every line in those files must be updated to `ctx.app.config` / `ctx.app.settings`. Mechanical sweep — sub-phase budget includes time for this.
-
 **Tests written**:
 
-- `test_step_context_carries_app_and_run_id`: build minimal `StepContext` with mock AppContext + a real UUID; assert fields.
 - `test_step_context_does_not_have_config_attribute`: build; assert `not hasattr(ctx, "config")` (catches accidental re-introduction).
 - `test_step_context_does_not_have_settings_attribute`: same for `settings`.
-- `test_step_context_still_has_observers_phase2`: build; assert `hasattr(ctx, "observers")` and `isinstance(ctx.observers, tuple)`. (This test is **DELETED in Phase 3** — explicit comment in the test file.)
-- `test_step_context_remains_frozen`: attempt mutation; assert `FrozenInstanceError`.
+- Update `test_step_context_legacy_fields_mirror_app_phase2a` → DELETE this test (it asserted on the now-removed fields).
 
 **Steps**:
 
-- [ ] Write failing tests covering the new shape.
-- [ ] Grep callsites; produce the migration list.
-- [ ] Update `StepContext` definition.
-- [ ] Update every callsite in production code.
-- [ ] Update every test fixture that builds `StepContext` directly.
-- [ ] Run `pytest` → all green; if any test still references `ctx.config` directly, fix in place.
+- [ ] Write failing tests (the two new `not hasattr` assertions).
+- [ ] Delete the `config: Config` / `settings: Settings` fields from `StepContext`.
+- [ ] Drop the `config=` / `settings=` kwargs from every `StepContext(...)` construction site.
+- [ ] Delete the obsolete dual-source test.
+- [ ] Run `pytest` → green (2.2b already migrated every read; nothing references the legacy fields anymore).
 - [ ] `make check` green.
-- [ ] Sweep grep: `rg 'ctx\.config\b|ctx\.settings\b' --type py personalscraper/ tests/` → zero matches.
-- [ ] Commit: `refactor(event-bus): slim StepContext to app + run-scope flags (observers KEPT)`.
+- [ ] **Sweep grep gate**: `rg 'StepContext\(.*config=' --type py personalscraper/ tests/` → zero matches.
+- [ ] Commit: `refactor(event-bus): drop legacy config/settings from StepContext (final Phase 2 shape)`.
 
 ---
 
@@ -198,7 +259,7 @@ class Pipeline:
 
 - `test_cli_run_builds_app_context_and_passes_to_pipeline`: invoke `cli.run` command via `CliRunner` with a temp config; assert (via a Pipeline monkeypatch) that `Pipeline.__init__` received an `AppContext` whose `config.staging_dir` matches the temp config.
 - `test_cli_run_constructs_event_bus`: same flow; assert `app.event_bus` is an `EventBus` instance (no subscribers yet).
-- `test_cli_run_console_output_unchanged`: snapshot-compare the console output of a no-op pipeline run against the **pre-Phase-1 baseline** at `tests/snapshots/rich_console_canonical.txt` (recorded during INDEX Pre-flight step 7, BEFORE any refactor). Use the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`. **This is the regression lock** — Phase 2 must NOT change the visual output, and the baseline is immutable for the duration of the feature. Same baseline is also referenced by Phase 3 §3.8 and §3.12.
+- `test_cli_run_console_output_unchanged`: snapshot-compare the console output of a no-op pipeline run against the **pre-Phase-1 baseline** at `tests/snapshots/rich_console_canonical.txt` (recorded during INDEX Pre-flight step 7, BEFORE any refactor). Use the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`. **This is the regression lock** — Phase 2 must NOT change the visual output, and the baseline is immutable for the duration of the feature. Same baseline is also referenced by Phase 3 §3.5 and §3.9.
 
 **Steps**:
 
@@ -210,63 +271,44 @@ class Pipeline:
 
 ---
 
-## Sub-phase 2.5 — Migrate launchd library-index scan entry to build `AppContext`
+## Sub-phase 2.5 — Migrate non-Pipeline boundaries to build `AppContext` (launchd scan + trailers commands)
 
 **Files**:
 
-- Modify: `personalscraper/commands/library/scan.py` (verify exact path at impl time — `commands/library/` exists per `arch-cleanup` reference).
-- Modify: tests that exercise the scan command.
+- Modify: `personalscraper/commands/library/scan.py::library_index` (launchd `library-index` Typer command — single function).
+- Modify: `personalscraper/trailers/cli.py` — the four Typer entrypoints `scan`, `download`, `verify`, `purge` (single module, four functions; NOT four separate files).
+- Modify: `personalscraper/indexer/commands/scan.py::library_index_command` (orchestrator entry called by `commands/library/scan.py`) — accept `event_bus` if not already threaded.
+- Modify: `personalscraper/trailers/orchestrator.py` — accept `event_bus` if not already threaded (no emit yet; Phase 4 adds `TrailerDownloaded`).
+- Modify: tests under `tests/commands/library/`, `tests/trailers/`.
 
 **Behavior delivered**:
 
-- The launchd-invoked scan command builds its own `AppContext` at entry. It generates its own `run_id` via `current_correlation_id.set(str(uuid4()))` in a try/finally bracketing the scan body — this is the **non-pipeline `run_id` bind site**.
-- The scanner orchestrator receives `event_bus: EventBus` (NOT `AppContext`) as a parameter per the boundary-only rule. Sub-phase budget includes refactoring the scanner orchestrator to take `event_bus` if it does not already (no emit yet — Phase 4 adds the actual `LibraryScanCompleted` emit).
+- Each non-Pipeline boundary builds its own `AppContext` at entry. Each binds its own `run_id` via `current_correlation_id.set(str(uuid4()))` in a try/finally bracketing the command body — these are the **non-pipeline `run_id` bind sites** (the Pipeline bind site lives in `Pipeline.run`, Sub-phase 2.3).
+- The downstream orchestrator (`indexer/commands/scan.py::library_index_command`, `trailers/orchestrator.py`) receives `event_bus: EventBus` (NOT `AppContext`) per the boundary-only rule. Sub-phase budget includes refactoring those orchestrator signatures to accept `event_bus` (no emit yet — Phase 4 adds the actual emits).
+- One mechanical sweep across both surfaces — they share the bootstrap shape (`_build_app_context` helper from 2.4 is reused).
 
-**Tests written**:
+**Tests written** (one assertion set per boundary):
 
-- `test_scan_command_builds_app_context`: invoke the command; assert AppContext was constructed (monkeypatch the construction site to capture).
-- `test_scan_command_binds_correlation_id`: install a stub helper inside the scan body that reads `current_correlation_id.get()`; assert it returns a UUID string during the scan; `is None` after.
-- `test_scan_command_passes_event_bus_to_orchestrator`: assert the scanner orchestrator received the bus from the AppContext (NOT the full AppContext).
-
-**Steps**:
-
-- [ ] Write failing tests.
-- [ ] Refactor scan command + orchestrator signature.
-- [ ] Run → pass.
-- [ ] `make check` green.
-- [ ] Commit: `refactor(event-bus): launchd scan entry builds AppContext + binds run_id`.
-
----
-
-## Sub-phase 2.6 — Migrate standalone trailers commands to build `AppContext`
-
-**Files**:
-
-- Modify: `personalscraper/commands/trailers/*.py` (scan, download, verify, purge — verify exact paths).
-- Modify: tests for those commands.
-
-**Behavior delivered**:
-
-- Each standalone trailers entry builds an `AppContext`, binds `current_correlation_id` for its run, and hands the bus (not AppContext) to the trailers service.
-- No emit yet — Phase 4 adds `TrailerDownloaded`.
-
-**Tests written**:
-
-- `test_trailers_download_builds_app_context`: same pattern as 2.5 — build site captured via monkeypatch.
-- `test_trailers_download_binds_correlation_id`: stub helper reads ContextVar inside body; assert UUID string; assert None after.
-- One test per trailers entry (scan / download / verify / purge) — 4 total.
+- `test_library_index_command_builds_app_context`: invoke the launchd command via `CliRunner`; assert AppContext was constructed (monkeypatch capture).
+- `test_library_index_command_binds_correlation_id`: stub a helper inside the scan body that reads `current_correlation_id.get()`; assert UUID string during the scan; `None` after the command returns.
+- `test_library_index_command_passes_event_bus_to_orchestrator`: assert `library_index_command` received `event_bus` from the AppContext (not the full AppContext).
+- `test_trailers_<cmd>_builds_app_context`: parametrized over `["scan", "download", "verify", "purge"]`; assert AppContext built.
+- `test_trailers_<cmd>_binds_correlation_id`: parametrized; assert ContextVar UUID-string during body, None after.
+- `test_trailers_<cmd>_passes_event_bus_to_orchestrator`: parametrized; assert orchestrator got the bus.
 
 **Steps**:
 
-- [ ] Write failing tests (4 entries × the 2 assertions = 8 tests).
-- [ ] Refactor each trailers command.
+- [ ] Write failing tests (~12 tests total: 3 for library scan + 9 for the four trailers cmds).
+- [ ] Refactor `commands/library/scan.py::library_index` to call `_build_app_context` (from 2.4) and bind the ContextVar.
+- [ ] Refactor each of the four functions in `trailers/cli.py` the same way.
+- [ ] Update downstream orchestrator signatures to accept `event_bus`.
 - [ ] Run → pass.
 - [ ] `make check` green.
-- [ ] Commit: `refactor(event-bus): standalone trailers commands build AppContext`.
+- [ ] Commit: `refactor(event-bus): launchd scan and standalone trailers commands build AppContext`.
 
 ---
 
-## Sub-phase 2.7 — AST-based AppContext boundary test
+## Sub-phase 2.6 — AST-based AppContext boundary test
 
 **Files**:
 
@@ -286,13 +328,13 @@ AST-based test (DESIGN §Testing strategy / AppContext boundary test). The test:
 
 ```python
 APP_CONTEXT_ALLOWLIST: set[tuple[str, str]] = {
+    ("personalscraper/cli.py", "main"),
     ("personalscraper/cli.py", "_build_app_context"),
-    ("personalscraper/commands/pipeline.py", "run_command"),       # adjust to actual entrypoint
-    ("personalscraper/commands/library/scan.py", "scan_command"),
-    ("personalscraper/commands/trailers/download.py", "download_command"),
-    ("personalscraper/commands/trailers/scan.py", "scan_command"),
-    ("personalscraper/commands/trailers/verify.py", "verify_command"),
-    ("personalscraper/commands/trailers/purge.py", "purge_command"),
+    ("personalscraper/commands/library/scan.py", "library_index"),
+    ("personalscraper/trailers/cli.py", "scan"),
+    ("personalscraper/trailers/cli.py", "download"),
+    ("personalscraper/trailers/cli.py", "verify"),
+    ("personalscraper/trailers/cli.py", "purge"),
     ("personalscraper/pipeline.py", "Pipeline.__init__"),
     ("personalscraper/core/app_context.py", "*"),                  # all factories here
 }
@@ -315,7 +357,7 @@ The test also asserts:
 **Steps**:
 
 - [ ] Write the AST walker logic.
-- [ ] Populate the initial allowlist with the boundaries introduced in 2.4 / 2.5 / 2.6.
+- [ ] Populate the initial allowlist with the boundaries introduced in 2.4 / 2.5.
 - [ ] Run → expect first iteration to FAIL with a list of non-allowlist sites; **investigate each**: either the site is a true boundary (add to allowlist) or it is an over-broad signature (refactor to take a narrower service).
 - [ ] Run → all green.
 - [ ] `make check` green.
@@ -323,7 +365,7 @@ The test also asserts:
 
 ---
 
-## Sub-phase 2.8 — Phase 2 gate
+## Sub-phase 2.7 — Phase 2 gate
 
 **Files**: none new.
 
@@ -339,8 +381,9 @@ The test also asserts:
 5. **AppContext boundary test green**: `pytest tests/architecture/test_app_context_boundary.py -v`.
 6. **Visual regression smoke**: run `personalscraper run --dry-run` against a recorded fixture; visual diff vs baseline ≤ zero changes (Phase 2 MUST NOT change pipeline output).
 7. **Targeted greps**:
-   - `rg 'ctx\.config\b|ctx\.settings\b' --type py personalscraper/ tests/` → zero matches (every callsite went through `ctx.app.config` / `ctx.app.settings`).
-   - `rg 'Pipeline\((console=|observers=|config=|settings=)' --type py personalscraper/ tests/` → zero matches (Pipeline no longer accepts these kwargs).
+   - `rg 'ctx\.config\b|ctx\.settings\b' --type py personalscraper/ tests/` → zero matches (2.2b swept reads; 2.2c removed the fields).
+   - `rg 'StepContext\(.*config=' --type py personalscraper/ tests/` → zero matches (2.2c removed the constructor kwarg).
+   - `rg 'Pipeline\((console=|observers=|config=|settings=)' --type py personalscraper/ tests/` → zero matches (Pipeline no longer accepts these kwargs; 2.3).
    - `rg 'from personalscraper\.observers' --type py personalscraper/ tests/` → still has matches (legacy observers still imported in Phase 2 — Phase 3 removes them).
    - `rg 'notify_progress\(' --type py personalscraper/ tests/` → still has matches (legacy emit path still active — Phase 3 removes).
 8. **Smoke imports**:
@@ -354,7 +397,7 @@ The test also asserts:
 
 **Steps**:
 
-- [ ] Re-read each sub-phase 2.1–2.7; confirm every checkbox checked.
+- [ ] Re-read each sub-phase 2.1 / 2.2a / 2.2b / 2.2c / 2.3 / 2.4 / 2.5 / 2.6; confirm every checkbox checked.
 - [ ] Run gate items 1–9 above; resolve any red.
 - [ ] Commit: `chore(event-bus): phase 2 gate — AppContext + StepContext slim`.
 
@@ -370,6 +413,6 @@ The test also asserts:
 
 DESIGN §Open Questions:
 
-- **#2 (run_id propagation across launchd / standalone commands)**: resolved in 2.5 and 2.6 — each AppContext build site generates its own `run_id`. Cross-process correlation remains a Watcher Service v2 concern. **No action needed in Phase 2 beyond what 2.5 and 2.6 already do.**
+- **#2 (run_id propagation across launchd / standalone commands)**: resolved in 2.5 — each non-Pipeline AppContext build site (launchd library scan + the four trailers Typer entrypoints) generates its own `run_id`. Cross-process correlation remains a Watcher Service v2 concern. **No action needed in Phase 2 beyond what 2.5 already does.**
 
 No new open questions introduced by Phase 2.

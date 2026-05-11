@@ -1,7 +1,8 @@
 # Phase 4 — Cross-cutting events
 
 **Depends on**: Phase 3 (bus is the only emit path; pipeline emits lifecycle + ItemProgressed; subscribers in place).
-**Commits expected**: **6** (one per sub-phase; 5 integration sub-phases 4.1–4.5 + 1 phase-gate commit at sub-phase 4.6).
+**Commits expected**: **7** — 4.1 (CircuitBreaker), 4.2a (DiskGuard extraction, conditional), 4.2b (DiskFullWarning emit + Telegram), 4.3 (Dispatch), 4.4 (Trailers), 4.5 (Indexer scan), 4.6 (phase gate).
+**Rebalanced from earlier draft**: sub-phase 4.2 split into 4.2a (extract `_disk_guard.py` from `indexer/db.py` if P3 god-module-split hasn't landed; pure mechanical move, zero behavior change) + 4.2b (add the `DiskFullWarning` event, emit, and Telegram subscription). If P3 has already landed, 4.2a is a no-op (zero commits, proceed directly to 4.2b).
 **Goal**: Wire 5 cross-cutting components into the bus, one integration per atomic sub-phase. Each component starts emitting its declared event(s); `TelegramSubscriber` (rewritten in Phase 3) adds the new subscriptions for circuit/disk in the same sub-phase as the corresponding emit. The `event_bus: EventBus | None` optional contract is used here as a migration aid and is paid off in Phase 5.
 
 ## Scope
@@ -9,9 +10,9 @@
 **In scope** (DESIGN.md §Migration / CircuitBreaker, DiskGuard, Dispatch, Trailers, Indexer integrations):
 
 - `core/circuit.py` emits `CircuitBreakerOpened`, `CircuitBreakerClosed`, `CircuitBreakerHalfOpened`.
-- `indexer/_disk_guard.py` (extracted if needed) emits `DiskFullWarning`.
+- `indexer/_disk_guard.py` (extracted if needed; today `indexer/db.py::handle_disk_full`) emits `DiskFullWarning`.
 - `dispatch/dispatcher.py` (+ `_movie.py`, `_tv.py`) emits `ItemDispatched`.
-- `trailers/service.py` (or equivalent) emits `TrailerDownloaded`.
+- `trailers/orchestrator.py` (the coordination point wrapping `personalscraper.scraper.ytdlp_downloader.YtdlpDownloader`) emits `TrailerDownloaded`. The four `trailers/cli.py` Typer entrypoints thread the bus through the orchestrator from their AppContext-aware bootstrap (Phase 2.5).
 - `indexer/scanner/_modes/*.py` orchestrator emits `LibraryScanCompleted`.
 - `TelegramSubscriber` gains `CircuitBreakerOpened` + `DiskFullWarning` subscriptions (in the relevant sub-phases).
 - Each integration adds its event class, its factory, its tests, and the subscriber update — **all in the same sub-phase**.
@@ -113,13 +114,48 @@ def on_circuit_opened(self, event: CircuitBreakerOpened) -> None:
 
 ---
 
-## Sub-phase 4.2 — DiskGuard extraction + DiskFullWarning emit + Telegram subscription
+## Sub-phase 4.2a — Conditional extraction: `indexer/db.py::handle_disk_full` → `indexer/_disk_guard.py`
+
+**Conditional sub-phase** — runs only if `personalscraper/indexer/_disk_guard.py` does NOT already exist (P3 god-module-split may have already extracted it).
 
 **Files**:
 
-- (Conditional) Create: `personalscraper/indexer/_disk_guard.py` — extract disk-free check from `indexer/db.py` if not already extracted by the P3 god-module-split feature.
+- Create: `personalscraper/indexer/_disk_guard.py` — receives the moved code.
+- Modify: `personalscraper/indexer/db.py` — remove the disk-check function body, re-export name for backwards compat if any external caller imports it.
+- Modify: every caller of `handle_disk_full` — update import path. Use sweep grep first:
+  ```bash
+  rg --type py 'handle_disk_full|_disk_guard|disk_full' personalscraper/ tests/ -l
+  ```
+
+**Behavior delivered**: pure mechanical move. ZERO behavior change. The disk-check function executes identically before and after; only its import path changes.
+
+**Tests written**:
+
+- `test_handle_disk_full_lives_in_disk_guard_module`: assert `from personalscraper.indexer._disk_guard import handle_disk_full` works and the function is callable.
+- All existing tests around disk-full handling continue passing without modification beyond import-path updates.
+
+**Steps**:
+
+- [ ] Check existence: `ls personalscraper/indexer/_disk_guard.py 2>&1`. If file exists → SKIP this sub-phase entirely (no commit) and proceed to 4.2b. Document the skip in the 4.2b commit message ("4.2a no-op: `_disk_guard.py` already extracted by P3").
+- [ ] If file does NOT exist:
+  - [ ] Pre-flight grep — enumerate callers.
+  - [ ] Write the import-path assertion test.
+  - [ ] Move the function to `_disk_guard.py`.
+  - [ ] Update every caller's import.
+  - [ ] Run → pass (zero behavior change).
+  - [ ] `make check` green.
+  - [ ] Sweep grep: `rg --type py 'from personalscraper\.indexer\.db import handle_disk_full' personalscraper/ tests/` → 0 if the new path is canonical.
+  - [ ] Commit: `refactor(event-bus): extract handle_disk_full from indexer/db.py into indexer/_disk_guard.py`.
+
+---
+
+## Sub-phase 4.2b — DiskFullWarning emit + Telegram subscription
+
+**Files**:
+
 - Create: `personalscraper/indexer/events.py` — `DiskFullWarning` + `LibraryScanCompleted` (the latter is filled out in 4.5; declare the module here, add `DiskFullWarning` only in this sub-phase).
-- Modify: every caller of the disk check — pass `event_bus`.
+- Modify: `personalscraper/indexer/_disk_guard.py` — accept `event_bus: EventBus | None = None`; emit `DiskFullWarning` when free < threshold.
+- Modify: every caller of `handle_disk_full` — pass `event_bus` from the AppContext-aware bootstrap.
 - Modify: `personalscraper/subscribers/telegram.py` — subscribe to `DiskFullWarning`.
 - Modify: `tests/fixtures/event_samples.py` — add factory.
 - Create: `tests/indexer/test_disk_guard_events.py`
@@ -137,15 +173,6 @@ class DiskFullWarning(Event):
 ```
 
 DiskGuard logic: when a disk-check call discovers free space below threshold, emit `DiskFullWarning(disk_path=..., free_bytes=..., threshold_bytes=...)` if `event_bus is not None`. The `event_bus` is threaded from the AppContext-aware caller (e.g., the indexer scanner orchestrator or the dispatcher pre-flight check).
-
-**Open question resolution** (DESIGN §Open Questions #1): if the P3 god-module-split feature has NOT landed when event-bus implementation begins, this sub-phase performs the extraction. The extraction is a single mechanical move:
-
-1. Identify the disk-check function in `indexer/db.py`.
-2. Move it to `indexer/_disk_guard.py` with no behavioral change.
-3. Update imports (sweep grep for the old path).
-4. THEN add the bus parameter and emit.
-
-If P3 has landed already, skip the extraction step and only add the emit at the existing `_disk_guard.py` site.
 
 `TelegramSubscriber` gains:
 
@@ -167,13 +194,12 @@ def on_disk_full(self, event: DiskFullWarning) -> None:
 - `test_disk_full_warning_has_factory`.
 - `test_disk_full_warning_envelope_roundtrip`.
 - `test_telegram_subscriber_alerts_on_disk_full_warning`: monkeypatch send; emit event; assert send call body contains the disk path and free/threshold bytes.
-- **Regression test (if extraction was performed)**: `test_disk_check_function_relocated_to_disk_guard`: import the function from its new location; assert callable.
 
 **Steps**:
 
-- [ ] Determine whether `_disk_guard.py` already exists; if not, perform the extraction first.
 - [ ] Write failing tests.
 - [ ] Add `DiskFullWarning` + factory; declare `indexer/events.py`.
+- [ ] Add `event_bus: EventBus | None = None` parameter to `handle_disk_full` (purely additive — 4.2a was zero-behavior-change; this is the behavior change).
 - [ ] Add emit at the disk-check site.
 - [ ] Thread `event_bus` from callers (indexer scanner orchestrator, dispatcher pre-flight).
 - [ ] Update `TelegramSubscriber`.
@@ -235,7 +261,7 @@ The dispatcher receives `event_bus: EventBus` from its caller (the pipeline step
 **Files**:
 
 - Create: `personalscraper/trailers/events.py`
-- Modify: `personalscraper/trailers/service.py` (or actual download site) — emit after successful download.
+- Modify: `personalscraper/trailers/orchestrator.py` — the coordination point that wraps `personalscraper.scraper.ytdlp_downloader.YtdlpDownloader`. Emit `TrailerDownloaded` after each successful download (verified location via `rg --type py 'YtdlpDownloader' personalscraper/trailers/` — the orchestrator is the single integration site).
 - Modify: `tests/fixtures/event_samples.py` — add factory.
 - Create: `tests/trailers/test_trailer_events.py`
 
@@ -250,7 +276,7 @@ class TrailerDownloaded(Event):
     source_url: str
 ```
 
-After yt-dlp returns a successful download, emit `TrailerDownloaded(media_path=..., trailer_path=..., source_url=...)`. `source_url` comes from yt-dlp's `webpage_url` field (or equivalent).
+After `YtdlpDownloader.download(...)` returns a successful download, the orchestrator emits `TrailerDownloaded(media_path=..., trailer_path=..., source_url=...)`. `source_url` comes from yt-dlp's `webpage_url` field (or the `youtube_url` already captured at the orchestrator level — verify exact attribute at impl time; `personalscraper/trailers/orchestrator.py` already tracks `youtube_url=url` at the download call sites, so the same string is available for the event).
 
 **Tests written**:
 
@@ -265,11 +291,11 @@ After yt-dlp returns a successful download, emit `TrailerDownloaded(media_path=.
 
 - [ ] Write failing tests.
 - [ ] Create `trailers/events.py`.
-- [ ] Add emit after successful download.
-- [ ] Thread `event_bus` from both call sites (pipeline step + standalone command).
+- [ ] Add emit in `trailers/orchestrator.py` after each successful `YtdlpDownloader.download` call.
+- [ ] Thread `event_bus` from both call sites (in-pipeline trailers step + the four `trailers/cli.py` standalone Typer commands; the bus is already threaded at the boundaries from Phase 2.5).
 - [ ] Run → pass.
 - [ ] `make check` green; `trailers/events.py` ≤ 30 LOC.
-- [ ] Commit: `feat(event-bus): trailers service emits TrailerDownloaded after each successful fetch`.
+- [ ] Commit: `feat(event-bus): trailers orchestrator emits TrailerDownloaded after each successful fetch`.
 
 ---
 
@@ -358,7 +384,7 @@ At the end of every scan mode (success or partial failure), the orchestrator emi
 
 **Steps**:
 
-- [ ] Re-read each sub-phase 4.1–4.5; every checkbox checked.
+- [ ] Re-read each sub-phase 4.1 / 4.2a / 4.2b / 4.3 / 4.4 / 4.5; every checkbox checked. (4.2a may have been a documented no-op if `_disk_guard.py` was already extracted by P3.)
 - [ ] Run gate items 1–11; resolve red.
 - [ ] Commit: `chore(event-bus): phase 4 gate — all cross-cutting events emitting`.
 
@@ -376,7 +402,7 @@ The `| None` on `CircuitBreaker.__init__(event_bus=...)` is deliberately preserv
 
 DESIGN §Open Questions:
 
-- **#1 (\_disk_guard.py extraction location)**: resolved in Sub-phase 4.2. If P3 hasn't landed, 4.2 performs the extraction; if it has, 4.2 builds on the extracted module.
+- **#1 (\_disk_guard.py extraction location)**: resolved by the 4.2a / 4.2b split. 4.2a conditionally performs the extraction (no-op if P3 already did it); 4.2b builds the emit on top.
 - **#2, #3**: out of scope / resolved earlier.
 
 No new open questions introduced by Phase 4.
