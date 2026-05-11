@@ -254,6 +254,14 @@ def run(
         "--continue-on-trailer-error",
         help="Do not abort dispatch when the trailers step crashes.",
     ),
+    headless: bool = typer.Option(
+        False,
+        "--headless",
+        help=(
+            "Run with no observers (silent mode for cron / CI). "
+            "Disables Rich console output and Telegram notifications."
+        ),
+    ),
 ) -> None:
     """Run full pipeline (ingest -> sort -> process -> verify -> dispatch)."""
     from datetime import datetime
@@ -312,13 +320,16 @@ def run(
 
             # Build observer list — RichConsoleObserver now prints the banner in
             # on_pipeline_start, replacing the inline console.print that was here.
-            pipeline_observers: list[PipelineObserver] = [
-                RichConsoleObserver(console=console, verbose=verbose, dry_run=dry_run, run_id=run_id),
-            ]
-            if TelegramNotifier.is_configured(settings):
-                tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
-                tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-                pipeline_observers.append(TelegramObserver(tg_notifier))
+            # --headless skips all observer registration for silent cron/CI runs.
+            pipeline_observers: list[PipelineObserver] = []
+            if not headless:
+                pipeline_observers.append(
+                    RichConsoleObserver(console=console, verbose=verbose, dry_run=dry_run, run_id=run_id)
+                )
+                if TelegramNotifier.is_configured(settings):
+                    tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+                    tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
+                    pipeline_observers.append(TelegramObserver(tg_notifier))
 
             # Delegate to Pipeline orchestrator (9-step sequential flow)
             pipeline = Pipeline(
