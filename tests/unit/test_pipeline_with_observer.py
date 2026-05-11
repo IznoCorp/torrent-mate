@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline import Pipeline
-from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.pipeline_observer import CollectorObserver, PipelineObserverBase
 
 
 class TestPipelineWithObserver:
@@ -136,3 +136,32 @@ class TestPipelineWithObserver:
 
         assert len(collector.pipeline_ends) == 1
         assert isinstance(collector.pipeline_ends[0], PipelineReport)
+
+    def test_crashing_lifecycle_observer_does_not_abort_pipeline(self) -> None:
+        """A broken observer lifecycle callback is isolated from pipeline execution."""
+
+        class CrashingObserver(PipelineObserverBase):
+            name = "crashing"
+
+            def on_step_start(self, step: str) -> None:
+                raise RuntimeError(f"broken start {step}")
+
+            def on_pipeline_end(self, report: PipelineReport) -> None:
+                raise RuntimeError("broken end")
+
+        collector = CollectorObserver()
+        pipeline = Pipeline(
+            self._make_config(),
+            MagicMock(),
+            observers=[CrashingObserver(), collector],
+            step_overrides=self._make_fake_steps(),
+        )
+
+        with patch("personalscraper.pipeline.ensure_staging_tree"):
+            with patch.object(Pipeline, "_check_temp_empty_gate"):
+                with patch.object(Pipeline, "_recover_from_previous_run", return_value=0):
+                    report = pipeline.run()
+
+        assert len(report.steps) == 9
+        assert len(collector.starts) == 9
+        assert len(collector.pipeline_ends) == 1

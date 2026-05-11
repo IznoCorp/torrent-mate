@@ -42,6 +42,22 @@ class TestPipelineHeadless:
         assert len(pipeline._observers) == 1
         assert pipeline._observers[0].name == "rich-console"
 
+    def test_default_rich_console_observer_receives_dry_run_flag(self) -> None:
+        """Pipeline dry-run mode is reflected by the default console observer."""
+        config = MagicMock()
+        config.disks = []
+        config.paths.staging_dir = MagicMock()
+        ingest_entry = MagicMock()
+        ingest_entry.id = 97
+        ingest_entry.role = "ingest"
+        config.staging_dirs = [ingest_entry]
+        config.paths.data_dir = MagicMock()
+        settings = MagicMock()
+
+        pipeline = Pipeline(config, settings, dry_run=True)
+
+        assert pipeline._observers[0].dry_run is True
+
     def test_run_with_no_observers(self) -> None:
         """Pipeline runs to completion with observers=[]."""
         config = MagicMock()

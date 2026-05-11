@@ -97,7 +97,7 @@ class Pipeline:
         self.interactive = interactive
         self.verbose = verbose
         if observers is None:
-            self._observers: list[PipelineObserver] = [RichConsoleObserver(verbose=verbose)]
+            self._observers: list[PipelineObserver] = [RichConsoleObserver(verbose=verbose, dry_run=dry_run)]
         else:
             self._observers = list(observers)
         self._log = get_logger("pipeline")
@@ -203,8 +203,7 @@ class Pipeline:
             "skip_trailers": self.skip_trailers,
         }
 
-        for obs in self._observers:
-            obs.on_pipeline_start(report)
+        self._notify_observers("on_pipeline_start", report)
 
         try:
             # Recover from previous interrupted run (best-effort, never blocks pipeline)
@@ -313,21 +312,32 @@ class Pipeline:
                 )
             else:
                 self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
-                for obs in self._observers:
-                    obs.on_step_start("dispatch")
+                self._notify_observers("on_step_start", "dispatch")
                 dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
                 dispatch_report = self._with_details_payload("dispatch", dispatch_report)
                 report.add_step("dispatch", dispatch_report)
-                for obs in self._observers:
-                    obs.on_step_end("dispatch", dispatch_report, 0.0)
+                self._notify_observers("on_step_end", "dispatch", dispatch_report, 0.0)
 
         finally:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
-            for obs in self._observers:
-                obs.on_pipeline_end(report)
+            self._notify_observers("on_pipeline_end", report)
 
         return report
+
+    def _notify_observers(self, callback: str, *args: Any) -> None:
+        """Notify lifecycle observers without letting observer bugs affect the run."""
+        for obs in self._observers:
+            try:
+                getattr(obs, callback)(*args)
+            except Exception as exc:
+                self._log.warning(
+                    "pipeline_observer_failed",
+                    observer=getattr(obs, "name", type(obs).__name__),
+                    callback=callback,
+                    error=str(exc),
+                    exc_info=True,
+                )
 
     def _step_context(self, report: PipelineReport, extras: dict[str, Any]) -> StepContext:
         """Build a StepContext for the current pipeline state."""
@@ -429,8 +439,7 @@ class Pipeline:
         Raises:
             _CriticalStepError: If ``critical=True`` and fn raises.
         """
-        for obs in self._observers:
-            obs.on_step_start(name)
+        self._notify_observers("on_step_start", name)
 
         self._log.info("step_started", step=name)
         t0 = time.monotonic()
@@ -449,8 +458,7 @@ class Pipeline:
         except Exception as exc:
             crashed = True
             self._log.exception("step_fatal", step=name, error=str(exc))
-            for obs in self._observers:
-                obs.on_step_error(name, exc)
+            self._notify_observers("on_step_error", name, exc)
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
                 name=name,
@@ -463,8 +471,7 @@ class Pipeline:
         elapsed = time.monotonic() - t0
 
         if not crashed:
-            for obs in self._observers:
-                obs.on_step_end(name, step_report, elapsed)
+            self._notify_observers("on_step_end", name, step_report, elapsed)
 
         ok = step_report.success_count
         skip = step_report.skip_count
