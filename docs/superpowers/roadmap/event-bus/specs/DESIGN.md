@@ -182,11 +182,17 @@ fixtures, etc.).
 ### Event base class
 
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Event:
     """Base for all bus events.
 
     Carries metadata common to every event. Subclasses add their payload.
+    All Event subclasses MUST also use `@dataclass(frozen=True, kw_only=True)`
+    — the `kw_only=True` convention is inherited from the base and propagated
+    explicitly because Python's dataclass machinery does not transitively
+    enforce it. This avoids the "non-default argument follows default
+    argument" error that would otherwise arise when a subclass adds a
+    required field after the base's defaulted fields.
     """
 
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -347,6 +353,15 @@ Notes:
 - `ItemProgressed` replaces `StepEvent` from pipeline-obs (renamed and lifted
   to the canonical hierarchy). `details: dict[str, Any]` payload values MUST
   be JSON-safe (the encoder fails loud otherwise — see Phase 1 test).
+  **`details` keys are step-specific** (scrape uses `provider`, `confidence`;
+  verify uses `check_category`; etc.). Convention: `lowercase_snake_case`.
+  The full per-step keyset is documented in `docs/reference/event-bus.md`
+  (Phase 5). New steps MUST follow the convention and add their keyset to
+  that doc.
+- `ItemDispatched` only fires for **completed transfers** (real moves).
+  `dry_run=True` pipeline runs do NOT emit `ItemDispatched` — the `action`
+  field is `Literal["moved","merged","replaced"]` with no `"skipped"`
+  value, by design.
 - `StepErrored.error_class` and `error_message` split is intentional:
   Telegram subscriber needs the human message; structlog still captures the
   traceback via `exc_info` at the emit site.

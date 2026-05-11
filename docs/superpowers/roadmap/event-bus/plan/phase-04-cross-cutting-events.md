@@ -1,7 +1,7 @@
 # Phase 4 — Cross-cutting events
 
 **Depends on**: Phase 3 (bus is the only emit path; pipeline emits lifecycle + ItemProgressed; subscribers in place).
-**Commits expected**: 5 (one per integration) + 1 phase-gate commit = **6**.
+**Commits expected**: **6** (one per sub-phase; 5 integration sub-phases 4.1–4.5 + 1 phase-gate commit at sub-phase 4.6).
 **Goal**: Wire 5 cross-cutting components into the bus, one integration per atomic sub-phase. Each component starts emitting its declared event(s); `TelegramSubscriber` (rewritten in Phase 3) adds the new subscriptions for circuit/disk in the same sub-phase as the corresponding emit. The `event_bus: EventBus | None` optional contract is used here as a migration aid and is paid off in Phase 5.
 
 ## Scope
@@ -213,7 +213,7 @@ The dispatcher receives `event_bus: EventBus` from its caller (the pipeline step
 - `test_dispatch_movie_emits_item_dispatched_moved`: stub a movie dispatch of a new item; collect; assert one event with `action="moved"`.
 - `test_dispatch_movie_emits_item_dispatched_replaced`: stub a movie dispatch where the target already exists; assert `action="replaced"`.
 - `test_dispatch_tv_emits_item_dispatched_merged`: stub a TV merge; assert `action="merged"`.
-- `test_dispatch_dry_run_does_not_emit`: dispatch with `dry_run=True`; assert zero events (DESIGN inferred — actual moves are skipped; the event represents the outcome of a real transfer).
+- `test_dispatch_dry_run_does_not_emit`: dispatch with `dry_run=True`; assert zero events. **Anchored in DESIGN.md §Event catalog Notes**: `ItemDispatched` only fires for completed transfers (real moves); the `action` field is `Literal["moved","merged","replaced"]` with no `"skipped"` value, so dry-run runs logically cannot emit.
 - `test_item_dispatched_has_factory`.
 - `test_item_dispatched_envelope_roundtrip`: explicitly verify `target_disk: Path` round-trips through str.
 - `test_item_dispatched_action_literal_values`: parametrized over `["moved", "merged", "replaced"]`; each round-trips correctly.
@@ -336,12 +336,12 @@ At the end of every scan mode (success or partial failure), the orchestrator emi
    - `DiskFullWarning` (Phase 4.2).
    - `TrailerDownloaded` (Phase 4.4).
    - `LibraryScanCompleted` (Phase 4.5).
-   - Total: **13 events**.
+   - Total: **13 concrete events** (does NOT include `Event` base — Phase 1 §1.6 committed to `Event.__init_subclass__` registration which fires only for subclasses).
    - Verification:
      ```bash
-     python -c "from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY; print(sorted(_EVENT_CLASS_REGISTRY.keys()))"
+     python -c "from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY; names = sorted(_EVENT_CLASS_REGISTRY.keys()); assert len(names) == 13, f'expected 13 got {len(names)}: {names}'; print(names)"
      ```
-     Output must list exactly these 13 names (alphabetically).
+     Output must list exactly these 13 names (alphabetically) and the assertion must hold.
 6. **`test_every_event_has_factory` green**: factories for all 13 in `tests/fixtures/event_samples.py`.
 7. **Envelope round-trip parametrized test green for all 13**.
 8. **AppContext boundary test green**.

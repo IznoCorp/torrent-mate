@@ -20,11 +20,11 @@
 | ----- | -------------------------------------- | ---------- | ---------- | -------------------------------------------------------------------------------- |
 | 1     | Foundation (standalone)                | 9          | —          | [`phase-01-foundation.md`](phase-01-foundation.md)                               |
 | 2     | AppContext + StepContext slim          | 8          | Phase 1    | [`phase-02-app-context-step-context.md`](phase-02-app-context-step-context.md)   |
-| 3     | Pipeline event migration + subscribers | 11         | Phase 2    | [`phase-03-pipeline-events-migration.md`](phase-03-pipeline-events-migration.md) |
+| 3     | Pipeline event migration + subscribers | 12         | Phase 2    | [`phase-03-pipeline-events-migration.md`](phase-03-pipeline-events-migration.md) |
 | 4     | Cross-cutting events                   | 6          | Phase 3    | [`phase-04-cross-cutting-events.md`](phase-04-cross-cutting-events.md)           |
 | 5     | Required-bus tightening + CLI polish   | 7          | Phase 4    | [`phase-05-required-bus-cli-polish.md`](phase-05-required-bus-cli-polish.md)     |
 
-Total sub-phases: **41**. Total commits (estimate): **45–50** (each sub-phase ≥ 1 commit; a few sub-phases produce 2 atomic commits when test setup + integration land in separate steps).
+Total sub-phases: **42**. Total commits (estimate): **42–50** (each sub-phase ≥ 1 commit; a few sub-phases produce 2 atomic commits when test setup + integration land in separate steps; sub-phase 5.6 may produce 0 commits when no fix is needed).
 
 ---
 
@@ -146,10 +146,25 @@ Execute these BEFORE creating any code:
    `rg` MUST always include `--type py` or `-g '*.py'`. `tests/e2e/perf/.fixture/` is 14 GB; a wildcard `rg` will crash the machine.
 
 6. **No leftover prep artifacts in production paths**:
+
    ```bash
    ls docs/superpowers/roadmap/event-bus/specs/DESIGN.md  # exists
    ls docs/features/event-bus/  # should NOT exist yet on this branch — /implement:feature creates it
    ```
+
+7. **Record canonical Rich Console snapshot baseline** (used by Sub-phases 2.4, 3.8, 3.12 visual regression assertions):
+
+   Run the current legacy pipeline (`RichConsoleObserver` still in place, pre-Phase-1) against a deterministic fixture and capture its Rich Console output via the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)` into `tests/snapshots/rich_console_canonical.txt`. This file is the **single immutable baseline** referenced by Phase 2 (CLI output unchanged after Pipeline refactor) AND Phase 3 (RichConsoleSubscriber output matches legacy RichConsoleObserver). Two distinct purposes, same baseline artefact — bytes-identical rendering is the invariant.
+
+   Record this file ONCE here, commit it (with `git add -f tests/snapshots/rich_console_canonical.txt` since global `~/.gitignore` does not block `tests/`), and treat it as read-only for the rest of the feature.
+
+8. **Enumerate `notify_progress` sites** (used by Phase 3 sub-phase partitioning A/B/C/D):
+
+   ```bash
+   rg 'notify_progress\(' --type py personalscraper/ -l
+   ```
+
+   The output is the list of pipeline step files that emit progress. Phase 3 sub-phases 3.4 / 3.5 / 3.6 / 3.7 partition this list in groups of 2-3 steps each. If the actual list differs from the plan's assumed grouping (A: ingest+sort, B: clean+scrape, C: cleanup+enforce+verify, D: trailers+dispatch), **rebalance the sub-phases at Phase 3 start** rather than forcing the assumed grouping. The invariant is "every site migrated by end of Phase 3", not "exactly this grouping".
 
 ---
 

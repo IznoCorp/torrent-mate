@@ -1,7 +1,7 @@
 # Phase 1 — Foundation (standalone)
 
 **Depends on**: nothing (clean branch).
-**Commits expected**: 9 (one per sub-phase) + 1 phase-gate commit = **10**.
+**Commits expected**: **9** (one per sub-phase; sub-phase 1.9 IS the phase-gate commit).
 **Goal**: Land the EventBus + Event base + serialization + ContextVar capture as a fully tested, standalone module with zero pipeline integration. After Phase 1, the bus can be imported and exercised by tests, but nothing in `personalscraper` emits to it yet.
 
 ## Scope
@@ -214,7 +214,7 @@
 
 **Behavior delivered**:
 
-- Event class registry: `_EVENT_CLASS_REGISTRY: dict[str, type[Event]]` indexed by class name (e.g. `"PipelineStarted"`). Populated at import time via a `@register_event` decorator OR via `Event.__init_subclass__` (decide at impl time; the latter is more automatic and harder to forget).
+- Event class registry: `_EVENT_CLASS_REGISTRY: dict[str, type[Event]]` indexed by class name (e.g. `"PipelineStarted"`). **Populated automatically via `Event.__init_subclass__`** (chosen over the `@register_event` decorator approach because it is automatic and impossible to forget — every `class X(Event): ...` definition self-registers). Consequence: **`Event` itself is NOT in the registry** (`__init_subclass__` fires only for subclasses), so `len(_EVENT_CLASS_REGISTRY)` equals the count of concrete event classes (13 at end of Phase 4). This contract is referenced by Phase 4 §4.6 gate item 5.
 - `event_to_envelope(event) -> dict[str, Any]`: returns `{"_type": type(event).__name__, "data": event_to_dict(event)}`.
 - `event_from_envelope(data) -> Event`:
   - Look up `data["_type"]` in `_EVENT_CLASS_REGISTRY`.
@@ -284,7 +284,7 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
 **Behavior delivered**:
 
 - `tests/fixtures/event_bus.py`:
-  - `class CollectingSubscriber[E: Event]` (PEP 695 generic syntax if Python 3.12+ allowed; else `typing.Generic[E]`).
+  - `class CollectingSubscriber(Generic[E])` using `typing.Generic[E]` with `E = TypeVar("E", bound=Event)`. **PEP 695 syntax (`[E: Event]`) requires Python 3.12+ and is NOT used** — the project targets Python 3.11 (per CLAUDE.md, pyenv 3.11.9). Verify `pyproject.toml` `requires-python` constraint at impl time; if it gets bumped to ≥ 3.12 in a later feature, this sub-phase's TypeVar pattern can be migrated then.
   - `__init__(self, bus: EventBus, event_type: type[E] = Event)`: subscribes itself on construction.
   - `received: list[E]` — append-only.
   - `close(self) -> None`: unsubscribes via stored token.

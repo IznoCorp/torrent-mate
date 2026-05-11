@@ -1,7 +1,7 @@
 # Phase 2 — AppContext + StepContext slim
 
 **Depends on**: Phase 1 (EventBus + ContextVar landed).
-**Commits expected**: 8 (one per sub-phase) + 1 phase-gate commit = **9**.
+**Commits expected**: **8** (one per sub-phase; sub-phase 2.8 IS the phase-gate commit).
 **Goal**: Introduce `AppContext` at every process boundary, slim `StepContext` to its run-scope role, codify the boundary-only rule via an AST-based test. The pipeline keeps emitting via the legacy `notify_progress(ctx.observers, …)` path; the bus is constructed and threaded but not yet emitted to. Pipeline visual behavior is **unchanged**.
 
 ## Scope
@@ -198,7 +198,7 @@ class Pipeline:
 
 - `test_cli_run_builds_app_context_and_passes_to_pipeline`: invoke `cli.run` command via `CliRunner` with a temp config; assert (via a Pipeline monkeypatch) that `Pipeline.__init__` received an `AppContext` whose `config.staging_dir` matches the temp config.
 - `test_cli_run_constructs_event_bus`: same flow; assert `app.event_bus` is an `EventBus` instance (no subscribers yet).
-- `test_cli_run_console_output_unchanged`: snapshot-compare the console output of a no-op pipeline run against a recorded baseline (using the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`). **This is the regression lock** — Phase 2 must NOT change the visual output.
+- `test_cli_run_console_output_unchanged`: snapshot-compare the console output of a no-op pipeline run against the **pre-Phase-1 baseline** at `tests/snapshots/rich_console_canonical.txt` (recorded during INDEX Pre-flight step 7, BEFORE any refactor). Use the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`. **This is the regression lock** — Phase 2 must NOT change the visual output, and the baseline is immutable for the duration of the feature. Same baseline is also referenced by Phase 3 §3.8 and §3.12.
 
 **Steps**:
 

@@ -1,7 +1,7 @@
 # Phase 3 — Pipeline event migration + subscribers rewrite
 
 **Depends on**: Phase 2 (AppContext + slim StepContext + bus available; observers still legacy).
-**Commits expected**: 11 (one per sub-phase) + 1 phase-gate commit = **12**.
+**Commits expected**: **12** (one per sub-phase; sub-phase 3.12 IS the phase-gate commit).
 **Goal**: Migrate the pipeline from the legacy `notify_progress(observers, …)` path to bus emit; rewrite `RichConsoleObserver` and `TelegramObserver` as bus subscribers; **delete** the entire Observer infrastructure. This is the most invasive phase — every pipeline step, every observer test, and every documentation reference is touched.
 
 ## Scope
@@ -28,6 +28,21 @@
 
 ---
 
+## Phase 3 transition strategy (applies to sub-phases 3.4–3.10)
+
+The pipeline currently emits user-visible progress through `notify_progress(ctx.observers, StepEvent(...))`. Phase 3 must migrate every site to `ctx.app.event_bus.emit(ItemProgressed(...))` WITHOUT regressing the visual output captured in the canonical baseline `tests/snapshots/rich_console_canonical.txt` (recorded in INDEX Pre-flight step 7).
+
+**Adopted strategy: ALONGSIDE then DELETE**
+
+- Sub-phases 3.4 / 3.5 / 3.6 / 3.7 add `event_bus.emit(ItemProgressed(...))` **alongside** the existing `notify_progress(...)` call at every site. Both paths execute. The bus emit goes to whatever subscribers exist (initially: nothing in 3.4, then `RichConsoleSubscriber` once 3.8 lands, then `TelegramSubscriber` once 3.9 lands). The legacy `notify_progress` keeps the visual output stable.
+- Sub-phase 3.10 deletes EVERY `notify_progress` call, the `pipeline_observer.py` module, the `observers/` package, and the `StepContext.observers` field — in a single sweep. Bus is then the only emit path.
+
+Rationale: the visual regression test (`tests/snapshots/rich_console_canonical.txt`) MUST stay green at every sub-phase boundary. The alongside strategy gives this guarantee because the legacy `notify_progress` → legacy `RichConsoleObserver` chain stays intact until 3.10. The cost is a brief period of "double emit" inside Phase 3 — acceptable because the bus has no console subscriber until 3.8 (no double-print), and 3.10 cleans up.
+
+**Rejected alternative**: deleting `notify_progress` calls in 3.4-3.7 (replacing rather than adding). Rejected because steps that have been migrated would then produce silent runs until 3.8 lands `RichConsoleSubscriber` — breaking the visual regression invariant for every commit between 3.4 and 3.8.
+
+---
+
 ## Sub-phase 3.1 — Define `pipeline/events.py` + factories + tests
 
 **Files**:
@@ -41,39 +56,39 @@
 
 ```python
 # personalscraper/pipeline/events.py
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PipelineStarted(Event):
-    report: PipelineReport = ...  # required field, no default
+    report: PipelineReport
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PipelineEnded(Event):
-    report: PipelineReport = ...
+    report: PipelineReport
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class StepStarted(Event):
-    step: str = ""
+    step: str
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class StepCompleted(Event):
-    step: str = ""
-    report: StepReport = ...
-    elapsed_s: float = 0.0
+    step: str
+    report: StepReport
+    elapsed_s: float
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class StepErrored(Event):
-    step: str = ""
-    error_class: str = ""
-    error_message: str = ""
+    step: str
+    error_class: str
+    error_message: str
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ItemProgressed(Event):
-    step: str = ""
-    item: str = ""
-    status: str = ""
+    step: str
+    item: str
+    status: str
     details: dict[str, Any] = field(default_factory=dict)
 ```
 
-(Note: required-field-with-default-sentinel pattern is required because `Event` base has all-default fields; subclass MUST keep all-default to avoid `TypeError: non-default argument follows default argument`. Use `field(default_factory=...)` for `report: PipelineReport` with a sentinel factory that raises in `__post_init__` if not overridden — OR adopt `kw_only=True` on the subclasses. Choose `kw_only=True` to keep call sites readable; document the choice in commit message.)
+**`kw_only=True` is the inherited convention from `Event` base** (DESIGN.md §Event base — base is also `@dataclass(frozen=True, kw_only=True)`). Python's dataclass machinery does NOT transitively enforce `kw_only`, so each subclass must declare it explicitly. With `kw_only=True`, subclasses can freely add required fields after the base's defaulted fields without triggering `TypeError: non-default argument follows default argument`. All Phase 4 events follow the same convention.
 
 All 6 events are auto-registered in `_EVENT_CLASS_REGISTRY` via the mechanism from Sub-phase 1.6.
 
@@ -200,16 +215,11 @@ The legacy `notify_progress(ctx.observers, …)` for lifecycle is still wired (P
 - Modify: `personalscraper/sort/*.py` (or equivalent).
 - Modify: tests under `tests/ingest/`, `tests/sort/`.
 
-**Behavior delivered**:
+**Behavior delivered** (per Phase 3 transition strategy — see top of this file):
 
-Every `notify_progress(ctx.observers, StepEvent(step="ingest", item=…, status=…, details=…))` call site is replaced with `ctx.app.event_bus.emit(ItemProgressed(step="ingest", item=…, status=…, details=…))`.
+At every `notify_progress(ctx.observers, StepEvent(step="ingest", item=…, status=…, details=…))` call site, **ADD** `ctx.app.event_bus.emit(ItemProgressed(step="ingest", item=…, status=…, details=…))` alongside. The legacy `notify_progress` call stays in place — it is removed in 3.10 along with the rest of the legacy API.
 
-The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept duplicated) for these two steps. Phase 3 thus produces a temporary mixed state where some steps emit via the bus and some still use `notify_progress` — this is acceptable internally to Phase 3 because:
-
-- Until Sub-phase 3.5 rewrites `RichConsoleSubscriber`, the bus emit goes nowhere (no subscriber).
-- Until Sub-phase 3.5, the visual output is preserved only for steps that still use `notify_progress`. Steps that have been migrated produce silent runs in 3.4 / 3.5a (but the test fixtures use a `CollectingSubscriber` to assert on events, so tests still validate behavior).
-
-**Alternative**: keep `notify_progress` calls intact in 3.4 (alongside the new emit), drop them only in 3.9 when the whole API is deleted. **Choose this alternative** to keep the visual regression test green at every sub-phase boundary. Document this choice in the commit message.
+This keeps the visual regression baseline (`tests/snapshots/rich_console_canonical.txt`) green at every sub-phase boundary: the legacy `notify_progress` → `RichConsoleObserver` chain remains intact until 3.10. The bus emit goes to no console subscriber until 3.8 lands `RichConsoleSubscriber`, so no double-print risk.
 
 **Tests written**:
 
@@ -222,7 +232,7 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 
 - [ ] Write failing tests.
 - [ ] Grep ingest + sort for `notify_progress`; produce the migration list.
-- [ ] At each site, add `ctx.app.event_bus.emit(ItemProgressed(...))` ALONGSIDE the existing `notify_progress` call (alternative described above).
+- [ ] At each site, ADD `ctx.app.event_bus.emit(ItemProgressed(...))` alongside the existing `notify_progress` call per the Phase 3 transition strategy at the top of this file. Do NOT delete the legacy call — 3.10 handles that.
 - [ ] Run tests → pass.
 - [ ] `make check` green.
 - [ ] Commit: `feat(event-bus): ingest + sort emit ItemProgressed via bus`.
@@ -237,7 +247,7 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 - Modify: `personalscraper/scraper/*.py` (scrape step).
 - Modify: tests under `tests/process/`, `tests/scraper/`.
 
-**Behavior delivered**: same pattern as 3.4 for clean + scrape. Tests written follow the same template, expanded for the larger detail payloads of `scrape` (provider, confidence, fallback flag — all must be JSON-safe).
+**Behavior delivered** (per Phase 3 transition strategy — see top of this file): ADD `ctx.app.event_bus.emit(ItemProgressed(...))` alongside every `notify_progress(ctx.observers, StepEvent(step="clean"|"scrape", ...))` call for clean + scrape. Tests written follow the same template as 3.4, expanded for the larger detail payloads of `scrape` (provider, confidence, fallback flag — all must be JSON-safe).
 
 **Tests written**:
 
@@ -250,7 +260,7 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 **Steps**:
 
 - [ ] Write failing tests.
-- [ ] Migrate the call sites (additive — keep `notify_progress` intact).
+- [ ] Migrate the call sites alongside-style — ADD bus emit, keep `notify_progress` intact (per Phase 3 transition strategy).
 - [ ] Run → pass.
 - [ ] `make check` green.
 - [ ] Commit: `feat(event-bus): clean + scrape emit ItemProgressed via bus`.
@@ -261,7 +271,7 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 
 **Files**: cleanup, enforce, verify step modules + tests.
 
-**Behavior**: same pattern. Verify step emits per-check events; this aligns with the future P2 Verify Checker Plugin System but does NOT pre-implement plugins (each existing check group emits one `ItemProgressed` per item it processes — DESIGN catalog covers this with the existing payload shape).
+**Behavior delivered** (per Phase 3 transition strategy — see top of this file): ADD `ctx.app.event_bus.emit(ItemProgressed(...))` alongside every `notify_progress(...)` call for cleanup + enforce + verify. Verify step emits per-check events; this aligns with the future P2 Verify Checker Plugin System but does NOT pre-implement plugins (each existing check group emits one `ItemProgressed` per item it processes — DESIGN catalog covers this with the existing payload shape).
 
 **Tests written**:
 
@@ -285,7 +295,7 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 
 **Files**: trailers step (within pipeline), dispatch step + tests.
 
-**Behavior**: same pattern. Trailers step emits `ItemProgressed` per trailer attempt; dispatch emits `ItemProgressed` per dispatched item. Note: `ItemDispatched` (the dispatch outcome event from `dispatch/events.py`) is **Phase 4** — Phase 3 only adds the `ItemProgressed` emit at the existing `notify_progress` sites.
+**Behavior delivered** (per Phase 3 transition strategy — see top of this file): ADD `ctx.app.event_bus.emit(ItemProgressed(...))` alongside every `notify_progress(...)` call for trailers + dispatch. Trailers step emits `ItemProgressed` per trailer attempt; dispatch emits `ItemProgressed` per dispatched item. Note: `ItemDispatched` (the dispatch outcome event from `dispatch/events.py`) is **Phase 4** — Phase 3 only adds the `ItemProgressed` emit at the existing `notify_progress` sites.
 
 **Tests written**:
 
@@ -299,7 +309,7 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 - [ ] Migrate call sites.
 - [ ] Run → pass.
 - [ ] `make check` green.
-- [ ] Sweep grep: `rg 'notify_progress\(' --type py personalscraper/` — should show every remaining call site (kept alongside bus emit per the additive strategy from 3.4). Document the count in the commit message for Phase 3 gate audit reference.
+- [ ] Sweep grep: `rg 'notify_progress\(' --type py personalscraper/` — must still show every original call site (kept alongside bus emit per the Phase 3 transition strategy at the top of this file). Document the count in the commit message for Phase 3 gate audit reference; 3.10 will verify this count drops to zero.
 - [ ] Commit: `feat(event-bus): trailers + dispatch steps emit ItemProgressed via bus`.
 
 ---
@@ -325,14 +335,15 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 
 - `test_rich_console_subscriber_subscribes_on_init`: instantiate; assert 6 subscription tokens stored.
 - `test_rich_console_subscriber_close_unsubscribes_all`: instantiate; close; assert bus dispatches an `ItemProgressed` to zero subscribers afterwards.
-- `test_rich_console_subscriber_snapshot_matches_baseline`: **the visual regression lock**. Use the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`. Run a recorded pipeline (or a synthetic sequence of emits) against a `RichConsoleSubscriber` wrapping this console; capture `console.export_text()`; compare against a baseline snapshot file `tests/snapshots/rich_console_canonical.txt`. The baseline is recorded ONCE during this sub-phase by running the equivalent emit sequence through the LEGACY `RichConsoleObserver` and saving its output.
+- `test_rich_console_subscriber_snapshot_matches_baseline`: **the visual regression lock**. Use the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`. Run the canonical pipeline against `RichConsoleSubscriber` wrapping this console; capture `console.export_text()`; compare against the **immutable baseline** at `tests/snapshots/rich_console_canonical.txt` (recorded once in INDEX Pre-flight step 7 by running the LEGACY `RichConsoleObserver` against the same canonical pipeline, pre-Phase-1). The baseline is byte-identical to what the legacy observer produced; this test asserts the new subscriber matches that bytes-identical output. **Never re-record the baseline inside Phase 3** — if it needs adjustment, the entire feature is invalid.
 - `test_rich_console_subscriber_outputs_match_legacy_observer_for_canonical_run`: same as the snapshot, but performed in-process by running BOTH the legacy `RichConsoleObserver` and the new `RichConsoleSubscriber` against the same emit sequence and comparing their recorded outputs directly. **This test is DELETED in Sub-phase 3.10** when the legacy observer is removed. Mark with a `# TODO(3.10): delete this test when RichConsoleObserver is removed` comment.
 
 **Steps**:
 
 - [ ] Write failing tests including the legacy/new comparison test.
 - [ ] Implement `RichConsoleSubscriber` mirroring `RichConsoleObserver`'s rendering logic.
-- [ ] Record the baseline snapshot file.
+- [ ] Assert against the pre-existing baseline at `tests/snapshots/rich_console_canonical.txt` (recorded during INDEX Pre-flight step 7). **Do NOT re-record** — the baseline is immutable.
+- [ ] **Smoke import check** (catches circular import during the transition where `observers/` and `subscribers/` coexist): `python -c "import personalscraper.observers; import personalscraper.subscribers; print('ok')"` → prints `ok`.
 - [ ] Run → pass.
 - [ ] `make check` green; `subscribers/rich_console.py` ≈ 180 LOC (DESIGN budget).
 - [ ] Commit: `refactor(event-bus): rewrite RichConsoleObserver as RichConsoleSubscriber on the bus`.
@@ -366,8 +377,9 @@ The legacy `notify_progress` call sites in ingest+sort are **deleted** (not kept
 
 - [ ] Write failing tests.
 - [ ] Implement `TelegramSubscriber`.
+- [ ] **Smoke import check** (same rationale as 3.8): `python -c "import personalscraper.observers; import personalscraper.subscribers; print('ok')"` → prints `ok`.
 - [ ] Run → pass.
-- [ ] `make check` green; `subscribers/telegram.py` ≈ 200 LOC budget cap (DESIGN — Phase 4 adds the circuit/disk handlers within the same cap).
+- [ ] `make check` green; `subscribers/telegram.py` at this point holds 2 handlers (≈ 100 LOC); the 200 LOC cap is the END-of-Phase-4 budget after circuit + disk handlers are added in 4.1 and 4.2.
 - [ ] Commit: `refactor(event-bus): rewrite TelegramObserver as TelegramSubscriber`.
 
 ---
@@ -472,7 +484,7 @@ Per DESIGN §Logging convention (Phase 3 sweep): **emitters emit only — no str
    - `ls personalscraper/observers 2>&1 | grep -c 'No such'` → 1 (dir deleted).
 6. **`test_every_event_has_factory` green** (now non-vacuous — asserts on the 6 pipeline events).
 7. **AppContext boundary test green**.
-8. **Visual regression**: run a canonical pipeline against a fixture; capture Rich Console output via the determinism setup; compare against the baseline recorded in 3.8. **Byte-for-byte match required**.
+8. **Visual regression**: run a canonical pipeline against a fixture; capture Rich Console output via the determinism setup; compare against the immutable baseline at `tests/snapshots/rich_console_canonical.txt` (recorded in INDEX Pre-flight step 7, untouched since). **Byte-for-byte match required** — the entire Observer-to-Subscriber rewrite must be visually transparent.
 9. **Smoke import**: `python -c "import personalscraper"` succeeds.
 10. **Per-event envelope round-trip**: parametrized test passes for all 6 pipeline events.
 

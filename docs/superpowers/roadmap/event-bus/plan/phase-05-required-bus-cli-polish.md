@@ -1,7 +1,7 @@
 # Phase 5 — Required-bus tightening + CLI polish
 
 **Depends on**: Phase 4 (every cross-cutting component emits; `event_bus: EventBus | None` is the temporary migration contract).
-**Commits expected**: 7 (one per sub-phase) + 1 phase-gate commit = **8**.
+**Commits expected**: **6–7** (one per sub-phase; sub-phase 5.7 IS the phase-gate commit; sub-phase 5.6 may produce 0 commits if no fix is needed during the audit, hence 6–7 range).
 **Goal**: Tighten the bus contract (remove every `| None`), ship the `DebugLogSubscriber` for `--verbose`, and document the whole system. After Phase 5, the feature is **mergeable**: every acceptance criterion from DESIGN.md is satisfied.
 
 ## Scope
@@ -256,6 +256,8 @@ When `--verbose` is on:
 - [ ] Write the reference doc.
 - [ ] Update `CLAUDE.md` Reference Index.
 - [ ] Run the link grep.
+- [ ] **`git add -f docs/reference/event-bus.md`** — the global `~/.gitignore` blocks `docs/` (see CLAUDE.md §Gotchas: "Global `~/.gitignore` has a `docs/` rule — use `git add -f` for files in `docs/`"). Without `-f`, the new doc is silently absent from the commit and the link-check would fail in CI.
+- [ ] Verify staging: `git status --short docs/reference/event-bus.md` shows `A` (added), not blank.
 - [ ] `make check` green (docs files don't affect lint/tests but the gate must still pass).
 - [ ] Commit: `docs(event-bus): add reference documentation for EventBus API + event catalog`.
 
