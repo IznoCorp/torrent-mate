@@ -1,15 +1,17 @@
-"""In-process typed event bus — Sub-phase 1.2 layer.
+"""In-process typed event bus — Sub-phase 1.3 layer.
 
 This module is the single substrate for cross-component asynchronous
-communication in PersonalScraper. Sub-phase 1.1 introduced ``Event`` and
-``current_correlation_id``; Sub-phase 1.2 adds ``SubscriptionToken`` and the
-``EventBus`` skeleton with ``subscribe`` / ``unsubscribe`` (no ``emit`` yet —
-that ships in Sub-phase 1.3).
+communication in PersonalScraper. Layers landed so far:
 
-Subsequent sub-phases extend this module with ``emit`` + MRO cache + fast path
-(1.3), error isolation + re-entrant safety (1.4), JSON serialization (1.5–1.6),
-and the event class registry hooked via ``Event.__init_subclass__`` (1.6).
-The module-level docstring will be expanded as those layers land — see
+- 1.1: ``Event`` frozen base + ``current_correlation_id`` ContextVar.
+- 1.2: ``SubscriptionToken`` + ``EventBus.subscribe`` / ``unsubscribe`` with
+       copy-on-write subscriber storage.
+- 1.3: ``EventBus.emit`` with MRO-walking dispatch, an MRO cache, and the
+       no-subscribers zero-allocation fast path (DESIGN §Performance notes).
+
+Subsequent sub-phases extend this module with error isolation + re-entrant
+safety (1.4), JSON serialization (1.5–1.6), and the event class registry
+hooked via ``Event.__init_subclass__`` (1.6). See
 ``docs/features/event-bus/plan/phase-01-foundation.md``.
 """
 
@@ -140,11 +142,18 @@ class EventBus:
     """
 
     def __init__(self) -> None:
-        """Initialize an empty subscriber registry."""
+        """Initialize an empty subscriber registry and an empty MRO cache."""
         # Outer dict: event class → tuple of (token, callback) entries.
         # The tuple is rebuilt on every subscribe/unsubscribe — never mutated
-        # in place — so emit (Sub-phase 1.3) can iterate a captured snapshot.
+        # in place — so emit can iterate a captured snapshot.
         self._subscribers: dict[type[Event], tuple[_SubscriberEntry, ...]] = {}
+        # MRO cache: event class → tuple of callables in dispatch order
+        # (concrete-type subscribers first, ancestor subscribers last).
+        # Cleared entirely on every subscribe / unsubscribe — invalidating
+        # only the affected entries would require tracking which cached
+        # entries depend on which subscriber set, and the whole-cache flush
+        # is cheap because it rebuilds on the next emit per-type.
+        self._mro_cache: dict[type[Event], tuple[Callable[[Event], None], ...]] = {}
 
     def subscribe(
         self,
@@ -174,6 +183,9 @@ class EventBus:
         # (relevant from Sub-phase 1.4 onwards).
         existing = self._subscribers.get(event_type, ())
         self._subscribers[event_type] = (*existing, (token, callback))
+        # Invalidate the MRO cache wholesale — the new subscriber may need
+        # to fire for any event type whose MRO contains ``event_type``.
+        self._mro_cache.clear()
         return token
 
     def unsubscribe(self, token: SubscriptionToken) -> None:
@@ -208,8 +220,68 @@ class EventBus:
             self._subscribers[token.event_type] = filtered
         else:
             # No subscribers left for this type — drop the dict key entirely
-            # so the fast path in ``emit`` (Sub-phase 1.3) sees a smaller dict.
+            # so the empty-bus fast path in ``emit`` stays effective.
             del self._subscribers[token.event_type]
+        # Invalidate the MRO cache wholesale — the removed subscriber may
+        # have been resolved into multiple cache entries via MRO walks.
+        self._mro_cache.clear()
+
+    def emit(self, event: Event) -> None:
+        """Dispatch ``event`` to every subscriber whose type appears in its MRO.
+
+        Dispatch ordering: concrete-type subscribers fire before ancestor
+        subscribers (DESIGN §Dispatch semantics #5). Multiple subscribers of
+        the same type fire in subscription order (FIFO).
+
+        Fast path: when there are no subscribers at all (``self._subscribers``
+        is the empty dict), this method returns after a single ``if`` check
+        with zero allocations inside ``event_bus.py`` (DESIGN §Performance
+        notes — verified by ``test_emit_no_subscribers_zero_allocation``).
+
+        Error isolation and re-entrant emit safety land in Sub-phase 1.4.
+
+        Args:
+            event: The ``Event`` instance to dispatch.
+        """
+        # Fast path: empty registry → return immediately. ``not self._subscribers``
+        # is True for the empty dict; the check itself is the only operation.
+        if not self._subscribers:
+            return
+        event_type = type(event)
+        callbacks = self._mro_cache.get(event_type)
+        if callbacks is None:
+            callbacks = self._resolve_mro_chain(event_type)
+            # Memoize even when empty — emitting a type with no relevant
+            # subscribers is still cheap on subsequent calls.
+            self._mro_cache[event_type] = callbacks
+        for callback in callbacks:
+            callback(event)
+
+    def _resolve_mro_chain(
+        self,
+        event_type: type[Event],
+    ) -> tuple[Callable[[Event], None], ...]:
+        """Build the dispatch tuple for ``event_type`` by walking its MRO.
+
+        Walks ``event_type.__mro__`` in order (concrete → ancestor) and
+        concatenates the subscriber callbacks for every class in the chain
+        that has registered subscribers. The result is *order-stable*: for a
+        single class, subscribers fire in subscription (FIFO) order; across
+        classes, concrete fires before ancestor.
+
+        Args:
+            event_type: The concrete event class being emitted.
+
+        Returns:
+            A tuple of callbacks in dispatch order, possibly empty.
+        """
+        chain: list[Callable[[Event], None]] = []
+        for cls in event_type.__mro__:
+            entries = self._subscribers.get(cls)
+            if entries:
+                # Each entry is (token, callback); we only need the callback.
+                chain.extend(callback for _token, callback in entries)
+        return tuple(chain)
 
 
 __all__ = [
