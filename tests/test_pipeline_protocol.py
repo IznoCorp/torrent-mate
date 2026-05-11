@@ -69,8 +69,12 @@ def test_step_context_upstream_mapping() -> None:
     assert ctx.upstream["ingest"].success_count == 3
 
 
-def test_step_context_legacy_mirrors_match_app() -> None:
-    """Sub-phase 2.2a contract: ctx.config is ctx.app.config (same object)."""
+def test_step_context_app_is_required_field() -> None:
+    """Sub-phase 2.2c: app is the only source for config/settings now.
+
+    The legacy mirrors were dropped — callers MUST read via ctx.app.config
+    and ctx.app.settings.
+    """
     app = _make_app()
     ctx = StepContext(
         app=app,
@@ -82,23 +86,7 @@ def test_step_context_legacy_mirrors_match_app() -> None:
         upstream={},
         extras={},
     )
-    # Identity, not just equality — both names point to the same object.
-    assert ctx.config is app.config
-    assert ctx.settings is app.settings
-
-
-def test_step_context_legacy_mirrors_are_init_false() -> None:
-    """Callers cannot pass config/settings directly — they are derived."""
-    app = _make_app()
-    with pytest.raises(TypeError):
-        StepContext(
-            app=app,
-            run_id=uuid4(),
-            dry_run=False,
-            interactive=False,
-            verbose=False,
-            observers=(),
-            upstream={},
-            extras={},
-            config=Mock(),  # type: ignore[call-arg]
-        )
+    assert ctx.app is app
+    # Legacy mirrors are GONE — no more ctx.config / ctx.settings.
+    assert not hasattr(ctx, "config")
+    assert not hasattr(ctx, "settings")
