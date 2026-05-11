@@ -40,8 +40,6 @@ def run_trailers(
         verified: List of items that passed the previous ``verify`` step. Items
             absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
-
-
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
 
     Returns:
@@ -54,6 +52,17 @@ def run_trailers(
             "trailers_step_skipped",
             enabled=config.trailers.enabled,
             skip_flag=skip_trailers,
+        )
+        notify_progress(
+            observers,
+            StepEvent(
+                step="trailers",
+                item="<step>",
+                status="skipped",
+                details={
+                    "reason": "skip_flag" if skip_trailers else "disabled_by_config",
+                },
+            ),
         )
         return StepReport(name="trailers", status="skipped")
 
@@ -158,6 +167,15 @@ def run_trailers(
             lock_path=str(exc.lock_path),
             holder_pid=exc.holder_pid,
         )
+        notify_progress(
+            observers,
+            StepEvent(
+                step="trailers",
+                item="<step>",
+                status="failed",
+                details={"reason": "state_locked", "holder_pid": str(exc.holder_pid or "")},
+            ),
+        )
         return StepReport(name="trailers", error_count=1, status="error")
 
     except OSError as exc:
@@ -172,6 +190,15 @@ def run_trailers(
             error=exc.strerror,
             exc_info=True,
         )
+        notify_progress(
+            observers,
+            StepEvent(
+                step="trailers",
+                item="<step>",
+                status="failed",
+                details={"reason": "state_write_failed", "error": exc.strerror or ""},
+            ),
+        )
         return StepReport(
             name="trailers",
             error_count=1,
@@ -184,5 +211,14 @@ def run_trailers(
             "trailers_step_crashed",
             error=str(exc),
             error_type=type(exc).__name__,
+        )
+        notify_progress(
+            observers,
+            StepEvent(
+                step="trailers",
+                item="<step>",
+                status="failed",
+                details={"reason": "crashed", "error_type": type(exc).__name__},
+            ),
         )
         return StepReport(name="trailers", error_count=1, status="error")

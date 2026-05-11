@@ -14,7 +14,7 @@ from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress  # noqa: F401
+from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 
 log = get_logger("process.run")
@@ -226,12 +226,15 @@ def run_cleanup(
         cat_report = cleanup_empty_dirs(category_dir, dry_run=dry_run)
         cleanup_report.success_count += cat_report.success_count
         cleanup_report.details.extend(cat_report.details)
+        # Emit "skipped" when no empty dirs were found in this category, "removed" otherwise.
+        # Aligns with plan phase-07 §7.1 (DESIGN.md §9: removed / skipped).
+        terminal_status = "removed" if cat_report.success_count > 0 else "skipped"
         notify_progress(
             observers,
             StepEvent(
                 step="cleanup",
                 item=str(category_dir.name),
-                status="removed",
+                status=terminal_status,
                 details={"removed": cat_report.success_count},
             ),
         )
