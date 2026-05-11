@@ -10,6 +10,7 @@
 **Design**: [`../specs/DESIGN.md`](../specs/DESIGN.md)
 **Goal**: Replace `PipelineObserver` Protocol with a single application-wide `EventBus` that serves as the only substrate for cross-component asynchronous communication.
 **Architecture**: In-process typed pub/sub with type-indexed `subscribe`, MRO-walking dispatch, frozen dataclass events inheriting a common `Event` base, JSON-serializable with split `event_to_dict` / `event_to_envelope` contracts, `correlation_id` captured at event construction via `current_correlation_id` `ContextVar`. Owned by an `AppContext` that lives at process boundaries only.
+**Layout note**: `personalscraper/pipeline.py` is a **single flat module** today, not a package. Pipeline events live at `personalscraper/pipeline_events.py` (sibling flat module), NOT at `personalscraper/pipeline/events.py` (which would require converting `pipeline.py` to a package — explicitly **out of scope** for this feature per DESIGN). The same convention applies to `personalscraper/dispatch/events.py` (dispatch IS a package), `personalscraper/indexer/events.py`, `personalscraper/trailers/events.py` (each is a package), and `personalscraper/core/circuit.py` (events embedded, single flat module).
 **Tech stack**: Python ≥ 3.10 (per `pyproject.toml` `requires-python = ">=3.10"`; pyenv 3.11.9 is the dev shell but the code targets 3.10+), `dataclasses` (frozen), `contextvars`, `structlog`, `rich` (subscriber), `pytest`.
 
 ---
@@ -24,7 +25,7 @@
 | 4     | Cross-cutting events                   | 7          | Phase 3    | [`phase-04-cross-cutting-events.md`](phase-04-cross-cutting-events.md)           |
 | 5     | Required-bus tightening + CLI polish   | 6          | Phase 4    | [`phase-05-required-bus-cli-polish.md`](phase-05-required-bus-cli-polish.md)     |
 
-Total sub-phases: **42**. Total commits (estimate): **42–46** (each sub-phase = 1 commit; rebalanced for `/implement:sub-phase` atomicity — Phase 2 splits the StepContext refactor into 3 atomic commits, Phase 3 collapses the per-step-group emit migration into one sweep and splits legacy deletion into 3 atomic commits, Phase 4 splits the conditional DiskGuard extraction from its emit, Phase 5 folds the audit-only sub-phase into the gate to avoid a zero-commit step).
+Total sub-phases: **42**. Total commits (estimate): **42–48** (most sub-phases = 1 commit each; Phase 2 split the StepContext refactor across 2.2a/2.2b/2.2c, Phase 3 split the legacy deletion across 3.7a/3.7b/3.7c, Phase 4 split the conditional DiskGuard extraction at 4.2a from the emit at 4.2b, Phase 5 folded its audit-only step into the gate; sub-phase 3.1 may produce 1 commit (happy path) OR 2+ commits (if Report JSON-safety pre-investigation surfaces non-JSON-safe fields, each coerced via its own `fix(event-bus): ...` commit). The upper bound 48 accommodates 2 coercion commits in 3.1 and 4 atomic commits in 5.2 if multiple `| None` sites exist.).
 
 ---
 
@@ -104,6 +105,25 @@ Console(width=120, color_system=None, force_terminal=False, file=StringIO(), rec
 
 Without this setup, terminal width/color detection makes the snapshot non-portable across dev/CI environments.
 
+### Invariant 9 — Event class registry hygiene for test stubs
+
+`Event.__init_subclass__` registers every subclass in `_EVENT_CLASS_REGISTRY` at import time. Test files that define ad-hoc Event subclasses (e.g. `class Foo(Event): pass` in a test module) would otherwise pollute the registry permanently, breaking the Phase 4 / Phase 5 gate assertion that registry size equals exactly the count of production events.
+
+The registry MUST filter by module path:
+
+```python
+# in personalscraper/core/event_bus.py
+class Event:
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Only register production events. Test stubs (under tests/*) are
+        # excluded so the registry size stays equal to the v1 catalog count.
+        if cls.__module__.startswith("personalscraper."):
+            _EVENT_CLASS_REGISTRY[cls.__name__] = cls
+```
+
+`test_every_event_has_factory` (Phase 1.8) iterates only this filtered registry, so test stubs do not need to provide factories. The Phase 4.6 / Phase 5.6 gate assertions over `len(_EVENT_CLASS_REGISTRY)` are deterministic regardless of pytest collection order.
+
 ---
 
 ## Pre-flight checks (before starting Phase 1)
@@ -152,19 +172,69 @@ Execute these BEFORE creating any code:
    ls docs/features/event-bus/  # should NOT exist yet on this branch — /implement:feature creates it
    ```
 
-7. **Record canonical Rich Console snapshot baseline** (used by Sub-phases 2.4 visual smoke, 3.5 RichConsoleSubscriber rewrite, and 3.9 Phase 3 gate visual regression after Phase 3 renumbering):
+7. **Record canonical Rich Console snapshot baseline** (used by Sub-phases 2.4 visual smoke, 3.5 RichConsoleSubscriber rewrite, and 3.9 Phase 3 gate visual regression):
 
-   Run the current legacy pipeline (`RichConsoleObserver` still in place, pre-Phase-1) against a deterministic fixture and capture its Rich Console output via the determinism setup `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)` into `tests/snapshots/rich_console_canonical.txt`. This file is the **single immutable baseline** referenced by Phase 2 (CLI output unchanged after Pipeline refactor) AND Phase 3 (RichConsoleSubscriber output matches legacy RichConsoleObserver). Two distinct purposes, same baseline artefact — bytes-identical rendering is the invariant.
+   The baseline is a **byte-identical capture** of `RichConsoleObserver`'s output for a **hand-crafted synthetic event sequence** — NOT a real pipeline run (real runs depend on TMDB, disk state, system clock, file ordering, and are non-deterministic).
 
-   Record this file ONCE here, commit it (with `git add -f tests/snapshots/rich_console_canonical.txt` since global `~/.gitignore` does not block `tests/`), and treat it as read-only for the rest of the feature.
+   Create `tests/snapshots/_canonical_sequence.py` with a hand-crafted `CANONICAL_SEQUENCE: list[tuple[str, tuple]]` — a list of `(callback_name, args_tuple)` pairs replayed in order through the observer. The sequence MUST exercise every code path of `RichConsoleObserver`:
+   - `on_pipeline_start` with `dry_run=False` (LIVE label) AND a separate run with `dry_run=True` (DRY-RUN label) — both produce baseline artefacts.
+   - `on_step_start` + `on_step_end` for each of the 9 steps (`ingest`, `sorter`, `process`, `scraper`, `enforce`, `verify`, `cleanup` if present, `trailers`, `dispatch`).
+   - `on_progress` with `StepEvent` covering every status value used by the codebase: `"started"`, `"completed"`, `"skipped"`, `"failed"`, `"moved"`, `"copied"`, `"fixed"`, `"blocked"`, `"cleaned"`, `"error"` (the full list per `pipeline_observer.py::StepEvent` docstring).
+   - One `on_step_error` for a stub step name.
+   - `on_pipeline_end` with mixed success/skip/error counts.
 
-8. **Enumerate `notify_progress` sites** (used by Phase 3 sub-phase 3.4 mechanical sweep):
+   All `StepReport` and `PipelineReport` payload values are concrete literals (no `MagicMock`). Timestamps are fixed: `datetime(2026, 5, 11, 10, 0, 0, tzinfo=UTC)` for start, `+5 minutes` for end. Run-IDs are fixed strings (e.g. `"canonical-live"`, `"canonical-dry"`). This locks every variable that could drift across machines.
 
-   ```bash
-   rg 'notify_progress\(' --type py personalscraper/ -l
+   Coverage gate: the recording test MUST achieve **100% line coverage of `personalscraper/observers/rich_console.py`** — verify by `coverage run -m pytest tests/snapshots/test_record_baseline.py && coverage report --include='personalscraper/observers/rich_console.py'`. If any line is uncovered, the sequence is incomplete and must be extended before recording.
+
+   Record the baseline once:
+
+   ```python
+   # tests/snapshots/test_record_baseline.py — one-shot recorder, then deleted
+   from io import StringIO
+   from pathlib import Path
+   from rich.console import Console
+   from personalscraper.observers.rich_console import RichConsoleObserver
+   from tests.snapshots._canonical_sequence import CANONICAL_SEQUENCE
+
+
+   def test_record_baseline() -> None:
+       console = Console(width=120, color_system=None, force_terminal=False,
+                         file=StringIO(), record=True)
+       observer = RichConsoleObserver(console=console, dry_run=False, run_id="canonical-live")
+       for callback_name, args in CANONICAL_SEQUENCE:
+           getattr(observer, callback_name)(*args)
+       Path("tests/snapshots/rich_console_canonical.txt").write_text(
+           console.export_text()
+       )
    ```
 
-   The output is the list of pipeline step files that emit progress. Phase 3 sub-phase 3.4 migrates EVERY site in a single mechanical sweep (one commit) per the rebalanced plan — earlier drafts of this plan partitioned the sites into 3.4 / 3.5 / 3.6 / 3.7 (groups of 2–3 steps each), but the per-step granularity was too fine for `/implement:sub-phase` atomicity (each group ≈ 5–20 LOC + 3–4 tests, all mechanical). The invariant is "every site migrated by end of Phase 3" and 3.4 covers it atomically.
+   Run it ONCE here, commit the .txt (verify with `git check-ignore -v tests/snapshots/rich_console_canonical.txt` returning nothing — `tests/` is NOT blocked by global `~/.gitignore`). Then **delete `test_record_baseline.py`** in the same commit (it ran once, recorded, done — keeping it would re-record on every CI run and defeat immutability). Keep `_canonical_sequence.py` (Phase 2 and Phase 3 tests replay it through Observer/Subscriber respectively).
+
+   This .txt file is the **single immutable baseline** referenced by Phase 2 §2.4 (CLI output unchanged after Pipeline refactor — replay `CANONICAL_SEQUENCE` through legacy `RichConsoleObserver` and compare), Phase 3 §3.5 (RichConsoleSubscriber matches legacy — replay through new subscriber via bus emit and compare), and Phase 3 §3.9 gate (visual regression check). Bytes-identical rendering is the invariant.
+
+8. **Enumerate `notify_progress` sites and lock the exact counts in this INDEX** (used by Phase 3 sub-phase 3.4 mechanical sweep + Phase 3.7b/3.7c gate audits):
+
+   ```bash
+   rg 'notify_progress\(' --type py personalscraper/ > /tmp/notify_progress_calls.txt
+   rg 'notify_progress\(' --type py personalscraper/ -l | sort > /tmp/notify_progress_files.txt
+   wc -l /tmp/notify_progress_calls.txt    # total call-line count
+   wc -l /tmp/notify_progress_files.txt    # file count
+   cat /tmp/notify_progress_files.txt      # the actual file list
+   ```
+
+   Record the captured numbers HERE in this INDEX before starting Phase 1, replacing the placeholders below:
+   - **Total `notify_progress(` call-lines in `personalscraper/` (production code)**: `<N_CALLS>` (to fill at Pre-flight)
+   - **Files containing `notify_progress(` (excluding `pipeline_observer.py` which defines the helper)**: `<N_FILES>` (to fill at Pre-flight)
+   - **File list** (verbatim from the grep output, alphabetical): `<paste-list-here>`
+
+   These exact numbers are the **gate targets**:
+   - Phase 3.4 gate: after the mechanical sweep, `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST equal `<N_CALLS>` (every legacy site has a paired bus emit alongside).
+   - Phase 3.4 gate: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` MUST still equal `<N_CALLS>` (legacy NOT removed yet — that's 3.7b's job).
+   - Phase 3.7b gate: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` MUST equal `0`.
+   - Phase 3.7b gate: `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST still equal `<N_CALLS>` (only legacy removed; bus emit preserved).
+
+   Phase 3 sub-phase 3.4 migrates EVERY site in a single mechanical sweep (one commit). The invariant is "every legacy site has a paired bus emit by end of 3.4, and zero legacy sites by end of 3.7b".
 
 ---
 

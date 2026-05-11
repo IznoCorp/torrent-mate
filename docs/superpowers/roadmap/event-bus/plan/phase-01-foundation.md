@@ -216,6 +216,22 @@
 **Behavior delivered**:
 
 - Event class registry: `_EVENT_CLASS_REGISTRY: dict[str, type[Event]]` indexed by class name (e.g. `"PipelineStarted"`). **Populated automatically via `Event.__init_subclass__`** (chosen over the `@register_event` decorator approach because it is automatic and impossible to forget — every `class X(Event): ...` definition self-registers). Consequence: **`Event` itself is NOT in the registry** (`__init_subclass__` fires only for subclasses), so `len(_EVENT_CLASS_REGISTRY)` equals the count of concrete event classes (13 at end of Phase 4). This contract is referenced by Phase 4 §4.6 gate item 5.
+
+- **Registry hygiene for test stubs** (Invariant 9 in INDEX): `__init_subclass__` MUST filter by module path to prevent pytest-collected test stubs from polluting the production registry:
+
+  ```python
+  class Event:
+      def __init_subclass__(cls, **kwargs):
+          super().__init_subclass__(**kwargs)
+          # Only register production events. Test stubs (modules under
+          # tests/, scripts/, or anywhere outside personalscraper.*) are
+          # excluded — see Invariant 9.
+          if cls.__module__.startswith("personalscraper."):
+              _EVENT_CLASS_REGISTRY[cls.__name__] = cls
+  ```
+
+  This makes the Phase 4.6 and Phase 5.6 gate assertions on `len(_EVENT_CLASS_REGISTRY)` deterministic regardless of pytest collection order. Test stubs defined inline in `tests/event_bus/test_*.py` (e.g. `class Foo(Event): pass`) are allowed and do NOT need to provide factories — they live outside the production registry.
+
 - `event_to_envelope(event) -> dict[str, Any]`: returns `{"_type": type(event).__name__, "data": event_to_dict(event)}`.
 - `event_from_envelope(data) -> Event`:
   - Look up `data["_type"]` in `_EVENT_CLASS_REGISTRY`.
@@ -226,7 +242,8 @@
 **Tests written**:
 
 - `test_envelope_contains_type_and_data`: encode; assert keys `{"_type", "data"}` and `data["_type"] == "Foo"` (where `Foo` is the test subclass).
-- `test_event_subclass_auto_registered_on_definition`: define `class Bar(Event): ...`; assert `_EVENT_CLASS_REGISTRY["Bar"] is Bar`.
+- `test_event_subclass_auto_registered_on_definition_production_module`: define a `class Bar(Event): ...` whose `__module__` is monkey-patched to `"personalscraper.fake_module"`; assert `_EVENT_CLASS_REGISTRY["Bar"] is Bar`. (Real production events get this for free because they live under `personalscraper.*`.)
+- `test_event_subclass_NOT_registered_when_module_is_test`: define `class Foo(Event): ...` inside the test module (whose `__module__` starts with `"tests."` or `"test_…"`); assert `"Foo" not in _EVENT_CLASS_REGISTRY`. This locks Invariant 9.
 - `test_event_from_envelope_reconstructs_via_assert_event_round_trip`: build `Foo(...)`; envelope; reconstruct; call `assert_event_round_trip(original, reconstructed)` (the field-by-field helper). NEVER use raw `==` — `timestamp` rounding would make it flaky.
 - `test_event_from_envelope_unknown_type_raises_keyerror`: pass `{"_type": "Nonexistent", "data": {}}`; assert `KeyError` with the type name in the message.
 - `test_envelope_round_trip_through_json`: `e1 = Foo(...)`; `json_str = json.dumps(event_to_envelope(e1))`; `e2 = event_from_envelope(json.loads(json_str))`; `assert_event_round_trip(e1, e2)`.
@@ -297,7 +314,7 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
   - `def register_factory(event_type: type[Event]) -> Callable[[Callable], Callable]`: decorator that registers a factory.
   - No factories registered yet — Phase 1 has no concrete events to factory.
 - `tests/fixtures/test_factories_registry.py`:
-  - `test_every_event_has_factory`: iterate over `_EVENT_CLASS_REGISTRY` (the bus's registry); for each concrete event subclass, assert `event_class in EVENT_SAMPLE_FACTORIES`. **Vacuously green in Phase 1** (no concrete events exist yet); becomes the gate from Phase 3 onwards.
+  - `test_every_event_has_factory`: iterate over `_EVENT_CLASS_REGISTRY` (the bus's registry, ALREADY filtered to production modules by `Event.__init_subclass__` per Invariant 9 — see Phase 1.6); for each concrete event subclass, assert `event_class in EVENT_SAMPLE_FACTORIES`. **Vacuously green in Phase 1** (no concrete events exist yet); becomes the gate from Phase 3 onwards. Because the registry is module-filtered, test-only stubs defined in `tests/` do NOT need factories.
   - `test_registered_factories_produce_correct_type`: for each factory in `EVENT_SAMPLE_FACTORIES`, invoke it and assert `isinstance(result, event_type)`.
 
 **Tests written** (testing the fixtures themselves):
@@ -337,7 +354,7 @@ Comprehensive coverage of the ContextVar capture contract, including the **long-
 6. **Smoke import top-level**: `python -c "import personalscraper"` → succeeds.
 7. **No emit sites in production code yet** (sanity — Phase 1 is standalone):
    ```bash
-   rg '\.emit\(' --type py personalscraper/ | grep -v event_bus.py
+   rg 'event_bus\.emit\(|app\.event_bus\.emit\(' --type py personalscraper/
    ```
    Expected: zero matches (the only `.emit` is inside `event_bus.py` itself, e.g. internal helpers or comments).
 8. **No imports of `personalscraper.core.event_bus` in production code yet**:
@@ -371,4 +388,4 @@ Phase 1 is **fully reversible** because nothing in the production tree imports t
 
 None directly from DESIGN §Open Questions. Phase 1 is internal infrastructure; the design decisions (ContextVar mechanism, envelope split, registry approach) are fully locked.
 
-If a new question emerges during implementation (e.g. "should `Event.__init_subclass__` or `@register_event` be the registration mechanism?"), resolve it inline — both are acceptable implementations of the same contract. Document the choice in the sub-phase commit message.
+All design decisions for Phase 1 are LOCKED. The registration mechanism is `Event.__init_subclass__` with module-path filtering (Invariant 9). The serialization split (`event_to_dict` pure vs `event_to_envelope` tagged) is locked in DESIGN §JSON serialization contract. The ContextVar capture happens at event construction via `field(default_factory=...)`, never at emit. No "decide at implementation time" decisions remain.

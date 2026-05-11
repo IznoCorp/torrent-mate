@@ -114,38 +114,67 @@ def on_circuit_opened(self, event: CircuitBreakerOpened) -> None:
 
 ---
 
-## Sub-phase 4.2a — Conditional extraction: `indexer/db.py::handle_disk_full` → `indexer/_disk_guard.py`
+## Sub-phase 4.2a — Conditional extraction: locate + (if needed) extract the disk-guard function
 
-**Conditional sub-phase** — runs only if `personalscraper/indexer/_disk_guard.py` does NOT already exist (P3 god-module-split may have already extracted it).
+**Conditional sub-phase** — runs IFF the disk-guard function is not already extracted into a dedicated module. The probe handles the three cases that arise depending on whether/where P3 god-module-split landed the extraction.
 
-**Files**:
+**Verified current state** (branch `feat/event-bus`, HEAD `dd4a055`): function `handle_disk_full` lives in `personalscraper/indexer/db.py` and `personalscraper/indexer/_disk_guard.py` does NOT exist. Today, this sub-phase IS required (case A below).
+
+**Locator probe — run first, before any edits**:
+
+```bash
+# Step 1: find where the function lives today (regardless of file name).
+rg --type py 'def handle_disk_full|def check_disk_free|def guard_disk_full|def disk_full_guard' personalscraper/indexer/
+
+# Step 2: if Step 1 returns zero hits, broaden the search — maybe P3 renamed it:
+rg --type py 'def .*disk.*(full|free|guard)' personalscraper/indexer/
+
+# Step 3: inventory existing dedicated extraction targets:
+ls personalscraper/indexer/_disk_guard.py 2>&1     # standard prep-target name
+ls personalscraper/indexer/disk_guard.py 2>&1      # P3 might have used no-underscore
+ls personalscraper/indexer/db/disk_guard.py 2>&1   # P3 might have used a sub-package
+```
+
+**Branch by probe result** (apply exactly one):
+
+- **Case A — function in `indexer/db.py`, no extraction module exists**: this is today's state. Proceed with the mechanical extraction in this sub-phase (steps below).
+- **Case B — function in a dedicated module under `indexer/`, regardless of name (`_disk_guard.py` / `disk_guard.py` / `db/disk_guard.py`)**: 4.2a is a NO-OP. Record the canonical path + canonical function name in the **Phase 4 disk-guard locator** block at the bottom of THIS file (see below) so 4.2b imports the right symbols. Skip to 4.2b. Document in 4.2b commit body: "4.2a no-op: disk-guard already extracted to `<path>::<function>`".
+- **Case C — function does not exist under any expected name**: STOP. This means P3 (or some other refactor) renamed it in a way the locator doesn't recognize. Do NOT guess. Surface as a BLOCKER requiring human triage; add a one-paragraph note to the PR description and pause `/implement:feature` for the user to update the locator probe with the correct name. The plan is intentionally fail-loud here — silent guessing produces a broken 4.2b.
+
+**Files** (Case A only — the active path today):
 
 - Create: `personalscraper/indexer/_disk_guard.py` — receives the moved code.
-- Modify: `personalscraper/indexer/db.py` — remove the disk-check function body, re-export name for backwards compat if any external caller imports it.
-- Modify: every caller of `handle_disk_full` — update import path. Use sweep grep first:
+- Modify: `personalscraper/indexer/db.py` — remove the function body. If any external caller imports `handle_disk_full` from `indexer.db`, leave a deprecated re-export `from ._disk_guard import handle_disk_full` for ONE sub-phase only, removed by Phase 5.2 with a sweep grep. (Verify via the pre-flight grep below; if zero external callers, do NOT add a re-export.)
+- Modify: every caller of `handle_disk_full` — update import path:
   ```bash
-  rg --type py 'handle_disk_full|_disk_guard|disk_full' personalscraper/ tests/ -l
+  rg --type py 'handle_disk_full' personalscraper/ tests/ -l
+  rg --type py 'from personalscraper\.indexer\.db import .*handle_disk_full' personalscraper/ tests/
   ```
 
 **Behavior delivered**: pure mechanical move. ZERO behavior change. The disk-check function executes identically before and after; only its import path changes.
 
-**Tests written**:
+**Tests written** (Case A):
 
 - `test_handle_disk_full_lives_in_disk_guard_module`: assert `from personalscraper.indexer._disk_guard import handle_disk_full` works and the function is callable.
 - All existing tests around disk-full handling continue passing without modification beyond import-path updates.
 
 **Steps**:
 
-- [ ] Check existence: `ls personalscraper/indexer/_disk_guard.py 2>&1`. If file exists → SKIP this sub-phase entirely (no commit) and proceed to 4.2b. Document the skip in the 4.2b commit message ("4.2a no-op: `_disk_guard.py` already extracted by P3").
-- [ ] If file does NOT exist:
+- [ ] Run the locator probe (3 steps above). Determine which case applies.
+- [ ] **If Case A** (today's state):
   - [ ] Pre-flight grep — enumerate callers.
   - [ ] Write the import-path assertion test.
-  - [ ] Move the function to `_disk_guard.py`.
+  - [ ] Move the function to `_disk_guard.py` (no logic change).
   - [ ] Update every caller's import.
   - [ ] Run → pass (zero behavior change).
   - [ ] `make check` green.
-  - [ ] Sweep grep: `rg --type py 'from personalscraper\.indexer\.db import handle_disk_full' personalscraper/ tests/` → 0 if the new path is canonical.
+  - [ ] Sweep grep: `rg --type py 'from personalscraper\.indexer\.db import .*handle_disk_full' personalscraper/ tests/` → 0.
+  - [ ] Record the locator outcome in the "Phase 4 disk-guard locator" block at the bottom of this file (case = A, canonical path = `personalscraper/indexer/_disk_guard.py`, canonical function = `handle_disk_full`).
   - [ ] Commit: `refactor(event-bus): extract handle_disk_full from indexer/db.py into indexer/_disk_guard.py`.
+- [ ] **If Case B** (already extracted by P3):
+  - [ ] No commit. Record the locator outcome in the "Phase 4 disk-guard locator" block (case = B, canonical path = `<discovered>`, canonical function = `<discovered>`).
+  - [ ] Proceed to 4.2b; 4.2b reads the locator block to know what to import.
+- [ ] **If Case C** (function not found): STOP per the branch description above.
 
 ---
 
@@ -154,8 +183,8 @@ def on_circuit_opened(self, event: CircuitBreakerOpened) -> None:
 **Files**:
 
 - Create: `personalscraper/indexer/events.py` — `DiskFullWarning` + `LibraryScanCompleted` (the latter is filled out in 4.5; declare the module here, add `DiskFullWarning` only in this sub-phase).
-- Modify: `personalscraper/indexer/_disk_guard.py` — accept `event_bus: EventBus | None = None`; emit `DiskFullWarning` when free < threshold.
-- Modify: every caller of `handle_disk_full` — pass `event_bus` from the AppContext-aware bootstrap.
+- Modify: the **canonical disk-guard module** identified by the "Phase 4 disk-guard locator" block at the bottom of this file (filled by 4.2a). The canonical function gains `event_bus: EventBus | None = None` and emits `DiskFullWarning` when free < threshold. **Read the locator block BEFORE editing — do not assume `_disk_guard.py` / `handle_disk_full`.**
+- Modify: every caller of the canonical function (path from locator) — pass `event_bus` from the AppContext-aware bootstrap.
 - Modify: `personalscraper/subscribers/telegram.py` — subscribe to `DiskFullWarning`.
 - Modify: `tests/fixtures/event_samples.py` — add factory.
 - Create: `tests/indexer/test_disk_guard_events.py`
@@ -284,7 +313,7 @@ After `YtdlpDownloader.download(...)` returns a successful download, the orchest
 - `test_trailers_do_not_emit_on_failure`: monkeypatch yt-dlp to raise; assert zero events.
 - `test_trailer_downloaded_has_factory`.
 - `test_trailer_downloaded_envelope_roundtrip`.
-- `test_trailers_emit_works_from_pipeline_step_path`: run a synthetic trailers pipeline step; assert event with correlation_id matching the run.
+- `test_trailers_emit_works_from_pipeline_step_path`: drive the production trailers step `personalscraper.trailers.step::run_trailers_step` (the in-pipeline trailers entry — verified at plan time) inside a stub pipeline that binds `current_correlation_id.set("run-pipeline-abc")` in a try/finally. Monkeypatch the `YtdlpDownloader` to return a successful download stub (no real network). Collect `TrailerDownloaded` via `CollectingSubscriber(bus, TrailerDownloaded)`. Assert: exactly one event, `event.correlation_id == "run-pipeline-abc"` (proves the ContextVar propagates from the pipeline-bound region into the step-emitted event).
 - `test_trailers_emit_works_from_standalone_command_path`: invoke `personalscraper trailers download` (CLI) against a fixture media; assert event with the standalone-command's own `run_id` as correlation_id.
 
 **Steps**:
@@ -319,7 +348,15 @@ class LibraryScanCompleted(Event):
     elapsed_s: float
 ```
 
-At the end of every scan mode (success or partial failure), the orchestrator emits exactly one `LibraryScanCompleted` event. On total failure (exception propagates), the orchestrator emits the event in a `finally` with `errors = scanned_total - successful` or a sentinel `errors = -1` (decide at impl time — document in commit message).
+At the end of every scan mode (success or partial failure), the orchestrator emits exactly one `LibraryScanCompleted` event. On total failure (an exception propagates out of the scan body), the orchestrator emits the event in a `finally` block with:
+
+- `scanned` = count of items processed before the exception (`scanned_total_so_far`)
+- `errors` = `max(scanned_total_so_far - successful_so_far, 1)` — guarantees `errors ≥ 1` on the failure path so subscribers filtering on `errors > 0` always fire. (A scenario where the exception fires before any item is processed yields `scanned=0, successful=0, errors=1` — the "1" reflects the scan itself failing.)
+- `elapsed_s` = `time.monotonic() - start` (always populated, even on failure)
+
+**No sentinel `errors = -1`**: it would force every subscriber to special-case the negative value, and JSON consumers would have to interpret a magic number. The locked formula above keeps `errors` strictly non-negative and semantically meaningful (count of failures), at the cost of a 1-item over-count on early-exception paths — an acceptable trade documented here and reflected in the catalog docstring.
+
+This decision is FINAL — no "decide at implementation time" remains.
 
 **Tests written**:
 
@@ -363,18 +400,33 @@ At the end of every scan mode (success or partial failure), the orchestrator emi
    - `TrailerDownloaded` (Phase 4.4).
    - `LibraryScanCompleted` (Phase 4.5).
    - Total: **13 concrete events** (does NOT include `Event` base — Phase 1 §1.6 committed to `Event.__init_subclass__` registration which fires only for subclasses).
-   - Verification:
+   - Verification — **explicit set comparison** (catches missing AND extra AND `Event` accidentally registered):
      ```bash
-     python -c "from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY; names = sorted(_EVENT_CLASS_REGISTRY.keys()); assert len(names) == 13, f'expected 13 got {len(names)}: {names}'; print(names)"
+     python -c "
+     from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY
+     expected = {
+         'PipelineStarted', 'PipelineEnded',
+         'StepStarted', 'StepCompleted', 'StepErrored',
+         'ItemProgressed', 'ItemDispatched',
+         'CircuitBreakerOpened', 'CircuitBreakerClosed', 'CircuitBreakerHalfOpened',
+         'DiskFullWarning', 'TrailerDownloaded', 'LibraryScanCompleted',
+     }
+     actual = set(_EVENT_CLASS_REGISTRY)
+     missing = expected - actual
+     extra = actual - expected
+     assert not missing and not extra, f'missing={missing} extra={extra}'
+     assert 'Event' not in actual, 'Event base must not register itself (Invariant 9 / Phase 1.6 module filter)'
+     print('OK 13 events:', sorted(actual))
+     "
      ```
-     Output must list exactly these 13 names (alphabetically) and the assertion must hold.
+     The diagnostic names exactly what diverged; the assertion holds only when the registry is bit-for-bit the v1 catalog.
 6. **`test_every_event_has_factory` green**: factories for all 13 in `tests/fixtures/event_samples.py`.
 7. **Envelope round-trip parametrized test green for all 13**.
 8. **AppContext boundary test green**.
 9. **Smoke imports**:
    - `python -c "import personalscraper"`.
    - `python -c "from personalscraper.events import PipelineStarted, ItemDispatched, CircuitBreakerOpened, DiskFullWarning, TrailerDownloaded, LibraryScanCompleted"`.
-10. **Telegram subscriptions**: assert at the test level that `TelegramSubscriber.__init__` results in 4 subscription tokens (`PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning`). New regression test added in 4.2: `test_telegram_subscriber_has_four_subscriptions_after_phase4`.
+10. **Telegram subscriptions**: assert at the test level that `TelegramSubscriber.__init__` results in 4 subscription tokens (`PipelineEnded`, `StepErrored`, `CircuitBreakerOpened`, `DiskFullWarning`). The regression test `test_telegram_subscriber_has_four_subscriptions_after_phase4` is shipped in **sub-phase 4.2b** (the last Phase-4 sub-phase that adds a Telegram subscription — `DiskFullWarning`). Sub-phase 4.1 already shipped a 3-subscription analogue; 4.2b extends it to 4.
 11. **`event_bus | None` audit**: list every call site that still relies on the `| None` default:
     ```bash
     rg 'event_bus: EventBus \| None' --type py personalscraper/
@@ -406,3 +458,16 @@ DESIGN §Open Questions:
 - **#2, #3**: out of scope / resolved earlier.
 
 No new open questions introduced by Phase 4.
+
+---
+
+## Phase 4 disk-guard locator (filled in by 4.2a)
+
+Populated during sub-phase 4.2a Step 1 (locator probe). Sub-phase 4.2b reads this block to know which symbol to import and where to emit.
+
+- **Case** (A / B / C — circle one when filled): `<TBD-by-4.2a>`
+- **Canonical module path**: `<TBD-by-4.2a>` (e.g. `personalscraper/indexer/_disk_guard.py`)
+- **Canonical function name**: `<TBD-by-4.2a>` (e.g. `handle_disk_full`)
+- **Probe output excerpt** (paste the `rg` line that identified it): `<TBD-by-4.2a>`
+
+`<TBD>` placeholders are the only "to-be-filled" markers allowed in this plan — they exist because the locator outcome depends on runtime probe; the agent in 4.2a fills them when it runs the probe. After 4.2a commits, this block is frozen for the rest of the phase.

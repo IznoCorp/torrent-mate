@@ -88,13 +88,22 @@ The output is the work list. Every line must be either:
 
 **Behavior delivered**: same as 5.1 for each site. The Phase 4 gate audit (item 11) produced the full list. Each is tightened individually with its own gate audit.
 
-**Pre-sub-phase grep**:
+**Pre-sub-phase grep + cross-check vs Phase 4.6 audit count**:
 
 ```bash
-rg 'event_bus: EventBus \| None' --type py personalscraper/
+# Step 1: enumerate the current | None sites
+rg 'event_bus: EventBus \| None' --type py personalscraper/ | tee /tmp/event_bus_none_sites.txt
+wc -l /tmp/event_bus_none_sites.txt    # current count
+
+# Step 2: extract Phase 4.6 gate commit count (documented in the gate commit body per
+# Phase 4 §4.6 step 11):
+git log --grep='phase 4 gate' --format='%H' | head -1 | xargs git show --format=%B
+# Look for the line: "event_bus | None sites at Phase 4 gate: <N>"
 ```
 
-Each match becomes a tightening target. If any module declares NO option (already required from Phase 4), it does not appear in the grep and is already done.
+**Cross-check assertion**: the count from Step 1 MUST equal the `<N>` documented in the Phase 4.6 gate commit body. If higher, a new `| None` site was introduced between the Phase 4 gate and the start of 5.1 — identify the new site (`diff /tmp/event_bus_none_sites.txt` against the gate-commit-time list) and tighten it as part of 5.2 too, without skipping the original list. If lower, 5.1 already tightened some sites — fine; the gate count is the upper bound.
+
+Each match in the current list becomes a tightening target. If any module declares NO option (already required from Phase 4 or 5.1), it does not appear in the grep and is already done.
 
 **Tests written**: one per tightened site, analogous to `test_circuit_breaker_requires_event_bus` (assert signature, assert annotation).
 
@@ -270,7 +279,7 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
 **Hard verification gate** (this is the **feature merge gate**, not just a phase gate):
 
 1. **`make lint`** → zero errors.
-2. **`make test`** → all tests pass. Final tally: baseline + ~150-200 new tests (sum of Phase 1-5 additions).
+2. **`make test`** → all tests pass. Final tally: baseline + **~177 new tests** (sum of explicit per-phase deltas: Phase 1 ~57 + Phase 2 ~30 + Phase 3 ~50 + Phase 4 ~30 + Phase 5 ~10). Verify by `make test 2>&1 | tail -5 | grep passed` and comparing against the baseline recorded in INDEX Pre-flight #3.
 3. **`make check`** → green.
 4. **Module size budget** (DESIGN table) — every module within its cap:
    - `core/event_bus.py` ≤ 400.
@@ -291,12 +300,27 @@ This sub-phase combines what earlier drafts split into 5.6 (audit-only, potentia
    - Phase 3 grep set (already zero).
    - `rg 'event_bus: EventBus \| None' --type py personalscraper/` → 0.
    - `rg --type py 'CircuitBreaker\(' personalscraper/ tests/ | grep -v 'event_bus='` → 0.
-6. **Event catalog: exactly 13 entries**:
+6. **Event catalog: exactly the 13 v1 events, no missing, no extra, `Event` NOT in registry**:
    ```bash
-   python -c "from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY; print(len(_EVENT_CLASS_REGISTRY))"
+   python -c "
+   from personalscraper.core.event_bus import _EVENT_CLASS_REGISTRY
+   expected = {
+       'PipelineStarted', 'PipelineEnded',
+       'StepStarted', 'StepCompleted', 'StepErrored',
+       'ItemProgressed', 'ItemDispatched',
+       'CircuitBreakerOpened', 'CircuitBreakerClosed', 'CircuitBreakerHalfOpened',
+       'DiskFullWarning', 'TrailerDownloaded', 'LibraryScanCompleted',
+   }
+   actual = set(_EVENT_CLASS_REGISTRY)
+   missing = expected - actual
+   extra = actual - expected
+   assert not missing and not extra, f'missing={missing} extra={extra}'
+   assert 'Event' not in actual, 'Event base must not register itself (Invariant 9)'
+   print('OK 13 events:', sorted(actual))
+   "
    ```
-   Expected: `13`.
-7. **Factories complete**: `pytest tests/fixtures/test_factories_registry.py::test_every_event_has_factory -v` green.
+   (Identical command to Phase 4.6 §5; re-run here as a feature-merge gate.)
+7. **Factories complete**: `pytest tests/fixtures/test_factories_registry.py::test_every_event_has_factory -v` green. (`test_every_event_has_factory` iterates the production-module-filtered registry per Invariant 9 / Phase 1.6, so pytest-collected test stubs do NOT pollute the assertion — the iteration sees exactly 13 entries regardless of collection order.)
 8. **Envelope round-trip**: parametrized test green for all 13.
 9. **AST boundary test green**.
 10. **AppContext allowlist live**: `pytest tests/architecture/test_app_context_boundary.py::test_allowlist_entries_are_live -v` green.
