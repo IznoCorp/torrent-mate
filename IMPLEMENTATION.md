@@ -98,13 +98,126 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" and INDEX.md Invariant 3 for th
 
 _(filled by implement:pr-review — max 3 cycles)_
 
-## Next action
+## Resumption snapshot — read FIRST when resuming
 
-Phase 1 complete (all 8 production sub-phases + gate green). Next:
+**HEAD SHA**: `eea8a5a` — `docs(event-bus): record sub-phase progress 2.1-2.2c`
+**Branch**: `feat/event-bus` — fully synced with `origin/feat/event-bus` (0 ahead, 0 behind).
+**Working tree**: clean (`git status --porcelain` returns empty).
+**Last successful gate**: full `make check` green (3816 passed, 3 skipped, coverage 91.24%).
 
-1. **Pre-flight #7** — record the canonical Rich Console snapshot baseline
-   (deferred from initial Pre-flight only because its consumers live in
-   Phase 2.4 / 3.5 / 3.9; MUST land before Phase 2 sub-phase 2.4 commits).
-2. **Phase 2 — AppContext + StepContext slim** — see
-   `docs/features/event-bus/plan/phase-02-app-context-step-context.md`.
-3. Continue with `/implement:phase` (chained automatically).
+**Captured baselines (locked at feature start, see INDEX Pre-flight):**
+
+- `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
+- Current `make test`: **3816 passed, 3 skipped** (= **+78 new event-bus tests**, well above the +50 floor for Phase 1.9 gate; Phase 2 has added 9 tests so far across 2.1 + 2.2a + 2.2c).
+- `make check` exit 0 (1 pre-existing soft-warn on `personalscraper/scraper/tv_service.py: 819 LOC`, threshold 800/1000 — not a blocker).
+- Skip / xfail decorator count: **6** (unchanged — Invariant 3 §3 baseline).
+- `notify_progress` call sites in production: **46** across **8** files (Phase 3.4 / 3.7b gate target — see INDEX Pre-flight #8 for the file list).
+- Module size: `personalscraper/core/event_bus.py` 366 LOC (budget 400),
+  `personalscraper/core/app_context.py` 43 LOC (budget 80),
+  `tests/fixtures/event_bus.py` 66 LOC (budget 80).
+
+**Where we stopped:** end of Phase 2 sub-phase 2.2c. Phase 2 row is still `[ ]`
+in the Phases table because sub-phases 2.3 → 2.7 remain. Re-invoking
+`/implement:phase` will detect Phase 2 as the next `[ ]` row and resume from
+sub-phase 2.3 (the first pending sub-phase per the Sub-phase → SHA mapping
+above — every prior sub-phase has a real SHA).
+
+## Next action — concrete resumption protocol
+
+When `/implement:phase` is re-invoked after `/clear`, execute in this order:
+
+### Step A — Pre-flight #7 (BEFORE any Phase 2.4 commit)
+
+The canonical Rich Console snapshot baseline (INDEX.md Pre-flight #7) was NOT
+recorded in the original Phase 1 pre-flight. Its consumers are sub-phases
+**2.4** (visual smoke after Pipeline refactor), **3.5** (RichConsoleSubscriber
+visual match), and **3.9** (Phase 3 gate visual regression). It must land
+**before** any code change that touches `personalscraper/observers/rich_console.py`
+or the CLI bootstrap that builds it (i.e. before sub-phase 2.4).
+
+Procedure (per INDEX.md Pre-flight #7 — verbatim):
+
+1. Create `tests/snapshots/_canonical_sequence.py` — a hand-crafted
+   `CANONICAL_SEQUENCE: list[tuple[str, tuple]]` covering every code path of
+   `RichConsoleObserver` (9 step icons + 1 unknown step for the icon-default
+   branch, all 10 status values for `on_progress`, mixed-count `StepReport`s,
+   `on_step_error`, `on_pipeline_end` with both OK + ERRORS variants and
+   both seconds-only + minutes+seconds durations). Use deterministic
+   `Console(width=120, color_system=None, force_terminal=False, file=StringIO(), record=True)`.
+2. Create `tests/snapshots/test_record_baseline.py` — one-shot recorder.
+3. Run once → write `tests/snapshots/rich_console_canonical.txt` (the
+   immutable baseline). Verify `coverage report --include='.../rich_console.py'`
+   shows **100% line coverage** of `personalscraper/observers/rich_console.py`.
+4. Delete `test_record_baseline.py` in the same commit; KEEP `_canonical_sequence.py`
+   (Phase 2.4 + 3.5 + 3.9 replay it).
+5. Commit: `chore(event-bus): record canonical Rich Console snapshot baseline (Pre-flight #7)`.
+
+### Step B — Sub-phase 2.3 (Pipeline.**init**(app))
+
+Plan: `docs/features/event-bus/plan/phase-02-app-context-step-context.md`
+(read sub-phase 2.3 starting around line 215).
+
+**Refactor target**: `Pipeline.__init__(app: AppContext)` (single positional
+arg). All run-scope flags (`dry_run`, `interactive`, `verbose`) and the
+legacy `observers` tuple move to `Pipeline.run(*, dry_run=…, interactive=…,
+verbose=…, observers: tuple[PipelineObserver, ...] = ())` as keyword-only
+parameters. `Pipeline.run` generates a fresh `run_id = uuid4()` per call,
+binds `current_correlation_id.set(str(run_id))` in a try/finally, and
+threads both into `StepContext`.
+
+**Construction sites to migrate (39 total — verified at HEAD `eea8a5a`):**
+
+```bash
+rg 'Pipeline\(' --type py personalscraper/ tests/
+```
+
+Files affected (one-time scripted sweep recommended — most call-sites follow
+the pattern `Pipeline(pipeline_config, pipeline_settings, observers=[...])`
+which becomes
+`Pipeline(app=AppContext(config=pipeline_config, settings=pipeline_settings, event_bus=EventBus()))`
+
+- moves run-scope kwargs into the `.run(...)` call):
+
+* `personalscraper/commands/pipeline.py` (1 site at line ~335 — production CLI)
+* `tests/test_pipeline.py` (~8 sites)
+* `tests/test_pipeline_orchestration.py`
+* `tests/test_pipeline.py`
+* `tests/integration/test_full_pipeline.py`
+* `tests/resilience/test_pipeline_double_run.py`
+* `tests/unit/test_pipeline_headless.py`
+* `tests/unit/test_pipeline_with_observer.py`
+
+**8 plan-mandated tests** to add (per phase-02-…md sub-phase 2.3):
+`test_pipeline_init_takes_app_context_only`,
+`test_pipeline_run_accepts_observers_kwarg`,
+`test_pipeline_run_propagates_observers_to_step_context`,
+`test_pipeline_run_generates_unique_run_id`,
+`test_pipeline_run_binds_current_correlation_id_during_run`,
+`test_pipeline_run_resets_correlation_id_after_run`,
+`test_pipeline_run_resets_correlation_id_after_exception`,
+`test_pipeline_run_propagates_run_id_to_step_context`.
+
+Commit: `refactor(event-bus): Pipeline accepts AppContext; generates run_id and binds ContextVar`.
+
+### Step C — Continue Phase 2 sub-phases 2.4 → 2.7
+
+Then 2.4 (CLI entry — see Pre-flight probe inside the plan to decide
+SKIP-CLI vs TOUCH-CLI), 2.5 (launchd + trailers), 2.6 (AST boundary test),
+2.7 (Phase 2 gate). After 2.7 commit + `git push` (per the user-imposed
+push-between-phases rule, see `~/.claude/projects/.../memory/feedback_event_bus_no_deferral.md`).
+
+### Step D — Phases 3 → 5
+
+Continue `/implement:phase` until all phases marked `[x]`. The skill chains
+into `/implement:feature-pr` automatically at the last phase (CI poll +
+PR creation), then `/implement:pr-review` for the review/fix loop. The PR
+will be merged squash via the `manual` strategy chosen at feature activation.
+
+## Push convention (user-imposed)
+
+`git push` to `origin/feat/event-bus` after **each phase-gate commit**
+(`chore(event-bus): phase N gate — …`). Do NOT push between sub-phases.
+The pre-push hook runs ruff + format + logging audit + mypy + pytest before
+allowing the push — keep all 5 green at every phase gate. (Mid-phase pushes
+are allowed only as a backup measure when ending a session, as was done at
+`eea8a5a` to preserve the in-progress Phase 2 work.)
