@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import typer
 
 from personalscraper import cli as cli_compat
@@ -9,7 +11,31 @@ from personalscraper.cli_app import app
 from personalscraper.cli_helpers import _bootstrap_staging, handle_cli_errors
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
+    from personalscraper.config import Settings
+
+
+def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
+    """Build the process-scoped :class:`AppContext` for a CLI invocation.
+
+    Constructed once per ``personalscraper run`` invocation at the CLI
+    boundary. The :class:`EventBus` is a fresh in-process instance with
+    zero subscribers — subscriber wiring (RichConsoleSubscriber,
+    TelegramSubscriber, etc.) lands in Phase 3.5/3.6.
+
+    Args:
+        config: The typed JSON5 configuration loaded by ``cli.main``.
+        settings: The Pydantic env-var settings (API keys, paths).
+
+    Returns:
+        A frozen :class:`AppContext` ready to drive ``Pipeline.__init__``.
+    """
+    return AppContext(config=config, settings=settings, event_bus=EventBus())
 
 
 @app.command()
@@ -271,8 +297,6 @@ def run(
     from personalscraper.api.notify.healthchecks import HealthcheckClient
     from personalscraper.api.notify.telegram import TelegramNotifier
     from personalscraper.api.transport._http import HttpTransport
-    from personalscraper.core.app_context import AppContext  # noqa: PLC0415
-    from personalscraper.core.event_bus import EventBus  # noqa: PLC0415
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.observers.rich_console import RichConsoleObserver
     from personalscraper.pipeline import Pipeline
@@ -334,13 +358,12 @@ def run(
                     pipeline_observers.append(TelegramObserver(tg_notifier))
 
             # Delegate to Pipeline orchestrator (9-step sequential flow).
-            # Sub-phase 2.3 contract: ``__init__`` takes ``app: AppContext``
-            # only; every run-scope flag and the observers tuple is a
-            # keyword-only argument of :meth:`Pipeline.run`. Sub-phase 2.4
-            # extracts the AppContext construction into a `_build_app_context`
-            # helper near the top of this module.
-            app = AppContext(config=config, settings=settings, event_bus=EventBus())
-            pipeline = Pipeline(app)
+            # The :class:`AppContext` is built once per invocation at the
+            # CLI boundary via :func:`_build_app_context` (Sub-phase 2.4 —
+            # the boundary-only rule from DESIGN §Architecture, enforced
+            # by the AST allowlist landed in Sub-phase 2.6).
+            app_context = _build_app_context(config, settings)
+            pipeline = Pipeline(app_context)
             try:
                 report = pipeline.run(
                     dry_run=dry_run,
