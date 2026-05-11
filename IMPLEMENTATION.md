@@ -35,7 +35,7 @@ DEFERRAL — MANDATORY".
 
 | #   | Phase                                  | Type    | File                                                                                                        | Status |
 | --- | -------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- | ------ |
-| 1   | Foundation (standalone)                | core    | [phase-01-foundation.md](docs/features/event-bus/plan/phase-01-foundation.md)                               | [ ]    |
+| 1   | Foundation (standalone)                | core    | [phase-01-foundation.md](docs/features/event-bus/plan/phase-01-foundation.md)                               | [x]    |
 | 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [ ]    |
 | 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [ ]    |
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [ ]    |
@@ -65,7 +65,20 @@ See CLAUDE.md "Phase Gate Checklist (MANDATORY)" and INDEX.md Invariant 3 for th
 
 ## Sub-phase → SHA mapping
 
-_(filled by /implement:phase as sub-phases land)_
+### Phase 1 — Foundation
+
+| Sub-phase | SHA                            | Description                                                           |
+| --------- | ------------------------------ | --------------------------------------------------------------------- |
+| pre-1.1   | `505596c`                      | Pre-flight baselines (tests=3738, skip=6, notify_progress=46/8 files) |
+| 1.1       | `08616a3`                      | Event base + current_correlation_id ContextVar (10 tests)             |
+| 1.2       | `28e4121`                      | EventBus.subscribe/unsubscribe + SubscriptionToken (COW) (7 tests)    |
+| 1.3       | `f694070`                      | EventBus.emit + MRO cache + zero-alloc fast path (10 tests)           |
+| 1.4       | `492ac24`                      | Error isolation + re-entrant emit safety (6 tests)                    |
+| 1.5       | `6acfa18`                      | event_to_dict pure-payload JSON encoder (12 tests)                    |
+| 1.6       | `92fad12`                      | event_to_envelope/from_envelope + class registry (12 tests)           |
+| 1.7       | `a1e7d4c`                      | correlation_id ContextVar capture semantics (8 tests)                 |
+| 1.8       | `026fda6`                      | CollectingSubscriber + factories registry mechanism (9 tests)         |
+| 1.9       | _(pending — this gate commit)_ | Phase 1 gate (no new code, all 10 verification items pass)            |
 
 ## Review cycles
 
@@ -73,7 +86,11 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action
 
-Run `/implement:phase` to start Phase 1 (Foundation). Pre-flight checks in
-`docs/features/event-bus/plan/INDEX.md` (#1–#10) MUST be executed first —
-record `<N_CALLS>`, `<N_FILES>`, `<SKIP_BASELINE>`, and the canonical Rich
-Console snapshot baseline before any sub-phase commits.
+Phase 1 complete (all 8 production sub-phases + gate green). Next:
+
+1. **Pre-flight #7** — record the canonical Rich Console snapshot baseline
+   (deferred from initial Pre-flight only because its consumers live in
+   Phase 2.4 / 3.5 / 3.9; MUST land before Phase 2 sub-phase 2.4 commits).
+2. **Phase 2 — AppContext + StepContext slim** — see
+   `docs/features/event-bus/plan/phase-02-app-context-step-context.md`.
+3. Continue with `/implement:phase` (chained automatically).
