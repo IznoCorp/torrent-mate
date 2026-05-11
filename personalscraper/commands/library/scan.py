@@ -68,20 +68,47 @@ def library_index(
         personalscraper library-index --mode quick --confirm-bulk-change
         personalscraper library-index --rebuild
     """
+    from uuid import uuid4  # noqa: PLC0415
+
+    from personalscraper import cli as cli_compat  # noqa: PLC0415
+    from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+    from personalscraper.core.event_bus import current_correlation_id  # noqa: PLC0415
     from personalscraper.indexer.cli import library_index_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_index_command(
-        mode=mode,
-        disk=disk,
-        budget_seconds=budget,
-        no_budget=no_budget,
-        backfill_streams=backfill_streams,
-        dry_run=dry_run,
-        wait_for_lock_seconds=wait_for_lock,
-        config_path=effective_config,
-        confirm_bulk_change=confirm_bulk_change,
-        rebuild=rebuild,
-    )
+
+    # Build the process-scoped AppContext at the launchd command boundary
+    # (Sub-phase 2.5 — boundary-only rule from DESIGN §Architecture). The
+    # AppContext is built here even though ``library_index_command`` still
+    # loads its own ``Config`` from ``config_path`` for backward
+    # compatibility — only ``event_bus`` flows into the orchestrator
+    # (Phase 4 adds ``LibraryIndexed`` emits).
+    loaded_config = ctx.obj.config if ctx.obj is not None else None
+    if loaded_config is not None:
+        settings = cli_compat.get_settings()
+        app_context = _build_app_context(loaded_config, settings)
+        event_bus = app_context.event_bus
+    else:
+        event_bus = None  # init-config path; never reached for library-index in practice.
+
+    # Bind a fresh ``run_id`` for the duration of the scan — every Event
+    # constructed downstream captures it as ``correlation_id``.
+    token = current_correlation_id.set(str(uuid4()))
+    try:
+        rc = library_index_command(
+            mode=mode,
+            disk=disk,
+            budget_seconds=budget,
+            no_budget=no_budget,
+            backfill_streams=backfill_streams,
+            dry_run=dry_run,
+            wait_for_lock_seconds=wait_for_lock,
+            config_path=effective_config,
+            confirm_bulk_change=confirm_bulk_change,
+            rebuild=rebuild,
+            event_bus=event_bus,
+        )
+    finally:
+        current_correlation_id.reset(token)
     if rc != 0:
         raise typer.Exit(rc)

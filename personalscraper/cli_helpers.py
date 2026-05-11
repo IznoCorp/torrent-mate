@@ -4,14 +4,42 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 from pydantic import ValidationError
 
 from personalscraper.cli_state import AppCtx, state
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
+from personalscraper.core.app_context import AppContext
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.conf.models.config import Config
+    from personalscraper.config import Settings
+
+
+def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
+    """Build the process-scoped :class:`AppContext` for a CLI invocation.
+
+    Constructed once per CLI command invocation at the boundary (Sub-phase
+    2.4 for ``personalscraper run``; Sub-phase 2.5 for the launchd
+    ``library-index`` command and the four ``trailers`` subcommands). The
+    :class:`EventBus` is a fresh in-process instance with zero
+    subscribers — subscriber wiring (RichConsoleSubscriber,
+    TelegramSubscriber, etc.) lands in Phase 3.5/3.6.
+
+    Args:
+        config: The typed JSON5 configuration loaded by ``cli.main``.
+        settings: The Pydantic env-var settings (API keys, paths).
+
+    Returns:
+        A frozen :class:`AppContext` ready to drive ``Pipeline.__init__``
+        or the orchestrator entrypoints for the launchd / trailers
+        commands.
+    """
+    return AppContext(config=config, settings=settings, event_bus=EventBus())
 
 
 def _format_validation(exc: ValidationError) -> str:
@@ -65,4 +93,10 @@ def _resolve_category(ctx: typer.Context, category: str | None) -> str | None:
     return resolved
 
 
-__all__ = ["_bootstrap_staging", "_format_validation", "_resolve_category", "handle_cli_errors"]
+__all__ = [
+    "_bootstrap_staging",
+    "_build_app_context",
+    "_format_validation",
+    "_resolve_category",
+    "handle_cli_errors",
+]

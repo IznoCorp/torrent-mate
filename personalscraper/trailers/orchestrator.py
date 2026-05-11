@@ -44,6 +44,7 @@ from personalscraper.trailers.state import (
 )
 
 if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
     from personalscraper.scraper.trailer_finder import TrailerFinder
 
 log = get_logger(__name__)
@@ -126,15 +127,29 @@ class TrailersOrchestrator:
             :class:`_LibraryEntry`.  Populated on first need during run().
     """
 
-    def __init__(self, config: Any, staging_dir: Path | None) -> None:
+    def __init__(
+        self,
+        config: Any,
+        staging_dir: Path | None,
+        *,
+        event_bus: "EventBus | None" = None,
+    ) -> None:
         """Wire up Scanner, TrailerFinder, YtdlpDownloader, TrailerStateStore.
 
         Args:
             config: Loaded pipeline Config.
             staging_dir: Path to the staging area (for pipeline step) or None.
+            event_bus: Optional :class:`~personalscraper.core.event_bus.EventBus`
+                threaded from the trailers CLI command boundary (Sub-phase
+                2.5) or from the pipeline ``trailers`` step. The
+                orchestrator stores the reference for Phase 4
+                (``TrailerDownloaded`` emit) but does not emit yet.
+                ``None`` is accepted so direct callers (smoke scripts,
+                Phase 2 tests) keep working without wiring a bus.
         """
         self._config = config
         self._staging_dir = staging_dir
+        self._event_bus = event_bus
         self._failed_items: list[tuple[str, str, str]] = []
         self._item_results: list[tuple[str, str, str | None]] = []
 

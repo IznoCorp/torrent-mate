@@ -5,11 +5,15 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
 from personalscraper.indexer import cli as cli_compat
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus  # noqa: F401
 
 log = get_logger("indexer.cli")
 
@@ -26,6 +30,7 @@ def library_index_command(
     config_path: Path | None = None,
     confirm_bulk_change: bool = False,
     rebuild: bool = False,
+    event_bus: "EventBus | None" = None,
 ) -> int:
     """Run an indexer scan (full / quick / incremental / enrich) and print a JSON summary.
 
@@ -62,6 +67,12 @@ def library_index_command(
         rebuild: When ``True`` (``--rebuild``), bypass the corrupt-DB refusal:
             quarantine the existing DB if any and create a fresh one, then run
             a full Stage-A rescan from scratch.  DESIGN §17.1.
+        event_bus: Optional :class:`~personalscraper.core.event_bus.EventBus`
+            threaded from the launchd command boundary (Sub-phase 2.5). The
+            orchestrator stores the reference for Phase 4
+            (``LibraryIndexed`` emit) but does not emit yet. ``None`` is
+            accepted so direct callers (smoke scripts, programmatic
+            invocations) keep working without wiring a bus.
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error, ``2`` on unknown disk,
@@ -104,6 +115,11 @@ def library_index_command(
         rebuild=rebuild,
         no_budget=no_budget,
         config_path=str(config_path) if config_path else None,
+        # Sub-phase 2.5: ``event_bus`` is threaded from the launchd command
+        # boundary. Phase 4 reads it to emit ``LibraryIndexed``; until then
+        # we surface its presence in the structured log so observability
+        # confirms the bus reached the orchestrator.
+        has_event_bus=event_bus is not None,
     )
 
     # --- Load config ---
