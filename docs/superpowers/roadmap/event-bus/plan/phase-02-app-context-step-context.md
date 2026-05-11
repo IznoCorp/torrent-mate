@@ -307,14 +307,29 @@ The `personalscraper run` CLI command delegates to `commands/pipeline.py`. **The
 # any Typer command function it delegates to? If yes → "TOUCH-CLI";
 # if no → "SKIP-CLI" (the whole Config/Settings handling already lives in
 # commands/pipeline.py and cli.py merely wires Typer).
-if rg --type py 'config=|settings=|Config\(|Settings\(' personalscraper/cli.py | grep -q -v '^[^:]*:\s*#'; then
+#
+# Pipeline:
+#   1. rg with --no-filename --no-line-number emits pure CONTENT lines (no
+#      "path:lineno:" prefix), so the comment filter only needs to match
+#      "^\s*#" on the actual source text.
+#   2. grep -vE '^\s*#' drops comment-only lines (and lines starting with
+#      indented #). Multi-line docstrings containing Config( would still
+#      survive — accept this corner case; cli.py is small enough that the
+#      commit-body trailer (`cli_probe_result:`) makes the decision
+#      auditable for the reviewer.
+#   3. grep -q . exits 0 iff at least one non-comment match remains.
+if rg --type py --no-filename --no-line-number \
+      'config=|settings=|Config\(|Settings\(' \
+      personalscraper/cli.py 2>/dev/null \
+    | grep -vE '^\s*#' \
+    | grep -q .; then
   echo "TOUCH-CLI"
 else
   echo "SKIP-CLI"
 fi
 ```
 
-Record the result in the sub-phase commit body as a literal `cli_probe_result: TOUCH-CLI` or `cli_probe_result: SKIP-CLI` trailer line. The sub-phase implementation MUST follow whichever branch the probe returned — no agent improvisation.
+Record the result in the sub-phase commit body as a literal `cli_probe_result: TOUCH-CLI` or `cli_probe_result: SKIP-CLI` trailer line. The sub-phase implementation MUST follow whichever branch the probe returned — no agent improvisation. The reviewer cross-checks the trailer against the actual diff (if `SKIP-CLI` was recorded, the diff MUST NOT touch `cli.py`; if `TOUCH-CLI` was recorded, the diff MUST touch `cli.py`).
 
 - Modify: `tests/commands/test_pipeline.py` (and any sibling tests that exercise the CLI entry).
 
