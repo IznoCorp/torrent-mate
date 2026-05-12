@@ -480,9 +480,11 @@ class Pipeline:
             _CriticalStepError: If ``critical=True`` and fn raises.
         """
         # Bus is the sole emit path (Phase 3.7b).
+        # No companion ``log.info("step_started", step=name)`` — the
+        # StepStarted event carries the same ``step`` discriminator; per
+        # Sub-phase 3.8 audit, emit sites do not double-log.
         self._app.event_bus.emit(StepStarted(step=name))
 
-        self._log.info("step_started", step=name)
         t0 = time.monotonic()
         extra = None
         crashed = False

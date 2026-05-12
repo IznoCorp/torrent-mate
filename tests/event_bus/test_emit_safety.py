@@ -9,7 +9,6 @@ safe under all dispatch scenarios.
 from __future__ import annotations
 
 import logging
-import sys
 
 import pytest
 
@@ -144,24 +143,37 @@ def test_recursive_subscriber_caught_as_error_isolation(
     therefore caught by the bus's per-subscriber try/except. The bus logs an
     ``event_emit_failed`` WARNING and returns normally; subscribers MUST NOT
     subscribe to their own emit type.
+
+    The test simulates the recursion-limit hit with an explicit counter rather
+    than relying on ``sys.setrecursionlimit``: under ``-n auto`` workers the
+    pytest fixture/plugin stack is deep enough that an unbounded ``cb_loop``
+    can accumulate hundreds of traceback objects (``exc_info=True`` × depth)
+    before the recursion ceiling actually bottoms out, blowing the worker's
+    memory budget. The behavior under test — bus catches the exception, logs
+    ``event_emit_failed``, returns normally — is identical whether the
+    ``RecursionError`` came from a runtime stack overflow or an explicit raise.
     """
     bus = EventBus()
-    original_limit = sys.getrecursionlimit()
-    # Lower the recursion limit so the test bottoms out quickly even on
-    # interpreters with a generous default. 100 is well above any single
-    # frame's depth requirement and well below the default ~1000.
-    sys.setrecursionlimit(100)
-    try:
+    depth = [0]
+    max_depth = 10  # enough recursion to exercise re-entrant dispatch; well under any stack limit
 
-        def cb_loop(_event: Event) -> None:
-            bus.emit(_Foo())  # unbounded self-recursion
+    def cb_loop(_event: Event) -> None:
+        """Re-enters bus.emit a bounded number of times, then raises RecursionError.
 
-        bus.subscribe(_Foo, cb_loop)
-        with caplog.at_level(logging.WARNING):
-            bus.emit(_Foo())  # MUST NOT raise.
-        assert _has_structlog_event(caplog, "event_emit_failed")
-    finally:
-        sys.setrecursionlimit(original_limit)
+        The bus's per-subscriber try/except MUST catch the synthetic
+        ``RecursionError`` exactly as it would catch a real one, log the
+        warning, and unwind cleanly.
+        """
+        depth[0] += 1
+        if depth[0] >= max_depth:
+            raise RecursionError("simulated stack overflow")
+        bus.emit(_Foo())
+
+    bus.subscribe(_Foo, cb_loop)
+    with caplog.at_level(logging.WARNING):
+        bus.emit(_Foo())  # MUST NOT raise.
+    assert _has_structlog_event(caplog, "event_emit_failed")
+    assert depth[0] == max_depth, f"cb_loop should have re-entered exactly {max_depth} times, got {depth[0]}"
 
     # Subsequent emits without the loop subscriber work fine.
     bus = EventBus()  # fresh bus to drop cb_loop
