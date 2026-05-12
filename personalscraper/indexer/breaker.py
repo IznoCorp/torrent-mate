@@ -60,12 +60,11 @@ class DiskCircuitBreaker:
                 5 because a single EIO is already serious for disk I/O).
             cooldown_seconds: Seconds in OPEN state before allowing a retry.
                 Defaults to 300 (5 minutes).
-            event_bus: Optional :class:`EventBus` propagated to each lazily-
+            event_bus: Required :class:`EventBus` propagated to each lazily-
                 created per-disk :class:`CircuitBreaker` so disk-circuit
                 transitions emit :class:`CircuitBreakerOpened` /
                 :class:`CircuitBreakerClosed` /
-                :class:`CircuitBreakerHalfOpened`. Optional in Phase 4
-                (additive contract); required in Phase 5.2.
+                :class:`CircuitBreakerHalfOpened`.
         """
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds

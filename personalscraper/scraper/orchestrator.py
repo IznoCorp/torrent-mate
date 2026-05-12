@@ -57,11 +57,10 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
             config: Config for classification rules and paths. When provided,
                 classifier.classify() is called for every scraped item to assign
                 a category_id. When None, classification is skipped (legacy mode).
-            event_bus: Optional :class:`EventBus` forwarded to the TMDB/TVDB
+            event_bus: Required :class:`EventBus` forwarded to the TMDB/TVDB
                 HTTP transports so their circuit breakers emit
                 :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened`` on
-                transitions. Optional in Phase 4 (additive contract); Phase 5.2
-                tightens to required.
+                transitions.
         """
         self.settings = settings
         self.config = config

@@ -68,12 +68,11 @@ def library_index_command(
         rebuild: When ``True`` (``--rebuild``), bypass the corrupt-DB refusal:
             quarantine the existing DB if any and create a fresh one, then run
             a full Stage-A rescan from scratch.  DESIGN §17.1.
-        event_bus: Optional :class:`~personalscraper.core.event_bus.EventBus`
-            threaded from the launchd command boundary (Sub-phase 2.5). The
-            orchestrator stores the reference for Phase 4
-            (``LibraryIndexed`` emit) but does not emit yet. ``None`` is
-            accepted so direct callers (smoke scripts, programmatic
-            invocations) keep working without wiring a bus.
+        event_bus: Required :class:`~personalscraper.core.event_bus.EventBus`
+            threaded from the launchd command boundary. The scanner emits
+            :class:`LibraryScanCompleted` once per call; the bus is also
+            forwarded to ``open_db`` so the pre-open free-space guard can
+            emit :class:`DiskFullWarning`.
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error, ``2`` on unknown disk,

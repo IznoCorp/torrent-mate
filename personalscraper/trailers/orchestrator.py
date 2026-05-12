@@ -144,10 +144,9 @@ class TrailersOrchestrator:
                 threaded from the trailers CLI command boundary or from the
                 pipeline ``trailers`` step. The orchestrator emits
                 ``TrailerDownloaded`` events on it and forwards it to the
-                TMDB/YouTube transports + YouTube ``CircuitBreaker``.
-                Sub-phase 5.2 tightened the Phase 4 ``| None`` contract;
-                tests that don't care about emit can pass a fresh
-                ``EventBus()`` with no subscribers.
+                TMDB/YouTube transports + YouTube ``CircuitBreaker``. Tests
+                that don't care about emit can pass a fresh ``EventBus()``
+                with no subscribers.
         """
         self._config = config
         self._staging_dir = staging_dir

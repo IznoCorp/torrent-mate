@@ -42,7 +42,7 @@ def run_trailers(
         verified: List of items that passed the previous ``verify`` step. Items
             absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

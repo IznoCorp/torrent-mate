@@ -89,7 +89,7 @@ def run_dispatch(
         dry_run: If True, preview without transferring files.
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

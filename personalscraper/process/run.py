@@ -129,7 +129,7 @@ def run_clean(
         dry_run: If True, preview without modifying files.
         config: Loaded Config for staging dir name resolution.
             Derives movie/tvshow dir names from staging_dirs.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
@@ -199,7 +199,7 @@ def run_cleanup(
         dry_run: If True, preview without deleting.
         config: Loaded Config for staging dir name resolution.
             Derives movie/tvshow dir names from staging_dirs.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
@@ -253,7 +253,7 @@ def run_process(
         interactive: If True, prompt for ambiguous scrape matches.
         config: Loaded Config passed through to run_clean and run_cleanup
             for staging dir name resolution.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

@@ -199,10 +199,9 @@ def check_free_space(
     Args:
         path: The DB path whose parent partition is checked.
         expected_growth_bytes: Estimated number of bytes the indexer will write.
-        event_bus: Optional :class:`EventBus`. When the free-space check
+        event_bus: Required :class:`EventBus`. When the free-space check
             fails, a :class:`DiskFullWarning` is emitted before
-            :class:`IndexerDiskFullError` is raised. Optional in Phase 4
-            (additive contract); required in Phase 5.2.
+            :class:`IndexerDiskFullError` is raised.
 
     Raises:
         IndexerDiskFullError: When available space is below the safety threshold.
@@ -261,10 +260,9 @@ def open_db(
         rebuild: When ``True``, a corrupt existing DB is quarantined and a
             fresh empty DB is created.  When ``False`` (default), corruption
             raises :class:`IndexerCorruptError` immediately.
-        event_bus: Optional :class:`EventBus` forwarded to
+        event_bus: Required :class:`EventBus` forwarded to
             :func:`check_free_space` so the pre-open free-space guard emits
-            :class:`DiskFullWarning` on threshold violation. Optional in
-            Phase 4 (additive contract); required in Phase 5.2.
+            :class:`DiskFullWarning` on threshold violation.
 
     Returns:
         An open :class:`sqlite3.Connection` with all PRAGMAs applied.

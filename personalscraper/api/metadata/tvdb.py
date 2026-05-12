@@ -75,10 +75,10 @@ class TVDBClient(MetadataClient):
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
             language: Default language for API queries (2-char pipeline code, e.g. "fr").
             circuit: Optional custom CircuitPolicy override for bootstrap + main transport.
-            event_bus: Optional :class:`EventBus` propagated to the bootstrap
+            event_bus: Required :class:`EventBus` propagated to the bootstrap
                 and main HTTP transports so their circuit breakers emit
                 :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened``
-                on transitions. Optional in Phase 4; required in Phase 5.2.
+                on transitions.
         """
         self._api_key = api_key
         self._tvdb_lang = map_language(language)

@@ -46,7 +46,7 @@ def run_sort(
         staging_dir: Absolute path to the staging area (from Config.paths).
         config: Loaded Config instance (required) for staging_dirs and path resolution.
         dry_run: If True, simulate moves without actually moving.
-        event_bus: Optional in-process EventBus. Each per-item lifecycle
+        event_bus: Required in-process EventBus. Each per-item lifecycle
             transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

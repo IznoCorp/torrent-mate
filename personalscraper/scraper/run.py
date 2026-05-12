@@ -162,7 +162,7 @@ def run_scrape(
         interactive: If True, prompt user for ambiguous matches.
         movies_only: If True, process only {movies_dir}/.
         tvshows_only: If True, process only {tvshows_dir}/.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

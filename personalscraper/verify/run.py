@@ -65,7 +65,7 @@ def run_verify(
         fix: If True, attempt automatic corrections.
         movies_only: Process only {movies_dir}/.
         tvshows_only: Process only {tvshows_dir}/.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

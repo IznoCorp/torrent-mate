@@ -65,12 +65,10 @@ class Dispatcher:
             settings: Pipeline settings with numeric thresholds and credentials.
             index: Media index for existing media lookup.
             dry_run: If True, preview without modifying files.
-            event_bus: Optional :class:`EventBus`. When provided,
-                ``_movie.dispatch_movie`` and ``_tv.dispatch_tvshow`` emit
-                :class:`ItemDispatched` after every successful real
-                transfer (dry-run never emits, by design — the catalog
-                only records completed transfers). Optional in Phase 4;
-                required in Phase 5.2.
+            event_bus: Required :class:`EventBus`. ``_movie.dispatch_movie``
+                and ``_tv.dispatch_tvshow`` emit :class:`ItemDispatched`
+                after every successful real transfer (dry-run never emits,
+                by design — the catalog only records completed transfers).
 
         Raises:
             DispatchError: If rsync is not available.

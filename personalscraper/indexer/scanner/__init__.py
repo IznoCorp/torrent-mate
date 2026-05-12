@@ -481,11 +481,10 @@ def scan(
             ``0`` disables the branch.  Sourced from
             ``IndexerScanConfig.paranoia_window_seconds``.  Default ``86400``
             (24 h).
-        event_bus: Optional :class:`EventBus`. When provided, exactly one
+        event_bus: Required :class:`EventBus`. Exactly one
             :class:`LibraryScanCompleted` event is emitted in the
             ``finally`` block — fires on success, partial failure, and
-            mid-scan exception alike. Optional in Phase 4 (additive
-            contract); required in Phase 5.2.
+            mid-scan exception alike.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,

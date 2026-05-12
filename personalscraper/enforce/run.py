@@ -36,7 +36,7 @@ def run_enforce(
         settings: Pipeline configuration.
         config: Config passed to the coherence checker for classifier rules.
         dry_run: If True, preview without modifying filesystem.
-        event_bus: Optional in-process EventBus. Each per-item
+        event_bus: Required in-process EventBus. Each per-item
         lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:

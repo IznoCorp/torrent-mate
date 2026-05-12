@@ -46,10 +46,8 @@ class HttpTransport:
             event_bus: Required :class:`EventBus` forwarded to the internal
                 :class:`CircuitBreaker` so transitions emit
                 :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened``.
-                Sub-phase 5.2 tightened the Phase 4 ``| None`` migration
-                contract; every call site, production or test, must pass an
-                explicit bus. Tests that don't care about emit can pass a
-                fresh ``EventBus()`` with no subscribers.
+                Tests that don't care about emit can pass a fresh
+                ``EventBus()`` with no subscribers.
         """
         self._policy = policy
         self._log = get_logger(f"api.{policy.provider_name.lower()}")

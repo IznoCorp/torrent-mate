@@ -13,15 +13,14 @@ State machine:
     HALF_OPEN →(success)→ CLOSED
     HALF_OPEN →(failure)→ OPEN
 
-Event-bus integration: every breaker carries a required ``EventBus``
-(Sub-phase 5.1 tightened the Phase 4 ``EventBus | None`` migration
-contract to ``EventBus``). State transitions emit
-:class:`CircuitBreakerOpened` / :class:`CircuitBreakerClosed` /
-:class:`CircuitBreakerHalfOpened` so subscribers (Telegram alerts, debug
-log, future Web UI) can react. The ContextVar ``current_correlation_id``
-is captured at event construction time, so trips inside a pipeline run
-carry that run's ``correlation_id`` even though the breaker itself is a
-long-lived singleton (DESIGN §ContextVar capture semantics).
+Event-bus integration: every breaker carries a required ``EventBus``.
+State transitions emit :class:`CircuitBreakerOpened` /
+:class:`CircuitBreakerClosed` / :class:`CircuitBreakerHalfOpened` so
+subscribers (Telegram alerts, debug log, future Web UI) can react. The
+ContextVar ``current_correlation_id`` is captured at event construction
+time, so trips inside a pipeline run carry that run's ``correlation_id``
+even though the breaker itself is a long-lived singleton (DESIGN
+§ContextVar capture semantics).
 """
 
 from __future__ import annotations

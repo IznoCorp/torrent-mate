@@ -43,12 +43,12 @@ def handle_disk_full(
     Args:
         conn: Open SQLite connection.
         exc: The ``OperationalError`` caught by the caller.
-        event_bus: Optional :class:`EventBus`. When supplied, a
-            :class:`DiskFullWarning` is emitted before the
-            :class:`IndexerDiskFullError` is raised. The exact free /
-            threshold byte counts are unavailable from the SQLite error
-            payload, so both fields use the ``0`` sentinel; the disk path
-            is derived from the connection's main DB file when possible.
+        event_bus: Required :class:`EventBus`. A :class:`DiskFullWarning`
+            is emitted before the :class:`IndexerDiskFullError` is raised.
+            The exact free / threshold byte counts are unavailable from
+            the SQLite error payload, so both fields use the ``0`` sentinel;
+            the disk path is derived from the connection's main DB file
+            when possible.
 
     Raises:
         IndexerDiskFullError: When the error is disk-related.
