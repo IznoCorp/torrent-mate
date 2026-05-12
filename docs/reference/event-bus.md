@@ -87,7 +87,10 @@ inert.
 ### `EventBus.emit(event: Event) -> None`
 
 Synchronously invoke every callback registered for any class in the
-event's MRO. Callbacks run in subscription order. A callback that
+event's MRO. Callback order is concrete-class-first then ancestor types,
+FIFO within each class — so a subscriber on `Event` runs after subscribers
+on `event.__class__` for the same emit (see `_resolve_mro_chain` in
+`personalscraper/core/event_bus.py`). A callback that
 raises is logged at `WARNING` (`event_emit_failed`) and isolated:
 later subscribers still receive the event. Re-entrant emits (a
 callback that calls `bus.emit` again) are supported — each emit gets
@@ -113,16 +116,19 @@ payload **without** the `_type` discriminator — e.g. debug logging.
 
 ### `event_to_envelope(event) -> dict[str, Any]`
 
-Wrap `event_to_dict(event)` with a top-level `_type` field equal to
-`type(event).__name__`. The envelope is what subscribers persist to an
-outbox / write to a wire protocol.
+Wrap `event_to_dict(event)` under a `"data"` key alongside a top-level
+`_type` discriminator equal to `type(event).__name__`. The envelope shape
+is exactly `{"_type": <class-name>, "data": {<payload>}}` — the payload
+is **nested**, never flattened. The envelope is what subscribers persist
+to an outbox / write to a wire protocol.
 
 ### `event_from_envelope(envelope: dict) -> Event`
 
 Inverse of `event_to_envelope`. Looks up `envelope["_type"]` in
 `_EVENT_CLASS_REGISTRY` (populated at import time by every event
-module) and reconstructs the instance. Raises `ValueError` for an
-unknown type.
+module), reads the payload from `envelope["data"]`, and reconstructs
+the instance. Raises `KeyError` (fail-loud) when `envelope["_type"]`
+is not in the registry.
 
 ### `current_correlation_id: ContextVar[str | None]`
 
@@ -146,21 +152,21 @@ The v1 catalog defines exactly 13 production event classes, all
 imported eagerly by `personalscraper.events` so they self-register
 before any envelope round-trip.
 
-| Class                      | Module                            | Payload fields                                                                           | Producer                                                  |
-| -------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `PipelineStarted`          | `personalscraper.pipeline_events` | `report: PipelineReport`                                                                 | `Pipeline.run` at entry                                   |
-| `PipelineEnded`            | `personalscraper.pipeline_events` | `report: PipelineReport`                                                                 | `Pipeline.run` at exit                                    |
-| `StepStarted`              | `personalscraper.pipeline_events` | `step: str`                                                                              | `Pipeline._run_step` around each step                     |
-| `StepCompleted`            | `personalscraper.pipeline_events` | `step: str`, `report: StepReport`, `elapsed_s: float`                                    | `Pipeline._run_step` on success                           |
-| `StepErrored`              | `personalscraper.pipeline_events` | `step: str`, `error_class: str`, `error_message: str`                                    | `Pipeline._run_step` on exception                         |
-| `ItemProgressed`           | `personalscraper.pipeline_events` | `step: str`, `item: str`, `status: str`, `details: dict`                                 | Every step's per-item lifecycle (ingest, sort, dispatch…) |
-| `ItemDispatched`           | `personalscraper.dispatch.events` | `source: Path`, `destination: Path`, `disk: str`, `action: str`                          | `Dispatcher._move_*` after successful transfer            |
-| `CircuitBreakerOpened`     | `personalscraper.core.circuit`    | `breaker: str`, `failure_count: int`, `last_error_class: str`, `last_error_message: str` | `CircuitBreaker.record_failure` on transition             |
-| `CircuitBreakerClosed`     | `personalscraper.core.circuit`    | `breaker: str`                                                                           | `CircuitBreaker.record_success` after recovery            |
-| `CircuitBreakerHalfOpened` | `personalscraper.core.circuit`    | `breaker: str`                                                                           | `CircuitBreaker.state` getter after cooldown elapses      |
-| `DiskFullWarning`          | `personalscraper.indexer.events`  | `disk_path: Path`, `free_bytes: int`, `threshold_bytes: int`                             | `check_free_space` and `handle_disk_full`                 |
-| `TrailerDownloaded`        | `personalscraper.trailers.events` | `media_path: Path`, `youtube_url: str`, `quality: str \| None`                           | `TrailersOrchestrator.run` success branch                 |
-| `LibraryScanCompleted`     | `personalscraper.indexer.events`  | `mode: str`, `scanned: int`, `errors: int`, `elapsed_s: float`                           | `indexer.scanner.scan` finally block                      |
+| Class                      | Module                            | Payload fields                                                                                       | Producer                                                                                           |
+| -------------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `PipelineStarted`          | `personalscraper.pipeline_events` | `report: PipelineReport`                                                                             | `Pipeline.run` at entry                                                                            |
+| `PipelineEnded`            | `personalscraper.pipeline_events` | `report: PipelineReport`                                                                             | `Pipeline.run` at exit                                                                             |
+| `StepStarted`              | `personalscraper.pipeline_events` | `step: str`                                                                                          | `Pipeline._run_step` around each step                                                              |
+| `StepCompleted`            | `personalscraper.pipeline_events` | `step: str`, `report: StepReport`, `elapsed_s: float`                                                | `Pipeline._run_step` on success                                                                    |
+| `StepErrored`              | `personalscraper.pipeline_events` | `step: str`, `error_class: str`, `error_message: str`                                                | `Pipeline._run_step` on exception                                                                  |
+| `ItemProgressed`           | `personalscraper.pipeline_events` | `step: str`, `item: str`, `status: str`, `details: dict`                                             | Every step's per-item lifecycle (ingest, sort, dispatch…)                                          |
+| `ItemDispatched`           | `personalscraper.dispatch.events` | `item: str`, `target_disk: Path`, `category_id: str`, `action: Literal["moved","merged","replaced"]` | `dispatch._movie.dispatch_movie` + `dispatch._tv.dispatch_tvshow` after a successful real transfer |
+| `CircuitBreakerOpened`     | `personalscraper.core.circuit`    | `breaker: str`, `failure_count: int`, `last_error_class: str`, `last_error_message: str`             | `CircuitBreaker.record_failure` on transition                                                      |
+| `CircuitBreakerClosed`     | `personalscraper.core.circuit`    | `breaker: str`                                                                                       | `CircuitBreaker.record_success` after recovery                                                     |
+| `CircuitBreakerHalfOpened` | `personalscraper.core.circuit`    | `breaker: str`                                                                                       | `CircuitBreaker.state` getter after cooldown elapses                                               |
+| `DiskFullWarning`          | `personalscraper.indexer.events`  | `disk_path: Path`, `free_bytes: int`, `threshold_bytes: int`                                         | `check_free_space` and `handle_disk_full`                                                          |
+| `TrailerDownloaded`        | `personalscraper.trailers.events` | `media_path: Path`, `trailer_path: Path`, `source_url: str`                                          | `TrailersOrchestrator.run` success branch                                                          |
+| `LibraryScanCompleted`     | `personalscraper.indexer.events`  | `mode: str`, `scanned: int`, `errors: int`, `elapsed_s: float`                                       | `indexer.scanner._modes` emit inside the `scan()` finally block                                    |
 
 The set is pinned by `test_event_bus/test_event_registry.py::test_v1_catalog_matches_expected_13_events`; adding a new event requires extending both the registry and the test assertion in the same commit.
 
@@ -207,17 +213,19 @@ relay) need a deterministic JSON shape. The contract:
 | Anything else       | `repr(value)` — fail-safe so a forgotten coercion still serialises         |
 
 `event_to_dict(event)` produces a flat dict with the event's domain
-fields plus the four base fields. `event_to_envelope(event)` adds the
-top-level `_type` discriminator:
+fields plus the four base fields. `event_to_envelope(event)` wraps that
+flat dict under a `"data"` key and adds a top-level `_type` discriminator:
 
 ```json
 {
   "_type": "PipelineStarted",
-  "timestamp": "2026-05-12T16:23:11+00:00",
-  "event_id": "5e4c8b3d-d6c4-43d3-bc0e-7f5a9b8c1234",
-  "source": "personalscraper.pipeline_events.PipelineStarted",
-  "correlation_id": "run-20260512T1623",
-  "report": { ... }
+  "data": {
+    "timestamp": "2026-05-12T16:23:11+00:00",
+    "event_id": "5e4c8b3d-d6c4-43d3-bc0e-7f5a9b8c1234",
+    "source": "personalscraper.pipeline_events.PipelineStarted",
+    "correlation_id": "run-20260512T1623",
+    "report": { ... }
+  }
 }
 ```
 
@@ -255,22 +263,26 @@ round-trips when no run is bound.
 
 ### CLI bootstrap (`personalscraper run`)
 
-```python
-import structlog.contextvars
-from personalscraper.core.event_bus import current_correlation_id
+The actual bind/reset lives **inside** `Pipeline.run` (see
+`personalscraper/pipeline.py:225` for `set` and `:370` for `reset`), not
+in the CLI command itself. The CLI command is a thin wrapper that
+constructs `AppContext`, instantiates subscribers, and calls
+`pipeline.run(...)`; the ContextVar lifecycle is one layer down so
+every event constructed during the run captures the same `run_id`:
 
-run_id = datetime.now().isoformat(timespec="seconds")
-structlog.contextvars.bind_contextvars(run_id=run_id)
+```python
+# personalscraper/pipeline.py — inside Pipeline.run(...)
+run_id = uuid4().hex
 token = current_correlation_id.set(run_id)
 try:
-    pipeline.run(...)
+    # … emit PipelineStarted, run every step, emit PipelineEnded …
 finally:
     current_correlation_id.reset(token)
-    structlog.contextvars.clear_contextvars()
 ```
 
-The same `run_id` flows into both structlog (for log enrichment) and
-the event bus (for correlation-id capture on every emit).
+structlog's context binding (`bind_contextvars(run_id=...)`) is wired
+in parallel at the CLI boundary (`personalscraper/commands/pipeline.py`
+inside the `run` command) so log records also carry the same id.
 
 ### launchd scan bootstrap (`personalscraper library-index`)
 
@@ -384,7 +396,7 @@ class MyAlerter:
 If your subscriber needs to react to **every** event type, subscribe
 to `Event` (single subscription) — the bus's MRO walk routes every
 concrete subclass to your handler. `DebugLogSubscriber` is the
-canonical example (29 LOC total).
+canonical example — fewer than 40 non-blank lines.
 
 ## Testing patterns
 
@@ -393,7 +405,8 @@ no-op construction, subscribers are simple classes, and every event
 class has a real-data factory in
 `tests/fixtures/event_samples.py`. The patterns below are the
 canonical ones used across the test tree — copying them keeps new
-tests consistent with the existing ~4200-test suite.
+tests consistent with the existing project suite (run `make test` for
+the current count).
 
 There are four reusable infrastructures, each documented below: the
 `CollectingSubscriber` for emit assertions, the factories registry
@@ -472,11 +485,11 @@ per pipeline run without becoming a bottleneck.
   run on the emit thread; the bus is a multicast call, not a queue.
 
 The cost of an emit with one subscriber is dominated by the
-subscriber's callback. Even at 1000 `ItemProgressed` emits per run,
-the bus overhead is below 1 ms on a 2024 Apple Silicon machine
-(measured by `tests/perf/test_event_bus_overhead.py`). Don't optimise
-emit count — write the emit where the semantic transition happens,
-not "when convenient".
+subscriber's callback. The bus itself is a synchronous dispatch over
+the cached MRO chain — at the scale used by `ItemProgressed` (a few
+thousand emits per pipeline run) the overhead is irrelevant compared to
+the per-item I/O of the step itself. Don't optimise emit count — write
+the emit where the semantic transition happens, not "when convenient".
 
 ## Future evolution
 

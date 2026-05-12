@@ -115,11 +115,6 @@ def library_index_command(
         rebuild=rebuild,
         no_budget=no_budget,
         config_path=str(config_path) if config_path else None,
-        # Sub-phase 2.5: ``event_bus`` is threaded from the launchd command
-        # boundary. Phase 4 reads it to emit ``LibraryIndexed``; until then
-        # we surface its presence in the structured log so observability
-        # confirms the bus reached the orchestrator.
-        has_event_bus=event_bus is not None,
     )
 
     # --- Load config ---
