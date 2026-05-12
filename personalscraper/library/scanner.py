@@ -636,7 +636,7 @@ def scan_library(
     config: Config,
     conn: sqlite3.Connection,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> None:
     """Populate the indexer DB from a full walk of all mounted storage disks.
 
@@ -657,10 +657,9 @@ def scan_library(
     Args:
         config: Loaded pipeline :class:`~personalscraper.conf.models.Config`.
         conn: Open SQLite connection with all migrations applied.
-        event_bus: Optional :class:`EventBus` forwarded to the underlying
+        event_bus: Required :class:`EventBus` forwarded to the underlying
             indexer scan so disk-circuit and ``LibraryScanCompleted`` events
-            reach the run's subscribers. ``None`` materialises a fresh
-            unobserved bus (legacy callers / tests).
+            reach the run's subscribers.
     """
     now_s = int(time.time())
     disk_rows: list[DiskRow] = []
@@ -733,5 +732,5 @@ def scan_library(
             mode=ScanMode.full,
             generation=next_generation,
             conn=conn,
-            event_bus=event_bus if event_bus is not None else EventBus(),
+            event_bus=event_bus,
         )

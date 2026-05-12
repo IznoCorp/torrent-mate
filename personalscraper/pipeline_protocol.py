@@ -16,8 +16,7 @@ if TYPE_CHECKING:
 class StepContext:
     """Immutable context bundle passed to every pipeline step adapter.
 
-    Sub-phase 3.7b shape: the ``observers`` field is removed — the
-    :class:`EventBus` carried by ``ctx.app.event_bus`` is the sole emit
+    The :class:`EventBus` carried by ``ctx.app.event_bus`` is the sole emit
     substrate. Every step reads its config/settings via ``ctx.app.config``
     / ``ctx.app.settings``.
 

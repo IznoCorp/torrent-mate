@@ -160,7 +160,7 @@ def test_crash_recovery_uses_filesystem_scan(
     )
 
     # The DB-backed index must have an entry for the movie after dispatch.
-    post_index = MediaIndex(index_path)
+    post_index = MediaIndex(index_path, event_bus=EventBus())
     entry = post_index.find(folder, "movie")
     assert entry is not None, (
         f"MediaIndex should have an entry for '{folder}' after dispatch. Total entries in index: {post_index.count}"

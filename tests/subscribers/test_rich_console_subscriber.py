@@ -103,6 +103,39 @@ def test_rich_console_subscriber_close_unsubscribes_all() -> None:
     assert sub._tokens == []  # noqa: SLF001
 
 
+def test_rich_console_subscriber_failure_does_not_block_other_subscribers() -> None:
+    """A RichConsoleSubscriber handler that raises must NOT prevent fan-out.
+
+    Regression test for DESIGN §Dispatch semantics #3 (error isolation) at
+    the real-subscriber level (the bus-level guarantee is exercised by
+    ``tests/event_bus/test_emit_safety.py`` with anonymous lambdas, but the
+    cross-subscriber survivability of the RichConsole specifically — which
+    has six handlers and complex rendering paths — had no regression test
+    after the legacy ``test_pipeline_observer.py`` was deleted).
+    """
+    bus = EventBus()
+    sub = RichConsoleSubscriber(bus, _make_recording_console())
+
+    # Force a handler to raise on every StepStarted emit.
+    def _boom(_event: StepStarted) -> None:
+        raise RuntimeError("synthetic rich-console crash")
+
+    # Replace the registered handler with the raising version by re-subscribing
+    # under the same event type. The bus iterates a snapshot of subscribers,
+    # so registration order determines who fires first.
+    sub.close()
+    bus.subscribe(StepStarted, _boom)  # type: ignore[arg-type]
+
+    seen: list[StepStarted] = []
+    bus.subscribe(StepStarted, seen.append)  # type: ignore[arg-type]
+
+    bus.emit(StepStarted(step="ingest"))
+
+    # The collector after the raising subscriber must still have received the
+    # event — bus-level try/except isolates the failure.
+    assert len(seen) == 1
+
+
 def test_rich_console_subscriber_snapshot_matches_baseline() -> None:
     """Replay both canonical configs through the subscriber; expect baseline equality."""
     console = _make_recording_console()

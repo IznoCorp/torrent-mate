@@ -79,19 +79,18 @@ def library_index(
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
 
     # Build the process-scoped AppContext at the launchd command boundary
-    # (Sub-phase 2.5 — boundary-only rule from DESIGN §Architecture). The
-    # AppContext is built here even though ``library_index_command`` still
-    # loads its own ``Config`` from ``config_path`` for backward
-    # compatibility — only ``event_bus`` flows into the orchestrator
-    # (Phase 4 adds ``LibraryIndexed`` emits).
+    # (DESIGN §Architecture — boundary-only rule). Only ``event_bus`` flows
+    # into the orchestrator; ``library_index_command`` still loads its own
+    # ``Config`` from ``config_path``.
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is not None:
         settings = cli_compat.get_settings()
         app_context = _build_app_context(loaded_config, settings)
         event_bus = app_context.event_bus
     else:
-        # init-config path; never reached for library-index in practice. Fall back
-        # to a fresh unobserved bus so the required-bus contract holds (Sub-phase 5.2).
+        # init-config path: ``ctx.obj.config`` was never populated. Fresh
+        # unobserved bus keeps the required-bus contract local to this
+        # CLI entry point.
         event_bus = EventBus()
 
     # Bind a fresh ``run_id`` for the duration of the scan — every Event

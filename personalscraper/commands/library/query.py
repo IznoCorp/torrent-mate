@@ -3,26 +3,24 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import typer
 
 from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
-
-if TYPE_CHECKING:
-    from personalscraper.core.event_bus import EventBus
+from personalscraper.core.event_bus import EventBus
 
 
-def _resolve_event_bus_kwarg(ctx: typer.Context) -> "dict[str, EventBus]":
-    """Build the ``event_bus=...`` kwarg dict for an indexer command call.
+def _resolve_event_bus(ctx: typer.Context) -> EventBus:
+    """Resolve the :class:`EventBus` to forward to an indexer query command.
 
     When the global Typer context carries a loaded :class:`Config`, build an
     :class:`AppContext` and return its bus. When the config is unavailable
-    (e.g. ``init-config`` boundary in tests), return an empty dict so the
-    indexer command falls back to its internal default (a fresh unobserved
-    :class:`EventBus`).
+    (``init-config`` boundary in tests), construct a fresh unobserved bus at
+    this CLI boundary so the required-bus contract holds locally on the
+    indexer command — no silent bypass through optional kwargs.
 
     Read-only query commands (``library-status`` / ``library-search`` /
     ``library-show``) do not need a ``correlation_id`` binding — they emit
@@ -34,16 +32,16 @@ def _resolve_event_bus_kwarg(ctx: typer.Context) -> "dict[str, EventBus]":
         ctx: The active Typer context.
 
     Returns:
-        Either ``{"event_bus": <real bus>}`` or ``{}``.
+        An :class:`EventBus` (either the AppContext bus or a fresh one).
     """
     from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
 
     loaded_config = ctx.obj.config if ctx.obj is not None else None
     if loaded_config is None:
-        return {}
+        return EventBus()
     settings = cli_compat.get_settings()
     app_context = _build_app_context(loaded_config, settings)
-    return {"event_bus": app_context.event_bus}
+    return app_context.event_bus
 
 
 @app.command("library-status")
@@ -67,7 +65,7 @@ def library_status(
     # Prefer explicit --config passed to this sub-command; fall back to the
     # global --config stored on the app context.
     effective_config: Path | None = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_status_command(effective_config, **_resolve_event_bus_kwarg(ctx))
+    rc = library_status_command(effective_config, event_bus=_resolve_event_bus(ctx))
     raise typer.Exit(rc)
 
 
@@ -92,7 +90,7 @@ def library_search(
     from personalscraper.indexer.cli import library_search_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_search_command(query, limit=limit, config_path=effective_config, **_resolve_event_bus_kwarg(ctx))
+    rc = library_search_command(query, limit=limit, config_path=effective_config, event_bus=_resolve_event_bus(ctx))
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -115,6 +113,6 @@ def library_show(
     from personalscraper.indexer.cli import library_show_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_show_command(item_id, config_path=effective_config, **_resolve_event_bus_kwarg(ctx))
+    rc = library_show_command(item_id, config_path=effective_config, event_bus=_resolve_event_bus(ctx))
     if rc != 0:
         raise typer.Exit(rc)

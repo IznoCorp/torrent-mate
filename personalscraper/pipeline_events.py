@@ -1,12 +1,11 @@
-"""Pipeline-level event catalog — Sub-phase 3.1.
+"""Pipeline-level event catalog.
 
 Six events flow through the bus around every pipeline run:
 
 - :class:`PipelineStarted` / :class:`PipelineEnded` — outer lifecycle.
 - :class:`StepStarted` / :class:`StepCompleted` / :class:`StepErrored` —
   per-step lifecycle around each of the 9 pipeline steps.
-- :class:`ItemProgressed` — per-item progress notification (replaces the
-  legacy per-item observer channel).
+- :class:`ItemProgressed` — per-item progress notification.
 
 All six are frozen dataclasses inheriting from
 :class:`personalscraper.core.event_bus.Event`. ``kw_only=True`` is declared
@@ -106,10 +105,9 @@ class StepErrored(Event):
 class ItemProgressed(Event):
     """Emitted by a pipeline step for each item it processes.
 
-    Replaces the legacy per-item observer channel (deleted in Sub-phase 3.7b).
-    ``details`` MUST contain only JSON-safe
-    primitives (str, int, float, bool, None, list, dict) — the bus encoder
-    raises ``TypeError`` on anything else.
+    ``details`` MUST contain only JSON-safe primitives (str, int, float,
+    bool, None, list, dict) — the bus encoder raises ``TypeError`` on
+    anything else.
 
     Attributes:
         step: Step identifier emitting the progress (see :class:`StepStarted.step`).

@@ -3,7 +3,7 @@
 Subscribes once to :class:`Event`; the bus's MRO walk routes every concrete
 subclass to ``on_event``, which logs the JSON-safe payload (``event_to_dict``,
 no ``_type`` discriminator) at DEBUG via structlog. Wired by
-``personalscraper run --verbose`` (Sub-phase 5.4).
+``personalscraper run --verbose``.
 """
 
 from __future__ import annotations

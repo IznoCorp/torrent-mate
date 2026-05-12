@@ -17,7 +17,7 @@ def library_repair_command(
     *,
     budget_seconds: float = 60.0,
     config_path: Path | None = None,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> int:
     """Drain the repair queue within a wall-clock time budget.
 
@@ -28,9 +28,9 @@ def library_repair_command(
         budget_seconds: Maximum wall-clock seconds to spend draining.
             Default ``60.0`` seconds.
         config_path: Optional explicit path to config.json5 or config directory.
-        event_bus: Optional :class:`EventBus` forwarded to ``open_db`` so the
-            pre-open free-space guard emits ``DiskFullWarning`` on the CLI's
-            subscriber-wired bus. ``None`` materialises a fresh unobserved bus.
+        event_bus: Required :class:`EventBus` forwarded to ``open_db`` so the
+            pre-open free-space guard emits ``DiskFullWarning`` on the run's
+            subscriber-wired bus.
 
     Returns:
         ``0`` on completion (budget exhausted or queue empty), ``1`` on error.
@@ -72,7 +72,7 @@ def library_repair_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus if event_bus is not None else EventBus())
+        conn = open_db(db_path, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,

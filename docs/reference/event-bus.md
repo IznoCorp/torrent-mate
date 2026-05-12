@@ -36,17 +36,21 @@ The bus is process-scoped: every CLI invocation builds one
 `AppContext`, the AppContext holds one `EventBus`, and every component
 that emits or subscribes shares that bus by dependency injection. There
 is no module-level singleton in the production path — every emit site
-takes `event_bus: EventBus` as a required keyword argument (Sub-phase
-5.1 + 5.2 closed every `| None` migration site).
+takes `event_bus: EventBus` as a required keyword argument — every
+emit site is enforced by
+`tests/architecture/test_event_bus_required_signatures.py`.
 
 ## API reference
 
 Every public symbol of the bus lives in
 `personalscraper.core.event_bus`. The module is intentionally narrow:
 the three runtime primitives (`Event`, `EventBus`, `SubscriptionToken`),
-the four serialization helpers (`event_to_dict`, `event_to_envelope`,
-`event_from_envelope`, plus the `_EVENT_CLASS_REGISTRY` populated by
-event-module imports), and the `current_correlation_id` ContextVar.
+the three serialization helpers (`event_to_dict`, `event_to_envelope`,
+`event_from_envelope`), and the `current_correlation_id` ContextVar.
+The internal `_EVENT_CLASS_REGISTRY` (populated by
+`Event.__init_subclass__` when each event module is imported) is not
+part of the public surface — consumers reach event classes via the
+`personalscraper.events` package re-exports.
 
 The import surface intentionally matches what subscribers and emitters
 need — there are no helper factories, no event registry mutators, no
@@ -173,16 +177,15 @@ The set is pinned by `test_event_bus/test_event_registry.py::test_v1_catalog_mat
 ## Boundary-only AppContext rule
 
 `AppContext` is a frozen dataclass holding the three process-scoped
-singletons (`config`, `settings`, `event_bus`). The rule landed in
-Phase 2: only **CLI / launchd boundaries** are allowed to construct
-one. Domain modules receive what they need through their own
-constructor / function parameters; passing `AppContext` deeper is a
-design violation.
+singletons (`config`, `settings`, `event_bus`). Only **CLI / launchd
+boundaries** are allowed to construct one. Domain modules receive what
+they need through their own constructor / function parameters; passing
+`AppContext` deeper is a design violation.
 
-The rule is enforced by `tests/architecture/test_app_context_boundary.py`
-(landed in Sub-phase 2.6): an AST allowlist scan walks every source
-file, finds every `_build_app_context` call, and asserts it lives in a
-function listed in the allowlist. Currently the allowlist contains:
+The rule is enforced by `tests/architecture/test_app_context_boundary.py`:
+an AST allowlist scan walks every source file, finds every
+`_build_app_context` call, and asserts it lives in a function listed in
+the allowlist. Currently the allowlist contains:
 
 - `personalscraper.cli_helpers._build_app_context` (the constructor)
 - `personalscraper.cli.callback` (the typer top-level callback)
@@ -348,7 +351,7 @@ ContextVar resolves to the scan's `run_id` and the emitted
    `event_from_envelope` reconstructs an equal instance.
 6. **Update the v1 catalog table.** Append a row to the table in this
    document and to the design doc; bump the gate's expected event
-   count in Phase 5.6 §7.
+   count in the test registry assertion.
 
 ## Writing a new subscriber
 
@@ -412,17 +415,17 @@ There are four reusable infrastructures, each documented below: the
 `CollectingSubscriber` for emit assertions, the factories registry
 for parametrized tests over the full catalog, the AST boundary test
 for the AppContext rule, and the required-bus signature test for
-the Phase 5.2 contract. Reach for them before writing ad-hoc fakes
-— each one is gated by its own test so regressions are caught
+the required-bus contract. Reach for them before writing ad-hoc
+fakes — each one is gated by its own test so regressions are caught
 immediately.
 
 A general note on test hygiene: every `CircuitBreaker(...)` and
-every Phase 5.2-tightened entry point requires `event_bus=`
-explicitly. Pass `event_bus=EventBus()` from a fixture or inline
-when the test doesn't care about emit; the bus is so lightweight
-that per-test instances cost nothing. The audit greps at the Phase
-5 feature gate forbid any construction site without an explicit
-bus, so consistency here is mechanically enforced.
+every required-bus entry point requires `event_bus=` explicitly.
+Pass `event_bus=EventBus()` from a fixture or inline when the test
+doesn't care about emit; the bus is so lightweight that per-test
+instances cost nothing. The AST sweep test forbids any signature
+without an explicit required `event_bus`, so consistency is
+mechanically enforced.
 
 ### `CollectingSubscriber[E]`
 
@@ -461,11 +464,11 @@ qualified names actually exist (no stale entries).
 ### Required-bus signature test
 
 `tests/architecture/test_event_bus_required_signatures.py` parametrizes
-over every Phase 5.2 tightened site and asserts (a) `event_bus`
+over every required-bus site and asserts (a) `event_bus`
 parameter exists, (b) it has no default value, (c) the annotation
-excludes `None`. Adding a new emit site means adding it to the
-`REQUIRED_BUS_SITES` list so future regressions are caught
-in-process, not just by the gate-time grep.
+excludes `None`. The same module also runs an exhaustive AST sweep
+across `personalscraper/**/*.py` to catch any future regression
+outside the hand-maintained list.
 
 ## Performance notes
 

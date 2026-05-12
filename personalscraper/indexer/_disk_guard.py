@@ -1,10 +1,8 @@
 """Disk-full guard for the indexer SQLite database.
 
-Extracted from :mod:`personalscraper.indexer.db` in Sub-phase 4.2a as a
-pure mechanical move (zero behavior change). Sub-phase 4.2b added the
-required :class:`EventBus` parameter to :func:`handle_disk_full` so the
-disk-full path always emits :class:`DiskFullWarning` for cross-component
-reactions (Telegram alerts, future Web UI).
+:func:`handle_disk_full` takes a required :class:`EventBus` and emits
+:class:`DiskFullWarning` on every disk-full path so cross-component
+subscribers (Telegram alerts, future Web UI) react reliably.
 """
 
 from __future__ import annotations
@@ -63,10 +61,12 @@ def handle_disk_full(
         conn.commit()
     except sqlite3.Error as checkpoint_exc:
         # Best-effort secondary checkpoint — the disk-full path still raises
-        # IndexerDiskFullError. Log so a non-disk failure (locked schema,
-        # corrupted WAL header) leaves a trace for operators.
-        log.debug(
-            "indexer.db.disk_full_checkpoint_failed",
+        # IndexerDiskFullError. WARNING level so operators see the secondary
+        # failure (locked schema, corrupted WAL header) alongside the
+        # primary indexer.db.disk_full alert.
+        log.warning(
+            "indexer.db.disk_full_secondary_failure",
+            stage="wal_checkpoint",
             error=str(checkpoint_exc),
             error_type=type(checkpoint_exc).__name__,
         )
@@ -102,9 +102,15 @@ def _db_path_from_conn(conn: sqlite3.Connection) -> Path:
             if name == "main" and file_:
                 return Path(file_)
     except sqlite3.Error as exc:
-        # ``Path(".")`` will reach the DiskFullWarning subscriber — log so the
-        # operator can correlate the sentinel with the underlying lookup failure.
-        log.debug("indexer.db.disk_path_lookup_failed", error=str(exc))
+        # ``Path(".")`` will reach the DiskFullWarning subscriber — WARNING so
+        # the operator can correlate the sentinel with the underlying lookup
+        # failure during a disk-full incident.
+        log.warning(
+            "indexer.db.disk_full_secondary_failure",
+            stage="disk_path_lookup",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
     return Path(".")
 
 

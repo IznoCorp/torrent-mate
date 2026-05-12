@@ -1,18 +1,17 @@
-"""In-process typed event bus — Sub-phase 1.6 layer (Phase 1 complete).
+"""In-process typed event bus.
 
-Single substrate for cross-component asynchronous communication. Layers:
+Single substrate for cross-component asynchronous communication:
 
-- 1.1: ``Event`` frozen base + ``current_correlation_id`` ContextVar.
-- 1.2: ``SubscriptionToken`` + ``EventBus.subscribe`` / ``unsubscribe`` (COW).
-- 1.3: ``EventBus.emit`` — MRO-walking dispatch, MRO cache, fast path.
-- 1.4: per-subscriber try/except, ``event_emit_failed`` WARNING, snapshot
-       iteration (re-entrant subscribe/unsubscribe/emit are all safe).
-- 1.5: ``event_to_dict`` pure-payload JSON-safe encoder.
-- 1.6: ``event_to_envelope`` / ``event_from_envelope`` + class registry
-       (auto-populated via ``Event.__init_subclass__``, module-path
-       filtered per Invariant 9).
+- ``Event`` frozen base + ``current_correlation_id`` ContextVar.
+- ``SubscriptionToken`` + ``EventBus.subscribe`` / ``unsubscribe`` (COW).
+- ``EventBus.emit`` — MRO-walking dispatch, MRO cache, fast path.
+- per-subscriber try/except, ``event_emit_failed`` WARNING, snapshot
+  iteration (re-entrant subscribe/unsubscribe/emit are all safe).
+- ``event_to_dict`` pure-payload JSON-safe encoder.
+- ``event_to_envelope`` / ``event_from_envelope`` + class registry
+  (auto-populated via ``Event.__init_subclass__``, module-path filtered).
 
-See ``docs/features/event-bus/plan/phase-01-foundation.md``.
+See ``docs/reference/event-bus.md`` for the public API.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path, PurePath
-from typing import Any, get_args, get_origin
+from typing import Any, TypeVar, get_args, get_origin
 from uuid import UUID, uuid4
 
 from personalscraper.logger import get_logger
@@ -44,8 +43,7 @@ _EVENT_CLASS_REGISTRY: dict[str, type] = {}
 # and ``X | None`` (PEP 604) produce different ``get_origin`` results — the
 # former returns ``typing.Union``, the latter ``types.UnionType``. Treating
 # only one form silently broke datetime / dataclass round-trip whenever a
-# field used the modern ``X | None`` syntax (caught by Sub-phase 3.1
-# envelope round-trip on ``PipelineReport.finished_at: datetime | None``).
+# field used the modern ``X | None`` syntax (PEP 604).
 _UNION_ORIGINS: tuple[Any, ...] = (typing.Union, types.UnionType)
 
 # Module-path prefix considered "production" for registry inclusion.
@@ -123,13 +121,30 @@ def event_from_envelope(envelope: dict[str, Any]) -> Event:
 
 # JSON-safe encoder (1.5) — rules per DESIGN §JSON serialization contract:
 # datetime→ISO 8601, UUID→str, PurePath→str, Enum→value, dataclass→{field:
-# encoded(value)}, list/tuple→list, dict→dict (str/int/float/bool/None keys),
+# encoded(value)}, list/tuple→list, dict→dict (str keys only — int/float/bool
+# would round-trip back as strings, so the decoder cannot recover the key
+# type. Reject them at encode time rather than corrupting silently),
 # primitives unchanged. Anything else raises TypeError (fail-loud).
-_JSON_SAFE_KEY_TYPES: tuple[type, ...] = (str, int, float, bool, type(None))
 
 
 def event_to_dict(value: Any) -> Any:
-    """Recursively encode ``value`` to JSON-safe primitives (see contract above)."""
+    """Recursively encode ``value`` to JSON-safe primitives (see contract above).
+
+    Args:
+        value: Any value reachable from an :class:`Event` field.
+
+    Returns:
+        A JSON-safe representation: ``None`` / ``bool`` / ``int`` / ``float`` /
+        ``str`` pass through; ``datetime`` becomes an ISO 8601 string;
+        ``UUID`` / ``PurePath`` become strings; ``Enum`` becomes its ``.value``;
+        dataclasses become nested ``dict[str, Any]``; lists / tuples become
+        lists; dicts become dicts with ``str`` keys.
+
+    Raises:
+        TypeError: When *value* (or any nested value) is not JSON-safe, or
+            when a dict contains a non-string key (the decoder cannot recover
+            the original key type after a JSON round-trip).
+    """
     # bool checked before int (bool is a subclass of int in CPython).
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
@@ -146,12 +161,14 @@ def event_to_dict(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [event_to_dict(item) for item in value]
     if isinstance(value, dict):
-        out: dict[Any, Any] = {}
+        out: dict[str, Any] = {}
         for key, val in value.items():
-            if not isinstance(key, _JSON_SAFE_KEY_TYPES):
+            if not isinstance(key, str):
                 raise TypeError(
                     f"Cannot encode dict key of type {type(key).__name__} "
-                    f"for JSON serialization (allowed: str, int, float, bool, None)",
+                    f"for JSON serialization (only str keys are allowed; the "
+                    f"decoder cannot recover non-string key types after JSON "
+                    f"round-trip).",
                 )
             out[key] = event_to_dict(val)
         return out
@@ -173,7 +190,8 @@ UTC = timezone.utc
 # A pipeline run, indexer scan, or trailer-CLI invocation binds this ContextVar
 # at its outer boundary so every ``Event`` constructed inside that bound region
 # captures the correlation id at construction time. The value is *frozen on the
-# event*: emit does not re-read the ContextVar (see Sub-phase 1.7 tests).
+# event*: emit does not re-read the ContextVar (verified by the tests in
+# ``tests/event_bus/test_correlation_id.py``).
 #
 # Default ``None`` means "no correlation id" — events constructed outside any
 # bound region are still valid and carry ``correlation_id=None``.
@@ -183,13 +201,13 @@ current_correlation_id: ContextVar[str | None] = ContextVar(
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Event:
     """Base class for every typed event in the system.
 
     Concrete events inherit from ``Event`` and add their own typed fields.
-    Subclasses are auto-registered by ``__init_subclass__`` (added in
-    Sub-phase 1.6) and each must remain a ``@dataclass(frozen=True)``.
+    Subclasses are auto-registered by ``__init_subclass__`` and each must
+    remain a ``@dataclass(frozen=True, kw_only=True)``.
 
     Attributes:
         timestamp: UTC-aware construction time (default: ``datetime.now(UTC)``).
@@ -240,8 +258,8 @@ class Event:
 
         Thin alias for module-level ``event_to_dict(self)`` — provided as a
         method for ergonomic ``event.to_dict()`` calls in subscriber code.
-        Sub-phase 1.6 layers ``event_to_envelope`` on top to add the
-        ``{"_type", "data"}`` tag for cross-process / Web-UI consumers.
+        ``event_to_envelope`` layers a ``{"_type", "data"}`` tag on top
+        for cross-process / Web-UI consumers.
 
         Returns:
             A ``dict`` of JSON-safe primitives (the recursive encoding of
@@ -289,6 +307,12 @@ class SubscriptionToken:
 # so emit can safely iterate a captured snapshot under re-entrancy.
 _SubscriberEntry = tuple[SubscriptionToken, Callable[[Event], None]]
 
+# Bound TypeVar so ``EventBus.subscribe`` can express "the callback receives
+# the same concrete subclass passed as ``event_type``". This removes the
+# need for ``# type: ignore[arg-type]`` at every concrete subscriber call
+# site (e.g. ``bus.subscribe(StepStarted, self._on_step_started)``).
+E = TypeVar("E", bound="Event")
+
 
 class EventBus:
     """In-process typed event bus — single-process, single-thread by design.
@@ -306,18 +330,33 @@ class EventBus:
 
     def subscribe(
         self,
-        event_type: type[Event],
-        callback: Callable[[Event], None],
+        event_type: type[E],
+        callback: Callable[[E], None],
     ) -> SubscriptionToken:
-        """Register a callback; return a token for later ``unsubscribe``.
+        """Register *callback* against *event_type*; return a token for later ``unsubscribe``.
+
+        Generic in ``E`` so mypy infers that ``callback`` receives the same
+        concrete subclass passed as ``event_type``. This removes the need
+        for ``# type: ignore[arg-type]`` at concrete subscriber call sites.
 
         Subscriber-of-base semantics (subscribing to ``Event`` catches every
         concrete subclass) lives in ``emit``'s MRO walk.
+
+        Args:
+            event_type: The ``Event`` subclass to listen for.
+            callback: A callable receiving an instance of ``event_type``.
+
+        Returns:
+            An opaque :class:`SubscriptionToken` for ``unsubscribe``.
         """
         token = SubscriptionToken(_id=next(_token_id_counter), event_type=event_type)
         # Copy-on-write: previous tuple stays untouched for any in-flight emit.
         existing = self._subscribers.get(event_type, ())
-        self._subscribers[event_type] = (*existing, (token, callback))
+        # Cast to the wider ``Callable[[Event], None]`` for storage — emit
+        # only ever invokes callbacks with the concrete subclass instance
+        # the generic narrowed them to, so the dispatch is sound.
+        wider: Callable[[Event], None] = callback  # type: ignore[assignment]
+        self._subscribers[event_type] = (*existing, (token, wider))
         self._mro_cache.clear()
         return token
 
@@ -361,7 +400,9 @@ class EventBus:
         with zero allocations inside ``event_bus.py`` (DESIGN §Performance
         notes — verified by ``test_emit_no_subscribers_zero_allocation``).
 
-        Error isolation and re-entrant emit safety land in Sub-phase 1.4.
+        Error isolation: each callback invocation is wrapped in
+        ``try/except`` so a misbehaving subscriber never breaks dispatch
+        to the others (see the loop below).
 
         Args:
             event: The ``Event`` instance to dispatch.

@@ -1,4 +1,4 @@
-"""Dispatch event catalog — Sub-phase 4.3.
+"""Dispatch event catalog.
 
 Hosts :class:`ItemDispatched`, emitted by
 :mod:`personalscraper.dispatch._movie` and

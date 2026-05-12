@@ -1,8 +1,6 @@
-"""Sub-phase 3.2 — Pipeline.run emits ``PipelineStarted`` and ``PipelineEnded``.
+"""``Pipeline.run`` emits ``PipelineStarted`` and ``PipelineEnded``.
 
-The bus emits happen alongside the legacy ``_notify_observers`` channel
-(transition strategy in ``docs/features/event-bus/plan/phase-03-pipeline-events-migration.md``).
-This module locks the emit contract:
+The bus is the sole emit substrate. This module locks the emit contract:
 
 - Exactly one ``PipelineStarted`` per run, before the first step.
 - Exactly one ``PipelineEnded`` per run, even when a step raises.
@@ -205,6 +203,35 @@ class TestPipelineEndedEmitDefensive:
 
         # After the run, the bound ContextVar must be reset to its default.
         from personalscraper.core.event_bus import current_correlation_id
+
+        assert current_correlation_id.get() is None
+
+    def test_pre_emit_setup_failure_does_not_leak_correlation_id(self) -> None:
+        """``ensure_staging_tree`` raising must NOT leak ``current_correlation_id``.
+
+        Regression test for the pre-fix ``Pipeline.run`` shape where
+        ``current_correlation_id.set(...)`` ran BEFORE the ``try:`` block.
+        Any exception from ``ensure_staging_tree`` / ``PipelineReport()`` /
+        ``PipelineStarted`` construction / the initial emit would propagate
+        out of ``run`` without ever hitting the ``finally`` that resets the
+        token — leaking the binding into the calling task.
+        """
+        from personalscraper.core.event_bus import current_correlation_id
+
+        app = _stub_app()
+        pipeline = Pipeline(app)
+
+        # Make ``ensure_staging_tree`` raise — the very first call inside
+        # the new ``try:`` body. The exception must propagate to the caller
+        # (no swallowing), AND the ContextVar must be back to ``None``.
+        with (
+            patch(
+                "personalscraper.pipeline.ensure_staging_tree",
+                side_effect=RuntimeError("synthetic setup failure"),
+            ),
+            pytest.raises(RuntimeError, match="synthetic setup failure"),
+        ):
+            pipeline.run()
 
         assert current_correlation_id.get() is None
 

@@ -1,18 +1,18 @@
-"""Process-scoped service bundle — Sub-phase 2.1.
+"""Process-scoped service bundle.
 
 ``AppContext`` is the long-lived service container constructed once per
 process at the system boundary (CLI entry, launchd scan entry, future Web UI
 or Watcher boot). It carries the three services that EVERY pipeline run,
 indexer scan, or trailer-CLI invocation needs: ``config`` (the typed JSON5
 configuration), ``settings`` (Pydantic env-var settings), and ``event_bus``
-(the in-process EventBus from Sub-phase 1.2/1.3).
+(the in-process :class:`EventBus`).
 
 **Boundary-only rule** (DESIGN.md §Architecture, codified by the AST test
-landed in Sub-phase 2.6): internal components MUST NOT receive AppContext
-"for convenience". Inject the specific services they need (a ``Config``, a
-single ``MetadataClient``, etc.) — never the whole bundle. The allowlist of
-authorized boundary modules lives in
-``tests/architecture/test_app_context_boundary.py``.
+at ``tests/architecture/test_app_context_boundary.py``): internal
+components MUST NOT receive AppContext "for convenience". Inject the
+specific services they need (a ``Config``, a single ``MetadataClient``,
+etc.) — never the whole bundle. The allowlist of authorized boundary
+modules lives in the same test.
 """
 
 from __future__ import annotations
@@ -21,10 +21,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # Imported under TYPE_CHECKING to avoid a circular import: ``config`` and
-    # ``Settings`` may transitively import modules that reach back here as
-    # the AppContext usage spreads in Phase 2.2/2.3. The frozen dataclass
-    # stores them by reference; the runtime never inspects their types.
+    # Imported under TYPE_CHECKING to avoid a circular import: ``Config``
+    # and ``Settings`` may transitively import modules that reach back here.
+    # The frozen dataclass stores them by reference; the runtime never
+    # inspects their types.
     from personalscraper.conf.models.config import Config
     from personalscraper.config import Settings
     from personalscraper.core.event_bus import EventBus

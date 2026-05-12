@@ -1,4 +1,4 @@
-"""Trailer event catalog — Sub-phase 4.4.
+"""Trailer event catalog.
 
 Hosts :class:`TrailerDownloaded`, emitted by
 :mod:`personalscraper.trailers.orchestrator` after every successful

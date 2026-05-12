@@ -260,19 +260,17 @@ def test_run_lock_blocked(mock_lock):
 def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg, mock_tg_sub_init, mock_tg_sub_close):
     """TelegramSubscriber is constructed on the event bus when notifier is configured.
 
-    Sub-phase 3.6 contract: ``TelegramObserver`` has been replaced by
-    ``TelegramSubscriber`` which self-subscribes in ``__init__``. The CLI
-    bootstrap should still build it when ``TelegramNotifier.is_configured``
-    is True. The observers tuple passed to ``Pipeline.run`` is now empty
-    (DESIGN — both pipeline observers migrated to subscribers).
+    ``TelegramSubscriber`` self-subscribes in ``__init__`` against the
+    AppContext bus. The CLI bootstrap should build it when
+    ``TelegramNotifier.is_configured`` is True. ``Pipeline.run`` has no
+    ``observers`` kwarg — the bus is the sole emit substrate.
     """
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0, result.output
     assert mock_tg_sub_init.called, "TelegramSubscriber was not constructed"
     _, kwargs = mock_pipeline_run.call_args
-    observers = kwargs.get("observers", ())
-    assert tuple(observers) == (), f"observers tuple must be empty after 3.6, got {observers}"
+    assert "observers" not in kwargs, "Pipeline.run must not accept an observers kwarg"
 
 
 @patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
@@ -292,14 +290,13 @@ def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_cfg, mock_t
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
 @patch(_PATCH_PIPELINE_RUN)
 def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
-    """--headless flag yields an empty observers tuple AND skips subscribers."""
+    """``--headless`` skips subscriber construction and Pipeline.run still has no ``observers`` kwarg."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--headless"])
     assert result.exit_code == 0
     assert not mock_tg_sub_init.called, "--headless must skip TelegramSubscriber construction"
     _, kwargs = mock_pipeline_run.call_args
-    observers = kwargs.get("observers", ())
-    assert tuple(observers) == (), f"--headless must produce empty observer tuple, got {observers}"
+    assert "observers" not in kwargs, "Pipeline.run must not accept an observers kwarg"
 
 
 @patch(_PATCH_HC_CONFIGURED, return_value=True)

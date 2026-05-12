@@ -356,16 +356,15 @@ def run(
 
             from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-            # Build subscribers — both self-subscribe in their constructors.
-            # ``Pipeline.run`` no longer accepts an ``observers`` tuple; the bus is the
-            # sole emit substrate. ``--headless`` skips subscriber construction for silent
-            # cron / CI runs.
+            # Build subscribers — both self-subscribe in their constructors via the
+            # shared AppContext bus. ``--headless`` skips subscriber construction
+            # for silent cron / CI runs.
             rich_subscriber: RichConsoleSubscriber | None = None
             telegram_subscriber: TelegramSubscriber | None = None
             # ``--verbose`` activates the DebugLogSubscriber which logs every
-            # emitted event at DEBUG (Sub-phase 5.4). Registered independently
-            # of ``--headless`` so verbose log streams work even in cron / CI
-            # contexts that suppress Rich / Telegram output.
+            # emitted event at DEBUG. Registered independently of ``--headless``
+            # so verbose log streams work even in cron / CI contexts that
+            # suppress Rich / Telegram output.
             debug_subscriber: DebugLogSubscriber | None = None
             if verbose:
                 debug_subscriber = DebugLogSubscriber(app_context.event_bus)

@@ -84,11 +84,14 @@ class DiskCircuitBreaker:
     def set_event_bus(self, event_bus: EventBus) -> None:
         """Rebind the bus used by this registry and every per-disk breaker.
 
-        The module-level singleton :data:`_GLOBAL_DISK_BREAKER` is created
-        at import time with an unobserved bus. Calling this method from the
-        CLI boundary (after building the AppContext bus with subscribers)
-        ensures every disk-circuit transition reaches the run's subscribers
-        rather than disappearing into the import-time stub bus.
+        Calling this method from the CLI boundary (after building the
+        AppContext bus with subscribers) ensures every disk-circuit
+        transition reaches the run's subscribers rather than emitting
+        into the registry's previous bus.
+
+        The rebind acquires both the registry's lock AND each per-disk
+        breaker's lock so a concurrent ``record_failure`` / ``record_success``
+        cannot read a half-swapped ``_event_bus`` on any breaker.
 
         Args:
             event_bus: The :class:`EventBus` to use for future emits. Both
@@ -98,9 +101,13 @@ class DiskCircuitBreaker:
         with self._lock:
             self._event_bus = event_bus
             for breaker in self._breakers.values():
-                # Direct attribute write — :class:`CircuitBreaker` keeps
-                # ``_event_bus`` private but the rebind is intentional.
-                breaker._event_bus = event_bus  # noqa: SLF001
+                # Acquire each breaker's own lock so a concurrent
+                # ``record_failure`` / ``record_success`` cannot read a
+                # half-swapped ``_event_bus``. ``CircuitBreaker`` keeps
+                # both fields private; the noqa flags are intentional —
+                # the rebind needs them.
+                with breaker._lock:  # noqa: SLF001
+                    breaker._event_bus = event_bus  # noqa: SLF001
 
     # ------------------------------------------------------------------
     # Public API
@@ -119,9 +126,9 @@ class DiskCircuitBreaker:
             The :class:`CircuitBreaker` instance for this disk.
         """
         if disk_uuid not in self._breakers:
-            # ``CircuitBreaker.event_bus`` and ``DiskCircuitBreaker.event_bus`` are
-            # both required (Sub-phase 5.1 + 5.2). The per-disk breaker inherits the
-            # registry's bus directly.
+            # ``CircuitBreaker.event_bus`` and ``DiskCircuitBreaker.event_bus``
+            # are both required. The per-disk breaker inherits the registry's
+            # bus directly.
             self._breakers[disk_uuid] = CircuitBreaker(name=f"disk:{disk_uuid}", failure_threshold=self.failure_threshold, cooldown_seconds=self.cooldown_seconds, event_bus=self._event_bus)  # noqa: E501  # fmt: skip
         return self._breakers[disk_uuid]
 
@@ -189,8 +196,8 @@ class DiskCircuitBreaker:
             # failure while already OPEN). The synthetic last_error_* values
             # reflect the disk-I/O nature of the trip — DiskCircuitBreaker
             # doesn't carry an exception object, so we describe the trip
-            # condition. A dedicated DiskFullWarning (Sub-phase 4.2b) carries
-            # the path/threshold; this CircuitBreakerOpened carries the
+            # condition. A dedicated DiskFullWarning carries the
+            # path/threshold; this CircuitBreakerOpened carries the
             # disk-uuid breaker name.
             self._event_bus.emit(
                 CircuitBreakerOpened(
@@ -225,9 +232,8 @@ class DiskCircuitBreaker:
 
 #: Global singleton used by the scanner.  Tests that need isolation should
 #: instantiate :class:`DiskCircuitBreaker` directly and pass it to ``scan()``.
-#: ``DiskCircuitBreaker.event_bus`` is required (Sub-phase 5.2); the singleton
-#: is created at module-import time with an unobserved bus. Production
-#: callers reach the run's subscriber-wired bus by invoking
+#: The singleton is created at module-import time with an unobserved bus.
+#: Production callers reach the run's subscriber-wired bus by invoking
 #: :func:`bind_global_disk_breaker_to_bus` from the CLI boundary, which
 #: rebinds the singleton's ``_event_bus`` and that of every already-created
 #: per-disk breaker.

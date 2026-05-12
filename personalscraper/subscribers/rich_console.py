@@ -1,8 +1,8 @@
-"""Rich-console subscriber — replaces ``observers.rich_console.RichConsoleObserver``.
+"""Rich-console subscriber for the in-process EventBus.
 
 Self-subscribes to the six pipeline-lifecycle events on construction and
-renders progress to a ``rich.Console``. Visual output is byte-identical to
-the legacy observer (locked by ``tests/snapshots/rich_console_canonical.txt``).
+renders progress to a ``rich.Console``. Output is locked by the canonical
+snapshot ``tests/snapshots/rich_console_canonical.txt``.
 """
 
 from __future__ import annotations
@@ -62,12 +62,12 @@ class RichConsoleSubscriber:
         self._run_id: str | None = run_id if run_id else None
         self._bus = bus
         self._tokens: list[SubscriptionToken] = [
-            bus.subscribe(PipelineStarted, self._on_pipeline_started),  # type: ignore[arg-type]
-            bus.subscribe(PipelineEnded, self._on_pipeline_ended),  # type: ignore[arg-type]
-            bus.subscribe(StepStarted, self._on_step_started),  # type: ignore[arg-type]
-            bus.subscribe(StepCompleted, self._on_step_completed),  # type: ignore[arg-type]
-            bus.subscribe(StepErrored, self._on_step_errored),  # type: ignore[arg-type]
-            bus.subscribe(ItemProgressed, self._on_item_progressed),  # type: ignore[arg-type]
+            bus.subscribe(PipelineStarted, self._on_pipeline_started),
+            bus.subscribe(PipelineEnded, self._on_pipeline_ended),
+            bus.subscribe(StepStarted, self._on_step_started),
+            bus.subscribe(StepCompleted, self._on_step_completed),
+            bus.subscribe(StepErrored, self._on_step_errored),
+            bus.subscribe(ItemProgressed, self._on_item_progressed),
         ]
 
     def close(self) -> None:
@@ -100,7 +100,7 @@ class RichConsoleSubscriber:
         return icons.get(step, "")
 
     def _render_pipeline_start(self, report: PipelineReport) -> None:
-        """Print the pipeline banner (legacy ``on_pipeline_start`` rendering).
+        """Print the pipeline banner.
 
         Args:
             report: Freshly created ``PipelineReport`` with ``started_at``.
@@ -113,7 +113,7 @@ class RichConsoleSubscriber:
         )
 
     def _render_pipeline_end(self, report: PipelineReport) -> None:
-        """Print the final summary table (legacy ``on_pipeline_end`` rendering).
+        """Print the final summary table.
 
         Args:
             report: The completed ``PipelineReport`` with all step results.
@@ -140,12 +140,12 @@ class RichConsoleSubscriber:
         self.console.print(Panel(table, title=f"Pipeline {status_text} — {dur_str}", border_style="bold"))
 
     def _render_step_start(self, step: str) -> None:
-        """Print step header (legacy ``on_step_start`` rendering)."""
+        """Print step header."""
         icon = self._icon(step)
         self.console.print(f"\n{icon} [bold]{step.upper()}[/bold]", highlight=False)
 
     def _render_step_end(self, step: str, report: StepReport, elapsed: float) -> None:  # noqa: ARG002
-        """Print step summary line and verbose details (legacy ``on_step_end``)."""
+        """Print step summary line and verbose details."""
         elapsed_str = f"{elapsed:.1f}s"
         ok = report.success_count
         skip = report.skip_count
@@ -169,11 +169,11 @@ class RichConsoleSubscriber:
                 self.console.print(f"   [yellow]! {warning}[/yellow]", highlight=False)
 
     def _render_step_error(self, error_class: str, error_message: str) -> None:
-        """Print fatal error message (legacy ``on_step_error`` rendering)."""
+        """Print fatal error message."""
         self.console.print(f"   [red]FATAL: {error_class}: {error_message}[/red]", highlight=False)
 
     def _render_item_progress(self, step: str, item: str, status: str) -> None:
-        """Print per-item detail in verbose mode (legacy ``on_progress``)."""
+        """Print per-item detail in verbose mode."""
         if not self._verbose:
             return
         self.console.print(

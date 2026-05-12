@@ -221,9 +221,8 @@ def check_free_space(
         raise IndexerDiskFullError(path, free_bytes, required_bytes)
 
 
-# handle_disk_full was extracted to personalscraper.indexer._disk_guard in
-# Sub-phase 4.2a (pure mechanical move). Sub-phase 4.2b extends it with a
-# DiskFullWarning emit; see _disk_guard.py.
+# See ``personalscraper.indexer._disk_guard.handle_disk_full`` for the
+# disk-full recovery path (PRAGMA wal_checkpoint + DiskFullWarning emit).
 
 # ---------------------------------------------------------------------------
 # Core API

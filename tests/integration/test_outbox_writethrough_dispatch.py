@@ -254,7 +254,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
 
     # --- Build the MediaIndex (empty — new item, will be moved to disk1) ---
     index_path = tmp_path / "media.db"
-    index = MediaIndex(index_path)
+    index = MediaIndex(index_path, event_bus=EventBus())
 
     # --- Ensure data_dir exists ---
     test_config.paths.data_dir.mkdir(parents=True, exist_ok=True)

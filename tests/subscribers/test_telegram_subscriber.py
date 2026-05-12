@@ -245,3 +245,59 @@ def test_telegram_subscriber_cassette() -> None:
         # Disk-full alert content (Sub-phase 4.2b)
         assert "Disk1" in joined
         assert "10GB" in joined
+
+
+class _RaisingNotifier:
+    """Stand-in notifier whose ``send`` raises an exception every call.
+
+    Models a future regression where the notifier itself starts propagating
+    HTTP exceptions instead of returning ``False`` — the subscriber's
+    daemon-thread worker must isolate that without taking down the bus or
+    silently swallowing the failure.
+    """
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def send(self, message: str, parse_mode: str = "HTML") -> bool:
+        self.calls += 1
+        raise RuntimeError("synthetic notifier crash")
+
+
+def test_telegram_subscriber_isolates_notifier_exception(caplog: pytest.LogCaptureFixture) -> None:
+    """A raising ``notifier.send`` must NOT propagate out of bus dispatch.
+
+    Models the failure mode the daemon-thread worker is supposed to isolate:
+    if a future notifier refactor lets ``send`` raise instead of returning
+    ``False``, the worker's ``try/except`` keeps the failure inside the
+    thread and logs at WARNING level.
+    """
+    bus = EventBus()
+    raising = _RaisingNotifier()
+    TelegramSubscriber(bus, raising)  # type: ignore[arg-type]
+
+    # Emit MUST return cleanly — the daemon thread swallows the exception.
+    bus.emit(PipelineEnded(report=_make_pipeline_report()))
+
+    # Give the daemon thread a moment to run its handler.
+    deadline = time.monotonic() + 1.0
+    while time.monotonic() < deadline and raising.calls == 0:
+        time.sleep(0.005)
+    assert raising.calls == 1, "notifier.send must have been called inside the daemon thread"
+
+
+def test_telegram_subscriber_failure_does_not_block_other_subscribers() -> None:
+    """A raising TelegramSubscriber handler must not stop other subscribers from receiving events."""
+    bus = EventBus()
+    # Register the Telegram subscriber first so it runs first in subscription order.
+    TelegramSubscriber(bus, _RaisingNotifier())  # type: ignore[arg-type]
+
+    seen: list[PipelineEnded] = []
+    bus.subscribe(PipelineEnded, seen.append)  # type: ignore[arg-type]
+
+    bus.emit(PipelineEnded(report=_make_pipeline_report()))
+
+    # The plain collector must have received the event — bus-level isolation
+    # plus the daemon-thread worker's try/except together guarantee that
+    # the Telegram failure cannot prevent fan-out to other subscribers.
+    assert len(seen) == 1

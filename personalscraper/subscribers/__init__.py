@@ -1,4 +1,4 @@
-"""Event-bus subscribers — successor to ``personalscraper.observers``.
+"""Event-bus subscribers (auto-subscribed on construction).
 
 Subscribers self-subscribe to bus events in ``__init__`` and own their
 subscription tokens. Each one calls ``close()`` to unsubscribe on teardown.

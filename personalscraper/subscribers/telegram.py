@@ -1,12 +1,11 @@
-"""Telegram subscriber — replaces ``observers.telegram.TelegramObserver``.
+"""Telegram subscriber for the in-process EventBus.
 
 Self-subscribes on construction to :class:`PipelineEnded`,
-:class:`StepErrored`, :class:`CircuitBreakerOpened` (Sub-phase 4.1), and
-:class:`DiskFullWarning` (Sub-phase 4.2b). All handlers schedule the HTTP
-send off-thread so the bus dispatch returns in well under 50 ms even if
-Telegram is slow or unreachable (DESIGN §Performance contract — subscribers
-MUST be fast or schedule work off-thread; the bus has no async offload in
-v1).
+:class:`StepErrored`, :class:`CircuitBreakerOpened`, and
+:class:`DiskFullWarning`. All handlers schedule the HTTP send off-thread
+so the bus dispatch returns in well under 50 ms even if Telegram is slow
+or unreachable (DESIGN §Performance contract — subscribers MUST be fast
+or schedule work off-thread; the bus has no async offload in v1).
 """
 
 from __future__ import annotations
@@ -50,10 +49,10 @@ class TelegramSubscriber:
         self._bus = bus
         self._notifier = notifier
         self._tokens: list[SubscriptionToken] = [
-            bus.subscribe(PipelineEnded, self._on_pipeline_ended),  # type: ignore[arg-type]
-            bus.subscribe(StepErrored, self._on_step_errored),  # type: ignore[arg-type]
-            bus.subscribe(CircuitBreakerOpened, self._on_circuit_opened),  # type: ignore[arg-type]
-            bus.subscribe(DiskFullWarning, self._on_disk_full),  # type: ignore[arg-type]
+            bus.subscribe(PipelineEnded, self._on_pipeline_ended),
+            bus.subscribe(StepErrored, self._on_step_errored),
+            bus.subscribe(CircuitBreakerOpened, self._on_circuit_opened),
+            bus.subscribe(DiskFullWarning, self._on_disk_full),
         ]
 
     def close(self) -> None:
@@ -73,8 +72,24 @@ class TelegramSubscriber:
 
         The daemon flag ensures the worker dies with the interpreter so a
         hanging Telegram POST cannot prevent the pipeline from exiting.
+
+        The worker body is wrapped in a ``try/except`` so any uncaught
+        exception (e.g. a future refactor where the notifier itself raises
+        instead of returning ``False``) is logged at WARNING level rather
+        than disappearing silently into the daemon thread.
         """
-        threading.Thread(target=target, args=args, daemon=True).start()  # type: ignore[arg-type]
+
+        def _runner() -> None:
+            try:
+                target(*args)  # type: ignore[operator]
+            except Exception:
+                log.warning(
+                    "telegram_subscriber_worker_crashed",
+                    target=getattr(target, "__name__", repr(target)),
+                    exc_info=True,
+                )
+
+        threading.Thread(target=_runner, daemon=True).start()
 
     def _send_html(self, html: str) -> None:
         """Background-thread worker: HTML report send (fail-soft)."""

@@ -8,6 +8,7 @@ from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
 from personalscraper.conf.models.scraper import ScraperConfig
+from personalscraper.core.event_bus import EventBus
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -298,7 +299,7 @@ class TestRescrapeLibraryConfig:
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(config, settings, dry_run=True)
+            result = rescrape_library(config, settings, dry_run=True, event_bus=EventBus())
 
         assert result.items == []
         assert tmdb_client_cls.call_count == 1
@@ -1184,6 +1185,7 @@ class TestRescrapeLibraryOrchestrator:
                 self._settings(),
                 max_items=1,
                 dry_run=True,
+                event_bus=EventBus(),
             )
 
         assert ri.call_count == 1
@@ -1224,7 +1226,7 @@ class TestRescrapeLibraryOrchestrator:
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
 
         assert result.error_count == 1
         assert result.fixed_count == 0
@@ -1264,7 +1266,7 @@ class TestRescrapeLibraryOrchestrator:
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
 
         assert result.skipped_count == 1
 
@@ -1303,7 +1305,7 @@ class TestRescrapeLibraryOrchestrator:
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
 
         assert result.fixed_count == 1
         assert result.error_count == 0
@@ -1333,7 +1335,7 @@ class TestRescrapeLibraryOrchestrator:
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
 
         assert result.error_count == 1
         assert len(result.items) == 1
@@ -1359,7 +1361,7 @@ class TestRescrapeLibraryOrchestrator:
             patch("personalscraper.scraper.nfo_generator.NFOGenerator"),
             patch("personalscraper.scraper.artwork.ArtworkDownloader"),
         ):
-            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True)
+            result = rescrape_library(self._config(tmp_path), self._settings(), dry_run=True, event_bus=EventBus())
 
         assert result.fixed_count == 0
         assert result.skipped_count == 0

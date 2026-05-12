@@ -52,13 +52,11 @@ class Pipeline:
     complete fully before the next one starts. The dispatch phase
     only runs if verified items exist.
 
-    Sub-phase 2.3 shape: ``Pipeline.__init__`` accepts ONLY an
-    :class:`AppContext`. All run-scope flags (``dry_run``,
-    ``interactive``, ``verbose``), the observers tuple, the step
-    overrides, and the trailer-step toggles are moved to keyword-only
-    parameters on :meth:`run`. Each call to ``run`` generates a fresh
-    ``run_id`` and binds ``current_correlation_id`` to it for the
-    lifetime of the call.
+    ``Pipeline.__init__`` accepts ONLY an :class:`AppContext`. All
+    run-scope flags (``dry_run``, ``interactive``, ``verbose``), the step
+    overrides, and the trailer-step toggles are keyword-only parameters
+    on :meth:`run`. Each call to ``run`` generates a fresh ``run_id`` and
+    binds ``current_correlation_id`` to it for the lifetime of the call.
 
     Attributes:
         config: Shortcut for ``self._app.config`` (read-only property).
@@ -217,26 +215,25 @@ class Pipeline:
         self.skip_trailers = skip_trailers
         self.continue_on_trailer_error = continue_on_trailer_error
 
-        # Fresh per-run UUID + bind the ContextVar so any downstream
-        # ``Event`` constructed during this run captures it as its
-        # ``correlation_id``. The ``finally`` clause resets the token even
-        # on exception so a crashed run never leaks the binding.
+        # Fresh per-run UUID; bind it inside the ``try`` block so the
+        # ``finally`` reset is reached even if pre-emit setup raises
+        # (``ensure_staging_tree``, ``PipelineReport()`` construction, the
+        # ``PipelineStarted`` emit). Setting the ContextVar before ``try:``
+        # would leak the binding into the calling task on any of those
+        # exception paths.
         self._run_id = uuid4()
-        token = current_correlation_id.set(str(self._run_id))
-
-        # Bootstrap staging tree on first run (idempotent, no-op if already exists)
-        ensure_staging_tree(self.config)
-
         report = PipelineReport(started_at=datetime.now())
         extras: dict[str, Any] = {
             "skip_trailers": self.skip_trailers,
         }
 
-        # Bus is the sole emit path — the legacy observer protocol was
-        # removed in 0.13.0.
-        self._app.event_bus.emit(PipelineStarted(report=report))
-
+        token = current_correlation_id.set(str(self._run_id))
         try:
+            # Bootstrap staging tree on first run (idempotent, no-op if already exists)
+            ensure_staging_tree(self.config)
+
+            self._app.event_bus.emit(PipelineStarted(report=report))
+
             # Recover from previous interrupted run (best-effort, never blocks pipeline)
             if not self.dry_run:
                 try:
@@ -358,21 +355,20 @@ class Pipeline:
         finally:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
-            # Wrapped in a defensive try/except so an emit-side failure
-            # (event construction, runaway subscriber the bus did not catch)
-            # cannot prevent ``current_correlation_id.reset`` from running
-            # in the outermost finally; otherwise the ContextVar binding
-            # would leak into subsequent runs sharing the same task.
+            # Defensive try/except + nested finally so ``reset(token)`` runs
+            # even if the warning logger itself raises. The bus already
+            # isolates subscriber faults per-callback; only event construction
+            # itself (e.g. a malformed report) can land in the except branch.
             try:
-                self._app.event_bus.emit(PipelineEnded(report=report))
-            except Exception:
-                # The bus already isolates subscriber faults per-callback;
-                # only event construction itself (e.g. a malformed report)
-                # can land here. WARNING because the pipeline body completed
-                # — failure to emit the lifecycle event is observability rot,
-                # not a run-level failure.
-                self._log.warning("pipeline_ended_emit_failed", exc_info=True)
-            current_correlation_id.reset(token)
+                try:
+                    self._app.event_bus.emit(PipelineEnded(report=report))
+                except Exception:
+                    # WARNING because the pipeline body completed —
+                    # failure to emit the lifecycle event is observability
+                    # rot, not a run-level failure.
+                    self._log.warning("pipeline_ended_emit_failed", exc_info=True)
+            finally:
+                current_correlation_id.reset(token)
 
         return report
 

@@ -65,9 +65,7 @@ The `Dispatcher` class selects the target disk for new items via `conf.resolver.
 The pipeline broadcasts lifecycle and per-item activity through an
 in-process typed bus
 (`personalscraper.core.event_bus.EventBus`). The bus is the **sole**
-emit substrate — there is no parallel callback channel and no legacy
-per-item observer protocol (deleted in Phase 3 of the event-bus
-feature; archived material lives under `docs/archive/`).
+emit substrate — there is no parallel callback channel.
 
 For the full reference — wiring, the 13-event v1 catalog, subscriber
 recipes, the boundary-only `AppContext` rule, the

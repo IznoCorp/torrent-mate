@@ -1,4 +1,4 @@
-"""Indexer event catalog — Sub-phase 4.2b + 4.5.
+"""Indexer event catalog.
 
 Hosts the indexer-domain event classes emitted by:
 

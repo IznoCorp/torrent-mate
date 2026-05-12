@@ -58,10 +58,14 @@ def library_verify(
                 event_bus=app_context.event_bus,
             )
     else:
+        # init-config path: ``ctx.obj.config`` was never populated. Construct
+        # a fresh unobserved bus here at the CLI boundary so the contract
+        # (event_bus required at the indexer command surface) holds locally.
         rc = library_verify_command(
             disk=disk,
             budget_seconds=float(budget) if budget is not None else None,
             config_path=effective_config,
+            event_bus=EventBus(),
         )
     if rc != 0:
         raise typer.Exit(rc)
@@ -97,7 +101,13 @@ def library_repair(
                 event_bus=app_context.event_bus,
             )
     else:
-        rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
+        # init-config boundary (no loaded config). Fresh unobserved bus
+        # keeps the required-bus contract local to this CLI entry point.
+        rc = library_repair_command(
+            budget_seconds=float(budget),
+            config_path=effective_config,
+            event_bus=EventBus(),
+        )
     if rc != 0:
         raise typer.Exit(rc)
 

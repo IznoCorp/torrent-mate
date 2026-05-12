@@ -12,6 +12,7 @@ equivalent behaviour via ``add()`` / ``find()`` / ``count``.
 
 from pathlib import Path
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 
 # ---------------------------------------------------------------------------
@@ -24,7 +25,7 @@ class TestMediaIndexCRUD:
 
     def test_add_and_find_exact(self, tmp_path: Path) -> None:
         """Should find entries by exact normalized name."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="The Matrix (1999)",
@@ -40,7 +41,7 @@ class TestMediaIndexCRUD:
 
     def test_find_case_insensitive(self, tmp_path: Path) -> None:
         """Should find entries regardless of case."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="The Matrix (1999)",
@@ -55,7 +56,7 @@ class TestMediaIndexCRUD:
 
     def test_find_wrong_type_returns_none(self, tmp_path: Path) -> None:
         """Should not match if media_type differs."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Test",
@@ -69,7 +70,7 @@ class TestMediaIndexCRUD:
 
     def test_find_not_found(self, tmp_path: Path) -> None:
         """Should return None for unknown names."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         assert idx.find("Unknown Movie", "movie") is None
 
     def test_find_nfc_matches_nfd_entry(self, tmp_path: Path) -> None:
@@ -80,7 +81,7 @@ class TestMediaIndexCRUD:
         in _normalize_key, the same show would map to two distinct index
         keys, breaking exact lookup after a merge.
         """
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         nfd_name = "Top Chef Le Concours Paralle\u0300le (2026)"
         nfc_name = "Top Chef Le Concours Parall\u00e8le (2026)"
         assert nfd_name != nfc_name
@@ -99,7 +100,7 @@ class TestMediaIndexCRUD:
 
     def test_add_nfc_after_nfd_does_not_create_duplicate_key(self, tmp_path: Path) -> None:
         """Adding the NFC form of an NFD-keyed entry must update, not duplicate."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         nfd_name = "Acharne\u0301s (2023)"
         nfc_name = "Acharn\u00e9s (2023)"
         idx.add(
@@ -139,7 +140,7 @@ class TestMediaIndexPersistence:
 
     def test_save_and_load(self, tmp_path: Path) -> None:
         """Data added to one instance is visible in a second instance on the same DB."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Test",
@@ -150,18 +151,18 @@ class TestMediaIndexPersistence:
             )
         )
         # A second instance opening the same DB sees the entry.
-        idx2 = MediaIndex(tmp_path / "index.db")
+        idx2 = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         assert idx2.count == 1
         assert idx2.find("Test", "movie") is not None
 
     def test_missing_db_starts_empty(self, tmp_path: Path) -> None:
         """Opening with no prior DB creates an empty index."""
-        idx = MediaIndex(tmp_path / "nonexistent.db")
+        idx = MediaIndex(tmp_path / "nonexistent.db", event_bus=EventBus())
         assert idx.count == 0
 
     def test_add_commits_without_temp_files(self, tmp_path: Path) -> None:
         """Adding an entry commits through SQLite without temporary JSON files."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Test",
@@ -176,7 +177,7 @@ class TestMediaIndexPersistence:
 
     def test_canonical_ids_round_trip(self, tmp_path: Path) -> None:
         """Entries must round-trip with canonical IDs."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Inception (2010)",
@@ -203,7 +204,7 @@ class TestCanonicalIdLoad:
 
     def test_canonical_ids_loaded_verbatim(self, tmp_path: Path) -> None:
         """Canonical-ID entries written via add() are returned unchanged by find()."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Inception (2010)",
@@ -245,7 +246,7 @@ class TestMediaIndexRebuild:
             categories=["movies", "tv_shows"],
         )
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         count = idx.rebuild([config])
 
         assert count == 3
@@ -260,7 +261,7 @@ class TestMediaIndexRebuild:
         (disk / "movies" / "Movie A").mkdir(parents=True)
 
         config = DiskConfig(id="my_nas", path=disk, categories=["movies"])
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.rebuild([config])
 
         entry = idx.find("Movie A", "movie")
@@ -294,7 +295,7 @@ class TestMediaIndexRebuild:
             "movies": CategoryConfig(folder_name="films"),
         }
 
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         count = idx.rebuild([config], categories=categories)
 
         assert count == 3
@@ -340,7 +341,7 @@ class TestMediaIndexRebuild:
             categories: dict[str, object] = {}  # no folder_name remapping needed
 
         # Pass a fresh DB path — library.db does not exist yet (empty first run).
-        idx = MediaIndex(tmp_path / "index.db", config=_StubConfig())  # type: ignore[arg-type]
+        idx = MediaIndex(tmp_path / "index.db", config=_StubConfig(), event_bus=EventBus())  # type: ignore[arg-type]
 
         # Auto-rebuild must have inserted the two media directories.
         assert idx.count == 2
@@ -348,7 +349,7 @@ class TestMediaIndexRebuild:
         assert idx.find("Fallout (2024)", "tvshow") is not None
 
         # A second instantiation (rows now present) must NOT trigger another rebuild.
-        idx2 = MediaIndex(tmp_path / "index.db")
+        idx2 = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         assert idx2.count == 2
 
     def test_rebuild_without_categories_falls_back_to_legacy(self, tmp_path: Path) -> None:
@@ -364,7 +365,7 @@ class TestMediaIndexRebuild:
         (disk / "series" / "Show B").mkdir(parents=True)  # Will be skipped — no mapping
 
         config = DiskConfig(id="drive_a", path=disk, categories=["movies", "tv_shows"])
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         count = idx.rebuild([config])  # no categories kwarg
 
         assert count == 1  # Only "movies" dir matched (folder_name == category_id)
@@ -382,7 +383,7 @@ class TestMediaIndexRemoveStale:
 
     def test_removes_nonexistent_paths(self, tmp_path: Path) -> None:
         """Should remove entries for paths that no longer exist."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Gone Movie",
@@ -417,7 +418,7 @@ class TestFuzzyGuards:
 
     def test_matrix_does_not_match_matrix_reloaded(self, tmp_path: Path) -> None:
         """'The Matrix' should NOT match 'The Matrix Reloaded' (length guard)."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="The Matrix Reloaded (2003)",
@@ -433,7 +434,7 @@ class TestFuzzyGuards:
 
     def test_alien_does_not_match_aliens(self, tmp_path: Path) -> None:
         """'Alien (1979)' should NOT match 'Aliens (1986)' (year + threshold)."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Aliens (1986)",
@@ -449,7 +450,7 @@ class TestFuzzyGuards:
 
     def test_jumanji_matches_jumanji(self, tmp_path: Path) -> None:
         """'Jumanji (1995)' SHOULD match 'Jumanji (1995)' in the index."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.add(
             IndexEntry(
                 name="Jumanji (1995)",
@@ -487,7 +488,7 @@ class TestMediaIndexConnectionLifecycle:
         constructor_db_path = tmp_path / "other_index" / "media_index.db"
         constructor_db_path.parent.mkdir()
 
-        with MediaIndex(constructor_db_path, config=_Config()) as idx:  # type: ignore[arg-type]
+        with MediaIndex(constructor_db_path, config=_Config(), event_bus=EventBus()) as idx:  # type: ignore[arg-type]
             idx.add(
                 IndexEntry(
                     name="Configured DB (2026)",
@@ -536,7 +537,7 @@ class TestMediaIndexConnectionLifecycle:
         fds_before = _open_fds()
 
         # Open via context manager, do a query, then exit.
-        with MediaIndex(db_path, config=None) as idx:
+        with MediaIndex(db_path, config=None, event_bus=EventBus()) as idx:
             idx.add(
                 IndexEntry(
                     name="Connection Test (2024)",
@@ -561,9 +562,43 @@ class TestMediaIndexConnectionLifecycle:
 
     def test_explicit_close_is_idempotent(self, tmp_path: Path) -> None:
         """Calling close() multiple times must not raise."""
-        idx = MediaIndex(tmp_path / "index.db")
+        idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
         idx.close()
         idx.close()  # Second call must be a no-op, not an exception.
+
+
+class TestMediaIndexBusPassthrough:
+    """``MediaIndex.__init__`` forwards its caller's bus into ``open_db``.
+
+    Regression test for the cycle-2 W1 finding: ``MediaIndex`` previously
+    accepted ``event_bus: EventBus | None = None`` and silently spun up a
+    fresh unobserved bus when the caller forgot the kwarg — silently
+    routing any ``DiskFullWarning`` to nowhere. The required-bus signature
+    guarantees the parameter is present; this test asserts the value is
+    actually forwarded to ``open_db`` (the only emit site reachable from
+    the constructor today).
+    """
+
+    def test_constructor_forwards_caller_bus_to_open_db(self, tmp_path: Path) -> None:
+        """The bus passed to ``MediaIndex(...)`` is the same object handed to ``open_db``."""
+        from unittest.mock import patch
+
+        bus = EventBus()
+        captured: dict[str, object] = {}
+
+        real_open_db = __import__(
+            "personalscraper.dispatch.media_index",
+            fromlist=["open_db"],
+        ).open_db
+
+        def _spy(db_path: Path, *, event_bus: EventBus) -> object:
+            captured["event_bus"] = event_bus
+            return real_open_db(db_path, event_bus=event_bus)
+
+        with patch("personalscraper.dispatch.media_index.open_db", side_effect=_spy):
+            MediaIndex(tmp_path / "index.db", event_bus=bus, auto_rebuild=False)
+
+        assert captured["event_bus"] is bus, "MediaIndex must forward the caller's bus to open_db, not a fresh one"
 
 
 def _fd_points_to(fd: int, path: str) -> bool:

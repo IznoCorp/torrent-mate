@@ -191,9 +191,9 @@ def test_scan_does_not_emit_when_no_event_bus(fs: "FakeFilesystem") -> None:
     Path(f"{mount}/x.mkv").write_text("d")
     disk = _insert_disk(conn, mount)
 
-    # No EventBus subscribed; we simply assert the call completes without
-    # raising. Scanner code paths that reference event_bus are guarded by
-    # ``if event_bus is not None``.
+    # Pass a fresh, unsubscribed EventBus (``scan()`` takes a required
+    # bus). With no subscribers attached the scan completes without
+    # emitting observable side effects.
     with patch(_GUARD_PATCH, return_value=None):
         result = scan([disk], ScanMode.quick, generation=1, conn=conn, event_bus=EventBus())
     assert result.status == "ok"

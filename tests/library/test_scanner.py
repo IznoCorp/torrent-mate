@@ -29,6 +29,7 @@ from personalscraper.conf.models.categories import CategoryConfig
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.models.disks import DiskConfig
 from personalscraper.conf.models.paths import PathConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.library.models import (
     ISSUE_ACTORS_DIR,
@@ -170,7 +171,7 @@ class TestScanLibraryPopulatesDB:
             (show / "season01-poster.jpg").write_bytes(b"\x00")
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         # --- media_item: 5 movies + 2 shows = 7 rows ---
         count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
@@ -208,7 +209,7 @@ class TestScanLibraryPopulatesDB:
         (movie / "Inception.nfo").write_text('<movie><uniqueid type="tmdb">27205</uniqueid></movie>')
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM media_item WHERE title = 'Inception'").fetchone()
@@ -238,7 +239,7 @@ class TestScanLibraryPopulatesDB:
         (show / "season01-poster.jpg").write_bytes(b"\x00")
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         item_row = conn.execute("SELECT id FROM media_item WHERE title = 'Fallout'").fetchone()
@@ -270,7 +271,7 @@ class TestScanLibraryPopulatesDB:
             (s01 / f"S01E0{ep}.mkv").write_bytes(b"\x00" * 100)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         ep_count = conn.execute("SELECT COUNT(*) FROM episode").fetchone()[0]
         assert ep_count == 5
@@ -283,7 +284,7 @@ class TestScanLibraryPopulatesDB:
 
         # Neither disk_a nor disk_b directories are created in the fake FS.
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
         assert count == 0
@@ -302,8 +303,8 @@ class TestScanLibraryPopulatesDB:
         (movie / "Dune.nfo").write_text('<movie><uniqueid type="tmdb">438631</uniqueid></movie>')
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         count = conn.execute("SELECT COUNT(*) FROM media_item").fetchone()[0]
         assert count == 1, f"expected 1 after two calls (upsert), got {count}"
@@ -321,7 +322,7 @@ class TestScanLibraryPopulatesDB:
         (movie / "NoNfo.mkv").write_bytes(b"\x00" * 1000)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT nfo_status FROM media_item WHERE title = 'NoNfo'").fetchone()
@@ -351,7 +352,7 @@ class TestScanLibraryPopulatesDB:
         (movie / "Tenet.nfo").write_text('<movie><uniqueid type="tmdb">577922</uniqueid></movie>')
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT id FROM media_item WHERE title = 'Tenet'").fetchone()
@@ -393,7 +394,7 @@ class TestScanLibraryPopulatesDB:
         (movie / ".DS_Store").write_text("")
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         item_row = conn.execute("SELECT id FROM media_item WHERE title = 'Dirty'").fetchone()
@@ -425,7 +426,7 @@ class TestScanLibraryPopulatesDB:
         actors_dir.mkdir()
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         item_row = conn.execute("SELECT id FROM media_item WHERE title = 'Cleaned'").fetchone()
@@ -443,7 +444,7 @@ class TestScanLibraryPopulatesDB:
         # User cleaned up: .actors/ is removed, then re-scans.
         actors_dir.rmdir()
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
 
         after = {
             r["type"]
@@ -473,10 +474,10 @@ class TestScanLibraryPopulatesDB:
         (movie / "Monotonic.nfo").write_text('<movie><uniqueid type="tmdb">999001</uniqueid></movie>')
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
             gen_after_first: int = conn.execute("SELECT MAX(generation) FROM scan_run").fetchone()[0] or 0
 
-            scan_library(scanner_config, conn)
+            scan_library(scanner_config, conn, event_bus=EventBus())
             gen_after_second: int = conn.execute("SELECT MAX(generation) FROM scan_run").fetchone()[0] or 0
 
         assert gen_after_first >= 1, f"first scan generation must be >= 1, got {gen_after_first}"

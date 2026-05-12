@@ -25,12 +25,11 @@ if TYPE_CHECKING:
 def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
     """Build the process-scoped :class:`AppContext` for a CLI invocation.
 
-    Constructed once per CLI command invocation at the boundary (Sub-phase
-    2.4 for ``personalscraper run``; Sub-phase 2.5 for the launchd
-    ``library-index`` command and the four ``trailers`` subcommands). The
-    :class:`EventBus` is a fresh in-process instance with zero
-    subscribers — subscriber wiring (RichConsoleSubscriber,
-    TelegramSubscriber, etc.) lands in Phase 3.5/3.6.
+    Constructed once per CLI command invocation at the boundary
+    (``personalscraper run``, the launchd ``library-index`` command, the
+    four ``trailers`` subcommands). The :class:`EventBus` is a fresh
+    in-process instance; subscriber wiring (``RichConsoleSubscriber``,
+    ``TelegramSubscriber``, …) is the caller's responsibility.
 
     Args:
         config: The typed JSON5 configuration loaded by ``cli.main``.
@@ -54,7 +53,7 @@ def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppCon
     Typer subcommands (``ingest``, ``sort``, ``scrape``, ``verify``,
     ``enforce``, ``dispatch``, ``process``) so every event emitted during
     a standalone subcommand carries a correlation_id and lands on a bus
-    consistent with ``personalscraper run`` (review finding I1).
+    consistent with ``personalscraper run``.
 
     Args:
         config: Loaded JSON5 configuration.

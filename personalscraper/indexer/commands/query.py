@@ -13,7 +13,7 @@ from personalscraper.logger import get_logger
 log = get_logger("indexer.cli")
 
 
-def library_status_command(config_path: Path | None = None, *, event_bus: EventBus | None = None) -> int:
+def library_status_command(config_path: Path | None = None, *, event_bus: EventBus) -> int:
     """Print a tabular summary of disk inventory, scan health, and queue depths.
 
     Loads the PersonalScraper config, opens (or creates) the indexer database,
@@ -39,10 +39,9 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
         config_path: Optional explicit path to the config directory. When
             ``None`` the standard resolution order is used
             (``$PERSONALSCRAPER_CONFIG``, then ``./config``).
-        event_bus: Optional :class:`EventBus` forwarded to ``open_db`` so
+        event_bus: Required :class:`EventBus` forwarded to ``open_db`` so
             the pre-open free-space guard emits ``DiskFullWarning`` on the
-            CLI's subscriber-wired bus. ``None`` materialises a fresh
-            unobserved bus (test / direct-import convenience).
+            run's subscriber-wired bus.
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error or unhealthy state.
@@ -105,7 +104,7 @@ def library_status_command(config_path: Path | None = None, *, event_bus: EventB
     # --- Open DB and apply pending migrations ---
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus if event_bus is not None else EventBus())
+        conn = open_db(db_path, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,
@@ -224,7 +223,7 @@ def library_verify_command(
     disk: str | None = None,
     budget_seconds: float | None = None,
     config_path: Path | None = None,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> int:
     """Re-stat every indexed file and escalate mismatches to the repair queue.
 
@@ -239,10 +238,9 @@ def library_verify_command(
             preserved when the budget is exhausted; the next invocation
             resumes from rows whose ``last_verified_at`` is older than this run.
         config_path: Optional explicit path to config.json5 or config directory.
-        event_bus: Optional :class:`EventBus` forwarded to ``open_db`` + the
+        event_bus: Required :class:`EventBus` forwarded to ``open_db`` + the
             verify-mode scan so disk-circuit and ``DiskFullWarning`` emits
-            reach the CLI's subscriber-wired bus. ``None`` materialises a
-            fresh unobserved bus.
+            reach the run's subscriber-wired bus.
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error, ``2`` on unknown disk.
@@ -293,7 +291,7 @@ def library_verify_command(
         with indexer_lock(db_path, timeout=0):
             try:
                 db_path.parent.mkdir(parents=True, exist_ok=True)
-                conn = open_db(db_path, event_bus=event_bus if event_bus is not None else EventBus())
+                conn = open_db(db_path, event_bus=event_bus)
             except (
                 IndexerLockError,
                 IndexerCorruptError,
@@ -354,7 +352,7 @@ def library_verify_command(
                     budget_seconds=budget_seconds,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
-                    event_bus=event_bus if event_bus is not None else EventBus(),
+                    event_bus=event_bus,
                 )
 
                 summary = {
@@ -383,7 +381,7 @@ def library_search_command(
     *,
     limit: int = 50,
     config_path: Path | None = None,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> int:
     """Execute a flex-attr query and print matching media items.
 
@@ -397,9 +395,9 @@ def library_search_command(
             ``"year:2024 disk:Disk1 -nfo:valid"``.
         limit: Maximum number of rows to return.  Defaults to 50.
         config_path: Optional explicit path to config.json5 or config directory.
-        event_bus: Optional :class:`EventBus` forwarded to ``open_db`` so the
-            pre-open free-space guard emits ``DiskFullWarning`` on the CLI's
-            subscriber-wired bus. ``None`` materialises a fresh unobserved bus.
+        event_bus: Required :class:`EventBus` forwarded to ``open_db`` so the
+            pre-open free-space guard emits ``DiskFullWarning`` on the run's
+            subscriber-wired bus.
 
     Returns:
         ``0`` on success (even with zero results), ``1`` on infrastructure error,
@@ -440,7 +438,7 @@ def library_search_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus if event_bus is not None else EventBus())
+        conn = open_db(db_path, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,
@@ -494,7 +492,7 @@ def library_show_command(
     item_id: int,
     *,
     config_path: Path | None = None,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> int:
     """Pretty-print all stored data for a single media item.
 
@@ -508,9 +506,9 @@ def library_show_command(
     Args:
         item_id: PK of the ``media_item`` to display.
         config_path: Optional explicit path to config.json5 or config directory.
-        event_bus: Optional :class:`EventBus` forwarded to ``open_db`` so the
-            pre-open free-space guard emits ``DiskFullWarning`` on the CLI's
-            subscriber-wired bus. ``None`` materialises a fresh unobserved bus.
+        event_bus: Required :class:`EventBus` forwarded to ``open_db`` so the
+            pre-open free-space guard emits ``DiskFullWarning`` on the run's
+            subscriber-wired bus.
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error, ``2`` if no item with
@@ -550,7 +548,7 @@ def library_show_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=event_bus if event_bus is not None else EventBus())
+        conn = open_db(db_path, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,

@@ -126,7 +126,7 @@ def test_dispatch_replaces_existing_movie(
     # Without this the dispatcher would treat the movie as "new" and try to move it
     # to the disk with most free space instead of replacing the existing folder.
     index_path = config.paths.data_dir / "library.db"
-    seed_index = MediaIndex(index_path)
+    seed_index = MediaIndex(index_path, event_bus=EventBus())
     seed_index.add(
         IndexEntry(
             name=folder,
@@ -166,7 +166,7 @@ def test_dispatch_replaces_existing_movie(
     assert not tmp_residue, f"Unexpected _tmp_dispatch_* residue on Disk1: {tmp_residue}"
 
     # The DB-backed index must have an updated entry for the movie after dispatch.
-    post_index = MediaIndex(index_path)
+    post_index = MediaIndex(index_path, event_bus=EventBus())
     entry = post_index.find(folder, "movie")
     assert entry is not None, (
         f"MediaIndex should have an entry for '{folder}' after replace. Total entries in index: {post_index.count}"

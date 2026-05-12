@@ -46,7 +46,7 @@ def _make_dispatcher(
     event_bus: EventBus | None = None,
 ) -> Dispatcher:
     """Build a :class:`Dispatcher` wired to a real :class:`MediaIndex` on tmp."""
-    idx = MediaIndex(tmp_path / "index.db")
+    idx = MediaIndex(tmp_path / "index.db", event_bus=EventBus())
     return Dispatcher(
         test_config,
         MagicMock(),

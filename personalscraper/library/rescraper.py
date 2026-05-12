@@ -553,7 +553,7 @@ def rescrape_library(
     dry_run: bool = True,
     max_items: int | None = None,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> LibraryRescrapeResult:
     """Rescrape library items that need repair.
 
@@ -574,10 +574,9 @@ def rescrape_library(
         interactive: If True, prompt for low-confidence matches.
         dry_run: If True, preview without modifying files.
         max_items: Maximum items to process. None = unlimited.
-        event_bus: Optional :class:`EventBus` propagated to TMDB/TVDB
+        event_bus: Required :class:`EventBus` propagated to TMDB/TVDB
             transports so circuit-breaker trips during a long rescrape
-            reach the run's Telegram / RichConsole subscribers. ``None``
-            materialises a fresh unobserved bus (legacy callers / tests).
+            reach the run's Telegram / RichConsole subscribers.
 
     Returns:
         LibraryRescrapeResult with per-item actions.
@@ -589,13 +588,12 @@ def rescrape_library(
     from personalscraper.scraper.nfo_generator import NFOGenerator  # noqa: PLC0415
 
     scraper_config = config.scraper
-    resolved_bus: EventBus = event_bus if event_bus is not None else EventBus()
     tmdb_policy = TMDBClient.policy(settings.tmdb_api_key)
     tmdb_client = TMDBClient(
-        transport=HttpTransport(tmdb_policy, event_bus=resolved_bus),
+        transport=HttpTransport(tmdb_policy, event_bus=event_bus),
         language=scraper_config.language,
     )
-    tvdb_client = TVDBClient(settings.tvdb_api_key, event_bus=resolved_bus)
+    tvdb_client = TVDBClient(settings.tvdb_api_key, event_bus=event_bus)
     # Pass db_path so write-through outbox publishes land in the user-configured
     # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).
     nfo_gen = NFOGenerator(db_path=config.indexer.db_path)

@@ -162,7 +162,7 @@ class MediaIndex:
         *,
         config: Config | None = None,
         auto_rebuild: bool = True,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
     ) -> None:
         """Open the configured indexer database.
 
@@ -181,18 +181,16 @@ class MediaIndex:
             auto_rebuild: Whether to rebuild an empty DB during construction.
                 Dry-run callers disable this and wrap any preview rebuild in a
                 rollbackable savepoint.
-            event_bus: Optional :class:`EventBus` forwarded to ``open_db`` so
-                its pre-open free-space guard can emit ``DiskFullWarning`` on
-                the run's subscriber-wired bus. ``None`` materialises a fresh
-                unobserved bus (test convenience); production callers
-                (``dispatch.run.run_dispatch``) pass the AppContext bus.
+            event_bus: Required :class:`EventBus` forwarded to ``open_db`` so
+                its pre-open free-space guard emits ``DiskFullWarning`` on
+                the run's subscriber-wired bus.
         """
         configured_db_path = getattr(getattr(config, "indexer", None), "db_path", None)
         if isinstance(configured_db_path, Path):
             db_path = configured_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
-        self._conn = open_db(db_path, event_bus=event_bus if event_bus is not None else EventBus())
+        self._conn = open_db(db_path, event_bus=event_bus)
         apply_migrations(self._conn, _MIGRATIONS_DIR)
 
         log.info("indexer.dispatch.opened", db_path=str(db_path))
