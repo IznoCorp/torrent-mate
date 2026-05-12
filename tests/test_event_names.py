@@ -27,6 +27,7 @@ import requests
 
 from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError
 from personalscraper.core.circuit import CircuitBreaker
+from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.ingest import run_ingest
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
@@ -180,7 +181,7 @@ class TestCircuitOpenedEvent:
         Args:
             caplog: Pytest log capture fixture.
         """
-        cb = CircuitBreaker(name="TMDB_test", failure_threshold=1, cooldown_seconds=30.0)
+        cb = CircuitBreaker(name="TMDB_test", failure_threshold=1, cooldown_seconds=30.0, event_bus=EventBus())
         with caplog.at_level(logging.WARNING, logger="circuit_breaker"):
             # ConnectionError is a circuit-eligible error (triggers the threshold)
             cb.record_failure(requests.exceptions.ConnectionError("connection refused"))

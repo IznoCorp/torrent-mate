@@ -690,12 +690,14 @@ class TrailersOrchestrator:
                 ),
             )
             tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy, event_bus=self._event_bus))
-            youtube_breaker = CircuitBreaker(
-                name="trailers_youtube",
-                failure_threshold=int(cb_cfg.youtube.errors_threshold),
-                cooldown_seconds=float(cb_cfg.youtube.cooldown_sec),
-                event_bus=self._event_bus,
-            )
+            # ``CircuitBreaker.event_bus`` is required (Sub-phase 5.1). Narrow
+            # the optional orchestrator bus to a real bus locally; standalone
+            # callers (smoke scripts, Phase 2 tests) that constructed the
+            # orchestrator without a bus get an unobserved bus here.
+            from personalscraper.core.event_bus import EventBus as _EventBus
+
+            yt_bus = self._event_bus if self._event_bus is not None else _EventBus()
+            youtube_breaker = CircuitBreaker(name="trailers_youtube", failure_threshold=int(cb_cfg.youtube.errors_threshold), cooldown_seconds=float(cb_cfg.youtube.cooldown_sec), event_bus=yt_bus)  # noqa: E501  # fmt: skip
 
             quota_cache = JsonTTLCache(cache_dir / "youtube_quota.json")
             yt_api_cfg = self._config.trailers.youtube_api

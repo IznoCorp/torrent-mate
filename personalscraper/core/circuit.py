@@ -13,14 +13,15 @@ State machine:
     HALF_OPEN →(success)→ CLOSED
     HALF_OPEN →(failure)→ OPEN
 
-Event-bus integration (Sub-phase 4.1): when an ``EventBus`` is injected,
-state transitions emit :class:`CircuitBreakerOpened` /
-:class:`CircuitBreakerClosed` / :class:`CircuitBreakerHalfOpened` so
-subscribers (Telegram alerts, debug log, future Web UI) can react. The
-ContextVar ``current_correlation_id`` is captured at event construction
-time, so trips inside a pipeline run carry that run's ``correlation_id``
-even though the breaker itself is a long-lived singleton (DESIGN
-§ContextVar capture semantics).
+Event-bus integration: every breaker carries a required ``EventBus``
+(Sub-phase 5.1 tightened the Phase 4 ``EventBus | None`` migration
+contract to ``EventBus``). State transitions emit
+:class:`CircuitBreakerOpened` / :class:`CircuitBreakerClosed` /
+:class:`CircuitBreakerHalfOpened` so subscribers (Telegram alerts, debug
+log, future Web UI) can react. The ContextVar ``current_correlation_id``
+is captured at event construction time, so trips inside a pipeline run
+carry that run's ``correlation_id`` even though the breaker itself is a
+long-lived singleton (DESIGN §ContextVar capture semantics).
 """
 
 from __future__ import annotations
@@ -117,7 +118,7 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         cooldown_seconds: float = 300.0,
         *,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
     ) -> None:
         """Initialize the circuit breaker in CLOSED state.
 
@@ -128,11 +129,12 @@ class CircuitBreaker:
                 carry an actionable ``breaker`` field for Telegram alerts.
             failure_threshold: Number of consecutive failures to trigger OPEN.
             cooldown_seconds: Seconds to wait before allowing a test call.
-            event_bus: Optional :class:`EventBus`. When provided, state
-                transitions emit :class:`CircuitBreakerOpened` /
-                :class:`CircuitBreakerClosed` / :class:`CircuitBreakerHalfOpened`.
-                Optional in Phase 4 (additive contract); Phase 5.2 tightens to
-                required.
+            event_bus: :class:`EventBus` used to publish state transitions
+                (:class:`CircuitBreakerOpened` / :class:`CircuitBreakerClosed`
+                / :class:`CircuitBreakerHalfOpened`). Required — every
+                construction site, production or test, must thread an
+                explicit bus. Tests that don't care about emit can pass
+                a fresh ``EventBus()`` with no subscribers.
         """
         self.name = name
         self.failure_threshold = failure_threshold
@@ -153,13 +155,12 @@ class CircuitBreaker:
         if self._state == CircuitState.OPEN and self._cooldown_elapsed():
             self._state = CircuitState.HALF_OPEN
             log.info("circuit_half_open", provider=self.name)
-            if self._event_bus is not None:
-                self._event_bus.emit(
-                    CircuitBreakerHalfOpened(
-                        source=f"core.circuit.{self.name}",
-                        breaker=self.name,
-                    ),
-                )
+            self._event_bus.emit(
+                CircuitBreakerHalfOpened(
+                    source=f"core.circuit.{self.name}",
+                    breaker=self.name,
+                ),
+            )
         return self._state
 
     def can_proceed(self) -> bool:
@@ -198,7 +199,7 @@ class CircuitBreaker:
         # bus (the catalog defines CircuitBreakerClosed as a transition event,
         # not a heartbeat). Long-lived breakers receive thousands of successes
         # per pipeline run; emitting on every one would flood subscribers.
-        if was_open and self._event_bus is not None:
+        if was_open:
             self._event_bus.emit(
                 CircuitBreakerClosed(
                     source=f"core.circuit.{self.name}",
@@ -226,22 +227,21 @@ class CircuitBreaker:
             self._state = CircuitState.OPEN
             self._opened_at = time.monotonic()
             log.warning("circuit_reopened", provider=self.name, error=str(exc))
-            if self._event_bus is not None:
-                # Re-trip from the half-open probe — the canonical failure
-                # count for this re-open is the configured threshold (the
-                # probe call is the "one and only" attempted recovery, and
-                # its failure constitutes a full trip regardless of
-                # self._failure_count which is not decremented when entering
-                # HALF_OPEN).
-                self._event_bus.emit(
-                    CircuitBreakerOpened(
-                        source=f"core.circuit.{self.name}",
-                        breaker=self.name,
-                        failure_count=self.failure_threshold,
-                        last_error_class=type(exc).__name__,
-                        last_error_message=str(exc),
-                    ),
-                )
+            # Re-trip from the half-open probe — the canonical failure
+            # count for this re-open is the configured threshold (the
+            # probe call is the "one and only" attempted recovery, and
+            # its failure constitutes a full trip regardless of
+            # self._failure_count which is not decremented when entering
+            # HALF_OPEN).
+            self._event_bus.emit(
+                CircuitBreakerOpened(
+                    source=f"core.circuit.{self.name}",
+                    breaker=self.name,
+                    failure_count=self.failure_threshold,
+                    last_error_class=type(exc).__name__,
+                    last_error_message=str(exc),
+                ),
+            )
             return
 
         self._failure_count += 1
@@ -254,16 +254,15 @@ class CircuitBreaker:
                 failure_count=self._failure_count,
                 cooldown_seconds=self.cooldown_seconds,
             )
-            if self._event_bus is not None:
-                self._event_bus.emit(
-                    CircuitBreakerOpened(
-                        source=f"core.circuit.{self.name}",
-                        breaker=self.name,
-                        failure_count=self._failure_count,
-                        last_error_class=type(exc).__name__,
-                        last_error_message=str(exc),
-                    ),
-                )
+            self._event_bus.emit(
+                CircuitBreakerOpened(
+                    source=f"core.circuit.{self.name}",
+                    breaker=self.name,
+                    failure_count=self._failure_count,
+                    last_error_class=type(exc).__name__,
+                    last_error_message=str(exc),
+                ),
+            )
 
     def reset(self) -> None:
         """Reset the circuit to CLOSED state.

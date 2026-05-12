@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.youtube_search import YoutubeSearch
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "youtube"
@@ -81,7 +82,7 @@ class TestYoutubeSearch:
             query_format="{title} {year} bande annonce",
             api_key="test-key",
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
 
     def test_returns_first_video_url(self, searcher: YoutubeSearch) -> None:
@@ -176,7 +177,7 @@ class TestYoutubeSearch:
             query_format="{title} {year} trailer",
             api_key="test-key",
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
         with patch("requests.Session.get", return_value=_fixture_response("search_fight_club.json")) as mock_get:
             s.search("Fight Club", 1999)
@@ -192,7 +193,7 @@ class TestYoutubeSearch:
             query_format="{title} {year} trailer",
             api_key="",  # empty → force fallback path
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
         with _patch_yt_dlp_no_result(), patch("requests.get") as mock_get:
             s.search("Fight Club", 1999)
@@ -205,7 +206,7 @@ class TestYoutubeSearch:
         from personalscraper.core.circuit import CircuitBreaker
         from personalscraper.scraper.json_ttl_cache import JsonTTLCache
 
-        breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999)
+        breaker = CircuitBreaker(name="youtube-test", failure_threshold=1, cooldown_seconds=9999, event_bus=EventBus())
         # Trip the circuit — record_failure only trips on circuit-eligible errors.
         # Use requests.exceptions.ConnectionError to ensure it counts.
         breaker.record_failure(_requests.exceptions.ConnectionError("down"))
@@ -231,7 +232,7 @@ class TestYoutubeSearch:
             query_format="{title} {year} trailer",
             api_key="test-key",
             quota_cache=quota,
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
             daily_quota_units=100,
             search_list_cost_units=100,
         )
@@ -252,7 +253,7 @@ class TestYoutubeSearch:
             query_format="{title} {year} trailer",
             api_key="",
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
 
         fake_ydl = MagicMock()
@@ -285,7 +286,7 @@ class TestYoutubeSearch:
             query_format="{title} {year} trailer",
             api_key="",
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
 
         import builtins
@@ -327,7 +328,7 @@ class TestFallbackExceptionSplit:
             query_format="{title} {year} trailer",
             api_key="",
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
 
     def test_fallback_keyerror_does_not_push_breaker(
@@ -417,7 +418,7 @@ class TestPrimarySearchRetry:
             query_format="{title} {year} bande annonce",
             api_key="test-key",
             quota_cache=JsonTTLCache(tmp_path / "quota.json"),
-            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60),
+            breaker=CircuitBreaker(name="youtube-test", failure_threshold=5, cooldown_seconds=60, event_bus=EventBus()),
         )
 
     def test_session_is_configured_with_retry_adapter(self, searcher: YoutubeSearch) -> None:

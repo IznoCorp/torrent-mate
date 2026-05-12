@@ -91,12 +91,15 @@ class DiskCircuitBreaker:
             The :class:`CircuitBreaker` instance for this disk.
         """
         if disk_uuid not in self._breakers:
-            self._breakers[disk_uuid] = CircuitBreaker(
-                name=f"disk:{disk_uuid}",
-                failure_threshold=self.failure_threshold,
-                cooldown_seconds=self.cooldown_seconds,
-                event_bus=self._event_bus,
-            )
+            # ``CircuitBreaker.event_bus`` is required (Sub-phase 5.1). Narrow
+            # the optional ``self._event_bus`` to a real bus locally; when the
+            # registry was constructed without a bus (module-level singleton,
+            # legacy tests), the per-disk breaker emits to an unobserved bus
+            # — effectively dropping events without breaking the contract.
+            from personalscraper.core.event_bus import EventBus as _EventBus
+
+            bus = self._event_bus if self._event_bus is not None else _EventBus()
+            self._breakers[disk_uuid] = CircuitBreaker(name=f"disk:{disk_uuid}", failure_threshold=self.failure_threshold, cooldown_seconds=self.cooldown_seconds, event_bus=bus)  # noqa: E501  # fmt: skip
         return self._breakers[disk_uuid]
 
     def is_open(self, disk_uuid: str) -> bool:
@@ -190,7 +193,11 @@ class DiskCircuitBreaker:
 
 #: Global singleton used by the scanner.  Tests that need isolation should
 #: instantiate :class:`DiskCircuitBreaker` directly and pass it to ``scan()``.
-_GLOBAL_DISK_BREAKER: DiskCircuitBreaker = DiskCircuitBreaker()
+#: ``event_bus=None`` keeps the singleton bus-less at module-import time; the
+#: per-disk :class:`CircuitBreaker` instances created lazily by
+#: :meth:`get_breaker` allocate their own unobserved :class:`EventBus` to
+#: satisfy the required-bus contract (Sub-phase 5.1).
+_GLOBAL_DISK_BREAKER: DiskCircuitBreaker = DiskCircuitBreaker(event_bus=None)
 
 
 def get_global_disk_breaker() -> DiskCircuitBreaker:

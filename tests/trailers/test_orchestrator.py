@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.trailers.orchestrator import TrailersOrchestrator, _LibraryEntry
 from personalscraper.trailers.scanner import ScanItem
 from personalscraper.trailers.state import TrailerStatus
@@ -866,7 +867,7 @@ class TestCircuitOpenCounter:
         tmdb_client = MagicMock()
         tmdb_client._fetch_videos_strict.side_effect = CircuitOpenError("tmdb-videos", 9999.0)
 
-        yt_breaker = CircuitBreaker(name="yt-integration", failure_threshold=5)
+        yt_breaker = CircuitBreaker(name="yt-integration", failure_threshold=5, event_bus=EventBus())
         yt_searcher = YoutubeSearch(
             "{title} {year} trailer",
             api_key="",

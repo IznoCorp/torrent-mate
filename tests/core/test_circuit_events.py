@@ -1,11 +1,11 @@
-"""Tests for :class:`CircuitBreaker` event emits — Sub-phase 4.1.
+"""Tests for :class:`CircuitBreaker` event emits — Sub-phase 4.1 + Sub-phase 5.1.
 
 Covers the three transition events (:class:`CircuitBreakerOpened`,
 :class:`CircuitBreakerClosed`, :class:`CircuitBreakerHalfOpened`), the
-``event_bus=None`` no-raise contract, the ``source`` derivation, the
-ContextVar-capture invariant for long-lived breakers (DESIGN §ContextVar
-capture semantics), and the registry/factory/envelope round-trip
-plumbing required for the Phase 4 gate.
+required-``event_bus`` signature contract (Sub-phase 5.1), the ``source``
+derivation, the ContextVar-capture invariant for long-lived breakers
+(DESIGN §ContextVar capture semantics), and the registry/factory/envelope
+round-trip plumbing required for the Phase 4 gate.
 """
 
 from __future__ import annotations
@@ -101,12 +101,34 @@ def test_circuit_breaker_reopen_from_half_open_emits_opened() -> None:
     assert opened_collector.received[1].failure_count == 2  # threshold value
 
 
-def test_circuit_breaker_without_bus_does_not_raise() -> None:
-    """Tripping a breaker constructed without ``event_bus`` must not raise."""
-    cb = CircuitBreaker(name="tmdb", failure_threshold=1)
-    cb.record_failure(_server_error_exc())  # would emit if a bus were attached
-    cb.record_success()  # would emit if a bus were attached
-    # Reaching this line is the assertion.
+def test_circuit_breaker_requires_event_bus() -> None:
+    """``CircuitBreaker.__init__`` requires ``event_bus`` (no default).
+
+    Sub-phase 5.1 tightens the migration-time ``event_bus: EventBus | None = None``
+    to ``event_bus: EventBus`` (required, no default). Every production and test
+    construction site must now pass an explicit bus — the absence-of-bus path
+    is no longer a supported contract.
+    """
+    import inspect
+
+    sig = inspect.signature(CircuitBreaker.__init__)
+    assert sig.parameters["event_bus"].default is inspect.Parameter.empty, (
+        "event_bus must have no default — make construction sites explicit"
+    )
+
+
+def test_circuit_breaker_event_bus_annotation_excludes_none() -> None:
+    """``CircuitBreaker.__init__`` annotates ``event_bus`` as ``EventBus``, not ``EventBus | None``.
+
+    Annotation-level guarantee that the ``| None`` migration contract has been
+    removed — mypy strict, tests, and the audit grep all rely on this shape.
+    """
+    import inspect
+
+    sig = inspect.signature(CircuitBreaker.__init__)
+    annotation = sig.parameters["event_bus"].annotation
+    annotation_str = str(annotation)
+    assert "None" not in annotation_str, f"event_bus annotation must not allow None; got {annotation_str!r}"
 
 
 def test_circuit_breaker_event_source_includes_name() -> None:

@@ -66,6 +66,7 @@ from unittest.mock import patch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.breaker import DiskCircuitBreaker
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.drift import (
@@ -834,7 +835,7 @@ def test_breaker_open_skips_disk_in_scan(tmp_path: Path) -> None:
     )
 
     # Isolate: use a fresh breaker with a low threshold so we can open it easily.
-    breaker = DiskCircuitBreaker(failure_threshold=1, cooldown_seconds=300.0)
+    breaker = DiskCircuitBreaker(failure_threshold=1, cooldown_seconds=300.0, event_bus=EventBus())
     breaker.record_failure(disk.uuid)  # threshold=1 → circuit OPEN after 1 failure
     assert breaker.is_open(disk.uuid), "Breaker must be open before the scan"
 
@@ -884,7 +885,7 @@ def test_breaker_records_failure_on_eio(tmp_path: Path) -> None:
     )
 
     # A single-failure threshold so one EIO is enough to open the circuit.
-    breaker = DiskCircuitBreaker(failure_threshold=1, cooldown_seconds=300.0)
+    breaker = DiskCircuitBreaker(failure_threshold=1, cooldown_seconds=300.0, event_bus=EventBus())
 
     eio_error = OSError(errno.EIO, "Input/output error", mount)
 
@@ -916,7 +917,7 @@ def test_breaker_recovers_on_success() -> None:
     5. Assert ``is_open`` is ``False`` (circuit CLOSED again).
     """
     disk_uuid = "uuid-RecoveryDisk"
-    breaker = DiskCircuitBreaker(failure_threshold=2, cooldown_seconds=300.0)
+    breaker = DiskCircuitBreaker(failure_threshold=2, cooldown_seconds=300.0, event_bus=EventBus())
 
     breaker.record_failure(disk_uuid)
     breaker.record_failure(disk_uuid)

@@ -46,7 +46,12 @@ class HttpTransport:
             event_bus: Optional :class:`EventBus` forwarded to the internal
                 :class:`CircuitBreaker` so transitions emit
                 :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened``.
-                Optional in Phase 4 (additive contract); required in Phase 5.2.
+                ``HttpTransport`` retains the ``| None`` migration contract
+                so legacy call sites (smoke scripts, direct test setups)
+                keep working; when ``None`` is passed, an isolated
+                ``EventBus()`` is created locally and the internal breaker
+                emits to it (no subscribers, no observers — events are
+                effectively dropped).
         """
         self._policy = policy
         self._log = get_logger(f"api.{policy.provider_name.lower()}")
@@ -57,12 +62,14 @@ class HttpTransport:
             self._session.headers[k] = v
         policy.auth.apply(self._session)
 
-        self._circuit = CircuitBreaker(
-            name=policy.provider_name,
-            failure_threshold=policy.circuit.failure_threshold,
-            cooldown_seconds=policy.circuit.cooldown_seconds,
-            event_bus=event_bus,
-        )
+        # ``CircuitBreaker.event_bus`` is required (Sub-phase 5.1). Locally
+        # narrow the optional argument to satisfy the contract; legacy callers
+        # that pass ``None`` still get a working transport, but their breaker
+        # transitions emit to an unobserved bus.
+        from personalscraper.core.event_bus import EventBus as _EventBus
+
+        bus = event_bus if event_bus is not None else _EventBus()
+        self._circuit = CircuitBreaker(name=policy.provider_name, failure_threshold=policy.circuit.failure_threshold, cooldown_seconds=policy.circuit.cooldown_seconds, event_bus=bus)  # noqa: E501  # fmt: skip
         self._rate_limiter = RateLimiter(policy.rate_limit.requests_per_second)
 
     # -- Public API ----------------------------------------------------------

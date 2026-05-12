@@ -15,6 +15,7 @@ from guessit.api import GuessitException
 from personalscraper.api._contracts import ApiError
 from personalscraper.api.metadata._base import EpisodeInfo, SeasonDetails
 from personalscraper.conf.models.scraper import ScraperConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.scraper import (
@@ -1206,8 +1207,8 @@ class TestCircuitBreakerFallback:
         # ``circuit`` is a read-only property on the real clients; the
         # MagicMock replacement still accepts assignment. Type ignores
         # acknowledge the mock-vs-real shape divergence.
-        s._tmdb.circuit = CircuitBreaker(name="TMDB")  # type: ignore[misc]
-        s._tvdb.circuit = CircuitBreaker(name="TVDB")  # type: ignore[misc]
+        s._tmdb.circuit = CircuitBreaker(name="TMDB", event_bus=EventBus())  # type: ignore[misc]
+        s._tvdb.circuit = CircuitBreaker(name="TVDB", event_bus=EventBus())  # type: ignore[misc]
         return s
 
     def test_process_movies_skips_when_tmdb_circuit_open(
