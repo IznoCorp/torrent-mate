@@ -1,14 +1,15 @@
 """Telegram subscriber — replaces ``observers.telegram.TelegramObserver``.
 
-Self-subscribes on construction to :class:`PipelineEnded` and
-:class:`StepErrored`. Both handlers schedule the HTTP send off-thread so the
-bus dispatch returns in well under 50 ms even if Telegram is slow or
+Self-subscribes on construction to :class:`PipelineEnded`,
+:class:`StepErrored`, and :class:`CircuitBreakerOpened` (added in
+Sub-phase 4.1). All handlers schedule the HTTP send off-thread so the bus
+dispatch returns in well under 50 ms even if Telegram is slow or
 unreachable (DESIGN §Performance contract — subscribers MUST be fast or
 schedule work off-thread; the bus has no async offload in v1).
 
-Phase 4 will add subscriptions to :class:`CircuitBreakerOpened` and
-:class:`DiskFullWarning` in the same sub-phase that introduces those
-events; do NOT pre-emptively wire them here.
+Sub-phase 4.2b will add :class:`DiskFullWarning` to bring the total
+subscription count to 4; this module's invariants assume each Phase-4 emit
+sub-phase wires its own alert here in the same commit.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
+from personalscraper.core.circuit import CircuitBreakerOpened
 from personalscraper.core.event_bus import EventBus, SubscriptionToken
 from personalscraper.logger import get_logger
 from personalscraper.pipeline_events import PipelineEnded, StepErrored
@@ -27,17 +29,18 @@ log = get_logger(__name__)
 
 
 class TelegramSubscriber:
-    """Sends pipeline summary + step-error alerts via the Telegram Bot API.
+    """Sends pipeline summary + step-error + circuit-trip alerts via the Telegram Bot API.
 
-    Subscribes to :class:`PipelineEnded` (HTML summary) and :class:`StepErrored`
-    (step failure alert) only. Network I/O is dispatched on a daemon thread so
-    a slow Telegram response cannot back up the bus.
+    Subscribes to :class:`PipelineEnded` (HTML summary), :class:`StepErrored`
+    (step failure alert), and :class:`CircuitBreakerOpened` (provider-trip
+    alert). Network I/O is dispatched on a daemon thread so a slow Telegram
+    response cannot back up the bus.
     """
 
     name = "telegram"
 
     def __init__(self, bus: EventBus, notifier: TelegramNotifier) -> None:
-        """Register two subscriptions and store the notifier.
+        """Register three subscriptions and store the notifier.
 
         Args:
             bus: The :class:`EventBus` to subscribe to.
@@ -50,6 +53,7 @@ class TelegramSubscriber:
         self._tokens: list[SubscriptionToken] = [
             bus.subscribe(PipelineEnded, self._on_pipeline_ended),  # type: ignore[arg-type]
             bus.subscribe(StepErrored, self._on_step_errored),  # type: ignore[arg-type]
+            bus.subscribe(CircuitBreakerOpened, self._on_circuit_opened),  # type: ignore[arg-type]
         ]
 
     def close(self) -> None:
@@ -78,6 +82,21 @@ class TelegramSubscriber:
         if not self._notifier.send(body, parse_mode="HTML"):
             log.warning("telegram_subscriber_send_failed", concern="step_errored", step=step)
 
+    def _send_circuit_alert(
+        self,
+        breaker: str,
+        failure_count: int,
+        last_error_class: str,
+        last_error_message: str,
+    ) -> None:
+        """Background-thread worker: circuit-breaker-opened alert (fail-soft)."""
+        body = (
+            f"⚠️ Circuit breaker tripped: <b>{breaker}</b> "
+            f"({failure_count} failures, last: {last_error_class}: {last_error_message})"
+        )
+        if not self._notifier.send(body, parse_mode="HTML"):
+            log.warning("telegram_subscriber_send_failed", concern="circuit_opened", breaker=breaker)
+
     # ----- Bus callbacks --------------------------------------------------
 
     def _on_pipeline_ended(self, event: PipelineEnded) -> None:
@@ -88,3 +107,13 @@ class TelegramSubscriber:
     def _on_step_errored(self, event: StepErrored) -> None:
         """Handle :class:`StepErrored` — schedule an alert send."""
         self._spawn(self._send_error_alert, event.step, event.error_class, event.error_message)
+
+    def _on_circuit_opened(self, event: CircuitBreakerOpened) -> None:
+        """Handle :class:`CircuitBreakerOpened` — schedule the circuit-trip alert send."""
+        self._spawn(
+            self._send_circuit_alert,
+            event.breaker,
+            event.failure_count,
+            event.last_error_class,
+            event.last_error_message,
+        )

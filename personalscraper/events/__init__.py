@@ -23,6 +23,16 @@ from __future__ import annotations
 # six event classes are auto-registered before any consumer calls
 # ``event_from_envelope``.
 from personalscraper import pipeline_events as _pipeline_events  # noqa: F401
+
+# Sub-phase 4.1: eager-import the circuit-breaker events producer module so
+# the three CircuitBreaker* classes are registered before consumers call
+# ``event_from_envelope``.
+from personalscraper.core import circuit as _circuit_events  # noqa: F401
+from personalscraper.core.circuit import (
+    CircuitBreakerClosed,
+    CircuitBreakerHalfOpened,
+    CircuitBreakerOpened,
+)
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
@@ -33,6 +43,9 @@ from personalscraper.pipeline_events import (
 )
 
 __all__ = [
+    "CircuitBreakerClosed",
+    "CircuitBreakerHalfOpened",
+    "CircuitBreakerOpened",
     "ItemProgressed",
     "PipelineEnded",
     "PipelineStarted",

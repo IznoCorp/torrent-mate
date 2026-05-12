@@ -673,11 +673,12 @@ class TrailersOrchestrator:
                     cooldown_seconds=int(cb_cfg.tmdb_videos.cooldown_sec),
                 ),
             )
-            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy))
+            tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy, event_bus=self._event_bus))
             youtube_breaker = CircuitBreaker(
                 name="trailers_youtube",
                 failure_threshold=int(cb_cfg.youtube.errors_threshold),
                 cooldown_seconds=float(cb_cfg.youtube.cooldown_sec),
+                event_bus=self._event_bus,
             )
 
             quota_cache = JsonTTLCache(cache_dir / "youtube_quota.json")

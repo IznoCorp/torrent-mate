@@ -192,6 +192,7 @@ def run_scrape(
         dry_run=dry_run,
         interactive=interactive,
         config=config,
+        event_bus=event_bus,
     )
 
     all_results: list[ScrapeResult] = []

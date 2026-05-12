@@ -21,6 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 
+from personalscraper.core.circuit import (
+    CircuitBreakerClosed,
+    CircuitBreakerHalfOpened,
+    CircuitBreakerOpened,
+)
 from personalscraper.core.event_bus import Event
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
@@ -160,6 +165,29 @@ def make_item_progressed() -> ItemProgressed:
         status="scraped",
         details={"provider": "tmdb", "confidence": 0.94, "tmdb_id": 27205},
     )
+
+
+@register_factory(CircuitBreakerOpened)
+def make_circuit_breaker_opened() -> CircuitBreakerOpened:
+    """Realistic :class:`CircuitBreakerOpened` for round-trip tests."""
+    return CircuitBreakerOpened(
+        breaker="tmdb",
+        failure_count=5,
+        last_error_class="ConnectionError",
+        last_error_message="HTTPSConnectionPool(host='api.themoviedb.org'): Max retries exceeded",
+    )
+
+
+@register_factory(CircuitBreakerClosed)
+def make_circuit_breaker_closed() -> CircuitBreakerClosed:
+    """Realistic :class:`CircuitBreakerClosed` for round-trip tests."""
+    return CircuitBreakerClosed(breaker="tmdb")
+
+
+@register_factory(CircuitBreakerHalfOpened)
+def make_circuit_breaker_half_opened() -> CircuitBreakerHalfOpened:
+    """Realistic :class:`CircuitBreakerHalfOpened` for round-trip tests."""
+    return CircuitBreakerHalfOpened(breaker="tmdb")
 
 
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]

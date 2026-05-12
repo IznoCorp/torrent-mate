@@ -19,9 +19,13 @@ dependency injection.  Tests that need isolation should instantiate
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING
 
-from personalscraper.core.circuit import CircuitBreaker, CircuitState
+from personalscraper.core.circuit import CircuitBreaker, CircuitBreakerOpened, CircuitState
 from personalscraper.logger import get_logger
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("indexer.breaker")
 
@@ -45,6 +49,7 @@ class DiskCircuitBreaker:
         *,
         failure_threshold: int = 3,
         cooldown_seconds: float = 300.0,
+        event_bus: EventBus | None = None,
     ) -> None:
         """Initialise a DiskCircuitBreaker registry.
 
@@ -54,9 +59,16 @@ class DiskCircuitBreaker:
                 5 because a single EIO is already serious for disk I/O).
             cooldown_seconds: Seconds in OPEN state before allowing a retry.
                 Defaults to 300 (5 minutes).
+            event_bus: Optional :class:`EventBus` propagated to each lazily-
+                created per-disk :class:`CircuitBreaker` so disk-circuit
+                transitions emit :class:`CircuitBreakerOpened` /
+                :class:`CircuitBreakerClosed` /
+                :class:`CircuitBreakerHalfOpened`. Optional in Phase 4
+                (additive contract); required in Phase 5.2.
         """
         self.failure_threshold = failure_threshold
         self.cooldown_seconds = cooldown_seconds
+        self._event_bus = event_bus
         # Lazily created per-disk CircuitBreaker instances.
         self._breakers: dict[str, CircuitBreaker] = {}
         # Per-disk consecutive I/O failure counter (separate from HTTP circuit).
@@ -83,6 +95,7 @@ class DiskCircuitBreaker:
                 name=f"disk:{disk_uuid}",
                 failure_threshold=self.failure_threshold,
                 cooldown_seconds=self.cooldown_seconds,
+                event_bus=self._event_bus,
             )
         return self._breakers[disk_uuid]
 
@@ -126,6 +139,7 @@ class DiskCircuitBreaker:
         log.debug("indexer.disk.breaker_failure", disk_uuid=disk_uuid, failure_count=count)
 
         if count >= self.failure_threshold:
+            previously_closed = breaker._state == CircuitState.CLOSED  # pyright: ignore[reportPrivateUsage]
             # Directly open the circuit -- bypass _is_circuit_error which only
             # handles HTTP provider errors.
             breaker._state = CircuitState.OPEN  # pyright: ignore[reportPrivateUsage]
@@ -136,6 +150,23 @@ class DiskCircuitBreaker:
                 failure_count=count,
                 cooldown_seconds=self.cooldown_seconds,
             )
+            # Emit on the actual closed→open transition (not on every repeat
+            # failure while already OPEN). The synthetic last_error_* values
+            # reflect the disk-I/O nature of the trip — DiskCircuitBreaker
+            # doesn't carry an exception object, so we describe the trip
+            # condition. A dedicated DiskFullWarning (Sub-phase 4.2b) carries
+            # the path/threshold; this CircuitBreakerOpened carries the
+            # disk-uuid breaker name.
+            if previously_closed and self._event_bus is not None:
+                self._event_bus.emit(
+                    CircuitBreakerOpened(
+                        source=f"indexer.disk.{disk_uuid}",
+                        breaker=f"disk:{disk_uuid}",
+                        failure_count=count,
+                        last_error_class="OSError",
+                        last_error_message=f"disk I/O failure threshold reached ({count}/{self.failure_threshold})",
+                    ),
+                )
 
     def record_success(self, disk_uuid: str) -> None:
         """Record a successful disk scan; closes the circuit for *disk_uuid*.

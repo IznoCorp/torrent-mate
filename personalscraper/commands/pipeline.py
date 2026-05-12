@@ -288,10 +288,21 @@ def run(
     try:
         settings = cli_compat.get_settings()
 
+        # The :class:`AppContext` is built once per invocation at the CLI
+        # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
+        # rule from DESIGN §Architecture, enforced by the AST allowlist landed
+        # in Sub-phase 2.6). Constructed early so the healthcheck and Telegram
+        # transports built below can plumb ``app_context.event_bus`` into their
+        # circuit breakers (Sub-phase 4.1).
+        app_context = _build_app_context(config, settings)
+
         # Healthcheck client (None if not configured — pings short-circuit at the call site).
         healthcheck: HealthcheckClient | None = None
         if HealthcheckClient.is_configured(settings):
-            hc_transport = HttpTransport(HealthcheckClient.policy(settings.healthcheck_url))
+            hc_transport = HttpTransport(
+                HealthcheckClient.policy(settings.healthcheck_url),
+                event_bus=app_context.event_bus,
+            )
             healthcheck = HealthcheckClient(hc_transport)
             healthcheck.ping_start()
 
@@ -317,13 +328,6 @@ def run(
 
             from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
-            # The :class:`AppContext` is built once per invocation at the CLI
-            # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
-            # rule from DESIGN §Architecture, enforced by the AST allowlist landed
-            # in Sub-phase 2.6). The event_bus on this AppContext is the substrate
-            # both subscribers attach themselves to.
-            app_context = _build_app_context(config, settings)
-
             # Build subscribers — both self-subscribe in their constructors.
             # ``Pipeline.run`` no longer accepts an ``observers`` tuple; the bus is the
             # sole emit substrate. ``--headless`` skips subscriber construction for silent
@@ -339,7 +343,10 @@ def run(
                     run_id=run_id,
                 )
                 if TelegramNotifier.is_configured(settings):
-                    tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
+                    tg_transport = HttpTransport(
+                        TelegramNotifier.policy(settings.telegram_bot_token),
+                        event_bus=app_context.event_bus,
+                    )
                     tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
                     telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
 

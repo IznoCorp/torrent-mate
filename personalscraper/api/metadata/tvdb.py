@@ -38,7 +38,7 @@ from personalscraper.api.transport._policy import (
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    pass
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("api.tvdb")
 
@@ -67,6 +67,7 @@ class TVDBClient(MetadataClient):
         *,
         language: str = "fr-FR",
         circuit: CircuitPolicy | None = None,
+        event_bus: EventBus | None = None,
     ) -> None:
         """Initialize TVDB client with bootstrap login.
 
@@ -74,6 +75,10 @@ class TVDBClient(MetadataClient):
             api_key: TVDB API key (Negotiated Contract type, no PIN needed).
             language: Default language for API queries (2-char pipeline code, e.g. "fr").
             circuit: Optional custom CircuitPolicy override for bootstrap + main transport.
+            event_bus: Optional :class:`EventBus` propagated to the bootstrap
+                and main HTTP transports so their circuit breakers emit
+                :class:`CircuitBreakerOpened` / ``Closed`` / ``HalfOpened``
+                on transitions. Optional in Phase 4; required in Phase 5.2.
         """
         self._api_key = api_key
         self._tvdb_lang = map_language(language)
@@ -89,7 +94,7 @@ class TVDBClient(MetadataClient):
             circuit=_cb,
             rate_limit=_DEFAULT_RATE,
         )
-        with HttpTransport(bootstrap_policy) as bootstrap:
+        with HttpTransport(bootstrap_policy, event_bus=event_bus) as bootstrap:
             resp = bootstrap.post("/login", data={"apikey": api_key})
         if not isinstance(resp, dict):
             raise TypeError(f"Expected dict response from TVDB login, got {type(resp).__name__}")
@@ -97,7 +102,7 @@ class TVDBClient(MetadataClient):
 
         # Main transport with JWT
         main_policy = TVDBClient.policy(jwt, circuit=_cb)
-        super().__init__(transport=HttpTransport(main_policy), language=language)
+        super().__init__(transport=HttpTransport(main_policy, event_bus=event_bus), language=language)
 
     @property
     def circuit(self) -> Any:

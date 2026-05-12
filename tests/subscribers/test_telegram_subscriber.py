@@ -1,12 +1,14 @@
-"""Tests for :class:`TelegramSubscriber` — Sub-phase 3.6.
+"""Tests for :class:`TelegramSubscriber` — Sub-phase 3.6 + 4.1.
 
-Covers subscription cardinality, payload composition for both events, the
-fast-bus-thread contract (< 50 ms wall-clock even if the network is slow),
-and clean unsubscribe on ``close()``.
+Covers subscription cardinality, payload composition for every subscribed
+event, the fast-bus-thread contract (< 50 ms wall-clock even if the network
+is slow), and clean unsubscribe on ``close()``.
 
 A dedicated cassette test exercises the full notifier-transport stack via
 the ``responses`` library — Phase 5.6 falls back to this fixture when live
-``.env`` credentials are absent.
+``.env`` credentials are absent. Sub-phase 4.1 extends the cassette to
+cover ``CircuitBreakerOpened``; Sub-phase 4.2b will extend it to
+``DiskFullWarning`` so the 4-event cassette gate is complete.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import pytest
 
 from personalscraper.api.notify.telegram import TelegramNotifier
 from personalscraper.api.transport._http import HttpTransport
+from personalscraper.core.circuit import CircuitBreakerOpened
 from personalscraper.core.event_bus import EventBus
 from personalscraper.models import PipelineReport, StepReport
 from personalscraper.pipeline_events import PipelineEnded, StepErrored
@@ -61,11 +64,17 @@ def _wait_for_calls(notifier: _FakeNotifier, expected: int, timeout: float = 1.0
     raise AssertionError(f"expected {expected} send call(s), got {len(notifier.calls)} after {timeout}s")
 
 
-def test_telegram_subscriber_subscribes_to_pipeline_ended_and_step_errored() -> None:
-    """``__init__`` registers exactly two subscription tokens."""
+def test_telegram_subscriber_subscribes_to_three_events_after_phase_4_1() -> None:
+    """``__init__`` registers exactly three subscription tokens after Sub-phase 4.1.
+
+    Sub-phase 3.6 shipped two subscriptions (``PipelineEnded``, ``StepErrored``);
+    Sub-phase 4.1 adds the third (``CircuitBreakerOpened``). Sub-phase 4.2b
+    extends to four (``DiskFullWarning``) — at that point this test is
+    superseded by ``test_telegram_subscriber_has_four_subscriptions_after_phase4``.
+    """
     bus = EventBus()
     sub = TelegramSubscriber(bus, _FakeNotifier())  # type: ignore[arg-type]
-    assert len(sub._tokens) == 2  # noqa: SLF001
+    assert len(sub._tokens) == 3  # noqa: SLF001
 
 
 def test_telegram_subscriber_sends_html_on_pipeline_ended() -> None:
@@ -96,6 +105,27 @@ def test_telegram_subscriber_alerts_on_step_errored() -> None:
     assert "boom" in body
 
 
+def test_telegram_subscriber_alerts_on_circuit_opened() -> None:
+    """``CircuitBreakerOpened`` triggers exactly one alert with breaker + failure data."""
+    bus = EventBus()
+    notifier = _FakeNotifier()
+    TelegramSubscriber(bus, notifier)  # type: ignore[arg-type]
+    bus.emit(
+        CircuitBreakerOpened(
+            breaker="tmdb",
+            failure_count=5,
+            last_error_class="TimeoutError",
+            last_error_message="connect timed out after 30s",
+        ),
+    )
+    _wait_for_calls(notifier, 1)
+    body, parse_mode = notifier.calls[0]
+    assert parse_mode == "HTML"
+    assert "tmdb" in body
+    assert "5" in body
+    assert "TimeoutError" in body
+
+
 def test_telegram_subscriber_close_unsubscribes() -> None:
     """After ``close()``, further emits never reach the notifier."""
     bus = EventBus()
@@ -104,6 +134,9 @@ def test_telegram_subscriber_close_unsubscribes() -> None:
     sub.close()
     bus.emit(PipelineEnded(report=_make_pipeline_report()))
     bus.emit(StepErrored(step="scrape", error_class="X", error_message="y"))
+    bus.emit(
+        CircuitBreakerOpened(breaker="tmdb", failure_count=1, last_error_class="X", last_error_message="y"),
+    )
     # Give the scheduler a chance — no spawn should have happened.
     time.sleep(0.05)
     assert notifier.calls == []
@@ -124,7 +157,14 @@ def test_telegram_subscriber_returns_synchronously_under_threshold() -> None:
 
 
 def test_telegram_subscriber_cassette() -> None:
-    """End-to-end cassette: real transport against responses-mocked HTTP endpoints."""
+    """End-to-end cassette: real transport against responses-mocked HTTP endpoints.
+
+    Sub-phase 4.1 extends this cassette to cover ``CircuitBreakerOpened``
+    alongside ``PipelineEnded`` and ``StepErrored``. Sub-phase 4.2b will
+    extend it to ``DiskFullWarning`` so the Phase 5.6 §14 fallback
+    (``pytest tests/subscribers/test_telegram_subscriber.py -v``) exercises
+    all 4 events in one invocation.
+    """
     responses = pytest.importorskip("responses")
     bot_token = "123:fake-token"
     chat_id = "@cassette-chat"
@@ -135,6 +175,7 @@ def test_telegram_subscriber_cassette() -> None:
     with responses.RequestsMock() as rmock:
         rmock.add(responses.POST, url, json={"ok": True}, status=200)
         rmock.add(responses.POST, url, json={"ok": True}, status=200)
+        rmock.add(responses.POST, url, json={"ok": True}, status=200)
 
         bus = EventBus()
         TelegramSubscriber(bus, notifier)
@@ -143,15 +184,29 @@ def test_telegram_subscriber_cassette() -> None:
         bus.emit(PipelineEnded(report=_make_pipeline_report()))
         # (b) StepErrored → alert
         bus.emit(StepErrored(step="scrape", error_class="ValueError", error_message="boom"))
+        # (c) CircuitBreakerOpened → circuit-trip alert (Sub-phase 4.1)
+        bus.emit(
+            CircuitBreakerOpened(
+                breaker="tmdb",
+                failure_count=5,
+                last_error_class="TimeoutError",
+                last_error_message="connect timed out after 30s",
+            ),
+        )
 
-        # Wait for both daemon threads to land their POSTs.
-        deadline = time.monotonic() + 2.0
-        while time.monotonic() < deadline and len(rmock.calls) < 2:
+        # Wait for all three daemon threads to land their POSTs. Telegram's
+        # policy rate-limits at 1 req/s, so the three serialized sends need
+        # ≥ 3 seconds plus scheduling slack — use a 6 s ceiling.
+        deadline = time.monotonic() + 6.0
+        while time.monotonic() < deadline and len(rmock.calls) < 3:
             time.sleep(0.01)
 
-        assert len(rmock.calls) == 2
+        assert len(rmock.calls) == 3
         bodies = [call.request.body for call in rmock.calls]
         joined = " ".join(b.decode() if isinstance(b, bytes) else (b or "") for b in bodies)
         assert "scrape" in joined
         assert "ValueError" in joined
         assert "boom" in joined
+        # Circuit-trip alert content
+        assert "tmdb" in joined
+        assert "TimeoutError" in joined
