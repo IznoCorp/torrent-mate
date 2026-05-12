@@ -73,38 +73,42 @@ class TestCircuitBreakerStates:
 
     def test_half_open_success_closes_circuit(self):
         """Successful call in HALF_OPEN state closes the circuit."""
-        cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=0.01, event_bus=EventBus())
+        cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=1.0, event_bus=EventBus())
         error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
         assert cb.state == CircuitState.OPEN
 
-        # Wait for very short cooldown
-        time.sleep(0.02)
-        assert cb.state == CircuitState.HALF_OPEN
+        # Simulate cooldown elapsed by patching monotonic (deterministic; avoids
+        # OS scheduler drift under xdist parallelism)
+        with patch("personalscraper.core.circuit.time") as mock_time:
+            mock_time.monotonic.return_value = time.monotonic() + 2.0
+            assert cb.state == CircuitState.HALF_OPEN
 
-        cb.record_success()
-        assert cb.state == CircuitState.CLOSED
-        assert cb.can_proceed() is True
+            cb.record_success()
+            assert cb.state == CircuitState.CLOSED
+            assert cb.can_proceed() is True
 
     def test_half_open_failure_reopens_circuit(self):
         """Failed call in HALF_OPEN state reopens the circuit."""
-        cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=0.01, event_bus=EventBus())
+        cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=1.0, event_bus=EventBus())
         error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
         assert cb.state == CircuitState.OPEN
 
-        # Wait for cooldown
-        time.sleep(0.02)
-        assert cb.state == CircuitState.HALF_OPEN
+        # Simulate cooldown elapsed by patching monotonic (deterministic; avoids
+        # OS scheduler drift under xdist parallelism)
+        with patch("personalscraper.core.circuit.time") as mock_time:
+            mock_time.monotonic.return_value = time.monotonic() + 2.0
+            assert cb.state == CircuitState.HALF_OPEN
 
-        # One failure in HALF_OPEN → back to OPEN immediately
-        cb.record_failure(error)
-        assert cb.state == CircuitState.OPEN
-        assert cb.can_proceed() is False
+            # One failure in HALF_OPEN → back to OPEN immediately
+            cb.record_failure(error)
+            assert cb.state == CircuitState.OPEN
+            assert cb.can_proceed() is False
 
 
 class TestCircuitBreakerErrorClassification:
@@ -212,16 +216,18 @@ class TestCircuitBreakerReset:
 
     def test_reset_from_half_open(self):
         """reset() returns to CLOSED from HALF_OPEN state."""
-        cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=0.01, event_bus=EventBus())
+        cb = CircuitBreaker(name="test", failure_threshold=2, cooldown_seconds=1.0, event_bus=EventBus())
         error = ApiError("test", 500, provider_code=0, message="Internal Server Error")
 
         cb.record_failure(error)
         cb.record_failure(error)
-        time.sleep(0.02)
-        assert cb.state == CircuitState.HALF_OPEN
 
-        cb.reset()
-        assert cb.state == CircuitState.CLOSED
+        with patch("personalscraper.core.circuit.time") as mock_time:
+            mock_time.monotonic.return_value = time.monotonic() + 2.0
+            assert cb.state == CircuitState.HALF_OPEN
+
+            cb.reset()
+            assert cb.state == CircuitState.CLOSED
 
 
 class TestCircuitOpenError:
