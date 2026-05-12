@@ -101,34 +101,59 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: `2581321` — `chore(event-bus): phase 2 gate — AppContext + StepContext slim`
-**Branch**: `feat/event-bus` — fully synced with `origin/feat/event-bus` (0 ahead, 0 behind).
-**Working tree**: clean (`git status --porcelain` returns empty).
-**Last successful gate**: full `make check` green (3845 passed, 3 skipped, coverage 91.28%).
+**HEAD SHA**: `f3841c6` — `feat(event-bus): Pipeline emits StepStarted/Completed/Errored around each step`
+**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (6 commits this session, not yet pushed; push happens only at Phase 3 gate per workflow).
+**Working tree**: clean.
+**Last successful gate**: full `make check` green (3904 passed, 3 skipped).
 
 **Captured baselines (locked at feature start, see INDEX Pre-flight):**
 
 - `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **3845 passed, 3 skipped** (= **+107 new event-bus tests**, well above the +80 floor for Phase 2 gate).
-- `make check` exit 0 (1 pre-existing soft-warn on `personalscraper/scraper/tv_service.py: 819 LOC`, threshold 800/1000 — not a blocker).
-- Skip / xfail decorator count: **6** (unchanged — Invariant 3 §3 baseline).
-- `notify_progress` call sites in production: **46** across **8** files (Phase 3.4 / 3.7b gate target — see INDEX Pre-flight #8 for the file list).
-- Module size: `personalscraper/core/event_bus.py` 366 LOC (budget 400),
-  `personalscraper/core/app_context.py` 43 LOC (budget 80),
-  `tests/architecture/test_app_context_boundary.py` 97 LOC (budget 100).
+- Current `make test`: **3904 passed, 3 skipped** (= **+166 new event-bus tests**, well above the +130 floor for Phase 3 gate per plan 3.9 item 2).
+- Skip / xfail decorator count: **3** (unchanged from Phase 2 baseline).
+- `notify_progress` call sites in production (Pre-flight #8): **46** across **8** files. Bus emits for `ItemProgressed` not yet added — that is the 3.4 mechanical sweep.
 
-**Where we stopped:** end of Phase 2 (gate 2.7 committed at SHA `2581321`,
-pushed to origin). Phase 2 row is `[x]`. Re-invoking `/implement:phase`
-will detect Phase 3 (pipeline event migration + subscribers) as the next
-`[ ]` row and start from sub-phase 3.1.
+**Phase 3 sub-phase progress (commits this session):**
+
+- ✅ 3.1 — pipeline event catalog + factories + Report JSON-safety (4 commits: 050bfd0, 05e2dea, 0ebf080, bfda5f6).
+- ✅ 3.2 — `PipelineStarted`/`PipelineEnded` (59697ef).
+- ✅ 3.3 — `StepStarted`/`StepCompleted`/`StepErrored` (f3841c6).
+- ⏳ 3.4 — Step emit migration (9 steps, mechanical sweep). **STARTED**: enumerated 46 sites; plan-spirit-aligned approach selected: add `event_bus: EventBus | None = None` kwarg to each step function + adapter + per-site `event_bus.emit(ItemProgressed(...))` line.
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked after `/clear`, execute Phase 3
-(see `docs/features/event-bus/plan/phase-03-pipeline-events-migration.md`).
-Phase 3 begins with sub-phase 3.1; consult the plan file for the
-detailed list. Phase 4 (cross-cutting events) and Phase 5 (polish)
-follow, then `/implement:feature-pr` chains automatically.
+When `/implement:phase` is re-invoked after `/clear`, **resume at sub-phase 3.4**.
+
+The remaining Phase 3 sub-phases are 3.4 → 3.5 → 3.6 → 3.7a → 3.7b → 3.7c → 3.8 → 3.9 (gate).
+Then Phase 4 (cross-cutting events) and Phase 5 (polish), then `/implement:feature-pr` chains.
+
+**Plan-anchored execution for 3.4 (read first):**
+`docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` Sub-phase 3.4.
+
+Key constraints:
+
+1. Add `event_bus: EventBus | None = None` keyword-only kwarg to each of the
+   8 step entry functions (`run_ingest`, `run_sort`, `run_clean`, `run_scrape`,
+   `run_cleanup`, `run_enforce`, `run_verify`, `run_trailers`, `run_dispatch`).
+2. Update `LegacyCallableStep.__call__` in `personalscraper/pipeline_steps.py` to
+   pass `event_bus=ctx.app.event_bus`.
+3. At each `notify_progress(observers, StepEvent(step=..., item=..., status=...,
+details=...))` site, ADD immediately after:
+   ```python
+   if event_bus is not None:
+       event_bus.emit(ItemProgressed(step=..., item=..., status=..., details=...))
+   ```
+   Mirroring args. Legacy call stays in place (removed in 3.7b).
+4. Lock the cardinality grep: both `rg 'notify_progress\(' --type py personalscraper/`
+   and `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/` must
+   each return exactly **46** (or whatever the Pre-flight #8 value is — current
+   actual is 46 across 8 step files; ingest 10, enforce 9, trailers 6, sort 5,
+   scrape 5, dispatch 4, process 4, verify 3).
+5. One commit covering all 9 steps + adapter + tests: `feat(event-bus): all 9
+pipeline steps emit ItemProgressed alongside legacy notify_progress`.
+
+Then continue inline through 3.5–3.8 and commit 3.9 as the Phase 3 gate (which
+also pushes per the user's `git push at each phase-gate commit` rule).
 
 The legacy resumption notes for Phase 2 (Steps A → D below) are kept
 for historical reference only — every sub-phase they describe is now
