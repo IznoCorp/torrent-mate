@@ -13,8 +13,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 
 logger = get_logger(__name__)
@@ -26,6 +28,7 @@ def run_trailers(
     verified: list[Any],
     skip_trailers: bool = False,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> StepReport:
     """Run the trailers pipeline step for all staged media items.
 
@@ -41,6 +44,9 @@ def run_trailers(
             absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         StepReport with name="trailers", status in
@@ -64,6 +70,15 @@ def run_trailers(
                 },
             ),
         )
+        if event_bus is not None:
+            event_bus.emit(
+                ItemProgressed(
+                    step="trailers",
+                    item="<step>",
+                    status="skipped",
+                    details={"reason": "skip_flag" if skip_trailers else "disabled_by_config"},
+                )
+            )
         return StepReport(name="trailers", status="skipped")
 
     # Deferred imports: avoids circular dependencies between this step entry-point
@@ -112,6 +127,8 @@ def run_trailers(
                     observers,
                     StepEvent(step="trailers", item=item_name, status="started"),
                 )
+                if event_bus is not None:
+                    event_bus.emit(ItemProgressed(step="trailers", item=item_name, status="started"))
 
         counts = orchestrator.run(items=orchestrator_items)
         failed_items = orchestrator.failed_items
@@ -132,6 +149,15 @@ def run_trailers(
                     details={"reason": reason or ""},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="trailers",
+                        item=item_path,
+                        status=status,
+                        details={"reason": reason or ""},
+                    )
+                )
 
         # Partial: some items succeeded but at least one failed or was bot-detected.
         # Success: all items processed cleanly (errors=0 and no failed_items list).
@@ -176,6 +202,15 @@ def run_trailers(
                 details={"reason": "state_locked", "holder_pid": str(exc.holder_pid or "")},
             ),
         )
+        if event_bus is not None:
+            event_bus.emit(
+                ItemProgressed(
+                    step="trailers",
+                    item="<step>",
+                    status="failed",
+                    details={"reason": "state_locked", "holder_pid": str(exc.holder_pid or "")},
+                )
+            )
         return StepReport(name="trailers", error_count=1, status="error")
 
     except OSError as exc:
@@ -199,6 +234,15 @@ def run_trailers(
                 details={"reason": "state_write_failed", "error": exc.strerror or ""},
             ),
         )
+        if event_bus is not None:
+            event_bus.emit(
+                ItemProgressed(
+                    step="trailers",
+                    item="<step>",
+                    status="failed",
+                    details={"reason": "state_write_failed", "error": exc.strerror or ""},
+                )
+            )
         return StepReport(
             name="trailers",
             error_count=1,
@@ -221,4 +265,13 @@ def run_trailers(
                 details={"reason": "crashed", "error_type": type(exc).__name__},
             ),
         )
+        if event_bus is not None:
+            event_bus.emit(
+                ItemProgressed(
+                    step="trailers",
+                    item="<step>",
+                    status="failed",
+                    details={"reason": "crashed", "error_type": type(exc).__name__},
+                )
+            )
         return StepReport(name="trailers", error_count=1, status="error")

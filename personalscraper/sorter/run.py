@@ -15,8 +15,10 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_ingest_dir, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.cleaner import NameCleaner
 from personalscraper.sorter.sorter import Sorter
@@ -31,6 +33,7 @@ def run_sort(
     dry_run: bool = False,
     *,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
@@ -47,6 +50,9 @@ def run_sort(
         dry_run: If True, simulate moves without actually moving.
         observers: Tuple of pipeline observers for per-item progress
             notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         StepReport with counts and per-item details.
@@ -70,6 +76,8 @@ def run_sort(
             observers,
             StepEvent(step="sort", item=r.source.name, status="started"),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="sort", item=r.source.name, status="started"))
         if r.status == "moved":
             report.success_count += 1
             report.details.append(f"{r.source.name} -> {r.destination}")
@@ -82,6 +90,15 @@ def run_sort(
                     details={"destination": str(r.destination)},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="sort",
+                        item=r.source.name,
+                        status="moved",
+                        details={"destination": str(r.destination)},
+                    )
+                )
         elif r.status == "dry-run":
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {r.source.name} -> {r.destination}")
@@ -94,6 +111,15 @@ def run_sort(
                     details={"destination": str(r.destination), "dry_run": True},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="sort",
+                        item=r.source.name,
+                        status="moved",
+                        details={"destination": str(r.destination), "dry_run": True},
+                    )
+                )
         elif r.status == "skipped":
             report.skip_count += 1
             if r.message:
@@ -107,6 +133,15 @@ def run_sort(
                     details={"reason": r.message or ""},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="sort",
+                        item=r.source.name,
+                        status="skipped",
+                        details={"reason": r.message or ""},
+                    )
+                )
         elif r.status == "error":
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
@@ -119,6 +154,15 @@ def run_sort(
                     details={"error": r.message or ""},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="sort",
+                        item=r.source.name,
+                        status="error",
+                        details={"error": r.message or ""},
+                    )
+                )
 
     # After sort consumes files from the ingest dir, prune any
     # ``dest_path`` recorded inside that dir from the ingest tracker.

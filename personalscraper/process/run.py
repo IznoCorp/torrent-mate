@@ -12,8 +12,10 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 
@@ -117,6 +119,7 @@ def run_clean(
     dry_run: bool = False,
     *,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> StepReport:
     """Run reclean + dedup on all category directories.
 
@@ -130,6 +133,9 @@ def run_clean(
             Derives movie/tvshow dir names from staging_dirs.
         observers: Tuple of pipeline observers for progress and lifecycle
             notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         StepReport with combined reclean + dedup counts.
@@ -150,6 +156,8 @@ def run_clean(
             observers,
             StepEvent(step="clean", item=str(category_dir.name), status="started"),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status="started"))
         # Only run reclean if polluted folders exist
         if has_polluted:
             reclean_report = reclean_folders(category_dir, dry_run=dry_run, config=config)
@@ -180,6 +188,8 @@ def run_clean(
             observers,
             StepEvent(step="clean", item=str(category_dir.name), status=cat_status),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status=cat_status))
 
     log.info(
         "process_clean_complete",
@@ -196,6 +206,7 @@ def run_cleanup(
     dry_run: bool = False,
     *,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> StepReport:
     """Run empty directory cleanup on all category directories.
 
@@ -206,6 +217,9 @@ def run_cleanup(
             Derives movie/tvshow dir names from staging_dirs.
         observers: Tuple of pipeline observers for progress and lifecycle
             notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         StepReport with cleanup counts.
@@ -223,6 +237,8 @@ def run_cleanup(
             observers,
             StepEvent(step="cleanup", item=str(category_dir.name), status="started"),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="cleanup", item=str(category_dir.name), status="started"))
         cat_report = cleanup_empty_dirs(category_dir, dry_run=dry_run)
         cleanup_report.success_count += cat_report.success_count
         cleanup_report.details.extend(cat_report.details)
@@ -238,6 +254,15 @@ def run_cleanup(
                 details={"removed": cat_report.success_count},
             ),
         )
+        if event_bus is not None:
+            event_bus.emit(
+                ItemProgressed(
+                    step="cleanup",
+                    item=str(category_dir.name),
+                    status=terminal_status,
+                    details={"removed": cat_report.success_count},
+                )
+            )
 
     log.info("process_cleanup_complete", removed=cleanup_report.success_count)
     return cleanup_report
@@ -250,6 +275,7 @@ def run_process(
     interactive: bool = False,
     *,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 
@@ -264,6 +290,9 @@ def run_process(
             for staging dir name resolution.
         observers: Tuple of pipeline observers for progress and lifecycle
             notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         Tuple of (clean_report, scrape_report, cleanup_report).
@@ -272,7 +301,7 @@ def run_process(
 
     # Error isolation: each sub-step runs independently
     try:
-        clean_report = run_clean(settings, dry_run=dry_run, config=config, observers=observers)
+        clean_report = run_clean(settings, dry_run=dry_run, config=config, observers=observers, event_bus=event_bus)
     except Exception as exc:
         log.exception("process_clean_fatal", error=str(exc))
         clean_report = StepReport(
@@ -283,7 +312,12 @@ def run_process(
 
     try:
         scrape_report = run_scrape(
-            settings, config=config, dry_run=dry_run, interactive=interactive, observers=observers
+            settings,
+            config=config,
+            dry_run=dry_run,
+            interactive=interactive,
+            observers=observers,
+            event_bus=event_bus,
         )
     except Exception as exc:
         log.exception("process_scrape_fatal", error=str(exc))
@@ -309,7 +343,7 @@ def run_process(
         )
 
     try:
-        cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config, observers=observers)
+        cleanup_report = run_cleanup(settings, dry_run=dry_run, config=config, observers=observers, event_bus=event_bus)
     except Exception as exc:
         log.exception("process_cleanup_fatal", error=str(exc))
         cleanup_report = StepReport(

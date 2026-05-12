@@ -17,9 +17,11 @@ from personalscraper.api.torrent.qbittorrent import QBitAuthLockoutError, QBitCl
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, find_ingest_dir, folder_name, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.ingest.tracker import IngestTracker
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 
@@ -258,6 +260,7 @@ def run_ingest(
     staging_dir: Path | None = None,
     config: Config,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> StepReport:
     """Run the ingest pipeline step.
 
@@ -273,6 +276,9 @@ def run_ingest(
             ``config.paths.staging_dir``.
         config: Loaded Config instance (required) for staging dir name resolution.
         observers: Tuple of pipeline observers for progress and lifecycle notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         StepReport with success/skip/error counts and details.
@@ -328,6 +334,8 @@ def run_ingest(
                     observers,
                     StepEvent(step="ingest", item=name, status="started"),
                 )
+                if event_bus is not None:
+                    event_bus.emit(ItemProgressed(step="ingest", item=name, status="started"))
 
                 try:
                     # Skip already ingested
@@ -362,6 +370,12 @@ def run_ingest(
                                 step="ingest", item=name, status="skipped", details={"reason": "already_ingested"}
                             ),
                         )
+                        if event_bus is not None:
+                            event_bus.emit(
+                                ItemProgressed(
+                                    step="ingest", item=name, status="skipped", details={"reason": "already_ingested"}
+                                )
+                            )
                         continue
 
                     # Skip torrents that have not yet reached the minimum ratio threshold.
@@ -392,6 +406,15 @@ def run_ingest(
                                 step="ingest", item=name, status="skipped", details={"reason": "ratio_below_threshold"}
                             ),
                         )
+                        if event_bus is not None:
+                            event_bus.emit(
+                                ItemProgressed(
+                                    step="ingest",
+                                    item=name,
+                                    status="skipped",
+                                    details={"reason": "ratio_below_threshold"},
+                                )
+                            )
                         continue
 
                     # Resolve content path — if missing, check if already in staging
@@ -426,6 +449,15 @@ def run_ingest(
                                     step="ingest", item=name, status="skipped", details={"reason": "found_in_staging"}
                                 ),
                             )
+                            if event_bus is not None:
+                                event_bus.emit(
+                                    ItemProgressed(
+                                        step="ingest",
+                                        item=name,
+                                        status="skipped",
+                                        details={"reason": "found_in_staging"},
+                                    )
+                                )
                         else:
                             log.warning("content_missing", name=name, path=str(source))
                             content_missing_count += 1
@@ -437,6 +469,15 @@ def run_ingest(
                                     step="ingest", item=name, status="failed", details={"error": "content_missing"}
                                 ),
                             )
+                            if event_bus is not None:
+                                event_bus.emit(
+                                    ItemProgressed(
+                                        step="ingest",
+                                        item=name,
+                                        status="failed",
+                                        details={"error": "content_missing"},
+                                    )
+                                )
                         continue
 
                     # Destination in {ingest_dir}/ (sort picks up from here)
@@ -450,6 +491,12 @@ def run_ingest(
                             observers,
                             StepEvent(step="ingest", item=name, status="skipped", details={"reason": "already_exists"}),
                         )
+                        if event_bus is not None:
+                            event_bus.emit(
+                                ItemProgressed(
+                                    step="ingest", item=name, status="skipped", details={"reason": "already_exists"}
+                                )
+                            )
                         continue
 
                     # Check disk space
@@ -465,6 +512,15 @@ def run_ingest(
                                 step="ingest", item=name, status="skipped", details={"reason": "insufficient_space"}
                             ),
                         )
+                        if event_bus is not None:
+                            event_bus.emit(
+                                ItemProgressed(
+                                    step="ingest",
+                                    item=name,
+                                    status="skipped",
+                                    details={"reason": "insufficient_space"},
+                                )
+                            )
                         continue
 
                     # Transfer
@@ -484,6 +540,15 @@ def run_ingest(
                                 details={"action": action, "dest": str(dest)},
                             ),
                         )
+                        if event_bus is not None:
+                            event_bus.emit(
+                                ItemProgressed(
+                                    step="ingest",
+                                    item=name,
+                                    status="copied",
+                                    details={"action": action, "dest": str(dest)},
+                                )
+                            )
                         if not dry_run:
                             tracker.mark_ingested(torrent_hash, name, action, dest_path=str(dest))
                     else:
@@ -498,6 +563,15 @@ def run_ingest(
                                 details={"error": "transfer failed"},
                             ),
                         )
+                        if event_bus is not None:
+                            event_bus.emit(
+                                ItemProgressed(
+                                    step="ingest",
+                                    item=name,
+                                    status="failed",
+                                    details={"error": "transfer failed"},
+                                )
+                            )
 
                 except Exception as torrent_err:
                     # Isolate per-torrent failures so other torrents still process.
@@ -520,6 +594,15 @@ def run_ingest(
                             details={"error": str(torrent_err)},
                         ),
                     )
+                    if event_bus is not None:
+                        event_bus.emit(
+                            ItemProgressed(
+                                step="ingest",
+                                item=name,
+                                status="failed",
+                                details={"error": str(torrent_err)},
+                            )
+                        )
 
                     # Abort on 2 consecutive identical errors (systemic failure)
                     err_key = type(torrent_err).__name__

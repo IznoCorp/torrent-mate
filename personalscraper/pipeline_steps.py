@@ -31,7 +31,13 @@ class IngestStep:
         """
         from personalscraper.ingest.ingest import run_ingest
 
-        return run_ingest(ctx.app.settings, dry_run=ctx.dry_run, config=ctx.app.config, observers=ctx.observers)
+        return run_ingest(
+            ctx.app.settings,
+            dry_run=ctx.dry_run,
+            config=ctx.app.config,
+            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class SortStep:
@@ -56,6 +62,7 @@ class SortStep:
             dry_run=ctx.dry_run,
             config=ctx.app.config,
             observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -75,7 +82,13 @@ class CleanStep:
         """
         from personalscraper.process.run import run_clean
 
-        return run_clean(ctx.app.settings, dry_run=ctx.dry_run, config=ctx.app.config, observers=ctx.observers)
+        return run_clean(
+            ctx.app.settings,
+            dry_run=ctx.dry_run,
+            config=ctx.app.config,
+            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class ScrapeStep:
@@ -100,6 +113,7 @@ class ScrapeStep:
             dry_run=ctx.dry_run,
             interactive=ctx.interactive,
             observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -119,7 +133,13 @@ class CleanupStep:
         """
         from personalscraper.process.run import run_cleanup
 
-        return run_cleanup(ctx.app.settings, dry_run=ctx.dry_run, config=ctx.app.config, observers=ctx.observers)
+        return run_cleanup(
+            ctx.app.settings,
+            dry_run=ctx.dry_run,
+            config=ctx.app.config,
+            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class EnforceStep:
@@ -138,7 +158,9 @@ class EnforceStep:
         """
         from personalscraper.enforce.run import run_enforce
 
-        return run_enforce(ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, observers=ctx.observers)
+        return run_enforce(
+            ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, observers=ctx.observers, event_bus=ctx.app.event_bus
+        )
 
 
 class VerifyStep:
@@ -162,7 +184,14 @@ class VerifyStep:
         """
         from personalscraper.verify.run import run_verify
 
-        return run_verify(ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, fix=False, observers=ctx.observers)
+        return run_verify(
+            ctx.app.settings,
+            ctx.app.config,
+            dry_run=ctx.dry_run,
+            fix=False,
+            observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
+        )
 
 
 class TrailersStep:
@@ -188,6 +217,7 @@ class TrailersStep:
             verified=ctx.extras.get("verified", []),
             skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
             observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -214,6 +244,7 @@ class DispatchStep:
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
             observers=ctx.observers,
+            event_bus=ctx.app.event_bus,
         )
 
 
@@ -246,7 +277,13 @@ class LegacyCallableStep:
             The return value of the wrapped legacy callable.
         """
         if self.name == "ingest":
-            return self._fn(ctx.app.settings, dry_run=ctx.dry_run, config=ctx.app.config, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                dry_run=ctx.dry_run,
+                config=ctx.app.config,
+                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "sort":
             return self._fn(
                 ctx.app.settings,
@@ -254,9 +291,16 @@ class LegacyCallableStep:
                 dry_run=ctx.dry_run,
                 config=ctx.app.config,
                 observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         if self.name in {"clean", "cleanup"}:
-            return self._fn(ctx.app.settings, dry_run=ctx.dry_run, config=ctx.app.config, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                dry_run=ctx.dry_run,
+                config=ctx.app.config,
+                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "scrape":
             return self._fn(
                 ctx.app.settings,
@@ -264,11 +308,25 @@ class LegacyCallableStep:
                 dry_run=ctx.dry_run,
                 interactive=ctx.interactive,
                 observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         if self.name == "enforce":
-            return self._fn(ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                ctx.app.config,
+                dry_run=ctx.dry_run,
+                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "verify":
-            return self._fn(ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, fix=False, observers=ctx.observers)
+            return self._fn(
+                ctx.app.settings,
+                ctx.app.config,
+                dry_run=ctx.dry_run,
+                fix=False,
+                observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
+            )
         if self.name == "trailers":
             return self._fn(
                 ctx.app.config,
@@ -276,6 +334,7 @@ class LegacyCallableStep:
                 verified=ctx.extras.get("verified", []),
                 skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
                 observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         if self.name == "dispatch":
             return self._fn(
@@ -284,6 +343,7 @@ class LegacyCallableStep:
                 dry_run=ctx.dry_run,
                 verified=ctx.extras.get("verified"),
                 observers=ctx.observers,
+                event_bus=ctx.app.event_bus,
             )
         return self._fn(ctx)
 

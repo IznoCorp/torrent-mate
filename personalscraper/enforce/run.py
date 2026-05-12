@@ -10,11 +10,13 @@ Each component works on the state left by the previous one.
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.enforce.coherence_checker import check_coherence
 from personalscraper.enforce.file_sanitizer import sanitize_files
 from personalscraper.enforce.structure_validator import validate_structure
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 
 log = get_logger("enforce.run")
@@ -26,6 +28,7 @@ def run_enforce(
     dry_run: bool = False,
     *,
     observers: tuple[PipelineObserver, ...] = (),
+    event_bus: EventBus | None = None,
 ) -> StepReport:
     """Run the enforce pipeline step.
 
@@ -37,6 +40,9 @@ def run_enforce(
         dry_run: If True, preview without modifying filesystem.
         observers: Tuple of pipeline observers for progress and lifecycle
             notifications.
+        event_bus: Optional in-process EventBus. When provided, every
+            legacy ``notify_progress`` site also emits an ``ItemProgressed``
+            event on the bus for new subscribers.
 
     Returns:
         StepReport with enforce counts and details.
@@ -59,6 +65,8 @@ def run_enforce(
                 status="started",
             ),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="started"))
         if sanitize_result.action not in ("skipped",):
             success += 1
             details.append(
@@ -77,6 +85,18 @@ def run_enforce(
                     },
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="enforce",
+                        item=sanitize_result.old_name or "",
+                        status="fixed",
+                        details={
+                            "action": sanitize_result.action,
+                            "new_name": sanitize_result.new_name or "",
+                        },
+                    )
+                )
             log.info(
                 "enforce_sanitize_action",
                 action=sanitize_result.action,
@@ -92,6 +112,8 @@ def run_enforce(
                     status="skipped",
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="skipped"))
 
     # Structure fixes
     for structure_result in structure_results:
@@ -100,6 +122,8 @@ def run_enforce(
             observers,
             StepEvent(step="enforce", item=item_name, status="started"),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
         if structure_result.action == "repaired":
             success += 1
             for fix in structure_result.fixes:
@@ -109,6 +133,10 @@ def run_enforce(
                 observers,
                 StepEvent(step="enforce", item=item_name, status="fixed", details={"component": "structure"}),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(step="enforce", item=item_name, status="fixed", details={"component": "structure"})
+                )
         else:
             notify_progress(
                 observers,
@@ -119,6 +147,15 @@ def run_enforce(
                     details={"component": "structure", "action": structure_result.action},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="enforce",
+                        item=item_name,
+                        status="skipped",
+                        details={"component": "structure", "action": structure_result.action},
+                    )
+                )
         for w in structure_result.warnings:
             warnings_list.append(f"{item_name}: {w}")
             log.warning("enforce_structure_warning", item=item_name, warning=w)
@@ -130,6 +167,8 @@ def run_enforce(
             observers,
             StepEvent(step="enforce", item=item_name, status="started"),
         )
+        if event_bus is not None:
+            event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
         if coherence_result.warnings:
             notify_progress(
                 observers,
@@ -140,11 +179,24 @@ def run_enforce(
                     details={"component": "coherence", "warning_count": len(coherence_result.warnings)},
                 ),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(
+                        step="enforce",
+                        item=item_name,
+                        status="fixed",
+                        details={"component": "coherence", "warning_count": len(coherence_result.warnings)},
+                    )
+                )
         else:
             notify_progress(
                 observers,
                 StepEvent(step="enforce", item=item_name, status="skipped", details={"component": "coherence"}),
             )
+            if event_bus is not None:
+                event_bus.emit(
+                    ItemProgressed(step="enforce", item=item_name, status="skipped", details={"component": "coherence"})
+                )
         for w in coherence_result.warnings:
             warnings_list.append(f"[coherence] {item_name}: {w}")
             log.warning("enforce_coherence_warning", item=item_name, warning=w)
