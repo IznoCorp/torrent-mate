@@ -709,7 +709,8 @@ file=StringIO(), record=True)` — and compares the recorded text
   test fails. Allowlist (each entry is a precise (module, qualified-name)
   pair, not the whole file — paths match the real codebase post arch-cleanup):
   - `personalscraper/cli.py` → `main` (Typer app entrypoint — minimal touch; the real Pipeline construction lives in `commands/pipeline.py` after the `arch-cleanup` refactor)
-  - `personalscraper/commands/pipeline.py` → `_build_app_context`, `run_command`
+  - `personalscraper/cli_helpers.py` → `_build_app_context` (centralized AppContext factory shared by every CLI entry)
+  - `personalscraper/commands/pipeline.py` → `run`
   - `personalscraper/commands/library/scan.py` → `library_index`
   - `personalscraper/trailers/cli.py` → `scan`, `download`, `verify`, `purge`
   - `personalscraper/pipeline.py` → `Pipeline.__init__`

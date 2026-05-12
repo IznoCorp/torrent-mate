@@ -282,9 +282,9 @@ This keeps the visual regression baseline (`tests/snapshots/rich_console_canonic
 - [ ] At each `notify_progress` site, ADD `ctx.app.event_bus.emit(ItemProgressed(...))` alongside. Mechanical — same payload shape, same callsite location.
 - [ ] Run tests → pass.
 - [ ] `make check` green.
-- [ ] Sweep grep: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` — **must equal exactly `<N_CALLS>`** (the locked baseline count recorded in INDEX Pre-flight #8). The legacy calls are kept alongside per the transition strategy; 3.7b verifies this count drops to zero.
-- [ ] Sweep grep: `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` — **must equal exactly `<N_CALLS>`** (every legacy site has a paired bus emit).
-- [ ] Cross-check (deterministic): the two `wc -l` numbers MUST be equal AND MUST equal the INDEX-locked `<N_CALLS>`. If unequal, the migration is incomplete — fix in place, do NOT commit.
+- [ ] Sweep grep: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` — **must equal exactly `46`** (the locked baseline count recorded in INDEX Pre-flight #8). The legacy calls are kept alongside per the transition strategy; 3.7b verifies this count drops to zero.
+- [ ] Sweep grep: `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` — **must equal exactly `46`** (every legacy site has a paired bus emit).
+- [ ] Cross-check (deterministic): the two `wc -l` numbers MUST be equal AND MUST equal the INDEX-locked baseline `46`. If unequal, the migration is incomplete — fix in place, do NOT commit.
 - [ ] Commit: `feat(event-bus): all 9 pipeline steps emit ItemProgressed alongside legacy notify_progress`.
 
 ---

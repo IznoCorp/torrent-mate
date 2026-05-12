@@ -106,6 +106,20 @@ def test_every_event_has_factory() -> None:
     )
 
 
+def test_event_registry_has_thirteen_v1_events() -> None:
+    """The v1 catalog is pinned at 13 events (Phase 5 acceptance).
+
+    Importing ``personalscraper.events`` triggers eager registration of every
+    production event class. The literal count guards against silent additions
+    that bypass the documented event catalog in ``docs/reference/event-bus.md``.
+    """
+    import personalscraper.events  # noqa: F401 — eager-import side effect
+
+    assert len(_EVENT_CLASS_REGISTRY) == 13, (
+        f"Expected 13 v1 events, found {len(_EVENT_CLASS_REGISTRY)}: {sorted(_EVENT_CLASS_REGISTRY)}"
+    )
+
+
 def test_item_progressed_details_defaults_to_empty_dict() -> None:
     """``ItemProgressed.details`` defaults to ``{}`` for steps that emit no extras."""
     event = ItemProgressed(step="ingest", item="file.mkv", status="moved")

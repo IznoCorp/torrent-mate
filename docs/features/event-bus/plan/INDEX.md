@@ -255,10 +255,10 @@ Execute these BEFORE creating any code:
      - `personalscraper/verify/run.py`
 
    These exact numbers are the **gate targets**:
-   - Phase 3.4 gate: after the mechanical sweep, `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST equal `<N_CALLS>` (every legacy site has a paired bus emit alongside).
-   - Phase 3.4 gate: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` MUST still equal `<N_CALLS>` (legacy NOT removed yet — that's 3.7b's job).
+   - Phase 3.4 gate: after the mechanical sweep, `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST equal `46` (every legacy site has a paired bus emit alongside).
+   - Phase 3.4 gate: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` MUST still equal `46` (legacy NOT removed yet — that's 3.7b's job).
    - Phase 3.7b gate: `rg 'notify_progress\(' --type py personalscraper/ | wc -l` MUST equal `0`.
-   - Phase 3.7b gate: `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST still equal `<N_CALLS>` (only legacy removed; bus emit preserved).
+   - Phase 3.7b gate: `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/ | wc -l` MUST still equal `46` (only legacy removed; bus emit preserved).
 
    Phase 3 sub-phase 3.4 migrates EVERY site in a single mechanical sweep (one commit). The invariant is "every legacy site has a paired bus emit by end of 3.4, and zero legacy sites by end of 3.7b".
 

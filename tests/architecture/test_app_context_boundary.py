@@ -118,7 +118,7 @@ def test_app_context_module_factories_take_app_context() -> None:
 
 
 def test_boundary_test_module_size() -> None:
-    """Plan budget (≤ 100 non-blank LOC, uplifted to 130 for the rot-guard helpers)."""
+    """DESIGN §Testing strategy budget (≤ 100 non-blank LOC, rot-guards included)."""
     here = Path(__file__)
     non_blank = [line for line in here.read_text().splitlines() if line.strip()]
-    assert len(non_blank) <= 130, f"Test grew to {len(non_blank)} non-blank lines"
+    assert len(non_blank) <= 100, f"Test grew to {len(non_blank)} non-blank lines"
