@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -26,6 +27,26 @@ from personalscraper.core.event_bus import EventBus, current_correlation_id
 runner = CliRunner()
 
 _ALL_COMMANDS = ("scan", "download", "verify", "purge")
+
+
+@pytest.fixture(autouse=True)
+def _stub_top_level_config_loader():
+    """Bypass the typer top-level callback's config loader.
+
+    The trailers commands are invoked via :class:`CliRunner`; the top-level
+    callback in ``personalscraper.cli`` eagerly calls
+    ``load_config(resolve_config_path(...))`` before any subcommand body
+    runs. CI runners have no ``config/`` directory checked in (it's
+    gitignored), so without this stub the callback would exit with code 2
+    and ``_build_app_context`` would never be reached — making every
+    assertion in this module fail with a misleading ``len(captured) == 0``.
+    """
+    stub_cfg = MagicMock()
+    with (
+        patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/__stub_config__")),
+        patch("personalscraper.conf.loader.load_config", return_value=stub_cfg),
+    ):
+        yield
 
 
 def _capturing_factory() -> tuple:
