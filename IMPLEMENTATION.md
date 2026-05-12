@@ -101,53 +101,58 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: `f3841c6` — `feat(event-bus): Pipeline emits StepStarted/Completed/Errored around each step`
-**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (6 commits this session, not yet pushed; push happens only at Phase 3 gate per workflow).
+**HEAD SHA**: `7cff5db` — `refactor(event-bus): delete pipeline_observer.py and StepContext.observers; bus is the only emit path`
+**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (10 commits this session, not yet pushed; push happens only at Phase 3 gate per workflow).
 **Working tree**: clean.
-**Last successful gate**: full `make check` green (3904 passed, 3 skipped).
+**Last successful gate**: `make test` green (3885 passed, 3 skipped); `ruff check` clean; `ruff format --check` clean; `mypy` strict clean.
 
 **Captured baselines (locked at feature start, see INDEX Pre-flight):**
 
 - `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **3904 passed, 3 skipped** (= **+166 new event-bus tests**, well above the +130 floor for Phase 3 gate per plan 3.9 item 2).
+- Current `make test`: **3885 passed, 3 skipped** (= **+147 new event-bus tests**, well above the +130 floor for Phase 3 gate per plan 3.9 item 2). The dip from 3923 in 3.6 reflects the 3.7a/3.7b consolidation: 4 legacy observer test files removed (≈ 39 tests) plus the side-by-side legacy comparison test deleted; the migrated bus-side coverage in `tests/event_bus/` + `tests/subscribers/` more than compensates net of baseline.
 - Skip / xfail decorator count: **3** (unchanged from Phase 2 baseline).
-- `notify_progress` call sites in production (Pre-flight #8): **46** across **8** files. Bus emits for `ItemProgressed` not yet added — that is the 3.4 mechanical sweep.
+- `notify_progress` call sites in production: **0** (deleted in 3.7b). `ItemProgressed(` emit sites in production: **46** across **8** files (single emit channel since 3.7b).
 
 **Phase 3 sub-phase progress (commits across sessions):**
 
 - ✅ 3.1 — pipeline event catalog + factories + Report JSON-safety (4 commits: 050bfd0, 05e2dea, 0ebf080, bfda5f6).
 - ✅ 3.2 — `PipelineStarted`/`PipelineEnded` (59697ef).
 - ✅ 3.3 — `StepStarted`/`StepCompleted`/`StepErrored` (f3841c6).
-- ✅ 3.4 — Step emit migration: 46 sites migrated, `event_bus` kwarg added to all 9 `run_*` step entries + adapters in `pipeline_steps.py`; 9 new tests in `tests/event_bus/test_step_item_progressed_emit.py`. Cardinality grep locked: `notify_progress(` and `ItemProgressed(` both = 46 across step files (27f85a8).
-- ⏳ 3.5 — RichConsoleObserver → RichConsoleSubscriber rewrite. **NOT STARTED**.
+- ✅ 3.4 — Step emit migration: 46 sites migrated, `event_bus` kwarg added to all 9 `run_*` step entries + adapters in `pipeline_steps.py`; 9 new tests (27f85a8).
+- ✅ 3.5 — `RichConsoleSubscriber` rewrite (175 LOC, ≤ 200 budget); CLI bootstrap swap; baseline byte-identity locked vs `tests/snapshots/rich_console_canonical.txt` (16471eb).
+- ✅ 3.6 — `TelegramSubscriber` rewrite (69 LOC); fast-bus-thread contract (< 50 ms) verified; cassette test exercises real transport via `responses`; 3 telegram CLI tests updated to assert the subscriber path (d893d12).
+- ✅ 3.7a — every test migrated off the legacy Observer API; 4 legacy test files deleted; sweep grep gate clean in `tests/` (2202364).
+- ✅ 3.7b — legacy infrastructure deleted from production: `pipeline_observer.py`, `observers/` package, `StepContext.observers`, `Pipeline.run(observers=...)`, all `notify_progress(...)` call sites, `_notify_observers` helper. Sweep grep gates over `personalscraper/` all return zero. (7cff5db).
+- ⏳ 3.7c — docs sweep: remove references to legacy Observer API from `docs/` (excluding `docs/archive/`). **NOT STARTED**.
+- ⏳ 3.8 — structlog dedup audit at emit sites. **NOT STARTED**.
+- ⏳ 3.9 — Phase 3 gate (lint, test, sweep greps, visual regression, push). **NOT STARTED**.
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked after `/clear`, **resume at sub-phase 3.5**.
+When `/implement:phase` is re-invoked after `/clear`, **resume at sub-phase 3.7c**.
 
-The remaining Phase 3 sub-phases are 3.5 → 3.6 → 3.7a → 3.7b → 3.7c → 3.8 → 3.9 (gate).
+The remaining Phase 3 sub-phases are 3.7c → 3.8 → 3.9 (gate).
 Then Phase 4 (cross-cutting events) and Phase 5 (polish), then `/implement:feature-pr` chains.
 
-**Plan-anchored execution for 3.5 (read first):**
-`docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` lines 292-339.
+**Plan-anchored execution for 3.7c (read first):**
+`docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` lines 473-491.
 
-Key constraints:
+Mechanical sweep — docs only. Steps:
 
-1. **Move + rename** `personalscraper/observers/rich_console.py` → `personalscraper/subscribers/rich_console.py`, class renamed `RichConsoleObserver` → `RichConsoleSubscriber`. Subscriber self-subscribes in `__init__` to 6 events (`PipelineStarted`, `PipelineEnded`, `StepStarted`, `StepCompleted`, `StepErrored`, `ItemProgressed`). Stores tokens; `close()` unsubscribes all.
-2. **Create** `personalscraper/subscribers/__init__.py` (new package).
-3. **Modify CLI** (`personalscraper/commands/pipeline.py`): instantiate `RichConsoleSubscriber(app.event_bus, console)` AND remove `RichConsoleObserver` from the observers tuple. Observers tuple becomes `(TelegramObserver(creds),)`.
-4. **Visual regression lock**: tests against the immutable baseline at `tests/snapshots/rich_console_canonical.txt`. Translate each `CANONICAL_SEQUENCE` callback into the equivalent `bus.emit(...)`. Byte-for-byte equality required. Translation table in plan §3.5 (lines 318-323).
-5. Tests required:
-   - `test_rich_console_subscriber_subscribes_on_init` (6 tokens stored)
-   - `test_rich_console_subscriber_close_unsubscribes_all`
-   - `test_rich_console_subscriber_snapshot_matches_baseline` (visual regression vs frozen baseline)
-   - `test_rich_console_subscriber_outputs_match_legacy_observer_directly` (side-by-side, marked `TODO(3.7a): delete`)
-6. Smoke import: `python -c "import personalscraper.observers; import personalscraper.subscribers; print('ok')"` must print `ok`.
-7. Budget: `subscribers/rich_console.py` ≤ 200 LOC.
-8. Commit: `refactor(event-bus): rewrite RichConsoleObserver as RichConsoleSubscriber on the bus`.
+1. Find references: `rg 'PipelineObserver|notify_progress|StepEvent|from personalscraper\.observers' docs/ -g '!docs/archive/**'` → produces the file list.
+2. For each file, rewrite the affected paragraphs to describe the bus API (EventBus + ItemProgressed + subscribers/) instead.
+3. `git add -f` for new doc files if any (global `~/.gitignore` blocks `docs/`).
+4. Sweep grep must return zero matches outside `docs/archive/`.
+5. `make check` green.
+6. Commit: `docs(event-bus): sweep references to legacy Observer API`.
 
-Then continue inline through 3.6–3.8 and commit 3.9 as the Phase 3 gate (which
-also pushes per the user's `git push at each phase-gate commit` rule).
+**Plan-anchored execution for 3.8 (after 3.7c):**
+`docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` lines 495-520.
+
+Structlog dedup audit at emit sites — review each `event_bus.emit(` in production and remove duplicate `log.info/debug` calls that carry the same information. Keep `log.exception(..., exc_info=True)` alongside `StepErrored` (distinct: traceback vs error_class + error_message).
+
+**Plan-anchored execution for 3.9 (Phase 3 gate, after 3.8):**
+End-of-phase gate. `make check` green, sweep greps re-run, visual regression re-checked (already locked at 3.5). Milestone commit `chore(event-bus): phase 3 gate — pipeline event migration + subscribers`. Push at the gate per user's git workflow rule.
 
 The legacy resumption notes for Phase 2 (Steps A → D below) are kept
 for historical reference only — every sub-phase they describe is now
