@@ -101,7 +101,8 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: _(this milestone commit)_ — `chore(event-bus): phase 3 gate — pipeline event migration + subscribers`
+**HEAD SHA**: `dba9ed0` — `docs(event-bus): scrub residual notify_progress docstring in step emit test`
+(milestone commit was `e6b8290`; `dba9ed0` is a post-gate docstring follow-up that should have been folded into the milestone.)
 **Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (push happens at Phase 5 feature-pr per the new chained workflow).
 **Working tree**: clean.
 **Last successful gate**: `make check` green (3955 passed, 3 skipped under coverage; 91.22% coverage); `make test` green (4112 passed, 4 skipped under `-n auto`, no coverage); ruff check / format / mypy strict / logging audit all clean.
