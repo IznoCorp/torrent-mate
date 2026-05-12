@@ -26,9 +26,14 @@ import tempfile  # noqa: F401 — imported so tests can patch scanner.tempfile.*
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.indexer._throttle import TokenBucket, set_active_bucket
 from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_breaker
+from personalscraper.indexer.events import LibraryScanCompleted
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.merkle import (
     DiskBulkChangeDetected,
     DiskMismatchError,
@@ -350,6 +355,7 @@ def scan(
     staging_dir: str | None = None,
     spotlight_enabled: bool = False,
     paranoia_window_seconds: int = 86400,
+    event_bus: EventBus | None = None,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -475,6 +481,11 @@ def scan(
             ``0`` disables the branch.  Sourced from
             ``IndexerScanConfig.paranoia_window_seconds``.  Default ``86400``
             (24 h).
+        event_bus: Optional :class:`EventBus`. When provided, exactly one
+            :class:`LibraryScanCompleted` event is emitted in the
+            ``finally`` block — fires on success, partial failure, and
+            mid-scan exception alike. Optional in Phase 4 (additive
+            contract); required in Phase 5.2.
 
     Returns:
         :class:`ScanRunResult` with the assigned ``scan_run_id``, visit counts,
@@ -486,6 +497,26 @@ def scan(
             the ``scan_run`` row is updated to ``status='failed'``.
     """
     started_at = int(time.time())
+    # Monotonic clock for the LibraryScanCompleted ``elapsed_s`` field —
+    # the ``started_at`` epoch above is suitable for DB persistence but
+    # vulnerable to wall-clock jumps, so the event uses ``time.monotonic``.
+    _emit_started_monotonic = time.monotonic()
+    # Tracking bucket for the LibraryScanCompleted emit (Sub-phase 4.5).
+    # Set to True on the failure path so the finally-block emit can apply
+    # the locked formula ``errors = max(scanned - successful, 1)``
+    # (which simplifies to ``errors >= 1``) on the failure path.
+    _emit_raised: list[bool] = [False]
+    # Counters hoisted to the outer scope so the outer finally-block emit
+    # can read them on every exit path — even when an exception fires
+    # before the inner ``try`` block (e.g. Spotlight probe, insert_scan_run,
+    # SIGTERM handler install). Values default to 0 which is the correct
+    # "nothing processed yet" baseline for the pre-loop failure path. The
+    # original initialization sites below have been replaced with no-ops
+    # to keep the diff surface minimal; mutation still happens in-place
+    # through the existing single-element-list aliasing.
+    files_visited: list[int] = [0]  # mutable counter (list avoids nonlocal in nested helper)
+    dirs_visited: list[int] = [0]
+    disks_skipped: list[int] = [0]  # quick-mode Merkle-hit counter
 
     # SIGTERM clean-shutdown plumbing (sub-phase 4.9): register the
     # signal handler.  We do NOT clear the shutdown flag here — callers
@@ -546,9 +577,11 @@ def scan(
     # fall back to the module-level singleton for production use.
     breaker: DiskCircuitBreaker = disk_breaker if disk_breaker is not None else get_global_disk_breaker()
 
-    files_visited = [0]  # mutable counter (list avoids nonlocal in nested helper)
-    dirs_visited = [0]
-    disks_skipped = [0]  # quick-mode Merkle-hit counter
+    # files_visited / dirs_visited / disks_skipped are now declared at the
+    # very top of the function so the LibraryScanCompleted emit in the
+    # outer-finally block can read them on every exit path (Sub-phase
+    # 4.5). The original initialization here is removed; mutation still
+    # happens in-place through the existing single-element-list aliasing.
 
     # Checkpoint / crash-resume state (sub-phase 3.4).
     # Single-element lists used so nested walk helpers can mutate them without
@@ -1002,6 +1035,7 @@ def scan(
         # so the CLI can surface an actionable message and return exit code 3.
         finished_at = int(time.time())
         log_repo.update_scan_run_status(conn, scan_run_id, "failed", finished_at=finished_at)
+        _emit_raised[0] = True
         raise
     except Exception:
         # Unexpected failure — update the scan_run row to status='failed' so the
@@ -1016,6 +1050,7 @@ def scan(
             "failed",
             finished_at=finished_at,
         )
+        _emit_raised[0] = True
         raise
     finally:
         # Always clear the active bucket so a subsequent scan does not
@@ -1030,6 +1065,25 @@ def scan(
         # pre-arm the flag before invoking scan() — useful in tests and
         # for last-mile shutdown coordination at the boundary.
         reset_shutdown()
+        # Sub-phase 4.5 — LibraryScanCompleted emit. Fires once per
+        # scan() invocation regardless of exit path: success, partial
+        # failure, mid-scan exception. The locked formula
+        # ``errors = max(scanned - successful, 1)`` simplifies here to
+        # ``max(disks_skipped, 1)`` on the failure path (we don't track
+        # a separate "successful" counter; disks_skipped is the proxy
+        # error count). On success, ``errors == disks_skipped`` (which
+        # is ``0`` when every disk processed cleanly).
+        if event_bus is not None:
+            _emit_errors = max(disks_skipped[0], 1) if _emit_raised[0] else disks_skipped[0]
+            event_bus.emit(
+                LibraryScanCompleted(
+                    source="indexer.scanner.scan",
+                    mode=mode.value,
+                    scanned=files_visited[0],
+                    errors=_emit_errors,
+                    elapsed_s=time.monotonic() - _emit_started_monotonic,
+                ),
+            )
 
 
 __all__ = [

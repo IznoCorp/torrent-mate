@@ -44,7 +44,7 @@ from personalscraper.dispatch.events import ItemDispatched
 # ``DiskFullWarning`` (and, from 4.5, ``LibraryScanCompleted``) is
 # registered before consumers call ``event_from_envelope``.
 from personalscraper.indexer import events as _indexer_events  # noqa: F401
-from personalscraper.indexer.events import DiskFullWarning
+from personalscraper.indexer.events import DiskFullWarning, LibraryScanCompleted
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
@@ -66,6 +66,7 @@ __all__ = [
     "DiskFullWarning",
     "ItemDispatched",
     "ItemProgressed",
+    "LibraryScanCompleted",
     "PipelineEnded",
     "PipelineStarted",
     "StepCompleted",

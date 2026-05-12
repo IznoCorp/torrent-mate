@@ -45,4 +45,33 @@ class DiskFullWarning(Event):
     threshold_bytes: int
 
 
-__all__ = ["DiskFullWarning"]
+@dataclass(frozen=True, kw_only=True)
+class LibraryScanCompleted(Event):
+    """Emitted by the indexer scanner at the end of every scan-mode invocation.
+
+    Fires exactly once per ``scan()`` call regardless of exit path
+    (success / partial failure / mid-scan exception / pre-item exception)
+    — the emit lives in a ``finally`` block. On the failure path, the
+    locked formula ``errors = max(scanned - successful, 1)`` guarantees
+    ``errors ≥ 1`` so subscribers filtering on ``errors > 0`` always fire.
+
+    Attributes:
+        mode: Scan mode string (``"quick"`` | ``"incremental"`` |
+            ``"enrich"`` | ``"full"`` | ``"verify"`` | ``"backfill"``).
+        scanned: Number of files visited before the scan ended (success
+            or exception).
+        errors: Count of error conditions encountered. Always ``≥ 0`` on
+            the success path; always ``≥ 1`` on the failure path (a scan
+            that exits via exception has at least one error: itself).
+        elapsed_s: Wall-clock seconds since ``scan()`` was entered
+            (``time.monotonic`` delta). Always populated, even on
+            failure paths.
+    """
+
+    mode: str
+    scanned: int
+    errors: int
+    elapsed_s: float
+
+
+__all__ = ["DiskFullWarning", "LibraryScanCompleted"]

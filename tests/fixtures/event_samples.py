@@ -29,7 +29,7 @@ from personalscraper.core.circuit import (
 )
 from personalscraper.core.event_bus import Event
 from personalscraper.dispatch.events import ItemDispatched
-from personalscraper.indexer.events import DiskFullWarning
+from personalscraper.indexer.events import DiskFullWarning, LibraryScanCompleted
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
     ItemProgressed,
@@ -228,6 +228,17 @@ def make_trailer_downloaded() -> TrailerDownloaded:
         media_path=Path("/Volumes/Disk1/movies/Inception (2010)"),
         trailer_path=Path("/Volumes/Disk1/movies/Inception (2010)/Inception-trailer.mp4"),
         source_url="https://www.youtube.com/watch?v=YoHD9XEInc0",
+    )
+
+
+@register_factory(LibraryScanCompleted)
+def make_library_scan_completed() -> LibraryScanCompleted:
+    """Realistic :class:`LibraryScanCompleted` for round-trip tests."""
+    return LibraryScanCompleted(
+        mode="quick",
+        scanned=12_345,
+        errors=2,
+        elapsed_s=187.42,
     )
 
 
