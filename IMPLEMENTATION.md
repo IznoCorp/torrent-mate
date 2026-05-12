@@ -37,7 +37,7 @@ DEFERRAL — MANDATORY".
 | --- | -------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------- | ------ |
 | 1   | Foundation (standalone)                | core    | [phase-01-foundation.md](docs/features/event-bus/plan/phase-01-foundation.md)                               | [x]    |
 | 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [x]    |
-| 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [ ]    |
+| 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [x]    |
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [ ]    |
 | 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [ ]    |
 
@@ -101,17 +101,17 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: `7cff5db` — `refactor(event-bus): delete pipeline_observer.py and StepContext.observers; bus is the only emit path`
-**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (10 commits this session, not yet pushed; push happens only at Phase 3 gate per workflow).
+**HEAD SHA**: _(this milestone commit)_ — `chore(event-bus): phase 3 gate — pipeline event migration + subscribers`
+**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (push happens at Phase 5 feature-pr per the new chained workflow).
 **Working tree**: clean.
-**Last successful gate**: `make test` green (3885 passed, 3 skipped); `ruff check` clean; `ruff format --check` clean; `mypy` strict clean.
+**Last successful gate**: `make check` green (3955 passed, 3 skipped under coverage; 91.22% coverage); `make test` green (4112 passed, 4 skipped under `-n auto`, no coverage); ruff check / format / mypy strict / logging audit all clean.
 
 **Captured baselines (locked at feature start, see INDEX Pre-flight):**
 
 - `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **3885 passed, 3 skipped** (= **+147 new event-bus tests**, well above the +130 floor for Phase 3 gate per plan 3.9 item 2). The dip from 3923 in 3.6 reflects the 3.7a/3.7b consolidation: 4 legacy observer test files removed (≈ 39 tests) plus the side-by-side legacy comparison test deleted; the migrated bus-side coverage in `tests/event_bus/` + `tests/subscribers/` more than compensates net of baseline.
-- Skip / xfail decorator count: **3** (unchanged from Phase 2 baseline).
-- `notify_progress` call sites in production: **0** (deleted in 3.7b). `ItemProgressed(` emit sites in production: **46** across **8** files (single emit channel since 3.7b).
+- Current `make test`: **4112 passed, 4 skipped** (= **+374 new event-bus tests** vs feature baseline, well above the +130 floor for Phase 3 gate per plan 3.9 item 2). +227 of these come from the parametrized AST audit added in 3.8 (one test case per production file).
+- Skip / xfail decorator count: **6** (matches SKIP_BASELINE locked at Pre-flight #9; no growth — Invariant 1 honored).
+- `notify_progress` call sites in production: **0**. `ItemProgressed(` emit sites in production: **46** across **8** files (single emit channel since 3.7b).
 
 **Phase 3 sub-phase progress (commits across sessions):**
 
@@ -123,16 +123,16 @@ _(filled by implement:pr-review — max 3 cycles)_
 - ✅ 3.6 — `TelegramSubscriber` rewrite (69 LOC); fast-bus-thread contract (< 50 ms) verified; cassette test exercises real transport via `responses`; 3 telegram CLI tests updated to assert the subscriber path (d893d12).
 - ✅ 3.7a — every test migrated off the legacy Observer API; 4 legacy test files deleted; sweep grep gate clean in `tests/` (2202364).
 - ✅ 3.7b — legacy infrastructure deleted from production: `pipeline_observer.py`, `observers/` package, `StepContext.observers`, `Pipeline.run(observers=...)`, all `notify_progress(...)` call sites, `_notify_observers` helper. Sweep grep gates over `personalscraper/` all return zero. (7cff5db).
-- ⏳ 3.7c — docs sweep: remove references to legacy Observer API from `docs/` (excluding `docs/archive/`). **NOT STARTED**.
-- ⏳ 3.8 — structlog dedup audit at emit sites. **NOT STARTED**.
-- ⏳ 3.9 — Phase 3 gate (lint, test, sweep greps, visual regression, push). **NOT STARTED**.
+- ✅ 3.7c — docs sweep + new bus reference section in `docs/reference/pipeline-internals.md` (4bdb695).
+- ✅ 3.8 — structlog dedup audit at emit sites: 1 duplicate removed (`log.info("step_started", ...)` next to `emit(StepStarted)`), 5 distinct-info companions kept; new parametrized AST audit test over all 227 production files (14d530e).
+- ✅ 3.9 — Phase 3 gate (this commit).
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked after `/clear`, **resume at sub-phase 3.7c**.
+When `/implement:phase` is re-invoked, **resume at Phase 4 (Cross-cutting events)**.
+Plan: `docs/features/event-bus/plan/phase-04-cross-cutting-events.md`.
 
-The remaining Phase 3 sub-phases are 3.7c → 3.8 → 3.9 (gate).
-Then Phase 4 (cross-cutting events) and Phase 5 (polish), then `/implement:feature-pr` chains.
+After Phase 4, Phase 5 (Required-bus tightening + CLI polish + reference doc) runs, then `/implement:feature-pr` chains automatically.
 
 **Plan-anchored execution for 3.7c (read first):**
 `docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` lines 473-491.
