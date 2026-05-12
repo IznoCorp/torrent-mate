@@ -14,9 +14,12 @@ and ``_types.py``. This file is a thin orchestrator with delegator methods
 for backward-compatible calls from ``_move_new`` and tests.
 """
 
+from __future__ import annotations
+
 import os
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
@@ -26,6 +29,9 @@ from personalscraper.dispatch.disk_scanner import get_disk_configs
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.verify.verifier import VerifyResult
+
+if TYPE_CHECKING:
+    from personalscraper.core.event_bus import EventBus
 
 log = get_logger("dispatcher")
 
@@ -49,6 +55,8 @@ class Dispatcher:
         settings: Settings,
         index: MediaIndex,
         dry_run: bool = False,
+        *,
+        event_bus: EventBus | None = None,
     ):
         """Initialize the dispatcher.
 
@@ -57,6 +65,12 @@ class Dispatcher:
             settings: Pipeline settings with numeric thresholds and credentials.
             index: Media index for existing media lookup.
             dry_run: If True, preview without modifying files.
+            event_bus: Optional :class:`EventBus`. When provided,
+                ``_movie.dispatch_movie`` and ``_tv.dispatch_tvshow`` emit
+                :class:`ItemDispatched` after every successful real
+                transfer (dry-run never emits, by design — the catalog
+                only records completed transfers). Optional in Phase 4;
+                required in Phase 5.2.
 
         Raises:
             DispatchError: If rsync is not available.
@@ -65,6 +79,7 @@ class Dispatcher:
         self.settings = settings
         self.index = index
         self.dry_run = dry_run
+        self._event_bus = event_bus
         self._disk_configs = get_disk_configs(config)
 
         # Verify rsync is available

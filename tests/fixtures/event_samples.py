@@ -28,6 +28,7 @@ from personalscraper.core.circuit import (
     CircuitBreakerOpened,
 )
 from personalscraper.core.event_bus import Event
+from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
@@ -205,6 +206,17 @@ def make_disk_full_warning() -> DiskFullWarning:
         disk_path=Path("/Volumes/Disk1"),
         free_bytes=1_000_000_000,
         threshold_bytes=10_000_000_000,
+    )
+
+
+@register_factory(ItemDispatched)
+def make_item_dispatched() -> ItemDispatched:
+    """Realistic :class:`ItemDispatched` for round-trip tests."""
+    return ItemDispatched(
+        item="Inception (2010)",
+        target_disk=Path("/Volumes/Disk1"),
+        category_id="movies",
+        action="moved",
     )
 
 

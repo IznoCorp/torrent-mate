@@ -34,6 +34,12 @@ from personalscraper.core.circuit import (
     CircuitBreakerOpened,
 )
 
+# Sub-phase 4.3: eager-import the dispatch events producer module so
+# ``ItemDispatched`` is registered before consumers call
+# ``event_from_envelope``.
+from personalscraper.dispatch import events as _dispatch_events  # noqa: F401
+from personalscraper.dispatch.events import ItemDispatched
+
 # Sub-phase 4.2b: eager-import the indexer events producer module so
 # ``DiskFullWarning`` (and, from 4.5, ``LibraryScanCompleted``) is
 # registered before consumers call ``event_from_envelope``.
@@ -53,6 +59,7 @@ __all__ = [
     "CircuitBreakerHalfOpened",
     "CircuitBreakerOpened",
     "DiskFullWarning",
+    "ItemDispatched",
     "ItemProgressed",
     "PipelineEnded",
     "PipelineStarted",

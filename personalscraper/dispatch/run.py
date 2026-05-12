@@ -131,7 +131,13 @@ def run_dispatch(
                 event = "index_rebuilt_on_empty_preview" if dry_run else "index_rebuilt_on_empty"
                 log.info(event, entries=count)
 
-            dispatcher = Dispatcher(config=config, settings=settings, index=index, dry_run=dry_run)
+            dispatcher = Dispatcher(
+                config=config,
+                settings=settings,
+                index=index,
+                dry_run=dry_run,
+                event_bus=event_bus,
+            )
 
             if verified is None:
                 # Standalone mode: run verify first to get dispatchable items

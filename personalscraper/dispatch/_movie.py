@@ -10,6 +10,7 @@ from personalscraper.conf import resolver
 from personalscraper.dispatch import _transfer
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.disk_scanner import get_disk_status
+from personalscraper.dispatch.events import ItemDispatched
 from personalscraper.dispatch.media_index import IndexEntry
 from personalscraper.indexer.outbox._disk import disk_id_for_path
 from personalscraper.indexer.outbox._publish import publish_event
@@ -142,7 +143,44 @@ def dispatch_movie(
                 source="dispatch",
             )
 
+    # Bus emit (Sub-phase 4.3) — only on real completed transfers.
+    # Dry-run is excluded because the catalog defines ItemDispatched as the
+    # record of completed transfers; the action enum has no "skipped" value
+    # so dry-run runs logically cannot emit (DESIGN §Event catalog Notes).
+    if (
+        not dispatcher.dry_run
+        and result.action in ("moved", "replaced")
+        and result.destination is not None
+        and dispatcher._event_bus is not None
+    ):
+        target_disk_path = _disk_root_for(dispatcher, result.disk)
+        dispatcher._event_bus.emit(
+            ItemDispatched(
+                source="dispatch.movie",
+                item=movie_dir.name,
+                target_disk=target_disk_path,
+                category_id=category_id,
+                action=result.action,  # type: ignore[arg-type]  # narrowed by guard above
+            ),
+        )
+
     return result
+
+
+def _disk_root_for(dispatcher: Dispatcher, disk_id: str | None) -> Path:
+    """Return the storage-disk root path for ``disk_id`` (empty path if unknown).
+
+    ``ItemDispatched.target_disk`` is the disk's mount point, NOT the
+    per-category sub-folder. The dispatcher holds the list of resolved disk
+    configs; this helper is a thin lookup used by the dispatch_movie /
+    dispatch_tvshow emit sites.
+    """
+    if not disk_id:
+        return Path("")
+    for cfg in dispatcher._disk_configs:
+        if cfg.id == disk_id:
+            return cfg.path
+    return Path("")
 
 
 def replace(source: Path, dest: Path) -> bool:
