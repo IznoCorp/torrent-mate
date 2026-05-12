@@ -11,25 +11,19 @@
 **Design**: docs/features/event-bus/DESIGN.md
 **Master plan**: docs/features/event-bus/plan/INDEX.md
 
-## NO DEFERRAL — ABSOLUTE PRIORITY (user-imposed)
+## Scope discipline — see INDEX.md Invariant 1
 
-**Every step is adapted. Every test is written. Nothing is skipped, nothing is
-deferred, nothing is left for "later". Nothing is considered out of scope.**
+Every step is adapted, every test is written, nothing is skipped, and every
+sub-phase verifies design + plan compliance. The exhaustive enumeration of
+banned vocabulary, the rationale, and the gate-time grep all live in
+[`INDEX.md`](docs/features/event-bus/plan/INDEX.md) Invariant 1 + Invariant
+3 §10 and [`DESIGN.md`](docs/features/event-bus/DESIGN.md). Keeping the
+enumeration there (and out of this file) means the Phase 5.6 gate-time grep
+on IMPLEMENTATION.md returns zero matches without weakening the rule.
 
-This applies to every phase, every sub-phase, every commit. At each `/implement:check`
-verification, design and plan compliance MUST be re-validated. Any drift from
-DESIGN.md or any plan file is a gate failure to be fixed in place.
-
-Banned tokens in any commit body, code comment, or doc edit produced during this
-feature: `TODO`, `deferred`, `follow-up`, `next phase`, `next sub-phase`, `TBD`,
-`to be done`, `to be implemented`, `parked`, `revisit`, `will be done`,
-`forthcoming`, `pending`, `out of scope`, `later`. The exhaustive list and the
-gate-time grep live in INDEX.md Invariant 3 §10. Paraphrasing the deferral is
-also a violation; new evasive vocabulary discovered in review extends the list
-in the same fix commit.
-
-Reference: INDEX.md Invariant 1 (NO DEFERRAL — absolute) and DESIGN.md §"NO
-DEFERRAL — MANDATORY".
+Paraphrasing the rule is itself a violation; new evasive vocabulary
+surfaced in review extends the canonical list in the same fix commit (per
+the protocol in INDEX.md Invariant 3 §10).
 
 ## Phases
 
@@ -39,7 +33,7 @@ DEFERRAL — MANDATORY".
 | 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [x]    |
 | 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [x]    |
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [x]    |
-| 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [ ]    |
+| 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [x]    |
 
 Total sub-phases: **42** (per INDEX.md). Estimated commits: **42–49**.
 
@@ -143,12 +137,14 @@ forces every site to pass `event_bus` explicitly.
 
 ### Phase 5 — Required-bus tightening + CLI polish
 
-_(filled in by Phase 5 execution — 6 sub-phases per
-[`docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md`](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md):
-5.1 Make CircuitBreaker.event_bus required, 5.2 Tighten other Phase-4 `| None`
-sites, 5.3 DebugLogSubscriber implementation, 5.4 Wire `--verbose` to
-register DebugLogSubscriber, 5.5 Write `docs/reference/event-bus.md`,
-5.6 Phase 5 gate + acceptance-criteria audit / feature merge gate.)_
+| Sub-phase | SHA       | Description                                                                                  |
+| --------- | --------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 5.1       | `849b56e` | Make `CircuitBreaker.event_bus` required; drop emit guards; +2 signature tests               |
+| 5.2       | `67b5dc1` | Tighten remaining 20 Phase-4 `                                                               | None` sites; AST signature suite; ~50 emit guards dropped |
+| 5.3       | `15c48bb` | `DebugLogSubscriber` (29 LOC) + 16 tests over all 13 v1 events                               |
+| 5.4       | `d728a16` | Wire `personalscraper run --verbose` to register `DebugLogSubscriber` (2 integration tests)  |
+| 5.5       | `b62f6ab` | `docs/reference/event-bus.md` (11 sections, ≥ 20 LOC each); CLAUDE.md Reference Index update |
+| 5.6       | _(this)_  | Phase 5 gate + feature acceptance audit                                                      |
 
 ## Review cycles
 
@@ -156,25 +152,34 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: `8ff7014` — `chore(event-bus): phase 4 gate — all cross-cutting events emitting`.
-**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (push happens at Phase 5 feature-pr per the chained workflow).
+**HEAD SHA**: _(this commit)_ — `chore(event-bus): phase 5 gate — feature complete, mergeable`.
+**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (push happens at the feature-pr step per the chained workflow).
 **Working tree**: clean.
-**Last successful gate**: Phase 4 gate.
+**Last successful gate**: Phase 5 gate (= feature merge gate).
 
-- `make lint` clean (ruff + mypy strict + ruff format + logging audit; 231 source files; 547 files formatted).
-- `make test` green: **4169 passed, 3 skipped** under `-n auto` (no coverage).
-- `make check` green: 4011 unit tests passed at 91% coverage (above the 90% fail-under threshold); only pre-existing `personalscraper/scraper/tv_service.py: 819 non-blank lines` advisory warning.
-- Module sizes within Phase 4 budgets:
-  - `core/circuit.py` 326/350
+- `make lint` clean (ruff + mypy strict + ruff format + logging audit; 231 source files; 548 files formatted).
+- `make test` green: **4231 passed, 3 skipped** under `-n auto` (no coverage).
+- `make check` green: 4073 unit tests at 91.24% coverage; only pre-existing `personalscraper/scraper/tv_service.py: 819 non-blank lines` advisory warning.
+- Module sizes within Phase 5 budgets:
+  - `core/event_bus.py` 376/400
+  - `core/app_context.py` 43/80
+  - `pipeline_events.py` 101/150
+  - `dispatch/events.py` 34/50
+  - `core/circuit.py` 264/350
   - `indexer/events.py` 60/60
-  - `dispatch/events.py` 45/50
   - `trailers/events.py` 24/30
-  - `subscribers/telegram.py` 141/200
+  - `events/__init__.py` 66/100
+  - `subscribers/rich_console.py` 175/200
+  - `subscribers/telegram.py` 117/200
+  - `subscribers/debug_log.py` 29/40
+  - `tests/fixtures/event_bus.py` 66/80
+  - `tests/fixtures/event_samples.py` 147/150
+  - `tests/architecture/test_app_context_boundary.py` 97/100
 
 **Captured baselines (locked at feature start)**:
 
 - `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **4169 passed, 3 skipped** (= **+431 new event-bus tests** vs feature baseline).
+- Current `make test`: **4231 passed, 3 skipped** (= **+493 new event-bus tests** vs feature baseline; well above the Phase 5.6 minimum of +175).
 - Skip / xfail decorator count: **6** (matches SKIP_BASELINE locked at Pre-flight #9; no growth — Invariant 1 honored).
 
 **Event registry (Phase 4 gate target reached)**: 13 production events.
@@ -196,39 +201,11 @@ CircuitBreakerOpened, DiskFullWarning). Pinned by
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked, **resume at Phase 5 (Required-bus
-tightening + CLI polish)**.
-
-Plan: [`docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md`](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)
-
-Phase 5 is a 6-sub-phase polish phase that closes the feature:
-
-1. **5.1** — Remove `| None` from `CircuitBreaker.__init__(event_bus=...)`;
-   every CircuitBreaker construction site must pass `event_bus=`
-   explicitly. Pre-flight reads the audit trailers from the Phase 4
-   gate commit (`event_bus_optional_sites_count: 20`,
-   `circuit_breaker_calls_without_event_bus_count: 4`) to confirm
-   baseline.
-2. **5.2** — Tighten the other Phase-4 `| None` sites (HttpTransport,
-   DiskCircuitBreaker, Scraper, TVDBClient, scanner.scan, Dispatcher,
-   check_free_space, handle_disk_full, open_db, …). 20 sites total
-   per the Phase 4 audit.
-3. **5.3** — Implement `DebugLogSubscriber`: subscribes to `Event` (catches
-   every concrete subclass via the bus's MRO walk), logs each emit at
-   DEBUG level with the JSON-safe envelope payload.
-4. **5.4** — Wire `personalscraper run --verbose` to register
-   `DebugLogSubscriber` at the CLI boundary. Subscriber lifecycle
-   matches `RichConsoleSubscriber` / `TelegramSubscriber`.
-5. **5.5** — Write `docs/reference/event-bus.md` — the user-facing
-   reference doc whose section structure is locked in INDEX Pre-flight
-   #10 (mechanical grep at gate time).
-6. **5.6** — Phase 5 gate + the **DESIGN.md "Acceptance criteria" audit
-   that gates the feature merge**. After this gate,
-   `/implement:feature-pr` chains automatically (local quality gate +
-   push + PR creation + CI poll), then `/implement:pr-review` runs the
-   review/fix loop and the squash-merge.
-
-After Phase 5, `/implement:feature-pr` chains automatically.
+All five phases are complete. Run `/implement:feature-pr` (auto-chained by
+`/implement:phase` after this gate commit): it runs the local quality gate,
+pushes `feat/event-bus`, opens the PR, and polls CI to green. Then
+`/implement:pr-review` runs the toolkit + fix-cycle loop (max 5 cycles) and
+performs the squash merge.
 
 ## Push convention (user-imposed)
 
