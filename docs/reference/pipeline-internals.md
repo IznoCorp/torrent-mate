@@ -62,69 +62,17 @@ The `Dispatcher` class selects the target disk for new items via `conf.resolver.
 
 ## Event Bus
 
-The pipeline broadcasts lifecycle and per-item activity through an in-process
-typed bus (`personalscraper.core.event_bus.EventBus`). The bus is the **sole**
-emit substrate — there is no parallel callback channel and no legacy per-item
-observer protocol (deleted in Phase 3 of the event-bus feature; archived
-material lives under `docs/archive/`).
+The pipeline broadcasts lifecycle and per-item activity through an
+in-process typed bus
+(`personalscraper.core.event_bus.EventBus`). The bus is the **sole**
+emit substrate — there is no parallel callback channel and no legacy
+per-item observer protocol (deleted in Phase 3 of the event-bus
+feature; archived material lives under `docs/archive/`).
 
-### Wiring
-
-- The bus is constructed once in `personalscraper.core.app_context.AppContext`
-  and carried on every `StepContext` as `ctx.app.event_bus`. Steps emit through
-  this single handle.
-- CLI bootstrap (`personalscraper.commands.pipeline._build_app_context`) builds
-  the `AppContext`, then attaches subscribers. `Pipeline.run()` has no
-  subscriber kwarg — headless runs (no subscriber attached) produce zero stdout.
-- Subscribers self-subscribe in `__init__` and tear down in `close()`. The
-  registry is copy-on-write, so emit is allocation-free in the steady state and
-  safe to call from inside a subscriber callback.
-- Dispatch walks the MRO: subscribing to `Event` receives every event;
-  subscribing to a concrete class receives that class only.
-
-### Pipeline event catalog
-
-Six frozen dataclasses in `personalscraper.pipeline_events` flow through the
-bus on every run:
-
-| Event             | Emitted by                                      | Carries                                             |
-| ----------------- | ----------------------------------------------- | --------------------------------------------------- |
-| `PipelineStarted` | `Pipeline.run` (once, before step loop)         | `report` (empty `PipelineReport`, `started_at` set) |
-| `PipelineEnded`   | `Pipeline.run` (once, in `finally`)             | `report` (fully populated, `finished_at` set)       |
-| `StepStarted`     | `Pipeline._run_step` (before invoking the step) | `step` (one of the 9 step names)                    |
-| `StepCompleted`   | `Pipeline._run_step` (after success)            | `step`, `report` (`StepReport`), `elapsed_s`        |
-| `StepErrored`     | `Pipeline._run_step` (on raised exception)      | `step`, `error_class`, `error_message`              |
-| `ItemProgressed`  | Each pipeline step (per-item)                   | `step`, `item`, `status`, JSON-safe `details`       |
-
-All six inherit from `Event` (`event_id`, `timestamp`, `source`,
-`correlation_id`); subclasses declare `kw_only=True` explicitly because
-dataclass machinery does not inherit it transitively.
-
-### Subscribers (production)
-
-- `personalscraper.subscribers.RichConsoleSubscriber` — renders the Rich UI
-  (banners, per-step panels, error tracebacks, item progress). Subscribes to
-  the six pipeline events; visual output is locked against
-  `tests/snapshots/rich_console_canonical.txt` (byte-identical).
-- `personalscraper.subscribers.TelegramSubscriber` — fires `PipelineEnded`
-  summary + `StepErrored` alerts. Network I/O runs on a daemon thread so the
-  emitting bus thread stays under a 50 ms wall-clock budget even when the
-  Telegram endpoint is slow.
-
-### Subscribers (tests)
-
-- `tests.fixtures.event_bus.CollectingSubscriber[E]` — records every event of
-  type `E` for assertion in unit/integration tests. Replaces the legacy
-  `CollectorObserver` test helper.
-- Every emit site is double-log audited (Sub-phase 3.8): a `log.<level>` call
-  alongside an `event_bus.emit(...)` is only allowed when it carries
-  information distinct from the event payload (e.g., `exc_info=True` next to
-  `StepErrored`).
-
-### Correlation id
-
-`Pipeline.run` generates a fresh `run_id` (UUID) per call and binds it to the
-`current_correlation_id` `ContextVar` for the lifetime of the run. The base
-`Event.correlation_id` reads this var at construction time, so every event in
-a single run shares the same id and downstream consumers (log lines, NDJSON
-audit, future indexer outbox) can join on it.
+For the full reference — wiring, the 13-event v1 catalog, subscriber
+recipes, the boundary-only `AppContext` rule, the
+`current_correlation_id` ContextVar convention, the JSON
+serialization contract, performance notes, and the testing-pattern
+catalogue — see [`event-bus.md`](event-bus.md). That document is the
+authoritative source; the per-step emit sites described in
+`Pipeline._run_step` route through the API it documents.

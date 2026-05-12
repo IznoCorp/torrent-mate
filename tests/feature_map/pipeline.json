@@ -72,6 +72,12 @@
       "category": "documentation_only",
       "reason": "Reference material — documents the per-step CLI invocation surface. Behavior covered by tests/commands/test_pipeline_commands.py.",
       "expires": "2026-11-08"
+    },
+    {
+      "anchor": "event-bus",
+      "category": "documentation_only",
+      "reason": "Pointer section. The authoritative reference is docs/reference/event-bus.md, whose contracts are pinned by tests/event_bus/, tests/architecture/test_event_bus_required_signatures.py, tests/architecture/test_app_context_boundary.py, tests/subscribers/, and tests/fixtures/test_factories_registry.py.",
+      "expires": "2026-11-08"
     }
   ]
 }
