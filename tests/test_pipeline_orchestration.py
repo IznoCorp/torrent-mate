@@ -173,7 +173,6 @@ class TestPipelineOrchestration:
 
         pipeline = Pipeline(orch_app)
         pipeline.run(
-            observers=(),
             step_overrides={
                 "ingest": recorder("ingest"),
                 "sort": recorder("sort"),
@@ -210,7 +209,6 @@ class TestPipelineOrchestration:
 
         pipeline = Pipeline(orch_app)
         report = pipeline.run(
-            observers=(),
             step_overrides={
                 "ingest": crashing_ingest,
                 "sort": sort_sentinel,
@@ -244,7 +242,6 @@ class TestPipelineOrchestration:
 
         pipeline = Pipeline(orch_app)
         report = pipeline.run(
-            observers=(),
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": crashing_sort,
@@ -266,7 +263,6 @@ class TestPipelineOrchestration:
         """All 9 StepReports from overrides roll up into the PipelineReport."""
         pipeline = Pipeline(orch_app)
         report = pipeline.run(
-            observers=(),
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest", success_count=3),
                 "sort": lambda *_a, **_kw: StepReport(name="sort", success_count=3),
@@ -303,7 +299,6 @@ class TestPipelineOrchestration:
         """Dispatch step is skipped (skip_count=1) when verify returns no items."""
         pipeline = Pipeline(orch_app)
         report = pipeline.run(
-            observers=(),
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": lambda *_a, **_kw: StepReport(name="sort"),
@@ -331,7 +326,6 @@ class TestPipelineOrchestration:
 
         pipeline = Pipeline(orch_app)
         report = pipeline.run(
-            observers=(),
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
                 "sort": lambda *_a, **_kw: StepReport(name="sort"),
@@ -379,7 +373,9 @@ class TestPipelineOrchestration:
             with patch("personalscraper.dispatch.run.run_dispatch") as mock_dispatch:
                 mock_dispatch.return_value = StepReport(name="dispatch")
                 pipeline = Pipeline(orch_app)
-                pipeline.run(interactive=True, observers=())
+                pipeline.run(
+                    interactive=True,
+                )
 
         assert mock_scrape.call_args.kwargs["interactive"] is True
 
@@ -423,7 +419,7 @@ class TestPipelineOrchestration:
             # file path, etc.) that is not available in this integration fixture.
             mock_trailers.return_value = StepReport(name="trailers", status="skipped")
             pipeline = Pipeline(orch_app)
-            report = pipeline.run(observers=())
+            report = pipeline.run()
 
         # The clean step should have re-cleaned the polluted folder
         assert report.steps["clean"].success_count >= 1
@@ -465,7 +461,6 @@ class TestTrailerErrorFlagWiring:
         pipeline = Pipeline(orch_app)
         with pytest.raises(TrailerStepFailed):
             pipeline.run(
-                observers=(),
                 continue_on_trailer_error=False,
                 step_overrides={
                     "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
@@ -504,7 +499,6 @@ class TestTrailerErrorFlagWiring:
 
         pipeline = Pipeline(orch_app)
         report = pipeline.run(
-            observers=(),
             continue_on_trailer_error=True,
             step_overrides={
                 "ingest": lambda *_a, **_kw: StepReport(name="ingest"),
@@ -580,7 +574,6 @@ class TestTrailerStepFailedE2E:
             pipeline = Pipeline(orch_app)
             with pytest.raises(TrailerStepFailed):
                 pipeline.run(
-                    observers=(),
                     continue_on_trailer_error=False,
                     step_overrides={
                         "ingest": lambda *_a, **_kw: StepReport(name="ingest"),

@@ -21,7 +21,6 @@ from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.logger import get_logger
 from personalscraper.models import StepReport
 from personalscraper.pipeline_events import ItemProgressed
-from personalscraper.pipeline_observer import PipelineObserver, StepEvent, notify_progress
 from personalscraper.sorter.file_type import FileType
 from personalscraper.verify.verifier import VerifyResult
 
@@ -79,7 +78,6 @@ def run_dispatch(
     config: "Config",
     dry_run: bool = False,
     verified: list[VerifyResult] | None = None,
-    observers: tuple[PipelineObserver, ...] = (),
     event_bus: EventBus | None = None,
 ) -> StepReport:
     """Run the dispatch pipeline step.
@@ -90,10 +88,8 @@ def run_dispatch(
         dry_run: If True, preview without transferring files.
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
-        observers: Tuple of pipeline observers for progress and lifecycle notifications.
-        event_bus: Optional in-process EventBus. When provided, every
-            legacy ``notify_progress`` site also emits an ``ItemProgressed``
-            event on the bus for new subscribers.
+        event_bus: Optional in-process EventBus. Each per-item
+        lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
         StepReport with dispatch counts and details.
@@ -146,29 +142,9 @@ def run_dispatch(
             results = dispatcher.process(verified=verified)
 
             for r in results:
-                notify_progress(
-                    observers,
-                    StepEvent(
-                        step="dispatch",
-                        item=r.source.name,
-                        status="started",
-                    ),
-                )
                 if event_bus is not None:
                     event_bus.emit(ItemProgressed(step="dispatch", item=r.source.name, status="started"))
                 if r.action in ("replaced", "merged", "moved"):
-                    notify_progress(
-                        observers,
-                        StepEvent(
-                            step="dispatch",
-                            item=r.source.name,
-                            status=r.action,
-                            details={
-                                "dest": str(r.destination) if r.destination else "",
-                                "disk": r.disk or "",
-                            },
-                        ),
-                    )
                     if event_bus is not None:
                         event_bus.emit(
                             ItemProgressed(
@@ -182,15 +158,6 @@ def run_dispatch(
                             )
                         )
                 elif r.action == "skipped":
-                    notify_progress(
-                        observers,
-                        StepEvent(
-                            step="dispatch",
-                            item=r.source.name,
-                            status="skipped",
-                            details={"reason": r.reason or ""},
-                        ),
-                    )
                     if event_bus is not None:
                         event_bus.emit(
                             ItemProgressed(
@@ -202,15 +169,6 @@ def run_dispatch(
                         )
                 else:
                     # error or unknown action
-                    notify_progress(
-                        observers,
-                        StepEvent(
-                            step="dispatch",
-                            item=r.source.name,
-                            status="error",
-                            details={"action": r.action, "reason": r.reason or ""},
-                        ),
-                    )
                     if event_bus is not None:
                         event_bus.emit(
                             ItemProgressed(

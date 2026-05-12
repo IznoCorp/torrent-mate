@@ -68,7 +68,7 @@ class TestPipelineDoubleRun:
 
         # console removed — no longer needed
         pipeline = Pipeline(AppContext(config=config, settings=resilience_settings, event_bus=EventBus()))
-        report1 = pipeline.run(observers=())
+        report1 = pipeline.run()
 
         assert len(report1.steps) == 9
         assert report1.steps["ingest"].success_count == 2
@@ -84,7 +84,7 @@ class TestPipelineDoubleRun:
         )
         mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
-        report2 = pipeline.run(observers=())
+        report2 = pipeline.run()
 
         assert len(report2.steps) == 9
         # Ingest should show skips (all already ingested)

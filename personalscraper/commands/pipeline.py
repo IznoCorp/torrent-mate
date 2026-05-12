@@ -273,7 +273,6 @@ def run(
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.pipeline import Pipeline
-    from personalscraper.pipeline_observer import PipelineObserver
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
 
@@ -326,12 +325,11 @@ def run(
             app_context = _build_app_context(config, settings)
 
             # Build subscribers — both self-subscribe in their constructors.
-            # The observers tuple is now unconditionally empty (legacy notify_progress
-            # call sites still fire in production code per 3.4; they reach nothing).
-            # --headless skips both for silent cron/CI runs.
+            # ``Pipeline.run`` no longer accepts an ``observers`` tuple; the bus is the
+            # sole emit substrate. ``--headless`` skips subscriber construction for silent
+            # cron / CI runs.
             rich_subscriber: RichConsoleSubscriber | None = None
             telegram_subscriber: TelegramSubscriber | None = None
-            pipeline_observers: list[PipelineObserver] = []
             if not headless:
                 rich_subscriber = RichConsoleSubscriber(
                     app_context.event_bus,
@@ -352,7 +350,6 @@ def run(
                         dry_run=dry_run,
                         interactive=interactive,
                         verbose=verbose,
-                        observers=tuple(pipeline_observers),
                         skip_trailers=effective_skip_trailers,
                         continue_on_trailer_error=effective_continue_on_trailer_error,
                     )

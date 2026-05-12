@@ -35,7 +35,6 @@ class IngestStep:
             ctx.app.settings,
             dry_run=ctx.dry_run,
             config=ctx.app.config,
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -61,7 +60,6 @@ class SortStep:
             staging_dir=ctx.app.config.paths.staging_dir,
             dry_run=ctx.dry_run,
             config=ctx.app.config,
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -86,7 +84,6 @@ class CleanStep:
             ctx.app.settings,
             dry_run=ctx.dry_run,
             config=ctx.app.config,
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -112,7 +109,6 @@ class ScrapeStep:
             config=ctx.app.config,
             dry_run=ctx.dry_run,
             interactive=ctx.interactive,
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -137,7 +133,6 @@ class CleanupStep:
             ctx.app.settings,
             dry_run=ctx.dry_run,
             config=ctx.app.config,
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -158,9 +153,7 @@ class EnforceStep:
         """
         from personalscraper.enforce.run import run_enforce
 
-        return run_enforce(
-            ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, observers=ctx.observers, event_bus=ctx.app.event_bus
-        )
+        return run_enforce(ctx.app.settings, ctx.app.config, dry_run=ctx.dry_run, event_bus=ctx.app.event_bus)
 
 
 class VerifyStep:
@@ -189,7 +182,6 @@ class VerifyStep:
             ctx.app.config,
             dry_run=ctx.dry_run,
             fix=False,
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -216,7 +208,6 @@ class TrailersStep:
             staging_dir=ctx.app.config.paths.staging_dir,
             verified=ctx.extras.get("verified", []),
             skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -243,7 +234,6 @@ class DispatchStep:
             config=ctx.app.config,
             dry_run=ctx.dry_run,
             verified=ctx.extras.get("verified"),
-            observers=ctx.observers,
             event_bus=ctx.app.event_bus,
         )
 
@@ -281,7 +271,6 @@ class LegacyCallableStep:
                 ctx.app.settings,
                 dry_run=ctx.dry_run,
                 config=ctx.app.config,
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name == "sort":
@@ -290,7 +279,6 @@ class LegacyCallableStep:
                 staging_dir=ctx.app.config.paths.staging_dir,
                 dry_run=ctx.dry_run,
                 config=ctx.app.config,
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name in {"clean", "cleanup"}:
@@ -298,7 +286,6 @@ class LegacyCallableStep:
                 ctx.app.settings,
                 dry_run=ctx.dry_run,
                 config=ctx.app.config,
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name == "scrape":
@@ -307,7 +294,6 @@ class LegacyCallableStep:
                 config=ctx.app.config,
                 dry_run=ctx.dry_run,
                 interactive=ctx.interactive,
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name == "enforce":
@@ -315,7 +301,6 @@ class LegacyCallableStep:
                 ctx.app.settings,
                 ctx.app.config,
                 dry_run=ctx.dry_run,
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name == "verify":
@@ -324,7 +309,6 @@ class LegacyCallableStep:
                 ctx.app.config,
                 dry_run=ctx.dry_run,
                 fix=False,
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name == "trailers":
@@ -333,7 +317,6 @@ class LegacyCallableStep:
                 staging_dir=ctx.app.config.paths.staging_dir,
                 verified=ctx.extras.get("verified", []),
                 skip_trailers=bool(ctx.extras.get("skip_trailers", False)),
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         if self.name == "dispatch":
@@ -342,7 +325,6 @@ class LegacyCallableStep:
                 config=ctx.app.config,
                 dry_run=ctx.dry_run,
                 verified=ctx.extras.get("verified"),
-                observers=ctx.observers,
                 event_bus=ctx.app.event_bus,
             )
         return self._fn(ctx)

@@ -1,8 +1,11 @@
-"""Sub-phase 2.3 invariants for ``Pipeline(app: AppContext)``.
+"""Sub-phase 2.3 / 3.7b invariants for ``Pipeline(app: AppContext)``.
 
 Verifies that :class:`personalscraper.pipeline.Pipeline` accepts only an
-:class:`AppContext` in ``__init__`` and that every run-scope flag plus
-the observers tuple is now a keyword-only parameter of :meth:`run`.
+:class:`AppContext` in ``__init__`` and that every run-scope flag is a
+keyword-only parameter of :meth:`run`. After Phase 3.7b the ``observers``
+kwarg is no longer part of the signature — the bus on ``ctx.app.event_bus``
+is the only emit substrate.
+
 Each call to :meth:`run` generates a fresh ``run_id``, binds
 ``current_correlation_id`` for the lifetime of the call, and resets the
 binding in a ``try/finally`` clause — including when a step raises.
@@ -22,15 +25,6 @@ from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
 from personalscraper.pipeline_protocol import StepContext
-
-
-class _StubObserver:
-    """Opaque pipeline-observer stub — only needs identity for the propagation test.
-
-    The structural pipeline-observer Protocol does not enforce any methods at
-    runtime; this stub stands in wherever a test merely needs a distinct, hashable
-    observer-shaped object to thread through ``Pipeline.run(observers=...)``.
-    """
 
 
 def _stub_app() -> AppContext:
@@ -121,36 +115,28 @@ class TestPipelineInitSignature:
         assert params == {"self", "app"}
 
     def test_pipeline_init_rejects_legacy_kwargs(self) -> None:
-        """Passing the old ``config``/``settings``/``observers`` kwargs must fail."""
+        """Passing legacy ``config`` / ``settings`` kwargs must fail."""
         app = _stub_app()
         with pytest.raises(TypeError):
-            Pipeline(app, observers=[])  # type: ignore[call-arg]
+            Pipeline(app, config=None)  # type: ignore[call-arg]
 
 
-class TestPipelineRunObserversKwarg:
-    """``Pipeline.run`` accepts ``observers`` as a keyword-only parameter."""
+class TestPipelineRunSignature:
+    """``Pipeline.run`` no longer exposes an ``observers`` keyword (Phase 3.7b)."""
 
-    def test_pipeline_run_accepts_observers_kwarg(self) -> None:
-        """``Pipeline.run`` exposes ``observers`` as a keyword-only parameter with default ``()``."""
+    def test_pipeline_run_does_not_accept_observers_kwarg(self) -> None:
+        """The ``observers`` parameter has been removed from ``Pipeline.run``."""
         params = inspect.signature(Pipeline.run).parameters
-        assert "observers" in params
-        assert params["observers"].default == ()
-        assert params["observers"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert "observers" not in params
 
-    def test_pipeline_run_propagates_observers_to_step_context(self) -> None:
-        """The ``observers`` tuple passed to ``run`` reaches each ``StepContext`` unchanged."""
+    def test_step_context_does_not_carry_observers(self) -> None:
+        """Every ``StepContext`` built during a run lacks the legacy ``observers`` field."""
         captures: list[StepContext] = []
-        observer_a = _StubObserver()
-        observer_b = _StubObserver()
         pipeline = Pipeline(_stub_app())
-        _run_with_steps(
-            pipeline,
-            _capturing_step_registry(captures),
-            observers=(observer_a, observer_b),
-        )
+        _run_with_steps(pipeline, _capturing_step_registry(captures))
         assert captures, "stub steps must have run"
         for ctx in captures:
-            assert ctx.observers == (observer_a, observer_b)
+            assert not hasattr(ctx, "observers")
 
 
 class TestPipelineRunIdGeneration:

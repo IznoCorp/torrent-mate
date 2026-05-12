@@ -15,7 +15,7 @@ import dataclasses
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import Any
 from uuid import UUID, uuid4
 
 from personalscraper.conf.models.config import Config
@@ -32,7 +32,6 @@ from personalscraper.pipeline_events import (
     StepErrored,
     StepStarted,
 )
-from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
 from personalscraper.reports import STEP_REPORT_CONTRACT
@@ -83,7 +82,6 @@ class Pipeline:
         self.dry_run: bool = False
         self.interactive: bool = False
         self.verbose: bool = False
-        self._observers: list[PipelineObserver] = []
         self._steps = DEFAULT_STEPS
         self.skip_trailers: bool = False
         self.continue_on_trailer_error: bool = False
@@ -177,7 +175,6 @@ class Pipeline:
         dry_run: bool = False,
         interactive: bool = False,
         verbose: bool = False,
-        observers: tuple[PipelineObserver, ...] = (),
         step_overrides: Mapping[str, Callable[..., Any]] | None = None,
         skip_trailers: bool = False,
         continue_on_trailer_error: bool = False,
@@ -197,11 +194,6 @@ class Pipeline:
             dry_run: If True, preview operations without modifying files.
             interactive: If True, prompt for ambiguous matches.
             verbose: If True, show per-item details.
-            observers: Pipeline observers wired by the CLI bootstrap.
-                ``StepContext.observers`` carries this tuple so steps can
-                continue to call ``notify_progress(ctx.observers, ...)`` —
-                Phase 3.7b removes this kwarg entirely (subscribers on the
-                ``app.event_bus`` take over).
             step_overrides: Optional mapping of step name to replacement
                 callable. Used by tests to inject fakes.
             skip_trailers: If True, skip the trailers download step.
@@ -221,7 +213,6 @@ class Pipeline:
         self.dry_run = dry_run
         self.interactive = interactive
         self.verbose = verbose
-        self._observers = list(observers)
         self._steps = apply_step_overrides(DEFAULT_STEPS, step_overrides)
         self.skip_trailers = skip_trailers
         self.continue_on_trailer_error = continue_on_trailer_error
@@ -241,11 +232,8 @@ class Pipeline:
             "skip_trailers": self.skip_trailers,
         }
 
-        self._notify_observers("on_pipeline_start", report)
-        # Bus emit alongside the legacy observer channel — Sub-phase 3.2.
-        # Phase 3 transitional state: legacy ``_notify_observers`` and
-        # ``event_bus.emit`` both fire; 3.5/3.6 wire the new subscribers,
-        # 3.7b deletes the legacy path.
+        # Phase 3.7b: bus is the sole emit path — legacy ``_notify_observers``
+        # call removed alongside the production observer infrastructure.
         self._app.event_bus.emit(PipelineStarted(report=report))
 
         try:
@@ -359,12 +347,10 @@ class Pipeline:
                 # symmetric on the bus so subscribers always see a
                 # StepStarted/StepCompleted pair for dispatch.
                 self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
-                self._notify_observers("on_step_start", "dispatch")
                 self._app.event_bus.emit(StepStarted(step="dispatch"))
                 dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
                 dispatch_report = self._with_details_payload("dispatch", dispatch_report)
                 report.add_step("dispatch", dispatch_report)
-                self._notify_observers("on_step_end", "dispatch", dispatch_report, 0.0)
                 self._app.event_bus.emit(
                     StepCompleted(step="dispatch", report=dispatch_report, elapsed_s=0.0),
                 )
@@ -372,8 +358,6 @@ class Pipeline:
         finally:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
-            self._notify_observers("on_pipeline_end", report)
-            # Bus emit alongside the legacy observer channel — Sub-phase 3.2.
             # Wrapped in a defensive try/except so an emit-side failure
             # (event construction, runaway subscriber the bus did not catch)
             # cannot prevent ``current_correlation_id.reset`` from running
@@ -387,32 +371,6 @@ class Pipeline:
 
         return report
 
-    @overload
-    def _notify_observers(self, callback: Literal["on_pipeline_start"], report: PipelineReport) -> None: ...
-    @overload
-    def _notify_observers(self, callback: Literal["on_pipeline_end"], report: PipelineReport) -> None: ...
-    @overload
-    def _notify_observers(self, callback: Literal["on_step_start"], step: str) -> None: ...
-    @overload
-    def _notify_observers(
-        self, callback: Literal["on_step_end"], step: str, report: StepReport, elapsed: float
-    ) -> None: ...
-    @overload
-    def _notify_observers(self, callback: Literal["on_step_error"], step: str, error: Exception) -> None: ...
-    def _notify_observers(self, callback: str, *args: Any) -> None:  # type: ignore[misc]  # noqa: D105
-        """Notify lifecycle observers without letting observer bugs affect the run."""
-        for obs in self._observers:
-            try:
-                getattr(obs, callback)(*args)
-            except Exception as exc:
-                self._log.warning(
-                    "pipeline_observer_failed",
-                    observer=getattr(obs, "name", type(obs).__name__),
-                    callback=callback,
-                    error=str(exc),
-                    exc_info=True,
-                )
-
     def _step_context(self, report: PipelineReport, extras: dict[str, Any]) -> StepContext:
         """Build a StepContext for the current pipeline state."""
         # config + settings are derived from app via __post_init__
@@ -423,7 +381,6 @@ class Pipeline:
             dry_run=self.dry_run,
             interactive=self.interactive,
             verbose=self.verbose,
-            observers=tuple(self._observers),
             upstream=report.steps,
             extras=extras,
         )
@@ -522,9 +479,7 @@ class Pipeline:
         Raises:
             _CriticalStepError: If ``critical=True`` and fn raises.
         """
-        self._notify_observers("on_step_start", name)
-        # Bus emit alongside the legacy observer channel — Sub-phase 3.3.
-        # Both paths fire transitionally; 3.7b deletes the legacy path.
+        # Bus is the sole emit path (Phase 3.7b).
         self._app.event_bus.emit(StepStarted(step=name))
 
         self._log.info("step_started", step=name)
@@ -547,7 +502,6 @@ class Pipeline:
             # call carries the traceback via ``exc_info`` (DESIGN §Logging
             # convention — distinct info, NOT duplicated info, see 3.8 audit).
             self._log.exception("step_fatal", step=name, error=str(exc))
-            self._notify_observers("on_step_error", name, exc)
             self._app.event_bus.emit(
                 StepErrored(
                     step=name,
@@ -567,8 +521,6 @@ class Pipeline:
         elapsed = time.monotonic() - t0
 
         if not crashed:
-            self._notify_observers("on_step_end", name, step_report, elapsed)
-            # Bus emit alongside the legacy observer channel — Sub-phase 3.3.
             self._app.event_bus.emit(
                 StepCompleted(step=name, report=step_report, elapsed_s=elapsed),
             )

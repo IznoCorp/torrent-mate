@@ -179,7 +179,9 @@ def test_dry_run_three_torrents(
             event_bus=EventBus(),
         )
     )
-    report: PipelineReport = pipeline.run(dry_run=True, observers=())
+    report: PipelineReport = pipeline.run(
+        dry_run=True,
+    )
 
     # --- Structural invariant: all 9 steps must be present ---------------
     # The plan specified 6 StepReports; actual production code produces 9

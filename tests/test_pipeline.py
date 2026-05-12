@@ -129,7 +129,7 @@ class TestPipelineRun:
             mock_dispatch.return_value = StepReport(name="dispatch", success_count=2)
 
             pipeline = Pipeline(pipeline_app)
-            report = pipeline.run(observers=())
+            report = pipeline.run()
 
         assert len(report.steps) == 9
         assert list(report.steps.keys()) == [
@@ -174,7 +174,7 @@ class TestPipelineRun:
             )
 
             pipeline = Pipeline(pipeline_app)
-            report = pipeline.run(observers=())
+            report = pipeline.run()
 
         assert report.steps["dispatch"].skip_count == 1
         assert "no verified items" in report.steps["dispatch"].details[0].lower()
@@ -202,7 +202,7 @@ class TestPipelineRun:
             ),
         ):
             pipeline = Pipeline(pipeline_app)
-            report = pipeline.run(observers=())
+            report = pipeline.run()
 
         # verify has error, dispatch is skipped
         assert report.steps["verify"].error_count == 1
@@ -233,7 +233,7 @@ class TestPipelineRun:
             mock_verify.return_value = (StepReport(name="verify"), [])
 
             pipeline = Pipeline(pipeline_app)
-            report = pipeline.run(observers=())
+            report = pipeline.run()
 
         # Pipeline continued despite gate warning
         assert "verify" in report.steps

@@ -6,7 +6,7 @@ Six events flow through the bus around every pipeline run:
 - :class:`StepStarted` / :class:`StepCompleted` / :class:`StepErrored` —
   per-step lifecycle around each of the 9 pipeline steps.
 - :class:`ItemProgressed` — per-item progress notification (replaces the
-  legacy ``notify_progress(observers, StepEvent(...))`` channel).
+  legacy per-item observer channel).
 
 All six are frozen dataclasses inheriting from
 :class:`personalscraper.core.event_bus.Event`. ``kw_only=True`` is declared
@@ -106,8 +106,8 @@ class StepErrored(Event):
 class ItemProgressed(Event):
     """Emitted by a pipeline step for each item it processes.
 
-    Replaces the legacy ``notify_progress(observers, StepEvent(...))`` channel
-    (deleted in Sub-phase 3.7b). ``details`` MUST contain only JSON-safe
+    Replaces the legacy per-item observer channel (deleted in Sub-phase 3.7b).
+    ``details`` MUST contain only JSON-safe
     primitives (str, int, float, bool, None, list, dict) — the bus encoder
     raises ``TypeError`` on anything else.
 

@@ -10,17 +10,16 @@ from uuid import UUID
 if TYPE_CHECKING:
     from personalscraper.core.app_context import AppContext
     from personalscraper.models import StepReport
-    from personalscraper.pipeline_observer import PipelineObserver
 
 
 @dataclass(frozen=True)
 class StepContext:
     """Immutable context bundle passed to every pipeline step adapter.
 
-    Sub-phase 2.2c shape (legacy mirrors dropped): every step reads its
-    config/settings via ``ctx.app.config`` / ``ctx.app.settings``. The
-    ``observers`` field is kept through Phase 2 and removed in Phase 3.7b
-    once the bus owns all dispatch.
+    Sub-phase 3.7b shape: the ``observers`` field is removed — the
+    :class:`EventBus` carried by ``ctx.app.event_bus`` is the sole emit
+    substrate. Every step reads its config/settings via ``ctx.app.config``
+    / ``ctx.app.settings``.
 
     Attributes:
         app: Process-scoped service bundle (config, settings, event_bus).
@@ -28,7 +27,6 @@ class StepContext:
         dry_run: If True, preview operations without side effects.
         interactive: If True, prompt before destructive actions.
         verbose: If True, emit detailed progress output.
-        observers: Tuple of pipeline observers (REMOVED in Phase 3.7b).
         upstream: Reports from previously executed steps, keyed by step name.
         extras: Mutable mapping for ad-hoc cross-step data.
     """
@@ -38,7 +36,6 @@ class StepContext:
     dry_run: bool
     interactive: bool
     verbose: bool
-    observers: tuple["PipelineObserver", ...]
     upstream: Mapping[str, "StepReport"]
     extras: MutableMapping[str, Any]
 

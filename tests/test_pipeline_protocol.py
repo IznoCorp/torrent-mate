@@ -27,7 +27,6 @@ def test_step_context_is_frozen() -> None:
         dry_run=False,
         interactive=False,
         verbose=False,
-        observers=(),
         upstream={},
         extras={},
     )
@@ -62,7 +61,6 @@ def test_step_context_upstream_mapping() -> None:
         dry_run=False,
         interactive=False,
         verbose=False,
-        observers=(),
         upstream={"ingest": prior},
         extras={},
     )
@@ -82,7 +80,6 @@ def test_step_context_app_is_required_field() -> None:
         dry_run=False,
         interactive=False,
         verbose=False,
-        observers=(),
         upstream={},
         extras={},
     )

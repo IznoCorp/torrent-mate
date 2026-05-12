@@ -1,4 +1,8 @@
-"""Tests for pipeline headless mode (default ``observers=()`` on ``run``)."""
+"""Tests for headless pipeline mode after Phase 3.7b.
+
+The ``observers`` kwarg is gone from :meth:`Pipeline.run`. Headless == no
+subscriber attached to ``ctx.app.event_bus`` before ``Pipeline.run`` fires.
+"""
 
 from __future__ import annotations
 
@@ -27,104 +31,51 @@ def _stub_app() -> AppContext:
     return AppContext(config=config, settings=settings, event_bus=EventBus())
 
 
+def _make_step_registry() -> dict[str, object]:
+    """Build a fake registry of 9 steps that all succeed without I/O."""
+
+    class _Step:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
+            if self.name == "verify":
+                return StepReport(name=self.name, success_count=1), [MagicMock()]
+            return StepReport(name=self.name, success_count=1)
+
+    return {
+        n: _Step(n)
+        for n in ("ingest", "sort", "clean", "scrape", "cleanup", "enforce", "verify", "trailers", "dispatch")
+    }
+
+
 class TestPipelineHeadless:
-    """Pipeline default contract: no observers attached unless wired at ``run``."""
-
-    def test_init_starts_with_empty_observers(self) -> None:
-        """``Pipeline.__init__`` leaves ``_observers`` empty.
-
-        Sub-phase 2.3 contract: observer wiring is exclusively the CLI
-        bootstrap's responsibility (sub-phase 2.4). The Pipeline no
-        longer auto-creates a :class:`RichConsoleObserver` — headless is
-        the default. The CLI passes ``observers=...`` to
-        :meth:`Pipeline.run` to opt into console output.
-        """
-        pipeline = Pipeline(_stub_app())
-        assert pipeline._observers == []
+    """Pipeline default contract: nothing on the bus unless wired by the caller."""
 
     def test_init_rejects_legacy_observers_kwarg(self) -> None:
-        """The legacy ``observers`` kwarg on ``__init__`` is removed.
-
-        ``observers`` moved to :meth:`Pipeline.run` in sub-phase 2.3.
-        Passing it to ``__init__`` must raise ``TypeError``.
-        """
+        """The legacy ``observers`` kwarg on ``__init__`` is removed."""
         import pytest
 
         with pytest.raises(TypeError):
             Pipeline(_stub_app(), observers=[])  # type: ignore[call-arg]
 
-    def test_run_with_default_observers_is_headless(self) -> None:
-        """``Pipeline.run`` with no observers kwarg keeps ``_observers`` empty."""
-        pipeline = Pipeline(_stub_app())
+    def test_run_signature_has_no_observers(self) -> None:
+        """``Pipeline.run`` no longer exposes an ``observers`` parameter."""
+        import inspect
 
-        class _Step:
-            def __init__(self, name: str) -> None:
-                self.name = name
-
-            def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
-                if self.name == "verify":
-                    return StepReport(name=self.name, success_count=1), []
-                return StepReport(name=self.name, success_count=1)
-
-        steps = {
-            name: _Step(name)
-            for name in (
-                "ingest",
-                "sort",
-                "clean",
-                "scrape",
-                "cleanup",
-                "enforce",
-                "verify",
-                "trailers",
-                "dispatch",
-            )
-        }
-
-        with (
-            patch("personalscraper.pipeline.ensure_staging_tree"),
-            patch.object(Pipeline, "_check_temp_empty_gate"),
-            patch.object(Pipeline, "_recover_from_previous_run", return_value=0),
-            patch("personalscraper.pipeline.apply_step_overrides", return_value=steps),
-        ):
-            pipeline.run()
-        assert pipeline._observers == []
+        params = inspect.signature(Pipeline.run).parameters
+        assert "observers" not in params
 
     def test_headless_run_produces_no_stdout(self, capsys) -> None:
-        """Default ``Pipeline.run`` (no observers) emits zero stdout.
+        """Default ``Pipeline.run`` (no subscriber on the bus) emits zero stdout.
 
-        Whether the observer list is empty is the API check; what
-        matters for cron/CI is that *nothing* is printed to the terminal.
+        With no :class:`RichConsoleSubscriber` registered on ``ctx.app.event_bus``,
+        the bus has no console subscriber and nothing reaches stdout.
         """
-
-        class FakeStep:
-            def __init__(self, step_name: str) -> None:
-                self.name = step_name
-
-            def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
-                if self.name == "verify":
-                    return StepReport(name=self.name, success_count=1), [MagicMock()]
-                return StepReport(name=self.name, success_count=1)
-
-        steps = {
-            n: FakeStep(n)
-            for n in (
-                "ingest",
-                "sort",
-                "clean",
-                "scrape",
-                "cleanup",
-                "enforce",
-                "verify",
-                "trailers",
-                "dispatch",
-            )
-        }
-
+        steps = _make_step_registry()
         pipeline = Pipeline(_stub_app())
 
-        # Drain stdout from setup, then run and check no further output.
-        capsys.readouterr()
+        capsys.readouterr()  # drain setup
         with (
             patch("personalscraper.pipeline.ensure_staging_tree"),
             patch.object(Pipeline, "_check_temp_empty_gate"),
@@ -133,39 +84,11 @@ class TestPipelineHeadless:
         ):
             pipeline.run()
         captured = capsys.readouterr()
-
-        # Pipeline lifecycle methods use structlog (logger), not print/console.
-        # The headless contract: zero observer-driven console output.
-        # Structlog may emit to stderr depending on config — assert on stdout only.
         assert captured.out == "", f"Headless run must not write to stdout, got: {captured.out!r}"
 
-    def test_run_with_no_observers(self) -> None:
-        """``Pipeline.run`` produces a 9-step report when invoked headless."""
-
-        class FakeStep:
-            def __init__(self, step_name: str) -> None:
-                self.name = step_name
-
-            def __call__(self, ctx) -> StepReport | tuple[StepReport, list]:  # type: ignore[no-untyped-def]
-                if self.name == "verify":
-                    return StepReport(name=self.name, success_count=1), [MagicMock()]
-                return StepReport(name=self.name, success_count=1)
-
-        steps = {
-            n: FakeStep(n)
-            for n in (
-                "ingest",
-                "sort",
-                "clean",
-                "scrape",
-                "cleanup",
-                "enforce",
-                "verify",
-                "trailers",
-                "dispatch",
-            )
-        }
-
+    def test_run_without_subscribers_produces_full_report(self) -> None:
+        """A headless ``Pipeline.run`` still produces a 9-step report."""
+        steps = _make_step_registry()
         pipeline = Pipeline(_stub_app())
 
         with (
