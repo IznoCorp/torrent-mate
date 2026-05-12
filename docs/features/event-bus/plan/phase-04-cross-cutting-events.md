@@ -99,19 +99,19 @@ def on_circuit_opened(self, event: CircuitBreakerOpened) -> None:
 
 **Steps**:
 
-- [ ] Write failing tests.
-- [ ] Add events + factories + register in registry.
-- [ ] Add `event_bus` + `name` to `CircuitBreaker.__init__`.
-- [ ] Add emits at state-transition helpers.
-- [ ] Update every `CircuitBreaker(...)` call site (grep first):
+- [x] Write failing tests.
+- [x] Add events + factories + register in registry.
+- [x] Add `event_bus` + `name` to `CircuitBreaker.__init__`.
+- [x] Add emits at state-transition helpers.
+- [x] Update every `CircuitBreaker(...)` call site (grep first):
   ```bash
   rg 'CircuitBreaker\(' --type py personalscraper/ -l
   ```
   Pass `event_bus=...` from the constructor's caller (which has `AppContext` access at this point — Phase 2 guarantees boundaries).
-- [ ] Update `TelegramSubscriber` to subscribe to `CircuitBreakerOpened`.
-- [ ] Run tests → pass.
-- [ ] `make check` green; `core/circuit.py` ≤ 350 LOC; `subscribers/telegram.py` ≤ 200 LOC.
-- [ ] Commit: `feat(event-bus): CircuitBreaker emits state-transition events; Telegram alerts on Opened`.
+- [x] Update `TelegramSubscriber` to subscribe to `CircuitBreakerOpened`.
+- [x] Run tests → pass.
+- [x] `make check` green; `core/circuit.py` ≤ 350 LOC; `subscribers/telegram.py` ≤ 200 LOC.
+- [x] Commit: `feat(event-bus): CircuitBreaker emits state-transition events; Telegram alerts on Opened`.
 
 ---
 
@@ -161,8 +161,8 @@ ls personalscraper/indexer/db/disk_guard.py 2>&1   # P3 might have used a sub-pa
 
 **Steps**:
 
-- [ ] Run the locator probe (3 steps above). Determine which case applies.
-- [ ] **If Case A** (today's state):
+- [x] Run the locator probe (3 steps above). Determine which case applies.
+- [x] **If Case A** (today's state):
   - [ ] Pre-flight grep — enumerate callers.
   - [ ] Write the import-path assertion test.
   - [ ] Move the function to `_disk_guard.py` (no logic change).
@@ -172,10 +172,10 @@ ls personalscraper/indexer/db/disk_guard.py 2>&1   # P3 might have used a sub-pa
   - [ ] Sweep grep: `rg --type py 'from personalscraper\.indexer\.db import .*handle_disk_full' personalscraper/ tests/` → 0.
   - [ ] Record the locator outcome in the "Phase 4 disk-guard locator" block at the bottom of this file (case = A, canonical path = `personalscraper/indexer/_disk_guard.py`, canonical function = `handle_disk_full`).
   - [ ] Commit: `refactor(event-bus): extract handle_disk_full from indexer/db.py into indexer/_disk_guard.py`.
-- [ ] **If Case B** (already extracted by P3):
+- [x] **If Case B** (already extracted by P3):
   - [ ] No commit. Record the locator outcome in the "Phase 4 disk-guard locator" block (case = B, canonical path = `<discovered>`, canonical function = `<discovered>`).
   - [ ] Proceed to 4.2b; 4.2b reads the locator block to know what to import.
-- [ ] **If Case C** (function not found): STOP per the branch description above.
+- [x] **If Case C** (function not found): STOP per the branch description above.
 
 ---
 
@@ -228,15 +228,15 @@ def on_disk_full(self, event: DiskFullWarning) -> None:
 
 **Steps**:
 
-- [ ] Write failing tests.
-- [ ] Add `DiskFullWarning` + factory; declare `indexer/events.py`.
-- [ ] Add `event_bus: EventBus | None = None` parameter to `handle_disk_full` (purely additive — 4.2a was zero-behavior-change; this is the behavior change).
-- [ ] Add emit at the disk-check site.
-- [ ] Thread `event_bus` from callers (indexer scanner orchestrator, dispatcher pre-flight).
-- [ ] Update `TelegramSubscriber`.
-- [ ] Run tests → pass.
-- [ ] `make check` green; `indexer/events.py` ≤ 60 LOC; `subscribers/telegram.py` ≤ 200 LOC.
-- [ ] Commit: `feat(event-bus): DiskGuard emits DiskFullWarning; Telegram alerts on it`.
+- [x] Write failing tests.
+- [x] Add `DiskFullWarning` + factory; declare `indexer/events.py`.
+- [x] Add `event_bus: EventBus | None = None` parameter to `handle_disk_full` (purely additive — 4.2a was zero-behavior-change; this is the behavior change).
+- [x] Add emit at the disk-check site.
+- [x] Thread `event_bus` from callers (indexer scanner orchestrator, dispatcher pre-flight).
+- [x] Update `TelegramSubscriber`.
+- [x] Run tests → pass.
+- [x] `make check` green; `indexer/events.py` ≤ 60 LOC; `subscribers/telegram.py` ≤ 200 LOC.
+- [x] Commit: `feat(event-bus): DiskGuard emits DiskFullWarning; Telegram alerts on it`.
 
 ---
 
@@ -277,13 +277,13 @@ The dispatcher receives `event_bus: EventBus` from its caller (the pipeline step
 
 **Steps**:
 
-- [ ] Write failing tests.
-- [ ] Create `dispatch/events.py`.
-- [ ] Add emits in the dispatcher's per-action code paths.
-- [ ] Thread `event_bus` from the dispatch step's caller.
-- [ ] Run → pass.
-- [ ] `make check` green; `dispatch/events.py` ≤ 50 LOC.
-- [ ] Commit: `feat(event-bus): dispatcher emits ItemDispatched after successful transfers`.
+- [x] Write failing tests.
+- [x] Create `dispatch/events.py`.
+- [x] Add emits in the dispatcher's per-action code paths.
+- [x] Thread `event_bus` from the dispatch step's caller.
+- [x] Run → pass.
+- [x] `make check` green; `dispatch/events.py` ≤ 50 LOC.
+- [x] Commit: `feat(event-bus): dispatcher emits ItemDispatched after successful transfers`.
 
 ---
 
@@ -330,13 +330,13 @@ MUST return `≥ 4` (the current call-site count per `rg` against HEAD — adjus
 
 **Steps**:
 
-- [ ] Write failing tests.
-- [ ] Create `trailers/events.py`.
-- [ ] Add emit in `trailers/orchestrator.py` after each successful `YtdlpDownloader.download` call.
-- [ ] Thread `event_bus` from both call sites (in-pipeline trailers step + the four `trailers/cli.py` standalone Typer commands; the bus is already threaded at the boundaries from Phase 2.5).
-- [ ] Run → pass.
-- [ ] `make check` green; `trailers/events.py` ≤ 30 LOC.
-- [ ] Commit: `feat(event-bus): trailers orchestrator emits TrailerDownloaded after each successful fetch`.
+- [x] Write failing tests.
+- [x] Create `trailers/events.py`.
+- [x] Add emit in `trailers/orchestrator.py` after each successful `YtdlpDownloader.download` call.
+- [x] Thread `event_bus` from both call sites (in-pipeline trailers step + the four `trailers/cli.py` standalone Typer commands; the bus is already threaded at the boundaries from Phase 2.5).
+- [x] Run → pass.
+- [x] `make check` green; `trailers/events.py` ≤ 30 LOC.
+- [x] Commit: `feat(event-bus): trailers orchestrator emits TrailerDownloaded after each successful fetch`.
 
 ---
 
@@ -385,13 +385,13 @@ This decision is FINAL — no "decide at implementation time" remains.
 
 **Steps**:
 
-- [ ] Write failing tests.
-- [ ] Add `LibraryScanCompleted` to `indexer/events.py`.
-- [ ] Add emit at end of each mode's orchestrator path.
-- [ ] Thread `event_bus` if not already done in Phase 2.5.
-- [ ] Run → pass.
-- [ ] `make check` green; `indexer/events.py` ≤ 60 LOC total (DiskFullWarning + LibraryScanCompleted).
-- [ ] Commit: `feat(event-bus): indexer scan orchestrator emits LibraryScanCompleted per mode`.
+- [x] Write failing tests.
+- [x] Add `LibraryScanCompleted` to `indexer/events.py`.
+- [x] Add emit at end of each mode's orchestrator path.
+- [x] Thread `event_bus` if not already done in Phase 2.5.
+- [x] Run → pass.
+- [x] `make check` green; `indexer/events.py` ≤ 60 LOC total (DiskFullWarning + LibraryScanCompleted).
+- [x] Commit: `feat(event-bus): indexer scan orchestrator emits LibraryScanCompleted per mode`.
 
 ---
 
@@ -455,10 +455,10 @@ This decision is FINAL — no "decide at implementation time" remains.
 
 **Steps**:
 
-- [ ] Re-read each sub-phase 4.1 / 4.2a / 4.2b / 4.3 / 4.4 / 4.5; every checkbox checked. (4.2a may have been a documented no-op if `_disk_guard.py` was already extracted by P3.)
-- [ ] Run gate items 1–12; resolve red.
-- [ ] Compute `<N>` and `<M>` for the audit; append the two literal trailer lines to the commit body.
-- [ ] Commit: `chore(event-bus): phase 4 gate — all cross-cutting events emitting`.
+- [x] Re-read each sub-phase 4.1 / 4.2a / 4.2b / 4.3 / 4.4 / 4.5; every checkbox checked. (4.2a may have been a documented no-op if `_disk_guard.py` was already extracted by P3.)
+- [x] Run gate items 1–12; resolve red.
+- [x] Compute `<N>` and `<M>` for the audit; append the two literal trailer lines to the commit body.
+- [x] Commit: `chore(event-bus): phase 4 gate — all cross-cutting events emitting`.
 
 ---
 
