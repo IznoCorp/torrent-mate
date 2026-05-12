@@ -1,9 +1,9 @@
-"""Sub-phase 3.4 — every step emits ``ItemProgressed`` alongside legacy notify.
+"""Sub-phase 3.4 — every step emits ``ItemProgressed`` on the bus.
 
 The 9 pipeline steps (``ingest``, ``sort``, ``clean``, ``scrape``, ``cleanup``,
 ``enforce``, ``verify``, ``trailers``, ``dispatch``) each accept an ``event_bus``
-keyword argument. When provided, every legacy ``notify_progress(...)`` site
-inside the step ALSO emits an ``ItemProgressed`` on the bus.
+keyword argument and emit an ``ItemProgressed`` per item they process (the
+legacy per-item observer channel was deleted in Sub-phase 3.7b).
 
 These tests verify the plumbing per step by driving the step with a
 ``CollectingSubscriber[ItemProgressed]`` attached to a real ``EventBus`` and
