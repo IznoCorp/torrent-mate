@@ -89,8 +89,11 @@ class StepReport:
             run_process to revert reclean renames so unmatched items keep their
             original torrent name and remain rescrape-eligible. Populated as a
             typed field instead of being parsed back from ``details`` strings.
-        details_payload: Optional typed payload for structured per-step details.
-            See ``personalscraper.reports.STEP_REPORT_CONTRACT``.
+        details_payload: Optional structured per-step details stored as a
+            JSON-safe ``dict[str, Any]``. Producers may pass a typed dataclass
+            instance from :mod:`personalscraper.reports` (``IngestDetails`` etc.) —
+            ``__post_init__`` coerces it via :func:`dataclasses.asdict`. See
+            ``personalscraper.reports.STEP_REPORT_CONTRACT``.
     """
 
     name: str
@@ -104,15 +107,25 @@ class StepReport:
     failed_items: list[FailedItem] = field(default_factory=list)
     renames: dict[str, str] = field(default_factory=dict)
     unmatched_paths: list[str] = field(default_factory=list)
-    details_payload: Any | None = None
+    details_payload: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
-        """Coerce legacy ``tuple[str, str, str]`` entries to :class:`FailedItem`.
+        """Coerce legacy shapes to round-trip-friendly types.
 
-        Producers that still build the field with 3-tuples (the orchestrator
-        returns ``list[tuple[str, str, str]]``) are accepted unchanged; the
-        coercion happens once at construction so the field type invariant
-        holds for every reader and for envelope round-trip.
+        Two coercions run once at construction:
+
+        - ``failed_items``: legacy 3-tuple ``(item_id, reason, detail)`` (still
+          returned by ``TrailersOrchestrator.failed_items``) is converted to
+          :class:`FailedItem` so the field annotation ``list[FailedItem]``
+          holds for every reader and for envelope round-trip (the decoder
+          handles dataclasses but not positional ``tuple[T1, T2, T3]``).
+        - ``details_payload``: typed dataclass instances from
+          :mod:`personalscraper.reports` (``IngestDetails``, ``DispatchDetails``
+          …) are flattened to ``dict[str, Any]`` via :func:`dataclasses.asdict`
+          so the previously-``Any`` annotation no longer blocks decoding (the
+          decoder cannot reconstruct a typed dataclass from ``Any`` without a
+          discriminator). ``dict[str, Any]`` is fully JSON-safe and survives
+          envelope round-trip via the decoder's ``dict`` branch.
         """
         coerced: list[FailedItem] = []
         for entry in self.failed_items:
@@ -127,6 +140,13 @@ class StepReport:
                 # the typing error rather than silently drop data.
                 coerced.append(entry)
         self.failed_items = coerced
+
+        if self.details_payload is not None and not isinstance(self.details_payload, dict):
+            # Late import to avoid circular dep with personalscraper.reports.
+            import dataclasses as _dc  # noqa: PLC0415
+
+            if _dc.is_dataclass(self.details_payload) and not isinstance(self.details_payload, type):
+                self.details_payload = _dc.asdict(self.details_payload)
 
 
 @dataclass

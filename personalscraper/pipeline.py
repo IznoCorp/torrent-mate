@@ -11,6 +11,7 @@ independent sub-steps, each with its own error isolation.
 
 from __future__ import annotations
 
+import dataclasses
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
@@ -449,11 +450,18 @@ class Pipeline:
             )
 
     def _with_details_payload(self, name: str, step_report: StepReport) -> StepReport:
-        """Attach the typed empty payload expected for a pipeline step."""
+        """Attach the typed empty payload expected for a pipeline step.
+
+        The payload is flattened to ``dict[str, Any]`` via
+        :func:`dataclasses.asdict` so the field stays JSON-safe for envelope
+        round-trip (Sub-phase 3.1). The construction-boundary typed-dataclass
+        contract is preserved here — we instantiate ``payload_type()`` to
+        validate the type still exists and matches ``STEP_REPORT_CONTRACT``.
+        """
         if step_report.details_payload is None:
             payload_type = STEP_REPORT_CONTRACT.get(name)
             if payload_type is not None:
-                step_report.details_payload = payload_type()
+                step_report.details_payload = dataclasses.asdict(payload_type())
         return step_report
 
     def _run_step(
