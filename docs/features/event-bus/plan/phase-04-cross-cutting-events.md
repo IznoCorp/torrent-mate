@@ -485,9 +485,9 @@ No new open questions introduced by Phase 4.
 
 Populated during sub-phase 4.2a Step 1 (locator probe). Sub-phase 4.2b reads this block to know which symbol to import and where to emit.
 
-- **Case** (A / B / C — circle one when filled): `<TBD-by-4.2a>`
-- **Canonical module path**: `<TBD-by-4.2a>` (e.g. `personalscraper/indexer/_disk_guard.py`)
-- **Canonical function name**: `<TBD-by-4.2a>` (e.g. `handle_disk_full`)
-- **Probe output excerpt** (paste the `rg` line that identified it): `<TBD-by-4.2a>`
+- **Case** (A / B / C — circle one when filled): **A**
+- **Canonical module path**: `personalscraper/indexer/_disk_guard.py`
+- **Canonical function name**: `handle_disk_full`
+- **Probe output excerpt** (paste the `rg` line that identified it): `personalscraper/indexer/db.py:def handle_disk_full(conn: sqlite3.Connection, exc: sqlite3.OperationalError) -> None:`
 
-`<TBD>` placeholders are the only "to-be-filled" markers allowed in this plan — they exist because the locator outcome depends on runtime probe; the agent in 4.2a fills them when it runs the probe. After 4.2a commits, this block is frozen for the rest of the phase.
+Case A confirmed by the probe at sub-phase 4.2a runtime: `handle_disk_full` lived in `indexer/db.py` and no dedicated extraction module existed under `indexer/`. The mechanical move into `indexer/_disk_guard.py` (zero behavior change) is recorded by the 4.2a commit; sub-phase 4.2b imports from this new canonical location. The post-sweep import surface is pinned by `tests/indexer/test_disk_guard_locator.py`. After 4.2a commits, this block is frozen for the rest of the phase.

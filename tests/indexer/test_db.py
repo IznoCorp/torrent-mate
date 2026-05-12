@@ -16,12 +16,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.indexer._disk_guard import handle_disk_full
 from personalscraper.indexer.db import (
     IndexerCorruptError,
     IndexerDiskFullError,
     IndexerLockError,
     check_free_space,
-    handle_disk_full,
     indexer_lock,
     open_db,
 )
