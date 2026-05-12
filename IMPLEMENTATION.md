@@ -34,6 +34,7 @@ the protocol in INDEX.md Invariant 3 §10).
 | 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [x]    |
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [x]    |
 | 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [x]    |
+| 6   | PR review cycle 1 fixes                | fix     | [phase-06-pr-fixes-cycle-1.md](docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md)                   | [ ]    |
 
 Total sub-phases: **42** (per INDEX.md). Estimated commits: **42–49**.
 
