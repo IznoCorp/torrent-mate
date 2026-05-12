@@ -281,6 +281,7 @@ def run(
     from personalscraper.api.transport._http import HttpTransport
     from personalscraper.logger import cleanup_old_logs
     from personalscraper.pipeline import Pipeline
+    from personalscraper.subscribers.debug_log import DebugLogSubscriber
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
     from personalscraper.subscribers.telegram import TelegramSubscriber
 
@@ -342,6 +343,13 @@ def run(
             # cron / CI runs.
             rich_subscriber: RichConsoleSubscriber | None = None
             telegram_subscriber: TelegramSubscriber | None = None
+            # ``--verbose`` activates the DebugLogSubscriber which logs every
+            # emitted event at DEBUG (Sub-phase 5.4). Registered independently
+            # of ``--headless`` so verbose log streams work even in cron / CI
+            # contexts that suppress Rich / Telegram output.
+            debug_subscriber: DebugLogSubscriber | None = None
+            if verbose:
+                debug_subscriber = DebugLogSubscriber(app_context.event_bus)
             if not headless:
                 rich_subscriber = RichConsoleSubscriber(
                     app_context.event_bus,
@@ -373,6 +381,8 @@ def run(
                         rich_subscriber.close()
                     if telegram_subscriber is not None:
                         telegram_subscriber.close()
+                    if debug_subscriber is not None:
+                        debug_subscriber.close()
             except TrailerStepFailed as exc:
                 # Trailers step failed and --continue-on-trailer-error was not set.
                 # Exit with code 2 (distinct from generic pipeline error exit 1) so
