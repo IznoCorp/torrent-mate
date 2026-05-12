@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import itertools
+import types
 import typing
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -39,6 +40,14 @@ from personalscraper.logger import get_logger
 # (Invariant 9). Public re-exports for tests live below in __all__.
 _EVENT_CLASS_REGISTRY: dict[str, type] = {}
 
+# Both Union origins must be recognized: ``typing.Union[X, None]`` (PEP 484)
+# and ``X | None`` (PEP 604) produce different ``get_origin`` results — the
+# former returns ``typing.Union``, the latter ``types.UnionType``. Treating
+# only one form silently broke datetime / dataclass round-trip whenever a
+# field used the modern ``X | None`` syntax (caught by Sub-phase 3.1
+# envelope round-trip on ``PipelineReport.finished_at: datetime | None``).
+_UNION_ORIGINS: tuple[Any, ...] = (typing.Union, types.UnionType)
+
 # Module-path prefix considered "production" for registry inclusion.
 _PRODUCTION_MODULE_PREFIX = "personalscraper."
 
@@ -53,8 +62,10 @@ def _decode_field_value(value: Any, annotation: Any) -> Any:
     if value is None:
         return None
     origin = get_origin(annotation)
-    if origin is typing.Union:
+    if origin in _UNION_ORIGINS:
         # ``X | None`` → pick the non-None member for non-None values.
+        # Covers both PEP 484 (``typing.Union[X, None]``) and PEP 604
+        # (``X | None``) — see ``_UNION_ORIGINS`` rationale at module top.
         non_none = [a for a in get_args(annotation) if a is not type(None)]
         if len(non_none) == 1:
             return _decode_field_value(value, non_none[0])
