@@ -149,7 +149,15 @@ forces every site to pass `event_bus` explicitly.
 
 ## Review cycles
 
-_(filled by implement:pr-review — max 3 cycles)_
+### Cycle 1
+
+- Findings received: 4 agents (code-reviewer, pr-test-analyzer, silent-failure-hunter, comment-analyzer) — 26 raw findings.
+- Retained: 13 (0 critical, 8 major, 4 medium, 1 minor — full classification in `docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md`).
+- Ignored: 13 (out of Phase 5 scope, documented decisions, or positive observations). Notably:
+  - `_GLOBAL_DISK_BREAKER` silent drops: pre-existing architectural decision; module docstring acknowledges "effectively dropped" via the AppContext-wired path; scanner restructure is scope-expansion.
+  - Step CLI commands silently drop events: design did not specify per-step subscriber wiring; only `personalscraper run` is the operator-facing entry.
+- Fix phase created: `phase-06-pr-fixes-cycle-1.md`.
+- Status: fix phase dispatched → awaiting `/implement:phase`.
 
 ## Resumption snapshot — read FIRST when resuming
 
