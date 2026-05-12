@@ -34,7 +34,7 @@ the protocol in INDEX.md Invariant 3 §10).
 | 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [x]    |
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [x]    |
 | 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [x]    |
-| 6   | PR review cycle 1 fixes                | fix     | [phase-06-pr-fixes-cycle-1.md](docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md)                   | [ ]    |
+| 6   | PR review cycle 1 fixes                | fix     | [phase-06-pr-fixes-cycle-1.md](docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md)                   | [x]    |
 
 Total sub-phases: **42** (per INDEX.md). Estimated commits: **42–49**.
 
@@ -136,6 +136,16 @@ all multi-line constructor calls — 3 production sites already pass
 removes the `| None` from `CircuitBreaker.__init__(event_bus=...)` and
 forces every site to pass `event_bus` explicitly.
 
+### Phase 6 — PR review cycle 1 fixes
+
+| Sub-phase | SHA       | Description                                                                                                                                                                                             |
+| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 6.1       | `6857be7` | Scrub regex-sweep contaminations from docstrings + comments (58 lines across 23 files)                                                                                                                  |
+| 6.2       | `ea1f1a3` | Drop stale `dispatcher._event_bus is not None` compound guards in `dispatch/_movie.py` + `_tv.py`                                                                                                       |
+| 6.3       | `cbcc730` | Sweep stale "Optional" / phase-milestone wording across 19 docstrings (production)                                                                                                                      |
+| 6.4–6.12  | `84ac67d` | Bundle: doc corrections in `event-bus.md` (envelope shape, KeyError, CLI bootstrap, catalog rows, callback order, perf wording, LOC drift), drop `has_event_bus` log field, add CLI exception-path test |
+| 6.13      | _(this)_  | Phase 6 gate                                                                                                                                                                                            |
+
 ### Phase 5 — Required-bus tightening + CLI polish
 
 | Sub-phase | SHA       | Description                                                                                  |
@@ -157,18 +167,18 @@ forces every site to pass `event_bus` explicitly.
   - `_GLOBAL_DISK_BREAKER` silent drops: pre-existing architectural decision; module docstring acknowledges "effectively dropped" via the AppContext-wired path; scanner restructure is scope-expansion.
   - Step CLI commands silently drop events: design did not specify per-step subscriber wiring; only `personalscraper run` is the operator-facing entry.
 - Fix phase created: `phase-06-pr-fixes-cycle-1.md`.
-- Status: fix phase dispatched → awaiting `/implement:phase`.
+- Status: clean — fix phase executed across SHAs `6857be7`, `ea1f1a3`, `cbcc730`, `84ac67d`; Phase 6 gate at this commit. Proceeding to feature-pr re-run for CI verification of the fix commits.
 
 ## Resumption snapshot — read FIRST when resuming
 
-**HEAD SHA**: _(this commit)_ — `chore(event-bus): phase 5 gate — feature complete, mergeable`.
-**Branch**: `feat/event-bus` — local-only commits ahead of `origin/feat/event-bus` (push happens at the feature-pr step per the chained workflow).
+**HEAD SHA**: _(this commit)_ — `chore(event-bus): phase 6 gate — PR review cycle 1 fixes applied`.
+**Branch**: `feat/event-bus` — pushed to origin (CI passing on Phase 5 gate; this Phase 6 gate awaits a re-poll).
 **Working tree**: clean.
-**Last successful gate**: Phase 5 gate (= feature merge gate).
+**Last successful gate**: Phase 6 gate (PR review cycle 1 fixes).
 
 - `make lint` clean (ruff + mypy strict + ruff format + logging audit; 231 source files; 548 files formatted).
-- `make test` green: **4231 passed, 3 skipped** under `-n auto` (no coverage).
-- `make check` green: 4073 unit tests at 91.24% coverage; only pre-existing `personalscraper/scraper/tv_service.py: 819 non-blank lines` advisory warning.
+- `make test` green: **4232 passed, 3 skipped** under `-n auto` (no coverage; +1 vs Phase 5 for the CLI exception-path `DebugLogSubscriber.close` regression guard).
+- `make check` green: 4074 unit tests at 91.24% coverage; only pre-existing `personalscraper/scraper/tv_service.py: 819 non-blank lines` advisory warning.
 - Module sizes within Phase 5 budgets:
   - `core/event_bus.py` 376/400
   - `core/app_context.py` 43/80
@@ -188,7 +198,7 @@ forces every site to pass `event_bus` explicitly.
 **Captured baselines (locked at feature start)**:
 
 - `make test` baseline: **3738 passed, 3 skipped** at commit `55f758a` (feature activation).
-- Current `make test`: **4231 passed, 3 skipped** (= **+493 new event-bus tests** vs feature baseline; well above the Phase 5.6 minimum of +175).
+- Current `make test`: **4232 passed, 3 skipped** (= **+494 new event-bus tests** vs feature baseline; well above the Phase 5.6 minimum of +175).
 - Skip / xfail decorator count: **6** (matches SKIP_BASELINE locked at Pre-flight #9; no growth — Invariant 1 honored).
 
 **Event registry (Phase 4 gate target reached)**: 13 production events.
