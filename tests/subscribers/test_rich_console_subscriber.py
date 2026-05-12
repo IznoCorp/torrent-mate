@@ -14,7 +14,6 @@ from typing import Any
 from rich.console import Console
 
 from personalscraper.core.event_bus import EventBus
-from personalscraper.observers.rich_console import RichConsoleObserver
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
@@ -84,14 +83,6 @@ def _replay_sequence_through_subscriber(config: dict[str, Any], console: Console
     return subscriber
 
 
-def _replay_sequence_through_observer(config: dict[str, Any], console: Console) -> RichConsoleObserver:
-    """Replay the canonical sequence directly into the legacy observer."""
-    observer = RichConsoleObserver(console=console, **config)
-    for callback, args in CANONICAL_SEQUENCE:
-        getattr(observer, callback)(*args)
-    return observer
-
-
 def test_rich_console_subscriber_subscribes_on_init() -> None:
     """``__init__`` registers exactly six subscription tokens."""
     bus = EventBus()
@@ -123,14 +114,3 @@ def test_rich_console_subscriber_snapshot_matches_baseline() -> None:
         "RichConsoleSubscriber output diverged from the canonical baseline.\n"
         "Fix the subscriber rendering — DO NOT re-record the baseline inside Phase 3."
     )
-
-
-# TODO(3.7a): delete this test when RichConsoleObserver is removed.
-def test_rich_console_subscriber_outputs_match_legacy_observer_directly() -> None:
-    """In-process side-by-side check of subscriber vs legacy observer outputs."""
-    for config in CANONICAL_OBSERVER_CONFIGS:
-        observer_console = _make_recording_console()
-        subscriber_console = _make_recording_console()
-        _replay_sequence_through_observer(config, observer_console)
-        _replay_sequence_through_subscriber(config, subscriber_console)
-        assert subscriber_console.export_text() == observer_console.export_text()

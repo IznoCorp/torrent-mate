@@ -21,8 +21,16 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
-from personalscraper.pipeline_observer import PipelineObserverBase
 from personalscraper.pipeline_protocol import StepContext
+
+
+class _StubObserver:
+    """Opaque pipeline-observer stub — only needs identity for the propagation test.
+
+    The structural pipeline-observer Protocol does not enforce any methods at
+    runtime; this stub stands in wherever a test merely needs a distinct, hashable
+    observer-shaped object to thread through ``Pipeline.run(observers=...)``.
+    """
 
 
 def _stub_app() -> AppContext:
@@ -132,8 +140,8 @@ class TestPipelineRunObserversKwarg:
     def test_pipeline_run_propagates_observers_to_step_context(self) -> None:
         """The ``observers`` tuple passed to ``run`` reaches each ``StepContext`` unchanged."""
         captures: list[StepContext] = []
-        observer_a = PipelineObserverBase()
-        observer_b = PipelineObserverBase()
+        observer_a = _StubObserver()
+        observer_b = _StubObserver()
         pipeline = Pipeline(_stub_app())
         _run_with_steps(
             pipeline,

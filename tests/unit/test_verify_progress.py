@@ -1,38 +1,40 @@
-"""Tests for verify progress events."""
+"""Tests for verify progress events — migrated to EventBus + ``ItemProgressed``."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.core.event_bus import EventBus
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.verify.run import run_verify
 from personalscraper.verify.verifier import VerifyResult
+from tests.fixtures.event_bus import CollectingSubscriber
 
 
 class TestVerifyProgress:
-    """Verify run_verify emits StepEvents per DESIGN §9 (started → ok / blocked)."""
+    """Verify run_verify emits ``ItemProgressed`` events per DESIGN §9."""
 
     def test_fast_skip_emits_no_events(self) -> None:
         """When no items exist, verify returns early without emitting events."""
-        settings = MagicMock()
         config = MagicMock()
         config.paths.staging_dir = Path("/tmp/staging")
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
         with patch("personalscraper.verify.run._has_items_to_verify", return_value=False):
-            report, dispatchable = run_verify(settings, config, dry_run=True, observers=(collector,))
+            report, dispatchable = run_verify(MagicMock(), config, dry_run=True, event_bus=bus)
 
         assert report.name == "verify"
         assert dispatchable == []
-        assert collector.progress == []
+        assert collector.received == []
 
     def test_emits_ok_and_blocked_events(self) -> None:
         """run_verify emits started → ok for valid/fixed and started → blocked for blocked."""
-        settings = MagicMock()
         config = MagicMock()
         config.paths.staging_dir = Path("/tmp/staging")
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
 
         valid_result = VerifyResult(
             media_path=Path("/tmp/staging/Movies/OK"),
@@ -62,13 +64,12 @@ class TestVerifyProgress:
             patch("personalscraper.verify.run.folder_name", side_effect=lambda _: "movies"),
             patch("pathlib.Path.exists", return_value=True),
         ):
-            run_verify(settings, config, dry_run=True, observers=(collector,))
+            run_verify(MagicMock(), config, dry_run=True, event_bus=bus)
 
-        statuses = [e.status for e in collector.progress]
-        # Each item produces started + (ok|blocked). Order: started, ok, started, blocked.
+        statuses = [e.status for e in collector.received]
         assert statuses.count("started") == 2
         assert "ok" in statuses
         assert "blocked" in statuses
 
-        blocked_events = [e for e in collector.progress if e.status == "blocked"]
+        blocked_events = [e for e in collector.received if e.status == "blocked"]
         assert blocked_events[0].details["errors"] == ["missing nfo"]

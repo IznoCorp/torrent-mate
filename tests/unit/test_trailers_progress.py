@@ -1,28 +1,28 @@
-"""Tests for trailers progress events."""
+"""Tests for trailers progress events — migrated to EventBus + ``ItemProgressed``."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from personalscraper.pipeline_observer import CollectorObserver
+from personalscraper.core.event_bus import EventBus
+from personalscraper.pipeline_events import ItemProgressed
 from personalscraper.trailers.step import run_trailers
+from tests.fixtures.event_bus import CollectingSubscriber
 
 
 class TestTrailersProgress:
-    """Verify run_trailers accepts and uses observers."""
+    """Verify run_trailers emits ``ItemProgressed`` events on the bus."""
 
     @patch("personalscraper.trailers.orchestrator.TrailersOrchestrator")
-    def test_accepts_observers(self, _orch) -> None:
-        """run_trailers accepts observers without error."""
+    def test_accepts_event_bus(self, _orch) -> None:
+        """run_trailers accepts ``event_bus`` without error."""
         _orch.return_value.run.return_value = {}
         _orch.return_value.failed_items = []
         _orch.return_value.item_results = []
         config = MagicMock()
         config.trailers.enabled = True
-        staging_dir = Path("/tmp/staging")
-
-        report = run_trailers(config, staging_dir=staging_dir, verified=[], observers=())
+        report = run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[], event_bus=EventBus())
         assert report.name == "trailers"
 
     @patch("personalscraper.trailers.orchestrator.TrailersOrchestrator")
@@ -38,15 +38,15 @@ class TestTrailersProgress:
         _orch.return_value.failed_items = []
         _orch.return_value.item_results = [("/tmp/Inception (2010)", "downloaded", "downloaded")]
 
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
         config = MagicMock()
         config.trailers.enabled = True
-        staging_dir = Path("/tmp/staging")
 
-        run_trailers(config, staging_dir=staging_dir, verified=[MagicMock()], observers=(collector,))
+        run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[MagicMock()], event_bus=bus)
 
-        downloaded = [e for e in collector.progress if e.status == "downloaded"]
-        assert len(downloaded) >= 1, f"expected >=1 downloaded event, got {len(downloaded)}"
+        downloaded = [e for e in collector.received if e.status == "downloaded"]
+        assert len(downloaded) >= 1
         assert "Inception" in downloaded[0].item
 
     @patch("personalscraper.trailers.orchestrator.TrailersOrchestrator")
@@ -68,19 +68,21 @@ class TestTrailersProgress:
             ("/tmp/Blocked (2011)", "bot_detected", "captcha"),
         ]
 
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
         config = MagicMock()
         config.trailers.enabled = True
 
-        run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[MagicMock()], observers=(collector,))
+        run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[MagicMock()], event_bus=bus)
 
-        statuses = [e.status for e in collector.progress]
+        statuses = [e.status for e in collector.received]
         assert "error" in statuses
         assert "bot_detected" in statuses
 
     def test_skip_flag_emits_skipped_event(self) -> None:
         """--skip-trailers (or config.trailers.enabled=False) emits a step-level skipped event."""
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
         config = MagicMock()
         config.trailers.enabled = True
 
@@ -89,10 +91,10 @@ class TestTrailersProgress:
             staging_dir=Path("/tmp/staging"),
             verified=[],
             skip_trailers=True,
-            observers=(collector,),
+            event_bus=bus,
         )
 
-        skipped = [e for e in collector.progress if e.status == "skipped"]
+        skipped = [e for e in collector.received if e.status == "skipped"]
         assert len(skipped) == 1
         assert skipped[0].step == "trailers"
         assert skipped[0].details["reason"] == "skip_flag"
@@ -101,13 +103,14 @@ class TestTrailersProgress:
     def test_orchestrator_crash_emits_failed_event(self, _orch) -> None:
         """A crashing orchestrator emits a step-level failed event before returning error."""
         _orch.return_value.run.side_effect = RuntimeError("yt-dlp blew up")
-        collector = CollectorObserver()
+        bus = EventBus()
+        collector = CollectingSubscriber(bus, ItemProgressed)
         config = MagicMock()
         config.trailers.enabled = True
 
-        report = run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[], observers=(collector,))
+        report = run_trailers(config, staging_dir=Path("/tmp/staging"), verified=[], event_bus=bus)
 
         assert report.status == "error"
-        failed = [e for e in collector.progress if e.status == "failed"]
+        failed = [e for e in collector.received if e.status == "failed"]
         assert len(failed) == 1
         assert failed[0].details["reason"] == "crashed"

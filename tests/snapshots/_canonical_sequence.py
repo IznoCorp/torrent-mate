@@ -22,13 +22,28 @@ literals — no ``MagicMock``, no real I/O, no live ``datetime.utcnow``.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from personalscraper.models import PipelineReport, StepReport
-from personalscraper.pipeline_observer import StepEvent
 
 UTC = timezone.utc
+
+
+@dataclass(frozen=True)
+class _CanonicalProgress:
+    """Lightweight progress record used by the canonical sequence.
+
+    Carries ``.step``, ``.item``, ``.status`` and ``.details``. Consumers
+    translate it into the corresponding bus event in one line.
+    """
+
+    step: str
+    item: str
+    status: str
+    details: dict[str, Any] = field(default_factory=dict)
+
 
 # Deterministic timestamps — anchor the baseline so it never drifts.
 _T0 = datetime(2026, 5, 11, 10, 0, 0, tzinfo=UTC)
@@ -165,8 +180,8 @@ def _step_report_unknown() -> StepReport:
     )
 
 
-def _ev(step: str, item: str, status: str) -> StepEvent:
-    return StepEvent(step=step, item=item, status=status)
+def _ev(step: str, item: str, status: str) -> _CanonicalProgress:
+    return _CanonicalProgress(step=step, item=item, status=status)
 
 
 # The canonical sequence: a list of (callback_name, args_tuple) pairs.
