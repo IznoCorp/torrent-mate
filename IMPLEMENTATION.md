@@ -113,46 +113,40 @@ _(filled by implement:pr-review — max 3 cycles)_
 - Skip / xfail decorator count: **3** (unchanged from Phase 2 baseline).
 - `notify_progress` call sites in production (Pre-flight #8): **46** across **8** files. Bus emits for `ItemProgressed` not yet added — that is the 3.4 mechanical sweep.
 
-**Phase 3 sub-phase progress (commits this session):**
+**Phase 3 sub-phase progress (commits across sessions):**
 
 - ✅ 3.1 — pipeline event catalog + factories + Report JSON-safety (4 commits: 050bfd0, 05e2dea, 0ebf080, bfda5f6).
 - ✅ 3.2 — `PipelineStarted`/`PipelineEnded` (59697ef).
 - ✅ 3.3 — `StepStarted`/`StepCompleted`/`StepErrored` (f3841c6).
-- ⏳ 3.4 — Step emit migration (9 steps, mechanical sweep). **STARTED**: enumerated 46 sites; plan-spirit-aligned approach selected: add `event_bus: EventBus | None = None` kwarg to each step function + adapter + per-site `event_bus.emit(ItemProgressed(...))` line.
+- ✅ 3.4 — Step emit migration: 46 sites migrated, `event_bus` kwarg added to all 9 `run_*` step entries + adapters in `pipeline_steps.py`; 9 new tests in `tests/event_bus/test_step_item_progressed_emit.py`. Cardinality grep locked: `notify_progress(` and `ItemProgressed(` both = 46 across step files (27f85a8).
+- ⏳ 3.5 — RichConsoleObserver → RichConsoleSubscriber rewrite. **NOT STARTED**.
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked after `/clear`, **resume at sub-phase 3.4**.
+When `/implement:phase` is re-invoked after `/clear`, **resume at sub-phase 3.5**.
 
-The remaining Phase 3 sub-phases are 3.4 → 3.5 → 3.6 → 3.7a → 3.7b → 3.7c → 3.8 → 3.9 (gate).
+The remaining Phase 3 sub-phases are 3.5 → 3.6 → 3.7a → 3.7b → 3.7c → 3.8 → 3.9 (gate).
 Then Phase 4 (cross-cutting events) and Phase 5 (polish), then `/implement:feature-pr` chains.
 
-**Plan-anchored execution for 3.4 (read first):**
-`docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` Sub-phase 3.4.
+**Plan-anchored execution for 3.5 (read first):**
+`docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` lines 292-339.
 
 Key constraints:
 
-1. Add `event_bus: EventBus | None = None` keyword-only kwarg to each of the
-   8 step entry functions (`run_ingest`, `run_sort`, `run_clean`, `run_scrape`,
-   `run_cleanup`, `run_enforce`, `run_verify`, `run_trailers`, `run_dispatch`).
-2. Update `LegacyCallableStep.__call__` in `personalscraper/pipeline_steps.py` to
-   pass `event_bus=ctx.app.event_bus`.
-3. At each `notify_progress(observers, StepEvent(step=..., item=..., status=...,
-details=...))` site, ADD immediately after:
-   ```python
-   if event_bus is not None:
-       event_bus.emit(ItemProgressed(step=..., item=..., status=..., details=...))
-   ```
-   Mirroring args. Legacy call stays in place (removed in 3.7b).
-4. Lock the cardinality grep: both `rg 'notify_progress\(' --type py personalscraper/`
-   and `rg 'event_bus\.emit\(ItemProgressed' --type py personalscraper/` must
-   each return exactly **46** (or whatever the Pre-flight #8 value is — current
-   actual is 46 across 8 step files; ingest 10, enforce 9, trailers 6, sort 5,
-   scrape 5, dispatch 4, process 4, verify 3).
-5. One commit covering all 9 steps + adapter + tests: `feat(event-bus): all 9
-pipeline steps emit ItemProgressed alongside legacy notify_progress`.
+1. **Move + rename** `personalscraper/observers/rich_console.py` → `personalscraper/subscribers/rich_console.py`, class renamed `RichConsoleObserver` → `RichConsoleSubscriber`. Subscriber self-subscribes in `__init__` to 6 events (`PipelineStarted`, `PipelineEnded`, `StepStarted`, `StepCompleted`, `StepErrored`, `ItemProgressed`). Stores tokens; `close()` unsubscribes all.
+2. **Create** `personalscraper/subscribers/__init__.py` (new package).
+3. **Modify CLI** (`personalscraper/commands/pipeline.py`): instantiate `RichConsoleSubscriber(app.event_bus, console)` AND remove `RichConsoleObserver` from the observers tuple. Observers tuple becomes `(TelegramObserver(creds),)`.
+4. **Visual regression lock**: tests against the immutable baseline at `tests/snapshots/rich_console_canonical.txt`. Translate each `CANONICAL_SEQUENCE` callback into the equivalent `bus.emit(...)`. Byte-for-byte equality required. Translation table in plan §3.5 (lines 318-323).
+5. Tests required:
+   - `test_rich_console_subscriber_subscribes_on_init` (6 tokens stored)
+   - `test_rich_console_subscriber_close_unsubscribes_all`
+   - `test_rich_console_subscriber_snapshot_matches_baseline` (visual regression vs frozen baseline)
+   - `test_rich_console_subscriber_outputs_match_legacy_observer_directly` (side-by-side, marked `TODO(3.7a): delete`)
+6. Smoke import: `python -c "import personalscraper.observers; import personalscraper.subscribers; print('ok')"` must print `ok`.
+7. Budget: `subscribers/rich_console.py` ≤ 200 LOC.
+8. Commit: `refactor(event-bus): rewrite RichConsoleObserver as RichConsoleSubscriber on the bus`.
 
-Then continue inline through 3.5–3.8 and commit 3.9 as the Phase 3 gate (which
+Then continue inline through 3.6–3.8 and commit 3.9 as the Phase 3 gate (which
 also pushes per the user's `git push at each phase-gate commit` rule).
 
 The legacy resumption notes for Phase 2 (Steps A → D below) are kept
