@@ -198,6 +198,7 @@ Load these docs on-demand based on your task — they are **not** auto-loaded:
 | TMDB/TVDB APIs, NFO invariants, artwork, ffprobe language codes                                                     | `docs/reference/scraping.md`            |
 | rapidfuzz, tenacity, structlog, rich, guessit gotchas                                                               | `docs/reference/libraries.md`           |
 | Circuit breaker, fast-skip, dispatch/verify internals, idempotence                                                  | `docs/reference/pipeline-internals.md`  |
+| EventBus internals, event catalog, subscriber recipes, AppContext boundary rule, ContextVar pattern                 | `docs/reference/event-bus.md`           |
 | Logging conventions, event-name style, structlog vs CLI vs typer channels                                           | `docs/reference/logging.md`             |
 | Trailer discovery, download, state, CLI, Plex-conformant placement (movies flat, TV shows in `Trailers/` subfolder) | `docs/reference/trailers.md`            |
 | Media indexer DB, scanner modes, query parser, outbox, cron setup, failure recovery                                 | `docs/reference/indexer.md`             |
