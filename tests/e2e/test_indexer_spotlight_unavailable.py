@@ -122,7 +122,7 @@ class TestSpotlightUnavailable:
            return no output (no-op — the spotlight probe will get fs_type=None
            which already skips the APFS path; the key assertion is unavailable
            is logged by probe_spotlight directly when called from try_attach).
-        5. Run ``scan(event_bus=EventBus())`` with ``spotlight_enabled=True`` and ``staging_dir``
+        5. Run ``scan()`` with ``spotlight_enabled=True`` and ``staging_dir``
            pointing to the tmp dir.
         6. Assert:
            - Scan status is 'ok'.

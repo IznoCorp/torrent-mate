@@ -514,7 +514,7 @@ class FakeTVDB:
 class FakeTorrent:
     """Minimal torrent record for integration tests.
 
-    Carries only the attributes consumed by ``ingest.run_ingest(event_bus=EventBus())`` and
+    Carries only the attributes consumed by ``ingest.run_ingest()`` and
     ``FakeQBitClient.get_content_path()``.  Extend fields here (not in
     production code) when new ingest invariants need to be exercised.
 
@@ -670,7 +670,7 @@ def fake_tmdb(monkeypatch: pytest.MonkeyPatch) -> FakeTMDB:
         stub.seed(json_file.stem, payload)
 
     # Build a mock TMDBClient class that accepts the new constructor
-    # (transport=HttpTransport(..., event_bus=EventBus()), language=...) and also supports
+    # (transport=HttpTransport(...), language=...) and also supports
     # the .policy() classmethod used by orchestrator/rescraper.
     mock_cls = MagicMock()
     mock_cls.policy.return_value = MagicMock()  # TransportPolicy mock

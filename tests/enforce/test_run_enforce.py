@@ -1,6 +1,6 @@
 """Tests for the enforce step orchestrator.
 
-Verifies that run_enforce(event_bus=EventBus()) correctly chains sanitize → structure → coherence
+Verifies that run_enforce() correctly chains sanitize → structure → coherence
 and produces a valid StepReport.
 """
 

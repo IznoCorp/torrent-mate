@@ -171,7 +171,7 @@ class TestE2ESorter:
 
 
 class TestE2ERunSort:
-    """End-to-end tests using run_sort(event_bus=EventBus()) which returns StepReport."""
+    """End-to-end tests using run_sort() which returns StepReport."""
 
     def test_run_sort_returns_step_report(self, staging_settings, staging, config):
         """run_sort returns a properly populated StepReport."""

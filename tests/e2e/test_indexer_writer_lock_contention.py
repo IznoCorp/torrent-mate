@@ -17,7 +17,7 @@ Test strategy:
 
     The background thread calls :func:`~personalscraper.indexer.db.indexer_lock`
     directly and holds it for a fixed number of seconds, then releases.  The
-    main thread calls ``library_index_command(wait_for_lock_seconds=0, event_bus=EventBus())`` while
+    main thread calls ``library_index_command(wait_for_lock_seconds=0)`` while
     the background thread is holding the lock (expects exit code 1 with the
     holding PID in stderr) and again with ``wait_for_lock_seconds=60`` (expects
     exit code 0 after the background thread releases).

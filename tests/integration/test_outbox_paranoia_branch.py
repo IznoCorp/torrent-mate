@@ -10,7 +10,7 @@ Test plan:
 2. Insert ``disk`` and ``media_file`` rows in the DB.
 3. Insert a ``scan_event`` row with ``event='outbox.move'`` for that path.
 4. Backdate the stored ``media_file.size_bytes`` to simulate a stale index.
-5. Run ``scan(event_bus=EventBus())`` in quick mode with paranoia enabled.
+5. Run ``scan()`` in quick mode with paranoia enabled.
 6. Assert that ``indexer.scan.paranoia_recheck`` is logged for that path.
 """
 
@@ -123,7 +123,7 @@ class TestOutboxParanoiaBranch:
             tmp_path: Pytest temporary directory (unique per test).
             caplog: pytest log capture fixture.
         """
-        # Set up the DB at a real filesystem path so scan(event_bus=EventBus()) can open connections.
+        # Set up the DB at a real filesystem path so scan() can open connections.
         db_path = tmp_path / "library.db"
         conn = _make_conn(db_path)
 

@@ -294,7 +294,7 @@ def assert_dispatch_golden(result, golden) -> None:
     """Assert dispatch dry-run results match golden file expectations.
 
     Args:
-        result: DispatchResult from run_dispatch(dry_run=True, event_bus=EventBus()).
+        result: DispatchResult from run_dispatch(dry_run=True).
         golden: GoldenFile with expected data.
 
     Raises:
@@ -411,7 +411,7 @@ def find_dispatch_result(results: list, torrent_name: str):
     partially matches the torrent name (case-insensitive).
 
     Args:
-        results: List of DispatchResult from run_dispatch(event_bus=EventBus()).
+        results: List of DispatchResult from run_dispatch().
         torrent_name: Torrent name to match against source.name.
 
     Returns:

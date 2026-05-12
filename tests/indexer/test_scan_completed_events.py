@@ -2,7 +2,7 @@
 
 Covers :class:`LibraryScanCompleted` emission from
 :func:`personalscraper.indexer.scanner.scan`. The emit lives in a
-``finally`` block so it fires exactly once per ``scan(event_bus=EventBus())`` call,
+``finally`` block so it fires exactly once per ``scan()`` call,
 regardless of exit path:
 
 - Success path (normal return).

@@ -1,4 +1,4 @@
-"""Tests for ingest orchestration — run_ingest(event_bus=EventBus()) entry point.
+"""Tests for ingest orchestration — run_ingest() entry point.
 
 Covers the run_ingest orchestrator with mocked QBitClient, IngestTracker,
 and filesystem operations. Tests the main dispatch paths: no torrents,

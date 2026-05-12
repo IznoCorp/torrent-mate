@@ -29,7 +29,7 @@ def _make_config(tmp_path):
 
 
 class TestRunProcess:
-    """Tests for run_process(event_bus=EventBus()) assembler function."""
+    """Tests for run_process() assembler function."""
 
     @patch("personalscraper.process.cleanup.cleanup_empty_dirs")
     @patch("personalscraper.scraper.run.run_scrape")

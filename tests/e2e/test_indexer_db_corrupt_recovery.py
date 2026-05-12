@@ -1,9 +1,9 @@
 """E2E test: corrupt DB mid-byte → quarantine → rebuild (DESIGN §15.5).
 
 Scenario:
-1. Create a real DB via open_db(event_bus=EventBus()), write a row.
+1. Create a real DB via open_db(), write a row.
 2. Overwrite mid-bytes to corrupt the file.
-3. Re-open with open_db(event_bus=EventBus()) → assert IndexerCorruptError raised AND
+3. Re-open with open_db() → assert IndexerCorruptError raised AND
    ``<path>.corrupt-<ts>`` quarantine file exists.
 4. Re-open with rebuild=True → assert open succeeds (fresh DB) AND the
    quarantine file is still present.

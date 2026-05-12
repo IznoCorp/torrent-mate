@@ -159,7 +159,7 @@ class TestLibraryIndexNoBudget:
     """``--no-budget`` overrides both ``--budget`` and the config default to ``None``."""
 
     def test_no_budget_passes_none(self, tmp_path: Path) -> None:
-        """``--no-budget`` causes ``scan(..., event_bus=EventBus())`` to be invoked with ``budget_seconds=None``."""
+        """``--no-budget`` causes ``scan(...)`` to be invoked with ``budget_seconds=None``."""
         cfg = _make_config(tmp_path)
         fake_result = _fake_scan_result(scan_run_id=1, files=0, dirs=0)
 
@@ -645,13 +645,13 @@ class TestLibraryIndexRebuild:
     """library-index --rebuild quarantines a corrupt DB and creates a fresh one."""
 
     def test_rebuild_quarantines_corrupt_db(self, tmp_path: Path) -> None:
-        """--rebuild flag is forwarded to open_db(rebuild=True, event_bus=EventBus()).
+        """--rebuild flag is forwarded to open_db(rebuild=True).
 
         We verify that:
         1. The scan completes with exit 0.
         2. The JSON summary contains rebuild=True.
 
-        The actual quarantine logic lives in open_db(event_bus=EventBus()) which is exercised in
+        The actual quarantine logic lives in open_db() which is exercised in
         test_db.py.  Here we only verify CLI wiring.
         """
         cfg = _make_config(tmp_path)
@@ -678,7 +678,7 @@ class TestLibraryIndexConfirmBulkChange:
     """library-index --confirm-bulk-change bypasses Merkle-delta freeze."""
 
     def test_confirm_bulk_change_exits_zero(self, tmp_path: Path) -> None:
-        """--confirm-bulk-change is forwarded to scan(event_bus=EventBus()) as confirm_bulk_change=True.
+        """--confirm-bulk-change is forwarded to scan() as confirm_bulk_change=True.
 
         We assert the mock scan is called with confirm_bulk_change=True and the
         command exits 0.

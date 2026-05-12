@@ -134,7 +134,7 @@ class TestSpotlightPartial:
         1. Create a temporary directory with two media files.
         2. Mock ``detect_fs_type`` to return "apfs" so the probe is attempted.
         3. Mock ``mdutil -s`` to return "Indexing enabled but rebuilding".
-        4. Run ``scan(event_bus=EventBus())`` with ``spotlight_enabled=True``.
+        4. Run ``scan()`` with ``spotlight_enabled=True``.
         5. Assert:
            - Scan status is 'ok'.
            - All files indexed (dir-mtime walk ran).
@@ -190,7 +190,7 @@ class TestSpotlightPartial:
         1. Create a temporary directory with two media files.
         2. Mock ``detect_fs_type`` to return "apfs" so the probe is attempted.
         3. Mock ``subprocess.run`` to raise :class:`subprocess.TimeoutExpired`.
-        4. Run ``scan(event_bus=EventBus())`` with ``spotlight_enabled=True``.
+        4. Run ``scan()`` with ``spotlight_enabled=True``.
         5. Assert:
            - Scan status is 'ok'.
            - All files indexed (dir-mtime walk ran).

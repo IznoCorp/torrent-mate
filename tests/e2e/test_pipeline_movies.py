@@ -163,7 +163,7 @@ class TestMovieFullPipeline:
             print(f"  V5 Dispatch (dry-run): {dispatch_report.success_count} would dispatch")
 
             # Note: golden dispatch assertions require DispatchResult objects,
-            # but run_dispatch(event_bus=EventBus()) returns a StepReport. Dispatch golden validation
+            # but run_dispatch() returns a StepReport. Dispatch golden validation
             # is deferred to the standalone dispatch tests or future refactoring.
 
             print("\n  Pipeline complete (dispatch was dry-run, disks untouched)")

@@ -232,16 +232,16 @@ class TestExcludedNames:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — scan(event_bus=EventBus()) with pyfakefs
+# Integration tests — scan() with pyfakefs
 #
 # Pattern: each test receives the ``fs`` pyfakefs fixture.  The DB is created
 # while the real FS is in effect (fs.pause() / fs.resume()), then the fake
-# directory tree is built, then scan(event_bus=EventBus()) is called.
+# directory tree is built, then scan() is called.
 # ---------------------------------------------------------------------------
 
 
 class TestScanWalksFilesAndDirs:
-    """scan(event_bus=EventBus()) visits files and directories and records them in the DB."""
+    """scan() visits files and directories and records them in the DB."""
 
     def test_scan_walks_files_and_dirs(self, fs: "FakeFilesystem") -> None:
         """Fake FS with 2 files in 1 dir under mount root → files_visited=2, dirs_visited≥1."""
@@ -268,7 +268,7 @@ class TestScanWalksFilesAndDirs:
 
 
 class TestScanExcludesHiddenSystemNames:
-    """scan(event_bus=EventBus()) skips EXCLUDED_NAMES and '._' resource-fork prefix entries."""
+    """scan() skips EXCLUDED_NAMES and '._' resource-fork prefix entries."""
 
     def test_scan_excludes_hidden_system_names(self, fs: "FakeFilesystem") -> None:
         """Hidden/system files and dirs must not appear in media_file."""
@@ -303,7 +303,7 @@ class TestScanExcludesHiddenSystemNames:
 
 
 class TestScanRecordsSymlinks:
-    """scan(event_bus=EventBus()) records symlinks with oshash=None (NULL in DB; never fingerprinted)."""
+    """scan() records symlinks with oshash=None (NULL in DB; never fingerprinted)."""
 
     def test_scan_records_symlinks_with_empty_oshash(self, fs: "FakeFilesystem") -> None:
         """Symlink is recorded in media_file with oshash=None (NULL; never fingerprinted)."""
@@ -333,7 +333,7 @@ class TestScanRecordsSymlinks:
 
 
 class TestScanUpdatesDirMtimeNs:
-    """scan(event_bus=EventBus()) writes dir_mtime_ns into the path table for each visited directory."""
+    """scan() writes dir_mtime_ns into the path table for each visited directory."""
 
     def test_scan_updates_dir_mtime_ns_for_each_directory(self, fs: "FakeFilesystem") -> None:
         """Two subdirectories → both path rows have non-None dir_mtime_ns after scan."""
@@ -414,7 +414,7 @@ class TestScanRunStatus:
 
 
 class TestScanSkippedDiskLogsWarning:
-    """scan(event_bus=EventBus()) emits indexer.disk.skipped_unmounted when a disk is unmounted."""
+    """scan() emits indexer.disk.skipped_unmounted when a disk is unmounted."""
 
     def test_scan_skipped_disk_logs_warning(
         self,
@@ -541,7 +541,7 @@ class TestScanSkippedDiskReasonCode:
 
 
 class TestFullModeFingerprints:
-    """scan(event_bus=EventBus()) in full mode computes oshash for video files; None (NULL) for non-video."""
+    """scan() in full mode computes oshash for video files; None (NULL) for non-video."""
 
     def test_full_mode_fingerprints_files(self, fs: "FakeFilesystem") -> None:
         """Video .mkv files get a non-empty oshash; a .txt file gets None (NULL)."""
@@ -1362,7 +1362,7 @@ class TestEnrichMode:
     - Seed the DB with a full scan (files have ``enriched_at=NULL``).
     - Mock :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper` to avoid
       requiring a real libmediainfo installation in CI.
-    - Run ``scan(event_bus=EventBus())`` in ``ScanMode.enrich``.
+    - Run ``scan()`` in ``ScanMode.enrich``.
     - Assert expected DB state.
     """
 
@@ -1685,7 +1685,7 @@ class TestParallelScan:
         """Two disks scanned in parallel both produce media_file rows.
 
         Creates two real directories under tmp_path (acting as disk mount points),
-        each containing one .mkv file.  Runs scan(event_bus=EventBus()) with max_workers=2 and a
+        each containing one .mkv file.  Runs scan() with max_workers=2 and a
         file-backed DB (db_path provided) so the parallel executor is used.
         After the scan, asserts that media_file rows exist for both disks.
         """
@@ -2589,7 +2589,7 @@ class TestQuickModeParanoiaBranch:
         # confirm_bulk_change=True bypasses the Merkle delta freeze guard so the
         # scan does not abort before completing the dir-mtime walk; the paranoia
         # branch runs BEFORE the bulk-change check so the recheck is still logged
-        # even without confirm_bulk_change, but confirming allows scan(event_bus=EventBus()) to return
+        # even without confirm_bulk_change, but confirming allows scan() to return
         # status='ok' and makes the assertion cleaner.
         with caplog.at_level(logging.INFO):
             with patch(_GUARD_PATCH, return_value=None):
@@ -2667,7 +2667,7 @@ class TestQuickModeParanoiaBranch:
 
 
 class TestScanUnexpectedExceptionReraise:
-    """scan(event_bus=EventBus()) re-raises unexpected exceptions after recording scan_run.status='failed'.
+    """scan() re-raises unexpected exceptions after recording scan_run.status='failed'.
 
     The docstring ``Raises`` section documents this contract.  Prior to the 9.4 fix,
     the ``except Exception`` block returned a ``ScanRunResult(status='failed')``
@@ -2685,7 +2685,7 @@ class TestScanUnexpectedExceptionReraise:
         Injects a ``RuntimeError`` via a patched ``os.scandir`` to simulate a walk-loop
         crash.  Asserts:
 
-        - The exception propagates out of ``scan(event_bus=EventBus())`` (not swallowed).
+        - The exception propagates out of ``scan()`` (not swallowed).
         - The ``scan_run`` row created during the scan is updated to ``status='failed'``.
 
         Args:

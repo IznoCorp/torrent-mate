@@ -148,7 +148,7 @@ class TestBudgetResume:
         # Phase 1: budget-limited scan
         # ------------------------------------------------------------------
 
-        # time.monotonic() call order inside scan(event_bus=EventBus()):
+        # time.monotonic() call order inside scan():
         #   call 0  → _started_at_monotonic capture   → 0.0
         #   call 1  → first  _maybe_checkpoint check  → 1.0  (elapsed 1.0 < 3.0)
         #   call 2  → second _maybe_checkpoint check  → 2.0  (elapsed 2.0 < 3.0)

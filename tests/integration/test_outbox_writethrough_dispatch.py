@@ -182,7 +182,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     - Patch IndexerConfig in outbox call-sites to return our db_path.
     - Monkeypatch shutil.disk_usage so disk1 wins the free-space election.
     - Build a verified movie directory in the staging area.
-    - Invoke Dispatcher(..., event_bus=EventBus()).dispatch_movie(movie_dir, "movies") directly.
+    - Invoke Dispatcher(...).dispatch_movie(movie_dir, "movies") directly.
     - Assert exactly one index_outbox row exists with op='move'.
     - Assert the payload contains dst_rel_path pointing to the destination disk.
     - Drain the outbox via drain_if_present(conn).

@@ -2,7 +2,7 @@
 
 Covers the "cold scan" half of the cold-to-warm indexer lifecycle:
 - Build a pyfakefs fixture with ~10 items across 2 mock disks.
-- Run ``scan(event_bus=EventBus())`` in ``ScanMode.full`` directly (CLI wired in sub-phase 2.7).
+- Run ``scan()`` in ``ScanMode.full`` directly (CLI wired in sub-phase 2.7).
 - Assert that ``media_file`` row count matches the fixture.
 - Assert ``enriched_at IS NULL`` for all rows (mediainfo is a later sub-phase).
 - Assert ``scan_run.status == 'ok'``.

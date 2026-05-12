@@ -25,10 +25,10 @@ def config(tmp_path):
 
 
 class TestRunTrailers:
-    """Tests for run_trailers(event_bus=EventBus()) pipeline step."""
+    """Tests for run_trailers() pipeline step."""
 
     def test_returns_step_report(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) returns a StepReport instance."""
+        """run_trailers() returns a StepReport instance."""
         with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
             mock_orch = MockOrch.return_value
             mock_orch.run.return_value = {
@@ -45,19 +45,19 @@ class TestRunTrailers:
         assert result.name == "trailers"
 
     def test_skipped_when_disabled(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) returns a skipped report when config.trailers.enabled=False."""
+        """run_trailers() returns a skipped report when config.trailers.enabled=False."""
         config.trailers.enabled = False
         result = run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=EventBus())
         assert result.name == "trailers"
         assert result.status == "skipped"
 
     def test_skip_trailers_flag_skips(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) respects the skip_trailers flag."""
+        """run_trailers() respects the skip_trailers flag."""
         result = run_trailers(config, staging_dir=tmp_path, verified=[], skip_trailers=True, event_bus=EventBus())
         assert result.status == "skipped"
 
     def test_counts_in_step_report(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) populates StepReport counts from orchestrator output."""
+        """run_trailers() populates StepReport counts from orchestrator output."""
         with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
             mock_orch = MockOrch.return_value
             mock_orch.run.return_value = {
@@ -75,7 +75,7 @@ class TestRunTrailers:
         assert result.counts.get("downloaded") == 3
 
     def test_partial_status_on_failures(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) returns status='partial' when some items failed."""
+        """run_trailers() returns status='partial' when some items failed."""
         with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
             mock_orch = MockOrch.return_value
             mock_orch.run.return_value = {
@@ -91,7 +91,7 @@ class TestRunTrailers:
         assert result.status == "partial"
 
     def test_success_status_when_no_failures(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) returns status='success' when no errors or bot detections."""
+        """run_trailers() returns status='success' when no errors or bot detections."""
         with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
             mock_orch = MockOrch.return_value
             mock_orch.run.return_value = {
@@ -129,12 +129,12 @@ class TestStepReportBackwardCompat:
 
 
 class TestRunTrailersVerifiedFiltering:
-    """Tests for verified-path filtering in run_trailers(event_bus=EventBus()) (C8)."""
+    """Tests for verified-path filtering in run_trailers() (C8)."""
 
     def test_run_trailers_filters_orchestrator_items_to_verified_paths(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) passes only verified-path items to orchestrator.run().
+        """run_trailers() passes only verified-path items to orchestrator.run().
 
-        When a non-empty ``verified`` list is provided, run_trailers(event_bus=EventBus()) must scan
+        When a non-empty ``verified`` list is provided, run_trailers() must scan
         staging, filter to items whose path is in the verified set, and pass
         that filtered list to ``orchestrator.run(items=...)``.  Items not in the
         verified set must be excluded even if the scanner sees them.
@@ -185,7 +185,7 @@ class TestRunTrailersVerifiedFiltering:
         assert passed_items[0].path == verified_path
 
     def test_run_trailers_passes_none_when_verified_empty(self, config, tmp_path):
-        """run_trailers(event_bus=EventBus()) passes items=None to orchestrator when verified is empty.
+        """run_trailers() passes items=None to orchestrator when verified is empty.
 
         An empty verified list means the step was invoked directly (CLI or
         unit test), so the orchestrator should fall back to its own staging scan.
