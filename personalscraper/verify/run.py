@@ -52,7 +52,8 @@ def run_verify(
     fix: bool = True,
     movies_only: bool = False,
     tvshows_only: bool = False,
-    event_bus: EventBus | None = None,
+    *,
+    event_bus: EventBus,
 ) -> tuple[StepReport, list[VerifyResult]]:
     """Run the verify pipeline step.
 
@@ -97,28 +98,25 @@ def run_verify(
             all_results.extend(verifier.verify_all_tvshows(tvshows_dir))
 
     for r in all_results:
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="verify", item=r.media_path.name, status="started"))
+        event_bus.emit(ItemProgressed(step="verify", item=r.media_path.name, status="started"))
         if r.status in ("valid", "fixed"):
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="verify",
-                        item=r.media_path.name,
-                        status="ok",
-                        details={"status": r.status, "category": r.category or ""},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="verify",
+                    item=r.media_path.name,
+                    status="ok",
+                    details={"status": r.status, "category": r.category or ""},
                 )
+            )
         elif r.status == "blocked":
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="verify",
-                        item=r.media_path.name,
-                        status="blocked",
-                        details={"errors": list(r.errors)},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="verify",
+                    item=r.media_path.name,
+                    status="blocked",
+                    details={"errors": list(r.errors)},
                 )
+            )
 
     dispatchable = Verifier.get_dispatchable(all_results)
     report = _to_step_report(all_results)

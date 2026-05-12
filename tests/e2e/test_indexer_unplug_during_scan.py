@@ -268,6 +268,7 @@ class TestUnplugDuringScanning:
                 generation=1,
                 conn=conn,
                 disk_breaker=breaker,
+                event_bus=EventBus(),
             )
 
         # --- Scan-level assertions ---
@@ -379,6 +380,7 @@ class TestUnplugDuringScanning:
                 generation=1,
                 conn=conn,
                 disk_breaker=breaker,
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok"

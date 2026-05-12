@@ -254,7 +254,7 @@ class TestIngestQbitAuthLockoutEvent:
         mock_qbit_cls.return_value = mock_client
 
         with caplog.at_level(logging.ERROR, logger="ingest"):
-            run_ingest(settings, config=_make_config(tmp_path))
+            run_ingest(settings, config=_make_config(tmp_path), event_bus=EventBus())
 
         assert _has_event(caplog, "ingest_qbit_auth_lockout"), "ingest event 'ingest_qbit_auth_lockout' was not emitted"
         assert not _has_event(caplog, "ingest_unexpected_error"), "auth_lockout should not fall through to catch-all"

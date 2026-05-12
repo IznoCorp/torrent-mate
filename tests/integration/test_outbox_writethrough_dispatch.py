@@ -30,6 +30,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.dispatcher import Dispatcher
 from personalscraper.dispatch.media_index import MediaIndex
 from personalscraper.indexer.db import apply_migrations
@@ -181,7 +182,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
     - Patch IndexerConfig in outbox call-sites to return our db_path.
     - Monkeypatch shutil.disk_usage so disk1 wins the free-space election.
     - Build a verified movie directory in the staging area.
-    - Invoke Dispatcher(...).dispatch_movie(movie_dir, "movies") directly.
+    - Invoke Dispatcher(..., event_bus=EventBus()).dispatch_movie(movie_dir, "movies") directly.
     - Assert exactly one index_outbox row exists with op='move'.
     - Assert the payload contains dst_rel_path pointing to the destination disk.
     - Drain the outbox via drain_if_present(conn).
@@ -266,6 +267,7 @@ def test_dispatch_movie_publishes_outbox_row_and_drains(
         settings=_make_settings(),
         index=index,
         dry_run=False,
+        event_bus=EventBus(),
     )
     result = dispatcher.dispatch_movie(movie_dir, CID.MOVIES)
 

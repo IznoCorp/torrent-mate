@@ -28,19 +28,19 @@ def _has_parameter(func, name: str) -> bool:
 
 
 def test_run_sort_accepts_e2e_kwargs():
-    """E2E tests call run_sort(settings, staging_dir=, config=, dry_run=)."""
+    """E2E tests call run_sort(settings, staging_dir=, config=, dry_run=, event_bus=EventBus())."""
     for kwarg in ("staging_dir", "config", "dry_run"):
         assert _has_parameter(run_sort, kwarg), f"run_sort lost kwarg '{kwarg}'"
 
 
 def test_run_verify_accepts_e2e_kwargs():
-    """E2E tests call run_verify(settings, config=, dry_run=, movies_only=, tvshows_only=)."""
+    """E2E tests call run_verify(settings, config=, dry_run=, movies_only=, tvshows_only=, event_bus=EventBus())."""
     for kwarg in ("config", "dry_run", "movies_only", "tvshows_only"):
         assert _has_parameter(run_verify, kwarg), f"run_verify lost kwarg '{kwarg}'"
 
 
 def test_run_dispatch_accepts_e2e_kwargs():
-    """E2E tests call run_dispatch(settings, config=, dry_run=, verified=)."""
+    """E2E tests call run_dispatch(settings, config=, dry_run=, verified=, event_bus=EventBus())."""
     for kwarg in ("config", "dry_run", "verified"):
         assert _has_parameter(run_dispatch, kwarg), f"run_dispatch lost kwarg '{kwarg}'"
 

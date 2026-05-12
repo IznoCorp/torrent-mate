@@ -56,7 +56,7 @@ class Dispatcher:
         index: MediaIndex,
         dry_run: bool = False,
         *,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
     ):
         """Initialize the dispatcher.
 

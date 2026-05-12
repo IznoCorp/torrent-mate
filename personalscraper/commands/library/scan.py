@@ -9,6 +9,7 @@ import typer
 
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import handle_cli_errors
+from personalscraper.core.event_bus import EventBus
 
 
 @app.command("library-index")
@@ -89,7 +90,9 @@ def library_index(
         app_context = _build_app_context(loaded_config, settings)
         event_bus = app_context.event_bus
     else:
-        event_bus = None  # init-config path; never reached for library-index in practice.
+        # init-config path; never reached for library-index in practice. Fall back
+        # to a fresh unobserved bus so the required-bus contract holds (Sub-phase 5.2).
+        event_bus = EventBus()
 
     # Bind a fresh ``run_id`` for the duration of the scan — every Event
     # constructed downstream captures it as ``correlation_id``.

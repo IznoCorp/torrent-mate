@@ -26,7 +26,7 @@ def run_enforce(
     config: Config,
     dry_run: bool = False,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run the enforce pipeline step.
 
@@ -52,26 +52,24 @@ def run_enforce(
 
     # Sanitize actions
     for sanitize_result in sanitize_results:
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="started"))
+        event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="started"))
         if sanitize_result.action not in ("skipped",):
             success += 1
             details.append(
                 f"[sanitize:{sanitize_result.action}] {sanitize_result.old_name}"
                 + (f" → {sanitize_result.new_name}" if sanitize_result.new_name else "")
             )
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="enforce",
-                        item=sanitize_result.old_name or "",
-                        status="fixed",
-                        details={
-                            "action": sanitize_result.action,
-                            "new_name": sanitize_result.new_name or "",
-                        },
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="enforce",
+                    item=sanitize_result.old_name or "",
+                    status="fixed",
+                    details={
+                        "action": sanitize_result.action,
+                        "new_name": sanitize_result.new_name or "",
+                    },
                 )
+            )
             log.info(
                 "enforce_sanitize_action",
                 action=sanitize_result.action,
@@ -79,33 +77,29 @@ def run_enforce(
                 new_name=sanitize_result.new_name,
             )
         else:
-            if event_bus is not None:
-                event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="skipped"))
+            event_bus.emit(ItemProgressed(step="enforce", item=sanitize_result.old_name or "", status="skipped"))
 
     # Structure fixes
     for structure_result in structure_results:
         item_name = structure_result.path.name
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
+        event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
         if structure_result.action == "repaired":
             success += 1
             for fix in structure_result.fixes:
                 details.append(f"[structure:fix] {item_name}: {fix}")
                 log.info("enforce_structure_fix", item=item_name, fix=fix)
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(step="enforce", item=item_name, status="fixed", details={"component": "structure"})
-                )
+            event_bus.emit(
+                ItemProgressed(step="enforce", item=item_name, status="fixed", details={"component": "structure"})
+            )
         else:
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="enforce",
-                        item=item_name,
-                        status="skipped",
-                        details={"component": "structure", "action": structure_result.action},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="enforce",
+                    item=item_name,
+                    status="skipped",
+                    details={"component": "structure", "action": structure_result.action},
                 )
+            )
         for w in structure_result.warnings:
             warnings_list.append(f"{item_name}: {w}")
             log.warning("enforce_structure_warning", item=item_name, warning=w)
@@ -113,23 +107,20 @@ def run_enforce(
     # Coherence warnings
     for coherence_result in coherence_results:
         item_name = coherence_result.path.name
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
+        event_bus.emit(ItemProgressed(step="enforce", item=item_name, status="started"))
         if coherence_result.warnings:
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="enforce",
-                        item=item_name,
-                        status="fixed",
-                        details={"component": "coherence", "warning_count": len(coherence_result.warnings)},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="enforce",
+                    item=item_name,
+                    status="fixed",
+                    details={"component": "coherence", "warning_count": len(coherence_result.warnings)},
                 )
+            )
         else:
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(step="enforce", item=item_name, status="skipped", details={"component": "coherence"})
-                )
+            event_bus.emit(
+                ItemProgressed(step="enforce", item=item_name, status="skipped", details={"component": "coherence"})
+            )
         for w in coherence_result.warnings:
             warnings_list.append(f"[coherence] {item_name}: {w}")
             log.warning("enforce_coherence_warning", item=item_name, warning=w)

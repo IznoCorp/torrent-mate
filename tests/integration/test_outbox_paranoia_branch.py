@@ -10,7 +10,7 @@ Test plan:
 2. Insert ``disk`` and ``media_file`` rows in the DB.
 3. Insert a ``scan_event`` row with ``event='outbox.move'`` for that path.
 4. Backdate the stored ``media_file.size_bytes`` to simulate a stale index.
-5. Run ``scan()`` in quick mode with paranoia enabled.
+5. Run ``scan(event_bus=EventBus())`` in quick mode with paranoia enabled.
 6. Assert that ``indexer.scan.paranoia_recheck`` is logged for that path.
 """
 
@@ -24,6 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -122,7 +123,7 @@ class TestOutboxParanoiaBranch:
             tmp_path: Pytest temporary directory (unique per test).
             caplog: pytest log capture fixture.
         """
-        # Set up the DB at a real filesystem path so scan() can open connections.
+        # Set up the DB at a real filesystem path so scan(event_bus=EventBus()) can open connections.
         db_path = tmp_path / "library.db"
         conn = _make_conn(db_path)
 
@@ -136,7 +137,7 @@ class TestOutboxParanoiaBranch:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Verify media_file row was inserted.
         conn.row_factory = sqlite3.Row
@@ -180,6 +181,7 @@ class TestOutboxParanoiaBranch:
                     conn=conn,
                     paranoia_window_seconds=86400,
                     confirm_bulk_change=True,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -236,6 +238,7 @@ class TestOutboxParanoiaBranch:
                     # Bypass the bulk-change freeze: wrongroot with no stored rows
                     # yields a 100% delta that would otherwise raise DiskBulkChangeDetected.
                     confirm_bulk_change=True,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -275,7 +278,7 @@ class TestOutboxParanoiaBranch:
 
         # Full scan seeds media_file with the CORRECT stat values.
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Insert outbox event for the file.
         scan_run_id = conn.execute(
@@ -302,6 +305,7 @@ class TestOutboxParanoiaBranch:
                     paranoia_window_seconds=86400,
                     # Bypass the bulk-change freeze guard (wrongroot → 100% delta).
                     confirm_bulk_change=True,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"

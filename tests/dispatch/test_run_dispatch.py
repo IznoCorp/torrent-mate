@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.conf.models.disks import DiskConfig
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch._types import DispatchResult
 from personalscraper.dispatch.run import (
     _cleanup_staging_orphans,
@@ -190,7 +191,7 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            report = run_dispatch(settings, config=config, dry_run=True)
+            report = run_dispatch(settings, config=config, dry_run=True, event_bus=EventBus())
 
         assert report.name == "dispatch"
         MockIdx.assert_called_once_with(config.indexer.db_path, config=config, auto_rebuild=False)
@@ -214,7 +215,7 @@ class TestRunDispatch:
         config.categories = {}
         config.staging_dirs = CANONICAL_STAGING_DIRS
 
-        report = run_dispatch(settings, config=config, dry_run=True, verified=[])
+        report = run_dispatch(settings, config=config, dry_run=True, verified=[], event_bus=EventBus())
 
         assert report.name == "dispatch"
         with sqlite3.connect(config.indexer.db_path) as conn:
@@ -254,7 +255,7 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            report = run_dispatch(settings, config=config, dry_run=False, verified=[])
+            report = run_dispatch(settings, config=config, dry_run=False, verified=[], event_bus=EventBus())
 
         assert report.name == "dispatch"
         assert any("Cleaned" in d and "staging orphan" in d for d in report.details)
@@ -282,7 +283,7 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            run_dispatch(settings, config=config, dry_run=False, verified=[])
+            run_dispatch(settings, config=config, dry_run=False, verified=[], event_bus=EventBus())
 
         mock_drain.assert_called_once()
         mock_enrich.assert_called_once()
@@ -310,7 +311,7 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            run_dispatch(settings, config=config, dry_run=True, verified=[])
+            run_dispatch(settings, config=config, dry_run=True, verified=[], event_bus=EventBus())
 
         mock_drain.assert_not_called()
         mock_enrich.assert_not_called()
@@ -442,7 +443,7 @@ class TestEnrichAfterDispatch:
         db_path = _make_drain_db(tmp_path)
         config = MagicMock()
         config.indexer.db_path = db_path
-        _enrich_after_dispatch(config, [])  # type: ignore[arg-type]
+        _enrich_after_dispatch(config, [], event_bus=EventBus())  # type: ignore[arg-type]
         # Should not raise.
 
     def test_no_matching_disk_row_returns_early(self, tmp_path: Path) -> None:
@@ -457,6 +458,7 @@ class TestEnrichAfterDispatch:
             [  # type: ignore[arg-type]
                 DispatchResult(source=Path("a"), action="moved", disk="nonexistent-id"),
             ],
+            event_bus=EventBus(),
         )
 
     def test_matching_disk_triggers_enrich_scan(self, tmp_path: Path) -> None:
@@ -474,4 +476,5 @@ class TestEnrichAfterDispatch:
                 [  # type: ignore[arg-type]
                     DispatchResult(source=Path("a"), action="moved", disk="drive-uuid"),
                 ],
+                event_bus=EventBus(),
             )

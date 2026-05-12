@@ -2,7 +2,7 @@
 
 Covers :class:`LibraryScanCompleted` emission from
 :func:`personalscraper.indexer.scanner.scan`. The emit lives in a
-``finally`` block so it fires exactly once per ``scan()`` call,
+``finally`` block so it fires exactly once per ``scan(event_bus=EventBus())`` call,
 regardless of exit path:
 
 - Success path (normal return).
@@ -195,7 +195,7 @@ def test_scan_does_not_emit_when_no_event_bus(fs: "FakeFilesystem") -> None:
     # raising. Scanner code paths that reference event_bus are guarded by
     # ``if event_bus is not None``.
     with patch(_GUARD_PATCH, return_value=None):
-        result = scan([disk], ScanMode.quick, generation=1, conn=conn)
+        result = scan([disk], ScanMode.quick, generation=1, conn=conn, event_bus=EventBus())
     assert result.status == "ok"
 
 

@@ -14,6 +14,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.reconcile import (
     detect_dispatch_path_missing,
@@ -35,7 +36,7 @@ MIGRATIONS_DIR = Path(__file__).parent.parent.parent / "personalscraper" / "inde
 def _make_db(tmp_path: Path) -> sqlite3.Connection:
     """Return a fully-migrated file-based DB."""
     db_path = tmp_path / "lib.db"
-    conn = open_db(db_path)
+    conn = open_db(db_path, event_bus=EventBus())
     apply_migrations(conn, MIGRATIONS_DIR)
     return conn
 

@@ -10,6 +10,7 @@ directly by api-unify clients. Both paths go through the
 from unittest.mock import MagicMock, patch
 
 from personalscraper.api.metadata._base import MediaDetails
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.scraper import Scraper
 
 
@@ -35,7 +36,7 @@ def _make_scraper(prefer_local: bool = True) -> Scraper:
         patch("personalscraper.api.metadata.tmdb.TMDBClient"),
         patch("personalscraper.api.metadata.tvdb.TVDBClient"),
     ):
-        return Scraper(settings, MagicMock(), dry_run=True, config=config, interactive=False)
+        return Scraper(settings, MagicMock(), dry_run=True, config=config, interactive=False, event_bus=EventBus())
 
 
 class TestResolveTitleDictShape:

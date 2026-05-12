@@ -11,6 +11,7 @@ from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
 from personalscraper.cli_state import state
+from personalscraper.core.event_bus import EventBus
 
 
 @app.command("library-verify")
@@ -233,7 +234,7 @@ def library_validate(
 
             db_path = config.indexer.db_path
             migrations_dir = Path(_migrations_pkg.__file__).parent
-            conn: sqlite3.Connection = open_db(db_path)
+            conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
             apply_migrations(conn, migrations_dir)
             try:
                 result = validate_from_index(

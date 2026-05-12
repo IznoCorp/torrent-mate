@@ -14,7 +14,7 @@ This test verifies the entire lifecycle:
 1. Seed the DB with a disk and several media_file rows (simulating a previous
    scan where the disk was mounted).
 2. Mock ``guard_disk_mounted`` to raise ``DiskUnmountedError`` (disk unplugged).
-3. Run ``scan()`` against the same disk.
+3. Run ``scan(event_bus=EventBus())`` against the same disk.
 4. Assert: no new ``media_file`` rows inserted, no ``miss_strikes`` increment,
    no ``deleted_at`` set, ``indexer.disk.skipped_unmounted`` event in caplog.
 """
@@ -29,6 +29,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.merkle import DiskUnmountedError
 from personalscraper.indexer.repos import disk_repo
@@ -150,7 +151,7 @@ class TestUnpluggedDiskNoStrike:
         Scenario:
         1. Seed DB: one disk, two media_file rows at scan_generation=1.
         2. Mock guard_disk_mounted to raise DiskUnmountedError (disk is gone).
-        3. Run scan() in full mode at generation=2.
+        3. Run scan(event_bus=EventBus()) in full mode at generation=2.
         4. Assert:
            - No new media_file rows inserted (count still == 2).
            - miss_strikes unchanged (still 0) for all rows.
@@ -176,6 +177,7 @@ class TestUnpluggedDiskNoStrike:
                 mode=ScanMode.full,
                 generation=2,
                 conn=conn,
+                event_bus=EventBus(),
             )
 
         # Scan must complete cleanly (not 'failed').

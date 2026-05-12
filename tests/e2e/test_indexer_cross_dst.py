@@ -33,6 +33,7 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.fingerprint import is_racy
 from personalscraper.indexer.repos import disk_repo
@@ -180,6 +181,7 @@ class TestDstClockJump:
                 generation=1,
                 conn=conn,
                 drop_indexes=False,
+                event_bus=EventBus(),
             )
 
         assert result1.status == "ok"
@@ -201,6 +203,7 @@ class TestDstClockJump:
                 generation=2,
                 conn=conn,
                 drop_indexes=False,
+                event_bus=EventBus(),
             )
 
         assert result2.status == "ok"
@@ -222,6 +225,7 @@ class TestDstClockJump:
                 generation=3,
                 conn=conn,
                 drop_indexes=False,
+                event_bus=EventBus(),
             )
 
         assert result3.status == "ok"

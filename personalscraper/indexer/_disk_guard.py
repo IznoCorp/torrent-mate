@@ -27,7 +27,7 @@ def handle_disk_full(
     conn: sqlite3.Connection,
     exc: sqlite3.OperationalError,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> None:
     """Handle a mid-scan disk-full ``OperationalError``.
 
@@ -71,15 +71,14 @@ def handle_disk_full(
         exc_info=True,
     )
 
-    if event_bus is not None:
-        event_bus.emit(
-            DiskFullWarning(
-                source="indexer._disk_guard.handle_disk_full",
-                disk_path=_db_path_from_conn(conn),
-                free_bytes=0,
-                threshold_bytes=0,
-            ),
-        )
+    event_bus.emit(
+        DiskFullWarning(
+            source="indexer._disk_guard.handle_disk_full",
+            disk_path=_db_path_from_conn(conn),
+            free_bytes=0,
+            threshold_bytes=0,
+        ),
+    )
 
     raise IndexerDiskFullError(Path("."), 0, 0) from exc
 

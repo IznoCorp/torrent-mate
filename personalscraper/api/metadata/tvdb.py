@@ -67,7 +67,7 @@ class TVDBClient(MetadataClient):
         *,
         language: str = "fr-FR",
         circuit: CircuitPolicy | None = None,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
     ) -> None:
         """Initialize TVDB client with bootstrap login.
 

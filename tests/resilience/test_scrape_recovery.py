@@ -7,6 +7,7 @@ API calls are mocked but filesystem operations are real.
 import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.scraper import _is_nfo_complete
 
 from .conftest import make_valid_movie_dir
@@ -67,7 +68,7 @@ class TestNfoCorruptRecovery:
         ]
         mock_scraper.process_tvshows.return_value = []
 
-        run_scrape(resilience_settings, config=resilience_config)
+        run_scrape(resilience_settings, config=resilience_config, event_bus=EventBus())
 
         # Scraper was called (not skipped) because NFO is corrupt
         mock_scraper.process_movies.assert_called_once()

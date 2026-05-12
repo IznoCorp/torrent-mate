@@ -31,7 +31,7 @@ def run_sort(
     config: Config,
     dry_run: bool = False,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> StepReport:
     """Sort all items from the ingest directory into type subdirectories.
 
@@ -67,57 +67,52 @@ def run_sort(
 
     report = StepReport(name="sort")
     for r in results:
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="sort", item=r.source.name, status="started"))
+        event_bus.emit(ItemProgressed(step="sort", item=r.source.name, status="started"))
         if r.status == "moved":
             report.success_count += 1
             report.details.append(f"{r.source.name} -> {r.destination}")
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="sort",
-                        item=r.source.name,
-                        status="moved",
-                        details={"destination": str(r.destination)},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="sort",
+                    item=r.source.name,
+                    status="moved",
+                    details={"destination": str(r.destination)},
                 )
+            )
         elif r.status == "dry-run":
             report.success_count += 1
             report.details.append(f"[DRY-RUN] {r.source.name} -> {r.destination}")
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="sort",
-                        item=r.source.name,
-                        status="moved",
-                        details={"destination": str(r.destination), "dry_run": True},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="sort",
+                    item=r.source.name,
+                    status="moved",
+                    details={"destination": str(r.destination), "dry_run": True},
                 )
+            )
         elif r.status == "skipped":
             report.skip_count += 1
             if r.message:
                 report.warnings.append(f"{r.source.name}: {r.message}")
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="sort",
-                        item=r.source.name,
-                        status="skipped",
-                        details={"reason": r.message or ""},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="sort",
+                    item=r.source.name,
+                    status="skipped",
+                    details={"reason": r.message or ""},
                 )
+            )
         elif r.status == "error":
             report.error_count += 1
             report.warnings.append(f"ERROR {r.source.name}: {r.message}")
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="sort",
-                        item=r.source.name,
-                        status="error",
-                        details={"error": r.message or ""},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="sort",
+                    item=r.source.name,
+                    status="error",
+                    details={"error": r.message or ""},
                 )
+            )
 
     # After sort consumes files from the ingest dir, prune any
     # ``dest_path`` recorded inside that dir from the ingest tracker.

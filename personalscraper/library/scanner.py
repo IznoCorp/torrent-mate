@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from personalscraper.conf.models.disks import DiskConfig
 
 from personalscraper.conf.ids import AUDIOBOOKS, TV_CATEGORY_IDS
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.repos import disk_repo, tv_repo
 from personalscraper.indexer.repos import item_repo as _item_repo
 from personalscraper.indexer.scanner import ScanMode
@@ -723,4 +724,5 @@ def scan_library(config: Config, conn: sqlite3.Connection) -> None:
             mode=ScanMode.full,
             generation=next_generation,
             conn=conn,
+            event_bus=EventBus(),
         )

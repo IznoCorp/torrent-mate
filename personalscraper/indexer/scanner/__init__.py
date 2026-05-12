@@ -355,7 +355,7 @@ def scan(
     staging_dir: str | None = None,
     spotlight_enabled: bool = False,
     paranoia_window_seconds: int = 86400,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> ScanRunResult:
     """Walk all provided disks and record discovered files in the database.
 
@@ -1073,17 +1073,16 @@ def scan(
         # a separate "successful" counter; disks_skipped is the proxy
         # error count). On success, ``errors == disks_skipped`` (which
         # is ``0`` when every disk processed cleanly).
-        if event_bus is not None:
-            _emit_errors = max(disks_skipped[0], 1) if _emit_raised[0] else disks_skipped[0]
-            event_bus.emit(
-                LibraryScanCompleted(
-                    source="indexer.scanner.scan",
-                    mode=mode.value,
-                    scanned=files_visited[0],
-                    errors=_emit_errors,
-                    elapsed_s=time.monotonic() - _emit_started_monotonic,
-                ),
-            )
+        _emit_errors = max(disks_skipped[0], 1) if _emit_raised[0] else disks_skipped[0]
+        event_bus.emit(
+            LibraryScanCompleted(
+                source="indexer.scanner.scan",
+                mode=mode.value,
+                scanned=files_visited[0],
+                errors=_emit_errors,
+                elapsed_s=time.monotonic() - _emit_started_monotonic,
+            ),
+        )
 
 
 __all__ = [

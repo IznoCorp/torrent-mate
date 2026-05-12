@@ -11,6 +11,7 @@ from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
 from personalscraper.cli_state import state
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -64,7 +65,7 @@ def library_analyze(
 
         db_path = config.indexer.db_path
         migrations_dir = Path(_migrations_pkg.__file__).parent
-        conn: sqlite3.Connection = open_db(db_path)
+        conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, migrations_dir)
         try:
             result = analyze_from_index(
@@ -161,7 +162,7 @@ def library_recommend(
 
         db_path = config.indexer.db_path
         migrations_dir = Path(_migrations_pkg.__file__).parent
-        conn: sqlite3.Connection = open_db(db_path)
+        conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, migrations_dir)
         try:
             analysis = analyze_from_index(
@@ -356,7 +357,7 @@ def library_report(
     analysis_result = None
     if db_path.exists():
         try:
-            conn = open_db(db_path)
+            conn = open_db(db_path, event_bus=EventBus())
             analysis_result = analyze(conn)
             conn.close()
         except Exception as exc:

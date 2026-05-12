@@ -193,7 +193,7 @@ def test_telegram_subscriber_cassette() -> None:
     responses = pytest.importorskip("responses")
     bot_token = "123:fake-token"
     chat_id = "@cassette-chat"
-    transport = HttpTransport(TelegramNotifier.policy(bot_token))
+    transport = HttpTransport(TelegramNotifier.policy(bot_token), event_bus=EventBus())
     notifier = TelegramNotifier(transport, chat_id)
 
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"

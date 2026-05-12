@@ -15,6 +15,7 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.run import run_scrape
 from personalscraper.sorter.file_type import FileType
 from tests.integration.conftest import FakeTMDB
@@ -104,7 +105,7 @@ def test_scrape_writes_nfo_on_tmdb_hit(
         },
     )
 
-    run_scrape(_make_settings(), config=integration_config)
+    run_scrape(_make_settings(), config=integration_config, event_bus=EventBus())
 
     # After a successful scrape the scraper may rename the folder to match the
     # resolved API title; locate the NFO by scanning for any .nfo file.
@@ -165,7 +166,7 @@ def test_scrape_leaves_folder_on_tmdb_miss(
     video_file.write_bytes(b"\x00" * 64)
 
     # Do NOT seed search/movie — default stub returns {"results": []}.
-    run_scrape(_make_settings(), config=integration_config)
+    run_scrape(_make_settings(), config=integration_config, event_bus=EventBus())
 
     # No NFO should have been written.
     nfo_files = list(movies_dir.rglob("*.nfo"))

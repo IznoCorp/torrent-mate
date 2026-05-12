@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from personalscraper.conf.models.config import Config
+from personalscraper.core.event_bus import EventBus
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
 
 
@@ -111,7 +112,7 @@ class TestSortFastSkip:
 
         ingest = staging / "097-TEMP"
         ingest.mkdir(parents=True, exist_ok=True)
-        report = run_sort(gate_settings, staging_dir=staging, config=config)
+        report = run_sort(gate_settings, staging_dir=staging, config=config, event_bus=EventBus())
         assert report.name == "sort"
         assert report.success_count == 0
         assert report.skip_count == 0
@@ -130,6 +131,6 @@ class TestSortFastSkip:
 
         ingest = staging_root / "097-TEMP"
         (ingest / "movie.mkv").write_text("video")
-        report = run_sort(gate_settings, staging_dir=staging_root, config=config)
+        report = run_sort(gate_settings, staging_dir=staging_root, config=config, event_bus=EventBus())
         # At least one item was processed (moved or skipped)
         assert report.success_count + report.skip_count + report.error_count > 0

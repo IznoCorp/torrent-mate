@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from personalscraper.conf.models.config import Config
+from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.verify.run import _to_step_report, run_verify
 from personalscraper.verify.verifier import Verifier, VerifyResult
@@ -402,7 +403,7 @@ class TestRunVerify:
             mock_v.verify_all_movies.return_value = []
             mock_v.verify_all_tvshows.return_value = []
 
-            report, dispatchable = run_verify(settings, config)
+            report, dispatchable = run_verify(settings, config, event_bus=EventBus())
 
         assert report.name == "verify"
         mock_v.verify_all_movies.assert_called_once()

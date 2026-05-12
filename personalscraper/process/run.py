@@ -117,7 +117,7 @@ def run_clean(
     config: Config,
     dry_run: bool = False,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run reclean + dedup on all category directories.
 
@@ -147,8 +147,7 @@ def run_clean(
     clean_report = StepReport(name="clean")
 
     for category_dir in (movies_dir, tvshows_dir):
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status="started"))
+        event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status="started"))
         # Only run reclean if polluted folders exist
         if has_polluted:
             reclean_report = reclean_folders(category_dir, dry_run=dry_run, config=config)
@@ -175,8 +174,7 @@ def run_clean(
             cat_status = "cleaned"
         else:
             cat_status = "skipped"
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status=cat_status))
+        event_bus.emit(ItemProgressed(step="clean", item=str(category_dir.name), status=cat_status))
 
     log.info(
         "process_clean_complete",
@@ -192,7 +190,7 @@ def run_cleanup(
     config: Config,
     dry_run: bool = False,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run empty directory cleanup on all category directories.
 
@@ -216,23 +214,21 @@ def run_cleanup(
     cleanup_report = StepReport(name="cleanup")
 
     for category_dir in (movies_dir, tvshows_dir):
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="cleanup", item=str(category_dir.name), status="started"))
+        event_bus.emit(ItemProgressed(step="cleanup", item=str(category_dir.name), status="started"))
         cat_report = cleanup_empty_dirs(category_dir, dry_run=dry_run)
         cleanup_report.success_count += cat_report.success_count
         cleanup_report.details.extend(cat_report.details)
         # Emit "skipped" when no empty dirs were found in this category, "removed" otherwise.
         # Aligns with plan phase-07 §7.1 (DESIGN.md §9: removed / skipped).
         terminal_status = "removed" if cat_report.success_count > 0 else "skipped"
-        if event_bus is not None:
-            event_bus.emit(
-                ItemProgressed(
-                    step="cleanup",
-                    item=str(category_dir.name),
-                    status=terminal_status,
-                    details={"removed": cat_report.success_count},
-                )
+        event_bus.emit(
+            ItemProgressed(
+                step="cleanup",
+                item=str(category_dir.name),
+                status=terminal_status,
+                details={"removed": cat_report.success_count},
             )
+        )
 
     log.info("process_cleanup_complete", removed=cleanup_report.success_count)
     return cleanup_report
@@ -244,7 +240,7 @@ def run_process(
     dry_run: bool = False,
     interactive: bool = False,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> tuple[StepReport, StepReport, StepReport]:
     """Run Phase 3: reclean + dedup + scrape + cleanup.
 

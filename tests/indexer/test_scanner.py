@@ -68,6 +68,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer._throttle import (
     TokenBucket,
     get_active_bucket,
@@ -231,16 +232,16 @@ class TestExcludedNames:
 
 
 # ---------------------------------------------------------------------------
-# Integration tests — scan() with pyfakefs
+# Integration tests — scan(event_bus=EventBus()) with pyfakefs
 #
 # Pattern: each test receives the ``fs`` pyfakefs fixture.  The DB is created
 # while the real FS is in effect (fs.pause() / fs.resume()), then the fake
-# directory tree is built, then scan() is called.
+# directory tree is built, then scan(event_bus=EventBus()) is called.
 # ---------------------------------------------------------------------------
 
 
 class TestScanWalksFilesAndDirs:
-    """scan() visits files and directories and records them in the DB."""
+    """scan(event_bus=EventBus()) visits files and directories and records them in the DB."""
 
     def test_scan_walks_files_and_dirs(self, fs: "FakeFilesystem") -> None:
         """Fake FS with 2 files in 1 dir under mount root → files_visited=2, dirs_visited≥1."""
@@ -259,7 +260,7 @@ class TestScanWalksFilesAndDirs:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert result.files_visited == 2
@@ -267,7 +268,7 @@ class TestScanWalksFilesAndDirs:
 
 
 class TestScanExcludesHiddenSystemNames:
-    """scan() skips EXCLUDED_NAMES and '._' resource-fork prefix entries."""
+    """scan(event_bus=EventBus()) skips EXCLUDED_NAMES and '._' resource-fork prefix entries."""
 
     def test_scan_excludes_hidden_system_names(self, fs: "FakeFilesystem") -> None:
         """Hidden/system files and dirs must not appear in media_file."""
@@ -288,7 +289,7 @@ class TestScanExcludesHiddenSystemNames:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert result.files_visited == 1, "only real_movie.mkv must be visited"
@@ -302,7 +303,7 @@ class TestScanExcludesHiddenSystemNames:
 
 
 class TestScanRecordsSymlinks:
-    """scan() records symlinks with oshash=None (NULL in DB; never fingerprinted)."""
+    """scan(event_bus=EventBus()) records symlinks with oshash=None (NULL in DB; never fingerprinted)."""
 
     def test_scan_records_symlinks_with_empty_oshash(self, fs: "FakeFilesystem") -> None:
         """Symlink is recorded in media_file with oshash=None (NULL; never fingerprinted)."""
@@ -319,7 +320,7 @@ class TestScanRecordsSymlinks:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         conn.row_factory = sqlite3.Row
@@ -332,7 +333,7 @@ class TestScanRecordsSymlinks:
 
 
 class TestScanUpdatesDirMtimeNs:
-    """scan() writes dir_mtime_ns into the path table for each visited directory."""
+    """scan(event_bus=EventBus()) writes dir_mtime_ns into the path table for each visited directory."""
 
     def test_scan_updates_dir_mtime_ns_for_each_directory(self, fs: "FakeFilesystem") -> None:
         """Two subdirectories → both path rows have non-None dir_mtime_ns after scan."""
@@ -350,7 +351,7 @@ class TestScanUpdatesDirMtimeNs:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         conn.row_factory = sqlite3.Row
@@ -382,7 +383,7 @@ class TestScanRunStatus:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         run_row = log_repo.get_scan_run_by_id(conn, result.scan_run_id)
@@ -402,7 +403,7 @@ class TestScanRunStatus:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("test-uuid")):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Disk-guard failure is a skip, not an abort — scan_run must finish 'ok'.
         assert result.status == "ok"
@@ -413,7 +414,7 @@ class TestScanRunStatus:
 
 
 class TestScanSkippedDiskLogsWarning:
-    """scan() emits indexer.disk.skipped_unmounted when a disk is unmounted."""
+    """scan(event_bus=EventBus()) emits indexer.disk.skipped_unmounted when a disk is unmounted."""
 
     def test_scan_skipped_disk_logs_warning(
         self,
@@ -433,7 +434,7 @@ class TestScanSkippedDiskLogsWarning:
         # Capture from both logger namespaces (indexer.scan and indexer.disk).
         with caplog.at_level(logging.WARNING):
             with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("skip-uuid")):
-                scan([disk], ScanMode.full, generation=1, conn=conn)
+                scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # structlog forwards to stdlib logging; check the rendered warning text.
         warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
@@ -487,7 +488,7 @@ class TestScanSkippedDiskReasonCode:
         with caplog.at_level(logging.WARNING):
             with patch(_VERIFY_PATCH, return_value=DiskMountStatus.UNMOUNTED):
                 with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("F7E3C03C-48B7-4C23-BFEE-3E19B052C014")):
-                    scan([disk], ScanMode.full, generation=1, conn=conn)
+                    scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
         skip_warnings = [t for t in warning_texts if "skipped_unmounted" in t]
@@ -523,7 +524,7 @@ class TestScanSkippedDiskReasonCode:
                 # guard_disk_mounted sees NO_SENTINEL → tries bootstrap → raises DiskUnmountedError
                 # to simulate bootstrap failure leading to a skip.
                 with patch(_GUARD_PATCH, side_effect=DiskUnmountedError("some-uuid")):
-                    scan([disk], ScanMode.full, generation=1, conn=conn)
+                    scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         warning_texts = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
         skip_warnings = [t for t in warning_texts if "skipped_unmounted" in t]
@@ -540,7 +541,7 @@ class TestScanSkippedDiskReasonCode:
 
 
 class TestFullModeFingerprints:
-    """scan() in full mode computes oshash for video files; None (NULL) for non-video."""
+    """scan(event_bus=EventBus()) in full mode computes oshash for video files; None (NULL) for non-video."""
 
     def test_full_mode_fingerprints_files(self, fs: "FakeFilesystem") -> None:
         """Video .mkv files get a non-empty oshash; a .txt file gets None (NULL)."""
@@ -561,7 +562,7 @@ class TestFullModeFingerprints:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert result.files_visited == 3
@@ -594,7 +595,7 @@ class TestFullModeFingerprints:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         conn.row_factory = sqlite3.Row
@@ -618,7 +619,7 @@ class TestFullModeFingerprints:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.full, generation=1, conn=conn)
+            result = scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         conn.row_factory = sqlite3.Row
@@ -703,7 +704,7 @@ class TestQuickMode:
         # Insert disk (no merkle_root yet) and run a full scan to populate media_file.
         disk = _insert_disk(conn, mount)
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Compute the Merkle root from the now-populated DB rows.
         fingerprints = _build_disk_fingerprints(conn, disk.id)
@@ -728,7 +729,7 @@ class TestQuickMode:
 
         with patch(_GUARD_PATCH, return_value=None):
             with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_tracking_scandir):
-                result = scan([updated_disk], ScanMode.quick, generation=2, conn=conn)
+                result = scan([updated_disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert result.disks_skipped == 1, f"Expected 1 disk skipped, got {result.disks_skipped}"
@@ -767,7 +768,7 @@ class TestQuickMode:
 
         with patch(_GUARD_PATCH, return_value=None):
             with patch("personalscraper.indexer.scanner.os.scandir", side_effect=_tracking_scandir):
-                result = scan([disk], ScanMode.quick, generation=1, conn=conn)
+                result = scan([disk], ScanMode.quick, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert result.disks_skipped == 0, f"Expected 0 disks skipped, got {result.disks_skipped}"
@@ -800,7 +801,7 @@ class TestQuickMode:
         # First: full scan to populate path rows with current dir_mtime_ns.
         disk = _insert_disk(conn, mount)
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Store a wrong merkle_root to force Merkle miss in quick scan.
         disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
@@ -811,7 +812,7 @@ class TestQuickMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=True,
             ):
-                result = scan([disk], ScanMode.quick, generation=2, conn=conn)
+                result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -847,7 +848,7 @@ class TestQuickMode:
         # First: full scan to create the media_file row (gen=1).
         disk = _insert_disk(conn, mount)
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Manually stale the path row's dir_mtime_ns to 0 so it never matches.
         now_s = int(time.time())
@@ -865,7 +866,7 @@ class TestQuickMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=True,
             ):
-                result = scan([disk], ScanMode.quick, generation=2, conn=conn)
+                result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -899,7 +900,7 @@ class TestQuickMode:
         disk = _insert_disk(conn, mount, merkle_root="staleroot")
 
         with patch(_GUARD_PATCH, return_value=None):
-            result = scan([disk], ScanMode.quick, generation=1, conn=conn)
+            result = scan([disk], ScanMode.quick, generation=1, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert result.disks_skipped == 0
@@ -941,7 +942,7 @@ class TestQuickMode:
         # First: full scan → path rows populated, gen=1.
         disk = _insert_disk(conn, mount)
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Seed a wrong merkle_root so the Merkle miss path is taken.
         disk_repo.update_merkle_root(conn, disk.id, "wrongroot")
@@ -952,7 +953,7 @@ class TestQuickMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=False,
             ):
-                result = scan([disk], ScanMode.quick, generation=2, conn=conn)
+                result = scan([disk], ScanMode.quick, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -1048,7 +1049,7 @@ class TestBuildDiskFingerprints:
 
         disk = _insert_disk(conn, mount)
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         fps = _build_disk_fingerprints(conn, disk.id)
         assert len(fps) == 2, f"Expected 2 fingerprints, got {len(fps)}"
@@ -1066,7 +1067,7 @@ class TestBuildDiskFingerprints:
 
         disk = _insert_disk(conn, mount)
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Mark dead.mkv as deleted.
         now_s = int(time.time())
@@ -1118,7 +1119,7 @@ class TestIncrementalMode:
 
         # Initial full scan — seeds media_file + path rows.
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Add a new video file to the fake FS after the first scan.
         Path(f"{mount}/new_film.mkv").write_bytes(b"Y" * 200)
@@ -1134,7 +1135,7 @@ class TestIncrementalMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=False,  # disable dir-mtime skip so all files are visited
             ):
-                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -1169,7 +1170,7 @@ class TestIncrementalMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         orig_row = conn.execute("SELECT id, oshash FROM media_file WHERE filename = 'old_name.mkv'").fetchone()
@@ -1191,7 +1192,7 @@ class TestIncrementalMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=False,
             ):
-                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -1240,7 +1241,7 @@ class TestIncrementalMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         orig_row = conn.execute("SELECT id, oshash FROM media_file WHERE filename = 'film.mkv'").fetchone()
@@ -1262,7 +1263,7 @@ class TestIncrementalMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=False,
             ):
-                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -1301,7 +1302,7 @@ class TestIncrementalMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         rows_before = conn.execute("SELECT id, filename, oshash FROM media_file").fetchall()
@@ -1324,7 +1325,7 @@ class TestIncrementalMode:
                 "personalscraper.indexer.scanner._verify_dir_mtime_reliable",
                 return_value=False,
             ):
-                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn)
+                result = scan([updated_disk], ScanMode.incremental, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -1361,7 +1362,7 @@ class TestEnrichMode:
     - Seed the DB with a full scan (files have ``enriched_at=NULL``).
     - Mock :class:`~personalscraper.indexer.mediainfo.MediaInfoWrapper` to avoid
       requiring a real libmediainfo installation in CI.
-    - Run ``scan()`` in ``ScanMode.enrich``.
+    - Run ``scan(event_bus=EventBus())`` in ``ScanMode.enrich``.
     - Assert expected DB state.
     """
 
@@ -1391,7 +1392,7 @@ class TestEnrichMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Verify enriched_at is NULL after full scan (no enrichment yet).
         conn.row_factory = sqlite3.Row
@@ -1425,7 +1426,7 @@ class TestEnrichMode:
 
         with patch(_GUARD_PATCH, return_value=None):
             with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", return_value=fake_mi):
-                result = scan([disk], ScanMode.enrich, generation=2, conn=conn)
+                result = scan([disk], ScanMode.enrich, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
 
@@ -1466,7 +1467,7 @@ class TestEnrichMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Mark the file as already enriched at the current epoch second AND
         # set enriched_at > (mtime_ns / 1_000_000_000) so the WHERE clause skips it.
@@ -1483,7 +1484,7 @@ class TestEnrichMode:
 
         with patch(_GUARD_PATCH, return_value=None):
             with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", side_effect=_counting_parse):
-                result = scan([disk], ScanMode.enrich, generation=2, conn=conn)
+                result = scan([disk], ScanMode.enrich, generation=2, conn=conn, event_bus=EventBus())
 
         assert result.status == "ok"
         assert parse_call_count[0] == 0, (
@@ -1516,7 +1517,7 @@ class TestEnrichMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Verify all 5 files are unenriched.
         conn.row_factory = sqlite3.Row
@@ -1540,7 +1541,9 @@ class TestEnrichMode:
         with patch(_GUARD_PATCH, return_value=None):
             with patch("personalscraper.indexer.mediainfo.MediaInfo.parse", return_value=fake_mi):
                 with patch("personalscraper.indexer.scanner._modes.time.monotonic", side_effect=_fast_monotonic):
-                    result = scan([disk], ScanMode.enrich, generation=2, conn=conn, budget_seconds=1.0)
+                    result = scan(
+                        [disk], ScanMode.enrich, generation=2, conn=conn, budget_seconds=1.0, event_bus=EventBus()
+                    )
 
         assert result.status == "ok"
 
@@ -1569,7 +1572,7 @@ class TestEnrichMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         captured_kwargs: list[dict[str, object]] = []
 
@@ -1587,7 +1590,7 @@ class TestEnrichMode:
                 "personalscraper.indexer.scanner._modes.MediaInfoWrapper",
                 _FakeWrapper,
             ):
-                scan([disk], ScanMode.enrich, generation=2, conn=conn, quick_enrich=True)
+                scan([disk], ScanMode.enrich, generation=2, conn=conn, quick_enrich=True, event_bus=EventBus())
 
         assert len(captured_kwargs) >= 1, "MediaInfoWrapper must have been instantiated"
         assert captured_kwargs[0]["parse_speed"] == 0.5, (
@@ -1682,7 +1685,7 @@ class TestParallelScan:
         """Two disks scanned in parallel both produce media_file rows.
 
         Creates two real directories under tmp_path (acting as disk mount points),
-        each containing one .mkv file.  Runs scan() with max_workers=2 and a
+        each containing one .mkv file.  Runs scan(event_bus=EventBus()) with max_workers=2 and a
         file-backed DB (db_path provided) so the parallel executor is used.
         After the scan, asserts that media_file rows exist for both disks.
         """
@@ -1708,6 +1711,7 @@ class TestParallelScan:
                 conn=conn,
                 db_path=db_file,
                 max_workers=2,
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok"
@@ -1777,6 +1781,7 @@ class TestParallelScan:
                         conn=conn,
                         db_path=db_file,
                         max_workers=2,
+                        event_bus=EventBus(),
                     )
 
         # Disk1's row must survive.
@@ -1832,6 +1837,7 @@ class TestParallelScan:
                         conn=conn,
                         db_path=db_file,
                         max_workers=2,
+                        event_bus=EventBus(),
                     )
 
         row = conn.execute("SELECT status FROM scan_run ORDER BY id DESC LIMIT 1").fetchone()
@@ -1874,6 +1880,7 @@ class TestParallelScan:
                     conn=conn,
                     db_path=db_file,
                     max_workers=2,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -1926,6 +1933,7 @@ class TestParallelScan:
                     db_path=db_file,
                     disk_filter=disk1.label,
                     max_workers=4,  # intentionally high — must be clamped to 1
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -1994,6 +2002,7 @@ class TestParallelScan:
                     conn=conn,
                     db_path=db_file,
                     max_workers=4,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -2426,6 +2435,7 @@ class TestBulkInsertFullMode:
                         generation=1,
                         conn=conn,
                         drop_indexes=True,
+                        event_bus=EventBus(),
                     )
 
         assert result.status == "ok"
@@ -2481,6 +2491,7 @@ class TestBulkInsertFullMode:
                     conn=conn,
                     # drop_indexes is False by default; set explicitly for clarity.
                     drop_indexes=False,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -2539,7 +2550,7 @@ class TestQuickModeParanoiaBranch:
 
         # Full scan — seeds media_file row with current size_bytes / mtime_ns.
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Verify the media_file row was created.
         conn.row_factory = sqlite3.Row
@@ -2578,7 +2589,7 @@ class TestQuickModeParanoiaBranch:
         # confirm_bulk_change=True bypasses the Merkle delta freeze guard so the
         # scan does not abort before completing the dir-mtime walk; the paranoia
         # branch runs BEFORE the bulk-change check so the recheck is still logged
-        # even without confirm_bulk_change, but confirming allows scan() to return
+        # even without confirm_bulk_change, but confirming allows scan(event_bus=EventBus()) to return
         # status='ok' and makes the assertion cleaner.
         with caplog.at_level(logging.INFO):
             with patch(_GUARD_PATCH, return_value=None):
@@ -2593,6 +2604,7 @@ class TestQuickModeParanoiaBranch:
                         conn=conn,
                         paranoia_window_seconds=86400,
                         confirm_bulk_change=True,
+                        event_bus=EventBus(),
                     )
 
         assert result.status == "ok"
@@ -2636,6 +2648,7 @@ class TestQuickModeParanoiaBranch:
                     generation=1,
                     conn=conn,
                     paranoia_window_seconds=0,
+                    event_bus=EventBus(),
                 )
 
         assert result.status == "ok"
@@ -2654,7 +2667,7 @@ class TestQuickModeParanoiaBranch:
 
 
 class TestScanUnexpectedExceptionReraise:
-    """scan() re-raises unexpected exceptions after recording scan_run.status='failed'.
+    """scan(event_bus=EventBus()) re-raises unexpected exceptions after recording scan_run.status='failed'.
 
     The docstring ``Raises`` section documents this contract.  Prior to the 9.4 fix,
     the ``except Exception`` block returned a ``ScanRunResult(status='failed')``
@@ -2672,7 +2685,7 @@ class TestScanUnexpectedExceptionReraise:
         Injects a ``RuntimeError`` via a patched ``os.scandir`` to simulate a walk-loop
         crash.  Asserts:
 
-        - The exception propagates out of ``scan()`` (not swallowed).
+        - The exception propagates out of ``scan(event_bus=EventBus())`` (not swallowed).
         - The ``scan_run`` row created during the scan is updated to ``status='failed'``.
 
         Args:
@@ -2703,6 +2716,7 @@ class TestScanUnexpectedExceptionReraise:
                         generation=1,
                         conn=conn,
                         db_path=db_file,
+                        event_bus=EventBus(),
                     )
 
         # The scan_run row must have been inserted and then marked 'failed'.
@@ -2730,7 +2744,7 @@ class TestVerifyMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         before = conn.execute("SELECT id, last_verified_at FROM media_file WHERE filename = 'movie.mkv'").fetchone()
@@ -2741,7 +2755,7 @@ class TestVerifyMode:
         time.sleep(1)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.verify, generation=2, conn=conn)
+            scan([disk], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus())
 
         after = conn.execute(
             "SELECT last_verified_at, scan_generation FROM media_file WHERE id = ?",
@@ -2769,13 +2783,13 @@ class TestVerifyMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         # Mutate the file size on disk.
         movie.write_bytes(b"V" * 600)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.verify, generation=2, conn=conn)
+            scan([disk], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT scope, scope_id, reason, payload_json FROM repair_queue").fetchall()
@@ -2798,12 +2812,12 @@ class TestVerifyMode:
         disk = _insert_disk(conn, mount)
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.full, generation=1, conn=conn)
+            scan([disk], ScanMode.full, generation=1, conn=conn, event_bus=EventBus())
 
         movie.unlink()
 
         with patch(_GUARD_PATCH, return_value=None):
-            scan([disk], ScanMode.verify, generation=2, conn=conn)
+            scan([disk], ScanMode.verify, generation=2, conn=conn, event_bus=EventBus())
 
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT scope, reason FROM repair_queue").fetchall()

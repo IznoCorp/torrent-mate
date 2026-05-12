@@ -190,7 +190,7 @@ def check_free_space(
     path: Path,
     expected_growth_bytes: int,
     *,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> None:
     """Verify that *path*'s parent partition has enough room for the indexer.
 
@@ -211,15 +211,14 @@ def check_free_space(
     free_bytes = stat.f_frsize * stat.f_bavail
     required_bytes = 2 * expected_growth_bytes
     if free_bytes < required_bytes:
-        if event_bus is not None:
-            event_bus.emit(
-                DiskFullWarning(
-                    source="indexer.db.check_free_space",
-                    disk_path=path,
-                    free_bytes=free_bytes,
-                    threshold_bytes=required_bytes,
-                ),
-            )
+        event_bus.emit(
+            DiskFullWarning(
+                source="indexer.db.check_free_space",
+                disk_path=path,
+                free_bytes=free_bytes,
+                threshold_bytes=required_bytes,
+            ),
+        )
         raise IndexerDiskFullError(path, free_bytes, required_bytes)
 
 
@@ -237,7 +236,7 @@ def open_db(
     expected_growth_bytes: int = 0,
     *,
     rebuild: bool = False,
-    event_bus: EventBus | None = None,
+    event_bus: EventBus,
 ) -> sqlite3.Connection:
     """Open (or create) the indexer SQLite database at *path*.
 

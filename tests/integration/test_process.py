@@ -15,6 +15,7 @@ from pathlib import Path
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, staging_path
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.process.run import run_clean
 from personalscraper.sorter.file_type import FileType
 
@@ -72,7 +73,7 @@ def test_reclean_removes_pollution(staging_tree: Path, integration_config: Confi
     polluted.mkdir(parents=True, exist_ok=True)
     (polluted / "video.mkv").write_bytes(b"\x00" * 16)
 
-    run_clean(_make_settings(), config=integration_config)
+    run_clean(_make_settings(), config=integration_config, event_bus=EventBus())
 
     clean_folder = movies_dir / "The Matrix (1999)"
     assert clean_folder.exists(), (
@@ -121,7 +122,7 @@ def test_dedup_merges_fuzzy_duplicates(staging_tree: Path, integration_config: C
         encoding="utf-8",
     )
 
-    run_clean(_make_settings(), config=integration_config)
+    run_clean(_make_settings(), config=integration_config, event_bus=EventBus())
 
     # Complete folder (the merge target) must survive.
     assert complete.exists(), "'Shrinking (2023)' should still exist after dedup"
@@ -172,7 +173,7 @@ def test_dedup_preserves_distinct_years(staging_tree: Path, integration_config: 
     matrix_2003.mkdir(parents=True, exist_ok=True)
     (matrix_2003 / "matrix2.mkv").write_bytes(b"\x02" * 32)
 
-    run_clean(_make_settings(), config=integration_config)
+    run_clean(_make_settings(), config=integration_config, event_bus=EventBus())
 
     # Both folders must survive — the year-guard blocks the merge.
     assert matrix_1999.exists(), (

@@ -45,7 +45,7 @@ class Scraper(ClassifierMixin, ExistingValidatorMixin, MovieServiceMixin, TvServ
         interactive: bool = False,
         config: Config | None = None,
         *,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
     ):
         """Initialize the scraper with API clients and helpers.
 

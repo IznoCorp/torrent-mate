@@ -133,20 +133,21 @@ class TrailersOrchestrator:
         config: Any,
         staging_dir: Path | None,
         *,
-        event_bus: "EventBus | None" = None,
+        event_bus: "EventBus",
     ) -> None:
         """Wire up Scanner, TrailerFinder, YtdlpDownloader, TrailerStateStore.
 
         Args:
             config: Loaded pipeline Config.
             staging_dir: Path to the staging area (for pipeline step) or None.
-            event_bus: Optional :class:`~personalscraper.core.event_bus.EventBus`
-                threaded from the trailers CLI command boundary (Sub-phase
-                2.5) or from the pipeline ``trailers`` step. The
-                orchestrator stores the reference for Phase 4
-                (``TrailerDownloaded`` emit) but does not emit yet.
-                ``None`` is accepted so direct callers (smoke scripts,
-                Phase 2 tests) keep working without wiring a bus.
+            event_bus: Required :class:`~personalscraper.core.event_bus.EventBus`
+                threaded from the trailers CLI command boundary or from the
+                pipeline ``trailers`` step. The orchestrator emits
+                ``TrailerDownloaded`` events on it and forwards it to the
+                TMDB/YouTube transports + YouTube ``CircuitBreaker``.
+                Sub-phase 5.2 tightened the Phase 4 ``| None`` contract;
+                tests that don't care about emit can pass a fresh
+                ``EventBus()`` with no subscribers.
         """
         self._config = config
         self._staging_dir = staging_dir
@@ -546,7 +547,7 @@ class TrailersOrchestrator:
                 # ``url`` already in scope (the resolved YouTube video URL
                 # passed to YtdlpDownloader.download); ``trailer_url_callsite_count: 4``
                 # per the locked pre-flight grep.
-                if self._event_bus is not None and result.output_path is not None:
+                if result.output_path is not None:
                     self._event_bus.emit(
                         TrailerDownloaded(
                             source="trailers.orchestrator",
@@ -690,14 +691,7 @@ class TrailersOrchestrator:
                 ),
             )
             tmdb_client = TMDBClient(transport=HttpTransport(tmdb_policy, event_bus=self._event_bus))
-            # ``CircuitBreaker.event_bus`` is required (Sub-phase 5.1). Narrow
-            # the optional orchestrator bus to a real bus locally; standalone
-            # callers (smoke scripts, Phase 2 tests) that constructed the
-            # orchestrator without a bus get an unobserved bus here.
-            from personalscraper.core.event_bus import EventBus as _EventBus
-
-            yt_bus = self._event_bus if self._event_bus is not None else _EventBus()
-            youtube_breaker = CircuitBreaker(name="trailers_youtube", failure_threshold=int(cb_cfg.youtube.errors_threshold), cooldown_seconds=float(cb_cfg.youtube.cooldown_sec), event_bus=yt_bus)  # noqa: E501  # fmt: skip
+            youtube_breaker = CircuitBreaker(name="trailers_youtube", failure_threshold=int(cb_cfg.youtube.errors_threshold), cooldown_seconds=float(cb_cfg.youtube.cooldown_sec), event_bus=self._event_bus)  # noqa: E501  # fmt: skip
 
             quota_cache = JsonTTLCache(cache_dir / "youtube_quota.json")
             yt_api_cfg = self._config.trailers.youtube_api
@@ -761,7 +755,7 @@ class TrailersOrchestrator:
             return index
         conn: sqlite3.Connection | None = None
         try:
-            conn = _open_indexer_db(db_path)
+            conn = _open_indexer_db(db_path, event_bus=self._event_bus)
             rows = _indexer_item_repo.list_all_dispatch_items(conn)
         except Exception as exc:  # noqa: BLE001 — degraded, but loudly logged
             log.error(

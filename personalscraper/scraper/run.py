@@ -144,7 +144,8 @@ def run_scrape(
     interactive: bool = False,
     movies_only: bool = False,
     tvshows_only: bool = False,
-    event_bus: EventBus | None = None,
+    *,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run the scrape pipeline step.
 
@@ -214,55 +215,50 @@ def run_scrape(
     # Emit per-folder progress events
     for r in all_results:
         item_name = r.media_path.name
-        if event_bus is not None:
-            event_bus.emit(ItemProgressed(step="scrape", item=item_name, status="started"))
+        event_bus.emit(ItemProgressed(step="scrape", item=item_name, status="started"))
         if r.action in ("scraped", "artwork_recovered"):
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="scrape",
-                        item=item_name,
-                        status="matched",
-                        details={
-                            "action": r.action,
-                            "provider": r.match.source if r.match else "",
-                            "confidence": r.match.confidence if r.match else 0.0,
-                        },
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="scrape",
+                    item=item_name,
+                    status="matched",
+                    details={
+                        "action": r.action,
+                        "provider": r.match.source if r.match else "",
+                        "confidence": r.match.confidence if r.match else 0.0,
+                    },
                 )
+            )
         elif r.action == "skipped_low_confidence":
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="scrape",
-                        item=item_name,
-                        status="skipped_low_confidence",
-                        details={
-                            "provider": r.match.source if r.match else "",
-                            "confidence": r.match.confidence if r.match else 0.0,
-                        },
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="scrape",
+                    item=item_name,
+                    status="skipped_low_confidence",
+                    details={
+                        "provider": r.match.source if r.match else "",
+                        "confidence": r.match.confidence if r.match else 0.0,
+                    },
                 )
+            )
         elif r.action in ("skipped_already_done", "skipped_no_category"):
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="scrape",
-                        item=item_name,
-                        status="skipped",
-                        details={"action": r.action},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="scrape",
+                    item=item_name,
+                    status="skipped",
+                    details={"action": r.action},
                 )
+            )
         elif r.action == "error":
-            if event_bus is not None:
-                event_bus.emit(
-                    ItemProgressed(
-                        step="scrape",
-                        item=item_name,
-                        status="failed",
-                        details={"error": r.error or ""},
-                    )
+            event_bus.emit(
+                ItemProgressed(
+                    step="scrape",
+                    item=item_name,
+                    status="failed",
+                    details={"error": r.error or ""},
                 )
+            )
 
     # Convert to StepReport
     return _to_step_report(all_results)

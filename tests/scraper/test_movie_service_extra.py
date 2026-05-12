@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.naming_patterns import NamingPatterns
 from personalscraper.scraper.confidence import MatchResult
 from personalscraper.scraper.scraper import Scraper
@@ -58,7 +59,7 @@ def settings() -> MagicMock:
 def scraper(settings: MagicMock) -> Scraper:
     """Return a Scraper with mocked TMDB client."""
     with patch("personalscraper.api.metadata.tmdb.TMDBClient"):
-        return Scraper(settings, NamingPatterns())
+        return Scraper(settings, NamingPatterns(), event_bus=EventBus())
 
 
 @pytest.fixture

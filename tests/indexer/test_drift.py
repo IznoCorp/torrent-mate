@@ -812,7 +812,7 @@ def test_breaker_open_skips_disk_in_scan(tmp_path: Path) -> None:
     1. Create a real temporary directory with two files.
     2. Seed a disk row pointing at that directory.
     3. Pre-open the circuit by calling ``record_failure`` N times (N == threshold).
-    4. Run ``scan()`` passing the isolated breaker instance.
+    4. Run ``scan(event_bus=EventBus())`` passing the isolated breaker instance.
     5. Assert that no ``media_file`` rows were inserted for that disk.
     """
     conn = _open_mem_db()
@@ -846,6 +846,7 @@ def test_breaker_open_skips_disk_in_scan(tmp_path: Path) -> None:
             generation=1,
             conn=conn,
             disk_breaker=breaker,
+            event_bus=EventBus(),
         )
 
     assert result.status == "ok", f"Expected ok, got {result.status!r}"
@@ -863,7 +864,7 @@ def test_breaker_records_failure_on_eio(tmp_path: Path) -> None:
     2. Seed a disk row.
     3. Mock ``os.scandir`` to raise ``OSError(errno.EIO)`` when called on the
        disk root.
-    4. Run ``scan()``.
+    4. Run ``scan(event_bus=EventBus())``.
     5. Assert ``breaker.is_open(disk.uuid)`` is ``True`` (threshold = 1).
     """
     conn = _open_mem_db()
@@ -899,6 +900,7 @@ def test_breaker_records_failure_on_eio(tmp_path: Path) -> None:
             generation=1,
             conn=conn,
             disk_breaker=breaker,
+            event_bus=EventBus(),
         )
 
     assert result.status == "ok", f"Expected ok, got {result.status!r}"

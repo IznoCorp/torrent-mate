@@ -7,6 +7,7 @@ from pathlib import Path
 
 import typer
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -67,7 +68,7 @@ def library_repair_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
     except (
         IndexerLockError,
         IndexerCorruptError,

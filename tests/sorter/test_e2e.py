@@ -6,6 +6,7 @@ import pytest
 
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import folder_name
+from personalscraper.core.event_bus import EventBus
 from personalscraper.sorter.run import run_sort
 from personalscraper.sorter.sorter import Sorter
 from tests.fixtures.config import CANONICAL_STAGING_DIRS
@@ -170,7 +171,7 @@ class TestE2ESorter:
 
 
 class TestE2ERunSort:
-    """End-to-end tests using run_sort() which returns StepReport."""
+    """End-to-end tests using run_sort(event_bus=EventBus()) which returns StepReport."""
 
     def test_run_sort_returns_step_report(self, staging_settings, staging, config):
         """run_sort returns a properly populated StepReport."""
@@ -178,7 +179,7 @@ class TestE2ERunSort:
         temp.mkdir(exist_ok=True)
         _create_movie_dir(temp, "Movie.2024.1080p")
         _create_episode_file(temp, "Show.S01E01.mkv")
-        report = run_sort(staging_settings, staging_dir=staging, config=config, dry_run=False)
+        report = run_sort(staging_settings, staging_dir=staging, config=config, dry_run=False, event_bus=EventBus())
         assert report.name == "sort"
         assert report.success_count == 2
         assert report.error_count == 0
@@ -188,14 +189,14 @@ class TestE2ERunSort:
         temp = staging / "097-TEMP"
         temp.mkdir(exist_ok=True)
         _create_movie_dir(temp, "Movie.2024.1080p")
-        report = run_sort(staging_settings, staging_dir=staging, config=config, dry_run=True)
+        report = run_sort(staging_settings, staging_dir=staging, config=config, dry_run=True, event_bus=EventBus())
         assert report.success_count == 1
         assert any("[DRY-RUN]" in d for d in report.details)
 
     def test_run_sort_empty_staging(self, staging_settings, staging, config):
         """run_sort on empty staging returns zero counts."""
         (staging / "097-TEMP").mkdir(exist_ok=True)
-        report = run_sort(staging_settings, staging_dir=staging, config=config, dry_run=False)
+        report = run_sort(staging_settings, staging_dir=staging, config=config, dry_run=False, event_bus=EventBus())
         assert report.success_count == 0
         assert report.skip_count == 0
         assert report.error_count == 0

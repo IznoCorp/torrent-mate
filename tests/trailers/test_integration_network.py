@@ -46,7 +46,7 @@ def test_trailer_finder_and_download_e2e(tmp_path: Path) -> None:
     from personalscraper.api.transport._http import HttpTransport
 
     client = TMDBClient(
-        transport=HttpTransport(TMDBClient.policy(api_key)),
+        transport=HttpTransport(TMDBClient.policy(api_key), event_bus=EventBus()),
         language="en-US",
     )
     cache = TrailersCache(tmp_path / "test_trailers_cache.json")

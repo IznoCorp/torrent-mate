@@ -76,7 +76,7 @@ def test_check_free_space_without_bus_does_not_raise(tmp_path: Path) -> None:
     db_path = tmp_path / "library.db"
     with patch("personalscraper.indexer.db.os.statvfs", return_value=_statvfs_with_free(1)):
         with pytest.raises(IndexerDiskFullError):
-            check_free_space(db_path, expected_growth_bytes=1_000_000_000)
+            check_free_space(db_path, expected_growth_bytes=1_000_000_000, event_bus=EventBus())
 
 
 def test_handle_disk_full_emits_warning_on_disk_io_error() -> None:
@@ -115,7 +115,7 @@ def test_handle_disk_full_without_bus_does_not_raise() -> None:
     mock_conn.execute.return_value.fetchall.return_value = [(0, "main", "/tmp/library.db")]
     exc = sqlite3.OperationalError("database or disk is full")
     with pytest.raises(IndexerDiskFullError):
-        handle_disk_full(mock_conn, exc)
+        handle_disk_full(mock_conn, exc, event_bus=EventBus())
 
 
 def test_disk_full_warning_has_factory() -> None:

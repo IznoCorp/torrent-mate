@@ -2,7 +2,7 @@
 
 Covers the "cold scan" half of the cold-to-warm indexer lifecycle:
 - Build a pyfakefs fixture with ~10 items across 2 mock disks.
-- Run ``scan()`` in ``ScanMode.full`` directly (CLI wired in sub-phase 2.7).
+- Run ``scan(event_bus=EventBus())`` in ``ScanMode.full`` directly (CLI wired in sub-phase 2.7).
 - Assert that ``media_file`` row count matches the fixture.
 - Assert ``enriched_at IS NULL`` for all rows (mediainfo is a later sub-phase).
 - Assert ``scan_run.status == 'ok'``.
@@ -35,6 +35,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -210,6 +211,7 @@ class TestColdScan:
                 generation=1,
                 conn=conn,
                 drop_indexes=False,
+                event_bus=EventBus(),
             )
 
         # ---- Basic counters ----
@@ -323,6 +325,7 @@ class TestEnrichScan:
                 generation=1,
                 conn=conn,
                 drop_indexes=False,
+                event_bus=EventBus(),
             )
 
         assert full_result.status == "ok"
@@ -344,6 +347,7 @@ class TestEnrichScan:
                     mode=ScanMode.enrich,
                     generation=2,
                     conn=conn,
+                    event_bus=EventBus(),
                 )
 
         assert enrich_result.status == "ok"

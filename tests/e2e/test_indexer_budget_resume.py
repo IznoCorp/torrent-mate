@@ -24,6 +24,7 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -147,7 +148,7 @@ class TestBudgetResume:
         # Phase 1: budget-limited scan
         # ------------------------------------------------------------------
 
-        # time.monotonic() call order inside scan():
+        # time.monotonic() call order inside scan(event_bus=EventBus()):
         #   call 0  → _started_at_monotonic capture   → 0.0
         #   call 1  → first  _maybe_checkpoint check  → 1.0  (elapsed 1.0 < 3.0)
         #   call 2  → second _maybe_checkpoint check  → 2.0  (elapsed 2.0 < 3.0)
@@ -172,6 +173,7 @@ class TestBudgetResume:
                 budget_seconds=3.0,
                 db_path=db_path,
                 checkpoint_every_n_files=1,
+                event_bus=EventBus(),
             )
 
         assert result1.budget_exhausted is True, f"Expected budget_exhausted=True, got {result1.budget_exhausted}"
@@ -225,6 +227,7 @@ class TestBudgetResume:
                 drop_indexes=False,
                 db_path=db_path,
                 checkpoint_every_n_files=10,
+                event_bus=EventBus(),
             )
 
         assert result2.status == "ok", f"Expected status='ok', got {result2.status!r}"

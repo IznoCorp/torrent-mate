@@ -14,6 +14,7 @@ from personalscraper.conf import ids as CID
 from personalscraper.conf.models.config import Config
 from personalscraper.conf.staging import find_by_file_type, folder_name
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.dispatch.media_index import IndexEntry, MediaIndex
 from personalscraper.dispatch.run import run_dispatch
 from personalscraper.sorter.file_type import FileType
@@ -167,7 +168,7 @@ def test_dispatch_merges_tvshow_new_episodes(
         episodes=["S01E02 - The Target.mkv"],
     )
 
-    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None)
+    report = run_dispatch(_make_settings(), config, dry_run=False, verified=None, event_bus=EventBus())
 
     # Dispatch must report at least one success (the merge action).
     assert report.error_count == 0, f"Expected no dispatch errors. Got: {report.details}"

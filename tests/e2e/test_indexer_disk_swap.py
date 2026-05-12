@@ -6,7 +6,7 @@ When a quick scan detects that the fraction of changed files exceeds
 ``IndexerDriftConfig.merkle_delta_freeze_threshold``, the scanner must:
 
 - Log ``indexer.merkle.delta_freeze`` at WARNING level.
-- Raise ``DiskBulkChangeDetected`` (which propagates out of ``scan()``).
+- Raise ``DiskBulkChangeDetected`` (which propagates out of ``scan(event_bus=EventBus())``).
 - NOT modify any ``media_file`` rows for the affected disk.
 
 When ``confirm_bulk_change=True`` is passed, the guard is bypassed and the
@@ -164,6 +164,7 @@ def _run_initial_scan(conn: sqlite3.Connection, disk: DiskRow, mount: str) -> Di
             generation=1,
             conn=conn,
             disk_breaker=DiskCircuitBreaker(event_bus=EventBus()),
+            event_bus=EventBus(),
         )
 
     # Store a stale root that will never match the DB-computed root, ensuring
@@ -259,6 +260,7 @@ class TestDiskSwapFreeze:
                 confirm_bulk_change=False,
                 merkle_delta_freeze_threshold=_FREEZE_THRESHOLD,
                 disk_breaker=DiskCircuitBreaker(event_bus=EventBus()),
+                event_bus=EventBus(),
             )
 
         # Exception attributes must reflect the freeze.
@@ -303,7 +305,7 @@ class TestDiskSwapFreeze:
         1. Same setup: 5 files, full scan, mutate 4.
         2. Run quick scan WITH confirm_bulk_change=True.
         3. Assert:
-           - scan() returns without exception.
+           - scan(event_bus=EventBus()) returns without exception.
            - scan_run status == 'ok'.
            - size_bytes for the mutated files are updated to the new values.
         """
@@ -331,6 +333,7 @@ class TestDiskSwapFreeze:
                 confirm_bulk_change=True,
                 merkle_delta_freeze_threshold=_FREEZE_THRESHOLD,
                 disk_breaker=DiskCircuitBreaker(event_bus=EventBus()),
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok", f"Expected status='ok', got {result.status!r}"

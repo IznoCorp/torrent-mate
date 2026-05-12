@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations, open_db
 from personalscraper.indexer.repos import item_repo
 from personalscraper.indexer.repos.item_repo import (
@@ -185,7 +186,7 @@ class MediaIndex:
             db_path = configured_db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._db_path = db_path
-        self._conn = open_db(db_path)
+        self._conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(self._conn, _MIGRATIONS_DIR)
 
         log.info("indexer.dispatch.opened", db_path=str(db_path))

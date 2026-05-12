@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from personalscraper.conf.ids import TV_CATEGORY_IDS
 from personalscraper.conf.models.config import Config
 from personalscraper.config import Settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.library.models import (
     ACTION_ARTWORK_DOWNLOADED,
     ACTION_EPISODES_RENAMED,
@@ -584,10 +585,10 @@ def rescrape_library(
     scraper_config = config.scraper
     tmdb_policy = TMDBClient.policy(settings.tmdb_api_key)
     tmdb_client = TMDBClient(
-        transport=HttpTransport(tmdb_policy),
+        transport=HttpTransport(tmdb_policy, event_bus=EventBus()),
         language=scraper_config.language,
     )
-    tvdb_client = TVDBClient(settings.tvdb_api_key)
+    tvdb_client = TVDBClient(settings.tvdb_api_key, event_bus=EventBus())
     # Pass db_path so write-through outbox publishes land in the user-configured
     # DB rather than the default IndexerConfig().db_path (DESIGN §9.4).
     nfo_gen = NFOGenerator(db_path=config.indexer.db_path)

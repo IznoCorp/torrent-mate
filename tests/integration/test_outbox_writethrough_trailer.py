@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.outbox._drain import drain_if_present
 from personalscraper.indexer.repos import disk_repo
@@ -149,7 +150,7 @@ def test_trailer_download_publishes_outbox_row_and_drains(tmp_path: Path) -> Non
     # inside the orchestrator connect to the same test database that contains our disk row.
     config = _make_config(tmp_path)
     config.indexer.db_path = db_path
-    orch = TrailersOrchestrator(config=config, staging_dir=tmp_path)
+    orch = TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=EventBus())
 
     def _download_side_effect(url: str, dest: Path) -> DownloadResult:
         """Create the trailer file on disk (as yt-dlp would) then return SUCCESS."""
@@ -227,7 +228,7 @@ def test_no_outbox_row_when_trailer_not_under_registered_disk(tmp_path: Path) ->
 
     config = _make_config(tmp_path)
     config.indexer.db_path = db_path
-    orch = TrailersOrchestrator(config=config, staging_dir=tmp_path)
+    orch = TrailersOrchestrator(config=config, staging_dir=tmp_path, event_bus=EventBus())
 
     def _download_side_effect(url: str, dest: Path) -> DownloadResult:
         """Create the trailer file on disk (as yt-dlp would) then return SUCCESS."""

@@ -32,6 +32,7 @@ import pytest
 from personalscraper.api.metadata.tmdb import TMDBClient
 from personalscraper.api.metadata.tvdb import TVDBClient
 from personalscraper.config import get_settings
+from personalscraper.core.event_bus import EventBus
 from personalscraper.scraper.confidence import (
     LOW_CONFIDENCE,
     match_movie,
@@ -207,7 +208,7 @@ def tvdb(roundtrip_settings):
     """
     if not roundtrip_settings.tvdb_api_key:
         pytest.skip("TVDB API key not configured")
-    return TVDBClient(api_key=roundtrip_settings.tvdb_api_key)
+    return TVDBClient(api_key=roundtrip_settings.tvdb_api_key, event_bus=EventBus())
 
 
 # ---------------------------------------------------------------------------

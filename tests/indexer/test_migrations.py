@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import IndexerMigrationError, apply_migrations, open_db
 
 # ---------------------------------------------------------------------------
@@ -110,14 +111,14 @@ class TestApplyMigrations001:
     def test_user_version_matches_latest(self, tmp_path: Path) -> None:
         """After applying every migration, PRAGMA user_version equals the latest version (4)."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _user_version(conn) == 4
 
     def test_all_17_tables_present(self, tmp_path: Path) -> None:
         """After applying all migrations, all 17 expected tables exist."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         assert _table_names(conn) == _EXPECTED_TABLES_V1
 
@@ -131,7 +132,7 @@ class TestApplyMigrations001:
         inserting into ``schema_version`` is a bug (see fc7d16c).
         """
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         rows = conn.execute("SELECT version FROM schema_version ORDER BY version").fetchall()
         assert rows is not None
@@ -152,7 +153,7 @@ class TestApplyMigrationsIdempotence:
     def test_second_call_does_not_change_version(self, tmp_path: Path) -> None:
         """user_version remains at the latest version after a second apply_migrations call."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         version_after_first = _user_version(conn)
         assert version_after_first == 4
@@ -163,7 +164,7 @@ class TestApplyMigrationsIdempotence:
     def test_second_call_does_not_change_table_set(self, tmp_path: Path) -> None:
         """Table set is identical after the second apply_migrations call."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         tables_after_first = _table_names(conn)
         apply_migrations(conn, MIGRATIONS_DIR)
@@ -192,7 +193,7 @@ class TestMigration003RepairQueueDedup:
     def test_collapses_duplicates_keeps_oldest(self, tmp_path: Path) -> None:
         """Two pending rows for the same (scope, scope_id) collapse to the oldest."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         self._apply_through_002(conn)
 
         # Seed three pending duplicates (same scope+scope_id, different enqueued_at)
@@ -227,7 +228,7 @@ class TestMigration003RepairQueueDedup:
     def test_subsequent_insert_or_ignore_dedups(self, tmp_path: Path) -> None:
         """After 003, ``INSERT OR IGNORE`` skips a duplicate pending row."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
 
         conn.execute(
@@ -248,7 +249,7 @@ class TestMigration003RepairQueueDedup:
     def test_terminal_row_does_not_block_new_pending(self, tmp_path: Path) -> None:
         """A 'done'/'failed' row does NOT block a fresh pending row for the same target."""
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
 
         conn.execute(
@@ -270,7 +271,7 @@ class TestMigration003RepairQueueDedup:
         script itself would not raise on re-execution.
         """
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)
         # Manually re-execute 003 — must not raise even though the index exists.
         self._apply_003(conn)
@@ -325,7 +326,7 @@ class TestChainReplayEquivalence:
 
         # Path B: apply_migrations on a fresh file-based DB.
         db_path_b = tmp_path / "b.db"
-        db_b = open_db(db_path_b)
+        db_b = open_db(db_path_b, event_bus=EventBus())
         apply_migrations(db_b, MIGRATIONS_DIR)
 
         schema_a = dump_schema(db_a)
@@ -383,7 +384,7 @@ class TestApplyMigrationsFailureRollback:
             encoding="utf-8",
         )
         db_path = tmp_path / "lib.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         apply_migrations(conn, MIGRATIONS_DIR)  # applies the full chain; user_version=latest
         return db_path, conn, mig_dir
 
@@ -426,7 +427,7 @@ class TestApplyMigrationsFailureRollback:
             apply_migrations(conn, mig_dir)
 
         # Re-open the DB (connection was closed during rollback) and verify state.
-        conn2 = open_db(db_path)
+        conn2 = open_db(db_path, event_bus=EventBus())
         tables = _table_names(conn2)
         assert "foo" not in tables, "foo table should not exist after rollback"
         # noop was added by the successful 005 migration and should still be present

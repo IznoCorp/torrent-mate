@@ -9,11 +9,12 @@ from typing import TYPE_CHECKING
 
 import typer
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer import cli as cli_compat
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.core.event_bus import EventBus  # noqa: F401
+    pass
 
 log = get_logger("indexer.cli")
 
@@ -30,7 +31,7 @@ def library_index_command(
     config_path: Path | None = None,
     confirm_bulk_change: bool = False,
     rebuild: bool = False,
-    event_bus: "EventBus | None" = None,
+    event_bus: "EventBus",
 ) -> int:
     """Run an indexer scan (full / quick / incremental / enrich) and print a JSON summary.
 
@@ -157,7 +158,7 @@ def library_index_command(
                 db_path.parent.mkdir(parents=True, exist_ok=True)
                 # Pass rebuild=True to open_db so a corrupt DB is quarantined and a
                 # fresh one is created rather than raising IndexerCorruptError.
-                conn = open_db(db_path, rebuild=rebuild)
+                conn = open_db(db_path, rebuild=rebuild, event_bus=EventBus())
             except (
                 IndexerLockError,
                 IndexerCorruptError,
@@ -261,6 +262,7 @@ def library_index_command(
                         staging_dir=str(cfg.paths.staging_dir),
                         spotlight_enabled=cfg.indexer.spotlight.use_when_available,
                         paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                        event_bus=EventBus(),
                     )
                 except DiskBulkChangeDetected as bulk_exc:
                     typer.echo(
@@ -409,7 +411,7 @@ def library_reconcile_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
     except (
         IndexerLockError,
         IndexerCorruptError,

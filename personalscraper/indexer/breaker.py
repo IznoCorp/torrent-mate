@@ -22,10 +22,11 @@ import time
 from typing import TYPE_CHECKING
 
 from personalscraper.core.circuit import CircuitBreaker, CircuitBreakerOpened, CircuitState
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
-    from personalscraper.core.event_bus import EventBus
+    pass
 
 log = get_logger("indexer.breaker")
 
@@ -49,7 +50,7 @@ class DiskCircuitBreaker:
         *,
         failure_threshold: int = 3,
         cooldown_seconds: float = 300.0,
-        event_bus: EventBus | None = None,
+        event_bus: EventBus,
     ) -> None:
         """Initialise a DiskCircuitBreaker registry.
 
@@ -91,15 +92,10 @@ class DiskCircuitBreaker:
             The :class:`CircuitBreaker` instance for this disk.
         """
         if disk_uuid not in self._breakers:
-            # ``CircuitBreaker.event_bus`` is required (Sub-phase 5.1). Narrow
-            # the optional ``self._event_bus`` to a real bus locally; when the
-            # registry was constructed without a bus (module-level singleton,
-            # legacy tests), the per-disk breaker emits to an unobserved bus
-            # — effectively dropping events without breaking the contract.
-            from personalscraper.core.event_bus import EventBus as _EventBus
-
-            bus = self._event_bus if self._event_bus is not None else _EventBus()
-            self._breakers[disk_uuid] = CircuitBreaker(name=f"disk:{disk_uuid}", failure_threshold=self.failure_threshold, cooldown_seconds=self.cooldown_seconds, event_bus=bus)  # noqa: E501  # fmt: skip
+            # ``CircuitBreaker.event_bus`` and ``DiskCircuitBreaker.event_bus`` are
+            # both required (Sub-phase 5.1 + 5.2). The per-disk breaker inherits the
+            # registry's bus directly.
+            self._breakers[disk_uuid] = CircuitBreaker(name=f"disk:{disk_uuid}", failure_threshold=self.failure_threshold, cooldown_seconds=self.cooldown_seconds, event_bus=self._event_bus)  # noqa: E501  # fmt: skip
         return self._breakers[disk_uuid]
 
     def is_open(self, disk_uuid: str) -> bool:
@@ -160,7 +156,7 @@ class DiskCircuitBreaker:
             # condition. A dedicated DiskFullWarning (Sub-phase 4.2b) carries
             # the path/threshold; this CircuitBreakerOpened carries the
             # disk-uuid breaker name.
-            if previously_closed and self._event_bus is not None:
+            if previously_closed:
                 self._event_bus.emit(
                     CircuitBreakerOpened(
                         source=f"indexer.disk.{disk_uuid}",
@@ -193,11 +189,13 @@ class DiskCircuitBreaker:
 
 #: Global singleton used by the scanner.  Tests that need isolation should
 #: instantiate :class:`DiskCircuitBreaker` directly and pass it to ``scan()``.
-#: ``event_bus=None`` keeps the singleton bus-less at module-import time; the
-#: per-disk :class:`CircuitBreaker` instances created lazily by
-#: :meth:`get_breaker` allocate their own unobserved :class:`EventBus` to
-#: satisfy the required-bus contract (Sub-phase 5.1).
-_GLOBAL_DISK_BREAKER: DiskCircuitBreaker = DiskCircuitBreaker(event_bus=None)
+#: ``DiskCircuitBreaker.event_bus`` is required (Sub-phase 5.2); the singleton
+#: gets a fresh unobserved bus at module-import time so production callers
+#: that rely on the global (``scanner.scan(disk_breaker=None)`` fallback)
+#: keep working. Per-disk breaker emits land on this bus with no subscribers,
+#: i.e. effectively dropped — the AppContext-wired path (Phase 2) is the
+#: emit path that reaches Telegram / RichConsole subscribers.
+_GLOBAL_DISK_BREAKER: DiskCircuitBreaker = DiskCircuitBreaker(event_bus=EventBus())
 
 
 def get_global_disk_breaker() -> DiskCircuitBreaker:

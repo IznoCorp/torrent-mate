@@ -17,7 +17,7 @@ Test strategy:
 
     The background thread calls :func:`~personalscraper.indexer.db.indexer_lock`
     directly and holds it for a fixed number of seconds, then releases.  The
-    main thread calls ``library_index_command(wait_for_lock_seconds=0)`` while
+    main thread calls ``library_index_command(wait_for_lock_seconds=0, event_bus=EventBus())`` while
     the background thread is holding the lock (expects exit code 1 with the
     holding PID in stderr) and again with ``wait_for_lock_seconds=60`` (expects
     exit code 0 after the background thread releases).
@@ -39,6 +39,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.cli import library_index_command
 from personalscraper.indexer.db import apply_migrations, indexer_lock
 from personalscraper.indexer.scanner import ScanRunResult
@@ -180,7 +181,7 @@ class TestIndexerWriterLockContention:
                 patch(_PATCH_LOAD_CONFIG, return_value=cfg),
                 patch(_PATCH_SCAN, return_value=_fake_scan_result()),
             ):
-                exit_code = library_index_command(mode="quick", wait_for_lock_seconds=0)
+                exit_code = library_index_command(mode="quick", wait_for_lock_seconds=0, event_bus=EventBus())
         finally:
             sys.stderr = original_stderr
 
@@ -234,7 +235,7 @@ class TestIndexerWriterLockContention:
             patch(_PATCH_LOAD_CONFIG, return_value=cfg),
             patch(_PATCH_SCAN, return_value=_fake_scan_result()),
         ):
-            exit_code = library_index_command(mode="quick", wait_for_lock_seconds=60)
+            exit_code = library_index_command(mode="quick", wait_for_lock_seconds=60, event_bus=EventBus())
 
         assert exit_code == 0, f"Expected exit 0 after lock released, got {exit_code}"
 

@@ -1,9 +1,9 @@
 """E2E test: corrupt DB mid-byte → quarantine → rebuild (DESIGN §15.5).
 
 Scenario:
-1. Create a real DB via open_db(), write a row.
+1. Create a real DB via open_db(event_bus=EventBus()), write a row.
 2. Overwrite mid-bytes to corrupt the file.
-3. Re-open with open_db() → assert IndexerCorruptError raised AND
+3. Re-open with open_db(event_bus=EventBus()) → assert IndexerCorruptError raised AND
    ``<path>.corrupt-<ts>`` quarantine file exists.
 4. Re-open with rebuild=True → assert open succeeds (fresh DB) AND the
    quarantine file is still present.
@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import IndexerCorruptError, open_db
 
 
@@ -28,7 +29,7 @@ class TestCorruptDbRecovery:
         # ---------------------------------------------------------------
         # Step 1: Create a real database and write a row
         # ---------------------------------------------------------------
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         conn.execute("CREATE TABLE IF NOT EXISTS test_sentinel (id INTEGER PRIMARY KEY, val TEXT)")
         conn.execute("INSERT INTO test_sentinel (val) VALUES ('hello')")
         conn.commit()
@@ -53,7 +54,7 @@ class TestCorruptDbRecovery:
         # Step 3: Attempt open — expect IndexerCorruptError + quarantine
         # ---------------------------------------------------------------
         with pytest.raises(IndexerCorruptError) as exc_info:
-            open_db(db_path)
+            open_db(db_path, event_bus=EventBus())
 
         assert exc_info.value.db_path == db_path
         quarantine_path = exc_info.value.quarantine_path
@@ -67,7 +68,7 @@ class TestCorruptDbRecovery:
         # ---------------------------------------------------------------
         # Step 4: rebuild=True → fresh DB opened, quarantine preserved
         # ---------------------------------------------------------------
-        conn2 = open_db(db_path, rebuild=True)
+        conn2 = open_db(db_path, rebuild=True, event_bus=EventBus())
         try:
             # A fresh DB has no tables yet — integrity check must pass
             row = conn2.execute("PRAGMA integrity_check").fetchone()
@@ -90,7 +91,7 @@ class TestCorruptDbRecovery:
         db_path = tmp_path / "library.db"
 
         # Create then corrupt
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         conn.execute("CREATE TABLE x (id INTEGER)")
         conn.commit()
         conn.close()
@@ -101,7 +102,7 @@ class TestCorruptDbRecovery:
 
         # First call without rebuild must raise
         with pytest.raises(IndexerCorruptError):
-            open_db(db_path)
+            open_db(db_path, event_bus=EventBus())
 
         # db_path was renamed — a second call on the same path creates a
         # new file (no corrupt file at that path now), so only assert the
@@ -113,7 +114,7 @@ class TestCorruptDbRecovery:
 
         db_path = tmp_path / "library.db"
 
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         conn.commit()
         conn.close()
 
@@ -124,7 +125,7 @@ class TestCorruptDbRecovery:
         before = int(time.time()) - 2
 
         with pytest.raises(IndexerCorruptError) as exc_info:
-            open_db(db_path)
+            open_db(db_path, event_bus=EventBus())
 
         after = int(time.time()) + 2
         quarantine_name = exc_info.value.quarantine_path.name  # e.g. library.db.corrupt-1714300000

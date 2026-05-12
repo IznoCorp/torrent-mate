@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer._disk_guard import handle_disk_full
 from personalscraper.indexer.db import (
     IndexerCorruptError,
@@ -37,7 +38,7 @@ class TestOpenDbPragmas:
     def test_wal_mode(self, tmp_path: Path) -> None:
         """journal_mode is set to WAL."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA journal_mode").fetchone()
         conn.close()
         assert row is not None
@@ -46,7 +47,7 @@ class TestOpenDbPragmas:
     def test_synchronous_normal(self, tmp_path: Path) -> None:
         """Synchronous is 1 (NORMAL)."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA synchronous").fetchone()
         conn.close()
         assert row is not None
@@ -55,7 +56,7 @@ class TestOpenDbPragmas:
     def test_temp_store_memory(self, tmp_path: Path) -> None:
         """temp_store is 2 (MEMORY)."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA temp_store").fetchone()
         conn.close()
         assert row is not None
@@ -64,7 +65,7 @@ class TestOpenDbPragmas:
     def test_cache_size(self, tmp_path: Path) -> None:
         """cache_size is -65536 (64 MB in kibibytes)."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA cache_size").fetchone()
         conn.close()
         assert row is not None
@@ -73,7 +74,7 @@ class TestOpenDbPragmas:
     def test_mmap_size(self, tmp_path: Path) -> None:
         """mmap_size is 268435456 (256 MB)."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA mmap_size").fetchone()
         conn.close()
         assert row is not None
@@ -82,7 +83,7 @@ class TestOpenDbPragmas:
     def test_wal_autocheckpoint(self, tmp_path: Path) -> None:
         """wal_autocheckpoint is 1000."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA wal_autocheckpoint").fetchone()
         conn.close()
         assert row is not None
@@ -91,7 +92,7 @@ class TestOpenDbPragmas:
     def test_busy_timeout(self, tmp_path: Path) -> None:
         """busy_timeout is 5000 ms."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA busy_timeout").fetchone()
         conn.close()
         assert row is not None
@@ -100,7 +101,7 @@ class TestOpenDbPragmas:
     def test_foreign_keys_on(self, tmp_path: Path) -> None:
         """foreign_keys is ON (1)."""
         db_path = tmp_path / "test.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
         row = conn.execute("PRAGMA foreign_keys").fetchone()
         conn.close()
         assert row is not None
@@ -236,7 +237,7 @@ class TestMalformedDbQuarantine:
         db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 100)
 
         with pytest.raises(IndexerCorruptError) as exc_info:
-            open_db(db_path)
+            open_db(db_path, event_bus=EventBus())
 
         assert exc_info.value.db_path == db_path
         quarantine = exc_info.value.quarantine_path
@@ -249,7 +250,7 @@ class TestMalformedDbQuarantine:
         db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 100)
 
         with pytest.raises(IndexerCorruptError):
-            open_db(db_path)
+            open_db(db_path, event_bus=EventBus())
 
         # db_path has been renamed; no fresh DB should exist yet
         assert not db_path.exists()
@@ -259,7 +260,7 @@ class TestMalformedDbQuarantine:
         db_path = tmp_path / "library.db"
         db_path.write_bytes(b"SQLite format 3\x00" + b"\xff" * 100)
 
-        conn = open_db(db_path, rebuild=True)
+        conn = open_db(db_path, rebuild=True, event_bus=EventBus())
         try:
             row = conn.execute("PRAGMA integrity_check").fetchone()
             assert row is not None
@@ -292,7 +293,7 @@ class TestDiskFullPreCheck:
 
         with patch("os.statvfs", return_value=fake_stat):
             with pytest.raises(IndexerDiskFullError) as exc_info:
-                check_free_space(db_path, expected_growth)
+                check_free_space(db_path, expected_growth, event_bus=EventBus())
 
         assert exc_info.value.free_bytes == 4096
         assert exc_info.value.required_bytes == 20_000
@@ -307,7 +308,7 @@ class TestDiskFullPreCheck:
 
         with patch("os.statvfs", return_value=fake_stat):
             with pytest.raises(IndexerDiskFullError):
-                open_db(db_path, expected_growth_bytes=100_000)
+                open_db(db_path, expected_growth_bytes=100_000, event_bus=EventBus())
 
         # The DB file must NOT have been created
         assert not db_path.exists()
@@ -333,7 +334,7 @@ class TestHandleDiskFull:
 
         exc = sqlite3.OperationalError("database or disk is full")
         with pytest.raises(IndexerDiskFullError):
-            handle_disk_full(mock_conn, exc)
+            handle_disk_full(mock_conn, exc, event_bus=EventBus())
 
         # Verify that PRAGMA wal_checkpoint(TRUNCATE) was called.
         # call_args_list entries are call objects; extract first positional arg.
@@ -345,10 +346,10 @@ class TestHandleDiskFull:
     def test_non_disk_full_error_returns_none(self, tmp_path: Path) -> None:
         """Other OperationalErrors return None silently."""
         db_path = tmp_path / "library.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
 
         exc = sqlite3.OperationalError("no such table: foo")
-        result = handle_disk_full(conn, exc)
+        result = handle_disk_full(conn, exc, event_bus=EventBus())
         conn.close()
 
         assert result is None
@@ -356,11 +357,11 @@ class TestHandleDiskFull:
     def test_disk_io_error_signal_triggers(self, tmp_path: Path) -> None:
         """'disk I/O error' message also triggers checkpoint + IndexerDiskFullError."""
         db_path = tmp_path / "library.db"
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
 
         exc = sqlite3.OperationalError("disk I/O error")
         with pytest.raises(IndexerDiskFullError):
-            handle_disk_full(conn, exc)
+            handle_disk_full(conn, exc, event_bus=EventBus())
 
         conn.close()
 
@@ -387,6 +388,6 @@ class TestMacFuseNtfsRejection:
             return_value=MagicMock(stdout=fake_mount_output, returncode=0),
         ):
             with pytest.raises(IndexerInvalidPathError) as exc_info:
-                open_db(db_path)
+                open_db(db_path, event_bus=EventBus())
 
         assert str(tmp_path) in str(exc_info.value.mount_point)

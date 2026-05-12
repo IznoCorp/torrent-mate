@@ -30,6 +30,7 @@ from personalscraper.api.transport._policy import (
     RetryPolicy,
     TransportPolicy,
 )
+from personalscraper.core.event_bus import EventBus
 
 BASE = "http://test-api.example.com"
 
@@ -77,7 +78,7 @@ class TestAuthContract:
         """
         responses.add(responses.GET, re.compile(rf"{BASE}/test"), json={"ok": True})
 
-        transport = HttpTransport(_make_policy(auth=ApiKeyAuth("test-key", location="query")))
+        transport = HttpTransport(_make_policy(auth=ApiKeyAuth("test-key", location="query")), event_bus=EventBus())
         transport.get("/test")
         transport.close()
 
@@ -102,7 +103,7 @@ class TestCircuitBreakerContract:
         for _ in range(2):
             responses.add(responses.GET, url, json={"error": "down"}, status=500)
 
-        transport = HttpTransport(_make_policy())
+        transport = HttpTransport(_make_policy(), event_bus=EventBus())
 
         # The transport wraps a 5xx into ``ApiError`` (provider-level error
         # contract from personalscraper.api._contracts). Pin the precise
@@ -139,7 +140,7 @@ class TestHttpTransportContract:
         responses.add(responses.GET, url, json={"ok": True}, status=200)
 
         retry = RetryPolicy(max_attempts=3, initial_wait=0.001, max_wait=0.01)
-        transport = HttpTransport(_make_policy(retry=retry))
+        transport = HttpTransport(_make_policy(retry=retry), event_bus=EventBus())
         result = transport.get("/flaky")
         transport.close()
 

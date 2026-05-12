@@ -7,6 +7,7 @@ from pathlib import Path
 
 import typer
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("indexer.cli")
@@ -100,7 +101,7 @@ def library_status_command(config_path: Path | None = None) -> int:
     # --- Open DB and apply pending migrations ---
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
     except (
         IndexerLockError,
         IndexerCorruptError,
@@ -283,7 +284,7 @@ def library_verify_command(
         with indexer_lock(db_path, timeout=0):
             try:
                 db_path.parent.mkdir(parents=True, exist_ok=True)
-                conn = open_db(db_path)
+                conn = open_db(db_path, event_bus=EventBus())
             except (
                 IndexerLockError,
                 IndexerCorruptError,
@@ -344,6 +345,7 @@ def library_verify_command(
                     budget_seconds=budget_seconds,
                     merkle_delta_freeze_threshold=cfg.indexer.drift.merkle_delta_freeze_threshold,
                     paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
+                    event_bus=EventBus(),
                 )
 
                 summary = {
@@ -425,7 +427,7 @@ def library_search_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
     except (
         IndexerLockError,
         IndexerCorruptError,
@@ -531,7 +533,7 @@ def library_show_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path)
+        conn = open_db(db_path, event_bus=EventBus())
     except (
         IndexerLockError,
         IndexerCorruptError,

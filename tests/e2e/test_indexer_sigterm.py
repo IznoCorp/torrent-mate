@@ -30,6 +30,7 @@ from unittest.mock import patch
 
 import pytest
 
+from personalscraper.core.event_bus import EventBus
 from personalscraper.indexer.db import apply_migrations
 from personalscraper.indexer.repos import disk_repo, log_repo
 from personalscraper.indexer.scanner import ScanMode, scan
@@ -158,6 +159,7 @@ class TestSigtermCleanShutdown:
                 conn=conn,
                 db_path=db_path,
                 checkpoint_every_n_files=1,
+                event_bus=EventBus(),
             )
 
         assert result.status == "ok"
@@ -203,6 +205,7 @@ class TestSigtermCleanShutdown:
                 conn=conn,
                 db_path=db_path,
                 checkpoint_every_n_files=1,
+                event_bus=EventBus(),
             )
         shutdown_thread.join(timeout=2.0)
 
@@ -243,6 +246,7 @@ class TestSigtermCleanShutdown:
                 conn=conn,
                 db_path=db_path,
                 checkpoint_every_n_files=1,
+                event_bus=EventBus(),
             )
 
         # ----- Second scan: clear shutdown, resume to completion -----
@@ -255,6 +259,7 @@ class TestSigtermCleanShutdown:
                 conn=conn,
                 db_path=db_path,
                 checkpoint_every_n_files=10,
+                event_bus=EventBus(),
             )
 
         # The terminal state must contain every file from the fixture.

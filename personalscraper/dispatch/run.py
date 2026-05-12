@@ -78,7 +78,8 @@ def run_dispatch(
     config: "Config",
     dry_run: bool = False,
     verified: list[VerifyResult] | None = None,
-    event_bus: EventBus | None = None,
+    *,
+    event_bus: EventBus,
 ) -> StepReport:
     """Run the dispatch pipeline step.
 
@@ -143,54 +144,50 @@ def run_dispatch(
                 # Standalone mode: run verify first to get dispatchable items
                 from personalscraper.verify.run import run_verify
 
-                _, verified = run_verify(settings, config, dry_run=dry_run)
+                _, verified = run_verify(settings, config, dry_run=dry_run, event_bus=event_bus)
 
             results = dispatcher.process(verified=verified)
 
             for r in results:
-                if event_bus is not None:
-                    event_bus.emit(ItemProgressed(step="dispatch", item=r.source.name, status="started"))
+                event_bus.emit(ItemProgressed(step="dispatch", item=r.source.name, status="started"))
                 if r.action in ("replaced", "merged", "moved"):
-                    if event_bus is not None:
-                        event_bus.emit(
-                            ItemProgressed(
-                                step="dispatch",
-                                item=r.source.name,
-                                status=r.action,
-                                details={
-                                    "dest": str(r.destination) if r.destination else "",
-                                    "disk": r.disk or "",
-                                },
-                            )
+                    event_bus.emit(
+                        ItemProgressed(
+                            step="dispatch",
+                            item=r.source.name,
+                            status=r.action,
+                            details={
+                                "dest": str(r.destination) if r.destination else "",
+                                "disk": r.disk or "",
+                            },
                         )
+                    )
                 elif r.action == "skipped":
-                    if event_bus is not None:
-                        event_bus.emit(
-                            ItemProgressed(
-                                step="dispatch",
-                                item=r.source.name,
-                                status="skipped",
-                                details={"reason": r.reason or ""},
-                            )
+                    event_bus.emit(
+                        ItemProgressed(
+                            step="dispatch",
+                            item=r.source.name,
+                            status="skipped",
+                            details={"reason": r.reason or ""},
                         )
+                    )
                 else:
                     # error or unknown action
-                    if event_bus is not None:
-                        event_bus.emit(
-                            ItemProgressed(
-                                step="dispatch",
-                                item=r.source.name,
-                                status="error",
-                                details={"action": r.action, "reason": r.reason or ""},
-                            )
+                    event_bus.emit(
+                        ItemProgressed(
+                            step="dispatch",
+                            item=r.source.name,
+                            status="error",
+                            details={"action": r.action, "reason": r.reason or ""},
                         )
+                    )
 
             # Drain the outbox so that write-through events emitted during
             # dispatch (move/upsert) are applied to the indexer DB immediately
             # rather than waiting for the next nightly scan.
             if not dry_run:
                 _drain_dispatch_outbox(config)
-                _enrich_after_dispatch(config, results)
+                _enrich_after_dispatch(config, results, event_bus=event_bus)
         finally:
             if preview_index:
                 index.rollback_preview()
@@ -238,7 +235,7 @@ def _drain_dispatch_outbox(config: Config) -> None:
         conn.close()
 
 
-def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> None:
+def _enrich_after_dispatch(config: Config, results: list[DispatchResult], *, event_bus: EventBus) -> None:
     """Run an enrich scan on every disk that received files during dispatch.
 
     Newly dispatched files land in the indexer DB with ``enriched_at=NULL``.
@@ -248,8 +245,13 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> Non
     the contract of "the index is always up-to-date after dispatch."
 
     Args:
-        config: Validated Config with a resolved ``indexer.db_path``.
-        results: Dispatch results from the just-completed run.
+        config: Application config providing the indexer DB path.
+        results: Dispatch results from the current step; affected disk IDs
+            are derived from the ``moved`` / ``replaced`` / ``merged``
+            entries.
+        event_bus: Required :class:`EventBus` forwarded to the indexer
+            ``scan`` call so its breaker emits + ``LibraryScanCompleted``
+            event reach subscribers (Sub-phase 5.2).
     """
     import sqlite3
 
@@ -286,6 +288,7 @@ def _enrich_after_dispatch(config: Config, results: list[DispatchResult]) -> Non
             mode="enrich",  # type: ignore[arg-type]
             generation=next_generation,
             conn=conn,
+            event_bus=event_bus,
         )
         log.info(
             "dispatch_post_enrich_done",
