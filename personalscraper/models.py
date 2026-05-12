@@ -13,6 +13,25 @@ from typing import Any, Literal
 SortStatus = Literal["moved", "skipped", "error", "dry-run"]
 
 
+@dataclass(frozen=True)
+class FailedItem:
+    """Per-item failure record used in ``StepReport.failed_items``.
+
+    Replaces the legacy ``tuple[str, str, str]`` shape so the field round-trips
+    through ``event_to_envelope`` / ``event_from_envelope`` (the decoder handles
+    nested dataclasses but not positional ``tuple[T1, T2, T3]`` annotations).
+
+    Attributes:
+        item_id: Stable identifier for the failed item (e.g. ``"movie:tmdb:1"``).
+        reason: Short failure category (e.g. ``"bot_detected"``, ``"timeout"``).
+        detail: Optional human-readable detail (default empty string).
+    """
+
+    item_id: str
+    reason: str
+    detail: str = ""
+
+
 @dataclass
 class SortResult:
     """Result of sorting a single media file/directory.
@@ -58,8 +77,10 @@ class StepReport:
             None means the field was not set (backward-compatible default).
         counts: Optional granular counter dict (e.g. {"downloaded": 3, "bot_detected": 1}).
             Populated by steps that track sub-categories beyond the three standard counters.
-        failed_items: Optional list of (item_id, reason, detail) triples for per-item failure
-            reporting. Used by non-blocking steps such as the trailers step.
+        failed_items: Per-item failure records (:class:`FailedItem` instances).
+            Accepts legacy ``tuple[str, str, str]`` shapes at construction time
+            via ``__post_init__`` coercion for back-compat with the trailers
+            orchestrator. Used by non-blocking steps such as the trailers step.
         renames: Rename map populated by reclean_folders — maps new_name → old_name.
             Consumed by run_process to revert reclean-renamed folders whose scrape
             subsequently yields ``skipped_low_confidence``.
@@ -80,10 +101,32 @@ class StepReport:
     details: list[str] = field(default_factory=list)
     status: str | None = None
     counts: dict[str, int] = field(default_factory=dict)
-    failed_items: list[tuple[str, str, str]] = field(default_factory=list)
+    failed_items: list[FailedItem] = field(default_factory=list)
     renames: dict[str, str] = field(default_factory=dict)
     unmatched_paths: list[str] = field(default_factory=list)
     details_payload: Any | None = None
+
+    def __post_init__(self) -> None:
+        """Coerce legacy ``tuple[str, str, str]`` entries to :class:`FailedItem`.
+
+        Producers that still build the field with 3-tuples (the orchestrator
+        returns ``list[tuple[str, str, str]]``) are accepted unchanged; the
+        coercion happens once at construction so the field type invariant
+        holds for every reader and for envelope round-trip.
+        """
+        coerced: list[FailedItem] = []
+        for entry in self.failed_items:
+            if isinstance(entry, FailedItem):
+                coerced.append(entry)
+            elif isinstance(entry, tuple) and len(entry) == 3:
+                coerced.append(FailedItem(item_id=entry[0], reason=entry[1], detail=entry[2]))
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                coerced.append(FailedItem(item_id=entry[0], reason=entry[1]))
+            else:
+                # Unknown shape: keep as-is and let downstream code surface
+                # the typing error rather than silently drop data.
+                coerced.append(entry)
+        self.failed_items = coerced
 
 
 @dataclass

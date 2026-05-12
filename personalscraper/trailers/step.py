@@ -147,7 +147,7 @@ def run_trailers(
             error_count=error_count,
             status=step_status,
             counts=counts,
-            failed_items=failed_items,
+            failed_items=failed_items,  # type: ignore[arg-type]  # coerced via StepReport.__post_init__
         )
         logger.info(
             "trailers_step_complete",
