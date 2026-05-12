@@ -38,7 +38,7 @@ DEFERRAL — MANDATORY".
 | 1   | Foundation (standalone)                | core    | [phase-01-foundation.md](docs/features/event-bus/plan/phase-01-foundation.md)                               | [x]    |
 | 2   | AppContext + StepContext slim          | core    | [phase-02-app-context-step-context.md](docs/features/event-bus/plan/phase-02-app-context-step-context.md)   | [x]    |
 | 3   | Pipeline event migration + subscribers | migrate | [phase-03-pipeline-events-migration.md](docs/features/event-bus/plan/phase-03-pipeline-events-migration.md) | [x]    |
-| 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [ ]    |
+| 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [x]    |
 | 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [ ]    |
 
 Total sub-phases: **42** (per INDEX.md). Estimated commits: **42–49**.
@@ -130,10 +130,10 @@ _(filled by implement:pr-review — max 3 cycles)_
 
 ## Next action — concrete resumption protocol
 
-When `/implement:phase` is re-invoked, **resume at Phase 4 (Cross-cutting events)**.
-Plan: `docs/features/event-bus/plan/phase-04-cross-cutting-events.md`.
+When `/implement:phase` is re-invoked, **resume at Phase 5 (Required-bus tightening + CLI polish)**.
+Plan: `docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md`.
 
-After Phase 4, Phase 5 (Required-bus tightening + CLI polish + reference doc) runs, then `/implement:feature-pr` chains automatically.
+After Phase 5, `/implement:feature-pr` chains automatically.
 
 **Plan-anchored execution for 3.7c (read first):**
 `docs/features/event-bus/plan/phase-03-pipeline-events-migration.md` lines 473-491.
