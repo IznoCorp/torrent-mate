@@ -275,6 +275,7 @@ def run(
     from personalscraper.pipeline import Pipeline
     from personalscraper.pipeline_observer import PipelineObserver
     from personalscraper.subscribers.rich_console import RichConsoleSubscriber
+    from personalscraper.subscribers.telegram import TelegramSubscriber
 
     config = ctx.obj.config  # Guaranteed non-None by callback.
     console = state["console"]
@@ -315,21 +316,21 @@ def run(
                 continue_on_trailer_error or config.trailers.pipeline.continue_on_error
             )
 
-            from personalscraper.observers.telegram import TelegramObserver
             from personalscraper.trailers.state import TrailerStepFailed  # noqa: PLC0415
 
             # The :class:`AppContext` is built once per invocation at the CLI
             # boundary via :func:`_build_app_context` (Sub-phase 2.4 — boundary-only
             # rule from DESIGN §Architecture, enforced by the AST allowlist landed
             # in Sub-phase 2.6). The event_bus on this AppContext is the substrate
-            # to which the RichConsoleSubscriber attaches itself.
+            # both subscribers attach themselves to.
             app_context = _build_app_context(config, settings)
 
-            # Build subscribers and observers — `RichConsoleSubscriber` self-subscribes
-            # to the bus in its constructor (Phase 3.5); the legacy observers tuple
-            # only carries `TelegramObserver` until 3.6 migrates it as well.
+            # Build subscribers — both self-subscribe in their constructors.
+            # The observers tuple is now unconditionally empty (legacy notify_progress
+            # call sites still fire in production code per 3.4; they reach nothing).
             # --headless skips both for silent cron/CI runs.
             rich_subscriber: RichConsoleSubscriber | None = None
+            telegram_subscriber: TelegramSubscriber | None = None
             pipeline_observers: list[PipelineObserver] = []
             if not headless:
                 rich_subscriber = RichConsoleSubscriber(
@@ -342,7 +343,7 @@ def run(
                 if TelegramNotifier.is_configured(settings):
                     tg_transport = HttpTransport(TelegramNotifier.policy(settings.telegram_bot_token))
                     tg_notifier = TelegramNotifier(tg_transport, settings.telegram_chat_id)
-                    pipeline_observers.append(TelegramObserver(tg_notifier))
+                    telegram_subscriber = TelegramSubscriber(app_context.event_bus, tg_notifier)
 
             pipeline = Pipeline(app_context)
             try:
@@ -358,6 +359,8 @@ def run(
                 finally:
                     if rich_subscriber is not None:
                         rich_subscriber.close()
+                    if telegram_subscriber is not None:
+                        telegram_subscriber.close()
             except TrailerStepFailed as exc:
                 # Trailers step failed and --continue-on-trailer-error was not set.
                 # Exit with code 2 (distinct from generic pipeline error exit 1) so

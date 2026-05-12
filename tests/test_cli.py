@@ -253,45 +253,50 @@ def test_run_lock_blocked(mock_lock):
     assert "Another instance" in result.output
 
 
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg):
-    """TelegramObserver is passed to Pipeline.run when notifier is configured.
+def test_run_sends_telegram_when_configured(mock_pipeline_run, mock_notifier_cfg, mock_tg_sub_init, mock_tg_sub_close):
+    """TelegramSubscriber is constructed on the event bus when notifier is configured.
 
-    Sub-phase 2.3 contract: observers are passed to ``Pipeline.run`` as a
-    keyword-only tuple, not to ``Pipeline.__init__`` which now only takes
-    an ``AppContext``.
+    Sub-phase 3.6 contract: ``TelegramObserver`` has been replaced by
+    ``TelegramSubscriber`` which self-subscribes in ``__init__``. The CLI
+    bootstrap should still build it when ``TelegramNotifier.is_configured``
+    is True. The observers tuple passed to ``Pipeline.run`` is now empty
+    (DESIGN — both pipeline observers migrated to subscribers).
     """
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
+    assert mock_tg_sub_init.called, "TelegramSubscriber was not constructed"
     _, kwargs = mock_pipeline_run.call_args
     observers = kwargs.get("observers", ())
-    assert any(obs.name == "telegram" for obs in observers), (
-        f"TelegramObserver not found in observers: {[getattr(o, 'name', type(o).__name__) for o in observers]}"
-    )
+    assert tuple(observers) == (), f"observers tuple must be empty after 3.6, got {observers}"
 
 
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=False)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_cfg):
-    """is_configured gating: when notifier is not configured, no TelegramObserver is wired."""
+def test_run_no_telegram_when_not_configured(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
+    """is_configured gating: when notifier is not configured, no TelegramSubscriber is wired."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 0
-    _, kwargs = mock_pipeline_run.call_args
-    observers = kwargs.get("observers", ())
-    names = [getattr(o, "name", type(o).__name__) for o in observers]
-    assert not any(n == "telegram" for n in names), f"TelegramObserver should not be wired, got {names}"
+    assert not mock_tg_sub_init.called, "TelegramSubscriber must not be constructed when notifier is not configured"
 
 
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.close", return_value=None)
+@patch("personalscraper.subscribers.telegram.TelegramSubscriber.__init__", return_value=None)
 @patch(_PATCH_NOTIFIER_CONFIGURED, return_value=True)
 @patch(_PATCH_PIPELINE_RUN)
-def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg):
-    """--headless flag yields an empty observers tuple, even when Telegram is configured."""
+def test_run_headless_disables_all_observers(mock_pipeline_run, mock_cfg, mock_tg_sub_init, mock_tg_sub_close):
+    """--headless flag yields an empty observers tuple AND skips subscribers."""
     mock_pipeline_run.return_value = _make_pipeline_report()
     result = runner.invoke(app, ["run", "--headless"])
     assert result.exit_code == 0
+    assert not mock_tg_sub_init.called, "--headless must skip TelegramSubscriber construction"
     _, kwargs = mock_pipeline_run.call_args
     observers = kwargs.get("observers", ())
     assert tuple(observers) == (), f"--headless must produce empty observer tuple, got {observers}"
