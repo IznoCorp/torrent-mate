@@ -27,6 +27,7 @@ from personalscraper.scraper.ytdlp_downloader import (
     DownloadStatus,
     YtdlpDownloader,
 )
+from personalscraper.trailers.events import TrailerDownloaded
 from personalscraper.trailers.placement import (
     trailer_exists,
     trailer_path_for,
@@ -539,6 +540,21 @@ class TrailersOrchestrator:
                             title=item.title,
                             nfo_path=str(item.nfo_path),
                         )
+
+                # Bus emit (Sub-phase 4.4) — fires only on successful
+                # downloads with a real output path. ``source_url`` is the
+                # ``url`` already in scope (the resolved YouTube video URL
+                # passed to YtdlpDownloader.download); ``trailer_url_callsite_count: 4``
+                # per the locked pre-flight grep.
+                if self._event_bus is not None and result.output_path is not None:
+                    self._event_bus.emit(
+                        TrailerDownloaded(
+                            source="trailers.orchestrator",
+                            media_path=item.path,
+                            trailer_path=result.output_path,
+                            source_url=url,
+                        ),
+                    )
 
             elif result.status == DownloadStatus.BOT_DETECTED:
                 log.warning("trailers_bot_detected", key=key, title=item.title, url=url)

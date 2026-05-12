@@ -39,6 +39,7 @@ from personalscraper.pipeline_events import (
     StepErrored,
     StepStarted,
 )
+from personalscraper.trailers.events import TrailerDownloaded
 
 # Public registry — keyed by event class. Each entry is a zero-argument
 # factory returning a fully-populated event instance with realistic
@@ -217,6 +218,16 @@ def make_item_dispatched() -> ItemDispatched:
         target_disk=Path("/Volumes/Disk1"),
         category_id="movies",
         action="moved",
+    )
+
+
+@register_factory(TrailerDownloaded)
+def make_trailer_downloaded() -> TrailerDownloaded:
+    """Realistic :class:`TrailerDownloaded` for round-trip tests."""
+    return TrailerDownloaded(
+        media_path=Path("/Volumes/Disk1/movies/Inception (2010)"),
+        trailer_path=Path("/Volumes/Disk1/movies/Inception (2010)/Inception-trailer.mp4"),
+        source_url="https://www.youtube.com/watch?v=YoHD9XEInc0",
     )
 
 

@@ -54,6 +54,11 @@ from personalscraper.pipeline_events import (
     StepStarted,
 )
 
+# Sub-phase 4.4: eager-import the trailers events producer module so
+# ``TrailerDownloaded`` is registered before ``event_from_envelope``.
+from personalscraper.trailers import events as _trailers_events  # noqa: F401
+from personalscraper.trailers.events import TrailerDownloaded
+
 __all__ = [
     "CircuitBreakerClosed",
     "CircuitBreakerHalfOpened",
@@ -66,4 +71,5 @@ __all__ = [
     "StepCompleted",
     "StepErrored",
     "StepStarted",
+    "TrailerDownloaded",
 ]
