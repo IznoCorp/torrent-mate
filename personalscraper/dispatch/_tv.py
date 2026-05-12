@@ -146,12 +146,7 @@ def dispatch_tvshow(
     # Bus emit (Sub-phase 4.3) — only on real completed transfers. Dry-run
     # is excluded by the same reasoning as dispatch_movie: ItemDispatched is
     # the record of completed transfers; dry-run never completes one.
-    if (
-        not dispatcher.dry_run
-        and result.action in ("moved", "merged")
-        and result.destination is not None
-        and dispatcher._event_bus is not None
-    ):
+    if not dispatcher.dry_run and result.action in ("moved", "merged") and result.destination is not None:
         target_disk_path = _disk_root_for(dispatcher, result.disk)
         dispatcher._event_bus.emit(
             ItemDispatched(

@@ -147,12 +147,7 @@ def dispatch_movie(
     # Dry-run is excluded because the catalog defines ItemDispatched as the
     # record of completed transfers; the action enum has no "skipped" value
     # so dry-run runs logically cannot emit (DESIGN §Event catalog Notes).
-    if (
-        not dispatcher.dry_run
-        and result.action in ("moved", "replaced")
-        and result.destination is not None
-        and dispatcher._event_bus is not None
-    ):
+    if not dispatcher.dry_run and result.action in ("moved", "replaced") and result.destination is not None:
         target_disk_path = _disk_root_for(dispatcher, result.disk)
         dispatcher._event_bus.emit(
             ItemDispatched(
