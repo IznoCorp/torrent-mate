@@ -21,7 +21,13 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import Event, EventBus
 from personalscraper.models import StepReport
 from personalscraper.pipeline import Pipeline
-from personalscraper.pipeline_events import PipelineEnded, PipelineStarted
+from personalscraper.pipeline_events import (
+    PipelineEnded,
+    PipelineStarted,
+    StepCompleted,
+    StepErrored,
+    StepStarted,
+)
 from personalscraper.pipeline_protocol import StepContext
 from tests.fixtures.event_bus import CollectingSubscriber
 
@@ -213,3 +219,143 @@ def test_pipeline_events_are_distinct_per_run(event_cls: type[Event]) -> None:
         _run_pipeline(pipeline, _step_registry())
     assert len(sub.received) == 2
     assert sub.received[0].event_id != sub.received[1].event_id
+
+
+# ---------------------------------------------------------------------------
+# Sub-phase 3.3 — per-step lifecycle emits.
+# ---------------------------------------------------------------------------
+
+# The pipeline emits StepStarted on entry, StepCompleted on success, and
+# StepErrored on exception INSIDE :meth:`_run_step`. The PROCESS phase
+# (clean / scrape / cleanup) and TRAILERS / DISPATCH all go through
+# ``_run_step`` so the count of step events tracks the number of step
+# invocations. The "skipped dispatch" branch (when no items pass verify)
+# also emits StepStarted + StepCompleted explicitly to keep the contract
+# symmetric — verified in TestStepDispatchSkipPath.
+
+EXPECTED_STEP_NAMES: tuple[str, ...] = (
+    "ingest",
+    "sort",
+    "clean",
+    "scrape",
+    "cleanup",
+    "enforce",
+    "verify",
+    "trailers",
+    "dispatch",
+)
+
+
+class TestStepStartedEmit:
+    """``Pipeline._run_step`` emits ``StepStarted`` before each step body."""
+
+    def test_one_step_started_per_step_in_step_order(self) -> None:
+        """A 9-step no-op run emits 9 ``StepStarted`` events in pipeline order."""
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        with CollectingSubscriber(app.event_bus, StepStarted) as sub:
+            _run_pipeline(pipeline, _step_registry())
+        names = [event.step for event in sub.received]
+        assert names == list(EXPECTED_STEP_NAMES)
+
+
+class TestStepCompletedEmit:
+    """``Pipeline._run_step`` emits ``StepCompleted`` after each successful step."""
+
+    def test_one_step_completed_per_successful_step(self) -> None:
+        """All 9 steps succeed → 9 ``StepCompleted`` events with non-negative elapsed_s."""
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        with CollectingSubscriber(app.event_bus, StepCompleted) as sub:
+            _run_pipeline(pipeline, _step_registry())
+        names = [event.step for event in sub.received]
+        assert names == list(EXPECTED_STEP_NAMES)
+        for event in sub.received:
+            assert event.elapsed_s >= 0.0
+            assert event.report.name == event.step
+
+    def test_step_completed_carries_step_report_with_counts(self) -> None:
+        """Each ``StepCompleted.report`` is a live :class:`StepReport` whose name matches the step.
+
+        Non-dispatch steps return ``success_count=1`` (stub contract); the
+        ``dispatch`` step in the no-verified-items branch synthesizes a
+        report with ``skip_count=1`` instead. Both are valid.
+        """
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        with CollectingSubscriber(app.event_bus, StepCompleted) as sub:
+            _run_pipeline(pipeline, _step_registry())
+        for event in sub.received:
+            assert event.report.name == event.step
+            assert event.report.success_count + event.report.skip_count >= 1
+
+
+class TestStepErroredEmit:
+    """``Pipeline._run_step`` emits ``StepErrored`` when the step body raises."""
+
+    def test_step_errored_on_step_exception(self) -> None:
+        """A raising step produces exactly one ``StepErrored`` carrying the exception info."""
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        registry = _step_registry(raise_on="scrape")
+        with CollectingSubscriber(app.event_bus, StepErrored) as sub:
+            _run_pipeline(pipeline, registry)
+        assert len(sub.received) == 1
+        event = sub.received[0]
+        assert event.step == "scrape"
+        assert event.error_class == "RuntimeError"
+        assert event.error_message == "boom in scrape"
+
+    def test_step_errored_no_completed_for_same_step(self) -> None:
+        """A crashing step emits ``StepErrored`` but NOT ``StepCompleted`` for that step."""
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        registry = _step_registry(raise_on="scrape")
+        with (
+            CollectingSubscriber(app.event_bus, StepErrored) as errored,
+            CollectingSubscriber(app.event_bus, StepCompleted) as completed,
+        ):
+            _run_pipeline(pipeline, registry)
+        # Scrape errors → no StepCompleted for scrape.
+        completed_steps = {event.step for event in completed.received}
+        assert "scrape" not in completed_steps
+        # And exactly one StepErrored is recorded for scrape.
+        assert [event.step for event in errored.received] == ["scrape"]
+
+
+class TestStepLifecycleOrdering:
+    """``StepStarted`` precedes ``StepCompleted`` / ``StepErrored`` for the same step."""
+
+    def test_lifecycle_event_order_per_step(self) -> None:
+        """For each step the bus sees ``Started`` then either ``Completed`` or ``Errored``."""
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        registry = _step_registry(raise_on="cleanup")
+        with CollectingSubscriber(app.event_bus, Event) as sub:
+            _run_pipeline(pipeline, registry)
+        # Build the lifecycle sequence per step.
+        per_step: dict[str, list[str]] = {}
+        for event in sub.received:
+            if isinstance(event, StepStarted):
+                per_step.setdefault(event.step, []).append("started")
+            elif isinstance(event, StepCompleted):
+                per_step.setdefault(event.step, []).append("completed")
+            elif isinstance(event, StepErrored):
+                per_step.setdefault(event.step, []).append("errored")
+        # Cleanup: started → errored. Every other step: started → completed.
+        assert per_step["cleanup"] == ["started", "errored"]
+        for step in (s for s in EXPECTED_STEP_NAMES if s != "cleanup"):
+            assert per_step[step] == ["started", "completed"], f"step {step}: {per_step[step]}"
+
+    def test_overall_event_envelope_order(self) -> None:
+        """PipelineStarted comes first; PipelineEnded comes last; step events in between."""
+        app = _stub_app()
+        pipeline = Pipeline(app)
+        with CollectingSubscriber(app.event_bus, Event) as sub:
+            _run_pipeline(pipeline, _step_registry())
+        assert isinstance(sub.received[0], PipelineStarted)
+        assert isinstance(sub.received[-1], PipelineEnded)
+        # Between the two pipeline events, every event is a step lifecycle event.
+        middle = sub.received[1:-1]
+        for event in middle:
+            assert isinstance(event, (StepStarted, StepCompleted, StepErrored))

@@ -25,7 +25,13 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
-from personalscraper.pipeline_events import PipelineEnded, PipelineStarted
+from personalscraper.pipeline_events import (
+    PipelineEnded,
+    PipelineStarted,
+    StepCompleted,
+    StepErrored,
+    StepStarted,
+)
 from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
@@ -348,12 +354,20 @@ class Pipeline:
                     report,
                 )
             else:
+                # No verified items → dispatch step is synthesized inline
+                # (skipping ``_run_step``) but the lifecycle MUST stay
+                # symmetric on the bus so subscribers always see a
+                # StepStarted/StepCompleted pair for dispatch.
                 self._log.warning("dispatch_skipped", reason="no_dispatchable_items")
                 self._notify_observers("on_step_start", "dispatch")
+                self._app.event_bus.emit(StepStarted(step="dispatch"))
                 dispatch_report = StepReport(name="dispatch", skip_count=1, details=["Skipped: no verified items"])
                 dispatch_report = self._with_details_payload("dispatch", dispatch_report)
                 report.add_step("dispatch", dispatch_report)
                 self._notify_observers("on_step_end", "dispatch", dispatch_report, 0.0)
+                self._app.event_bus.emit(
+                    StepCompleted(step="dispatch", report=dispatch_report, elapsed_s=0.0),
+                )
 
         finally:
             if report.finished_at is None:
@@ -509,6 +523,9 @@ class Pipeline:
             _CriticalStepError: If ``critical=True`` and fn raises.
         """
         self._notify_observers("on_step_start", name)
+        # Bus emit alongside the legacy observer channel — Sub-phase 3.3.
+        # Both paths fire transitionally; 3.7b deletes the legacy path.
+        self._app.event_bus.emit(StepStarted(step=name))
 
         self._log.info("step_started", step=name)
         t0 = time.monotonic()
@@ -526,8 +543,18 @@ class Pipeline:
             report.add_step(name, step_report)
         except Exception as exc:
             crashed = True
+            # The event carries the exception class + message; the structlog
+            # call carries the traceback via ``exc_info`` (DESIGN §Logging
+            # convention — distinct info, NOT duplicated info, see 3.8 audit).
             self._log.exception("step_fatal", step=name, error=str(exc))
             self._notify_observers("on_step_error", name, exc)
+            self._app.event_bus.emit(
+                StepErrored(
+                    step=name,
+                    error_class=type(exc).__name__,
+                    error_message=str(exc),
+                ),
+            )
             error_msg = f"{type(exc).__name__}: {exc}"
             step_report = StepReport(
                 name=name,
@@ -541,6 +568,10 @@ class Pipeline:
 
         if not crashed:
             self._notify_observers("on_step_end", name, step_report, elapsed)
+            # Bus emit alongside the legacy observer channel — Sub-phase 3.3.
+            self._app.event_bus.emit(
+                StepCompleted(step=name, report=step_report, elapsed_s=elapsed),
+            )
 
         ok = step_report.success_count
         skip = step_report.skip_count
