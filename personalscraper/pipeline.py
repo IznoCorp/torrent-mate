@@ -25,6 +25,7 @@ from personalscraper.core.app_context import AppContext
 from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.models import PipelineReport, StepReport
+from personalscraper.pipeline_events import PipelineEnded, PipelineStarted
 from personalscraper.pipeline_observer import PipelineObserver
 from personalscraper.pipeline_protocol import StepContext
 from personalscraper.pipeline_steps import DEFAULT_STEPS, apply_step_overrides
@@ -235,6 +236,11 @@ class Pipeline:
         }
 
         self._notify_observers("on_pipeline_start", report)
+        # Bus emit alongside the legacy observer channel — Sub-phase 3.2.
+        # Phase 3 transitional state: legacy ``_notify_observers`` and
+        # ``event_bus.emit`` both fire; 3.5/3.6 wire the new subscribers,
+        # 3.7b deletes the legacy path.
+        self._app.event_bus.emit(PipelineStarted(report=report))
 
         try:
             # Recover from previous interrupted run (best-effort, never blocks pipeline)
@@ -353,6 +359,16 @@ class Pipeline:
             if report.finished_at is None:
                 report.finished_at = datetime.now()
             self._notify_observers("on_pipeline_end", report)
+            # Bus emit alongside the legacy observer channel — Sub-phase 3.2.
+            # Wrapped in a defensive try/except so an emit-side failure
+            # (event construction, runaway subscriber the bus did not catch)
+            # cannot prevent ``current_correlation_id.reset`` from running
+            # in the outermost finally; otherwise the ContextVar binding
+            # would leak into subsequent runs sharing the same task.
+            try:
+                self._app.event_bus.emit(PipelineEnded(report=report))
+            except Exception:
+                self._log.error("pipeline_ended_emit_failed", exc_info=True)
             current_correlation_id.reset(token)
 
         return report
