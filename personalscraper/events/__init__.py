@@ -33,6 +33,12 @@ from personalscraper.core.circuit import (
     CircuitBreakerHalfOpened,
     CircuitBreakerOpened,
 )
+
+# Sub-phase 4.2b: eager-import the indexer events producer module so
+# ``DiskFullWarning`` (and, from 4.5, ``LibraryScanCompleted``) is
+# registered before consumers call ``event_from_envelope``.
+from personalscraper.indexer import events as _indexer_events  # noqa: F401
+from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.pipeline_events import (
     ItemProgressed,
     PipelineEnded,
@@ -46,6 +52,7 @@ __all__ = [
     "CircuitBreakerClosed",
     "CircuitBreakerHalfOpened",
     "CircuitBreakerOpened",
+    "DiskFullWarning",
     "ItemProgressed",
     "PipelineEnded",
     "PipelineStarted",

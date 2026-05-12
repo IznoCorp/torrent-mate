@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timezone
+from pathlib import Path
 
 from personalscraper.core.circuit import (
     CircuitBreakerClosed,
@@ -27,6 +28,7 @@ from personalscraper.core.circuit import (
     CircuitBreakerOpened,
 )
 from personalscraper.core.event_bus import Event
+from personalscraper.indexer.events import DiskFullWarning
 from personalscraper.models import FailedItem, PipelineReport, StepReport
 from personalscraper.pipeline_events import (
     ItemProgressed,
@@ -188,6 +190,22 @@ def make_circuit_breaker_closed() -> CircuitBreakerClosed:
 def make_circuit_breaker_half_opened() -> CircuitBreakerHalfOpened:
     """Realistic :class:`CircuitBreakerHalfOpened` for round-trip tests."""
     return CircuitBreakerHalfOpened(breaker="tmdb")
+
+
+@register_factory(DiskFullWarning)
+def make_disk_full_warning() -> DiskFullWarning:
+    """Realistic :class:`DiskFullWarning` for round-trip tests.
+
+    ``free_bytes`` and ``threshold_bytes`` use representative GB-scale
+    values so the cassette body assertions in
+    ``tests/subscribers/test_telegram_subscriber.py`` exercise the
+    integer-floor-to-GB rendering path.
+    """
+    return DiskFullWarning(
+        disk_path=Path("/Volumes/Disk1"),
+        free_bytes=1_000_000_000,
+        threshold_bytes=10_000_000_000,
+    )
 
 
 __all__ = ["EVENT_SAMPLE_FACTORIES", "register_factory"]
