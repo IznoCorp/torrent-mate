@@ -98,12 +98,12 @@ its own snapshot of the subscriber tuple.
 
 ### `Event` base fields
 
-| Field            | Type          | Default behaviour                                                 |
-| ---------------- | ------------- | ----------------------------------------------------------------- |
-| `timestamp`      | `datetime`    | Auto-set in `__post_init__` to `datetime.now(timezone.utc)`.      |
-| `event_id`       | `UUID`        | Auto-set to `uuid.uuid4()` in `__post_init__`.                    |
-| `source`         | `str`         | Auto-derived from the class's module path (overridable per emit). |
-| `correlation_id` | `str \| None` | Captured from `current_correlation_id` at construction time.      |
+| Field            | Type          | Default behaviour                                                                              |
+| ---------------- | ------------- | ---------------------------------------------------------------------------------------------- |
+| `timestamp`      | `datetime`    | `field(default_factory=lambda: datetime.now(timezone.utc))` — set per instance, UTC-aware.     |
+| `event_id`       | `UUID`        | `field(default_factory=uuid.uuid4)` — set per instance.                                        |
+| `source`         | `str`         | Filled in `__post_init__` from the class's module path when empty (overridable per emit).      |
+| `correlation_id` | `str \| None` | `field(default_factory=lambda: current_correlation_id.get())` — captured at construction time. |
 
 Every concrete event class is `@dataclass(frozen=True, kw_only=True)`
 and inherits these four fields. Subclasses add their domain payload.
@@ -166,7 +166,7 @@ before any envelope round-trip.
 | `CircuitBreakerHalfOpened` | `personalscraper.core.circuit`    | `breaker: str`                                                                                       | `CircuitBreaker.state` getter after cooldown elapses                                               |
 | `DiskFullWarning`          | `personalscraper.indexer.events`  | `disk_path: Path`, `free_bytes: int`, `threshold_bytes: int`                                         | `check_free_space` and `handle_disk_full`                                                          |
 | `TrailerDownloaded`        | `personalscraper.trailers.events` | `media_path: Path`, `trailer_path: Path`, `source_url: str`                                          | `TrailersOrchestrator.run` success branch                                                          |
-| `LibraryScanCompleted`     | `personalscraper.indexer.events`  | `mode: str`, `scanned: int`, `errors: int`, `elapsed_s: float`                                       | `indexer.scanner._modes` emit inside the `scan()` finally block                                    |
+| `LibraryScanCompleted`     | `personalscraper.indexer.events`  | `mode: str`, `scanned: int`, `errors: int`, `elapsed_s: float`                                       | `indexer.scanner.scan` emit inside the function's outer `finally` block                            |
 
 The set is pinned by `test_event_bus/test_event_registry.py::test_v1_catalog_matches_expected_13_events`; adding a new event requires extending both the registry and the test assertion in the same commit.
 
@@ -200,17 +200,17 @@ construction site, including indirect ones through helpers.
 Subscribers that persist events (the indexer outbox, future WebSocket
 relay) need a deterministic JSON shape. The contract:
 
-| Value kind          | Encoded as                                                                 |
-| ------------------- | -------------------------------------------------------------------------- |
-| `datetime`          | ISO-8601 string with timezone (`2026-05-12T14:23:11+00:00`)                |
-| `UUID`              | Plain string (`5e4c8b3d-...`)                                              |
-| `Path`              | Plain string (POSIX, never `repr`)                                         |
-| `Enum`              | The member's `.value`                                                      |
-| dataclass instances | Recursive `event_to_dict` (no `_type`); fields preserved in declared order |
-| `list` / `tuple`    | JSON array (tuples collapse to arrays)                                     |
-| `dict`              | JSON object; keys coerced via `str()` if not already strings               |
-| `None`              | JSON `null`                                                                |
-| Anything else       | `repr(value)` — fail-safe so a forgotten coercion still serialises         |
+| Value kind          | Encoded as                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `datetime`          | ISO-8601 string with timezone (`2026-05-12T14:23:11+00:00`)                                                                    |
+| `UUID`              | Plain string (`5e4c8b3d-...`)                                                                                                  |
+| `Path`              | Plain string (POSIX, never `repr`)                                                                                             |
+| `Enum`              | The member's `.value`                                                                                                          |
+| dataclass instances | Recursive `event_to_dict` (no `_type`); fields preserved in declared order                                                     |
+| `list` / `tuple`    | JSON array (tuples collapse to arrays)                                                                                         |
+| `dict`              | JSON object; keys must be `str`, `int`, `float`, `bool`, or `None` — anything else raises `TypeError` (fail-loud, no coercion) |
+| `None`              | JSON `null`                                                                                                                    |
+| Anything else       | Raises `TypeError` — fail-loud. Add an explicit coercion in `event_to_dict` if a new value kind needs to flow through.         |
 
 `event_to_dict(event)` produces a flat dict with the event's domain
 fields plus the four base fields. `event_to_envelope(event)` wraps that

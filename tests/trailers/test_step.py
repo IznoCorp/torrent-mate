@@ -298,3 +298,36 @@ class TestStateWriteFailure:
             "trailers_step_crashed must NOT fire for OSError; "
             f"records: {[(r.levelno, getattr(r, 'msg', r.getMessage())) for r in caplog.records]}"
         )
+
+
+class TestRunTrailersBusPassThrough:
+    """Regression: run_trailers must forward its event_bus argument to TrailersOrchestrator.
+
+    Pre-fix the function instantiated a throwaway ``EventBus()`` for the
+    orchestrator, so every event emitted by trailer download work fell into a
+    void with no subscribers — breaking the Telegram/RichConsole delivery
+    contract for the trailers stage of ``personalscraper run``.
+    """
+
+    def test_orchestrator_receives_caller_bus(self, config, tmp_path):
+        """The bus passed to run_trailers() is the bus given to TrailersOrchestrator()."""
+        caller_bus = EventBus()
+        with patch("personalscraper.trailers.orchestrator.TrailersOrchestrator") as MockOrch:
+            mock_orch = MockOrch.return_value
+            mock_orch.run.return_value = {
+                "downloaded": 0,
+                "already_present": 0,
+                "no_trailer": 0,
+                "bot_detected": 0,
+                "error": 0,
+                "skipped_by_state": 0,
+            }
+            mock_orch.failed_items = []
+            run_trailers(config, staging_dir=tmp_path, verified=[], event_bus=caller_bus)
+
+        MockOrch.assert_called_once()
+        kwargs = MockOrch.call_args.kwargs
+        assert kwargs.get("event_bus") is caller_bus, (
+            "TrailersOrchestrator must receive the bus passed to run_trailers, "
+            "not a freshly constructed EventBus() with no subscribers."
+        )

@@ -7,8 +7,10 @@ Hosts the indexer-domain event classes emitted by:
   :class:`DiskFullWarning` when a disk-check call discovers free
   space below the safety threshold (or a mid-scan ``OperationalError``
   confirms the disk is full).
-- :mod:`personalscraper.indexer.scanner._modes` orchestrator →
-  :class:`LibraryScanCompleted` (added in Sub-phase 4.5).
+- :func:`personalscraper.indexer.scanner.scan` →
+  :class:`LibraryScanCompleted` emitted from the function's outer
+  ``finally`` block, so every termination path (success, error,
+  budget-exhaustion) reports exactly once.
 
 The module is eagerly imported by :mod:`personalscraper.events` so
 ``Event.__init_subclass__`` registers every concrete class before any

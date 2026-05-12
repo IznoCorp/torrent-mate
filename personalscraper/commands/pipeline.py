@@ -6,10 +6,14 @@ import typer
 
 from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
-from personalscraper.cli_helpers import _bootstrap_staging, _build_app_context, handle_cli_errors
+from personalscraper.cli_helpers import (
+    _bootstrap_staging,
+    _build_app_context,
+    handle_cli_errors,
+    per_step_boundary,
+)
 from personalscraper.cli_state import state
 from personalscraper.conf.staging import find_ingest_dir, staging_path
-from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 
@@ -31,14 +35,15 @@ def ingest(
         settings = cli_compat.get_settings()
         staging_dir = config.paths.staging_dir
         ingest_dir = staging_path(config, find_ingest_dir(config))
-        report = cli_compat.run_ingest(
-            settings,
-            dry_run=dry_run,
-            ingest_dir=ingest_dir,
-            staging_dir=staging_dir,
-            config=config,
-            event_bus=EventBus(),
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report = cli_compat.run_ingest(
+                settings,
+                dry_run=dry_run,
+                ingest_dir=ingest_dir,
+                staging_dir=staging_dir,
+                config=config,
+                event_bus=app_context.event_bus,
+            )
         console.print(
             f"[bold]Ingest:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -63,9 +68,14 @@ def sort(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_sort(
-            settings, staging_dir=config.paths.staging_dir, dry_run=dry_run, config=config, event_bus=EventBus()
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report = run_sort(
+                settings,
+                staging_dir=config.paths.staging_dir,
+                dry_run=dry_run,
+                config=config,
+                event_bus=app_context.event_bus,
+            )
         console.print(
             f"[bold]Sort:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -97,15 +107,16 @@ def scrape(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_scrape(
-            settings,
-            config=config,
-            dry_run=dry_run,
-            interactive=interactive,
-            movies_only=movies_only,
-            tvshows_only=tvshows_only,
-            event_bus=EventBus(),
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report = run_scrape(
+                settings,
+                config=config,
+                dry_run=dry_run,
+                interactive=interactive,
+                movies_only=movies_only,
+                tvshows_only=tvshows_only,
+                event_bus=app_context.event_bus,
+            )
         console.print(
             f"[bold]Scrape:[/bold] {report.success_count} OK, {report.skip_count} skipped, {report.error_count} errors"
         )
@@ -135,14 +146,15 @@ def verify(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report, dispatchable = run_verify(
-            settings,
-            config,
-            dry_run=dry_run,
-            movies_only=movies_only,
-            tvshows_only=tvshows_only,
-            event_bus=EventBus(),
-        )
+        with per_step_boundary(config, settings) as app_context:
+            report, dispatchable = run_verify(
+                settings,
+                config,
+                dry_run=dry_run,
+                movies_only=movies_only,
+                tvshows_only=tvshows_only,
+                event_bus=app_context.event_bus,
+            )
         console.print(f"[bold]Verify:[/bold] {report.success_count} OK, {report.error_count} blocked")
         console.print(f"  {len(dispatchable)} ready for dispatch")
         if state["verbose"]:
@@ -169,7 +181,8 @@ def enforce(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_enforce(settings, config, dry_run=dry_run, event_bus=EventBus())
+        with per_step_boundary(config, settings) as app_context:
+            report = run_enforce(settings, config, dry_run=dry_run, event_bus=app_context.event_bus)
         console.print(f"Enforce: {report.success_count} fixed, {report.skip_count} OK, {report.error_count} errors")
         if state["verbose"]:
             for detail in report.details:
@@ -195,7 +208,8 @@ def dispatch(
     try:
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
-        report = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=EventBus())
+        with per_step_boundary(config, settings) as app_context:
+            report = run_dispatch(settings, config=config, dry_run=dry_run, event_bus=app_context.event_bus)
         console.print(
             f"[bold]Dispatch:[/bold] {report.success_count} OK, "
             f"{report.skip_count} skipped, {report.error_count} errors"
@@ -226,9 +240,14 @@ def process(
         _bootstrap_staging(ctx)
         settings = cli_compat.get_settings()
         try:
-            clean, scrape, cleanup = run_process(
-                settings, dry_run=dry_run, interactive=interactive, config=config, event_bus=EventBus()
-            )
+            with per_step_boundary(config, settings) as app_context:
+                clean, scrape, cleanup = run_process(
+                    settings,
+                    dry_run=dry_run,
+                    interactive=interactive,
+                    config=config,
+                    event_bus=app_context.event_bus,
+                )
         except Exception as exc:
             console.print(f"[red]Process failed: {type(exc).__name__}: {exc}[/red]")
             get_logger("pipeline").exception("process_command_failed", error=str(exc))
@@ -266,7 +285,7 @@ def run(
         False,
         "--headless",
         help=(
-            "Run with no observers (silent mode for cron / CI). "
+            "Run with no subscribers (silent mode for cron / CI). "
             "Disables Rich console output and Telegram notifications."
         ),
     ),

@@ -232,8 +232,8 @@ class Pipeline:
             "skip_trailers": self.skip_trailers,
         }
 
-        # Phase 3.7b: bus is the sole emit path — legacy ``_notify_observers``
-        # call removed alongside the production observer infrastructure.
+        # Bus is the sole emit path — the legacy observer protocol was
+        # removed in 0.13.0.
         self._app.event_bus.emit(PipelineStarted(report=report))
 
         try:
@@ -366,7 +366,12 @@ class Pipeline:
             try:
                 self._app.event_bus.emit(PipelineEnded(report=report))
             except Exception:
-                self._log.error("pipeline_ended_emit_failed", exc_info=True)
+                # The bus already isolates subscriber faults per-callback;
+                # only event construction itself (e.g. a malformed report)
+                # can land here. WARNING because the pipeline body completed
+                # — failure to emit the lifecycle event is observability rot,
+                # not a run-level failure.
+                self._log.warning("pipeline_ended_emit_failed", exc_info=True)
             current_correlation_id.reset(token)
 
         return report
@@ -459,7 +464,10 @@ class Pipeline:
         *,
         critical: bool = False,
     ) -> Any:
-        """Execute a pipeline step with logging, timing, and observer notification.
+        """Execute a pipeline step with logging, timing, and bus emit.
+
+        Emits :class:`StepStarted` at entry, :class:`StepCompleted` on success,
+        and :class:`StepErrored` on exception via ``self._app.event_bus``.
 
         If fn raises an exception, it is caught and recorded as a fatal
         error in the report. The step still contributes to the pipeline

@@ -29,7 +29,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from personalscraper.indexer._throttle import TokenBucket, set_active_bucket
-from personalscraper.indexer.breaker import DiskCircuitBreaker, get_global_disk_breaker
+from personalscraper.indexer.breaker import (
+    DiskCircuitBreaker,
+    bind_global_disk_breaker_to_bus,
+    get_global_disk_breaker,
+)
 from personalscraper.indexer.events import LibraryScanCompleted
 
 if TYPE_CHECKING:
@@ -573,8 +577,15 @@ def scan(
     )
 
     # Resolve the circuit breaker: use caller-supplied instance for test isolation,
-    # fall back to the module-level singleton for production use.
-    breaker: DiskCircuitBreaker = disk_breaker if disk_breaker is not None else get_global_disk_breaker()
+    # fall back to the module-level singleton for production use. When falling
+    # back to the singleton, rebind its bus to the run's subscriber-wired bus
+    # so disk-circuit transitions reach Telegram / RichConsole subscribers
+    # instead of the unobserved import-time stub bus (review finding C2).
+    if disk_breaker is not None:
+        breaker: DiskCircuitBreaker = disk_breaker
+    else:
+        breaker = get_global_disk_breaker()
+        bind_global_disk_breaker_to_bus(event_bus)
 
     # files_visited / dirs_visited / disks_skipped are now declared at the
     # very top of the function so the LibraryScanCompleted emit in the
@@ -713,8 +724,14 @@ def scan(
                         root_st = os.stat(mount, follow_symlinks=False)
                         _upsert_path_row(worker_conn, disk.id, ".", root_st.st_mtime_ns)
                         local_dirs[0] += 1
-                    except OSError:
-                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                    except OSError as exc:
+                        log.warning(
+                            "indexer.scan.root_stat_failed",
+                            mount_path=mount,
+                            errno=exc.errno,
+                            error=exc.strerror or str(exc),
+                            exc_info=True,
+                        )
             elif mode == ScanMode.quick:
                 # Quick-mode: Merkle short-circuit then dir-mtime walk.
                 _scan_disk_quick(
@@ -824,8 +841,14 @@ def scan(
                         root_st = os.stat(mount, follow_symlinks=False)
                         _upsert_path_row(worker_conn, disk.id, ".", root_st.st_mtime_ns)
                         local_dirs[0] += 1
-                    except OSError:
-                        log.warning("indexer.scan.root_stat_failed", mount_path=mount)
+                    except OSError as exc:
+                        log.warning(
+                            "indexer.scan.root_stat_failed",
+                            mount_path=mount,
+                            errno=exc.errno,
+                            error=exc.strerror or str(exc),
+                            exc_info=True,
+                        )
 
         except DiskBulkChangeDetected:
             # Merkle delta exceeded the freeze threshold — re-raise so the

@@ -35,8 +35,54 @@ the protocol in INDEX.md Invariant 3 §10).
 | 4   | Cross-cutting events                   | core    | [phase-04-cross-cutting-events.md](docs/features/event-bus/plan/phase-04-cross-cutting-events.md)           | [x]    |
 | 5   | Required-bus tightening + CLI polish   | polish  | [phase-05-required-bus-cli-polish.md](docs/features/event-bus/plan/phase-05-required-bus-cli-polish.md)     | [x]    |
 | 6   | PR review cycle 1 fixes                | fix     | [phase-06-pr-fixes-cycle-1.md](docs/features/event-bus/plan/phase-06-pr-fixes-cycle-1.md)                   | [x]    |
+| 7   | PR review cycle 2 fixes                | fix     | (inline — five reviewer agents; see commit body)                                                            | [x]    |
 
 Total sub-phases: **42** (per INDEX.md). Estimated commits: **42–49**.
+
+## Phase 7 — PR review cycle 2 fixes (W1-W3 + I1-I14)
+
+Five reviewer agents (code-reviewer, silent-failure-hunter, pr-test-analyzer,
+comment-analyzer, type-design-analyzer) produced findings against PR #22.
+Cycle 2 implements all critical (W1-W3) and important (I1-I14) corrections:
+
+- **W1 — bus-detached emit sites**: every production command path now threads
+  the AppContext bus (or accepts an explicit `event_bus`). Sites fixed:
+  `trailers/step.py:75`, `library_index_command` (open_db × 2 + scan),
+  `MediaIndex.__init__`, `library_reconcile_command`, the seven per-step
+  Typer subcommands in `commands/pipeline.py`, the indexer command surface
+  (`{diagnose, query, repair}.py`), library tooling (`scan_library`,
+  `rescrape_library`, library-analyze / -recommend / -report / -validate),
+  and `trailers/cli.py verify`. Regression tests pin the pass-through
+  contract (`test_orchestrator_receives_caller_bus`,
+  `test_library_index_command_forwards_bus_to_scan_and_open_db`).
+- **W1/C2 — global disk-breaker rebinding**: `bind_global_disk_breaker_to_bus`
+  added to `indexer/breaker.py` and called from `indexer/scanner/__init__.py`
+  so the import-time singleton's per-disk emits reach the run's bus.
+- **W3 — CircuitBreaker thread safety**: `threading.Lock` added to both
+  `core/circuit.py` (state property + record_success/record_failure) and
+  `indexer/breaker.py` (DiskCircuitBreaker.record_failure direct-mutation
+  path). Regression test pins single emit under 16 concurrent state reads.
+- **W2 / I7 / I6 — `docs/reference/event-bus.md`**: JSON contract rows
+  rewritten to match the fail-loud `TypeError` reality (no `str()` coercion,
+  no `repr` fallback). `Event` base fields described as `default_factory`
+  rather than `__post_init__`. `LibraryScanCompleted` producer location
+  corrected to `scanner.scan` finally block.
+- **I1-I5, I8 — docstring rot**: `--headless` CLI help, `_run_step`
+  docstring, `_disk_guard` "optional", `TelegramSubscriber.close`
+  "both tokens", `DebugLogSubscriber` "envelope", `state` property side
+  effect — all scrubbed.
+- **I9-I12 — error logging context**: scanner OSError warnings gain
+  `errno` + `strerror` + `exc_info=True`; `_disk_guard` secondary checkpoint
+  - DB-path lookup log at DEBUG; `dispatcher` disk iterdir logs structured
+    context; `PipelineEnded` emit failure demoted to WARNING.
+- **I13 — `indexer/scanner/__init__.py` over 1000 LOC**: the file is at
+  1029 non-blank lines but is currently exempted by
+  `scripts/check-module-size.py` (the script excludes every `__init__.py`).
+  Treated as a project-policy decision outside this PR's scope — keep the
+  current exemption. A dedicated refactor to extract the orchestrator body
+  to `scanner/_orchestrator.py` would also touch hot paths and is deferred
+  to a follow-up issue.
+- **I14 — orphan `if TYPE_CHECKING: pass`** in `indexer/breaker.py` removed.
 
 ## Quality gate (every commit)
 

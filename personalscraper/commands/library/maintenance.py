@@ -43,14 +43,26 @@ def library_verify(
         personalscraper library-verify --disk Disk2
         personalscraper library-verify --budget 300
     """
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_verify_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_verify_command(
-        disk=disk,
-        budget_seconds=float(budget) if budget is not None else None,
-        config_path=effective_config,
-    )
+    loaded_config = ctx.obj.config if ctx.obj is not None else None
+    if loaded_config is not None:
+        settings = cli_compat.get_settings()
+        with per_step_boundary(loaded_config, settings) as app_context:
+            rc = library_verify_command(
+                disk=disk,
+                budget_seconds=float(budget) if budget is not None else None,
+                config_path=effective_config,
+                event_bus=app_context.event_bus,
+            )
+    else:
+        rc = library_verify_command(
+            disk=disk,
+            budget_seconds=float(budget) if budget is not None else None,
+            config_path=effective_config,
+        )
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -71,10 +83,21 @@ def library_repair(
         personalscraper library-repair
         personalscraper library-repair --budget 120
     """
+    from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
     from personalscraper.indexer.cli import library_repair_command  # noqa: PLC0415
 
     effective_config: Optional[Path] = config or (ctx.obj.config_override if ctx.obj else None)
-    rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
+    loaded_config = ctx.obj.config if ctx.obj is not None else None
+    if loaded_config is not None:
+        settings = cli_compat.get_settings()
+        with per_step_boundary(loaded_config, settings) as app_context:
+            rc = library_repair_command(
+                budget_seconds=float(budget),
+                config_path=effective_config,
+                event_bus=app_context.event_bus,
+            )
+    else:
+        rc = library_repair_command(budget_seconds=float(budget), config_path=effective_config)
     if rc != 0:
         raise typer.Exit(rc)
 
@@ -234,6 +257,11 @@ def library_validate(
 
             db_path = config.indexer.db_path
             migrations_dir = Path(_migrations_pkg.__file__).parent
+            # library-validate --from-index opens the indexer DB read-only;
+            # the AppContext bus is unavailable here (CLI flag, not a pipeline
+            # step). A fresh unobserved bus is acceptable — the only emit is
+            # ``DiskFullWarning`` from the pre-open guard, which is irrelevant
+            # for a read-only validate scan.
             conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
             apply_migrations(conn, migrations_dir)
             try:

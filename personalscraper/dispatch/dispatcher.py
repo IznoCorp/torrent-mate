@@ -226,7 +226,15 @@ class Dispatcher:
                 continue
             try:
                 category_dirs = [p for p in disk_cfg.path.iterdir() if p.is_dir()]
-            except OSError:
+            except OSError as exc:
+                log.warning(
+                    "dispatcher_disk_iterdir_failed",
+                    disk=disk_cfg.id,
+                    path=str(disk_cfg.path),
+                    errno=exc.errno,
+                    error=exc.strerror or str(exc),
+                    exc_info=True,
+                )
                 continue
             for category_dir in category_dirs:
                 candidate = category_dir / name

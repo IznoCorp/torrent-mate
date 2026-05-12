@@ -43,7 +43,7 @@ def run_trailers(
             absent from this list are skipped (they failed verify already).
         skip_trailers: If True, return a skipped StepReport immediately.
         event_bus: Required in-process EventBus. Each per-item
-        lifecycle transition emits an ``ItemProgressed`` event on the bus.
+            lifecycle transition emits an ``ItemProgressed`` event on the bus.
 
     Returns:
         StepReport with name="trailers", status in
@@ -72,7 +72,7 @@ def run_trailers(
     from personalscraper.trailers.state import TrailerStateLocked  # noqa: PLC0415
 
     try:
-        orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir, event_bus=EventBus())
+        orchestrator = TrailersOrchestrator(config=config, staging_dir=staging_dir, event_bus=event_bus)
 
         # Build the items list to pass to the orchestrator.
         #

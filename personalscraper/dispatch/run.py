@@ -90,7 +90,9 @@ def run_dispatch(
         verified: Verified items from the verify step (pipeline mode).
             If None, runs verify first to obtain dispatchable items.
         event_bus: Required in-process EventBus. Each per-item
-        lifecycle transition emits an ``ItemProgressed`` event on the bus.
+            lifecycle transition emits an ``ItemProgressed`` event on the bus.
+            Also forwarded to ``MediaIndex`` so ``open_db``'s pre-open
+            free-space guard emits ``DiskFullWarning`` on the same bus.
 
     Returns:
         StepReport with dispatch counts and details.
@@ -107,7 +109,7 @@ def run_dispatch(
     if not dry_run:
         cleaned = _cleanup_staging_orphans(settings, config, staging_dir)
 
-    with MediaIndex(index_path, config=config, auto_rebuild=not dry_run) as index:
+    with MediaIndex(index_path, config=config, auto_rebuild=not dry_run, event_bus=event_bus) as index:
         preview_index = False
         if dry_run:
             index.begin_preview()

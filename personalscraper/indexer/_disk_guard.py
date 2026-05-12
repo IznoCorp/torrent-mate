@@ -1,9 +1,9 @@
 """Disk-full guard for the indexer SQLite database.
 
 Extracted from :mod:`personalscraper.indexer.db` in Sub-phase 4.2a as a
-pure mechanical move (zero behavior change). Sub-phase 4.2b extends
-:func:`handle_disk_full` with an optional :class:`EventBus` parameter so
-the disk-full path emits :class:`DiskFullWarning` for cross-component
+pure mechanical move (zero behavior change). Sub-phase 4.2b added the
+required :class:`EventBus` parameter to :func:`handle_disk_full` so the
+disk-full path always emits :class:`DiskFullWarning` for cross-component
 reactions (Telegram alerts, future Web UI).
 """
 
@@ -33,9 +33,9 @@ def handle_disk_full(
 
     If *exc* signals "disk I/O error" or "database or disk is full",
     this function runs ``PRAGMA wal_checkpoint(TRUNCATE)``, commits the
-    connection, logs ``indexer.db.disk_full``, optionally emits
-    :class:`DiskFullWarning` on the supplied bus, and raises
-    :class:`IndexerDiskFullError`.
+    connection, logs ``indexer.db.disk_full``, emits
+    :class:`DiskFullWarning` on the supplied bus (unconditional on the
+    disk-full branch), and raises :class:`IndexerDiskFullError`.
 
     For any other ``OperationalError`` the function returns ``None`` silently
     so callers can re-raise the original exception themselves.
@@ -61,8 +61,15 @@ def handle_disk_full(
     try:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         conn.commit()
-    except Exception:  # noqa: BLE001 — best-effort; ignore secondary errors
-        pass
+    except sqlite3.Error as checkpoint_exc:
+        # Best-effort secondary checkpoint — the disk-full path still raises
+        # IndexerDiskFullError. Log so a non-disk failure (locked schema,
+        # corrupted WAL header) leaves a trace for operators.
+        log.debug(
+            "indexer.db.disk_full_checkpoint_failed",
+            error=str(checkpoint_exc),
+            error_type=type(checkpoint_exc).__name__,
+        )
 
     log.warning(
         "indexer.db.disk_full",
@@ -94,8 +101,10 @@ def _db_path_from_conn(conn: sqlite3.Connection) -> Path:
         for _seq, name, file_ in conn.execute("PRAGMA database_list").fetchall():
             if name == "main" and file_:
                 return Path(file_)
-    except sqlite3.Error:
-        pass
+    except sqlite3.Error as exc:
+        # ``Path(".")`` will reach the DiskFullWarning subscriber — log so the
+        # operator can correlate the sentinel with the underlying lookup failure.
+        log.debug("indexer.db.disk_path_lookup_failed", error=str(exc))
     return Path(".")
 
 

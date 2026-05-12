@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import functools
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import typer
 from pydantic import ValidationError
@@ -12,7 +14,7 @@ from pydantic import ValidationError
 from personalscraper.cli_state import AppCtx, state
 from personalscraper.conf.staging import ensure_staging_tree as _ensure_staging_tree
 from personalscraper.core.app_context import AppContext
-from personalscraper.core.event_bus import EventBus
+from personalscraper.core.event_bus import EventBus, current_correlation_id
 from personalscraper.logger import get_logger
 
 if TYPE_CHECKING:
@@ -40,6 +42,33 @@ def _build_app_context(config: "Config", settings: "Settings") -> AppContext:
         commands.
     """
     return AppContext(config=config, settings=settings, event_bus=EventBus())
+
+
+@contextmanager
+def per_step_boundary(config: "Config", settings: "Settings") -> Iterator[AppContext]:
+    """Context manager wrapping the per-step CLI boundary.
+
+    Builds an :class:`AppContext`, binds ``current_correlation_id`` for the
+    duration of the block, and yields the context. On exit the ContextVar
+    is reset whether the body succeeded or raised. Used by the per-step
+    Typer subcommands (``ingest``, ``sort``, ``scrape``, ``verify``,
+    ``enforce``, ``dispatch``, ``process``) so every event emitted during
+    a standalone subcommand carries a correlation_id and lands on a bus
+    consistent with ``personalscraper run`` (review finding I1).
+
+    Args:
+        config: Loaded JSON5 configuration.
+        settings: Loaded env-var settings.
+
+    Yields:
+        The fresh :class:`AppContext` bound for this invocation.
+    """
+    app_context = _build_app_context(config, settings)
+    token = current_correlation_id.set(str(uuid4()))
+    try:
+        yield app_context
+    finally:
+        current_correlation_id.reset(token)
 
 
 def _format_validation(exc: ValidationError) -> str:
@@ -99,4 +128,5 @@ __all__ = [
     "_format_validation",
     "_resolve_category",
     "handle_cli_errors",
+    "per_step_boundary",
 ]

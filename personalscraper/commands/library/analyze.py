@@ -11,7 +11,6 @@ from personalscraper import cli as cli_compat
 from personalscraper.cli_app import app
 from personalscraper.cli_helpers import _resolve_category, handle_cli_errors
 from personalscraper.cli_state import state
-from personalscraper.core.event_bus import EventBus
 from personalscraper.logger import get_logger
 
 log = get_logger("cli")
@@ -60,12 +59,14 @@ def library_analyze(
         console.print("[bold]Analyzing library (from index)...[/bold]")
         import sqlite3  # noqa: PLC0415
 
+        from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
         from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
         from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
         db_path = config.indexer.db_path
         migrations_dir = Path(_migrations_pkg.__file__).parent
-        conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
+        app_context = _build_app_context(config, cli_compat.get_settings())
+        conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
         apply_migrations(conn, migrations_dir)
         try:
             result = analyze_from_index(
@@ -157,12 +158,14 @@ def library_recommend(
         console.print("[bold]Analyzing library (from index)...[/bold]")
         import sqlite3  # noqa: PLC0415
 
+        from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
         from personalscraper.indexer import migrations as _migrations_pkg  # noqa: PLC0415
         from personalscraper.indexer.db import apply_migrations, open_db  # noqa: PLC0415
 
         db_path = config.indexer.db_path
         migrations_dir = Path(_migrations_pkg.__file__).parent
-        conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
+        app_context = _build_app_context(config, cli_compat.get_settings())
+        conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
         apply_migrations(conn, migrations_dir)
         try:
             analysis = analyze_from_index(
@@ -285,16 +288,20 @@ def library_rescrape(
         mode = "[bold yellow]DRY-RUN[/bold yellow]" if dry_run else "[bold green]LIVE[/bold green]"
         console.print(f"[bold]Rescraping library ({mode})...[/bold]")
 
-        result = rescrape_library(
-            config,
-            settings,
-            disk_filter=disk,
-            category_filter=category_id,
-            only=only,
-            interactive=interactive,
-            dry_run=dry_run,
-            max_items=max_items,
-        )
+        from personalscraper.cli_helpers import per_step_boundary  # noqa: PLC0415
+
+        with per_step_boundary(config, settings) as app_context:
+            result = rescrape_library(
+                config,
+                settings,
+                disk_filter=disk,
+                category_filter=category_id,
+                only=only,
+                interactive=interactive,
+                dry_run=dry_run,
+                max_items=max_items,
+                event_bus=app_context.event_bus,
+            )
 
         output_path = config.paths.data_dir / "library_rescrape.json"
         write_json(result, output_path)
@@ -357,7 +364,10 @@ def library_report(
     analysis_result = None
     if db_path.exists():
         try:
-            conn = open_db(db_path, event_bus=EventBus())
+            from personalscraper.cli_helpers import _build_app_context  # noqa: PLC0415
+
+            _app_context = _build_app_context(config, cli_compat.get_settings())
+            conn = open_db(db_path, event_bus=_app_context.event_bus)
             analysis_result = analyze(conn)
             conn.close()
         except Exception as exc:

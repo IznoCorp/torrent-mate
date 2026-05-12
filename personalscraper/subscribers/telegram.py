@@ -57,7 +57,12 @@ class TelegramSubscriber:
         ]
 
     def close(self) -> None:
-        """Unsubscribe both tokens. Idempotent."""
+        """Unsubscribe every stored token. Idempotent.
+
+        Releases all four subscriptions registered in ``__init__``:
+        :class:`PipelineEnded`, :class:`StepErrored`,
+        :class:`CircuitBreakerOpened`, :class:`DiskFullWarning`.
+        """
         for token in self._tokens:
             self._bus.unsubscribe(token)
         self._tokens = []

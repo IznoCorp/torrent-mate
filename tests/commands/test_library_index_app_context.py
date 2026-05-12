@@ -107,3 +107,75 @@ class TestLibraryIndexCommandAppContext:
 # §Testing strategy: cross-boundary contracts always assert on the exact
 # type the receiver is expected to handle (``EventBus`` vs ``AppContext``).
 _ = MagicMock
+
+
+class TestLibraryIndexCommandBusPassThrough:
+    """Regression: ``library_index_command`` threads its ``event_bus`` to scan + open_db.
+
+    Pre-fix the function declared ``event_bus`` in its signature but ignored
+    the parameter, constructing a throwaway ``EventBus()`` at every internal
+    call site (open_db x2, scan x1). Effect: ``DiskFullWarning``,
+    ``LibraryScanCompleted``, and every disk-breaker ``CircuitBreaker*`` event
+    emitted during a ``personalscraper library-index`` run landed on a bus
+    with no subscribers, silently breaking the launchd→Telegram contract.
+    """
+
+    def test_library_index_command_forwards_bus_to_scan_and_open_db(self, tmp_path) -> None:
+        """The bus given to ``library_index_command`` reaches ``open_db`` and ``scan``."""
+        from pathlib import Path
+
+        from personalscraper.conf.models.indexer import IndexerConfig
+        from personalscraper.indexer.cli import library_index_command
+        from personalscraper.indexer.scanner import ScanRunResult
+
+        caller_bus = EventBus()
+        scan_kwargs: dict = {}
+        open_db_calls: list[dict] = []
+
+        # Minimal config with db_path under tmp_path so indexer_lock works.
+        mock_cfg = MagicMock()
+        mock_cfg.indexer = IndexerConfig(db_path=tmp_path / "library.db")
+        mock_cfg.paths.staging_dir = tmp_path / "staging"
+        mock_cfg.disks = []
+
+        # Stub the conn so library_index_command's internal SELECTs return
+        # benign empty results without needing a real schema.
+        def _fake_open_db(db_path, *, rebuild=False, event_bus):  # type: ignore[no-untyped-def]
+            open_db_calls.append({"db_path": db_path, "event_bus": event_bus, "rebuild": rebuild})
+            mock_conn = MagicMock()
+            # disk COUNT(*) row → 0 (disk table empty branch).
+            # MAX(scan_generation) row → 0.
+            # SELECT id, uuid, ... FROM disk → 0 rows.
+            mock_conn.execute.return_value.fetchone.return_value = [0]
+            mock_conn.execute.return_value.fetchall.return_value = []
+            return mock_conn
+
+        def _spy_scan(**kwargs) -> ScanRunResult:  # type: ignore[no-untyped-def]  # noqa: ANN003
+            scan_kwargs.update(kwargs)
+            return ScanRunResult(scan_run_id=1, files_visited=0, dirs_visited=0, status="ok", disks_skipped=0)
+
+        with (
+            patch("personalscraper.conf.loader.load_config", return_value=mock_cfg),
+            patch("personalscraper.conf.loader.resolve_config_path", return_value=Path("/tmp/cfg.json5")),
+            patch("personalscraper.indexer.db.open_db", side_effect=_fake_open_db),
+            patch("personalscraper.indexer.db.apply_migrations"),
+            patch("personalscraper.indexer.scanner.scan", side_effect=_spy_scan),
+            patch("personalscraper.indexer.outbox._drain.drain_if_present", return_value=0),
+        ):
+            rc = library_index_command(
+                mode="full",
+                dry_run=True,
+                event_bus=caller_bus,
+            )
+
+        assert rc == 0, f"library_index_command returned {rc}"
+        # open_db must have received the caller's bus, not a throwaway.
+        assert open_db_calls, "open_db was not called"
+        assert open_db_calls[0]["event_bus"] is caller_bus, (
+            "open_db must receive the bus passed to library_index_command, not a fresh EventBus() with no subscribers."
+        )
+        # scan must also have received the caller's bus.
+        assert "event_bus" in scan_kwargs
+        assert scan_kwargs["event_bus"] is caller_bus, (
+            "scan must receive the bus passed to library_index_command, not a fresh EventBus() with no subscribers."
+        )

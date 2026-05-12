@@ -25,6 +25,7 @@ even though the breaker itself is a long-lived singleton (DESIGN
 
 from __future__ import annotations
 
+import threading
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -142,17 +143,34 @@ class CircuitBreaker:
         self._failure_count = 0
         self._opened_at: float = 0.0
         self._event_bus = event_bus
+        # Guards state mutations + transition emits. Required because the
+        # indexer scanner exercises shared breakers from a ThreadPoolExecutor
+        # (DESIGN deviation): without the lock, two concurrent ``state``
+        # reads after cooldown can both transition OPEN→HALF_OPEN and both
+        # emit ``CircuitBreakerHalfOpened`` → duplicate Telegram alerts.
+        self._lock = threading.Lock()
 
     @property
     def state(self) -> CircuitState:
         """Return the current circuit state.
 
+        Side effect: when the cooldown has fully elapsed and the breaker is
+        OPEN, this property transitions ``OPEN → HALF_OPEN`` and emits
+        :class:`CircuitBreakerHalfOpened` on the bus before returning. The
+        transition is performed atomically under ``self._lock`` so concurrent
+        readers race to a single emit.
+
         Returns:
             Current CircuitState (CLOSED, OPEN, or HALF_OPEN).
         """
-        # Auto-transition OPEN → HALF_OPEN when cooldown has elapsed
-        if self._state == CircuitState.OPEN and self._cooldown_elapsed():
-            self._state = CircuitState.HALF_OPEN
+        emit_half_open = False
+        with self._lock:
+            # Auto-transition OPEN → HALF_OPEN when cooldown has elapsed.
+            if self._state == CircuitState.OPEN and self._cooldown_elapsed():
+                self._state = CircuitState.HALF_OPEN
+                emit_half_open = True
+            current = self._state
+        if emit_half_open:
             log.info("circuit_half_open", provider=self.name)
             self._event_bus.emit(
                 CircuitBreakerHalfOpened(
@@ -160,7 +178,7 @@ class CircuitBreaker:
                     breaker=self.name,
                 ),
             )
-        return self._state
+        return current
 
     def can_proceed(self) -> bool:
         """Check if a call is allowed through the circuit.
@@ -189,16 +207,17 @@ class CircuitBreaker:
         Resets the failure counter and closes the circuit.
         In HALF_OPEN state, this confirms the provider is back up.
         """
-        was_open = self._state != CircuitState.CLOSED
+        with self._lock:
+            previous_state = self._state
+            was_open = previous_state != CircuitState.CLOSED
+            self._state = CircuitState.CLOSED
+            self._failure_count = 0
         if was_open:
-            log.info("circuit_closed", provider=self.name, previous_state=self._state.value)
-        self._state = CircuitState.CLOSED
-        self._failure_count = 0
-        # Emit only on actual transition: CLOSED → CLOSED is a no-op for the
-        # bus (the catalog defines CircuitBreakerClosed as a transition event,
-        # not a heartbeat). Long-lived breakers receive thousands of successes
-        # per pipeline run; emitting on every one would flood subscribers.
-        if was_open:
+            log.info("circuit_closed", provider=self.name, previous_state=previous_state.value)
+            # Emit only on actual transition: CLOSED → CLOSED is a no-op for
+            # the bus (CircuitBreakerClosed is a transition event, not a
+            # heartbeat). Long-lived breakers receive thousands of successes
+            # per pipeline run; emitting on every one would flood subscribers.
             self._event_bus.emit(
                 CircuitBreakerClosed(
                     source=f"core.circuit.{self.name}",
@@ -221,56 +240,59 @@ class CircuitBreaker:
         if not self._is_circuit_error(exc):
             return
 
-        # HALF_OPEN: one failure → back to OPEN
-        if self._state == CircuitState.HALF_OPEN:
-            self._state = CircuitState.OPEN
-            self._opened_at = time.monotonic()
-            log.warning("circuit_reopened", provider=self.name, error=str(exc))
-            # Re-trip from the half-open probe — the canonical failure
-            # count for this re-open is the configured threshold (the
-            # probe call is the "one and only" attempted recovery, and
-            # its failure constitutes a full trip regardless of
-            # self._failure_count which is not decremented when entering
-            # HALF_OPEN).
-            self._event_bus.emit(
-                CircuitBreakerOpened(
-                    source=f"core.circuit.{self.name}",
-                    breaker=self.name,
-                    failure_count=self.failure_threshold,
-                    last_error_class=type(exc).__name__,
-                    last_error_message=str(exc),
-                ),
-            )
-            return
+        # State transition under the lock; emit OUTSIDE the lock so the bus
+        # fan-out doesn't serialize concurrent record_* callers.
+        emit_failure_count: int | None = None
+        is_reopen = False
+        with self._lock:
+            if self._state == CircuitState.HALF_OPEN:
+                # HALF_OPEN: one failure → back to OPEN.
+                self._state = CircuitState.OPEN
+                self._opened_at = time.monotonic()
+                # Re-trip from the half-open probe — the canonical failure
+                # count for this re-open is the configured threshold (the
+                # probe call is the "one and only" attempted recovery, and
+                # its failure constitutes a full trip regardless of
+                # self._failure_count which is not decremented on enter).
+                emit_failure_count = self.failure_threshold
+                is_reopen = True
+            else:
+                self._failure_count += 1
+                if self._failure_count >= self.failure_threshold:
+                    self._state = CircuitState.OPEN
+                    self._opened_at = time.monotonic()
+                    emit_failure_count = self._failure_count
 
-        self._failure_count += 1
-        if self._failure_count >= self.failure_threshold:
-            self._state = CircuitState.OPEN
-            self._opened_at = time.monotonic()
+        if emit_failure_count is None:
+            return
+        if is_reopen:
+            log.warning("circuit_reopened", provider=self.name, error=str(exc))
+        else:
             log.warning(
                 "circuit_opened",
                 provider=self.name,
-                failure_count=self._failure_count,
+                failure_count=emit_failure_count,
                 cooldown_seconds=self.cooldown_seconds,
             )
-            self._event_bus.emit(
-                CircuitBreakerOpened(
-                    source=f"core.circuit.{self.name}",
-                    breaker=self.name,
-                    failure_count=self._failure_count,
-                    last_error_class=type(exc).__name__,
-                    last_error_message=str(exc),
-                ),
-            )
+        self._event_bus.emit(
+            CircuitBreakerOpened(
+                source=f"core.circuit.{self.name}",
+                breaker=self.name,
+                failure_count=emit_failure_count,
+                last_error_class=type(exc).__name__,
+                last_error_message=str(exc),
+            ),
+        )
 
     def reset(self) -> None:
         """Reset the circuit to CLOSED state.
 
         Intended for testing and manual recovery.
         """
-        self._state = CircuitState.CLOSED
-        self._failure_count = 0
-        self._opened_at = 0.0
+        with self._lock:
+            self._state = CircuitState.CLOSED
+            self._failure_count = 0
+            self._opened_at = 0.0
 
     def _remaining_cooldown(self) -> float:
         """Calculate remaining cooldown time in seconds.

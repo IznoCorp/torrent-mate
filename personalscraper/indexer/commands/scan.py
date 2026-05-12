@@ -152,7 +152,7 @@ def library_index_command(
                 db_path.parent.mkdir(parents=True, exist_ok=True)
                 # Pass rebuild=True to open_db so a corrupt DB is quarantined and a
                 # fresh one is created rather than raising IndexerCorruptError.
-                conn = open_db(db_path, rebuild=rebuild, event_bus=EventBus())
+                conn = open_db(db_path, rebuild=rebuild, event_bus=event_bus)
             except (
                 IndexerLockError,
                 IndexerCorruptError,
@@ -256,7 +256,7 @@ def library_index_command(
                         staging_dir=str(cfg.paths.staging_dir),
                         spotlight_enabled=cfg.indexer.spotlight.use_when_available,
                         paranoia_window_seconds=cfg.indexer.scan.paranoia_window_seconds,
-                        event_bus=EventBus(),
+                        event_bus=event_bus,
                     )
                 except DiskBulkChangeDetected as bulk_exc:
                     typer.echo(
@@ -345,6 +345,7 @@ def library_reconcile_command(
     scopes: Sequence[str] | None = None,
     enqueue_repairs: bool = False,
     config_path: Path | None = None,
+    event_bus: "EventBus",
 ) -> int:
     """Detect index ↔ filesystem divergences without a full rescan.
 
@@ -361,6 +362,10 @@ def library_reconcile_command(
             ``season``, ``item``).
         enqueue_repairs: When True, push findings into ``repair_queue``.
         config_path: Optional explicit path to config.json5 or config dir.
+        event_bus: Required in-process :class:`EventBus`. Threaded from the
+            CLI boundary so the pre-open free-space guard inside ``open_db``
+            can emit :class:`DiskFullWarning` on the same bus subscribers
+            are wired to.
 
     Returns:
         ``0`` on success, ``1`` on infrastructure error.
@@ -405,7 +410,7 @@ def library_reconcile_command(
 
     try:
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = open_db(db_path, event_bus=EventBus())
+        conn = open_db(db_path, event_bus=event_bus)
     except (
         IndexerLockError,
         IndexerCorruptError,

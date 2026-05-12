@@ -201,3 +201,53 @@ def test_circuit_breaker_non_eligible_error_does_not_emit() -> None:
     cb.record_failure(ApiError(provider="tmdb", http_status=404, message="not found"))
     cb.record_failure(requests.exceptions.HTTPError(response=type("R", (), {"status_code": 400})()))
     assert collector.received == []
+
+
+def test_circuit_breaker_concurrent_state_reads_emit_single_half_opened(monkeypatch) -> None:
+    """Regression: concurrent ``state`` reads after cooldown emit exactly one event.
+
+    The indexer scanner exercises shared :class:`DiskCircuitBreaker` instances
+    from a ``ThreadPoolExecutor``. Pre-fix, two threads reading ``breaker.state``
+    after the cooldown elapsed could both observe ``OPEN``, both write
+    ``HALF_OPEN``, and both emit :class:`CircuitBreakerHalfOpened` — producing
+    duplicate Telegram alerts. The lock added in W3 collapses the race so
+    exactly one transition + one emit is observable.
+
+    Args:
+        monkeypatch: pytest monkeypatch fixture used to advance ``time.monotonic``.
+    """
+    import threading
+
+    bus = EventBus()
+    collector: CollectingSubscriber[CircuitBreakerHalfOpened] = CollectingSubscriber(bus, CircuitBreakerHalfOpened)
+    cb = CircuitBreaker(name="tmdb", failure_threshold=1, cooldown_seconds=0.01, event_bus=bus)
+
+    # Trip the breaker so it lands in OPEN.
+    cb.record_failure(ApiError(provider="tmdb", http_status=500, message="boom"))
+    # Wait the cooldown so the next ``state`` read is eligible to transition.
+    time.sleep(0.02)
+
+    # Fire many concurrent state reads to maximise the chance of racing.
+    barrier = threading.Barrier(16)
+    observed_states: list[str] = []
+    lock = threading.Lock()
+
+    def _read_state() -> None:
+        barrier.wait()
+        s = cb.state
+        with lock:
+            observed_states.append(s.value)
+
+    threads = [threading.Thread(target=_read_state) for _ in range(16)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # Exactly one HALF_OPEN transition must have emitted, regardless of how
+    # many threads observed the transitioned state.
+    half_opened_events = [e for e in collector.received if isinstance(e, CircuitBreakerHalfOpened)]
+    assert len(half_opened_events) == 1, (
+        f"expected exactly one CircuitBreakerHalfOpened emit, got {len(half_opened_events)}; "
+        f"observed_states={observed_states!r}"
+    )

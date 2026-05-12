@@ -191,10 +191,11 @@ class TestRunDispatch:
             mock_disp = MockDisp.return_value
             mock_disp.process.return_value = []
 
-            report = run_dispatch(settings, config=config, dry_run=True, event_bus=EventBus())
+            caller_bus = EventBus()
+            report = run_dispatch(settings, config=config, dry_run=True, event_bus=caller_bus)
 
         assert report.name == "dispatch"
-        MockIdx.assert_called_once_with(config.indexer.db_path, config=config, auto_rebuild=False)
+        MockIdx.assert_called_once_with(config.indexer.db_path, config=config, auto_rebuild=False, event_bus=caller_bus)
         mock_idx.begin_preview.assert_called_once()
         mock_idx.rebuild.assert_not_called()  # count=5 > 0 skips rebuild
 

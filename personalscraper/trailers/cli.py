@@ -35,7 +35,7 @@ from rich.console import Console
 from rich.table import Table
 
 from personalscraper.cli_helpers import _build_app_context
-from personalscraper.core.event_bus import EventBus, current_correlation_id
+from personalscraper.core.event_bus import current_correlation_id
 from personalscraper.logger import get_logger
 from personalscraper.trailers.orchestrator import TrailersOrchestrator
 from personalscraper.trailers.scanner import ScanItem, Scanner
@@ -584,7 +584,7 @@ def verify(
     config = ctx.obj.config
     console = Console()
 
-    with _trailers_boundary(config):
+    with _trailers_boundary(config) as app_context:
         seasons_enabled = _seasons_enabled_from_config(config)
         resolved_level, resolved_season = _resolve_level_and_season(level, season, seasons_enabled)
         since_dt = _parse_since(since)
@@ -597,7 +597,7 @@ def verify(
         # verify operates on the permanent library (scan_library); open the indexer DB
         # so the scanner can query items without trailer_found attribute.
         db_path = config.indexer.db_path
-        conn: sqlite3.Connection = open_db(db_path, event_bus=EventBus())
+        conn: sqlite3.Connection = open_db(db_path, event_bus=app_context.event_bus)
         try:
             # verify operates on the permanent library (scan_library)
             items = scanner.scan_library(
