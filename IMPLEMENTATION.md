@@ -7,7 +7,7 @@
 **Version bump**: 0.13.0 → 0.14.0
 **Branch**: feat/event-bus
 **PR merge**: manual
-**PR**: _(created after last phase)_
+**PR**: https://github.com/LounisBou/personal-scraper/pull/22
 **Design**: docs/features/event-bus/DESIGN.md
 **Master plan**: docs/features/event-bus/plan/INDEX.md
 
