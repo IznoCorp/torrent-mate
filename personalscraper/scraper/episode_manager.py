@@ -31,6 +31,26 @@ _SE_PATTERNS = [
 ]
 
 
+def _provider_id_fields(ep_info: dict[str, Any]) -> dict[str, str]:
+    """Extract the propagated per-episode provider IDs from an API episode dict.
+
+    Returns a sparse dict (keys absent rather than empty) so the
+    upstream matched dict can rely on ``.get(...)`` returning ``None``
+    when a provider had no ID for this episode. Only keys with the
+    ``{provider}_episode_id`` shape are forwarded — the call site is
+    DEV #2-specific and must not accidentally carry unrelated fields.
+
+    Args:
+        ep_info: Single entry from the ``api_episodes`` map produced
+            by :meth:`TvServiceMixin._build_episode_map`.
+
+    Returns:
+        Dict mapping ``{provider}_episode_id`` to its string value,
+        skipping providers that returned an empty / missing ID.
+    """
+    return {key: ep_info[key] for key in ep_info if key.endswith("_episode_id") and ep_info.get(key)}
+
+
 def _extract_season_episode(name: str) -> tuple[int | None, int | None]:
     """Extract season and episode numbers from a filename.
 
@@ -156,6 +176,7 @@ def match_episode_files(
                 "api_title": ep_info["title"],
                 "still_path": ep_info.get("still_path", ""),
                 "fallback": False,
+                **_provider_id_fields(ep_info),
             }
             continue
 
@@ -180,6 +201,7 @@ def match_episode_files(
                     "api_title": ep_info["title"],
                     "still_path": ep_info.get("still_path", ""),
                     "fallback": False,
+                    **_provider_id_fields(ep_info),
                 }
                 continue
 
