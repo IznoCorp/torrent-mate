@@ -2,7 +2,7 @@
 
 ## Goal
 
-Résoudre le bug **DEV #2 du pipeline-monitor 2026-05-17** : les NFOs épisode TV sont écrits sans `<uniqueid>` parce que les IDs sont jetés au fetch (`_build_episode_map`, `tv_service.py:742-772`) et hardcodés `"id": "", "tvdb_id": ""` dans `_generate_episode_nfos` (`tv_service.py:874-887`). **Approche TDD stricte** (memory `feedback_regression_test_per_bug`) : tests qui reproduisent le bug d'abord, puis le fix.
+Résoudre le bug **DEV #2 du pipeline-monitor 2026-05-17** : les NFOs épisode TV sont écrits sans `<uniqueid>` parce que les IDs sont jetés au fetch (fonctions imbriquées `_tvdb_fetch` l. 698-710 et `_tmdb_fetch` l. 712-724 dans `_build_episode_map`) et hardcodés `"id": "", "tvdb_id": ""` dans `_generate_episode_nfos` (`tv_service.py:874-887`). **Approche TDD stricte** (memory `feedback_regression_test_per_bug`) : tests qui reproduisent le bug d'abord, puis le fix.
 
 ## Gate (prerequisites)
 
@@ -22,11 +22,11 @@ Résoudre le bug **DEV #2 du pipeline-monitor 2026-05-17** : les NFOs épisode T
 
 Commit : `test(provider-ids): regression tests for DEV #2 episode id propagation`
 
-### 2.2 — Fix `_build_episode_map` payload
+### 2.2 — Fix `_tvdb_fetch` + `_tmdb_fetch` dans `_build_episode_map`
 
-`personalscraper/scraper/tv_service.py:742-772` (`_build_episode_map`) : ajouter `tvdb_episode_id` (depuis `remote_ids` TVDB) / `tmdb_episode_id` + `imdb_episode_id` (depuis `external_ids` TMDb) aux payloads épisodes. Le test 2.1 (a, b) doit passer.
+`personalscraper/scraper/tv_service.py:698-710` (`_tvdb_fetch`, fonction imbriquée dans `_build_episode_map`) et `tv_service.py:712-724` (`_tmdb_fetch`) : chaque fonction retourne actuellement `{"title", "still_path": ""}`. Ajouter `tvdb_episode_id` (depuis `ep.remote_ids` TVDB) / `tmdb_episode_id` + `imdb_episode_id` (depuis `ep.external_ids` TMDb) aux payloads. Le test 2.1 (a, b) doit passer.
 
-Commit : `fix(provider-ids): propagate episode IDs from tvdb/tmdb in _build_episode_map`
+Commit : `fix(provider-ids): propagate episode IDs from _tvdb_fetch and _tmdb_fetch`
 
 ### 2.3 — Fix `match_episode_files`
 

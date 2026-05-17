@@ -2,7 +2,7 @@
 
 ## Goal
 
-Définir tous les `Protocol` capabilities atomiques que les couches `api/metadata/`, `api/tracker/`, `api/torrent/`, `api/notify/` consommeront aux phases suivantes. **Post-api-unify : `api/_contracts.py` existe déjà** (avec `MediaType`, `ProviderName`, `AuthMode`, `ApiError`, `CircuitOpenError`) — on ajoute `HasName`. Le `MetadataProvider` Protocol monolithique existe dans `api/metadata/_base.py:259` (9 méthodes) — on le décompose en capabilities atomiques dans `_contracts.py`. Aucune implémentation client n'est modifiée dans cette phase.
+Définir tous les `Protocol` capabilities atomiques que les couches `api/metadata/`, `api/tracker/`, `api/torrent/`, `api/notify/` consommeront aux phases suivantes. **Post-api-unify : `api/_contracts.py` existe déjà** (avec `MediaType`, `ProviderName`, `AuthMode`, `ApiError`, `CircuitOpenError`) — on ajoute `HasName`. Le `MetadataProvider` Protocol monolithique existe dans `api/metadata/_base.py:259` (8 méthodes) — on le décompose en capabilities atomiques dans `_contracts.py`. Aucune implémentation client n'est modifiée dans cette phase.
 
 ## Gate (prerequisites)
 
@@ -19,9 +19,9 @@ Commit : `feat(provider-ids): add HasName protocol to existing api/_contracts.py
 
 ### 1.2 — Metadata capabilities `api/metadata/_contracts.py` (décomposition du monolithique)
 
-11 Protocols atomiques (couvrant les 9 méthodes du `MetadataProvider` existant + 2 nouvelles) : `Searchable`, `MovieDetailsProvider`, `TvDetailsProvider`, `EpisodeFetcher`, `RatingProvider`, `IDValidator`, `IDCrossRef`, `ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider`. Avec `@runtime_checkable`. Ces Protocols **remplacent** le `MetadataProvider` monolithique existant (`api/metadata/_base.py:259-324`, 9 méthodes). Le fichier `_base.py` garde les dataclasses (`SearchResult`, `MediaDetails`, `Notations`, `EpisodeInfo`, `SeasonDetails`, etc.) et le `MetadataClient` base class — seul le Protocol est migré vers `_contracts.py`.
+11 Protocols atomiques (couvrant les 8 méthodes du `MetadataProvider` existant + 2 nouvelles) : `Searchable`, `MovieDetailsProvider`, `TvDetailsProvider`, `EpisodeFetcher`, `RatingProvider`, `IDValidator`, `IDCrossRef`, `ArtworkProvider`, `KeywordProvider`, `VideoProvider`, `RecommendationProvider`. Avec `@runtime_checkable`. Ces Protocols **remplacent** le `MetadataProvider` monolithique existant (`api/metadata/_base.py:259-324`, 8 méthodes). Le fichier `_base.py` garde les dataclasses (`SearchResult`, `MediaDetails`, `Notations`, `EpisodeInfo`, `SeasonDetails`, etc.) et le `MetadataClient` base class — seul le Protocol est migré vers `_contracts.py`.
 
-Mapping des 9 méthodes → 11 capabilities :
+Mapping des 8 méthodes existantes → 11 capabilities (9 capabilities dérivées + 2 nouvelles) :
 
 | Méthode `MetadataProvider` | Capability atomique                          | Note                                |
 | -------------------------- | -------------------------------------------- | ----------------------------------- |
