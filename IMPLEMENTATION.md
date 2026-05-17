@@ -46,7 +46,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [x]    |
 | 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [x]    |
 | 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [x]    |
-| 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [ ]    |
+| 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [x]    |
 | 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [ ]    |
 | 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [ ]    |
 | 7   | DB schema — external_ids_json + ratings_json + canonical_prov | phase-07-db-schema-external-ids.md    | [ ]    |
@@ -97,12 +97,13 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 4 — Drift Validator Hardening
 
-| Sub | Scope                                     | SHA | Status |
-| --- | ----------------------------------------- | --- | ------ |
-| 4.1 | Tests RED drift sans canonical uniqueid   | -   | [ ]    |
-| 4.2 | Helper `_read_canonical_provider`         | -   | [ ]    |
-| 4.3 | Étendre check #4                          | -   | [ ]    |
-| 4.4 | Test intégration drift → re-scrape (auto) | -   | [ ]    |
+| Sub  | Scope                                                | SHA     | Status |
+| ---- | ---------------------------------------------------- | ------- | ------ |
+| 4.1  | Tests RED drift sans canonical uniqueid              | fb497ea | [x]    |
+| 4.2  | Helper `_read_canonical_provider` + `_episode_nfo_*` | cfd3dd2 | [x]    |
+| 4.3  | Étendre check #4 (drop into the same commit as 4.2)  | cfd3dd2 | [x]    |
+| 4.3b | Update existing scraper test fixtures                | 2c8b3e6 | [x]    |
+| 4.4  | Test intégration drift → re-scrape                   | 4e5dd17 | [x]    |
 
 ### Phase 5 — Xref Enrichment
 
