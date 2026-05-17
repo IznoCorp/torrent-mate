@@ -588,8 +588,10 @@ class TestScrapeTvshow:
         season_dir = show_dir / "Saison 01"
         season_dir.mkdir()
         (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        # Phase 4 drift hardening requires the canonical uniqueid on
+        # the sibling episode NFO — tvshow.nfo above declares tvdb.
         (season_dir / "S01E01 - The Beginning.nfo").write_text(
-            "<episodedetails><title>The Beginning</title></episodedetails>"
+            '<episodedetails><title>The Beginning</title><uniqueid type="tvdb">9001</uniqueid></episodedetails>'
         )
 
         result = scraper.scrape_tvshow(show_dir)
@@ -611,8 +613,9 @@ class TestScrapeTvshow:
         season_dir = show_dir / "Saison 01"
         season_dir.mkdir()
         (season_dir / "S01E01 - The Beginning.mkv").write_bytes(b"\x00")
+        # Show's tvshow.nfo is tmdb-canonical → episode NFO carries tmdb.
         (season_dir / "S01E01 - The Beginning.nfo").write_text(
-            "<episodedetails><title>The Beginning</title></episodedetails>"
+            '<episodedetails><title>The Beginning</title><uniqueid type="tmdb">5005</uniqueid></episodedetails>'
         )
 
         show_data = {
@@ -662,8 +665,12 @@ class TestScrapeTvshow:
         season_dir.mkdir()
         (season_dir / f"{episode_name}.mkv").write_bytes(b"\x00")
         if with_episode_nfo:
+            # _build_coherent_show_dir constructs a tvshow.nfo with a
+            # canonical tvdb uniqueid (above), so the episode NFO must
+            # also expose a tvdb uniqueid to clear the phase-4 drift
+            # check.
             (season_dir / f"{episode_name}.nfo").write_text(
-                "<episodedetails><title>The Beginning</title></episodedetails>"
+                '<episodedetails><title>The Beginning</title><uniqueid type="tvdb">9001</uniqueid></episodedetails>'
             )
         return show_dir
 

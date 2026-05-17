@@ -131,7 +131,11 @@ class TestVerifyDriftBranches:
         # And a valid episode + sibling NFO so the drift check passes.
         ep = s01 / "S01E01 - Pilot.mkv"
         ep.write_bytes(b"\x00")
-        ep.with_suffix(".nfo").write_text("<episodedetails/>")
+        # Phase 4 drift hardening: episode NFO must carry the canonical
+        # uniqueid that matches tvshow.nfo (tmdb here).
+        ep.with_suffix(".nfo").write_text(
+            '<episodedetails><uniqueid type="tmdb">42</uniqueid></episodedetails>'
+        )
 
         valid, reason = verify_tvshow_scrape_drift(show_dir, nfo, patterns)
         assert valid is True
