@@ -18,6 +18,11 @@ from pathlib import Path
 import pytest
 
 from personalscraper.api._contracts import HasName, MediaType
+from personalscraper.api._helpers import (
+    ProviderFeatureUnavailable,
+    gather_cross_refs,
+    gather_ratings,
+)
 from personalscraper.api.metadata._base import (
     ArtworkItem,
     EpisodeInfo,
@@ -416,6 +421,133 @@ def test_notify_capability_protocols_runtime_checkable(
     """Each notify capability accepts its stub and rejects an empty object."""
     assert isinstance(stub_cls(), protocol)
     assert not isinstance(_BareProvider(), protocol)
+
+
+# -- Sub-phase 1.6 — Helpers + ProviderFeatureUnavailable ---------------------
+
+
+class _RatingProviderWithName:
+    """Stub satisfying ``RatingProvider`` + carrying ``provider_name``."""
+
+    provider_name = "fakerating"
+
+    def __init__(self, ratings: list[Notations] | None) -> None:
+        self._ratings = ratings
+
+    def get_rating(self, provider_id: str) -> list[Notations] | None:
+        return self._ratings
+
+
+class _RatingProviderRaising:
+    """Stub satisfying ``RatingProvider`` but raising ``ProviderFeatureUnavailable``."""
+
+    provider_name = "broken"
+
+    def get_rating(self, provider_id: str) -> list[Notations] | None:
+        raise ProviderFeatureUnavailable("broken", "get_rating", "missing field")
+
+
+class _IDCrossRefWithName:
+    """Stub satisfying ``IDCrossRef`` + carrying ``provider_name``."""
+
+    provider_name = "tvdb"
+
+    def __init__(self, refs: dict[str, str]) -> None:
+        self._refs = refs
+
+    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
+        return self._refs
+
+
+class _IDCrossRefRaising:
+    """Stub satisfying ``IDCrossRef`` but raising ``ProviderFeatureUnavailable``."""
+
+    provider_name = "down"
+
+    def get_cross_refs(self, provider_id: str) -> dict[str, str]:
+        raise ProviderFeatureUnavailable("down", "get_cross_refs", "endpoint deprecated")
+
+
+def test_gather_ratings_filters_non_rating_providers() -> None:
+    """``gather_ratings`` ignores providers without the capability.
+
+    Mixed list with a rating provider + a bare provider + a non-rating
+    capability provider returns only the rating provider's results.
+    """
+    notation = Notations(provider="fakerating", source="imdb", score=8.0, votes_count=100)
+    providers = [
+        _RatingProviderWithName([notation]),
+        _BareProvider(),
+        _IDCrossRefWithName({"tmdb": "42"}),
+    ]
+    result = gather_ratings(providers, provider_id="tt0000001")
+    assert result == [notation]
+
+
+def test_gather_ratings_swallows_none_and_empty_lists() -> None:
+    """``gather_ratings`` skips providers that return ``None`` or empty list.
+
+    Both shapes mean "queried successfully, no rating available" and
+    must not pollute the aggregate.
+    """
+    providers = [
+        _RatingProviderWithName(None),
+        _RatingProviderWithName([]),
+    ]
+    assert gather_ratings(providers, provider_id="tt0000001") == []
+
+
+def test_gather_ratings_swallows_provider_feature_unavailable() -> None:
+    """A raising provider does not abort the aggregation."""
+    notation = Notations(provider="ok", source="imdb", score=7.0, votes_count=10)
+    providers = [
+        _RatingProviderRaising(),
+        _RatingProviderWithName([notation]),
+    ]
+    assert gather_ratings(providers, provider_id="tt0000002") == [notation]
+
+
+def test_gather_cross_refs_returns_dict_by_provider_name() -> None:
+    """``gather_cross_refs`` indexes per provider name and skips non-capable entries."""
+    providers = [
+        _IDCrossRefWithName({"tmdb": "1", "imdb": "tt001"}),
+        _BareProvider(),
+        _RatingProviderWithName(None),
+    ]
+    result = gather_cross_refs(providers, canonical_id="121361")
+    assert result == {"tvdb": {"tmdb": "1", "imdb": "tt001"}}
+
+
+def test_gather_cross_refs_skips_empty_dicts_and_unavailable() -> None:
+    """Providers returning an empty dict or raising are silently skipped."""
+
+    class _EmptyCrossRef:
+        provider_name = "empty"
+
+        def get_cross_refs(self, provider_id: str) -> dict[str, str]:
+            return {}
+
+    providers = [
+        _EmptyCrossRef(),
+        _IDCrossRefRaising(),
+        _IDCrossRefWithName({"tmdb": "42"}),
+    ]
+    result = gather_cross_refs(providers, canonical_id="999")
+    assert result == {"tvdb": {"tmdb": "42"}}
+
+
+def test_provider_feature_unavailable_carries_provider_and_feature() -> None:
+    """``ProviderFeatureUnavailable`` exposes ``provider`` + ``feature`` + ``reason``.
+
+    The string form embeds all three so logs are self-contained.
+    """
+    exc = ProviderFeatureUnavailable("omdb", "get_rating", "no rt entry")
+    assert exc.provider == "omdb"
+    assert exc.feature == "get_rating"
+    assert exc.reason == "no rt entry"
+    assert "omdb" in str(exc)
+    assert "get_rating" in str(exc)
+    assert "no rt entry" in str(exc)
 
 
 def test_notify_protocols_are_re_exported_from_base() -> None:
