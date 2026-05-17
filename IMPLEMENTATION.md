@@ -45,7 +45,7 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 | --- | ------------------------------------------------------------- | ------------------------------------- | ------ |
 | 1   | Capabilities Protocols (api/\_contracts.py + per-domain)      | phase-01-capabilities-protocols.md    | [x]    |
 | 2   | Fix DEV #2 — IDs propagation (regression tests first)         | phase-02-fix-dev2-ids-propagation.md  | [x]    |
-| 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [ ]    |
+| 3   | Façades IMDb + RottenTomatoes (sur OMDbAdapter)               | phase-03-imdb-rt-facades.md           | [x]    |
 | 4   | Drift validator renforcé (canonical uniqueid required)        | phase-04-drift-validator-hardening.md | [ ]    |
 | 5   | Xref enrichment sequential + \_resolve_external_ids           | phase-05-xref-enrichment.md           | [ ]    |
 | 6   | NFO ratings multi-source + uniqueid default canonical         | phase-06-nfo-ratings-multisource.md   | [ ]    |
@@ -86,12 +86,14 @@ Statut : **contre-analyse appliquée et complète** (corrections inline dans pha
 
 ### Phase 3 — IMDb + RT Façades
 
-| Sub | Scope                                             | SHA | Status |
-| --- | ------------------------------------------------- | --- | ------ |
-| 3.1 | OMDbAdapter refactor (mark internal)              | -   | [ ]    |
-| 3.2 | IMDbClient façade                                 | -   | [ ]    |
-| 3.3 | RottenTomatoesClient façade                       | -   | [ ]    |
-| 3.4 | `_activation.py` wiring + `metadata.json5` update | -   | [ ]    |
+| Sub  | Scope                                                  | SHA     | Status |
+| ---- | ------------------------------------------------------ | ------- | ------ |
+| 3.1  | OMDbAdapter refactor (mark internal, alias OMDBClient) | 0c72d81 | [x]    |
+| 3.2  | IMDbClient façade                                      | 00fd673 | [x]    |
+| 3.3  | RottenTomatoesClient façade                            | 7be760c | [x]    |
+| 3.4  | `_activation.py` wiring (PROVIDER_CREDS)               | dc8f876 | [x]    |
+| 3.4b | `api/metadata/__init__.py` exports                     | c7a0f57 | [x]    |
+| 3.5  | `config.example/metadata.json5` documents IMDb+RT      | 00cd61f | [x]    |
 
 ### Phase 4 — Drift Validator Hardening
 
