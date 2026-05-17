@@ -38,6 +38,13 @@ from personalscraper.api.metadata._contracts import (
     TvDetailsProvider,
     VideoProvider,
 )
+from personalscraper.api.tracker._base import TrackerResult
+from personalscraper.api.tracker._contracts import (
+    CategoryListable,
+    FreeleechAware,
+    TorrentDetailsProvider,
+    TorrentSearchable,
+)
 
 # -- Sub-phase 1.1 — HasName --------------------------------------------------
 
@@ -196,5 +203,59 @@ def test_metadata_capability_protocols_runtime_checkable(
     1. A stub that exposes only the protocol's method passes the isinstance check.
     2. A class with no methods at all fails the same check.
     """
+    assert isinstance(stub_cls(), protocol)
+    assert not isinstance(_BareProvider(), protocol)
+
+
+# -- Sub-phase 1.3 — Tracker capability stubs ---------------------------------
+
+
+class _TorrentSearchableStub:
+    """Stub exposing only ``search`` for trackers."""
+
+    def search(
+        self,
+        query: str,
+        media_type: MediaType = MediaType.MOVIE,
+        year: int | None = None,
+    ) -> list[TrackerResult]:
+        return []
+
+
+class _CategoryListableStub:
+    """Stub exposing only ``get_categories``."""
+
+    def get_categories(self) -> dict[str, str]:
+        return {}
+
+
+class _FreeleechAwareStub:
+    """Stub exposing only ``is_freeleech``."""
+
+    def is_freeleech(self, torrent_id: str) -> bool:
+        return False
+
+
+class _TorrentDetailsProviderStub:
+    """Stub exposing only ``get_details`` for trackers."""
+
+    def get_details(self, torrent_id: str) -> TrackerResult:
+        raise NotImplementedError
+
+
+@pytest.mark.parametrize(
+    "protocol, stub_cls",
+    [
+        (TorrentSearchable, _TorrentSearchableStub),
+        (CategoryListable, _CategoryListableStub),
+        (FreeleechAware, _FreeleechAwareStub),
+        (TorrentDetailsProvider, _TorrentDetailsProviderStub),
+    ],
+)
+def test_tracker_capability_protocols_runtime_checkable(
+    protocol: type,
+    stub_cls: type,
+) -> None:
+    """Each tracker capability accepts its stub and rejects an empty object."""
     assert isinstance(stub_cls(), protocol)
     assert not isinstance(_BareProvider(), protocol)
