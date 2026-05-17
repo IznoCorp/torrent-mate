@@ -91,6 +91,64 @@ def _infer_year_from_child_names(show_dir: Path, title: str) -> int | None:
     return None
 
 
+def _read_canonical_provider(tvshow_nfo_root: ET.Element) -> str | None:
+    """Return the canonical provider family declared on a parsed ``tvshow.nfo``.
+
+    The canonical family is the ``type`` attribute of the
+    ``<uniqueid default="true">`` element. When no default is set,
+    falls back to the first ``<uniqueid>`` element's ``type`` (legacy
+    NFOs from before the ``provider-ids`` feature did not always mark
+    a default).
+
+    Args:
+        tvshow_nfo_root: Parsed root element of ``tvshow.nfo``.
+
+    Returns:
+        Provider name (``"tvdb"`` / ``"tmdb"`` / …) or ``None`` when
+        the NFO has no ``<uniqueid>`` at all.
+    """
+    default_unique = next(
+        (u for u in tvshow_nfo_root.findall("uniqueid") if u.get("default") == "true"),
+        None,
+    )
+    if default_unique is not None:
+        kind = (default_unique.get("type") or "").strip()
+        return kind or None
+    first = tvshow_nfo_root.find("uniqueid")
+    if first is not None:
+        kind = (first.get("type") or "").strip()
+        return kind or None
+    return None
+
+
+def _episode_nfo_has_canonical_uniqueid(nfo_path: Path, canonical_family: str) -> bool:
+    """Check whether an episode NFO carries a non-empty canonical ``<uniqueid>``.
+
+    Returns ``True`` only when the NFO parses, contains at least one
+    ``<uniqueid type=canonical_family>`` tag (case-insensitive match),
+    and the tag's text is non-empty after stripping.
+
+    Args:
+        nfo_path: Path to the sibling ``.nfo`` file.
+        canonical_family: Family that the show's ``tvshow.nfo``
+            declared canonical (``"tvdb"`` / ``"tmdb"``).
+
+    Returns:
+        ``True`` iff the canonical uniqueid is present and populated.
+    """
+    try:
+        root = ET.parse(nfo_path).getroot()  # noqa: S314 — trusted NFO we just wrote
+    except (ET.ParseError, OSError):
+        return False
+    expected = canonical_family.lower()
+    for unique in root.findall("uniqueid"):
+        kind = (unique.get("type") or "").strip().lower()
+        text = (unique.text or "").strip()
+        if kind == expected and text:
+            return True
+    return False
+
+
 def verify_tvshow_scrape_drift(
     show_dir: Path,
     nfo_path: Path,
@@ -142,6 +200,9 @@ def verify_tvshow_scrape_drift(
     has_uniqueid = any((u.text or "").strip() for u in root.findall("uniqueid"))
     if not has_uniqueid:
         return False, "nfo_missing_uniqueid"
+    canonical_family = _read_canonical_provider(root)
+    if canonical_family is None:
+        return False, "nfo_missing_canonical_uniqueid"
     trailing_year_pattern = f" ({nfo_year})"
     if nfo_title.endswith(trailing_year_pattern):
         return False, "nfo_title_contains_year"
@@ -182,8 +243,18 @@ def verify_tvshow_scrape_drift(
             # rescrape-drift loop on every dry-run.  A subsequent real
             # scrape will pick up the new TMDB data and rename the file.
             sibling_nfo = ep_file.with_suffix(".nfo")
-            if not sibling_nfo.exists() and not _EPISODE_FALLBACK_RE.match(ep_file.name):
-                return False, f"episode_nfo_missing:{sibling_nfo.name}"
+            is_fallback = bool(_EPISODE_FALLBACK_RE.match(ep_file.name))
+            if not sibling_nfo.exists():
+                if not is_fallback:
+                    return False, f"episode_nfo_missing:{sibling_nfo.name}"
+                continue
+            # Drift hardening (provider-ids feature, phase 4) : the sibling
+            # NFO must carry the canonical ``<uniqueid type=...>`` matching
+            # the show's ``tvshow.nfo`` default. Without this, layer-5
+            # drift (NFOs without ``<uniqueid>``) would slip through and
+            # ``scrape_fast_skip`` would perpetuate the broken state.
+            if not _episode_nfo_has_canonical_uniqueid(sibling_nfo, canonical_family):
+                return False, f"episode_nfo_missing_canonical_uniqueid:{sibling_nfo.name}"
 
     return True, "ok"
 
