@@ -40,6 +40,9 @@ from personalscraper.api.metadata._contracts import (
     TvDetailsProvider,
     VideoProvider,
 )
+from personalscraper.api.notify._base import HealthChecker as HealthCheckerBaseReexport
+from personalscraper.api.notify._base import Notifier as NotifierBaseReexport
+from personalscraper.api.notify._contracts import HealthChecker, Notifier
 from personalscraper.api.torrent._base import TorrentItem
 from personalscraper.api.torrent._contracts import (
     AuthenticatedClient,
@@ -55,6 +58,7 @@ from personalscraper.api.tracker._contracts import (
     TorrentDetailsProvider,
     TorrentSearchable,
 )
+from personalscraper.models import PipelineReport  # for _NotifierStub.send_report typing
 
 # -- Sub-phase 1.1 — HasName --------------------------------------------------
 
@@ -364,3 +368,63 @@ def test_torrent_capability_protocols_runtime_checkable(
     """Each torrent capability accepts its stub and rejects an empty object."""
     assert isinstance(stub_cls(), protocol)
     assert not isinstance(_BareProvider(), protocol)
+
+
+# -- Sub-phase 1.5 — Notify capability stubs ----------------------------------
+
+
+class _NotifierStub:
+    """Stub satisfying the ``Notifier`` protocol."""
+
+    provider_name = "stub-notifier"
+    REQUIRED_CREDS: list[str] = []
+
+    def send(self, message: str, parse_mode: str = "HTML") -> bool:
+        return True
+
+    def send_report(self, report: PipelineReport) -> bool:
+        return True
+
+
+class _HealthCheckerStub:
+    """Stub satisfying the ``HealthChecker`` protocol."""
+
+    provider_name = "stub-healthcheck"
+    REQUIRED_CREDS: list[str] = []
+
+    def ping_start(self) -> None:
+        return None
+
+    def ping_success(self) -> None:
+        return None
+
+    def ping_fail(self) -> None:
+        return None
+
+
+@pytest.mark.parametrize(
+    "protocol, stub_cls",
+    [
+        (Notifier, _NotifierStub),
+        (HealthChecker, _HealthCheckerStub),
+    ],
+)
+def test_notify_capability_protocols_runtime_checkable(
+    protocol: type,
+    stub_cls: type,
+) -> None:
+    """Each notify capability accepts its stub and rejects an empty object."""
+    assert isinstance(stub_cls(), protocol)
+    assert not isinstance(_BareProvider(), protocol)
+
+
+def test_notify_protocols_are_re_exported_from_base() -> None:
+    """``api.notify._base`` re-exports the canonical Protocols from ``_contracts``.
+
+    Sub-phase 1.5 moves the definitions but preserves the legacy import
+    path. ``Notifier`` imported from ``_base`` must be the same object as
+    ``Notifier`` imported from ``_contracts`` — likewise for
+    ``HealthChecker``.
+    """
+    assert NotifierBaseReexport is Notifier
+    assert HealthCheckerBaseReexport is HealthChecker
