@@ -173,6 +173,34 @@ def test_verify_drift_accepts_episode_nfo_with_full_uniqueids(tmp_path: Path) ->
 # ---------------------------------------------------------------------------
 
 
+def test_drift_triggers_rescrape_when_episode_nfo_lacks_canonical_uniqueid(
+    tmp_path: Path,
+) -> None:
+    """End-to-end : a NFO-without-uniqueid fixture exits the fast-skip path.
+
+    Replicates the DEV #2 scenario : a previously-scraped show whose
+    episode NFOs were written before the phase-2 fix lacks ``<uniqueid>``
+    tags. ``verify_tvshow_scrape_drift`` must catch this and return a
+    failure reason starting with ``episode_nfo_missing_canonical_uniqueid``
+    — the upstream caller uses this signal to delete the NFO and trigger
+    a full re-scrape (versus the legacy behaviour which would have
+    fast-skipped the broken state forever).
+    """
+    show_dir, tvshow_nfo = _build_show_dir(
+        tmp_path,
+        canonical_family="tvdb",
+        canonical_id="12345",
+        episode_uniqueids=[],
+    )
+    valid, reason = verify_tvshow_scrape_drift(show_dir, tvshow_nfo, _patterns())
+
+    assert valid is False
+    assert reason.startswith("episode_nfo_missing_canonical_uniqueid")
+    # The reason includes the NFO file name so the upstream caller can
+    # log it / decide what to delete.
+    assert reason.endswith("S01E01 - Pilot.nfo")
+
+
 def test_verify_drift_rejects_tvdb_episode_uniqueid_on_tmdb_canonical_show(tmp_path: Path) -> None:
     """TMDB-canonical show + episode NFO carrying only TVDB → drift fail.
 
