@@ -23,11 +23,11 @@ Adapter les writes — déjà partiellement fait en phase 7.5, finaliser tous le
 
 Commit : `refactor(provider-ids): library/scanner writes via external_ids_json + ratings_json`
 
-### 10.3 — Supprimer `OverrideRule.imdb_id` + migrer config réelle
+### 10.3 — Supprimer `OverrideRule.imdb_id` + nettoyer les FieldSpecs
 
-`personalscraper/conf/models/preferences.py:76-95` : supprime le champ `imdb_id: str | None`. Adapte tous les usages (`indexer/query.py:113,302,557` qui exposait `imdb_id` comme FieldSpec).
+`personalscraper/conf/models/preferences.py:76-95` : supprime le champ `imdb_id: str | None`. Le champ est défini mais **non utilisé** dans le reste du codebase (aucun import de `OverrideRule` hors `conf/models/`). Adapte `indexer/query.py:113,302,557` qui référence `imdb_id` comme FieldSpec.
 
-**Migration config réelle** (memory `feedback_no_backcompat_before_v1`) : adapte `config/api.json5` réel de cette instance dans le même commit. Si des `OverrideRule` y existaient avec `imdb_id`, les convertir en entries `external_ids_json` directement dans la DB (one-shot script) ou en supprimant simplement (si non utilisés).
+**Aucun fichier `config/api.json5`** n'existe — pas de migration de config réelle nécessaire pour cette suppression. Si des overrides utilisateur existent dans `config/preferences.json5`, ils sont convertis en entries `external_ids_json` directement dans la DB.
 
 Commit : `refactor(provider-ids): remove OverrideRule.imdb_id (pre-1.0 no retro-compat)`
 
@@ -40,9 +40,9 @@ Commit : `refactor(provider-ids): trailers reads imdb_id via external_ids_json`
 
 ### 10.5 — Update `config.example/`
 
-`config.example/api.json5` (ou équivalent qui contient `OverrideRule`) : exemple sans `imdb_id`, avec note expliquant que les overrides passent par `external_ids_json` directement.
+`config.example/preferences.json5` (si le champ `imdb_id` y apparaît dans un exemple) : retirer la référence à `imdb_id`, avec note expliquant que les overrides passent par `external_ids_json` directement. Si `preferences.json5` n'a pas d'exemple `OverrideRule`, cette sub-phase est no-op.
 
-Commit : `docs(provider-ids): config.example api.json5 without OverrideRule.imdb_id`
+Commit : `docs(provider-ids): config.example without OverrideRule.imdb_id`
 
 ## Tests to write
 
@@ -66,7 +66,7 @@ Commit : `docs(provider-ids): config.example api.json5 without OverrideRule.imdb
 
 **OBLIGATOIRE** :
 
-- `config/api.json5` réel : supprime les `OverrideRule.imdb_id` (si présents).
+- `config/preferences.json5` réel (si `OverrideRule` y existe) : supprime les entrées `imdb_id`.
 - `.data/library.db` réelle : pas de change additionnel (déjà fait en phase 7).
 
 ## DESIGN reference

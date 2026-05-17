@@ -44,6 +44,18 @@ Commit : `feat(provider-ids): add RottenTomatoesClient facade over OMDbAdapter`
 
 Commit : `feat(provider-ids): wire IMDb and RT facades in _activation`
 
+### 3.4b — `api/metadata/__init__.py` exports
+
+Ajouter les exports publics pour `IMDbClient`, `RottenTomatoesClient` (et `OMDbAdapter` si pas déjà exporté) dans `personalscraper/api/metadata/__init__.py`. Le fichier est actuellement vide (1 ligne) — ajouter les imports explicites.
+
+Commit : `feat(provider-ids): export IMDb and RT facades from api.metadata`
+
+### 3.5 — Update `config.example/metadata.json5`
+
+Ajouter une section documentant `imdb` et `rotten_tomatoes` comme providers info-only (pas de scrape canonical). Spécifier que ces providers dépendent de la clé API `OMDB_API_KEY` dans `.env`. Pas de nouvelle clé de config requise — OMDb est déjà documenté.
+
+Commit : `docs(provider-ids): document IMDb and RT in config.example/metadata.json5`
+
 ## Tests to write
 
 - `test_omdb_adapter_internal_only` (vérifie pas d'imports OMDb hors api/metadata/)
@@ -68,7 +80,9 @@ Commit : `feat(provider-ids): wire IMDb and RT facades in _activation`
 
 ## Migration / config touch
 
-Vérifier `config.example/metadata.json5` (et la config réelle de l'instance) : si `omdb` était listé comme provider direct, l'usage migre vers les façades. Le wiring `_activation.py` reste rétrocompatible côté config — pas de nouvelle clé requise.
+- `config.example/metadata.json5` : ajout section IMDb/RT (sub-phase 3.5).
+- `config/metadata.json5` réel : pas de change requis (OMDb déjà configuré ou absent selon `OMDB_API_KEY` dans `.env`).
+- `api/metadata/__init__.py` : exports publics ajoutés (sub-phase 3.4b).
 
 ## DESIGN reference
 

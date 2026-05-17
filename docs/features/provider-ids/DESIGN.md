@@ -10,15 +10,15 @@
 
 Le pipeline scrape TV n'écrit aucun `<uniqueid>` sur les NFOs épisode pour la majorité des shows. Diagnostiqué pendant le run pipeline-monitor 2026-05-17-09h24 — 6 shows en staging (Dexter New Blood, American Dad!, Top Chef, Stranger Things Tales from '85, LOL Qui rit sort !, The Boys) ont des sibling NFOs sans `<uniqueid>`. FROM (2022), généré par un code path historique différent, est le seul à porter `<uniqueid type="tvdb">` + `<uniqueid type="imdb">` correctement.
 
-**Root cause tracée (4 layers, refs à HEAD `8ef2c87`)** :
+**Root cause tracée (5 layers, validée post-api-unify HEAD `323c1b4`)** :
 
-| Layer                | File:Line                                                                        | Défaut                                                                                                   |
-| -------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Provider fetcher     | `personalscraper/scraper/tv_service.py:972-998` (`_tvdb_fetch`, `_tmdb_fetch`)   | Payload épisode réduit à `{"title", "still_path"}` — IDs jetés au fetch                                  |
-| Episode matcher      | `personalscraper/scraper/episode_manager.py:164,188,228` (`match_episode_files`) | Ne propage que `season`, `episode`, `api_title`, `still_path`, `fallback`                                |
-| NFO generator caller | `personalscraper/scraper/tv_service.py:1161-1173` (`_generate_episode_nfos`)     | Hardcode `"id": "", "tvdb_id": ""` dans `episode_data`                                                   |
-| NFO renderer         | `personalscraper/scraper/nfo_generator.py:413-427` (`generate_episode_nfo`)      | Omet correctement `<uniqueid>` quand vide — seule couche conforme au design                              |
-| Drift validator      | `personalscraper/scraper/existing_validator.py:184-186` (check #4)               | Ne valide que l'existence du sibling NFO, pas son contenu → drift passe → `scrape_fast_skip` se perpétue |
+| Layer                | File:Line                                                                                          | Défaut                                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Provider fetcher     | `personalscraper/scraper/tv_service.py:742-772` (`_build_episode_map`)                             | Payload épisode réduit à `{"title", "still_path"}` — IDs jetés au fetch                                  |
+| Episode matcher      | `personalscraper/scraper/episode_manager.py:153-158,177-183,202-208` (`match_episode_files`)       | Ne propage que `season`, `episode`, `api_title`, `still_path`, `fallback`                                |
+| NFO generator caller | `personalscraper/scraper/tv_service.py:874-887` (`_generate_episode_nfos`)                         | Hardcode `"id": "", "tvdb_id": ""` dans `episode_data`                                                   |
+| NFO renderer         | `personalscraper/scraper/nfo_generator.py:401-419` (`generate_episode_nfo`)                        | Omet correctement `<uniqueid>` quand vide — seule couche conforme au design, mais reçoit des `""`        |
+| Drift validator      | `personalscraper/scraper/existing_validator.py:184-186` (check #4 de `verify_tvshow_scrape_drift`) | Ne valide que l'existence du sibling NFO, pas son contenu → drift passe → `scrape_fast_skip` se perpétue |
 
 Le défaut est **structurel** (data jetée à la source), pas local. Fix superficiel impossible.
 
@@ -100,7 +100,7 @@ Trois familles d'identifiants stockées **séparément** : **TVDB**, **TMDB**, *
 │                         AuthenticatedClient                   │
 │      qbittorrent.py / transmission.py — composent            │
 │  ─ notify/                                                    │
-│      _contracts.py   — Notifier, HealthBeacon                │
+│      _contracts.py   — Notifier, HealthChecker (migrés de _base) │
 │      telegram.py / healthchecks.py — composent               │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -140,7 +140,21 @@ class IDCrossRef(Protocol):
     def get_cross_refs(self, provider_id: str) -> dict[str, str]:
         """Returns {'tmdb': 'M', 'imdb': 'ttN', ...}"""
         ...
+
+class ArtworkProvider(Protocol):
+    def get_artwork_urls(self, media_id: str, media_type: MediaType) -> list[ArtworkItem]: ...
+
+class KeywordProvider(Protocol):
+    def get_keywords(self, media_id: str, media_type: MediaType) -> list[str]: ...
+
+class VideoProvider(Protocol):
+    def get_videos(self, media_id: str, media_type: MediaType, language: str) -> list[Video]: ...
+
+class RecommendationProvider(Protocol):
+    def get_recommendations(self, media_id: str, media_type: MediaType) -> list[Recommendation]: ...
 ```
+
+Les 11 capabilities couvrent les 9 méthodes du `MetadataProvider` monolithique existant + 2 nouvelles (IDValidator, IDCrossRef).
 
 **Tracker** :
 
@@ -173,23 +187,27 @@ class AuthenticatedClient(Protocol):
     def login(self) -> None: ...
 ```
 
-**Notify** :
+**Notify** (Protocols **déjà existants** dans `api/notify/_base.py:17,35` — la feature les migre vers `_contracts.py` avec `@runtime_checkable`, **sans rename ni changement de signature**) :
 
 ```python
 class Notifier(Protocol):
-    def notify(self, message: str, level: str = "info") -> None: ...
+    def send(self, message: str, parse_mode: str = "HTML") -> bool: ...
+    def send_report(self, report: PipelineReport) -> bool: ...
 
-class HealthBeacon(Protocol):
+class HealthChecker(Protocol):
+    def ping_start(self) -> None: ...
     def ping_success(self) -> None: ...
-    def ping_failure(self, message: str) -> None: ...
+    def ping_fail(self) -> None: ...
 ```
 
 ### Composition par client
 
 ```python
-class TVDbClient(Searchable, TvDetailsProvider, EpisodeFetcher, IDValidator, IDCrossRef): ...
+class TVDbClient(Searchable, TvDetailsProvider, EpisodeFetcher, IDValidator,
+                 IDCrossRef, ArtworkProvider): ...
 class TMDbClient(Searchable, MovieDetailsProvider, TvDetailsProvider,
-                 EpisodeFetcher, IDValidator, IDCrossRef): ...
+                 EpisodeFetcher, IDValidator, IDCrossRef,
+                 ArtworkProvider, KeywordProvider, VideoProvider, RecommendationProvider): ...
 class IMDbClient(IDValidator, RatingProvider, IDCrossRef): ...  # via OMDb
 class RottenTomatoesClient(RatingProvider): ...                  # via OMDb
 class OMDbAdapter: ...                                            # backend interne
@@ -200,17 +218,28 @@ class C411Client(TorrentSearchable, CategoryListable): ...
 class QBitClient(TorrentLister, TorrentInspector, AuthenticatedClient): ...
 class TransmissionClient(TorrentLister, TorrentInspector): ...
 
-class TelegramClient(Notifier): ...
-class HealthcheckClient(HealthBeacon): ...
+class TelegramNotifier(Notifier): ...       # nom réel: TelegramNotifier (telegram.py:49)
+class HealthcheckClient(HealthChecker): ...  # nom Protocol réel: HealthChecker (pas HealthBeacon)
 ```
 
 ### Helpers consommateurs
 
 ```python
 # api/_helpers.py (nouveau, optionnel)
-def gather_ratings(providers: list[Any], provider_id: str) -> list[Notation]:
-    return [r for p in providers if isinstance(p, RatingProvider)
-            if (r := p.get_rating(provider_id)) is not None]
+def gather_ratings(providers: list[Any], provider_id: str) -> list[Notations]:
+    """Collect ratings from all RatingProvider-capable providers.
+
+    Returns the raw ``Notations`` dataclass instances (existing type from
+    ``api.metadata._base``). The scraper layer normalizes them into the
+    internal ``Notation`` format for NFO generation.
+    """
+    results: list[Notations] = []
+    for p in providers:
+        if isinstance(p, RatingProvider):
+            ratings = p.get_rating(provider_id)
+            if ratings:
+                results.extend(ratings)
+    return results
 
 def gather_cross_refs(providers: list[Any], canonical_id: str) -> dict[str, dict[str, str]]:
     return {p.provider_name: p.get_cross_refs(canonical_id)
@@ -218,6 +247,8 @@ def gather_cross_refs(providers: list[Any], canonical_id: str) -> dict[str, dict
 ```
 
 **Cas exception typée** : `ProviderFeatureUnavailable(provider, feature, reason)` levée par un client _qui déclare_ une capability mais où une donnée précise est absente structurellement (ex : OMDb retourne un payload sans entrée Rotten Tomatoes pour ce film). Le caller catch et continue. Pour la simple absence de donnée (RT rating null), `return None` suffit.
+
+**Note — `Notation` vs `Notations`** : Le codebase existant a une dataclass `Notations` (pluriel) dans `api/metadata/_base.py:149` utilisée pour la désérialisation des réponses API (champs : `provider`, `source`, `score`, `votes_count`). Cette feature introduit `Notation` (singulier) comme type **interne** pour le flux NFO/generator (champs : `source`, `value`). La conversion `Notations → Notation` se fait dans le scraper (normalisation du format avant passage au NFO generator). Les deux types coexistent : `Notations` reste dans `api/metadata/_base.py` (API layer), `Notation` est défini dans `scraper/` ou `api/_helpers.py` (business layer).
 
 ## 5. Data flow (nominal + fallback)
 
@@ -301,41 +332,41 @@ def gather_cross_refs(providers: list[Any], canonical_id: str) -> dict[str, dict
 
 ### 6.1 Nouveaux modules `api/`
 
-- `personalscraper/api/_contracts.py` : capabilities globales (HasName).
+- `personalscraper/api/_contracts.py` : **modifié** — ajout de `HasName` (Protocol). Le fichier existe déjà (post-api-unify) avec `MediaType`, `ProviderName`, `AuthMode`, `ApiError`, `CircuitOpenError`. On ajoute `HasName` sans toucher au contenu existant.
 - `personalscraper/api/_helpers.py` : helpers `gather_*` (optionnel).
-- `personalscraper/api/metadata/_contracts.py` : capabilities metadata.
+- `personalscraper/api/metadata/_contracts.py` : capabilities atomiques (7 Protocols). **Remplacement** du `MetadataProvider` Protocol monolithique existant (`api/metadata/_base.py:259`) par des capabilities composables. Le `MetadataClient` base class existant reste mais ses méthodes NotImplementedError sont conservées pour la rétrocompatibilité transitoire.
 - `personalscraper/api/metadata/imdb.py` : `IMDbClient(IDValidator, RatingProvider, IDCrossRef)`. Wraps `OMDbAdapter`. Méthodes : `validate_id`, `get_by_id`, `get_rating`, `get_cross_refs`.
 - `personalscraper/api/metadata/rotten_tomatoes.py` : `RottenTomatoesClient(RatingProvider)`. Wraps `OMDbAdapter`. Méthodes : `get_rating`. Documente la limitation (pas d'ID RT distinct via OMDb).
 - `personalscraper/api/tracker/_contracts.py` : capabilities tracker.
 - `personalscraper/api/torrent/_contracts.py` : capabilities torrent.
-- `personalscraper/api/notify/_contracts.py` : capabilities notify.
+- `personalscraper/api/notify/_contracts.py` : capabilities notify. **Pas de création** — `api/notify/_base.py:17,35` contient déjà `Notifier(Protocol)` et `HealthChecker(Protocol)`. La sub-phase 1.5 les **migre** vers `_contracts.py` (git mv code + re-export depuis `_base.py` pour compat des imports existants), ajoute `@runtime_checkable`. Noms et signatures inchangés.
 
 ### 6.2 Modules `api/` refactorés
 
-- `api/metadata/omdb.py` : devient strict `OMDbAdapter` (backend HTTP partagé). Plus consommé hors façades.
-- `api/metadata/tvdb.py` : `TVDbClient` déclare maintenant 5 Protocols. Méthode `get_cross_refs(series_id)` extrait `remote_ids` du `get_series_details`.
+- `api/metadata/omdb.py` : devient strict `OMDbAdapter` (backend HTTP partagé). Plus consommé hors façades. Le module existant est déjà un client HTTP standalone — on le renomme/clarifie.
+- `api/metadata/_base.py` : le `MetadataProvider` Protocol monolithique (9 méthodes, l. 259-324) est **décomposé** en capabilities atomiques dans `_contracts.py`. Le `MetadataClient` base class et les dataclasses (`SearchResult`, `MediaDetails`, `Notations`, `EpisodeInfo`, `SeasonDetails`, etc.) restent dans `_base.py`.
+- `api/metadata/tvdb.py` : `TVDbClient` déclare maintenant 5 Protocols (via les nouvelles capabilities). Méthode `get_cross_refs(series_id)` extrait `remote_ids` du `get_series_details`.
 - `api/metadata/tmdb.py` : `TMDbClient` déclare 6 Protocols. `get_cross_refs(series_id)` extrait `external_ids` (`imdb_id`, `tvdb_id`).
-- `api/tracker/_base.py` : supprime `TrackerClient` Protocol monolithique. Reste les dataclasses (`TorrentResult`, etc.).
-- `api/tracker/lacale.py` / `c411.py` : déclarent les capabilities qu'ils supportent.
-- `api/tracker/_registry.py.TrackerRegistry` : étendu pour `priority_by_media_type` (voir §6.7).
-- `api/torrent/_base.py` : supprime `TorrentClient` Protocol monolithique.
+- `api/tracker/_base.py` : supprime `TrackerClient` Protocol monolithique (l. 102-129). Garde les dataclasses (`TrackerResult`, etc.) et `wrap_parser_drift`.
+- `api/tracker/lacale.py` / `c411.py` : déclarent les capabilities qu'ils supportent (actuellement classes Python simples sans héritage de Protocol).
+- `api/tracker/_registry.py.TrackerRegistry` : étendu pour `priority_by_media_type` (voir §6.7). Le `TrackerRegistry` existant (90 LOC) est typé avec `TorrentSearchable` au lieu de `TrackerClient`.
+- `api/torrent/_base.py` : supprime `TorrentClient` Protocol monolithique (l. 42-67). Garde `TorrentItem` dataclass.
 - `api/torrent/qbittorrent.py` / `transmission.py` : déclarent les capabilities.
-- `api/notify/_base.py` : supprime Protocol monolithique si existe.
-- `api/notify/telegram.py` / `healthchecks.py` : déclarent les capabilities.
+- `api/notify/_base.py` : contient déjà `Notifier(Protocol)` et `HealthChecker(Protocol)` (lignes 17 et 35). **Pas de suppression** — migration vers `_contracts.py` + re-export pour rétrocompat des imports existants. Aucun rename, aucune nouvelle méthode.
+- `api/notify/telegram.py:49` (`TelegramNotifier`) et `api/notify/healthchecks.py:46` (`HealthcheckClient`) : déclarent explicitement les Protocols qu'ils implémentaient déjà en duck-type.
 
 ### 6.3 Modules `scraper/` refactorés
 
 - `scraper/tv_service.py` :
-  - `_tvdb_fetch` (l. 972-984) : payload épisode étendu avec `tvdb_episode_id` et `imdb_episode_id` (depuis `remote_ids` TVDB épisode).
-  - `_tmdb_fetch` (l. 986-998) : payload étendu avec `tmdb_episode_id` et `imdb_episode_id` (depuis TMDb `external_ids` épisode).
+  - `_build_episode_map` (l. 742-772) : payload épisode étendu avec `tvdb_episode_id` et `imdb_episode_id` (depuis `remote_ids` TVDB épisode) pour le fetch TVDB, et `tmdb_episode_id` + `imdb_episode_id` (depuis TMDb `external_ids` épisode) pour le fetch TMDb.
   - **Nouvelle méthode** `_xref_enrichment(api_episodes, canonical_provider, series_ids, season_nums)` : sequential post-canonical, fetch xref opposite provider, json_set if not exists dans le matched dict.
   - **Nouvelle méthode** `_resolve_external_ids(canonical_provider, series_ids)` : appelle TVDb / TMDb / IMDb / RT pour validation + récup ratings série. Retourne `(external_ids_dict, ratings_dict)`.
-  - `_generate_episode_nfos` (l. 1161-1173) : remplace les `""` hardcoded par les IDs propagés depuis `info`.
+  - `_generate_episode_nfos` (l. 818-905) : remplace les `"id": "", "tvdb_id": ""` hardcodés (l. 874-887) par les IDs propagés depuis `info`.
 - `scraper/movie_service.py` : symétrique (résolution multi-provider + ratings pour films).
-- `scraper/episode_manager.py.match_episode_files` (l. 164, 188, 228) : passthrough des `*_episode_id` keys du dict source vers le matched dict.
+- `scraper/episode_manager.py.match_episode_files` (l. 153-158, 177-183, 202-208) : passthrough des `*_episode_id` keys du dict source vers le matched dict.
 - `scraper/existing_validator.py.verify_tvshow_scrape_drift` check #4 (l. 184-186) : parse chaque sibling NFO, exige au moins un `<uniqueid>` non-vide de la famille canonique (lue dans `tvshow.nfo`). Retourne `(False, "episode_nfo_missing_canonical_uniqueid")` si violation.
 - `scraper/nfo_generator.py` :
-  - `generate_episode_nfo` (l. 389-470) : `default="true"` selon canonical (Q6=A), lit les IDs propagés.
+  - `generate_episode_nfo` (l. 389-479) : `default="true"` selon canonical (Q6=A), lit les IDs propagés. La logique uniqueid existante (l. 401-419) est déjà bien structurée — elle attend juste des valeurs non-vides.
   - `_add_ratings` (l. 534-554) : accepte une **liste** de `Notation` au lieu d'un seul dict — un `<rating>` enfant par source disponible. `themoviedb` garde `default="true"` (compat MediaElch existante).
 
 ### 6.4 Modules `verify/`
@@ -368,7 +399,7 @@ def gather_cross_refs(providers: list[Any], canonical_id: str) -> dict[str, dict
 
 - `library/recommender.py` (l. 44, 63, 67, 158, 241, 267, 283) : `ids: Tuple[tmdb_id, imdb_id]` lit via `external_ids_json`.
 - `library/scanner.py` : write via `external_ids_json` + `ratings_json`.
-- `conf/models/preferences.py` (l. 76-95) : **supprime** `OverrideRule.imdb_id`. Override utilisateur passe par `external_ids_json` directement (entry par item dans la DB ou via une commande dédiée plus tard si besoin). Adapte tous les consommateurs (`indexer/query.py:113,302,557`).
+- `conf/models/preferences.py` (l. 76-95) : **supprime** `OverrideRule.imdb_id` (champ défini mais non utilisé dans le reste du codebase — pas de fichier `config/api.json5`). Si des overrides utilisateur existent dans `config/preferences.json5`, ils sont migrés directement dans la DB en une entrée par item. Adapte `indexer/query.py:113,302,557` qui référence `imdb_id` comme FieldSpec.
 - `trailers/scanner.py.extract_nfo_ids` : lit `<uniqueid type="imdb">` (déjà compatible).
 - `trailers/orchestrator.py.db_item.imdb_id` : devient property qui fait `json_extract(external_ids_json, '$.imdb.series_id')`.
 
@@ -446,7 +477,7 @@ Si une famille / source manque : le `<uniqueid>` ou `<rating>` correspondant est
 
 Conformément à `feedback_no_backcompat_before_v1` (mémoire) : aucun script de migration générique. À la place, à chaque phase du plan qui touche schema ou config :
 
-1. **Modification schema `library.db`** : la phase exécute la modification directement sur la BDD réelle de cette unique instance — soit par reset+rescrape (préférable si le coût de re-scrape est acceptable), soit par script SQL ad-hoc one-shot inclus dans le PR (consommé puis supprimé du tree par un commit suivant).
+1. **Modification schema `library.db`** : **Plan A (préféré) = reset+rescrape** : supprimer `library.db` et re-run `library-index --full` + `personalscraper process` sur tous les shows. **Plan B (fallback) = script SQL one-shot** : inclus dans le PR, exécuté, puis supprimé du tree par un commit suivant (utilisé seulement si le rescrape est trop coûteux). Backup obligatoire avant migration (7.2).
 2. **Modification config** : la phase met à jour `config.example/*.json5` **et** `config/*.json5` réel de cette instance dans le même commit batch.
 3. **Modification format NFO** : la phase accepte le re-scrape forcé via drift validator renforcé. Pas de coexistence ancien/nouveau format.
 
@@ -557,11 +588,15 @@ Une fois cette feature mergée :
   - `feedback_regression_test_per_bug` — test régression par bug
 - Skill matrix conformité : `.claude/skills/pipeline-monitor/references/design-conformity-matrix.md`
 - Refs lazy-loaded : `docs/reference/scraping.md`, `docs/reference/indexer-json-shapes.md`, `docs/reference/tvdb-api.md`, `docs/reference/tmdb-api.md`
-- Code refs (HEAD `8ef2c87`) :
-  - `personalscraper/scraper/tv_service.py:972-998` `_tvdb_fetch` / `_tmdb_fetch`
-  - `personalscraper/scraper/tv_service.py:1161-1173` `_generate_episode_nfos`
-  - `personalscraper/scraper/episode_manager.py:164,188,228` `match_episode_files`
-  - `personalscraper/scraper/existing_validator.py:184-186` drift check #4
+- Code refs (validé post-api-unify main `323c1b4`) :
+  - `personalscraper/scraper/tv_service.py:742-772` `_build_episode_map`
+  - `personalscraper/scraper/tv_service.py:818-905` `_generate_episode_nfos` (hardcoded `""` at 874-887)
+  - `personalscraper/scraper/episode_manager.py:97-210` `match_episode_files` (matches at 153-158, 177-183, 202-208)
+  - `personalscraper/scraper/existing_validator.py:94-186` `verify_tvshow_scrape_drift` (check #4 at 184-186)
   - `personalscraper/scraper/nfo_generator.py:389-554` `generate_episode_nfo` + `_add_ratings`
-  - `personalscraper/api/tracker/_registry.py:1-89` `TrackerRegistry.search_all`
+  - `personalscraper/api/metadata/_base.py:259-324` `MetadataProvider` Protocol (monolithique, 9 méthodes)
+  - `personalscraper/api/tracker/_base.py:102-129` `TrackerClient` Protocol (monolithique)
+  - `personalscraper/api/torrent/_base.py:42-67` `TorrentClient` Protocol (monolithique)
+  - `personalscraper/api/tracker/_registry.py:1-90` `TrackerRegistry.search_all`
+  - `personalscraper/conf/models/preferences.py:76-95` `OverrideRule.imdb_id`
   - `config.example/tracker.json5` priorité tracker

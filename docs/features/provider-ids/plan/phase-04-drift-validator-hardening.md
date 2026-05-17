@@ -2,7 +2,7 @@
 
 ## Goal
 
-Renforcer `verify_tvshow_scrape_drift` check #4 pour exiger au moins un `<uniqueid>` non-vide **de la famille canonique** sur chaque sibling NFO épisode. Aujourd'hui le check ne valide que l'existence du fichier — c'est ce qui permet à `scrape_fast_skip` de se perpétuer sur des NFOs incomplets.
+Renforcer `verify_tvshow_scrape_drift` (`existing_validator.py:94`) check #4 (l. 184-186) pour exiger au moins un `<uniqueid>` non-vide **de la famille canonique** sur chaque sibling NFO épisode. Aujourd'hui le check ne valide que l'existence du fichier — c'est ce qui permet à `scrape_fast_skip` de se perpétuer sur des NFOs incomplets.
 
 ## Gate (prerequisites)
 
@@ -34,11 +34,18 @@ Commit : `feat(provider-ids): add canonical provider reader for tvshow.nfo`
 
 Commit : `fix(provider-ids): drift check #4 requires canonical uniqueid on episode NFOs`
 
-### 4.4 — Re-runner pipeline-monitor sur les 6 shows existants
+### 4.4 — Test d'intégration drift → re-scrape sur NFOs sans uniqueid
 
-**Validation manuelle** : sur les 6 shows en staging (Dexter, AmDad, Top Chef, Stranger Things '85, LOL, The Boys), le drift renforcé doit déclencher un re-scrape au prochain `personalscraper process`. Documenter le résultat dans `docs/pipeline-runs/`.
+Test automatisé qui simule le scénario des 6 shows :
 
-Commit : aucun (validation manuelle uniquement, capturée dans le test E2E phase 15).
+- Créer un `tvshow.nfo` avec `<uniqueid type="tvdb" default="true">12345</uniqueid>` (canonical=tvdb).
+- Créer un episode NFO sibling **sans** aucun `<uniqueid>`.
+- Appeler `verify_tvshow_scrape_drift` → doit retourner `(False, "episode_nfo_missing_canonical_uniqueid")`.
+- Vérifier que le scrape flow appelle bien le re-scrape (pas de fast-skip) quand le drift check #4 fail.
+
+Test : `test_drift_triggers_rescrape_when_episode_nfo_lacks_canonical_uniqueid` (integration, RED avant fix 4.3, GREEN après).
+
+Commit : `test(provider-ids): drift check #4 triggers rescrape on missing canonical uniqueid`
 
 ## Tests to write
 
@@ -52,9 +59,9 @@ Commit : aucun (validation manuelle uniquement, capturée dans le test E2E phase
 ## Acceptance criteria
 
 - Test 4.1 (RED) passe en GREEN après fix 4.3.
-- Le drift validator catch les NFOs sans uniqueid canonique → trigger re-scrape.
+- Le drift validator catch les NFOs sans uniqueid canonique → trigger re-scrape (test 4.4 automatisé).
 - Les NFOs FROM (2022) avec uniqueid tvdb + imdb continuent de pass.
-- Les 6 shows actuellement avec NFOs sans uniqueid sont marqués pour re-scrape (validation manuelle 4.4).
+- Le test `test_drift_triggers_rescrape_when_episode_nfo_lacks_canonical_uniqueid` échoue en RED avant le fix 4.3, puis passe en GREEN après.
 
 ## Migration / config touch
 
@@ -62,4 +69,4 @@ Aucune (validation read-only).
 
 ## DESIGN reference
 
-§1 (Root cause layer 5 drift validator), §6.3 (existing_validator.py), §5 (idempotence — drift trigger re-scrape).
+§1 (Root cause layer 5 drift validator, post-api-unify), §6.3 (`existing_validator.py` avec lignes à jour), §5 (idempotence — drift trigger re-scrape).

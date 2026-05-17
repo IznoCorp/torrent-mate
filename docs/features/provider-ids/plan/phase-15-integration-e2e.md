@@ -74,10 +74,18 @@ Commit : `docs(provider-ids): acceptance criteria validation report`
 
 ### 15.6 — Update CLAUDE.md + docs/reference
 
-- `CLAUDE.md` : ajouter référence à provider-ids dans le tableau "Reference Index" (e.g. ligne pour `docs/reference/external-ids-flow.md`).
+- `CLAUDE.md` : ajouter référence à provider-ids dans le tableau "Reference Index" :
+  - `docs/reference/external-ids-flow.md` — flow data nominal + fallback + backfill
+  - `docs/reference/indexer-json-shapes.md` — mise à jour pour `external_ids_json` + `ratings_json`
 - Nouveau `docs/reference/external-ids-flow.md` (succinct) : flow data nominal + fallback + backfill + format NFO ratings.
-- Update `docs/reference/architecture.md` : section api/ avec les nouvelles capabilities.
+- Update `docs/reference/architecture.md` : section api/ avec les 11+ capabilities metadata + 4 tracker + 3 torrent + 2 notify.
 - Update `docs/reference/scraping.md` : mention de la nouvelle hiérarchie scrape + xref enrichment.
+- Update `docs/reference/indexer-json-shapes.md` : documenter les nouveaux shapes JSON :
+  - `external_ids_json` : `{"tvdb": {"series_id": ..., "episode_id": ...}, "tmdb": {...}, "imdb": {...}}`
+  - `ratings_json` : `{"entries": [{"source": "imdb", "score": "8.5/10", "votes": 50000}, ...]}`
+  - `canonical_provider` : `"tvdb"` ou `"tmdb"`
+- Update `docs/reference/logging.md` : nouveaux event names backfill :
+  - `BackfillStarted`, `BackfillItemCompleted`, `BackfillSkipped`, `BackfillCompleted` (phase 8.4)
 
 Commit : `docs(provider-ids): update CLAUDE.md and reference docs`
 

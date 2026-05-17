@@ -69,6 +69,7 @@ Commit : `feat(provider-ids): backfill events on EventBus`
 - `test_auto_trigger_post_scrape_fires_backfill_on_gap`
 - `test_auto_trigger_post_scrape_skips_when_no_gap`
 - `test_backfill_emits_events_on_event_bus`
+- `test_backfill_rate_limit_respects_circuit_breaker_across_batch` (smoke — vérifie que le backfill batch n'envoie pas plus de requêtes que le circuit breaker ne le permet)
 
 ## Acceptance criteria
 

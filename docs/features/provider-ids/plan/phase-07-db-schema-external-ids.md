@@ -4,6 +4,10 @@
 
 Refondre le schéma `library.db` table `media_item` pour adopter `external_ids_json` (unique source de vérité IDs), `ratings_json` (notes), `canonical_provider` (enum). **Drop** des colonnes legacy `tvdb_id`, `tmdb_id`, `imdb_id`. Per mémoire `feedback_no_backcompat_before_v1` : **pas de script de migration generic** — la phase modifie le schéma ET applique le changement à la BDD réelle de l'unique instance dans le même PR.
 
+**Plan A (préféré) : reset+rescrape**. La library actuelle est petite (< 100 items). Un `reset` (drop/recreate DB) suivi d'un rescrape complet est plus sûr qu'une migration SQL — pas de risque de corruption, pas de script one-shot à maintenir. Le rescrape est automatique via `personalscraper process`.
+
+**Plan B (fallback) : script SQL one-shot** — utilisé seulement si le reset+rescrape n'est pas acceptable (coût temporel ou rate-limit API). Dans ce cas, le script est commité, exécuté, puis supprimé du tree.
+
 ## Gate (prerequisites)
 
 - Phase 5 mergée (les nouveaux scrapes produisent déjà les IDs cross-ref).
@@ -23,9 +27,15 @@ Modifier le schema definition :
 
 Commit : `feat(provider-ids): schema migration external_ids_json + ratings_json + canonical_provider`
 
-### 7.2 — Script ad-hoc one-shot pour la BDD réelle
+### 7.2 — Backup de `library.db` avant migration
 
-Script SQL `scripts/migrate_provider_ids_v0_15_0.sql` (one-shot, à supprimer après usage) qui :
+Avant toute modification du schéma (que ce soit Plan A reset ou Plan B SQL) : copier `.data/library.db` vers `.data/library.db.v0.14.0.backup`. Vérifier que le backup est restaurante : `sqlite3 .data/library.db.v0.14.0.backup "SELECT COUNT(*) FROM media_item"` doit retourner le même compte que l'original.
+
+Commit : `chore(provider-ids): backup library.db before v0.15.0 schema migration`
+
+### 7.2b — (Plan B uniquement) Script ad-hoc one-shot pour la BDD réelle
+
+Si le reset+rescrape (Plan A) n'est pas retenu, script SQL `scripts/migrate_provider_ids_v0_15_0.sql` (one-shot, à supprimer après usage) qui :
 
 - Crée les 3 nouvelles colonnes.
 - COPY les valeurs existantes `tvdb_id`/`tmdb_id`/`imdb_id` vers `external_ids_json` (en construisant le JSON via SQLite `json_object`).
@@ -47,17 +57,32 @@ Commit : `refactor(provider-ids): indexer/query uses json_extract on external_id
 Nouveau `indexer/models/external_ids.py` :
 
 ```python
+from pydantic import BaseModel, Field
+
 class ExternalIds(BaseModel):
     tvdb: dict[str, str | None] = Field(default_factory=lambda: {"series_id": None, "episode_id": None})
-    tmdb: dict[str, str | None] = ...
-    imdb: dict[str, str | None] = ...
+    tmdb: dict[str, str | None] = Field(default_factory=lambda: {"series_id": None, "episode_id": None})
+    imdb: dict[str, str | None] = Field(default_factory=lambda: {"series_id": None, "episode_id": None})
+
+class RatingEntry(BaseModel):
+    """A single rating from one source — mirrors ``api.metadata.Notations`` shape."""
+    source: str  # "imdb", "rotten_tomatoes", "metacritic", "themoviedb"
+    score: str   # "8.5/10", "87%", "8.0" — stored as string (NFO format)
+    votes: int | None = None
 
 class Ratings(BaseModel):
-    imdb: str | None = None
-    rottentomatoes: str | None = None
-    metacritic: str | None = None
-    themoviedb: str | None = None
+    """Collection of ratings stored in ``ratings_json`` column."""
+    entries: list[RatingEntry] = Field(default_factory=list)
 ```
+
+Alignement avec la dataclass `Notations` existante (`api/metadata/_base.py:149`) :
+
+- `Notations.source` → `RatingEntry.source`
+- `Notations.score` (float) → `RatingEntry.score` (str, sérialisé pour NFO)
+- `Notations.votes_count` → `RatingEntry.votes`
+- `Notations.provider` n'est pas stocké dans `ratings_json` (redondant avec `canonical_provider`)
+
+Conversion `Notations → RatingEntry` : le scraper normalise le `float` en `str` formaté pour le NFO (ex: `8.5` → `"8.5/10"` pour imdb, `87.0` → `"87%"` pour rottentomatoes).
 
 Sérialisation/désérialisation utilisée par `scanner.py`, `query.py`, `recommender.py`.
 
@@ -79,12 +104,15 @@ Commit : `chore(provider-ids): remove one-shot migration script after applying t
 
 - `test_schema_external_ids_json_column_present_after_init`
 - `test_schema_legacy_id_columns_dropped`
+- `test_schema_canonical_provider_check_constraint_allows_tvdb_and_tmdb`
+- `test_schema_canonical_provider_check_constraint_rejects_invalid_value`
 - `test_external_ids_pydantic_model_serializes_round_trip`
 - `test_ratings_pydantic_model_serializes_round_trip`
 - `test_query_by_tmdb_id_uses_json_extract_correctly`
 - `test_field_spec_tmdb_id_returns_json_path`
 - `test_existing_recommender_query_via_imdb_id_still_works_post_refactor` (integration)
 - `test_scanner_persists_external_ids_json_on_new_item`
+- `test_db_backup_restorable` (vérifie que le backup 7.2 est intègre)
 
 ## Acceptance criteria
 
@@ -97,10 +125,11 @@ Commit : `chore(provider-ids): remove one-shot migration script after applying t
 
 **OBLIGATOIRE** (memory `feedback_no_backcompat_before_v1`) :
 
-- Modif `.data/library.db` réelle de cette instance via le script 7.2 dans le même PR.
+- **Plan A (préféré)** : `rm .data/library.db` puis `personalscraper library-index --full` + `personalscraper process` sur tous les shows. Aucun script à écrire.
+- **Plan B (fallback)** : script SQL 7.2b exécuté directement sur `.data/library.db`. Commit du script puis suppression en 7.6.
 - Validation : `sqlite3 .data/library.db .schema media_item` doit montrer les nouvelles colonnes et plus les legacy.
-- Le script one-shot supprimé en 7.6 — pas conservé.
+- Backup 7.2 conservé jusqu'à validation complète post-phase.
 
 ## DESIGN reference
 
-§6.5 (indexer/), §8 (Migration locale), §3 décision Q3.
+§6.5 (indexer/), §8 (Migration locale — Plan A reset+rescrape, Plan B SQL one-shot), §3 décision Q3.
