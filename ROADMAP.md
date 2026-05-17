@@ -78,6 +78,35 @@ No event/signal system exists today. The pipeline runs as a linear sequence with
 - Runtime provider hot-swap.
 - Provider health scoring beyond the existing circuit breaker.
 
+### P1 — Multi-Provider IDs Propagation (provider-ids)
+
+Le scraper TV n'écrit aucun `<uniqueid>` épisode pour la majorité des shows (root cause tracée pendant le pipeline-monitor 2026-05-17-09h24 : `_tvdb_fetch` / `_tmdb_fetch` jettent les IDs côté fetcher, `match_episode_files` ne propage rien, `_generate_episode_nfos` hardcode des `""`, et `verify_tvshow_scrape_drift` check #4 ne valide que l'existence du sibling NFO sans regarder son contenu). Conséquence : `scrape_fast_skip` se perpétue indéfiniment et les IDs ne seront jamais écrits sans intervention.
+
+**Bloqué par cette feature** : indexer backfill ID-aware, recherches tracker par IMDB ID, déduplication cross-disque par ID stable, future fédération de providers (SensCritique, AllocineFR).
+
+**Goals**
+
+- Trois familles d'IDs **séparées** par scraper : TVDB, TMDB, IMDB — pour la série et pour chaque épisode. Aucune cross-contamination (`<uniqueid type="tvdb">` contient un VRAI ID TVDB).
+- Hiérarchie de scrape : TVDB primaire, TMDB additionnel **info seulement** (cross-ref, pas de re-scrape si TVDB OK), TMDB fallback si TVDB échoue, IMDB toujours collecté pour usages externes.
+- Chaque étape du pipeline (sort / clean / scrape / verify / dispatch / indexer) peut **reprendre / créer / corriger** les IDs manquants d'une famille **sans écraser** la famille déjà présente (idempotence par famille).
+- Drift validator renforcé : exiger au moins un `<uniqueid>` canonique sur les sibling NFOs épisode.
+- Mode `indexer --backfill-ids` pour enrichir les NFOs et la DB existants sans destruction.
+- Migration non-destructive des 6 shows actuellement en staging avec NFOs sans uniqueid (re-scrape déclenché par le drift renforcé).
+
+**Non-goals**
+
+- Provider SensCritique / AllocineFR (autre roadmap item).
+- Configuration utilisateur de la priorité des familles (hiérarchie figée TVDB→TMDB→IMDB).
+- Sync bi-directionnel temps réel avec les providers.
+
+**In progress** (feat/provider-ids, version 0.15.0):
+
+- Codename: `provider-ids`
+- SemVer bump: minor (Y+1)
+- Design: `docs/features/provider-ids/DESIGN.md`
+- Plan: `docs/features/provider-ids/plan/INDEX.md` (à générer par `/implement:plan`)
+- Activated on: 2026-05-17
+
 ### P1 — Library / Indexer Consolidation
 
 Two scanner subsystems coexist: `library/scanner.py` (726 LOC) and `indexer/scanner/` (4000+ LOC). The library scanner walks disks and writes results to the indexer DB — duplicating walk logic that the indexer scanner already has. The `library/` module totals 4565 LOC with significant overlap against `indexer/` (scanner, analyzer vs enrich mode, validator vs verify, cleaner vs dedup).
