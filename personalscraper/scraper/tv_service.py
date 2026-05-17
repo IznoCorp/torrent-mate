@@ -883,11 +883,18 @@ class TvServiceMixin:
                 self._download_episode_thumb(still_path, thumb_path, season, episode)
                 continue
 
+            # Propagate per-episode provider IDs originated by
+            # ``_build_episode_map`` and surfaced via
+            # ``match_episode_files`` (DEV #2 root cause). Empty values are
+            # mapped to ``""`` so the NFO generator's own
+            # "omit on blank" logic keeps producing well-formed XML when
+            # an upstream provider had nothing to surface.
             episode_data = {
                 "name": api_title,
                 "showtitle": show_title,
-                "id": "",
-                "tvdb_id": "",
+                "id": info.get("tmdb_episode_id", ""),
+                "tvdb_id": info.get("tvdb_episode_id", ""),
+                "imdb_id": info.get("imdb_episode_id", ""),
                 "season_number": season,
                 "episode_number": episode,
                 "overview": "",
