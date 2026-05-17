@@ -13,6 +13,8 @@ expected method name.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from personalscraper.api._contracts import HasName, MediaType
@@ -37,6 +39,14 @@ from personalscraper.api.metadata._contracts import (
     Searchable,
     TvDetailsProvider,
     VideoProvider,
+)
+from personalscraper.api.torrent._base import TorrentItem
+from personalscraper.api.torrent._contracts import (
+    AuthenticatedClient,
+    TorrentController,
+    TorrentInspector,
+    TorrentLister,
+    TorrentStateInspector,
 )
 from personalscraper.api.tracker._base import TrackerResult
 from personalscraper.api.tracker._contracts import (
@@ -257,5 +267,100 @@ def test_tracker_capability_protocols_runtime_checkable(
     stub_cls: type,
 ) -> None:
     """Each tracker capability accepts its stub and rejects an empty object."""
+    assert isinstance(stub_cls(), protocol)
+    assert not isinstance(_BareProvider(), protocol)
+
+
+# -- Sub-phase 1.4 — Torrent capability stubs ---------------------------------
+
+
+class _TorrentListerStub:
+    """Stub exposing ``get_completed`` + ``get_all_hashes``."""
+
+    def get_completed(self) -> list[TorrentItem]:
+        return []
+
+    def get_all_hashes(self) -> set[str]:
+        return set()
+
+
+class _TorrentInspectorStub:
+    """Stub exposing only ``get_content_path``."""
+
+    def get_content_path(self, torrent: TorrentItem) -> Path:
+        return Path("/tmp")
+
+
+class _AuthenticatedClientStub:
+    """Stub exposing only ``login``."""
+
+    def login(self) -> None:
+        return None
+
+
+class _TorrentStateInspectorStub:
+    """Stub exposing only ``is_seeding``."""
+
+    def is_seeding(self, torrent: TorrentItem) -> bool:
+        return False
+
+
+class _TorrentControllerStub:
+    """Stub exposing the three write actions (``pause`` / ``resume`` / ``delete``)."""
+
+    def pause(self, hash: str) -> None:
+        return None
+
+    def resume(self, hash: str) -> None:
+        return None
+
+    def delete(self, hash: str, *, delete_files: bool = False) -> None:
+        return None
+
+
+def test_torrent_lister_requires_both_methods() -> None:
+    """``TorrentLister`` rejects a stub that only declares one of the two methods.
+
+    The capability bundles ``get_completed`` and ``get_all_hashes``
+    because every realistic implementation supports them together
+    (DESIGN §4). A class with only one of the two MUST NOT pass the
+    isinstance check.
+    """
+
+    class _PartialLister:
+        def get_completed(self) -> list[TorrentItem]:
+            return []
+
+    assert not isinstance(_PartialLister(), TorrentLister)
+
+
+def test_torrent_controller_requires_all_three_methods() -> None:
+    """``TorrentController`` rejects a stub missing any of pause/resume/delete."""
+
+    class _PartialController:
+        def pause(self, hash: str) -> None:
+            return None
+
+        def resume(self, hash: str) -> None:
+            return None
+
+    assert not isinstance(_PartialController(), TorrentController)
+
+
+@pytest.mark.parametrize(
+    "protocol, stub_cls",
+    [
+        (TorrentLister, _TorrentListerStub),
+        (TorrentInspector, _TorrentInspectorStub),
+        (AuthenticatedClient, _AuthenticatedClientStub),
+        (TorrentStateInspector, _TorrentStateInspectorStub),
+        (TorrentController, _TorrentControllerStub),
+    ],
+)
+def test_torrent_capability_protocols_runtime_checkable(
+    protocol: type,
+    stub_cls: type,
+) -> None:
+    """Each torrent capability accepts its stub and rejects an empty object."""
     assert isinstance(stub_cls(), protocol)
     assert not isinstance(_BareProvider(), protocol)
